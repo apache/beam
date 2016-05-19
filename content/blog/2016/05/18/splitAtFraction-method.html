@@ -6,14 +6,14 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Dataflow Python SDK is now public!</title>
-  <meta name="description" content="When the Apache Beam project proposed entry into the Apache Incubator the proposalincluded the Dataflow Java SDK. In the long term, however, Apache Beam aims...">
+  <title>Dynamic work rebalancing for Beam</title>
+  <meta name="description" content="This morning, Eugene and Malo from the Google Cloud Dataflow team posted No shard left behind: dynamic work rebalancing in Google Cloud Dataflow. This articl...">
 
   <link rel="stylesheet" href="/styles/site.css">
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html">
+  <link rel="canonical" href="http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -98,24 +98,19 @@
 <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
   <header class="post-header">
-    <h1 class="post-title" itemprop="name headline">Dataflow Python SDK is now public!</h1>
-    <p class="post-meta"><time datetime="2016-02-25T13:00:00-08:00" itemprop="datePublished">Feb 25, 2016</time> •  James Malone [<a href="https://twitter.com/chimerasaurus">@chimerasaurus</a>]
+    <h1 class="post-title" itemprop="name headline">Dynamic work rebalancing for Beam</h1>
+    <p class="post-meta"><time datetime="2016-05-18T11:00:00-07:00" itemprop="datePublished">May 18, 2016</time> •  Dan Halperin 
 </p>
   </header>
 
   <div class="post-content" itemprop="articleBody">
-    <p>When the Apache Beam project proposed entry into the <a href="http://wiki.apache.org/incubator/BeamProposal">Apache Incubator</a> the proposal
-included the <a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK">Dataflow Java SDK</a>. In the long term, however, Apache Beam aims to support SDKs implemented in multiple languages, such as Python.</p>
+    <p>This morning, Eugene and Malo from the Google Cloud Dataflow team posted <a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow"><em>No shard left behind: dynamic work rebalancing in Google Cloud Dataflow</em></a>. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.</p>
 
 <!--more-->
 
-<p>Today, Google submitted the <a href="http://github.com/GoogleCloudPlatform/DataflowPythonSDK">Dataflow Python (2.x) SDK</a> on GitHub. Google is committed to including the in progress python SDK in Apache Beam and, in that spirit, we’ve moved development of the Python SDK to a public repository. While this SDK will not be included with the initial (incubating) releases of Apache Beam, our we plan on incorporating the Python SDK into beam during incubation. We want to take the time to implement changes from the <a href="https://goo.gl/nk5OM0">technical vision</a> into the Java SDK before we introduce a Python SDK for Apache Beam. We believe this will allow us to work on the model and SDKs in an ordered fashion.</p>
+<p>In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.</p>
 
-<p>You can look for the Apache Beam Python SDK in the coming months once we finish forking and refactoring the Java SDK.</p>
-
-<p>Best,</p>
-
-<p>Apache Beam Team</p>
+<p>What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using <em>runner-specific</em> control logic on top of Beam’s <em>runner-independent</em> <a href="https://github.com/apache/incubator-beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java"><code class="highlighter-rouge">BoundedSource API</code></a>. Specifically, to steal work from a straggler, a runner need only call the reader’s <a href="https://github.com/apache/incubator-beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266"><code class="highlighter-rouge">splitAtFraction method</code></a>. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.</p>
 
   </div>
 

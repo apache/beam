@@ -6,9 +6,28 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 05 May 2016 23:15:35 +0200</pubDate>
-    <lastBuildDate>Thu, 05 May 2016 23:15:35 +0200</lastBuildDate>
+    <pubDate>Wed, 18 May 2016 20:55:36 -0700</pubDate>
+    <lastBuildDate>Wed, 18 May 2016 20:55:36 -0700</lastBuildDate>
     <generator>Jekyll v3.1.3</generator>
+    
+      <item>
+        <title>Dynamic work rebalancing for Beam</title>
+        <description>&lt;p&gt;This morning, Eugene and Malo from the Google Cloud Dataflow team posted &lt;a href=&quot;https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow&quot;&gt;&lt;em&gt;No shard left behind: dynamic work rebalancing in Google Cloud Dataflow&lt;/em&gt;&lt;/a&gt;. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.&lt;/p&gt;
+
+&lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 18 May 2016 11:00:00 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
     
       <item>
         <title>Apache Beam Presentation Materials</title>
@@ -34,7 +53,7 @@
 
 &lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;&amp;#109;&amp;#097;&amp;#105;&amp;#108;&amp;#116;&amp;#111;:&amp;#117;&amp;#115;&amp;#101;&amp;#114;&amp;#064;&amp;#098;&amp;#101;&amp;#097;&amp;#109;&amp;#046;&amp;#105;&amp;#110;&amp;#099;&amp;#117;&amp;#098;&amp;#097;&amp;#116;&amp;#111;&amp;#114;&amp;#046;&amp;#097;&amp;#112;&amp;#097;&amp;#099;&amp;#104;&amp;#101;&amp;#046;&amp;#111;&amp;#114;&amp;#103;&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
 </description>
-        <pubDate>Sun, 03 Apr 2016 20:00:00 +0200</pubDate>
+        <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
         <link>http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
         <guid isPermaLink="true">http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
         
@@ -831,7 +850,7 @@
 &lt;/div&gt;
 
 </description>
-        <pubDate>Thu, 17 Mar 2016 19:00:00 +0100</pubDate>
+        <pubDate>Thu, 17 Mar 2016 11:00:00 -0700</pubDate>
         <link>http://beam.incubator.apache.org/beam/capability/2016/03/17/capability-matrix.html</link>
         <guid isPermaLink="true">http://beam.incubator.apache.org/beam/capability/2016/03/17/capability-matrix.html</guid>
         
@@ -857,7 +876,7 @@ included the &lt;a href=&quot;https://github.com/GoogleCloudPlatform/DataflowJav
 
 &lt;p&gt;Apache Beam Team&lt;/p&gt;
 </description>
-        <pubDate>Thu, 25 Feb 2016 22:00:00 +0100</pubDate>
+        <pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate>
         <link>http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</link>
         <guid isPermaLink="true">http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</guid>
         
@@ -891,7 +910,7 @@ will also make various permutations and resolutions of this logo available in th
 coming weeks. For any questions or comments, send an email to the &lt;code class=&quot;highlighter-rouge&quot;&gt;dev@&lt;/code&gt; email list
 for Apache Beam.&lt;/p&gt;
 </description>
-        <pubDate>Mon, 22 Feb 2016 19:21:48 +0100</pubDate>
+        <pubDate>Mon, 22 Feb 2016 10:21:48 -0800</pubDate>
         <link>http://beam.incubator.apache.org/beam/update/website/2016/02/22/beam-has-a-logo.html</link>
         <guid isPermaLink="true">http://beam.incubator.apache.org/beam/update/website/2016/02/22/beam-has-a-logo.html</guid>
         
