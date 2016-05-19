@@ -315,7 +315,10 @@ class WorkerOptions(PipelineOptions):
     parser.add_argument(
         '--worker_harness_container_image',
         default=None,
-        help='Docker image to use for the worker harness.')
+        help=('Docker registry location of container image to use for the '
+              'worker harness. Default is the container for the version of the '
+              'SDK. Note: currently, only approved Google Cloud Dataflow '
+              'container images may be used here.'))
     parser.add_argument(
         '--teardown_policy',
         choices=['TEARDOWN_ALWAYS', 'TEARDOWN_NEVER', 'TEARDOWN_ON_SUCCESS'],

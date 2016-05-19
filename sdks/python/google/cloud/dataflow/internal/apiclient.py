@@ -239,6 +239,11 @@ class Environment(object):
     if self.worker_options.worker_harness_container_image:
       pool.workerHarnessContainerImage = (
           self.worker_options.worker_harness_container_image)
+    else:
+      # Default to using the worker harness container image for the current SDK
+      # version.
+      pool.workerHarnessContainerImage = (
+          'dataflow.gcr.io/v1beta3/python:%s' % version.__version__)
     if self.worker_options.teardown_policy:
       if self.worker_options.teardown_policy == 'TEARDOWN_NEVER':
         pool.teardownPolicy = (
