@@ -351,6 +351,7 @@ class ProxyInvocationHandler implements InvocationHandler {
           }
 
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
+          value = value == null ? "" : value;
           DisplayData.Type type = DisplayData.inferType(value);
           if (type != null) {
             builder.add(DisplayData.item(jsonOption.getKey(), type, value)
@@ -588,7 +589,8 @@ class ProxyInvocationHandler implements InvocationHandler {
         jgen.writeObject(serializableOptions);
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
-        for (DisplayData.Item<?> item : DisplayData.from(value).items()) {
+        DisplayData displayData = DisplayData.from(value);
+        for (DisplayData.Item<?> item : displayData.items()) {
           @SuppressWarnings("unchecked")
           Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
           serializedDisplayData.add(serializedItem);
