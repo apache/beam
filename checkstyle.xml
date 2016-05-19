@@ -130,7 +130,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="com.google.api.client.repackaged"/>
+      <property name="illegalPkgs" value="com.google.api.client.repackaged, org.apache.beam"/>
     </module>
 
     <module name="UnusedImports">
