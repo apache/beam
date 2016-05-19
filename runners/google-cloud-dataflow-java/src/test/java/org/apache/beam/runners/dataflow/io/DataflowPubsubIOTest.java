@@ -42,21 +42,22 @@ public class DataflowPubsubIOTest {
   @Test
   public void testPrimitiveWriteDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PubsubIO.Write.Bound<?> write = PubsubIO.Write
-        .topic("projects/project/topics/topic");
+    PubsubIO.Write.Bound<?> write = PubsubIO.Write.topic("projects/project/topics/topic");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("PubsubIO.Write should include the topic in its primitive display data",
-        displayData, hasItem(hasDisplayItem("topic")));
+               displayData, hasItem(hasDisplayItem("topic")));
   }
 
   @Test
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PubsubIO.Read.Bound<String> read = PubsubIO.Read.topic("projects/project/topics/topic");
+    PubsubIO.Read.Bound<String> read =
+        PubsubIO.Read.subscription("projects/project/subscriptions/subscription")
+                     .maxNumRecords(1);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
-    assertThat("PubsubIO.Read should include the topic in its primitive display data",
-        displayData, hasItem(hasDisplayItem("topic")));
+    assertThat("PubsubIO.Read should include the subscription in its primitive display data",
+               displayData, hasItem(hasDisplayItem("subscription")));
   }
 }

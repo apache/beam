@@ -46,10 +46,9 @@ public class PubsubTestClient extends PubsubClient {
    * Mimic the state of the simulated Pubsub 'service'.
    *
    * Note that the {@link PubsubTestClientFactory} is serialized/deserialized even when running
-   * test
-   * pipelines. Meanwhile it is valid for multiple {@link PubsubTestClient}s to be created from
-   * the same client factory and run in parallel. Thus we can't enforce aliasing of the following
-   * data structures over all clients and must resort to a static.
+   * test pipelines. Meanwhile it is valid for multiple {@link PubsubTestClient}s to be created
+   * from the same client factory and run in parallel. Thus we can't enforce aliasing of the
+   * following data structures over all clients and must resort to a static.
    */
   private static class State {
     /**
@@ -68,6 +67,13 @@ public class PubsubTestClient extends PubsubClient {
      */
     @Nullable
     Set<OutgoingMessage> remainingExpectedOutgoingMessages;
+
+    /**
+     * Publish mode only: Messages which should throw when first sent to simulate transient publish
+     * failure.
+     */
+    @Nullable
+    Set<OutgoingMessage> remainingFailingOutgoingMessages;
 
     /**
      * Pull mode only: Clock from which to get current time.
@@ -119,11 +125,13 @@ public class PubsubTestClient extends PubsubClient {
    */
   public static PubsubTestClientFactory createFactoryForPublish(
       final TopicPath expectedTopic,
-      final Iterable<OutgoingMessage> expectedOutgoingMessages) {
+      final Iterable<OutgoingMessage> expectedOutgoingMessages,
+      final Iterable<OutgoingMessage> failingOutgoingMessages) {
     synchronized (STATE) {
       checkState(!STATE.isActive, "Test still in flight");
       STATE.expectedTopic = expectedTopic;
       STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
+      STATE.remainingFailingOutgoingMessages = Sets.newHashSet(failingOutgoingMessages);
       STATE.isActive = true;
     }
     return new PubsubTestClientFactory() {
@@ -257,6 +265,9 @@ public class PubsubTestClient extends PubsubClient {
       checkState(topic.equals(STATE.expectedTopic), "Topic %s does not match expected %s", topic,
                  STATE.expectedTopic);
       for (OutgoingMessage outgoingMessage : outgoingMessages) {
+        if (STATE.remainingFailingOutgoingMessages.remove(outgoingMessage)) {
+          throw new RuntimeException("Simulating failure for " + outgoingMessage);
+        }
         checkState(STATE.remainingExpectedOutgoingMessages.remove(outgoingMessage),
                    "Unexpected outgoing message %s", outgoingMessage);
       }

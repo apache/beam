@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -42,13 +43,16 @@ import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.PubsubClient;
+import org.apache.beam.sdk.util.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
+import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.api.client.util.Clock;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -102,9 +106,16 @@ import javax.annotation.Nullable;
  * are blocking. We rely on the underlying runner to allow multiple
  * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
+ *
+ * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow service.
  */
 public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
+
+  /**
+   * Default ACK timeout for created subscriptions.
+   */
+  private static final int DEAULT_ACK_TIMEOUT_SEC = 60;
 
   /**
    * Coder for checkpoints.
@@ -292,6 +303,17 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     /**
+     * Return current time according to {@code reader}.
+     */
+    private static long now(PubsubReader reader) {
+      if (reader.outer.outer.clock == null) {
+        return System.currentTimeMillis();
+      } else {
+        return reader.outer.outer.clock.currentTimeMillis();
+      }
+    }
+
+    /**
      * BLOCKING
      * NACK all messages which have been read from Pubsub but not passed downstream.
      * This way Pubsub will send them again promptly.
@@ -303,13 +325,13 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       for (String ackId : notYetReadIds) {
         batchYetToAckIds.add(ackId);
         if (batchYetToAckIds.size() >= ACK_BATCH_SIZE) {
-          long nowMsSinceEpoch = reader.outer.outer.clock.currentTimeMillis();
+          long nowMsSinceEpoch = now(reader);
           reader.nackBatch(nowMsSinceEpoch, batchYetToAckIds);
           batchYetToAckIds.clear();
         }
       }
       if (!batchYetToAckIds.isEmpty()) {
-        long nowMsSinceEpoch = reader.outer.outer.clock.currentTimeMillis();
+        long nowMsSinceEpoch = now(reader);
         reader.nackBatch(nowMsSinceEpoch, batchYetToAckIds);
       }
     }
@@ -614,7 +636,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Return the current time, in ms since epoch.
      */
     private long now() {
-      return outer.outer.clock.currentTimeMillis();
+      if (outer.outer.clock == null) {
+        return System.currentTimeMillis();
+      } else {
+        return outer.outer.clock.currentTimeMillis();
+      }
     }
 
     /**
@@ -928,7 +954,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.recordId;
+      return current.recordId.getBytes(Charsets.UTF_8);
     }
 
     @Override
@@ -1124,8 +1150,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   // ================================================================================
 
   /**
-   * Clock to use for all timekeeping.
+   * For testing only: Clock to use for all timekeeping. If {@literal null} use system clock.
    */
+  @Nullable
   private Clock clock;
 
   /**
@@ -1134,9 +1161,28 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   private final PubsubClientFactory pubsubFactory;
 
   /**
-   * Subscription to read from.
+   * Project under which to create a subscription if only the {@link #topic} was given.
    */
-  private final SubscriptionPath subscription;
+  @Nullable
+  private final ProjectPath project;
+
+  /**
+   * Topic to read from. If {@literal null}, then {@link #subscription} must be given.
+   * Otherwise {@link #subscription} must be null.
+   */
+  @Nullable
+  private final TopicPath topic;
+
+  /**
+   * Subscription to read from. If {@literal null} then {@link #topic} must be given.
+   * Otherwise {@link #topic} must be null.
+   *
+   * <p>If no subscription is given a random one will be created when the transorm is
+   * applied. This field will be update with that subscription's path. The created
+   * subscription is never deleted.
+   */
+  @Nullable
+  private SubscriptionPath subscription;
 
   /**
    * Coder for elements. Elements are effectively double-encoded: first to a byte array
@@ -1159,25 +1205,60 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   @Nullable
   private final String idLabel;
 
-  /**
-   * Construct an unbounded source to consume from the Pubsub {@code subscription}.
-   */
-  public PubsubUnboundedSource(
+  @VisibleForTesting
+  PubsubUnboundedSource(
       Clock clock,
       PubsubClientFactory pubsubFactory,
-      SubscriptionPath subscription,
+      @Nullable ProjectPath project,
+      @Nullable TopicPath topic,
+      @Nullable SubscriptionPath subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
       @Nullable String idLabel) {
+    checkArgument((topic == null) != (subscription == null),
+                  "Exactly one of topic and subscription must be given");
+    checkArgument((topic == null) == (project == null),
+                  "Project must be given if topic is given");
     this.clock = clock;
     this.pubsubFactory = checkNotNull(pubsubFactory);
-    this.subscription = checkNotNull(subscription);
+    this.project = project;
+    this.topic = topic;
+    this.subscription = subscription;
     this.elementCoder = checkNotNull(elementCoder);
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
   }
 
-  public PubsubClient.SubscriptionPath getSubscription() {
+  /**
+   * Construct an unbounded source to consume from the Pubsub {@code subscription}.
+   */
+  public PubsubUnboundedSource(
+      PubsubClientFactory pubsubFactory,
+      @Nullable ProjectPath project,
+      @Nullable TopicPath topic,
+      @Nullable SubscriptionPath subscription,
+      Coder<T> elementCoder,
+      @Nullable String timestampLabel,
+      @Nullable String idLabel) {
+    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel);
+  }
+
+  public Coder<T> getElementCoder() {
+    return elementCoder;
+  }
+
+  @Nullable
+  public ProjectPath getProject() {
+    return project;
+  }
+
+  @Nullable
+  public TopicPath getTopic() {
+    return topic;
+  }
+
+  @Nullable
+  public SubscriptionPath getSubscription() {
     return subscription;
   }
 
@@ -1191,12 +1272,26 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     return idLabel;
   }
 
-  public Coder<T> getElementCoder() {
-    return elementCoder;
-  }
-
   @Override
   public PCollection<T> apply(PBegin input) {
+    if (subscription == null) {
+      try {
+        try (PubsubClient pubsubClient =
+                 pubsubFactory.newClient(timestampLabel, idLabel,
+                                         input.getPipeline()
+                                              .getOptions()
+                                              .as(PubsubOptions.class))) {
+          subscription =
+              pubsubClient.createRandomSubscription(project, topic, DEAULT_ACK_TIMEOUT_SEC);
+          LOG.warn("Created subscription {} to topic {}."
+                   + " Note this subscription WILL NOT be deleted when the pipeline terminates",
+                   subscription, topic);
+        }
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to create subscription: ", e);
+      }
+    }
+
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply(ParDo.named("PubsubUnboundedSource.Stats")
