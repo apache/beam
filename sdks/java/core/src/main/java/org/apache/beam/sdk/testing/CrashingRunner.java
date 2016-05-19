@@ -39,9 +39,9 @@ class CrashingRunner extends PipelineRunner<PipelineResult>{
   @Override
   public PipelineResult run(Pipeline pipeline) {
     throw new IllegalArgumentException(String.format("Cannot call #run(Pipeline) on an instance "
-            + "of %s. %s should only be used as the default to construct a Transform Hierarchy "
+            + "of %s. %s should only be used as the default to construct a Pipeline "
             + "using %s, and cannot execute Pipelines. Instead, specify a %s "
-            + "by providing Pipeline Options in the environment variable '%s'.",
+            + "by providing PipelineOptions in the environment variable '%s'.",
         getClass().getSimpleName(),
         getClass().getSimpleName(),
         TestPipeline.class.getSimpleName(),
@@ -52,13 +52,13 @@ class CrashingRunner extends PipelineRunner<PipelineResult>{
   private static class TestPipelineResult implements PipelineResult {
     private TestPipelineResult() {
       // Should never be instantiated by the enclosing class
-      throw new AssertionError(String.format("Forbidden to instantiate %s",
+      throw new UnsupportedOperationException(String.format("Forbidden to instantiate %s",
           getClass().getSimpleName()));
     }
 
     @Override
     public State getState() {
-      throw new AssertionError(String.format("Forbidden to instantiate %s",
+      throw new UnsupportedOperationException(String.format("Forbidden to instantiate %s",
           getClass().getSimpleName()));
     }
 

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.transforms.Create;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -143,11 +144,14 @@ public class TestPipelineTest {
 
   @Test
   public void testRunWithDummyEnvironmentVariableFails() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Cannot call #run");
     System.getProperties()
         .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
-    TestPipeline.create().run();
+    TestPipeline pipeline = TestPipeline.create();
+    pipeline.apply(Create.of(1, 2, 3));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot call #run");
+    pipeline.run();
   }
 
   /**
