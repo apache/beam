@@ -47,10 +47,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link GroupByKeyEvaluatorFactory}.
+ * Tests for {@link InProcessGroupByKeyOnlyEvaluatorFactory}.
  */
 @RunWith(JUnit4.class)
-public class GroupByKeyEvaluatorFactoryTest {
+public class InProcessGroupByKeyOnlyEvaluatorFactoryTest {
   private BundleFactory bundleFactory = InProcessBundleFactory.create();
 
   @Test
