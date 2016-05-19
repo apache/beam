@@ -2409,8 +2409,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     private <T> void translateTyped(
         StreamingPubsubIORead<T> transform,
         TranslationContext context) {
-      Preconditions.checkState(context.getPipelineOptions().isStreaming(),
-                               "StreamingPubsubIORead is only for streaming pipelines.");
+      checkArgument(context.getPipelineOptions().isStreaming(),
+                    "StreamingPubsubIORead is only for streaming pipelines.");
       PubsubUnboundedSource<T> overriddenTransform = transform.getOverriddenTransform();
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
@@ -2486,8 +2486,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     private <T> void translateTyped(
         StreamingPubsubIOWrite<T> transform,
         TranslationContext context) {
-      Preconditions.checkState(context.getPipelineOptions().isStreaming(),
-                               "StreamingPubsubIOWrite is only for streaming pipelines.");
+      checkArgument(context.getPipelineOptions().isStreaming(),
+                    "StreamingPubsubIOWrite is only for streaming pipelines.");
       PubsubUnboundedSink<T> overriddenTransform = transform.getOverriddenTransform();
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
