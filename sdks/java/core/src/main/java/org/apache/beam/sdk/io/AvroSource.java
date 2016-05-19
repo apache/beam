@@ -487,10 +487,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     // Precondition: the stream is positioned after the sync marker in the current (about to be
-    // previous) block. currentBlockSize equals the size of the current (previous) block, or zero
-    // if this reader was just started.
+    // previous) block. currentBlockSize equals the size of the current block, or zero if this
+    // reader was just started.
     //
-    // Postcondition: same as above, but for the current (formerly next) block.
+    // Postcondition: same as above, but for the new current (formerly next) block.
     @Override
     public boolean readNextBlock() throws IOException {
       // Before reading the variable-sized block header, record the current number of bytes read.
