@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@link Source} that reads a finite amount of input and, because of that, supports
  * some additional operations.
@@ -131,6 +133,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      * methods (including itself), and it is therefore critical for it to be implemented
      * in a thread-safe way.
      */
+    @Nullable
     public Double getFractionConsumed() {
       return null;
     }
@@ -365,6 +368,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>By default, returns null to indicate that splitting is not possible.
      */
+    @Nullable
     public BoundedSource<T> splitAtFraction(double fraction) {
       return null;
     }

@@ -206,6 +206,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     }
 
     @Override
+    @Nullable
     public Double getFractionConsumed() {
       if (!isStarted()) {
         return 0.0;
@@ -215,6 +216,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
       }
       FileBasedSource<T> source = getCurrentSource();
       if (source.getEndOffset() == Long.MAX_VALUE) {
+        // Unknown end offset, so we cannot tell.
         return null;
       }
 
