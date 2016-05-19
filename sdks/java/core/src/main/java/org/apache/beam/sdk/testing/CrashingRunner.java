@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.Aggregator;
  * A {@link PipelineRunner} that applies no overrides and throws an exception on calls to
  * {@link Pipeline#run()}. For use in {@link TestPipeline} to construct but not execute pipelines.
  */
-class CrashingRunner extends PipelineRunner<PipelineResult>{
+public class CrashingRunner extends PipelineRunner<PipelineResult>{
 
   public static CrashingRunner fromOptions(PipelineOptions opts) {
     return new CrashingRunner();
