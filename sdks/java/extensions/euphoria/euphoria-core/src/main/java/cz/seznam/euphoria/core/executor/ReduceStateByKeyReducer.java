@@ -106,6 +106,11 @@ class ReduceStateByKeyReducer implements Runnable {
     final CombinableReduceFunction stateCombiner;
     final boolean aggregating;
 
+    // do we have bounded input?
+    // if so, do not register windows for trigerring, just trigger
+    // windows at the end of input
+    private final boolean isBounded;
+
     // ~ are we still actively processing input?
     private boolean active = true;
 
@@ -115,7 +120,8 @@ class ReduceStateByKeyReducer implements Runnable {
         UnaryFunction<Window, Void> evictFn,
         BinaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
-        boolean aggregating) {
+        boolean aggregating,
+        boolean isBounded) {
       
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
@@ -124,6 +130,7 @@ class ReduceStateByKeyReducer implements Runnable {
       this.stateFactory = requireNonNull(stateFactory);
       this.stateCombiner = requireNonNull(stateCombiner);
       this.aggregating = aggregating;
+      this.isBounded = isBounded;
     }
 
     // ~ signal eos further down the output channel
@@ -194,8 +201,11 @@ class ReduceStateByKeyReducer implements Runnable {
       Pair<Window, Map<Object, State>> wState =
           wStorage.getWindow(w.getGroup(), w.getLabel());
       if (wState == null) {
-        // ~ give the window a chance to register triggers
-        Window.TriggerState triggerState = w.registerTrigger(triggering, evictFn);
+        Window.TriggerState triggerState = Window.TriggerState.INACTIVE;
+        if (!isBounded) {
+          // ~ give the window a chance to register triggers
+          triggerState = w.registerTrigger(triggering, evictFn);
+        }
         if (triggerState == Window.TriggerState.PASSED) {
           // the window should have been already triggered
           // just discard the element, no other option for now
@@ -274,7 +284,8 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction valueExtractor,
                           BinaryFunction stateFactory,
                           CombinableReduceFunction stateCombiner,
-                          Triggering triggering) {
+                          Triggering triggering,
+                          boolean isBounded) {
     
     this.input = requireNonNull(input);
     this.windowing = requireNonNull(windowing);
@@ -284,7 +295,8 @@ class ReduceStateByKeyReducer implements Runnable {
     this.processing = new ProcessingState(
         output, triggering,
         createEvictTrigger(),
-        stateFactory, stateCombiner, windowing.isAggregating());
+        stateFactory, stateCombiner, windowing.isAggregating(),
+        isBounded);
   }
 
   private UnaryFunction<Window, Void> createEvictTrigger() {
