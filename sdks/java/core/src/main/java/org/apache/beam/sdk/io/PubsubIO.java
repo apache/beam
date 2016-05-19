@@ -633,12 +633,12 @@ public class PubsubIO {
       @Override
       public PCollection<T> apply(PInput input) {
         if (topic == null && subscription == null) {
-          throw new IllegalStateException("need to set either the topic or the subscription for "
+          throw new IllegalStateException("Need to set either the topic or the subscription for "
               + "a PubsubIO.Read transform");
         }
         if (topic != null && subscription != null) {
-          throw new IllegalStateException("Can't set both the topic and the subscription for a "
-              + "PubsubIO.Read transform");
+          throw new IllegalStateException("Can't set both the topic and the subscription for "
+              + "a PubsubIO.Read transform");
         }
 
         boolean boundedOutput = getMaxNumRecords() > 0 || getMaxReadTime() != null;
@@ -722,9 +722,11 @@ public class PubsubIO {
        * of PubsubUnboundedSource.
        *
        * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
-       * service.
+       * service in streaming mode.
+       *
+       * <p>Public so can be suppressed by runners.
        */
-      private class PubsubBoundedReader extends DoFn<Void, T> {
+      public class PubsubBoundedReader extends DoFn<Void, T> {
         private static final int DEFAULT_PULL_SIZE = 100;
         private static final int ACK_TIMEOUT_SEC = 60;
 
@@ -732,7 +734,7 @@ public class PubsubIO {
         public void processElement(ProcessContext c) throws IOException {
           try (PubsubClient pubsubClient =
                    FACTORY.newClient(timestampLabel, idLabel,
-                                     c.getPipelineOptions().as(PubsubOptions.class))) {
+                                     c.getPipelineOptions().as(DataflowPipelineOptions.class))) {
 
             PubsubClient.SubscriptionPath subscriptionPath;
             if (getSubscription() == null) {
@@ -741,7 +743,8 @@ public class PubsubIO {
               // The subscription will be registered under this pipeline's project if we know it.
               // Otherwise we'll fall back to the topic's project.
               // Note that they don't need to be the same.
-              String projectId = c.getPipelineOptions().as(PubsubOptions.class).getProject();
+              String projectId =
+                  c.getPipelineOptions().as(DataflowPipelineOptions.class).getProject();
               if (Strings.isNullOrEmpty(projectId)) {
                 projectId = getTopic().project;
               }
@@ -1025,9 +1028,11 @@ public class PubsubIO {
        * Writer to Pubsub which batches messages from bounded collections.
        *
        * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
-       * service.
+       * service in streaming mode.
+       *
+       * <p>Public so can be suppressed by runners.
        */
-      private class PubsubBoundedWriter extends DoFn<T, Void> {
+      public class PubsubBoundedWriter extends DoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<OutgoingMessage> output;
         private transient PubsubClient pubsubClient;
@@ -1036,8 +1041,9 @@ public class PubsubIO {
         public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
           // NOTE: idLabel is ignored.
-          this.pubsubClient = FACTORY.newClient(timestampLabel, null,
-                                                c.getPipelineOptions().as(PubsubOptions.class));
+          this.pubsubClient =
+              FACTORY.newClient(timestampLabel, null,
+                                c.getPipelineOptions().as(DataflowPipelineOptions.class));
         }
 
         @Override

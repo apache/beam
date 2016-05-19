@@ -1010,10 +1010,6 @@ public class DataflowPipelineTranslator {
     ///////////////////////////////////////////////////////////////////////////
     // IO Translation.
 
-    registerTransformTranslator(
-        PubsubUnboundedSource.class, new PubsubIOTranslator.ReadTranslator());
-    registerTransformTranslator(
-        PubsubUnboundedSink.class, new PubsubIOTranslator.WriteTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
   }
 
