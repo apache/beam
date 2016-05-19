@@ -863,12 +863,16 @@ public class ProxyInvocationHandlerTest {
   }
 
   @Test
-  public void testDisplayDataNullValuesConvertedToEmptyString() {
+  public void testDisplayDataNullValuesConvertedToEmptyString() throws Exception {
     FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
     options.setFoo(null);
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, hasDisplayItem("foo", ""));
+
+    FooOptions deserializedOptions = serializeDeserialize(FooOptions.class, options);
+    DisplayData deserializedData = DisplayData.from(deserializedOptions);
+    assertThat(deserializedData, hasDisplayItem("foo", ""));
   }
 
   @Test

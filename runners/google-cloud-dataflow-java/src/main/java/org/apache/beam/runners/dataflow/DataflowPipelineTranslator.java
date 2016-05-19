@@ -29,7 +29,6 @@ import static org.apache.beam.sdk.util.Structs.addString;
 import static org.apache.beam.sdk.util.Structs.getString;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.internal.ReadTranslator;
@@ -87,8 +86,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -726,18 +723,7 @@ public class DataflowPipelineTranslator {
     }
 
     private void addDisplayData(String stepName, HasDisplayData hasDisplayData) {
-      DisplayData displayData;
-      try {
-        displayData = DisplayData.from(hasDisplayData);
-      } catch (Exception e) {
-        String msg = String.format("Exception thrown while collecting display data for step: %s. "
-            + "Display data will be not be available for this step.", stepName);
-        DisplayDataException displayDataException = new DisplayDataException(msg, e);
-        LOG.warn(msg, displayDataException);
-
-        displayData = displayDataException.asDisplayData();
-      }
-
+      DisplayData displayData = DisplayData.from(hasDisplayData);
       List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
       addList(getProperties(), PropertyNames.DISPLAY_DATA, list);
     }
@@ -1054,40 +1040,6 @@ public class DataflowPipelineTranslator {
       TupleTag<?> tag = entry.getKey();
       PCollection<?> output = entry.getValue();
       context.addOutput(tag.getId(), output);
-    }
-  }
-
-  /**
-   * Wraps exceptions thrown while collecting {@link DisplayData} for the Dataflow pipeline runner.
-   */
-  static class DisplayDataException extends Exception implements HasDisplayData {
-    public DisplayDataException(String message, Throwable cause) {
-      super(checkNotNull(message), checkNotNull(cause));
-    }
-
-    /**
-     * Retrieve a display data representation of the exception, which can be submitted to
-     * the service in place of the actual display data.
-     */
-    public DisplayData asDisplayData() {
-      return DisplayData.from(this);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      Throwable cause = getCause();
-      builder
-        .add(DisplayData.item("exceptionMessage", getMessage()))
-        .add(DisplayData.item("exceptionType", cause.getClass()))
-        .add(DisplayData.item("exceptionCause", cause.getMessage()))
-        .add(DisplayData.item("stackTrace", stackTraceToString()));
-    }
-
-    private String stackTraceToString() {
-      StringWriter stringWriter = new StringWriter();
-      PrintWriter printWriter = new PrintWriter(stringWriter);
-      printStackTrace(printWriter);
-      return stringWriter.toString();
     }
   }
 }
