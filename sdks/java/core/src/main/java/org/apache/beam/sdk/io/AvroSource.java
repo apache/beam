@@ -493,12 +493,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // Postcondition: same as above, but for the current (formerly next) block.
     @Override
     public boolean readNextBlock() throws IOException {
-      // First, we mark the previous block as read by adding the now-previous block size to the
-      // current block offset.
-      synchronized (progressLock) {
-        currentBlockOffset += currentBlockSizeBytes;
-      }
-
       // Before reading the variable-sized block header, record the current number of bytes read.
       long preHeaderCount = countStream.getBytesRead();
       decoder = DecoderFactory.get().directBinaryDecoder(countStream, decoder);
@@ -531,8 +525,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           bytesToReadSyncMarker,
           syncMarker.length);
 
-      // Total block size includes the header, block content, and trailing sync marker.
+      // Atomically update both the position and offset of the new block.
       synchronized (progressLock) {
+        currentBlockOffset += currentBlockSizeBytes;
+        // Total block size includes the header, block content, and trailing sync marker.
         currentBlockSizeBytes = headerSize + blockSize + syncMarker.length;
       }
 
