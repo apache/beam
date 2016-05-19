@@ -172,21 +172,19 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
   public synchronized double getFractionConsumed() {
     if (!isStarted()) {
       return 0.0;
-    }
-    if (isDone()) {
+    } else if (isDone()) {
       return 1.0;
-    }
-    if (stopOffset == OFFSET_INFINITY) {
+    } else if (stopOffset == OFFSET_INFINITY) {
       return 0.0;
-    }
-    if (lastRecordStart >= stopOffset) {
+    } else if (lastRecordStart >= stopOffset) {
       return 1.0;
+    } else {
+      // E.g., when reading [3, 6) and lastRecordStart is 4, that means we consumed 3,4 of 3,4,5
+      // which is (4 - 3 + 1) / (6 - 3) = 67%.
+      // Also, clamp to at most 1.0 because the last consumed position can extend past the
+      // stop position.
+      return Math.min(1.0, 1.0 * (lastRecordStart - startOffset + 1) / (stopOffset - startOffset));
     }
-    // E.g., when reading [3, 6) and lastRecordStart is 4, that means we consumed 3,4 of 3,4,5
-    // which is (4 - 3 + 1) / (6 - 3) = 67%.
-    // Also, clamp to at most 1.0 because the last consumed position can extend past the
-    // stop position.
-    return Math.min(1.0, 1.0 * (lastRecordStart - startOffset + 1) / (stopOffset - startOffset));
   }
 
   /**
@@ -200,7 +198,7 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
    *
    * <p>Note that for correctness when implementing {@link BoundedReader#getParallelismConsumed()},
    * if a reader finishes before {@link #tryReturnRecordAt(boolean, long)} returns false,
-   * the reader should add an additional call to {@link #markDone()} This will indicate that
+   * the reader should add an additional call to {@link #markDone()}. This will indicate that
    * processing for the last seen split point has been finished.
    *
    * @see org.apache.beam.sdk.io.OffsetBasedSource for a {@link BoundedReader}
