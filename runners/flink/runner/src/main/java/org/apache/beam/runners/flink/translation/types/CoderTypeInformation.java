@@ -18,7 +18,8 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 
 import com.google.common.base.Preconditions;
 
@@ -71,9 +72,6 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   @SuppressWarnings("unchecked")
   public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-    if (coder instanceof VoidCoder) {
-      return (TypeSerializer<T>) new VoidCoderTypeSerializer();
-    }
     return new CoderTypeSerializer<>(coder);
   }
 
@@ -84,8 +82,12 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     CoderTypeInformation that = (CoderTypeInformation) o;
 
@@ -113,6 +115,11 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
       executionConfig) {
-    return new CoderComparator<>(coder);
+    WindowedValue.WindowedValueCoder windowCoder = (WindowedValue.WindowedValueCoder) coder;
+    if (windowCoder.getValueCoder() instanceof KvCoder) {
+      return new KvCoderComperator(windowCoder);
+    } else {
+      return new CoderComparator<>(coder);
+    }
   }
 }

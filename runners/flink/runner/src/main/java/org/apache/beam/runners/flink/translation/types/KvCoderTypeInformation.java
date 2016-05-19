@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
 import com.google.common.base.Preconditions;
@@ -31,27 +32,32 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.List;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for
- * Dataflow {@link org.apache.beam.sdk.coders.KvCoder}.
+ * Flink {@link TypeInformation} for {@link KvCoder}. This creates special comparator
+ * for {@link KV} that always compares on the key only.
  */
-public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
+public class KvCoderTypeInformation<K, V> extends CompositeType<WindowedValue<KV<K, V>>> {
 
-  private KvCoder<K, V> coder;
+  private final WindowedValue.WindowedValueCoder<KV<K, V>> coder;
+//  private KvCoder<K, V> coder;
 
   // We don't have the Class, so we have to pass null here. What a shame...
-  private static Object DUMMY = new Object();
+  private static Object dummy = new Object();
 
   @SuppressWarnings("unchecked")
-  public KvCoderTypeInformation(KvCoder<K, V> coder) {
-    super(((Class<KV<K,V>>) DUMMY.getClass()));
+  public KvCoderTypeInformation(WindowedValue.WindowedValueCoder<KV<K, V>> coder) {
+    super((Class) dummy.getClass());
     this.coder = coder;
     Preconditions.checkNotNull(coder);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeComparator<KV<K, V>> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset, ExecutionConfig config) {
-    return new KvCoderComperator((KvCoder) coder);
+  public TypeComparator<WindowedValue<KV<K, V>>> createComparator(
+      int[] logicalKeyFields,
+      boolean[] orders,
+      int logicalFieldOffset,
+      ExecutionConfig config) {
+    return new KvCoderComperator(coder);
   }
 
   @Override
@@ -71,7 +77,7 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public Class<KV<K, V>> getTypeClass() {
+  public Class<WindowedValue<KV<K, V>>> getTypeClass() {
     return privateGetTypeClass();
   }
 
@@ -87,7 +93,7 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeSerializer<KV<K, V>> createSerializer(ExecutionConfig config) {
+  public TypeSerializer<WindowedValue<KV<K, V>>> createSerializer(ExecutionConfig config) {
     return new CoderTypeSerializer<>(coder);
   }
 
@@ -98,8 +104,12 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     KvCoderTypeInformation that = (KvCoderTypeInformation) o;
 
@@ -122,10 +132,11 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
   @Override
   @SuppressWarnings("unchecked")
   public <X> TypeInformation<X> getTypeAt(int pos) {
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
     if (pos == 0) {
-      return (TypeInformation<X>) new CoderTypeInformation<>(coder.getKeyCoder());
+      return (TypeInformation<X>) new CoderTypeInformation<>(kvCoder.getKeyCoder());
     } else if (pos == 1) {
-      return (TypeInformation<X>) new CoderTypeInformation<>(coder.getValueCoder());
+      return (TypeInformation<X>) new CoderTypeInformation<>(kvCoder.getValueCoder());
     } else {
       throw new RuntimeException("Invalid field position " + pos);
     }
@@ -134,11 +145,12 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
   @Override
   @SuppressWarnings("unchecked")
   public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
     switch (fieldExpression) {
       case "key":
-        return (TypeInformation<X>) new CoderTypeInformation<>(coder.getKeyCoder());
+        return (TypeInformation<X>) new CoderTypeInformation<>(kvCoder.getKeyCoder());
       case "value":
-        return (TypeInformation<X>) new CoderTypeInformation<>(coder.getValueCoder());
+        return (TypeInformation<X>) new CoderTypeInformation<>(kvCoder.getValueCoder());
       default:
         throw new UnsupportedOperationException("Only KvCoder has fields.");
     }
@@ -162,17 +174,24 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
   }
 
   @Override
-  public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
-      CoderTypeInformation keyTypeInfo = new CoderTypeInformation<>(coder.getKeyCoder());
+  public void getFlatFields(
+      String fieldExpression,
+      int offset,
+      List<FlatFieldDescriptor> result) {
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
+
+    CoderTypeInformation keyTypeInfo =
+        new CoderTypeInformation<>(kvCoder.getKeyCoder());
       result.add(new FlatFieldDescriptor(0, keyTypeInfo));
   }
 
   @Override
-  protected TypeComparatorBuilder<KV<K, V>> createTypeComparatorBuilder() {
+  protected TypeComparatorBuilder<WindowedValue<KV<K, V>>> createTypeComparatorBuilder() {
     return new KvCoderTypeComparatorBuilder();
   }
 
-  private class KvCoderTypeComparatorBuilder implements TypeComparatorBuilder<KV<K, V>> {
+  private class KvCoderTypeComparatorBuilder
+      implements TypeComparatorBuilder<WindowedValue<KV<K, V>>> {
 
     @Override
     public void initializeTypeComparatorBuilder(int size) {}
@@ -181,7 +200,7 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
     public void addComparatorField(int fieldId, TypeComparator<?> comparator) {}
 
     @Override
-    public TypeComparator<KV<K, V>> createTypeComparator(ExecutionConfig config) {
+    public TypeComparator<WindowedValue<KV<K, V>>> createTypeComparator(ExecutionConfig config) {
       return new KvCoderComperator<>(coder);
     }
   }

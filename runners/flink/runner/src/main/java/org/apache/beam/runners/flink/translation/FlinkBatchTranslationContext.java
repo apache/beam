@@ -18,30 +18,39 @@
 package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
-import org.apache.beam.runners.flink.translation.types.KvCoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TypedPValue;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Helper for {@link FlinkBatchPipelineTranslator} and translators in
+ * {@link FlinkBatchTransformTranslators}.
+ */
 public class FlinkBatchTranslationContext {
   
   private final Map<PValue, DataSet<?>> dataSets;
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
+
+  /**
+   * For keeping track about which DataSets don't have a successor. We
+   * need to terminate these with a discarding sink because the Beam
+   * model allows dangling operations.
+   */
+  private final Map<PValue, DataSet<?>> danglingDataSets;
 
   private final ExecutionEnvironment env;
   private final PipelineOptions options;
@@ -55,10 +64,16 @@ public class FlinkBatchTranslationContext {
     this.options = options;
     this.dataSets = new HashMap<>();
     this.broadcastDataSets = new HashMap<>();
+
+    this.danglingDataSets = new HashMap<>();
   }
   
   // ------------------------------------------------------------------------
-  
+
+  public Map<PValue, DataSet<?>> getDanglingDataSets() {
+    return danglingDataSets;
+  }
+
   public ExecutionEnvironment getExecutionEnvironment() {
     return env;
   }
@@ -68,13 +83,16 @@ public class FlinkBatchTranslationContext {
   }
   
   @SuppressWarnings("unchecked")
-  public <T> DataSet<T> getInputDataSet(PValue value) {
-    return (DataSet<T>) dataSets.get(value);
+  public <T> DataSet<WindowedValue<T>> getInputDataSet(PValue value) {
+    // assume that the DataSet is used as an input if retrieved here
+    danglingDataSets.remove(value);
+    return (DataSet<WindowedValue<T>>) dataSets.get(value);
   }
 
-  public void setOutputDataSet(PValue value, DataSet<?> set) {
+  public <T> void setOutputDataSet(PValue value, DataSet<WindowedValue<T>> set) {
     if (!dataSets.containsKey(value)) {
       dataSets.put(value, set);
+      danglingDataSets.put(value, set);
     }
   }
 
@@ -91,40 +109,32 @@ public class FlinkBatchTranslationContext {
     return (DataSet<T>) broadcastDataSets.get(value);
   }
 
-  public void setSideInputDataSet(PCollectionView<?> value, DataSet<?> set) {
+  public <ViewT, ElemT> void setSideInputDataSet(
+      PCollectionView<ViewT> value,
+      DataSet<WindowedValue<ElemT>> set) {
     if (!broadcastDataSets.containsKey(value)) {
       broadcastDataSets.put(value, set);
     }
   }
-  
+
   @SuppressWarnings("unchecked")
-  public <T> TypeInformation<T> getTypeInfo(PInput output) {
-    if (output instanceof TypedPValue) {
-      Coder<?> outputCoder = ((TypedPValue) output).getCoder();
-      if (outputCoder instanceof KvCoder) {
-        return new KvCoderTypeInformation((KvCoder) outputCoder);
-      } else {
-        return new CoderTypeInformation(outputCoder);
-      }
-    }
-    return new GenericTypeInfo<>((Class<T>)Object.class);
-  }
+  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
+    Coder<T> valueCoder = collection.getCoder();
+    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
+        WindowedValue.getFullCoder(
+            valueCoder,
+            collection.getWindowingStrategy().getWindowFn().windowCoder());
 
-  public <T> TypeInformation<T> getInputTypeInfo() {
-    return getTypeInfo(currentTransform.getInput());
-  }
-
-  public <T> TypeInformation<T> getOutputTypeInfo() {
-    return getTypeInfo((PValue) currentTransform.getOutput());
+    return new CoderTypeInformation<>(windowedValueCoder);
   }
 
   @SuppressWarnings("unchecked")
-  <I extends PInput> I getInput(PTransform<I, ?> transform) {
-    return (I) currentTransform.getInput();
+  <T extends PInput> T getInput(PTransform<T, ?> transform) {
+    return (T) currentTransform.getInput();
   }
 
   @SuppressWarnings("unchecked")
-  <O extends POutput> O getOutput(PTransform<?, O> transform) {
-    return (O) currentTransform.getOutput();
+  <T extends POutput> T getOutput(PTransform<?, T> transform) {
+    return (T) currentTransform.getOutput();
   }
 }

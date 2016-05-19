@@ -20,6 +20,8 @@ package org.apache.beam.runners.flink.translation.types;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -31,14 +33,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 
 /**
- * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
- * {@link org.apache.beam.sdk.coders.KvCoder}. We have a special comparator
+ * Flink {@link TypeComparator} for {@link KvCoder}. We have a special comparator
  * for {@link KV} that always compares on the key only.
  */
-public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
+public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K, V>>> {
   
-  private KvCoder<K, V> coder;
-  private Coder<K> keyCoder;
+  private final WindowedValue.WindowedValueCoder<KV<K, V>> coder;
+  private final Coder<K> keyCoder;
 
   // We use these for internal encoding/decoding for creating copies and comparing
   // serialized forms using a Coder
@@ -52,9 +53,10 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   // For deserializing the key
   private transient DataInputViewWrapper inputWrapper;
 
-  public KvCoderComperator(KvCoder<K, V> coder) {
+  public KvCoderComperator(WindowedValue.WindowedValueCoder<KV<K, V>> coder) {
     this.coder = coder;
-    this.keyCoder = coder.getKeyCoder();
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) coder.getValueCoder();
+    this.keyCoder = kvCoder.getKeyCoder();
 
     buffer1 = new InspectableByteArrayOutputStream();
     buffer2 = new InspectableByteArrayOutputStream();
@@ -74,8 +76,8 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public int hash(KV<K, V> record) {
-    K key = record.getKey();
+  public int hash(WindowedValue<KV<K, V>> record) {
+    K key = record.getValue().getKey();
     if (key != null) {
       return key.hashCode();
     } else {
@@ -84,27 +86,27 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public void setReference(KV<K, V> toCompare) {
+  public void setReference(WindowedValue<KV<K, V>> toCompare) {
     referenceBuffer.reset();
     try {
-      keyCoder.encode(toCompare.getKey(), referenceBuffer, Coder.Context.OUTER);
+      keyCoder.encode(toCompare.getValue().getKey(), referenceBuffer, Coder.Context.OUTER);
     } catch (IOException e) {
       throw new RuntimeException("Could not set reference " + toCompare + ": " + e);
     }
   }
 
   @Override
-  public boolean equalToReference(KV<K, V> candidate) {
+  public boolean equalToReference(WindowedValue<KV<K, V>> candidate) {
     try {
       buffer2.reset();
-      keyCoder.encode(candidate.getKey(), buffer2, Coder.Context.OUTER);
+      keyCoder.encode(candidate.getValue().getKey(), buffer2, Coder.Context.OUTER);
       byte[] arr = referenceBuffer.getBuffer();
       byte[] arrOther = buffer2.getBuffer();
       if (referenceBuffer.size() != buffer2.size()) {
         return false;
       }
       int len = buffer2.size();
-      for(int i = 0; i < len; i++ ) {
+      for (int i = 0; i < len; i++) {
         if (arr[i] != arrOther[i]) {
           return false;
         }
@@ -116,8 +118,9 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public int compareToReference(TypeComparator<KV<K, V>> other) {
-    InspectableByteArrayOutputStream otherReferenceBuffer = ((KvCoderComperator<K, V>) other).referenceBuffer;
+  public int compareToReference(TypeComparator<WindowedValue<KV<K, V>>> other) {
+    InspectableByteArrayOutputStream otherReferenceBuffer =
+        ((KvCoderComperator<K, V>) other).referenceBuffer;
 
     byte[] arr = referenceBuffer.getBuffer();
     byte[] arrOther = otherReferenceBuffer.getBuffer();
@@ -135,19 +138,19 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 
 
   @Override
-  public int compare(KV<K, V> first, KV<K, V> second) {
+  public int compare(WindowedValue<KV<K, V>> first, WindowedValue<KV<K, V>> second) {
     try {
       buffer1.reset();
       buffer2.reset();
-      keyCoder.encode(first.getKey(), buffer1, Coder.Context.OUTER);
-      keyCoder.encode(second.getKey(), buffer2, Coder.Context.OUTER);
+      keyCoder.encode(first.getValue().getKey(), buffer1, Coder.Context.OUTER);
+      keyCoder.encode(second.getValue().getKey(), buffer2, Coder.Context.OUTER);
       byte[] arr = buffer1.getBuffer();
       byte[] arrOther = buffer2.getBuffer();
       if (buffer1.size() != buffer2.size()) {
         return buffer1.size() - buffer2.size();
       }
       int len = buffer1.size();
-      for(int i = 0; i < len; i++ ) {
+      for (int i = 0; i < len; i++) {
         if (arr[i] != arrOther[i]) {
           return arr[i] - arrOther[i];
         }
@@ -159,38 +162,19 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-
+  public int compareSerialized(
+      DataInputView firstSource,
+      DataInputView secondSource) throws IOException {
     inputWrapper.setInputView(firstSource);
-    K firstKey = keyCoder.decode(inputWrapper, Coder.Context.NESTED);
+    WindowedValue<KV<K, V>> first = coder.decode(inputWrapper, Coder.Context.NESTED);
     inputWrapper.setInputView(secondSource);
-    K secondKey = keyCoder.decode(inputWrapper, Coder.Context.NESTED);
-
-    try {
-      buffer1.reset();
-      buffer2.reset();
-      keyCoder.encode(firstKey, buffer1, Coder.Context.OUTER);
-      keyCoder.encode(secondKey, buffer2, Coder.Context.OUTER);
-      byte[] arr = buffer1.getBuffer();
-      byte[] arrOther = buffer2.getBuffer();
-      if (buffer1.size() != buffer2.size()) {
-        return buffer1.size() - buffer2.size();
-      }
-      int len = buffer1.size();
-      for(int i = 0; i < len; i++ ) {
-        if (arr[i] != arrOther[i]) {
-          return arr[i] - arrOther[i];
-        }
-      }
-      return 0;
-    } catch (IOException e) {
-      throw new RuntimeException("Could not compare reference.", e);
-    }
+    WindowedValue<KV<K, V>> second = coder.decode(inputWrapper, Coder.Context.NESTED);
+    return compare(first, second);
   }
 
   @Override
   public boolean supportsNormalizedKey() {
-    return true;
+    return false;
   }
 
   @Override
@@ -209,12 +193,18 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public void putNormalizedKey(KV<K, V> record, MemorySegment target, int offset, int numBytes) {
+  public void putNormalizedKey(
+      WindowedValue<KV<K, V>> record,
+      MemorySegment target,
+      int offset,
+      int numBytes) {
+
     buffer1.reset();
     try {
-      keyCoder.encode(record.getKey(), buffer1, Coder.Context.NESTED);
+      keyCoder.encode(record.getValue().getKey(), buffer1, Coder.Context.NESTED);
     } catch (IOException e) {
-      throw new RuntimeException("Could not serializer " + record + " using coder " + coder + ": " + e);
+      throw new RuntimeException(
+          "Could not serializer " + record + " using coder " + coder + ": " + e);
     }
     final byte[] data = buffer1.getBuffer();
     final int limit = offset + numBytes;
@@ -231,12 +221,16 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public void writeWithKeyNormalization(KV<K, V> record, DataOutputView target) throws IOException {
+  public void writeWithKeyNormalization(
+      WindowedValue<KV<K, V>> record,
+      DataOutputView target) throws IOException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public KV<K, V> readWithKeyDenormalization(KV<K, V> reuse, DataInputView source) throws IOException {
+  public WindowedValue<KV<K, V>> readWithKeyDenormalization(
+      WindowedValue<KV<K, V>> reuse,
+      DataInputView source) throws IOException {
     throw new UnsupportedOperationException();
   }
 
@@ -246,14 +240,14 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
   }
 
   @Override
-  public TypeComparator<KV<K, V>> duplicate() {
+  public TypeComparator<WindowedValue<KV<K, V>>> duplicate() {
     return new KvCoderComperator<>(coder);
   }
 
   @Override
   public int extractKeys(Object record, Object[] target, int index) {
-    KV<K, V> kv = (KV<K, V>) record;
-    K k = kv.getKey();
+    WindowedValue<KV<K, V>> kv = (WindowedValue<KV<K, V>>) record;
+    K k = kv.getValue().getKey();
     target[index] = k;
     return 1;
   }
