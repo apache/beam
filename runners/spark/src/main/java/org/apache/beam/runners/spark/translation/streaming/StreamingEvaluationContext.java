@@ -46,7 +46,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 
 /**
- * Streaming evaluation context helps to handle streaming.
+ * Evaluation context for streaming using {@link org.apache.spark.streaming.dstream.DStream}s.
  */
 public class StreamingEvaluationContext extends BatchEvaluationContext {
 
