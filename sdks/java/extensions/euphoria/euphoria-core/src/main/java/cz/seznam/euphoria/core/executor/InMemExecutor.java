@@ -570,7 +570,8 @@ public class InMemExecutor implements Executor {
       outputSuppliers.add(QueueSupplier.wrap(output));
       executor.execute(new ReduceStateByKeyReducer(q, output, windowing,
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
-          SerializableUtils.cloneSerializable(triggering)));
+          SerializableUtils.cloneSerializable(triggering),
+          reduceStateByKey.input().isBounded()));
     });
     return outputSuppliers;
   }

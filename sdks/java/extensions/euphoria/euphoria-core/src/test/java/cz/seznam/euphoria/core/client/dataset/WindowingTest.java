@@ -51,22 +51,22 @@ public class WindowingTest {
   public void testWindowingByEventTime() throws Exception {
     // we have to make sure the timestamp is in the future
     inmemfs.setFile("/tmp/foo.txt", asList(
-        new Item("one", 10000000003001L),
-        new Item("one", 10000000003500L),
-        new Item("one", 10000000001000L),
-        new Item("one", 10000000002100L),
-        new Item("one", 10000000002050L),
-        new Item("one", 10000000002099L),
-        new Item("two", 10000000001100L),
-        new Item("two", 10000000001500L),
-        new Item("two", 10000000001900L),
-        new Item("two", 10000000002199L),
-        new Item("two", 10000000002355L),
-        new Item("four", 10000000001500L),
-        new Item("four", 10000000001200L),
-        new Item("three", 10000000001000L),
-        new Item("three", 10000000002831L),
-        new Item("three", 10000000002123L)));
+        new Item("one", 3001),
+        new Item("one", 3500),
+        new Item("one", 1000),
+        new Item("one", 2100),
+        new Item("one", 2050),
+        new Item("one", 2099),
+        new Item("two", 1100),
+        new Item("two", 1500),
+        new Item("two", 1900),
+        new Item("two", 2199),
+        new Item("two", 2355),
+        new Item("four", 1500),
+        new Item("four", 1200),
+        new Item("three", 1000),
+        new Item("three", 2831),
+        new Item("three", 2123)));
 
     Flow flow = Flow.create("Test", settings);
     Dataset<Item> lines = flow.createInput(new URI("inmem:///tmp/foo.txt"));
