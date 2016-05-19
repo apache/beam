@@ -734,7 +734,7 @@ public class PubsubIO {
         public void processElement(ProcessContext c) throws IOException {
           try (PubsubClient pubsubClient =
                    FACTORY.newClient(timestampLabel, idLabel,
-                                     c.getPipelineOptions().as(DataflowPipelineOptions.class))) {
+                                     c.getPipelineOptions().as(PubsubOptions.class))) {
 
             PubsubClient.SubscriptionPath subscriptionPath;
             if (getSubscription() == null) {
@@ -744,7 +744,7 @@ public class PubsubIO {
               // Otherwise we'll fall back to the topic's project.
               // Note that they don't need to be the same.
               String projectId =
-                  c.getPipelineOptions().as(DataflowPipelineOptions.class).getProject();
+                  c.getPipelineOptions().as(PubsubOptions.class).getProject();
               if (Strings.isNullOrEmpty(projectId)) {
                 projectId = getTopic().project;
               }
@@ -1043,7 +1043,7 @@ public class PubsubIO {
           // NOTE: idLabel is ignored.
           this.pubsubClient =
               FACTORY.newClient(timestampLabel, null,
-                                c.getPipelineOptions().as(DataflowPipelineOptions.class));
+                                c.getPipelineOptions().as(PubsubOptions.class));
         }
 
         @Override
