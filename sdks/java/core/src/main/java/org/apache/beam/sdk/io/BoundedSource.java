@@ -41,9 +41,16 @@ import javax.annotation.Nullable;
  * <li>Size estimation: {@link #getEstimatedSizeBytes};
  * <li>Telling whether or not this source produces key/value pairs in sorted order:
  * {@link #producesSortedKeys};
- * <li>The reader ({@link BoundedReader}) supports progress estimation
- * ({@link BoundedReader#getFractionConsumed}) and dynamic splitting
- * ({@link BoundedReader#splitAtFraction}).
+ * <li>The accompanying {@link BoundedReader reader} has additional functionality to enable runners
+ * to dynamically adapt based on runtime conditions.
+ *     <ul>
+ *       <li>Progress estimation ({@link BoundedReader#getFractionConsumed})
+ *       <li>Tracking of parallelism, to determine with the current source can be split
+ *        ({@link BoundedReader#getParallelismConsumed()} and
+ *        {@link BoundedReader#getParallelismRemaining()}).
+ *       <li>Dynamic splitting of the current source ({@link BoundedReader#splitAtFraction}).
+ *     </ul>
+ *     </li>
  * </ul>
  *
  * <p>To use this class for supporting your custom input type, derive your class
@@ -148,33 +155,39 @@ public abstract class BoundedSource<T> extends Source<T> {
      * Returns the total amount of parallelism in the consumed (returned and processed) range of
      * this reader's current {@link BoundedSource} (as would be returned by
      * {@link #getCurrentSource}). This corresponds to all split point records (see
-     * {@link RangeTracker}) returned by this reader, <em>excluding</em> the current record.
+     * {@link RangeTracker}) returned by this reader, <em>excluding</em> the last split point
+     * returned if the reader is not finished.
      *
-     * <p>Consider the following two examples. An input that can be read in parallel down to the
+     * <p>Consider the following examples: (1) An input that can be read in parallel down to the
      * individual records, such as {@link CountingSource#upTo}, is called "perfectly splittable".
-     * Conversely, an example of a non-perfectly splittable input is a block-compressed file format
-     * such as {@link AvroIO}, in which a block of records has to be read as a whole, but different
-     * blocks can be read in parallel.
+     * (2) a "block-compressed" file format such as {@link AvroIO}, in which a block of records has
+     * to be read as a whole, but different blocks can be read in parallel. (3) An "unsplittable"
+     * input such as a cursor in a database.
      *
      * <ul>
      * <li>Any {@link BoundedReader reader} that is unstarted (aka, has never had a call to
-     * {@link #start}) has a consumed parallelism of 0.
+     * {@link #start}) has a consumed parallelism of 0. This condition holds independent of whether
+     * the input is splittable.
      * <li>Any {@link BoundedReader reader} that has only returned its first element (aka,
      * has never had a call to {@link #advance}) has a consumed parallelism of 0: the first element
-     * is the current element and is still being processed.
-     * <li>When processing record #30 (starting at 1) out of 50 in a perfectly splittable 50-record
-     * input, this value should be 29.
-     * <li>In a block-compressed value consisting of 5 blocks, the value should stay at 0 until the
-     * first record of the second block is returned; stay at 1 until the first record of the third
-     * block is returned, etc. Once the end-of-file is reached then the fifth block has been
-     * consumed and the value should stay at 5.
+     * is the current element and is still being processed. This condition holds independent of
+     * whether the input is splittable.
      * <li>For an empty reader (in which the call to {@link #start} returned false), the
-     * consumed parallelism is 0.
+     * consumed parallelism is 0. This condition holds independent of whether the input is
+     * splittable.
      * <li>For a non-empty, finished reader (in which the call to {@link #start} returned true and
      * a call to {@link #advance} has returned false), the value returned must be at least 1
-     * and should equal the total parallelism in the source. For the two examples above, the
-     * 50-record file should have a consumed parallelism of 50 and the 5-block file should have
-     * a consumed parallelism of 5.
+     * and should equal the total parallelism in the source.
+     * <li>For example (1): After returning record #30 (starting at 1) out of 50 in a perfectly
+     * splittable 50-record input, this value should be 29. When finished, the consumed parallelism
+     * should be 50.
+     * <li>For example (2): In a block-compressed value consisting of 5 blocks, the value should
+     * stay at 0 until the first record of the second block is returned; stay at 1 until the first
+     * record of the third block is returned, etc. Only once the end-of-file is reached then the
+     * fifth block has been consumed and the value should stay at 5.
+     * <li>For example (3): For any non-empty unsplittable input, the consumed parallelism is 0
+     * until the reader is finished (because the last call to {@link #advance} returned false, at
+     * which point it becomes 1.
      * </ul>
      *
      * <p>A reader that is implemented using a {@link RangeTracker} is encouraged to use the
@@ -196,34 +209,42 @@ public abstract class BoundedSource<T> extends Source<T> {
     /**
      * Returns the total amount of parallelism in the unprocessed part of this reader's current
      * {@link BoundedSource} (as would be returned by {@link #getCurrentSource}). This corresponds
-     * to all unprocessed split point records (see {@link RangeTracker}), including the current
-     * record, in the remainder part of the source.
+     * to all unprocessed split point records (see {@link RangeTracker}), including the last
+     * split point returned, in the remainder part of the source.
      *
      * <p>This function should be implemented only <strong>in addition to
      * {@link #getParallelismConsumed()}</strong> and only if <em>an exact value can be
      * returned</em>.
      *
-     * <p>Consider the following two examples. An input that can be read in parallel down to the
+     * <p>Consider the following examples: (1) An input that can be read in parallel down to the
      * individual records, such as {@link CountingSource#upTo}, is called "perfectly splittable".
-     * Conversely, an example of a non-perfectly splittable input is a block-compressed file format
-     * such as {@link AvroIO}, in which a block of records has to be read as a whole, but different
-     * blocks can be read in parallel.
+     * (2) a "block-compressed" file format such as {@link AvroIO}, in which a block of records has
+     * to be read as a whole, but different blocks can be read in parallel. (3) An "unsplittable"
+     * input such as a cursor in a database.
+     *
+     * <p>Assume for examples (1) and (2) that the number of records or blocks remaining is known:
      *
      * <ul>
      * <li>Any {@link BoundedReader reader} for which the last call to {@link #start} or
-     * {@link #advance} has returned true should return a value of at least 1 to indicate the source
-     * that it is currently reading.
-     * <li>A finished reader for which {@link #start} or {@link #advance} has returned false
-     * should return a value of 0.
-     * <li>For any source that cannot be split in general, the reader should return 1.
-     * <li>When processing record #30 (starting at 1) out of 50 in a perfectly splittable 50-record
-     * input, this value should be 21 (20 remaining + 1 current).
-     * <li>If we are reading through block 3 in a block-compressed file consisting of 5 blocks,
-     * this value should be 3 (since blocks 4 and 5 can be processed in parallel by new readers
-     * produced via dynamic work rebalancing, while the current reader remains processing block 3).
-     * <li>If we are reading through the last block in a block-compressed file, or reading or
-     * processing the last record in a perfectly splittable input, this value should be 1: apart
-     * from the current task, no additional remainder can be split off.
+     * {@link #advance} has returned true should should not return 0, because this reader itself
+     * represents parallelism at least 1. This condition holds independent of whether the input is
+     * splittable.
+     * <li>A finished reader (for which {@link #start} or {@link #advance}) has returned false
+     * should return a value of 0. This condition holds independent of whether the input is
+     * splittable.
+     * <li>For example 1: After returning record #30 (starting at 1) out of 50 in a perfectly
+     * splittable 50-record input, this value should be 21 (20 remaining + 1 current) if the total
+     * number of records is known.
+     * <li>For example 2: After returning a record in block 3 in a block-compressed file
+     * consisting of 5 blocks, this value should be 3 (since blocks 4 and 5 can be processed in
+     * parallel by new readers produced via dynamic work rebalancing, while the current reader
+     * continues processing block 3) if the total number of blocks is known.
+     * <li>For example (3): a reader for any non-empty unsplittable input, should return 1 until
+     * it is finished, at which point it should return 0.
+     * <li>For any reader: After returning the last split point in a file (e.g., the last record
+     * in example (1), the first record in the last block for example (2), or the first record in
+     * the file for example (3), this value should be 1: apart from the current task, no additional
+     * remainder can be split off.
      * </ul>
      *
      * <p>Defaults to {@link #PARALLELISM_UNKNOWN}. Any value less than 0 will be interpreted as
