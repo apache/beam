@@ -180,7 +180,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
    *
    * <p>As an example in which {@link OffsetBasedSource} is used to implement a file source, suppose
    * that this source was constructed with an {@code endOffset} of {@link Long#MAX_VALUE} to
-   * indicate that a file should be read to the end. Then {@link #getMaxEndOffset} should determine
+   * indicate that a file should be read to the end. Then this function should determine
    * the actual, exact size of the file in bytes and return it.
    */
   public abstract long getMaxEndOffset(PipelineOptions options) throws Exception;
@@ -338,19 +338,21 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     public long getParallelismRemaining() {
       if (isDone()) {
         return 0;
-      }
-      if (!isStarted()) {
+      } else if (!isStarted()) {
         // Note that even if the current source does not allow splitting, we don't know that
         // it's non-empty so we return UNKNOWN instead of 1.
         return BoundedReader.PARALLELISM_UNKNOWN;
-      }
-      if (!getCurrentSource().allowsDynamicSplitting()) {
+      } else if (!getCurrentSource().allowsDynamicSplitting()) {
+        // Started (so non-empty) and unsplittable, so only the current task.
         return 1;
-      }
-      if (getCurrentOffset() + 1 >= rangeTracker.getStopPosition()) {
+      } else if (getCurrentOffset() >= rangeTracker.getStopPosition() - 1) {
+        // If this is true, the next element is outside the range. Note that even getCurrentOffset()
+        // might be larger than the stop position when the current record is not a split point.
         return 1;
+      } else {
+        // Use the default.
+        return super.getParallelismRemaining();
       }
-      return super.getParallelismRemaining();
     }
 
     @Override

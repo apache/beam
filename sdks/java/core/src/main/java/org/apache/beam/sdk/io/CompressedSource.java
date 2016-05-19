@@ -399,10 +399,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     public final long getParallelismConsumed() {
       if (splittable) {
         return readerDelegate.getParallelismConsumed();
-      }
-
-      synchronized (progressLock) {
-        return (isDone() && numRecordsRead > 0) ? 1 : 0;
+      } else {
+        synchronized (progressLock) {
+          return (isDone() && numRecordsRead > 0) ? 1 : 0;
+        }
       }
     }
 
@@ -410,9 +410,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     public final long getParallelismRemaining() {
       if (splittable) {
         return readerDelegate.getParallelismRemaining();
+      } else {
+        return isDone() ? 0 : 1;
       }
-
-      return isDone() ? 0 : 1;
     }
 
     /**
@@ -422,15 +422,16 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     protected final boolean isAtSplitPoint() {
       if (splittable) {
         return readerDelegate.isAtSplitPoint();
-      }
-      // We have to return true for the first record, but not for the state before reading it,
-      // and not for the state after reading any other record. Hence == rather than >= or <=.
-      // This is required because FileBasedReader is intended for readers that can read a range
-      // of offsets in a file and where the range can be split in parts. CompressedReader,
-      // however, is a degenerate case because it cannot be split, but it has to satisfy the
-      // semantics of offsets and split points anyway.
-      synchronized (progressLock) {
-        return numRecordsRead == 1;
+      } else {
+        // We have to return true for the first record, but not for the state before reading it,
+        // and not for the state after reading any other record. Hence == rather than >= or <=.
+        // This is required because FileBasedReader is intended for readers that can read a range
+        // of offsets in a file and where the range can be split in parts. CompressedReader,
+        // however, is a degenerate case because it cannot be split, but it has to satisfy the
+        // semantics of offsets and split points anyway.
+        synchronized (progressLock) {
+          return numRecordsRead == 1;
+        }
       }
     }
 
@@ -474,7 +475,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final void startReading(ReadableByteChannel channel) throws IOException {
-      if (!splittable) {
+      if (splittable) {
+        // No-op. We will always delegate to the inner reader, so this.channel and this.progressLock
+        // will never be used.
+      } else {
         synchronized (progressLock) {
           this.channel = new CountingChannel(channel, getCurrentSource().getStartOffset());
           channel = this.channel;
@@ -517,19 +521,20 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     protected final long getCurrentOffset() throws NoSuchElementException {
       if (splittable) {
         return readerDelegate.getCurrentOffset();
-      }
-      synchronized (progressLock) {
-        if (numRecordsRead <= 1) {
-          // Since the first record is at a split point, it should start at the beginning of the
-          // file. This avoids the bad case where the decompressor read the entire file, which
-          // would cause the file to be treated as empty when returning channel.getCount() as it is
-          // outside the valid range.
-          return 0;
+      } else {
+        synchronized (progressLock) {
+          if (numRecordsRead <= 1) {
+            // Since the first record is at a split point, it should start at the beginning of the
+            // file. This avoids the bad case where the decompressor read the entire file, which
+            // would cause the file to be treated as empty when returning channel.getCount() as it
+            // is outside the valid range.
+            return 0;
+          }
+          if (channel == null) {
+            throw new NoSuchElementException();
+          }
+          return channel.getCount();
         }
-        if (channel == null) {
-          throw new NoSuchElementException();
-        }
-        return channel.getCount();
       }
     }
   }
