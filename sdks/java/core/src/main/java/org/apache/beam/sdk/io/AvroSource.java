@@ -53,6 +53,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -493,6 +494,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // Postcondition: same as above, but for the new current (formerly next) block.
     @Override
     public boolean readNextBlock() throws IOException {
+      long startOfNextBlock = currentBlockOffset + currentBlockSizeBytes;
+
       // Before reading the variable-sized block header, record the current number of bytes read.
       long preHeaderCount = countStream.getBytesRead();
       decoder = DecoderFactory.get().directBinaryDecoder(countStream, decoder);
@@ -518,16 +521,29 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
       // Read the end of this block, which MUST be a sync marker for correctness.
       byte[] syncMarker = getCurrentSource().getSyncMarker();
-      long bytesToReadSyncMarker = advancePastNextSyncMarker(stream, syncMarker);
+      byte[] readSyncMarker = new byte[syncMarker.length];
+      long syncMarkerOffset = startOfNextBlock + headerSize + blockSize;
+      long bytesRead = stream.read(readSyncMarker);
       checkState(
-          bytesToReadSyncMarker == syncMarker.length,
-          "Should be positioned at a sync marker, but required %s [!= %s] bytes to read one",
-          bytesToReadSyncMarker,
+          bytesRead == syncMarker.length,
+          "When trying to read a sync marker at position %s, only able to read %s/%s bytes",
+          syncMarkerOffset,
+          bytesRead,
           syncMarker.length);
+      if (!Arrays.equals(syncMarker, readSyncMarker)) {
+        throw new IllegalStateException(
+            String.format(
+                "Expected the bytes [%d,%d) in file %s to be a sync marker, but found %s",
+                syncMarkerOffset,
+                syncMarkerOffset + syncMarker.length,
+                getCurrentSource().getFileOrPatternSpec(),
+                Arrays.toString(readSyncMarker)
+            ));
+      }
 
       // Atomically update both the position and offset of the new block.
       synchronized (progressLock) {
-        currentBlockOffset += currentBlockSizeBytes;
+        currentBlockOffset = startOfNextBlock;
         // Total block size includes the header, block content, and trailing sync marker.
         currentBlockSizeBytes = headerSize + blockSize + syncMarker.length;
       }
@@ -578,8 +594,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           getCurrentSource().getSyncMarker().length);
     }
 
-    // Postcondition: the stream is positioned at the start of the first block after the start of
-    // the current source, and currentBlockOffset is that position. Additionally, the
+    // Postcondition: the stream is positioned at the beginning of the first block after the start
+    // of the current source, and currentBlockOffset is that position. Additionally,
     // currentBlockSizeBytes will be set to 0 indicating that the previous block was empty.
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
