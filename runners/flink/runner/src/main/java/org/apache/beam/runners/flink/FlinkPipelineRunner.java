@@ -108,7 +108,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
     this.flinkJobEnv.translate(pipeline);
 
     LOG.info("Starting execution of Flink program.");
-    
+
     JobExecutionResult result;
     try {
       result = this.flinkJobEnv.executePipeline();
@@ -136,20 +136,6 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
    */
   public FlinkPipelineOptions getPipelineOptions() {
     return options;
-  }
-
-  /**
-   * Constructs a runner with default properties for testing.
-   *
-   * @return The newly created runner.
-   */
-  public static FlinkPipelineRunner createForTest(boolean streaming) {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-    // we use [auto] for testing since this will make it pick up the Testing
-    // ExecutionEnvironment
-    options.setFlinkMaster("[auto]");
-    options.setStreaming(streaming);
-    return new FlinkPipelineRunner(options);
   }
 
   @Override

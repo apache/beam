@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import org.apache.beam.runners.flink.translation.types.VoidCoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -47,17 +46,11 @@ public class FlinkStreamingCreateFunction<IN, OUT> implements FlatMapFunction<IN
   @Override
   public void flatMap(IN value, Collector<WindowedValue<OUT>> out) throws Exception {
 
-    @SuppressWarnings("unchecked")
-    OUT voidValue = (OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE;
     for (byte[] element : elements) {
       ByteArrayInputStream bai = new ByteArrayInputStream(element);
       OUT outValue = coder.decode(bai, Coder.Context.OUTER);
 
-      if (outValue == null) {
-        out.collect(WindowedValue.of(voidValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-      } else {
-        out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-      }
+      out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
     }
 
     out.close();

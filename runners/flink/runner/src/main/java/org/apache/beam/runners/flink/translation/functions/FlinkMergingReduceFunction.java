@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
@@ -35,7 +34,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
@@ -47,47 +45,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This is the second part for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
- * on Flink, the second part is {@link FlinkReduceFunction}. This function performs the final
- * combination of the pre-combined values after a shuffle.
- *
- * <p>The input to {@link #reduce(Iterable, Collector)} are elements of the same key but
- * for different windows. We have to ensure that we only combine elements of matching
- * windows.
+ * Special version of {@link FlinkReduceFunction} that supports merging windows. This
+ * assumes that the windows are {@link IntervalWindow IntervalWindows} and exhibits the
+ * same behaviour as {@code MergeOverlappingIntervalWindows}.
  */
-public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
-    extends RichGroupReduceFunction<WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>> {
+public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWindow>
+    extends FlinkReduceFunction<K, AccumT, OutputT, W> {
 
-  protected final CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> combineFn;
-
-  protected final DoFn<KV<K, AccumT>, KV<K, OutputT>> doFn;
-
-  protected final WindowingStrategy<?, W> windowingStrategy;
-
-  protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
-
-  protected final SerializedPipelineOptions serializedOptions;
-
-  public FlinkReduceFunction(
+  public FlinkMergingReduceFunction(
       CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> keyedCombineFn,
       WindowingStrategy<?, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
-
-    this.combineFn = keyedCombineFn;
-
-    this.windowingStrategy = windowingStrategy;
-    this.sideInputs = sideInputs;
-
-    this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
-
-    // dummy DoFn because we need one for ProcessContext
-    this.doFn = new DoFn<KV<K, AccumT>, KV<K, OutputT>>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-
-      }
-    };
+    super(keyedCombineFn, windowingStrategy, sideInputs, pipelineOptions);
   }
 
   @Override
@@ -131,14 +101,19 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
       }
     });
 
+    // merge windows, we have to do it in an extra pre-processing step and
+    // can't do it as we go since the window of early elements would not
+    // be correct when calling the CombineFn
+    mergeWindow(sortedInput);
+
     // iterate over the elements that are sorted by window timestamp
-    //
     final Iterator<WindowedValue<KV<K, AccumT>>> iterator = sortedInput.iterator();
 
     // get the first accumulator
     WindowedValue<KV<K, AccumT>> currentValue = iterator.next();
     K key = currentValue.getValue().getKey();
-    BoundedWindow currentWindow = Iterables.getFirst(currentValue.getWindows(), null);
+    IntervalWindow currentWindow =
+        (IntervalWindow) Iterables.getOnlyElement(currentValue.getWindows());
     AccumT accumulator = currentValue.getValue().getValue();
 
     // we use this to keep track of the timestamps assigned by the OutputTimeFn,
@@ -149,18 +124,19 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
     while (iterator.hasNext()) {
       WindowedValue<KV<K, AccumT>> nextValue = iterator.next();
-      BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
+      IntervalWindow nextWindow =
+          (IntervalWindow) Iterables.getOnlyElement(nextValue.getWindows());
 
       if (nextWindow.equals(currentWindow)) {
-        // continue accumulating
+        // continue accumulating and merge windows
+
         processContext = processContext.forWindowedValue(nextValue);
+
         accumulator = combineFnRunner.mergeAccumulators(
             key, ImmutableList.of(accumulator, nextValue.getValue().getValue()), processContext);
 
         windowTimestamps.add(nextValue.getTimestamp());
       } else {
-        // emit the value that we currently have
-        processContext = processContext.forWindowedValue(currentValue);
         out.collect(
             WindowedValue.of(
                 KV.of(key, combineFnRunner.extractOutput(key, accumulator, processContext)),
@@ -170,19 +146,13 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
         windowTimestamps.clear();
 
+        processContext = processContext.forWindowedValue(nextValue);
+
         currentWindow = nextWindow;
         accumulator = nextValue.getValue().getValue();
         windowTimestamps.add(nextValue.getTimestamp());
       }
-
-      // we have to keep track so that we can set the context to the right
-      // windowed value when windows change in the iterable
-      currentValue = nextValue;
     }
-
-    // if at the end of the iteration we have a change in windows
-    // the ProcessContext will not have been updated
-    processContext = processContext.forWindowedValue(currentValue);
 
     // emit the final accumulator
     out.collect(
@@ -192,4 +162,46 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
             currentWindow,
             PaneInfo.NO_FIRING));
   }
+
+  /**
+   * Merge windows. This assumes that the list of elements is sorted by window-end timestamp.
+   * This replaces windows in the input list.
+   */
+  private void mergeWindow(List<WindowedValue<KV<K, AccumT>>> elements) {
+    int currentStart = 0;
+    IntervalWindow currentWindow =
+        (IntervalWindow) Iterables.getOnlyElement(elements.get(0).getWindows());
+
+    for (int i = 1; i < elements.size(); i++) {
+      WindowedValue<KV<K, AccumT>> nextValue = elements.get(i);
+      IntervalWindow nextWindow =
+          (IntervalWindow) Iterables.getOnlyElement(nextValue.getWindows());
+      if (currentWindow.intersects(nextWindow)) {
+        // we continue
+        currentWindow = currentWindow.span(nextWindow);
+      } else {
+        // retrofit the merged window to all windows up to "currentStart"
+        for (int j = i - 1; j >= currentStart; j--) {
+          WindowedValue<KV<K, AccumT>> value = elements.get(j);
+          elements.set(
+              j,
+              WindowedValue.of(
+                  value.getValue(), value.getTimestamp(), currentWindow, value.getPane()));
+        }
+        currentStart = i;
+        currentWindow = nextWindow;
+      }
+    }
+    if (currentStart < elements.size() - 1) {
+      // we have to retrofit the last batch
+      for (int j = elements.size() - 1; j >= currentStart; j--) {
+        WindowedValue<KV<K, AccumT>> value = elements.get(j);
+        elements.set(
+            j,
+            WindowedValue.of(
+                value.getValue(), value.getTimestamp(), currentWindow, value.getPane()));
+      }
+    }
+  }
+
 }

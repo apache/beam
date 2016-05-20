@@ -22,6 +22,7 @@ import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.WindowedValue;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -31,10 +32,11 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 
 /**
- * Wrapper class to use generic Write.Bound transforms as sinks.
+ * Wrapper for executing a {@link Sink} on Flink as an {@link OutputFormat}.
+ *
  * @param <T> The type of the incoming records.
  */
-public class SinkOutputFormat<T> implements OutputFormat<T> {
+public class SinkOutputFormat<T> implements OutputFormat<WindowedValue<T>> {
 
   private final Sink<T> sink;
 
@@ -75,9 +77,9 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
   }
 
   @Override
-  public void writeRecord(T record) throws IOException {
+  public void writeRecord(WindowedValue<T> record) throws IOException {
     try {
-      writer.write(record);
+      writer.write(record.getValue());
     } catch (Exception e) {
       throw new IOException("Couldn't write record.", e);
     }
