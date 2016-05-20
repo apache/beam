@@ -112,7 +112,11 @@ public class Transport {
    *
    * <p>Note: this client's endpoint is <b>not</b> modified by the
    * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   *
+   * @deprecated Use an appropriate
+   * {@link com.google.cloud.dataflow.sdk.util.PubsubClient.PubsubClientFactory}
    */
+  @Deprecated
   public static Pubsub.Builder
       newPubsubClient(DataflowPipelineOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
