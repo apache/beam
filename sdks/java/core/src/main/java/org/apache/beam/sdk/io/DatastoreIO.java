@@ -865,6 +865,8 @@ public class DatastoreIO {
      */
     private int userLimit;
 
+    private volatile boolean done = false;
+
     private Entity currentEntity;
 
     /**
@@ -885,6 +887,16 @@ public class DatastoreIO {
     }
 
     @Override
+    public final long getSplitPointsConsumed() {
+      return done ? 1 : 0;
+    }
+
+    @Override
+    public final long getSplitPointsRemaining() {
+      return done ? 0 : 1;
+    }
+
+    @Override
     public boolean start() throws IOException {
       return advance();
     }
@@ -901,6 +913,7 @@ public class DatastoreIO {
 
       if (entities == null || !entities.hasNext()) {
         currentEntity = null;
+        done = true;
         return false;
       }
 
