@@ -86,7 +86,7 @@
               <goal>test</goal>
             </goals>
             <configuration>
-              <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+              <groups>org.apache.beam.sdk.testing.NeedsRunner</groups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
@@ -340,5 +340,28 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+
+    <!-- required for XMLSourceTest -->
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>stax2-api</artifactId>
+      <version>${stax2.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>woodstox-core-asl</artifactId>
+      <version>${woodstox.version}</version>
+      <exclusions>
+        <!-- javax.xml.stream:stax-api is included in JDK 1.6+ -->
+        <exclusion>
+          <groupId>javax.xml.stream</groupId>
+          <artifactId>stax-api</artifactId>
+        </exclusion>
+      </exclusions>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 </project>
