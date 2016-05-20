@@ -30,6 +30,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
 import java.util.Set;
@@ -37,6 +39,7 @@ import java.util.Set;
 /**
  * Unit tests for {@link DisplayDataEvaluator}.
  */
+@RunWith(JUnit4.class)
 public class DisplayDataEvaluatorTest implements Serializable {
 
   @Test
