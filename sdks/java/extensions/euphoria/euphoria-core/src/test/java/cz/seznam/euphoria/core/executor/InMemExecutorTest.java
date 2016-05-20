@@ -9,7 +9,6 @@ import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -23,6 +22,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
-import org.junit.Ignore;
 
 /**
  * {@code InMemExecutor} test suite.
@@ -282,7 +281,8 @@ public class InMemExecutorTest {
             reversed(sequenceInts(100, 1100))));
 
     // the key for sort will be the last digit
-    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
+    Dataset<Pair<Integer, Integer>> output =
+        ReduceStateByKey.of(ints)
         .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
@@ -498,8 +498,8 @@ public class InMemExecutorTest {
             reversed(sequenceInts(0, 100)),
             reversed(sequenceInts(100, 1100))));
 
-    UnalignedCountWindowing<Integer, Integer> windowing = new UnalignedCountWindowing<>(
-        i -> i % 10, i -> i + 1);
+    UnalignedCountWindowing<Integer, Integer> windowing =
+        new UnalignedCountWindowing<>(i -> i % 10, i -> i + 1);
 
     // the key for sort will be the last digit
     Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
