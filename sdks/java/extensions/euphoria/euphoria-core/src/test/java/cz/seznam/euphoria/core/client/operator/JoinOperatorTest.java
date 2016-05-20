@@ -76,15 +76,16 @@ public class JoinOperatorTest {
         .using(tokv)
         .output();
 
-    Join.OutputBuilder join = Join.of(firstkv, secondkv)
+    Join.WindowingBuilder joinBuilder = Join.of(firstkv, secondkv)
         .by(Pair::getFirst, Pair::getFirst)
         .using((l, r, c) ->
-                c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())))
-        .windowBy(windowing);
+            c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())));
     if (outer) {
-      join = join.outer();
+      joinBuilder = joinBuilder.outer();
     }
-    Dataset<Pair<String, Object>> output = join.output();
+    Dataset<Pair<String, Object>> output = joinBuilder
+        .windowBy(windowing)
+        .output();
 
     MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
         .output().persist(URI.create("inmem:///tmp/output"));
