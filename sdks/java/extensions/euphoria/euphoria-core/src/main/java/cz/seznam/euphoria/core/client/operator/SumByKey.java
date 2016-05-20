@@ -1,6 +1,6 @@
-
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
@@ -16,9 +16,10 @@ import java.util.Objects;
 /**
  * Operator for summing of elements by key.
  */
-public class SumByKey<IN, KEY, W extends Window<?, ?>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, KEY, Pair<KEY, Long>, W,
-        SumByKey<IN, KEY, W>>
+public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
+                      PAIROUT extends Pair<KEY, Long>>
+    extends StateAwareWindowWiseSingleInputOperator<
+    IN, IN, IN, KEY, PAIROUT, WLABEL, W, SumByKey<IN, KEY, WLABEL, W, PAIROUT>>
 {
 
   public static class OfBuilder {
@@ -63,8 +64,8 @@ public class SumByKey<IN, KEY, W extends Window<?, ?>>
       this.valueExtractor = valueExtractor;
       return this;
     }
-    public <W extends Window<?, ?>> OutputBuilder<IN, KEY, W>
-    windowBy(Windowing<IN, ?, ?, W> windowing)
+    public <WLABEL, W extends Window<?, WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
+    windowBy(Windowing<IN, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(
               name, input, keyExtractor, valueExtractor, windowing, this);
@@ -72,22 +73,29 @@ public class SumByKey<IN, KEY, W extends Window<?, ?>>
     public Dataset<Pair<KEY, Long>> output() {
       // use default windowing
       return new OutputBuilder<>(name, input,
-              keyExtractor, valueExtractor, null, this).output();
+          keyExtractor, valueExtractor, BatchWindowing.get(), this)
+          .output();
+    }
+    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, Long>> outputWindowed() {
+      // use default windowing
+      return new OutputBuilder<>(name, input,
+              keyExtractor, valueExtractor, BatchWindowing.get(), this)
+          .outputWindowed();
     }
   }
-  public static class OutputBuilder<IN, KEY, W extends Window<?, ?>>
-          extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, W>>
+  public static class OutputBuilder<IN, KEY, WLABEL, W extends Window<?, WLABEL>>
+          extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, WLABEL, W>>
   {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, Long> valueExtractor;
-    private final Windowing<IN, ?, ?, W> windowing; /* may be null */
+    private final Windowing<IN, ?, WLABEL, W> windowing; /* may be null */
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
-                  Windowing<IN, ?, ?, W> windowing,
+                  Windowing<IN, ?, WLABEL, W> windowing,
                   PartitioningBuilder<KEY, ?> partitioning)
     {
       super(partitioning);
@@ -96,11 +104,15 @@ public class SumByKey<IN, KEY, W extends Window<?, ?>>
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.windowing = windowing;
+      this.windowing = Objects.requireNonNull(windowing);
     }
     public Dataset<Pair<KEY, Long>> output() {
+      return (Dataset) outputWindowed();
+    }
+    public Dataset<WindowedPair<WLABEL, KEY, Long>> outputWindowed() {
       Flow flow = input.getFlow();
-      SumByKey<IN, KEY, W> sumByKey = new SumByKey<>(name, flow, input,
+      SumByKey<IN, KEY, WLABEL, W, WindowedPair<WLABEL, KEY, Long>> sumByKey =
+          new SumByKey<>(name, flow, input,
               keyExtractor, valueExtractor, windowing, getPartitioning());
       flow.add(sumByKey);
       return sumByKey.output();
@@ -122,7 +134,7 @@ public class SumByKey<IN, KEY, W extends Window<?, ?>>
            Dataset<IN> input,
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
-           Windowing<IN, ?, ?, W> windowing,
+           Windowing<IN, ?, WLABEL, W> windowing,
            Partitioning<KEY> partitioning)
   {
     super(name, flow, input, keyExtractor, windowing, partitioning);
@@ -131,8 +143,8 @@ public class SumByKey<IN, KEY, W extends Window<?, ?>>
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    ReduceByKey<IN, IN, KEY, Long, KEY, Long, W> reduceByKey = new ReduceByKey<>(getName(),
-        input.getFlow(), input,
+    ReduceByKey<IN, IN, KEY, Long, KEY, Long, WLABEL, W, ?> reduceByKey =
+        new ReduceByKey<>(getName(), input.getFlow(), input,
         keyExtractor, valueExtractor, windowing, Sums.ofLongs(), getPartitioning());
     return DAG.of(reduceByKey);
   }

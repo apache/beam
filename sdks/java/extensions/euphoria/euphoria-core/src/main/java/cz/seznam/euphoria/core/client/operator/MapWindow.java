@@ -1,11 +1,12 @@
-
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -14,9 +15,8 @@ import java.util.Objects;
 /**
  * Operator performing a mapping operation on whole window.
  */
-// TODO Is it basic operator?
-public class MapWindow<IN, OUT, W extends Window<?, ?>>
-    extends WindowWiseOperator<IN, IN, OUT, W> {
+public class MapWindow<IN, OUT, WLABEL, W extends Window<?, WLABEL>, VOUT>
+    extends WindowWiseOperator<IN, IN, VOUT, WLABEL, W> {
 
   public static class OfBuilder {
     private final String name;
@@ -39,36 +39,62 @@ public class MapWindow<IN, OUT, W extends Window<?, ?>>
       this.input = Objects.requireNonNull(input);
     }
 
-    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
-      return new OutputBuilder<>(name, input, functor);
+    public <OUT> WindowingBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
+      return new WindowingBuilder<>(name, input, functor);
     }
   }
 
-  public static class OutputBuilder<IN, OUT> {
+  public static class WindowingBuilder<IN, OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunctor<IN, OUT> functor;
-    private Windowing<IN,?, ?, ?> windowing;
 
-    OutputBuilder(String name, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+    WindowingBuilder(String name, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
       this.name = name;
       this.input = input;
       this.functor = functor;
     }
 
     public Dataset<OUT> output() {
-      Flow flow = input.getFlow();
-      MapWindow<IN, OUT, ?> mapWindow = new MapWindow<>(name, flow, windowing, input, functor);
-      flow.add(mapWindow);
-
-      return mapWindow.output();
+      return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
 
-    public <W extends Window<?, ?>> OutputBuilder<IN, OUT> windowBy(
-            Windowing<IN,?, ?, W> windowing)
+    public Dataset<Pair<BatchWindowing.Batch, OUT>> outputWindowed() {
+      return new OutputBuilder<>(this, BatchWindowing.get()).outputWindowed();
+    }
+
+    public <WLABEL, W extends Window<?, WLABEL>> OutputBuilder<IN, OUT, WLABEL, W>
+    windowBy(Windowing<IN,?, WLABEL, W> windowing)
     {
+      return new OutputBuilder<>(this, windowing);
+    }
+  }
+
+  public static class OutputBuilder<IN, OUT, WLABEL, W extends Window<?, WLABEL>> {
+    private final WindowingBuilder<IN, OUT> prev;
+    private final Windowing<IN, ?, WLABEL, W> windowing;
+
+    OutputBuilder(WindowingBuilder<IN, OUT> prev,
+                  Windowing<IN, ?, WLABEL, W> windowing)
+    {
+      this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
-      return this;
+    }
+
+    public Dataset<OUT> output() {
+      return outputImpl(false);
+    }
+
+    public Dataset<Pair<WLABEL, OUT>> outputWindowed() {
+      return outputImpl(true);
+    }
+
+    public Dataset outputImpl(boolean windowedOutput) {
+      Flow flow = prev.input.getFlow();
+      MapWindow<IN, OUT, WLABEL, W, OUT> mapWindow = new MapWindow<>(
+          prev.name, flow, windowing, prev.input, prev.functor, windowedOutput);
+      flow.add(mapWindow);
+      return mapWindow.output();
     }
   }
 
@@ -81,15 +107,19 @@ public class MapWindow<IN, OUT, W extends Window<?, ?>>
   }
 
   private final Dataset<IN> input;
-  private final Dataset<OUT> output;
+  private final Dataset<VOUT> output;
   private final UnaryFunctor<IN, OUT> functor;
+  private final boolean windowedOutput;
 
-  MapWindow(String name, Flow flow, Windowing<IN, ?, ?, W> windowing,
-            Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+  MapWindow(String name, Flow flow, Windowing<IN, ?, WLABEL, W> windowing,
+            Dataset<IN> input, UnaryFunctor<IN, OUT> functor,
+            boolean windowedOutput)
+  {
     super(name, flow, windowing);
     this.input = input;
     this.functor = functor;
     this.output = createOutput(input);
+    this.windowedOutput = windowedOutput;
   }
 
   @Override
@@ -98,8 +128,11 @@ public class MapWindow<IN, OUT, W extends Window<?, ?>>
   }
 
   @Override
-  public Dataset<OUT> output() {
+  public Dataset<VOUT> output() {
     return output;
   }
 
+  public boolean isWindowedOutput() {
+    return windowedOutput;
+  }
 }
