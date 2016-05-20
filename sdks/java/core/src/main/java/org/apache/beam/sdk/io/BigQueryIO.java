@@ -559,34 +559,23 @@ public class BigQueryIO {
               String.format("Failed to resolve extract destination directory in %s", tempLocation));
         }
 
+        final String executingProject = bqOptions.getProject();
         if (!Strings.isNullOrEmpty(query)) {
-          String projectId = bqOptions.getProject();
           String queryTempDatasetId = "temp_dataset_" + uuid;
           String queryTempTableId = "temp_table_" + uuid;
 
           TableReference queryTempTableRef = new TableReference()
-              .setProjectId(projectId)
+              .setProjectId(executingProject)
               .setDatasetId(queryTempDatasetId)
               .setTableId(queryTempTableId);
 
-          String jsonQueryTempTable;
-          try {
-            jsonQueryTempTable = JSON_FACTORY.toString(queryTempTableRef);
-          } catch (IOException e) {
-            throw new RuntimeException("Cannot initialize table to JSON strings.", e);
-          }
           source = BigQueryQuerySource.create(
-              jobIdToken, query, jsonQueryTempTable, flattenResults,
+              jobIdToken, query, queryTempTableRef, flattenResults,
               extractDestinationDir, bqServices);
         } else {
-          String jsonTable;
-          try {
-            jsonTable = JSON_FACTORY.toString(getTableWithDefaultProject(bqOptions));
-          } catch (IOException e) {
-            throw new RuntimeException("Cannot initialize table to JSON strings.", e);
-          }
+          TableReference inputTable = getTableWithDefaultProject(bqOptions);
           source = BigQueryTableSource.create(
-              jobIdToken, jsonTable, extractDestinationDir, bqServices);
+              jobIdToken, inputTable, extractDestinationDir, bqServices, executingProject);
         }
         PassThroughThenCleanup.CleanupOperation cleanupOperation =
             new PassThroughThenCleanup.CleanupOperation() {
@@ -595,7 +584,7 @@ public class BigQueryIO {
                 BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
                 JobReference jobRef = new JobReference()
-                    .setProjectId(bqOptions.getProject())
+                    .setProjectId(executingProject)
                     .setJobId(getExtractJobId(jobIdToken));
                 Job extractJob = bqServices.getJobService(bqOptions).pollJob(
                     jobRef, CLEANUP_JOB_POLL_MAX_RETRIES);
@@ -759,10 +748,12 @@ public class BigQueryIO {
 
     static BigQueryTableSource create(
         String jobIdToken,
-        String jsonTable,
+        TableReference table,
         String extractDestinationDir,
-        BigQueryServices bqServices) {
-      return new BigQueryTableSource(jobIdToken, jsonTable, extractDestinationDir, bqServices);
+        BigQueryServices bqServices,
+        String executingProject) {
+      return new BigQueryTableSource(
+          jobIdToken, table, extractDestinationDir, bqServices, executingProject);
     }
 
     private final String jsonTable;
@@ -770,11 +761,17 @@ public class BigQueryIO {
 
     private BigQueryTableSource(
         String jobIdToken,
-        String jsonTable,
+        TableReference table,
         String extractDestinationDir,
-        BigQueryServices bqServices) {
-      super(jobIdToken, extractDestinationDir, bqServices);
-      this.jsonTable = checkNotNull(jsonTable, "jsonTable");
+        BigQueryServices bqServices,
+        String executingProject) {
+      super(jobIdToken, extractDestinationDir, bqServices, executingProject);
+      checkNotNull(table, "table");
+      try {
+        this.jsonTable = JSON_FACTORY.toString(table);
+      } catch (IOException e) {
+        throw new RuntimeException("Cannot initialize table to JSON strings.", e);
+      }
       this.tableSizeBytes = new AtomicReference<>();
     }
 
@@ -824,12 +821,17 @@ public class BigQueryIO {
     static BigQueryQuerySource create(
         String jobIdToken,
         String query,
-        String jsonQueryTempTable,
+        TableReference queryTempTableRef,
         Boolean flattenResults,
         String extractDestinationDir,
         BigQueryServices bqServices) {
       return new BigQueryQuerySource(
-          jobIdToken, query, jsonQueryTempTable, flattenResults, extractDestinationDir, bqServices);
+          jobIdToken,
+          query,
+          queryTempTableRef,
+          flattenResults,
+          extractDestinationDir,
+          bqServices);
     }
 
     private final String query;
@@ -840,13 +842,18 @@ public class BigQueryIO {
     private BigQueryQuerySource(
         String jobIdToken,
         String query,
-        String jsonQueryTempTable,
+        TableReference queryTempTableRef,
         Boolean flattenResults,
         String extractDestinationDir,
         BigQueryServices bqServices) {
-      super(jobIdToken, extractDestinationDir, bqServices);
+      super(jobIdToken, extractDestinationDir, bqServices,
+          checkNotNull(queryTempTableRef, "queryTempTableRef").getProjectId());
       this.query = checkNotNull(query, "query");
-      this.jsonQueryTempTable = checkNotNull(jsonQueryTempTable, "jsonQueryTempTable");
+      try {
+        this.jsonQueryTempTable = JSON_FACTORY.toString(queryTempTableRef);
+      } catch (IOException e) {
+        throw new RuntimeException("Cannot initialize table to JSON strings.", e);
+      }
       this.flattenResults = checkNotNull(flattenResults, "flattenResults");
       this.dryRunJobStats = new AtomicReference<>();
     }
@@ -861,7 +868,7 @@ public class BigQueryIO {
     public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       return new BigQueryReader(this, bqServices.getReaderFromQuery(
-          bqOptions, query, bqOptions.getProject(), flattenResults));
+          bqOptions, query, executingProject, flattenResults));
     }
 
     @Override
@@ -887,7 +894,12 @@ public class BigQueryIO {
       // 3. Execute the query.
       String queryJobId = jobIdToken + "-query";
       executeQuery(
-          queryJobId, query, tableToExtract, flattenResults, bqServices.getJobService(bqOptions));
+          executingProject,
+          queryJobId,
+          query,
+          tableToExtract,
+          flattenResults,
+          bqServices.getJobService(bqOptions));
       return tableToExtract;
     }
 
@@ -912,22 +924,22 @@ public class BigQueryIO {
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
-        String projectId = bqOptions.getProject();
         JobStatistics jobStats =
-            bqServices.getJobService(bqOptions).dryRunQuery(projectId, query);
+            bqServices.getJobService(bqOptions).dryRunQuery(executingProject, query);
         dryRunJobStats.compareAndSet(null, jobStats);
       }
       return dryRunJobStats.get();
     }
 
     private static void executeQuery(
+        String executingProject,
         String jobId,
         String query,
         TableReference destinationTable,
         boolean flattenResults,
         JobService jobService) throws IOException, InterruptedException {
       JobReference jobRef = new JobReference()
-          .setProjectId(destinationTable.getProjectId())
+          .setProjectId(executingProject)
           .setJobId(jobId);
       JobConfigurationQuery queryConfig = new JobConfigurationQuery();
       queryConfig
@@ -978,14 +990,17 @@ public class BigQueryIO {
     protected final String jobIdToken;
     protected final String extractDestinationDir;
     protected final BigQueryServices bqServices;
+    protected final String executingProject;
 
     private BigQuerySourceBase(
         String jobIdToken,
         String extractDestinationDir,
-        BigQueryServices bqServices) {
+        BigQueryServices bqServices,
+        String executingProject) {
       this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
       this.extractDestinationDir = checkNotNull(extractDestinationDir, "extractDestinationDir");
       this.bqServices = checkNotNull(bqServices, "bqServices");
+      this.executingProject = checkNotNull(executingProject, "executingProject");
     }
 
     @Override
@@ -1029,7 +1044,7 @@ public class BigQueryIO {
         String jobId, TableReference table, JobService jobService)
             throws InterruptedException, IOException {
       JobReference jobRef = new JobReference()
-          .setProjectId(table.getProjectId())
+          .setProjectId(executingProject)
           .setJobId(jobId);
 
       String destinationUri = getExtractDestinationUri(extractDestinationDir);
