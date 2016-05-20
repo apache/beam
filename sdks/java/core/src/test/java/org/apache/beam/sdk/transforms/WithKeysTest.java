@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -64,6 +66,7 @@ public class WithKeysTest {
   );
 
   @Test
+  @Category(NeedsRunner.class)
   public void testExtractKeys() {
     Pipeline p = TestPipeline.create();
 
@@ -80,6 +83,7 @@ public class WithKeysTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testConstantKeys() {
     Pipeline p = TestPipeline.create();
 
@@ -101,6 +105,7 @@ public class WithKeysTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWithKeysWithUnneededWithKeyTypeSucceeds() {
     TestPipeline p = TestPipeline.create();
 

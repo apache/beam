@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -198,6 +198,7 @@ public class GroupByKeyTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testIdentityWindowFnPropagation() {
     Pipeline p = TestPipeline.create();
 
@@ -218,6 +219,7 @@ public class GroupByKeyTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWindowFnInvalidation() {
     Pipeline p = TestPipeline.create();
 
@@ -268,6 +270,7 @@ public class GroupByKeyTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testRemerge() {
     Pipeline p = TestPipeline.create();
 

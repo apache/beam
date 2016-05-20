@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -28,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -246,6 +246,7 @@ public class SampleTest {
 
   @Test
   // Extra tests, not worth the time to run on the real service.
+  @Category(NeedsRunner.class)
   public void testPickAnyMore() {
     runPickAnyTest(LINES, LINES.size() - 1);
     runPickAnyTest(LINES, LINES.size());

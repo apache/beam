@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -81,6 +81,7 @@ public class PartitionTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testModPartition() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -95,6 +96,7 @@ public class PartitionTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testOutOfBoundsPartitions() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -120,6 +122,7 @@ public class PartitionTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testDroppedPartition() {
     Pipeline pipeline = TestPipeline.create();
 

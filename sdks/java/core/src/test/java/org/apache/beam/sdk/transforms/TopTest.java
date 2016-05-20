@@ -25,6 +25,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -38,6 +39,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -90,6 +92,7 @@ public class TopTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testTop() {
     Pipeline p = TestPipeline.create();
@@ -121,6 +124,7 @@ public class TopTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testTopEmpty() {
     Pipeline p = TestPipeline.create();
@@ -165,6 +169,7 @@ public class TopTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
   public void testTopZero() {
     Pipeline p = TestPipeline.create();

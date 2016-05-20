@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -190,6 +191,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testEmptyInput() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
@@ -206,6 +208,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testTextIoInput() throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
     String filename = tmpFile.getPath();

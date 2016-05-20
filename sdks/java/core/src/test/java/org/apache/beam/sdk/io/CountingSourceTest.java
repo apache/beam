@@ -29,6 +29,7 @@ import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -186,6 +187,7 @@ public class CountingSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testUnboundedSourceWithRate() {
     Pipeline p = TestPipeline.create();
 
@@ -245,6 +247,7 @@ public class CountingSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testUnboundedSourceRateSplits() throws Exception {
     Pipeline p = TestPipeline.create();
     int elementsPerPeriod = 10;

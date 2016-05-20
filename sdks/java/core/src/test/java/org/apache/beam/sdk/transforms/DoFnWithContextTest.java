@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -169,6 +171,7 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCreateAggregatorInStartBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
       @StartBundle
@@ -187,6 +190,7 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCreateAggregatorInProcessElementThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
       @ProcessElement
@@ -202,6 +206,7 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCreateAggregatorInFinishBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
       @FinishBundle

@@ -38,6 +38,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -53,6 +54,7 @@ import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -74,6 +76,7 @@ import java.util.zip.GZIPOutputStream;
 /**
  * Tests for TextIO Read and Write transforms.
  */
+// TODO: Change the tests to use RunnableOnService instead of NeedsRunner
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
@@ -110,26 +113,31 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadStrings() throws Exception {
     runTestRead(LINES_ARRAY, StringUtf8Coder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadEmptyStrings() throws Exception {
     runTestRead(NO_LINES_ARRAY, StringUtf8Coder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadInts() throws Exception {
     runTestRead(INTS_ARRAY, TextualIntegerCoder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadEmptyInts() throws Exception {
     runTestRead(NO_INTS_ARRAY, TextualIntegerCoder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadNulls() throws Exception {
     runTestRead(new Void[]{ null, null, null }, VoidCoder.of());
   }
@@ -246,21 +254,25 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteStrings() throws Exception {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteEmptyStrings() throws Exception {
     runTestWrite(NO_LINES_ARRAY, StringUtf8Coder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteInts() throws Exception {
     runTestWrite(INTS_ARRAY, TextualIntegerCoder.of());
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteEmptyInts() throws Exception {
     runTestWrite(NO_INTS_ARRAY, TextualIntegerCoder.of());
   }
@@ -287,6 +299,7 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testShardedWrite() throws Exception {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
   }
@@ -364,6 +377,7 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCompressedRead() throws Exception {
     String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
     File tmpFile = tmpFolder.newFile();
@@ -389,6 +403,7 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testGZIPReadWhenUncompressed() throws Exception {
     String[] lines = {"Meritorious condor", "Obnoxious duck"};
     File tmpFile = tmpFolder.newFile();

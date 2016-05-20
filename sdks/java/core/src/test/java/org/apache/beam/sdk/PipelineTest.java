@@ -31,6 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -291,6 +292,7 @@ public class PipelineTest {
    * Tests that an empty pipeline runs.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testEmptyPipeline() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     pipeline.run();

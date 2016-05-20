@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -76,6 +77,7 @@ public class FilterTest implements Serializable {
 
   @Deprecated
   @Test
+  @Category(NeedsRunner.class)
   public void testNoFilter() {
     TestPipeline p = TestPipeline.create();
 
@@ -115,6 +117,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testNoFilterByPredicate() {
     TestPipeline p = TestPipeline.create();
 
@@ -153,6 +156,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testFilterGreaterThan() {
     TestPipeline p = TestPipeline.create();
 

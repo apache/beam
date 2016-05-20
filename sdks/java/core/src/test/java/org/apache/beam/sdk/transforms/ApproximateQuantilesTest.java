@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
@@ -39,6 +39,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -70,6 +71,7 @@ public class ApproximateQuantilesTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testQuantilesGlobally() {
     TestPipeline p = TestPipeline.create();
 
@@ -83,6 +85,7 @@ public class ApproximateQuantilesTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testQuantilesGobally_comparable() {
     TestPipeline p = TestPipeline.create();
 
@@ -97,6 +100,7 @@ public class ApproximateQuantilesTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testQuantilesPerKey() {
     Pipeline p = TestPipeline.create();
 
@@ -113,6 +117,7 @@ public class ApproximateQuantilesTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testQuantilesPerKey_reversed() {
     Pipeline p = TestPipeline.create();
 

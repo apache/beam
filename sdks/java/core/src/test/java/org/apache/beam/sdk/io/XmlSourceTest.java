@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -44,6 +44,7 @@ import org.hamcrest.Matchers;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -567,7 +568,8 @@ public class XmlSourceTest {
   }
 
   @Test
-  public void testReadXMLSmallDataflow() throws IOException {
+  @Category(NeedsRunner.class)
+  public void testReadXMLSmallPipeline() throws IOException {
     Pipeline p = TestPipeline.create();
 
     File file = tempFolder.newFile("trainXMLSmall");
@@ -657,7 +659,8 @@ public class XmlSourceTest {
   }
 
   @Test
-  public void testReadXMLLargeDataflow() throws IOException {
+  @Category(NeedsRunner.class)
+  public void testReadXMLLargePipeline() throws IOException {
     String fileName = "temp.xml";
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
@@ -798,6 +801,7 @@ public class XmlSourceTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadXMLFilePattern() throws IOException {
     List<Train> trains1 = generateRandomTrainList(20);
     File file = createRandomTrainXML("temp1.xml", trains1);

@@ -129,7 +129,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludedGroups>
-            org.apache.beam.sdk.testing.RunnableOnService
+            org.apache.beam.sdk.testing.NeedsRunner
           </excludedGroups>
         </configuration>
       </plugin>

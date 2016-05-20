@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -40,6 +41,7 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,6 +55,7 @@ import java.util.List;
 /**
  * Tests for AvroIO Read and Write transforms, using classes generated from {@code user.avsc}.
  */
+// TODO: Stop requiring local files
 @RunWith(JUnit4.class)
 public class AvroIOGeneratedClassTest {
   @Rule
@@ -145,6 +148,7 @@ public class AvroIOGeneratedClassTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadFromGeneratedClass() throws Exception {
     runTestRead(
         AvroIO.Read.from(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
@@ -181,6 +185,7 @@ public class AvroIOGeneratedClassTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadFromSchema() throws Exception {
     runTestRead(
         AvroIO.Read.from(avroFile.getPath()).withSchema(schema),
@@ -217,6 +222,7 @@ public class AvroIOGeneratedClassTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadFromSchemaString() throws Exception {
     runTestRead(
         AvroIO.Read.from(avroFile.getPath()).withSchema(schemaString),
@@ -268,6 +274,7 @@ public class AvroIOGeneratedClassTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteFromGeneratedClass() throws Exception {
     runTestWrite(AvroIO.Write.to(avroFile.getPath())
                              .withSchema(AvroGeneratedUser.class),
@@ -302,6 +309,7 @@ public class AvroIOGeneratedClassTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteFromSchema() throws Exception {
     runTestWrite(AvroIO.Write.to(avroFile.getPath())
                              .withSchema(schema),
@@ -336,6 +344,7 @@ public class AvroIOGeneratedClassTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteFromSchemaString() throws Exception {
     runTestWrite(AvroIO.Write.to(avroFile.getPath())
                              .withSchema(schemaString),
