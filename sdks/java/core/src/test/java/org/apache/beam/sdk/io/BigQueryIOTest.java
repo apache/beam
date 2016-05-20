@@ -870,10 +870,10 @@ public class BigQueryIOTest implements Serializable {
             toJsonString(new TableRow().set("name", "c").set("number", "3")));
 
     String jobIdToken = "testJobIdToken";
-    String jsonTable = toJsonString(BigQueryIO.parseTableSpec("project.data_set.table_name"));
+    TableReference table = BigQueryIO.parseTableSpec("project.data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
-    BoundedSource<TableRow> bqSource =
-        BigQueryTableSource.create(jobIdToken, jsonTable, extractDestinationDir, fakeBqServices);
+    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
+        jobIdToken, table, extractDestinationDir, fakeBqServices, "project");
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", "1"),
@@ -907,10 +907,10 @@ public class BigQueryIOTest implements Serializable {
             toJsonString(new TableRow().set("name", "c").set("number", "3")));
 
     String jobIdToken = "testJobIdToken";
-    String jsonTable = toJsonString(BigQueryIO.parseTableSpec("project.data_set.table_name"));
+    TableReference table = BigQueryIO.parseTableSpec("project:data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
-    BoundedSource<TableRow> bqSource =
-        BigQueryTableSource.create(jobIdToken, jsonTable, extractDestinationDir, fakeBqServices);
+    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
+        jobIdToken, table, extractDestinationDir, fakeBqServices, "project");
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", "1"),
@@ -973,10 +973,9 @@ public class BigQueryIOTest implements Serializable {
 
     String jobIdToken = "testJobIdToken";
     String extractDestinationDir = "mock://tempLocation";
-    TableReference destinationTable = BigQueryIO.parseTableSpec("project.data_set.table_name");
-    String jsonDestinationTable = toJsonString(destinationTable);
+    TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", jsonDestinationTable, true /* flattenResults */,
+        jobIdToken, "query", destinationTable, true /* flattenResults */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(
