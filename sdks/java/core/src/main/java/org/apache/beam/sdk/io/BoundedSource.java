@@ -46,8 +46,8 @@ import javax.annotation.Nullable;
  *     <ul>
  *       <li>Progress estimation ({@link BoundedReader#getFractionConsumed})
  *       <li>Tracking of parallelism, to determine with the current source can be split
- *        ({@link BoundedReader#getParallelismConsumed()} and
- *        {@link BoundedReader#getParallelismRemaining()}).
+ *        ({@link BoundedReader#getSplitPointsConsumed()} and
+ *        {@link BoundedReader#getSplitPointsRemaining()}).
  *       <li>Dynamic splitting of the current source ({@link BoundedReader#splitAtFraction}).
  *     </ul>
  *     </li>
@@ -93,14 +93,14 @@ public abstract class BoundedSource<T> extends Source<T> {
    *
    * <h3>Thread safety</h3>
    * All methods will be run from the same thread except {@link #splitAtFraction},
-   * {@link #getFractionConsumed}, {@link #getCurrentSource}, {@link #getParallelismConsumed()},
-   * and {@link #getParallelismRemaining()}, all of which can be called concurrently
+   * {@link #getFractionConsumed}, {@link #getCurrentSource}, {@link #getSplitPointsConsumed()},
+   * and {@link #getSplitPointsRemaining()}, all of which can be called concurrently
    * from a different thread. There will not be multiple concurrent calls to
    * {@link #splitAtFraction}.
    *
    * <p>It must be safe to call {@link #splitAtFraction}, {@link #getFractionConsumed},
-   * {@link #getCurrentSource}, {@link #getParallelismConsumed()}, and
-   * {@link #getParallelismRemaining()} concurrently with other methods.
+   * {@link #getCurrentSource}, {@link #getSplitPointsConsumed()}, and
+   * {@link #getSplitPointsRemaining()} concurrently with other methods.
    *
    * <p>Additionally, a successful {@link #splitAtFraction} call must, by definition, cause
    * {@link #getCurrentSource} to start returning a different value.
@@ -146,10 +146,10 @@ public abstract class BoundedSource<T> extends Source<T> {
     }
 
     /**
-     * A constant to use as the return value for {@link #getParallelismConsumed()} or
-     * {@link #getParallelismRemaining()} when the exact value is unknown.
+     * A constant to use as the return value for {@link #getSplitPointsConsumed()} or
+     * {@link #getSplitPointsRemaining()} when the exact value is unknown.
      */
-    public static final long PARALLELISM_UNKNOWN = -1;
+    public static final long SPLIT_POINTS_UNKNOWN = -1;
 
     /**
      * Returns the total amount of parallelism in the consumed (returned and processed) range of
@@ -194,16 +194,16 @@ public abstract class BoundedSource<T> extends Source<T> {
      * range tracker's ability to count split points to implement this method. See
      * {@link OffsetBasedSource.OffsetBasedReader} and {@link OffsetRangeTracker} for an example.
      *
-     * <p>Defaults to {@link #PARALLELISM_UNKNOWN}. Any value less than 0 will be interpreted
+     * <p>Defaults to {@link #SPLIT_POINTS_UNKNOWN}. Any value less than 0 will be interpreted
      * as unknown.
      *
      * <h3>Thread safety</h3>
      * See the javadoc on {@link BoundedReader} for information about thread safety.
      *
-     * @see #getParallelismRemaining()
+     * @see #getSplitPointsRemaining()
      */
-    public long getParallelismConsumed() {
-      return PARALLELISM_UNKNOWN;
+    public long getSplitPointsConsumed() {
+      return SPLIT_POINTS_UNKNOWN;
     }
 
     /**
@@ -213,7 +213,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      * split point returned, in the remainder part of the source.
      *
      * <p>This function should be implemented only <strong>in addition to
-     * {@link #getParallelismConsumed()}</strong> and only if <em>an exact value can be
+     * {@link #getSplitPointsConsumed()}</strong> and only if <em>an exact value can be
      * returned</em>.
      *
      * <p>Consider the following examples: (1) An input that can be read in parallel down to the
@@ -247,16 +247,16 @@ public abstract class BoundedSource<T> extends Source<T> {
      * remainder can be split off.
      * </ul>
      *
-     * <p>Defaults to {@link #PARALLELISM_UNKNOWN}. Any value less than 0 will be interpreted as
+     * <p>Defaults to {@link #SPLIT_POINTS_UNKNOWN}. Any value less than 0 will be interpreted as
      * unknown.
      *
      * <h3>Thread safety</h3>
      * See the javadoc on {@link BoundedReader} for information about thread safety.
      *
-     * @see #getParallelismConsumed()
+     * @see #getSplitPointsConsumed()
      */
-    public long getParallelismRemaining() {
-      return PARALLELISM_UNKNOWN;
+    public long getSplitPointsRemaining() {
+      return SPLIT_POINTS_UNKNOWN;
     }
 
     /**

@@ -429,16 +429,16 @@ public class TextIOTest {
         prepareSource(new byte[0]).createReader(PipelineOptionsFactory.create())) {
       // Check preconditions before starting.
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Assert empty
       assertFalse(reader.start());
 
       // Check postconditions after finishing
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 
@@ -449,29 +449,29 @@ public class TextIOTest {
         prepareSource(file.getBytes()).createReader(PipelineOptionsFactory.create())) {
       // Check preconditions before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Line 1
       assertTrue(reader.start());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Line 2
       assertTrue(reader.advance());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Line 3
       assertTrue(reader.advance());
-      assertEquals(2, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(2, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // Check postconditions after finishing
       assertFalse(reader.advance());
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(3, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(3, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 
@@ -485,13 +485,13 @@ public class TextIOTest {
     try (BoundedReader<String> readerOrig = source.createReader(PipelineOptionsFactory.create())) {
       // Preconditions.
       assertEquals(0.0, readerOrig.getFractionConsumed(), 1e-6);
-      assertEquals(0, readerOrig.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, readerOrig.getParallelismRemaining());
+      assertEquals(0, readerOrig.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, readerOrig.getSplitPointsRemaining());
 
       // First record, before splitting.
       assertTrue(readerOrig.start());
-      assertEquals(0, readerOrig.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, readerOrig.getParallelismRemaining());
+      assertEquals(0, readerOrig.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, readerOrig.getSplitPointsRemaining());
 
       // Split. 0.1 is in line1, so should now be able to detect last record.
       remainder = readerOrig.splitAtFraction(0.1);
@@ -499,38 +499,38 @@ public class TextIOTest {
       assertNotNull(remainder);
 
       // First record, after splitting.
-      assertEquals(0, readerOrig.getParallelismConsumed());
-      assertEquals(1, readerOrig.getParallelismRemaining());
+      assertEquals(0, readerOrig.getSplitPointsConsumed());
+      assertEquals(1, readerOrig.getSplitPointsRemaining());
 
       // Finish and postconditions.
       assertFalse(readerOrig.advance());
       assertEquals(1.0, readerOrig.getFractionConsumed(), 1e-6);
-      assertEquals(1, readerOrig.getParallelismConsumed());
-      assertEquals(0, readerOrig.getParallelismRemaining());
+      assertEquals(1, readerOrig.getSplitPointsConsumed());
+      assertEquals(0, readerOrig.getSplitPointsRemaining());
     }
 
     // Check the properties of the remainder.
     try (BoundedReader<String> reader = remainder.createReader(PipelineOptionsFactory.create())) {
       // Preconditions.
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // First record should be line 2.
       assertTrue(reader.start());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Second record is line 3
       assertTrue(reader.advance());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // Check postconditions after finishing
       assertFalse(reader.advance());
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(2, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(2, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 

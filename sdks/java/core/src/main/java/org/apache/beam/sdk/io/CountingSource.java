@@ -210,7 +210,7 @@ public class CountingSource {
     }
 
     @Override
-    public synchronized long getParallelismRemaining() {
+    public synchronized long getSplitPointsRemaining() {
       return Math.max(0, getCurrentSource().getEndOffset() - current);
     }
 

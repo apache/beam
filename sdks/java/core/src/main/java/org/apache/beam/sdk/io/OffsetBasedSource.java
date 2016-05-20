@@ -330,18 +330,18 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public long getParallelismConsumed() {
+    public long getSplitPointsConsumed() {
       return rangeTracker.getSplitPointsProcessed();
     }
 
     @Override
-    public long getParallelismRemaining() {
+    public long getSplitPointsRemaining() {
       if (isDone()) {
         return 0;
       } else if (!isStarted()) {
         // Note that even if the current source does not allow splitting, we don't know that
         // it's non-empty so we return UNKNOWN instead of 1.
-        return BoundedReader.PARALLELISM_UNKNOWN;
+        return BoundedReader.SPLIT_POINTS_UNKNOWN;
       } else if (!getCurrentSource().allowsDynamicSplitting()) {
         // Started (so non-empty) and unsplittable, so only the current task.
         return 1;
@@ -351,7 +351,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
         return 1;
       } else {
         // Use the default.
-        return super.getParallelismRemaining();
+        return super.getSplitPointsRemaining();
       }
     }
 

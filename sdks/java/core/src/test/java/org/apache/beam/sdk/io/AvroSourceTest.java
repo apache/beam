@@ -215,41 +215,41 @@ public class AvroSourceTest {
 
       // Before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // First 2 records are in the same block.
       assertTrue(reader.start());
       assertTrue(reader.isAtSplitPoint());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
       // continued
       assertTrue(reader.advance());
       assertFalse(reader.isAtSplitPoint());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Second block -> parallelism consumed becomes 1.
       assertTrue(reader.advance());
       assertTrue(reader.isAtSplitPoint());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
       // continued
       assertTrue(reader.advance());
       assertFalse(reader.isAtSplitPoint());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Third and final block -> parallelism consumed becomes 2, remaining becomes 1.
       assertTrue(reader.advance());
       assertTrue(reader.isAtSplitPoint());
-      assertEquals(2, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(2, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // Done
       assertFalse(reader.advance());
-      assertEquals(3, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(3, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
     }
   }
@@ -268,15 +268,15 @@ public class AvroSourceTest {
 
       // before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // confirm empty
       assertFalse(reader.start());
 
       // after reading empty source
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
     }
   }

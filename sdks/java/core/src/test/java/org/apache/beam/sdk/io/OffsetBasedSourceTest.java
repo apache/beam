@@ -245,39 +245,39 @@ public class OffsetBasedSourceTest {
     try (OffsetBasedReader<Integer> reader = source.createReader(options)) {
       // Unstarted reader
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Start and produce the element 14 since granularity is 2.
       assertTrue(reader.start());
       assertTrue(reader.isAtSplitPoint());
       assertEquals(14, reader.getCurrent().intValue());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
       // Advance and produce the element 15, not a split point.
       assertTrue(reader.advance());
       assertEquals(15, reader.getCurrent().intValue());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Advance and produce the element 16, is a split point. Since the next offset (17) is
       // outside the range [13, 17), remaining parallelism should become 1 from UNKNOWN.
       assertTrue(reader.advance());
       assertTrue(reader.isAtSplitPoint());
       assertEquals(16, reader.getCurrent().intValue());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining()); // The next offset is outside the range.
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining()); // The next offset is outside the range.
       // Advance and produce the element 17, not a split point.
       assertTrue(reader.advance());
       assertEquals(17, reader.getCurrent().intValue());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // Advance and reach the end of the reader.
       assertFalse(reader.advance());
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(2, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(2, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 
@@ -288,16 +288,16 @@ public class OffsetBasedSourceTest {
     try (OffsetBasedReader<Integer> reader = source.createReader(options)) {
       // before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // confirm empty
       assertFalse(reader.start());
 
       // after reading empty source
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 

@@ -435,7 +435,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     }
 
     @Override
-    public final long getParallelismRemaining() {
+    public final long getSplitPointsRemaining() {
       if (done) {
         return 0;
       }

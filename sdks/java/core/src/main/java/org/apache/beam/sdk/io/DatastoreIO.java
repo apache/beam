@@ -887,12 +887,12 @@ public class DatastoreIO {
     }
 
     @Override
-    public final long getParallelismConsumed() {
+    public final long getSplitPointsConsumed() {
       return done ? 1 : 0;
     }
 
     @Override
-    public final long getParallelismRemaining() {
+    public final long getSplitPointsRemaining() {
       return done ? 0 : 1;
     }
 

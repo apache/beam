@@ -127,21 +127,21 @@ public class CountingSourceTest {
       // Check preconditions before starting. Note that CountingReader can always give an accurate
       // remaining parallelism.
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(numRecords, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(numRecords, reader.getSplitPointsRemaining());
 
       assertTrue(reader.start());
       int i = 0;
       do {
-        assertEquals(i, reader.getParallelismConsumed());
-        assertEquals(numRecords - i, reader.getParallelismRemaining());
+        assertEquals(i, reader.getSplitPointsConsumed());
+        assertEquals(numRecords - i, reader.getSplitPointsRemaining());
         ++i;
       } while (reader.advance());
 
       assertEquals(numRecords, i); // exactly numRecords calls to advance()
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(numRecords, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(numRecords, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 

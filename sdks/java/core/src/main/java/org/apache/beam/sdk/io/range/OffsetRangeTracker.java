@@ -196,7 +196,7 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
    * {@link #tryReturnRecordAt(boolean, long)} with {@code isAtSplitPoint} true and at a larger
    * offset.
    *
-   * <p>Note that for correctness when implementing {@link BoundedReader#getParallelismConsumed()},
+   * <p>Note that for correctness when implementing {@link BoundedReader#getSplitPointsConsumed()},
    * if a reader finishes before {@link #tryReturnRecordAt(boolean, long)} returns false,
    * the reader should add an additional call to {@link #markDone()}. This will indicate that
    * processing for the last seen split point has been finished.

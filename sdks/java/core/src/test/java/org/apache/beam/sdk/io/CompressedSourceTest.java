@@ -520,16 +520,16 @@ public class CompressedSourceTest {
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // confirm empty
       assertFalse(reader.start());
 
       // after reading empty source
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 
@@ -547,8 +547,8 @@ public class CompressedSourceTest {
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // confirm has three records
       for (int i = 0; i < numRecords; ++i) {
@@ -557,15 +557,15 @@ public class CompressedSourceTest {
         } else {
           assertTrue(reader.advance());
         }
-        assertEquals(0, reader.getParallelismConsumed());
-        assertEquals(1, reader.getParallelismRemaining());
+        assertEquals(0, reader.getSplitPointsConsumed());
+        assertEquals(1, reader.getSplitPointsRemaining());
       }
       assertFalse(reader.advance());
 
       // after reading empty source
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 
@@ -584,24 +584,24 @@ public class CompressedSourceTest {
 
       // Check preconditions before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // First record: none consumed, unknown remaining.
       assertTrue(reader.start());
-      assertEquals(0, reader.getParallelismConsumed());
-      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
       // Second record: 1 consumed, know that we're on the last record.
       assertTrue(reader.advance());
-      assertEquals(1, reader.getParallelismConsumed());
-      assertEquals(1, reader.getParallelismRemaining());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
 
       // Confirm empty and check post-conditions
       assertFalse(reader.advance());
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
-      assertEquals(2, reader.getParallelismConsumed());
-      assertEquals(0, reader.getParallelismRemaining());
+      assertEquals(2, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
     }
   }
 }

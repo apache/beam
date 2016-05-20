@@ -396,9 +396,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     }
 
     @Override
-    public final long getParallelismConsumed() {
+    public final long getSplitPointsConsumed() {
       if (splittable) {
-        return readerDelegate.getParallelismConsumed();
+        return readerDelegate.getSplitPointsConsumed();
       } else {
         synchronized (progressLock) {
           return (isDone() && numRecordsRead > 0) ? 1 : 0;
@@ -407,9 +407,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     }
 
     @Override
-    public final long getParallelismRemaining() {
+    public final long getSplitPointsRemaining() {
       if (splittable) {
-        return readerDelegate.getParallelismRemaining();
+        return readerDelegate.getSplitPointsRemaining();
       } else {
         return isDone() ? 0 : 1;
       }

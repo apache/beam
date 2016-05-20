@@ -839,11 +839,11 @@ public class TextIO {
       }
 
       @Override
-      public long getParallelismRemaining() {
+      public long getSplitPointsRemaining() {
         if (isStarted() && startOfNextRecord >= getCurrentSource().getEndOffset()) {
           return isDone() ? 0 : 1;
         }
-        return super.getParallelismRemaining();
+        return super.getSplitPointsRemaining();
       }
 
       @Override
