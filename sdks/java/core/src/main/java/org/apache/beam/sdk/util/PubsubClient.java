@@ -33,6 +33,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
 /**
@@ -132,6 +133,12 @@ public abstract class PubsubClient implements Closeable {
       return path;
     }
 
+    public String getId() {
+      String[] splits = path.split("/");
+      checkState(splits.length == 1, "Malformed project path %s", path);
+      return splits[1];
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
@@ -178,6 +185,12 @@ public abstract class PubsubClient implements Closeable {
 
     public String getPath() {
       return path;
+    }
+
+    public String getName() {
+      String[] splits = path.split("/");
+      checkState(splits.length == 4, "Malformed subscription path %s", path);
+      return splits[3];
     }
 
     public String getV1Beta1Path() {
@@ -233,6 +246,12 @@ public abstract class PubsubClient implements Closeable {
       return path;
     }
 
+    public String getName() {
+      String[] splits = path.split("/");
+      checkState(splits.length == 4, "Malformed topic path %s", path);
+      return splits[3];
+    }
+
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
       checkState(splits.length == 4, "Malformed topic path %s", path);
@@ -286,11 +305,18 @@ public abstract class PubsubClient implements Closeable {
      */
     public final long timestampMsSinceEpoch;
 
-    // TODO: Support a record id.
+    /**
+     * If using an id label, the record id to associate with this record's metadata so the receiver
+     * can reject duplicates. Otherwise {@literal null}.
+     */
+    @Nullable
+    public final String recordId;
 
-    public OutgoingMessage(byte[] elementBytes, long timestampMsSinceEpoch) {
+    public OutgoingMessage(
+        byte[] elementBytes, long timestampMsSinceEpoch, @Nullable String recordId) {
       this.elementBytes = elementBytes;
       this.timestampMsSinceEpoch = timestampMsSinceEpoch;
+      this.recordId = recordId;
     }
 
     @Override
@@ -310,16 +336,14 @@ public abstract class PubsubClient implements Closeable {
 
       OutgoingMessage that = (OutgoingMessage) o;
 
-      if (timestampMsSinceEpoch != that.timestampMsSinceEpoch) {
-        return false;
-      }
-      return Arrays.equals(elementBytes, that.elementBytes);
-
+      return timestampMsSinceEpoch == that.timestampMsSinceEpoch
+             && Arrays.equals(elementBytes, that.elementBytes)
+             && Objects.equal(recordId, that.recordId);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(Arrays.hashCode(elementBytes), timestampMsSinceEpoch);
+      return Objects.hashCode(Arrays.hashCode(elementBytes), timestampMsSinceEpoch, recordId);
     }
   }
 
@@ -353,14 +377,14 @@ public abstract class PubsubClient implements Closeable {
     /**
      * Id to pass to the runner to distinguish this message from all others.
      */
-    public final byte[] recordId;
+    public final String recordId;
 
     public IncomingMessage(
         byte[] elementBytes,
         long timestampMsSinceEpoch,
         long requestTimeMsSinceEpoch,
         String ackId,
-        byte[] recordId) {
+        String recordId) {
       this.elementBytes = elementBytes;
       this.timestampMsSinceEpoch = timestampMsSinceEpoch;
       this.requestTimeMsSinceEpoch = requestTimeMsSinceEpoch;
@@ -390,26 +414,18 @@ public abstract class PubsubClient implements Closeable {
 
       IncomingMessage that = (IncomingMessage) o;
 
-      if (timestampMsSinceEpoch != that.timestampMsSinceEpoch) {
-        return false;
-      }
-      if (requestTimeMsSinceEpoch != that.requestTimeMsSinceEpoch) {
-        return false;
-      }
-      if (!Arrays.equals(elementBytes, that.elementBytes)) {
-        return false;
-      }
-      if (!ackId.equals(that.ackId)) {
-        return false;
-      }
-      return Arrays.equals(recordId, that.recordId);
+      return timestampMsSinceEpoch == that.timestampMsSinceEpoch
+             && requestTimeMsSinceEpoch == that.requestTimeMsSinceEpoch
+             && ackId.equals(that.ackId)
+             && recordId.equals(that.recordId)
+             && Arrays.equals(elementBytes, that.elementBytes);
     }
 
     @Override
     public int hashCode() {
       return Objects.hashCode(Arrays.hashCode(elementBytes), timestampMsSinceEpoch,
                               requestTimeMsSinceEpoch,
-                              ackId, Arrays.hashCode(recordId));
+                              ackId, recordId);
     }
   }
 
@@ -485,6 +501,22 @@ public abstract class PubsubClient implements Closeable {
       TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;
 
   /**
+   * Create a random subscription for {@code topic}. Return the {@link SubscriptionPath}. It
+   * is the responsibility of the caller to later delete the subscription.
+   *
+   * @throws IOException
+   */
+  public SubscriptionPath createRandomSubscription(
+      ProjectPath project, TopicPath topic, int ackDeadlineSeconds) throws IOException {
+    // Create a randomized subscription derived from the topic name.
+    String subscriptionName = topic.getName() + "_beam_" + ThreadLocalRandom.current().nextLong();
+    SubscriptionPath subscription =
+        PubsubClient.subscriptionPathFromName(project.getId(), subscriptionName);
+    createSubscription(topic, subscription, ackDeadlineSeconds);
+    return subscription;
+  }
+
+  /**
    * Delete {@code subscription}.
    *
    * @throws IOException
@@ -507,7 +539,7 @@ public abstract class PubsubClient implements Closeable {
   public abstract int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException;
 
   /**
-   * Return {@literal true} if {@link pull} will always return empty list. Actual clients
+   * Return {@literal true} if {@link #pull} will always return empty list. Actual clients
    * will return {@literal false}. Test clients may return {@literal true} to signal that all
    * expected messages have been pulled and the test may complete.
    */
