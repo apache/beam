@@ -1,9 +1,9 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -28,9 +28,11 @@ import java.util.Objects;
  */
 public class ReduceStateByKey<
     IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE extends State<VALUE, OUT>,
-    W extends Window<?, ?>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, Pair<KEYOUT, OUT>, W,
-        ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE, W>> {
+    WLABEL, W extends Window<?, WLABEL>, PAIROUT extends Pair<KEYOUT, OUT>>
+    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY,
+    PAIROUT, WLABEL, W,
+        ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE, WLABEL, W, PAIROUT>>
+{
 
   public static class OfBuilder {
     private final String name;
@@ -148,24 +150,31 @@ public class ReduceStateByKey<
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
     }
-    public <WIN, W extends Window<?, ?>> DatasetBuilder6<IN, WIN, KEY, VALUE, OUT,
-                STATE, W> windowBy(Windowing<WIN, ?, ?, W> windowing)
+    public <WIN, WLABEL, W extends Window<?, WLABEL>>
+    DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>
+    windowBy(Windowing<WIN, ?, WLABEL, W> windowing)
     {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, windowing, this);
     }
     public Dataset<Pair<KEY, OUT>> output() {
+      return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
+          stateFactory, stateCombiner, BatchWindowing.get(), this)
+          .output();
+    }
+    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, OUT>> outputWindowed() {
       // use default windowing
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, null, this).output();
+              stateFactory, stateCombiner, BatchWindowing.get(), this)
+          .outputWindowed();
     }
   }
 
   public static class DatasetBuilder6<
           IN, WIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
-          W extends Window<?, ?>> extends PartitioningBuilder<
-          KEY,
-          DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>>
+          WLABEL, W extends Window<?, WLABEL>>
+      extends PartitioningBuilder<
+          KEY,DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -173,7 +182,7 @@ public class ReduceStateByKey<
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final Windowing<WIN, ?, ?, W> windowing;
+    private final Windowing<WIN, ?, WLABEL, W> windowing;
 
     DatasetBuilder6(String name,
                     Dataset<IN> input,
@@ -181,7 +190,7 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     UnaryFunction<Collector<OUT>, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
-                    Windowing<WIN, ?, ?, W> windowing,
+                    Windowing<WIN, ?, WLABEL, W> windowing,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -193,14 +202,20 @@ public class ReduceStateByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
-      this.windowing = windowing; /* may be null */
+      this.windowing = Objects.requireNonNull(windowing);
     }
 
     public Dataset<Pair<KEY, OUT>> output() {
+      return (Dataset) outputWindowed();
+    }
+
+    public Dataset<WindowedPair<WLABEL, KEY, OUT>> outputWindowed() {
       Flow flow = input.getFlow();
-      ReduceStateByKey<IN, IN, WIN, KEY, VALUE, KEY, OUT, STATE, ?> reduceStateByKey =
-              new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-                      windowing, stateFactory, stateCombiner, getPartitioning());
+
+      ReduceStateByKey<IN, IN, WIN, KEY, VALUE, KEY, OUT, STATE, WLABEL, W, WindowedPair<WLABEL, KEY, OUT>>
+          reduceStateByKey =
+          new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
+              windowing, stateFactory, stateCombiner, getPartitioning());
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -289,7 +304,6 @@ public class ReduceStateByKey<
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final DefaultPartitioning<KEY> defaultPartitioning;
 
     GroupedDatasetBuilder5(String name,
                            GroupedDataset<IN, KIN> input,
@@ -307,29 +321,37 @@ public class ReduceStateByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
-
-      // initialize default partitioning according to input
-      this.defaultPartitioning = new DefaultPartitioning<>(
-              input.getPartitioning().getNumPartitions());
     }
-    public <WIN, W extends Window<?, ?>> GroupedDatasetBuilder6<IN, KIN, WIN, KEY,
-            VALUE, OUT, STATE, W> windowBy(Windowing<WIN, ?, ?, W> windowing)
+    public <WIN, WLABEL, W extends Window<?, WLABEL>>
+    GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>
+    windowBy(Windowing<WIN, ?, WLABEL, W> windowing)
     {
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, windowing, this);
     }
-    public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
+    public Dataset<Pair<CompositeKey<IN, KEY>, OUT>>
+    output()
+    {
       // use default windowing
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, null, this).output();
+              stateFactory, stateCombiner, BatchWindowing.get(), this)
+          .output();
+    }
+    public Dataset<WindowedPair<BatchWindowing.Batch, CompositeKey<IN, KEY>, OUT>>
+    outputWindowed()
+    {
+      // use default windowing
+      return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner, BatchWindowing.get(), this)
+          .outputWindowed();
     }
   }
 
   public static class GroupedDatasetBuilder6<
           IN, KIN, WIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
-          W extends Window<?, ?>> extends PartitioningBuilder<
-          KEY,
-          GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, W>>
+          WLABEL, W extends Window<?, WLABEL>>
+      extends PartitioningBuilder<
+          KEY, GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
   {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
@@ -337,7 +359,7 @@ public class ReduceStateByKey<
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final Windowing<WIN, ?, ?, W> windowing;
+    private final Windowing<WIN, ?, WLABEL, W> windowing;
 
     GroupedDatasetBuilder6(String name,
                            GroupedDataset<IN, KIN> input,
@@ -345,7 +367,7 @@ public class ReduceStateByKey<
                            UnaryFunction<KIN, VALUE> valueExtractor,
                            UnaryFunction<Collector<OUT>, STATE> stateFactory,
                            CombinableReduceFunction<STATE> stateCombiner,
-                           Windowing<WIN, ?, ?, W> windowing,
+                           Windowing<WIN, ?, WLABEL, W> windowing,
                            PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -361,10 +383,18 @@ public class ReduceStateByKey<
     }
 
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
+      return (Dataset) outputWindowed();
+    }
+
+    public Dataset<WindowedPair<WLABEL, CompositeKey<IN, KEY>, OUT>> outputWindowed() {
       Flow flow = input.getFlow();
-      ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, CompositeKey<IN, KEY>, OUT, STATE, ?> reduceStateByKey =
-              new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-                      windowing, stateFactory, stateCombiner, getPartitioning());
+
+      ReduceStateByKey<IN, KIN, WIN, KEY, VALUE,
+                       CompositeKey<IN, KEY>, OUT, STATE,
+                       WLABEL, W, WindowedPair<WLABEL, CompositeKey<IN, KEY>, OUT>>
+          reduceStateByKey =
+          new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
+              windowing, stateFactory, stateCombiner, getPartitioning());
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -395,7 +425,7 @@ public class ReduceStateByKey<
                    Dataset<IN> input,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, ?, ?, W> windowing,
+                   Windowing<WIN, ?, WLABEL, W> windowing,
                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
@@ -413,7 +443,7 @@ public class ReduceStateByKey<
                    GroupedDataset<IN, KIN> groupedInput,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, ?, ?, W> windowing,
+                   Windowing<WIN, ?, WLABEL, W> windowing,
                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)

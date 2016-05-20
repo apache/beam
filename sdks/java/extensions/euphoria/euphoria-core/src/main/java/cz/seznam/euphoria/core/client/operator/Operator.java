@@ -48,7 +48,6 @@ public abstract class Operator<IN, OUT> implements Serializable {
    * Create a new dataset that will be output of this operator.
    * This is used when creating operator outputs.
    */
-  @SuppressWarnings("unchecked")
   protected final Dataset<OUT> createOutput(final Dataset<IN> input) {
     Flow flow = input.getFlow();
     return Datasets.createOutputFor(flow, input, this);

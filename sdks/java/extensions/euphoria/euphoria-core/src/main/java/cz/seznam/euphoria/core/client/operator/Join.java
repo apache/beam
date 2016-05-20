@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
@@ -22,10 +23,11 @@ import java.util.Objects;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
+public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
+                  PAIROUT extends Pair<KEY, OUT>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
-    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
-    Join<LEFT, RIGHT, KEY, OUT, W>> {
+    Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
+    Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, PAIROUT>> {
 
   public static class OfBuilder {
     private final String name;
@@ -85,16 +87,16 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
       this.rightKeyExtractor = rightKeyExtractor;
     }
 
-    public <OUT> OutputBuilder<LEFT, RIGHT, KEY, OUT> using(
+    public <OUT> WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
             BinaryFunctor<LEFT, RIGHT, OUT> functor)
     {
-      return new OutputBuilder<>(name, left, right,
+      return new WindowingBuilder<>(name, left, right,
               leftKeyExtractor, rightKeyExtractor, functor);
     }
   }
 
-  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT>
-          extends PartitioningBuilder<KEY,  OutputBuilder<LEFT, RIGHT, KEY, OUT>>
+  public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
+          extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
   {
     private final String name;
     private final Dataset<LEFT> left;
@@ -102,15 +104,14 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
     private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
     private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
-    private Windowing<Either<LEFT, RIGHT>, ?, ?, ?> windowing;
     private boolean outer;
 
-    OutputBuilder(String name,
-                  Dataset<LEFT> left,
-                  Dataset<RIGHT> right,
-                  UnaryFunction<LEFT, KEY> leftKeyExtractor,
-                  UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-                  BinaryFunctor<LEFT, RIGHT, OUT> joinFunc)
+    WindowingBuilder(String name,
+                     Dataset<LEFT> left,
+                     Dataset<RIGHT> right,
+                     UnaryFunction<LEFT, KEY> leftKeyExtractor,
+                     UnaryFunction<RIGHT, KEY> rightKeyExtractor,
+                     BinaryFunctor<LEFT, RIGHT, OUT> joinFunc)
     {
       // define default partitioning
       super(new DefaultPartitioning<>(Math.max(
@@ -125,26 +126,51 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
       this.joinFunc = Objects.requireNonNull(joinFunc);
     }
 
-    public Dataset<Pair<KEY, OUT>> output() {
-      Flow flow = left.getFlow();
-      Join<LEFT, RIGHT, KEY, OUT, ?> join = new Join<>(name, flow, left, right,
-              windowing, getPartitioning(),
-              leftKeyExtractor, rightKeyExtractor, joinFunc, outer);
-      flow.add(join);
-
-      return join.output();
-    }
-
-    public OutputBuilder<LEFT, RIGHT, KEY, OUT> outer() {
+    public WindowingBuilder<LEFT, RIGHT, KEY, OUT> outer() {
       this.outer = true;
       return this;
     }
 
-    public <W extends Window<?, ?>> OutputBuilder<LEFT, RIGHT, KEY, OUT> windowBy(
-            Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing)
+    public Dataset<Pair<KEY, OUT>> output() {
+      return new OutputBuilder<>(this, BatchWindowing.get()).output();
+    }
+
+    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, OUT>> outputWindowed() {
+      return new OutputBuilder<>(this, BatchWindowing.get()).outputWindowed();
+    }
+
+    public <WLABEL, W extends Window<?, WLABEL>>
+    OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W>
+    windowBy(Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
     {
-      this.windowing = Objects.requireNonNull(windowing);
-      return this;
+      return new OutputBuilder<>(this, windowing);
+    }
+  }
+
+  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>> {
+    private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
+    private final Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
+
+    OutputBuilder(WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev,
+                  Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
+    {
+      this.prev = prev;
+      this.windowing = windowing;
+    }
+
+    public Dataset<Pair<KEY, OUT>> output() {
+      return (Dataset) outputWindowed();
+    }
+
+    public Dataset<WindowedPair<WLABEL, KEY, OUT>> outputWindowed() {
+      Flow flow = prev.left.getFlow();
+      Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, WindowedPair<WLABEL, KEY, OUT>> join =
+          new Join<>(prev.name, flow, prev.left, prev.right,
+          windowing, prev.getPartitioning(),
+          prev.leftKeyExtractor, prev.rightKeyExtractor, prev.joinFunc, prev.outer);
+      flow.add(join);
+
+      return join.output();
     }
   }
 
@@ -160,17 +186,16 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
 
   private final Dataset<LEFT> left;
   private final Dataset<RIGHT> right;
-  private final Dataset<Pair<KEY, OUT>> output;
+  private final Dataset<PAIROUT> output;
   private final BinaryFunctor<LEFT, RIGHT, OUT> functor;
   final UnaryFunction<LEFT, KEY> leftKeyExtractor;
   final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
   boolean outer = false;
 
-  @SuppressWarnings("unchecked")
   Join(String name,
       Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
-      Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing,
+      Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing,
       Partitioning<KEY> partitioning,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
@@ -199,7 +224,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
   }
 
   @Override
-  public Dataset<Pair<KEY, OUT>> output() {
+  public Dataset<PAIROUT> output() {
     return output;
   }
 
@@ -307,7 +332,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
 
     ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
         KEY, Either<LEFT, RIGHT>, KEY,
-        OUT, JoinState, W> reduce;
+        OUT, JoinState, WLABEL, W, ?> reduce;
 
     name = getName() + "::" + "ReduceStateByKey";
     reduce = new ReduceStateByKey<>(

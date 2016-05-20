@@ -4,14 +4,16 @@ import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
-import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
+import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.InMemExecutor.QueueCollector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,8 +31,6 @@ import java.util.stream.Collectors;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class ReduceStateByKeyReducer implements Runnable {
 
@@ -95,7 +95,6 @@ class ReduceStateByKeyReducer implements Runnable {
     final WindowStorage wStorage = new WindowStorage();
 
     // ~ an index over (item) keys to their held aggregating state
-    // XXX move to WindowStorage
     final Map<Object, State> aggregatingStates = new HashMap<>();
 
     final Collector stateOutput;
@@ -121,8 +120,8 @@ class ReduceStateByKeyReducer implements Runnable {
         UnaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
         boolean aggregating,
-        boolean isBounded) {
-
+        boolean isBounded)
+    {
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
@@ -188,7 +187,8 @@ class ReduceStateByKeyReducer implements Runnable {
       if (state == null) {
         // ~ collector decorating state output with a key
         Collector collector =
-                el -> stateOutput.collect(Pair.of(itemKey, el));
+                el -> stateOutput.collect(
+                    WindowedPair.of(wState.getFirst().getLabel(), itemKey, el));
         state = (State) stateFactory.apply(collector);
         wState.getSecond().put(itemKey, state);
       }

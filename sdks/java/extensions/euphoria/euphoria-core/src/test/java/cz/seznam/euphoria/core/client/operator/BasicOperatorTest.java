@@ -5,7 +5,10 @@ import com.google.common.collect.Maps;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
+import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -24,20 +27,30 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.*;
 
-// TODO: Will be moved to euphoria-examples
 /**
  * Test basic operator functionality and ability to compile.
  */
 public class BasicOperatorTest {
 
   Executor executor = new InMemExecutor();
+
+  private static UnaryFunctor<String, Pair<String, Long>> toWordCountPair() {
+    return toWords(w -> Pair.of(w, 1L));
+  }
+
+  private static <O> UnaryFunctor<String, O> toWords(UnaryFunction<String, O> f) {
+    return (String s, Collector<O> c) -> {
+      for (String part : s.split(" ")) {
+        c.collect(f.apply(part));
+      }
+    };
+  }
 
   @Test
   public void testWordCountStreamNonAggregating() throws Exception {
@@ -59,16 +72,13 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using((String s, Collector<Pair<String, Long>> c) -> {
-          for (String part : s.split(" ")) {
-            c.collect(Pair.of(part, 1L));
-          }})
+        .using(toWordCountPair())
         .output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
-    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
-        .of(words)
+    Dataset<Pair<String, Long>> streamOutput =
+        ReduceByKey.of(words)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
@@ -94,6 +104,82 @@ public class BasicOperatorTest {
   }
 
   @Test
+  public void testWordCountStreamNonAggregatingWithWindowLabel() throws Exception {
+    final InMemFileSystem inmemfs = InMemFileSystem.get();
+
+    inmemfs.reset()
+        .setFile("/tmp/foo.txt", Duration.ofSeconds(2), asList(
+            "one two three four four two two",
+            "one one one two two three"));
+
+    Settings settings = new Settings();
+    settings.setClass("euphoria.io.datasource.factory.inmem",
+        InMemFileSystem.SourceFactory.class);
+    settings.setClass("euphoria.io.datasink.factory.inmem",
+        InMemFileSystem.SinkFactory.class);
+
+    Flow flow = Flow.create("Test", settings);
+    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+
+    // expand it to words
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
+        .using(toWordCountPair())
+        .output();
+
+    Dataset<WindowedPair<TimeInterval, String, Long>> streamOutput =
+        ReduceByKey.of(words)
+        .keyBy(Pair::getFirst)
+        .valueBy(Pair::getSecond)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Windowing.Time.seconds(1))
+        .outputWindowed();
+
+    MapElements.of(streamOutput)
+        .using(p -> {
+          // ~ just access the windowed pairs testifying their accessibility
+          return WindowedPair.of(p.getWindowLabel(), p.getFirst(), p.getSecond());
+        })
+        .output()
+        .persist(URI.create("inmem:///tmp/output"));
+
+    executor.waitForCompletion(flow);
+
+    @SuppressWarnings("unchecked")
+    List<WindowedPair<TimeInterval, String, Long>> fs =
+        new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
+    System.out.println(fs);
+
+    // ~ assert the total amount of data produced
+    assertEquals(7, fs.size());
+
+    long firstWindowStart = assertWindowedPairOutput(fs.subList(0, 4), 1000L,
+        "four-2", "one-1", "three-1", "two-3");
+    long secondWindowStart = assertWindowedPairOutput(fs.subList(4, fs.size()), 1000L,
+        "one-3", "three-1", "two-2");
+    assertTrue(firstWindowStart < secondWindowStart);
+  }
+
+  private <F, S> long assertWindowedPairOutput(
+      List<WindowedPair<TimeInterval, F, S>> window,
+      long expectedIntervalMillis, String ... expectedFirstAndSecond)
+  {
+    assertEquals(
+        asList(expectedFirstAndSecond),
+        window.stream()
+            .map(p -> p.getFirst() + "-" + p.getSecond())
+            .sorted()
+            .collect(toList()));
+    // ~ assert the windowing label (all elements of the window are expected to have
+    // the same window label)
+    long[] starts = window.stream().mapToLong(p -> {
+      assertEquals(expectedIntervalMillis, p.getWindowLabel().getIntervalMillis());
+      return p.getWindowLabel().getStartMillis();
+    }).distinct().toArray();
+    assertEquals(1, starts.length);
+    return starts[0];
+  }
+
+  @Test
   public void testWordCountStreamAggregating() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
@@ -113,10 +199,7 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using((String s, Collector<Pair<String, Long>> c) -> {
-          for (String part : s.split(" ")) {
-            c.collect(Pair.of(part, 1L));
-          }})
+        .using(toWordCountPair())
         .output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
@@ -147,12 +230,12 @@ public class BasicOperatorTest {
     assertEquals(asList("one-4", "three-2", "two-5"), sublist(f, 4, -1));
   }
 
-  private List<String> sublist(List<Pair<String, Long>> xs, int start, int len) {
+  private List<String> sublist(List<? extends Pair<String, Long>> xs, int start, int len) {
     return sublist(xs, start, len, true);
   }
 
   private List<String> sublist(
-      List<Pair<String, Long>> xs, int start, int len, boolean sort)
+      List<? extends Pair<String, Long>> xs, int start, int len, boolean sort)
   {
     Stream<String> s = xs.subList(start, len < 0 ? xs.size() : start + len)
         .stream()
@@ -160,7 +243,7 @@ public class BasicOperatorTest {
     if (sort) {
       s = s.sorted();
     }
-    return s.collect(Collectors.toList());
+    return s.collect(toList());
   }
 
   @Test
@@ -254,10 +337,7 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using((String s, Collector<Pair<String, Long>> c) -> {
-          for (String part : s.split(" ")) {
-            c.collect(Pair.of(part, 1L));
-          }})
+        .using(toWordCountPair())
         .output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
@@ -282,6 +362,112 @@ public class BasicOperatorTest {
     assertEquals((long) idx.get("two").getValue(), 3L);
     assertEquals((long) idx.get("three").getValue(), 2L);
     assertEquals((long) idx.get("four").getValue(), 1L);
+  }
+
+  @Test
+  public void testDistinctOnBatchWithoutWindowingLabels() {
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(ListDataSource.bounded(
+        asList("one two three four", "one two three", "one two", "one")));
+
+    // expand it to words
+    Dataset<String> words = FlatMap.of(lines)
+        .using(toWords(w -> w))
+        .output();
+
+    Dataset<String> output = Distinct.of(words).output();
+    ListDataSink<String> f = ListDataSink.get(1);
+    output.persist(f);
+
+    executor.waitForCompletion(flow);
+
+    assertNotNull(f.getOutput(0));
+    assertEquals(
+        asList("four", "one", "three", "two"),
+        f.getOutput(0).stream().sorted().collect(toList()));
+  }
+
+  @Test
+  public void testDistinctOnStreamWithoutWindowingLabels() {
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(
+        ListDataSource.unbounded(asList(
+            "one two three four one one two",
+            "one two three three three"))
+            .setSleepTime(2000));
+
+    // expand it to words
+    Dataset<String> words = FlatMap.of(lines)
+        .using(toWords(w -> w))
+        .output();
+
+    Dataset<String> output = Distinct.of(words)
+        .windowBy(Windowing.Time.seconds(1))
+        .output();
+
+    ListDataSink<String> f = ListDataSink.get(1);
+    output.persist(f);
+
+    executor.waitForCompletion(flow);
+
+    List<String> out = f.getOutput(0);
+    assertNotNull(out);
+    assertEquals(
+        asList("four", "one", "three", "two"),
+        out.subList(0, 4).stream().sorted().collect(toList()));
+    assertEquals(
+        asList("one", "three", "two"),
+        out.subList(4, out.size()).stream().sorted().collect(toList()));
+  }
+
+  @Test
+  public void testDistinctOnStreamUsingWindowingLabels() {
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(
+        ListDataSource.unbounded(asList(
+            "one two three four one one two",
+            "one two three three three"))
+            .setSleepTime(2000));
+
+    // expand it to words
+    Dataset<String> words = FlatMap.of(lines)
+        .using(toWords(w -> w))
+        .output();
+
+    Dataset<Pair<TimeInterval, String>> output =
+        Distinct.of(words)
+        .windowBy(Windowing.Time.seconds(1))
+        .outputWindowed();
+
+    ListDataSink<Pair<TimeInterval, String>> f = ListDataSink.get(1);
+    output.persist(f);
+
+    executor.waitForCompletion(flow);
+
+    List<Pair<TimeInterval, String>> out = f.getOutput(0);
+    assertNotNull(out);
+    long firstWindowStart =
+        assertWindowedOutput(out.subList(0, 4), 1000L, "four", "one", "three", "two");
+    long secondWindowStart =
+        assertWindowedOutput(out.subList(4, out.size()), 1000L, "one", "three", "two");
+    assertTrue(firstWindowStart < secondWindowStart);
+  }
+
+  private <S> long assertWindowedOutput(
+      List<Pair<TimeInterval, S>> window,
+      long expectedIntervalMillis, String ... expectedFirstAndSecond)
+  {
+    assertEquals(
+        asList(expectedFirstAndSecond),
+        window.stream().map(Pair::getSecond).sorted().collect(toList()));
+    // ~ assert the windowing label (all elements of the window are expected to have
+    // the same window label)
+    long[] starts = window.stream().mapToLong(p -> {
+      assertEquals(expectedIntervalMillis, p.getFirst().getIntervalMillis());
+      return p.getFirst().getStartMillis();
+    }).distinct().toArray();
+    assertEquals(1, starts.length);
+    return starts[0];
   }
 
   @Test
@@ -318,7 +504,8 @@ public class BasicOperatorTest {
         .output();
 
     // calculate all distinct values within each group
-    Dataset<Pair<CompositeKey<String, String>, Void>> reduced = ReduceByKey.of(grouped)
+    Dataset<Pair<CompositeKey<String, String>, Void>>
+        reduced = ReduceByKey.of(grouped)
         .keyBy(e -> e)
         .valueBy(e -> (Void) null)
         .combineBy(values -> null)
@@ -326,12 +513,14 @@ public class BasicOperatorTest {
         .output();
 
     // take distinct tuples
-    Dataset<CompositeKey<String, String>> distinct = MapElements.of(reduced)
+    Dataset<CompositeKey<String, String>> distinct =
+        MapElements.of(reduced)
         .using(Pair::getFirst)
         .output();
 
     // calculate the final distinct values per key
-    Dataset<Pair<String, Long>> output = CountByKey.of(distinct)
+    Dataset<Pair<String, Long>> output =
+        CountByKey.of(distinct)
         .keyBy(Pair::getFirst)
         .windowBy(Windowing.Time.seconds(1))
         .output();
