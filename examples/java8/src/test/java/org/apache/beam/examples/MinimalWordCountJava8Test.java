@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import com.google.common.collect.ImmutableList;
 
@@ -65,12 +65,12 @@ public class MinimalWordCountJava8Test implements Serializable {
 
     p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
-         .withOutputType(new TypeDescriptor<String>() {}))
+         .withOutputType(TypeDescriptors.strings()))
      .apply(Filter.byPredicate((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
-         .withOutputType(new TypeDescriptor<String>() {}))
+         .withOutputType(TypeDescriptors.strings()))
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
   }
 
