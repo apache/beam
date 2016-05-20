@@ -28,7 +28,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>io-parent</artifactId>
+  <groupId>org.apache.beam.io</groupId>
+  <artifactId>parent</artifactId>
   <packaging>pom</packaging>
   <name>Apache Beam :: SDKs :: Java :: IO</name>
   <description>Beam SDK Java IO provides different connectivity components

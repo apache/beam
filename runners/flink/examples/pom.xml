@@ -22,13 +22,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>flink-runner-parent</artifactId>
+    <groupId>org.apache.beam.runners</groupId>
+    <artifactId>flink-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>flink-runner-examples_2.10</artifactId>
+  <artifactId>flink_2.10-examples</artifactId>
 
   <name>Apache Beam :: Runners :: Flink :: Examples</name>
 
@@ -70,8 +70,8 @@
   <dependencies>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>flink-runner_2.10</artifactId>
+      <groupId>org.apache.beam.runners</groupId>
+      <artifactId>flink_2.10</artifactId>
       <version>${project.version}</version>
     </dependency>
 

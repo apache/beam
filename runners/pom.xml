@@ -28,7 +28,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>runners-parent</artifactId>
+  <groupId>org.apache.beam.runners</groupId>
+  <artifactId>parent</artifactId>
 
   <packaging>pom</packaging>
 

@@ -28,7 +28,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>extensions-parent</artifactId>
+  <groupId>org.apache.beam.extensions</groupId>
+  <artifactId>parent</artifactId>
   <packaging>pom</packaging>
 
   <name>Apache Beam :: SDKs :: Java :: Extensions</name>
