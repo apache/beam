@@ -23,9 +23,7 @@ import static org.apache.beam.sdk.util.Structs.getString;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -50,7 +48,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.RecordingPipelineVisitor;
-import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -80,7 +77,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -106,9 +102,7 @@ import java.util.Map;
  */
 @RunWith(JUnit4.class)
 public class DataflowPipelineTranslatorTest implements Serializable {
-
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient ExpectedLogs logs = ExpectedLogs.none(DataflowPipelineTranslator.class);
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
@@ -972,62 +966,5 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
-  }
-
-  @Test
-  public void testCapturesDisplayDataExceptions() throws IOException {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-    Pipeline pipeline = Pipeline.create(options);
-
-    final RuntimeException displayDataException = new RuntimeException("foobar");
-    pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(new DoFn<Integer, Integer>() {
-          @Override
-          public void processElement(ProcessContext c) throws Exception {
-            c.output(c.element());
-          }
-
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            throw displayDataException;
-          }
-        }));
-
-    Job job = translator.translate(
-        pipeline,
-        (DataflowPipelineRunner) pipeline.getRunner(),
-        Collections.<DataflowPackage>emptyList()).getJob();
-
-    String expectedMessage = "Display data will be not be available for this step";
-    logs.verifyWarn(expectedMessage);
-
-    List<Step> steps = job.getSteps();
-    assertEquals("Job should have 2 steps", 2, steps.size());
-
-    @SuppressWarnings("unchecked")
-    Iterable<Map<String, String>> displayData = (Collection<Map<String, String>>) steps.get(1)
-        .getProperties().get("display_data");
-
-    String namespace = DataflowPipelineTranslator.DisplayDataException.class.getName();
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-      hasEntry("namespace", namespace),
-      hasEntry("key", "exceptionType"),
-      hasEntry("value", RuntimeException.class.getName()))));
-
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-        hasEntry("namespace", namespace),
-        hasEntry("key", "exceptionMessage"),
-        hasEntry(is("value"), Matchers.containsString(expectedMessage)))));
-
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-        hasEntry("namespace", namespace),
-        hasEntry("key", "exceptionCause"),
-        hasEntry("value", "foobar"))));
-
-    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
-        hasEntry("namespace", namespace),
-        hasEntry("key", "stackTrace"))));
   }
 }
