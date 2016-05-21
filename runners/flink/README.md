@@ -59,7 +59,7 @@ If you wish to explicitly enable streaming mode, please set the streaming flag i
 
 ### Batch optimization
 
-Flink gives you out-of-core algorithms which operate on its managed memory to perform sorting, 
+Flink gives you out-of-core algorithms which operate on its managed memory to perform sorting,
 caching, and hash table operations. We have optimized operations like CoGroup to use Flink's
 optimized out-of-core implementation.
 
@@ -164,7 +164,7 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>flink-runner_2.10</artifactId>
-      <version>0.4-SNAPSHOT</version>
+      <version>0.2.0-incubating-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
