@@ -57,7 +57,7 @@ public abstract class PubsubClient implements Closeable {
         PubsubOptions options) throws IOException;
 
     /**
-     * Return the display name for this factory. Eg "Apiary", "gRPC".
+     * Return the display name for this factory. Eg "Json", "gRPC".
      */
     String getKind();
   }
