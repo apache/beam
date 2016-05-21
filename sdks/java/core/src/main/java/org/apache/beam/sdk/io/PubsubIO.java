@@ -646,7 +646,9 @@ public class PubsubIO {
         if (boundedOutput) {
           return input.getPipeline().begin()
                       .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
-                      .apply(ParDo.of(new PubsubBoundedReader())).setCoder(coder);
+                      .apply(ParDo.of(new PubsubBoundedReader()))
+                      .setCoder(coder)
+                      .setIsBoundedInternal(IsBounded.BOUNDED);
         } else {
           @Nullable ProjectPath projectPath =
               topic == null ? null : PubsubClient.projectPathFromId(topic.project);
@@ -655,8 +657,8 @@ public class PubsubIO {
           @Nullable SubscriptionPath subscriptionPath =
               subscription == null
                   ? null
-                  : PubsubClient
-                      .subscriptionPathFromName(subscription.project, subscription.subscription);
+                  : PubsubClient.subscriptionPathFromName(
+                      subscription.project, subscription.subscription);
           return input.getPipeline().begin()
                       .apply(new PubsubUnboundedSource<T>(
                           FACTORY, projectPath, topicPath, subscriptionPath,
