@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +28,8 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader;
 import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader.Seeker;
+import com.google.cloud.dataflow.sdk.io.BlockBasedSource.BlockBasedReader;
+import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
@@ -42,6 +45,7 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -55,6 +59,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PushbackInputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -192,6 +197,86 @@ public class AvroSourceTest {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
         assertEquals(new Double(0.0), reader.getFractionConsumed());
       }
+    }
+  }
+
+  @Test
+  public void testProgress() throws Exception {
+    // 5 records, 2 per block.
+    List<FixedRecord> records = createFixedRecords(5);
+    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_REGULAR, 2,
+        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+
+    AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
+    try (BoundedSource.BoundedReader<FixedRecord> readerOrig = source.createReader(null)) {
+      assertThat(readerOrig, Matchers.instanceOf(BlockBasedReader.class));
+      BlockBasedReader<FixedRecord> reader = (BlockBasedReader<FixedRecord>) readerOrig;
+
+      // Before starting
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+
+      // First 2 records are in the same block.
+      assertTrue(reader.start());
+      assertTrue(reader.isAtSplitPoint());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+      // continued
+      assertTrue(reader.advance());
+      assertFalse(reader.isAtSplitPoint());
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+
+      // Second block -> parallelism consumed becomes 1.
+      assertTrue(reader.advance());
+      assertTrue(reader.isAtSplitPoint());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+      // continued
+      assertTrue(reader.advance());
+      assertFalse(reader.isAtSplitPoint());
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+
+      // Third and final block -> parallelism consumed becomes 2, remaining becomes 1.
+      assertTrue(reader.advance());
+      assertTrue(reader.isAtSplitPoint());
+      assertEquals(2, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+
+      // Done
+      assertFalse(reader.advance());
+      assertEquals(3, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+    }
+  }
+
+  @Test
+  public void testProgressEmptySource() throws Exception {
+    // 0 records, 20 per block.
+    List<FixedRecord> records = Collections.emptyList();
+    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_REGULAR, 2,
+        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+
+    AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
+    try (BoundedSource.BoundedReader<FixedRecord> readerOrig = source.createReader(null)) {
+      assertThat(readerOrig, Matchers.instanceOf(BlockBasedReader.class));
+      BlockBasedReader<FixedRecord> reader = (BlockBasedReader<FixedRecord>) readerOrig;
+
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
+
+      // confirm empty
+      assertFalse(reader.start());
+
+      // after reading empty source
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
     }
   }
 

@@ -441,7 +441,7 @@ public class FileBasedSourceTest {
         assertTrue(fractionConsumed > lastFractionConsumed);
         lastFractionConsumed = fractionConsumed;
       }
-      assertTrue(reader.getFractionConsumed() < 1.0);
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
     }
   }
 

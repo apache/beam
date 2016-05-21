@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -38,17 +40,23 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
+import org.apache.commons.compress.utils.CountingInputStream;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
+
+import javax.annotation.concurrent.GuardedBy;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
@@ -437,10 +445,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * the total number of records in the block and the block's size in bytes, followed by the
    * block's (optionally-encoded) records. Each block is terminated by a 16-bit sync marker.
    *
-   * <p>Here, we consider the sync marker that precedes a block to be its offset, as this allows
-   * a reader that begins reading at that offset to detect the sync marker and the beginning of
-   * the block.
-   *
    * @param <T> The type of records contained in the block.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -448,24 +452,25 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // The current block.
     private AvroBlock<T> currentBlock;
 
-    // Offset of the block.
+    // A lock used to synchronize block offsets for getRemainingParallelism
+    private final Object progressLock = new Object();
+
+    // Offset of the current block.
+    @GuardedBy("progressLock")
     private long currentBlockOffset = 0;
 
     // Size of the current block.
+    @GuardedBy("progressLock")
     private long currentBlockSizeBytes = 0;
 
-    // Current offset within the stream.
-    private long currentOffset = 0;
-
     // Stream used to read from the underlying file.
-    // A pushback stream is used to restore bytes buffered during seeking/decoding.
+    // A pushback stream is used to restore bytes buffered during seeking.
     private PushbackInputStream stream;
+    // Counts the number of bytes read. Used only to tell how many bytes are taken up in
+    // a block's variable-length header.
+    private CountingInputStream countStream;
 
-    // Small buffer for reading encoded values from the stream.
-    // The maximum size of an encoded long is 10 bytes, and this buffer will be used to read two.
-    private final byte[] readBuffer = new byte[20];
-
-    // Decoder to decode binary-encoded values from the buffer.
+    // Caches the Avro DirectBinaryDecoder used to decode binary-encoded values from the buffer.
     private BinaryDecoder decoder;
 
     /**
@@ -480,51 +485,67 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       return (AvroSource<T>) super.getCurrentSource();
     }
 
+    // Precondition: the stream is positioned after the sync marker in the current (about to be
+    // previous) block. currentBlockSize equals the size of the current block, or zero if this
+    // reader was just started.
+    //
+    // Postcondition: same as above, but for the new current (formerly next) block.
     @Override
     public boolean readNextBlock() throws IOException {
-      // The next block in the file is after the first sync marker that can be read starting from
-      // the current offset. First, we seek past the next sync marker, if it exists. After a sync
-      // marker is the start of a block. A block begins with the number of records contained in
-      // the block, encoded as a long, followed by the size of the block in bytes, encoded as a
-      // long. The currentOffset after this method should be last byte after this block, and the
-      // currentBlockOffset should be the start of the sync marker before this block.
+      long startOfNextBlock = currentBlockOffset + currentBlockSizeBytes;
 
-      // Seek to the next sync marker, if one exists.
-      currentOffset += advancePastNextSyncMarker(stream, getCurrentSource().getSyncMarker());
-
-      // The offset of the current block includes its preceding sync marker.
-      currentBlockOffset = currentOffset - getCurrentSource().getSyncMarker().length;
-
-      // Read a small buffer to parse the block header.
-      // We cannot use a BinaryDecoder to do this directly from the stream because a BinaryDecoder
-      // internally buffers data and we only want to read as many bytes from the stream as the size
-      // of the header. Though BinaryDecoder#InputStream returns an input stream that is aware of
-      // its internal buffering, we would have to re-wrap this input stream to seek for the next
-      // block in the file.
-      int read = stream.read(readBuffer);
-      // We reached the last sync marker in the file.
-      if (read <= 0) {
+      // Before reading the variable-sized block header, record the current number of bytes read.
+      long preHeaderCount = countStream.getBytesRead();
+      decoder = DecoderFactory.get().directBinaryDecoder(countStream, decoder);
+      long numRecords;
+      try {
+        numRecords = decoder.readLong();
+      } catch (EOFException e) {
+        // Expected for the last block, at which the start position is the EOF. The way to detect
+        // stream ending is to try reading from it.
         return false;
       }
-      decoder = DecoderFactory.get().binaryDecoder(readBuffer, decoder);
-      long numRecords = decoder.readLong();
       long blockSize = decoder.readLong();
 
-      // The decoder buffers data internally, but since we know the size of the stream the
-      // decoder has constructed from the readBuffer, the number of bytes available in the
-      // input stream is equal to the number of unconsumed bytes.
-      int headerSize = readBuffer.length - decoder.inputStream().available();
-      stream.unread(readBuffer, headerSize, read - headerSize);
+      // Mark header size as the change in the number of bytes read.
+      long headerSize = countStream.getBytesRead() - preHeaderCount;
 
       // Create the current block by reading blockSize bytes. Block sizes permitted by the Avro
       // specification are [32, 2^30], so this narrowing is ok.
       byte[] data = new byte[(int) blockSize];
-      stream.read(data);
+      int read = stream.read(data);
+      checkState(blockSize == read, "Only %s/%s bytes in the block were read", read, blockSize);
       currentBlock = new AvroBlock<>(data, numRecords, getCurrentSource());
-      currentBlockSizeBytes = blockSize;
 
-      // Update current offset with the number of bytes we read to get the next block.
-      currentOffset += headerSize + blockSize;
+      // Read the end of this block, which MUST be a sync marker for correctness.
+      byte[] syncMarker = getCurrentSource().getSyncMarker();
+      byte[] readSyncMarker = new byte[syncMarker.length];
+      long syncMarkerOffset = startOfNextBlock + headerSize + blockSize;
+      long bytesRead = stream.read(readSyncMarker);
+      checkState(
+          bytesRead == syncMarker.length,
+          "When trying to read a sync marker at position %s, only able to read %s/%s bytes",
+          syncMarkerOffset,
+          bytesRead,
+          syncMarker.length);
+      if (!Arrays.equals(syncMarker, readSyncMarker)) {
+        throw new IllegalStateException(
+            String.format(
+                "Expected the bytes [%d,%d) in file %s to be a sync marker, but found %s",
+                syncMarkerOffset,
+                syncMarkerOffset + syncMarker.length,
+                getCurrentSource().getFileOrPatternSpec(),
+                Arrays.toString(readSyncMarker)
+            ));
+      }
+
+      // Atomically update both the position and offset of the new block.
+      synchronized (progressLock) {
+        currentBlockOffset = startOfNextBlock;
+        // Total block size includes the header, block content, and trailing sync marker.
+        currentBlockSizeBytes = headerSize + blockSize + syncMarker.length;
+      }
+
       return true;
     }
 
@@ -535,32 +556,65 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
     @Override
     public long getCurrentBlockOffset() {
-      return currentBlockOffset;
+      synchronized (progressLock) {
+        return currentBlockOffset;
+      }
     }
 
     @Override
     public long getCurrentBlockSize() {
-      return currentBlockSizeBytes;
+      synchronized (progressLock) {
+        return currentBlockSizeBytes;
+      }
+    }
+
+    @Override
+    public long getSplitPointsRemaining() {
+      if (isDone()) {
+        return 0;
+      }
+      synchronized (progressLock) {
+        if (currentBlockOffset + currentBlockSizeBytes >= getCurrentSource().getEndOffset()) {
+          // This block is known to be the last block in the range.
+          return 1;
+        }
+      }
+      return super.getSplitPointsRemaining();
     }
 
     /**
      * Creates a {@link PushbackInputStream} that has a large enough pushback buffer to be able
-     * to push back the syncBuffer and the readBuffer.
+     * to push back the syncBuffer.
      */
     private PushbackInputStream createStream(ReadableByteChannel channel) {
       return new PushbackInputStream(
           Channels.newInputStream(channel),
-          getCurrentSource().getSyncMarker().length + readBuffer.length);
+          getCurrentSource().getSyncMarker().length);
     }
 
-    /**
-     * Starts reading from the provided channel. Assumes that the channel is already seeked to
-     * the source's start offset.
-     */
+    // Postcondition: the stream is positioned at the beginning of the first block after the start
+    // of the current source, and currentBlockOffset is that position. Additionally,
+    // currentBlockSizeBytes will be set to 0 indicating that the previous block was empty.
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
+      long startOffset = getCurrentSource().getStartOffset();
+      byte[] syncMarker = getCurrentSource().getSyncMarker();
+      long syncMarkerLength = syncMarker.length;
+
+      if (startOffset != 0) {
+        // Rewind order to find the sync marker ending the previous block.
+        long position = Math.max(0, startOffset - syncMarkerLength);
+        ((SeekableByteChannel) channel).position(position);
+        startOffset = position;
+      }
+
+      // Satisfy the post condition.
       stream = createStream(channel);
-      currentOffset = getCurrentSource().getStartOffset();
+      countStream = new CountingInputStream(stream);
+      synchronized (progressLock) {
+        currentBlockOffset = startOffset + advancePastNextSyncMarker(stream, syncMarker);
+        currentBlockSizeBytes = 0;
+      }
     }
 
     /**

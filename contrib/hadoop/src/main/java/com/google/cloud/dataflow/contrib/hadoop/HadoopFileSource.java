@@ -281,6 +281,7 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
     private Configuration conf;
     private RecordReader<K, V> currentReader;
     private KV<K, V> currentPair;
+    private volatile boolean done = false;
 
     /**
      * Create a {@code HadoopFileReader} based on a file or a file pattern specification.
@@ -355,6 +356,7 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
           }
           // either no next split or all readers were empty
           currentPair = null;
+	  done = true;
           return false;
         }
       } catch (InterruptedException e) {
@@ -429,6 +431,16 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
       } catch (IOException | InterruptedException e) {
         return null;
       }
+    }
+
+    @Override
+    public final long getSplitPointsRemaining() {
+      if (done) {
+        return 0;
+      }
+      // This source does not currently support dynamic work rebalancing, so remaining
+      // parallelism is always 1.
+      return 1;
     }
 
     @Override

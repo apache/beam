@@ -20,8 +20,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.CountingSource.CounterMark;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -43,6 +45,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -107,6 +110,33 @@ public class CountingSourceTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testProgress() throws IOException {
+    final int numRecords = 5;
+    @SuppressWarnings("deprecation")  // testing CountingSource
+    BoundedSource<Long> source = CountingSource.upTo(numRecords);
+    try (BoundedReader<Long> reader = source.createReader(PipelineOptionsFactory.create())) {
+      // Check preconditions before starting. Note that CountingReader can always give an accurate
+      // remaining parallelism.
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(numRecords, reader.getSplitPointsRemaining());
+
+      assertTrue(reader.start());
+      int i = 0;
+      do {
+        assertEquals(i, reader.getSplitPointsConsumed());
+        assertEquals(numRecords - i, reader.getSplitPointsRemaining());
+        ++i;
+      } while (reader.advance());
+
+      assertEquals(numRecords, i); // exactly numRecords calls to advance()
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(numRecords, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
   }
 
   @Test
