@@ -44,9 +44,9 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Tests for PubsubApiaryClient.
+ * Tests for PubsubJsonClient.
  */
-public class PubsubApiaryClientTest {
+public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;
 
@@ -66,7 +66,7 @@ public class PubsubApiaryClientTest {
   @Before
   public void setup() throws IOException {
     mockPubsub = Mockito.mock(Pubsub.class, Mockito.RETURNS_DEEP_STUBS);
-    client = new PubsubApiaryClient(TIMESTAMP_LABEL, ID_LABEL, mockPubsub);
+    client = new PubsubJsonClient(TIMESTAMP_LABEL, ID_LABEL, mockPubsub);
   }
 
   @After

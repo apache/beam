@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Builder;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
@@ -50,11 +52,20 @@ import java.util.TreeMap;
 import javax.annotation.Nullable;
 
 /**
- * A Pubsub client using Apiary.
+ * A Pubsub client using JSON transport.
  */
-public class PubsubApiaryClient extends PubsubClient {
+public class PubsubJsonClient extends PubsubClient {
 
-  private static class PubsubApiaryClientFactory implements PubsubClientFactory {
+  private static class PubsubJsonClientFactory implements PubsubClientFactory {
+    private static HttpRequestInitializer chainHttpRequestInitializer(
+        Credential credential, HttpRequestInitializer httpRequestInitializer) {
+      if (credential == null) {
+        return httpRequestInitializer;
+      } else {
+        return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
+      }
+    }
+
     @Override
     public PubsubClient newClient(
         @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
@@ -62,7 +73,7 @@ public class PubsubApiaryClient extends PubsubClient {
       Pubsub pubsub = new Builder(
           Transport.getTransport(),
           Transport.getJsonFactory(),
-          new ChainingHttpRequestInitializer(
+          chainHttpRequestInitializer(
               options.getGcpCredential(),
               // Do not log 404. It clutters the output and is possibly even required by the caller.
               new RetryHttpRequestInitializer(ImmutableList.of(404))))
@@ -70,19 +81,19 @@ public class PubsubApiaryClient extends PubsubClient {
           .setApplicationName(options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
           .build();
-      return new PubsubApiaryClient(timestampLabel, idLabel, pubsub);
+      return new PubsubJsonClient(timestampLabel, idLabel, pubsub);
     }
 
     @Override
     public String getKind() {
-      return "Apiary";
+      return "Json";
     }
   }
 
   /**
-   * Factory for creating Pubsub clients using Apiary transport.
+   * Factory for creating Pubsub clients using Json transport.
    */
-  public static final PubsubClientFactory FACTORY = new PubsubApiaryClientFactory();
+  public static final PubsubClientFactory FACTORY = new PubsubJsonClientFactory();
 
   /**
    * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
@@ -98,12 +109,12 @@ public class PubsubApiaryClient extends PubsubClient {
   private final String idLabel;
 
   /**
-   * Underlying Apiary client.
+   * Underlying JSON transport.
    */
   private Pubsub pubsub;
 
   @VisibleForTesting
-  PubsubApiaryClient(
+  PubsubJsonClient(
       @Nullable String timestampLabel,
       @Nullable String idLabel,
       Pubsub pubsub) {

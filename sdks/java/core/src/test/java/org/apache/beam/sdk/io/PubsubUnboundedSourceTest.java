@@ -119,7 +119,6 @@ public class PubsubUnboundedSourceTest {
     setupOneMessage();
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
-    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Read one message.
     assertTrue(reader.start());
     assertEquals(DATA, reader.getCurrent());
@@ -216,7 +215,6 @@ public class PubsubUnboundedSourceTest {
     setupOneMessage(incoming);
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
-    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Consume two messages, only read one.
     assertTrue(reader.start());
     assertEquals("data_0", reader.getCurrent());

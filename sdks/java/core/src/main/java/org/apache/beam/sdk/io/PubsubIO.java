@@ -32,13 +32,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.PubsubApiaryClient;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
+import org.apache.beam.sdk.util.PubsubJsonClient;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
@@ -71,7 +71,7 @@ public class PubsubIO {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
 
   /** Factory for creating pubsub client to manage transport. */
-  private static final PubsubClient.PubsubClientFactory FACTORY = PubsubApiaryClient.FACTORY;
+  private static final PubsubClient.PubsubClientFactory FACTORY = PubsubJsonClient.FACTORY;
 
   /** The default {@link Coder} used to translate to/from Cloud Pub/Sub messages. */
   public static final Coder<String> DEFAULT_PUBSUB_CODER = StringUtf8Coder.of();
@@ -646,7 +646,8 @@ public class PubsubIO {
         if (boundedOutput) {
           return input.getPipeline().begin()
                       .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
-                      .apply(ParDo.of(new PubsubBoundedReader())).setCoder(coder);
+                      .apply(ParDo.of(new PubsubBoundedReader()))
+                      .setCoder(coder);
         } else {
           @Nullable ProjectPath projectPath =
               topic == null ? null : PubsubClient.projectPathFromId(topic.project);
@@ -655,8 +656,8 @@ public class PubsubIO {
           @Nullable SubscriptionPath subscriptionPath =
               subscription == null
                   ? null
-                  : PubsubClient
-                      .subscriptionPathFromName(subscription.project, subscription.subscription);
+                  : PubsubClient.subscriptionPathFromName(
+                      subscription.project, subscription.subscription);
           return input.getPipeline().begin()
                       .apply(new PubsubUnboundedSource<T>(
                           FACTORY, projectPath, topicPath, subscriptionPath,
