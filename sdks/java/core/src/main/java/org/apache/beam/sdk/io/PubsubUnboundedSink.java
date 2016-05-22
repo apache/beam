@@ -57,8 +57,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
