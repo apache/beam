@@ -36,8 +36,14 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
+/**
+ * Word count.
+ */
 public class WordCount {
 
+  /**
+   * DoFn to extract words.
+   */
   public static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
@@ -60,6 +66,9 @@ public class WordCount {
     }
   }
 
+  /**
+   * Count Words PTransform.
+   */
   public static class CountWords extends PTransform<PCollection<String>,
                     PCollection<KV<String, Long>>> {
     @Override
