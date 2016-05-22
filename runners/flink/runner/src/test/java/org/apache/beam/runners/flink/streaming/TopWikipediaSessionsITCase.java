@@ -39,9 +39,8 @@ import org.joda.time.Instant;
 import java.io.Serializable;
 import java.util.Arrays;
 
-
 /**
- * Session window test
+ * Session window test.
  */
 public class TopWikipediaSessionsITCase extends StreamingProgramTestBase implements Serializable {
   protected String resultPath;

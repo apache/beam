@@ -31,12 +31,15 @@ import com.google.common.collect.ImmutableList;
  * AuteService registrar - will register FlinkRunner and FlinkOptions
  * as possible pipeline runner services.
  *
- * It ends up in META-INF/services and gets picked up by Dataflow.
+ * It ends up in META-INF/services and gets picked up by Beam.
  *
  */
 public class FlinkRunnerRegistrar {
   private FlinkRunnerRegistrar() { }
 
+  /**
+   * Runner.
+   */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -47,6 +50,9 @@ public class FlinkRunnerRegistrar {
     }
   }
 
+  /**
+   * Runner options.
+   */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

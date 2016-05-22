@@ -58,14 +58,14 @@ public class UnboundedSourceWrapperTest {
    */
   @Test
   public void testWithOneReader() throws Exception {
-    final int NUM_ELEMENTS = 20;
+    final int numElements = 20;
     final Object checkpointLock = new Object();
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    // this source will emit exactly NUM_ELEMENTS across all parallel readers,
-    // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
+    // this source will emit exactly numElements across all parallel readers,
+    // afterwards it will stall. We check whether we also receive numElements
     // elements later.
-    TestCountingSource source = new TestCountingSource(NUM_ELEMENTS);
+    TestCountingSource source = new TestCountingSource(numElements);
     UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
         new UnboundedSourceWrapper<>(options, source, 1);
 
@@ -91,10 +91,10 @@ public class UnboundedSourceWrapperTest {
 
             @Override
             public void collect(
-                StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
+                StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
 
               count++;
-              if (count >= NUM_ELEMENTS) {
+              if (count >= numElements) {
                 throw new SuccessException();
               }
             }
@@ -118,14 +118,14 @@ public class UnboundedSourceWrapperTest {
    */
   @Test
   public void testWithMultipleReaders() throws Exception {
-    final int NUM_ELEMENTS = 20;
+    final int numElements = 20;
     final Object checkpointLock = new Object();
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    // this source will emit exactly NUM_ELEMENTS across all parallel readers,
-    // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
+    // this source will emit exactly numElements across all parallel readers,
+    // afterwards it will stall. We check whether we also receive numElements
     // elements later.
-    TestCountingSource source = new TestCountingSource(NUM_ELEMENTS);
+    TestCountingSource source = new TestCountingSource(numElements);
     UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
         new UnboundedSourceWrapper<>(options, source, 4);
 
@@ -151,10 +151,10 @@ public class UnboundedSourceWrapperTest {
 
             @Override
             public void collect(
-                StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
+                StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
 
               count++;
-              if (count >= NUM_ELEMENTS) {
+              if (count >= numElements) {
                 throw new SuccessException();
               }
             }
@@ -179,14 +179,14 @@ public class UnboundedSourceWrapperTest {
    */
   @Test
   public void testRestore() throws Exception {
-    final int NUM_ELEMENTS = 20;
+    final int numElements = 20;
     final Object checkpointLock = new Object();
     PipelineOptions options = PipelineOptionsFactory.create();
 
-    // this source will emit exactly NUM_ELEMENTS across all parallel readers,
-    // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
+    // this source will emit exactly numElements across all parallel readers,
+    // afterwards it will stall. We check whether we also receive numElements
     // elements later.
-    TestCountingSource source = new TestCountingSource(NUM_ELEMENTS);
+    TestCountingSource source = new TestCountingSource(numElements);
     UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
         new UnboundedSourceWrapper<>(options, source, 1);
 
@@ -215,11 +215,11 @@ public class UnboundedSourceWrapperTest {
 
             @Override
             public void collect(
-                StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
+                StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
 
               emittedElements.add(windowedValueStreamRecord.getValue().getValue());
               count++;
-              if (count >= NUM_ELEMENTS / 2) {
+              if (count >= numElements / 2) {
                 throw new SuccessException();
               }
             }
@@ -240,7 +240,7 @@ public class UnboundedSourceWrapperTest {
     byte[] snapshot = flinkWrapper.snapshotState(0, 0);
 
     // create a completely new source but restore from the snapshot
-    TestCountingSource restoredSource = new TestCountingSource(NUM_ELEMENTS);
+    TestCountingSource restoredSource = new TestCountingSource(numElements);
     UnboundedSourceWrapper<
         KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
         new UnboundedSourceWrapper<>(options, restoredSource, 1);
@@ -273,10 +273,10 @@ public class UnboundedSourceWrapperTest {
 
             @Override
             public void collect(
-                StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
+                StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
               emittedElements.add(windowedValueStreamRecord.getValue().getValue());
               count++;
-              if (count >= NUM_ELEMENTS / 2) {
+              if (count >= numElements / 2) {
                 throw new SuccessException();
               }
             }
@@ -293,8 +293,8 @@ public class UnboundedSourceWrapperTest {
 
     assertTrue("Did not successfully read second batch of elements.", readSecondBatchOfElements);
 
-    // verify that we saw all NUM_ELEMENTS elements
-    assertTrue(emittedElements.size() == NUM_ELEMENTS);
+    // verify that we saw all numElements elements
+    assertTrue(emittedElements.size() == numElements);
   }
 
   @SuppressWarnings("unchecked")
@@ -312,13 +312,15 @@ public class UnboundedSourceWrapperTest {
     when(mockTask.getConfiguration()).thenReturn(cfg);
     when(mockTask.getEnvironment()).thenReturn(env);
     when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-    when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
+    when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap
+        ());
 
-    operator.setup(mockTask, cfg, (Output< StreamRecord<T>>) mock(Output.class));
+    operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
   }
 
   /**
    * A special {@link RuntimeException} that we throw to signal that the test was successful.
    */
-  private static class SuccessException extends RuntimeException {}
+  private static class SuccessException extends RuntimeException {
+  }
 }

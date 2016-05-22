@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.types;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -36,8 +35,8 @@ import java.io.ObjectInputStream;
  * Flink {@link TypeComparator} for {@link KvCoder}. We have a special comparator
  * for {@link KV} that always compares on the key only.
  */
-public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K, V>>> {
-  
+public class KvCoderComperator<K, V> extends TypeComparator<WindowedValue<KV<K, V>>> {
+
   private final WindowedValue.WindowedValueCoder<KV<K, V>> coder;
   private final Coder<K> keyCoder;
 
@@ -254,6 +253,6 @@ public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K,
 
   @Override
   public TypeComparator[] getFlatComparators() {
-    return new TypeComparator[] {new CoderComparator<>(keyCoder)};
+    return new TypeComparator[]{new CoderComparator<>(keyCoder)};
   }
 }

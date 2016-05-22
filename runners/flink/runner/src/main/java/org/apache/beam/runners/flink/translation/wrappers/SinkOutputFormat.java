@@ -29,7 +29,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 
 /**
  * Wrapper for executing a {@link Sink} on Flink as an {@link OutputFormat}.

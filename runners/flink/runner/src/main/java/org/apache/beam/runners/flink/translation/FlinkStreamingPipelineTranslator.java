@@ -28,17 +28,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the user-provided
+ * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the
+ * user-provided
  * {@link org.apache.beam.sdk.values.PCollection}-based job into a
  * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
- *
+ * <p>
  * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
- * */
+ */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
 
-  /** The necessary context in the case of a straming job. */
+  /**
+   * The necessary context in the case of a straming job.
+   */
   private final FlinkStreamingTranslationContext streamingContext;
 
   private int depth = 0;
@@ -57,7 +60,8 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null) {
-      StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
+      StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator
+          (transform);
       if (translator != null) {
         applyStreamingTransform(transform, node, translator);
         LOG.info(genSpaces(this.depth) + "translated-" + formatNodeName(node));
@@ -81,10 +85,12 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     // currently visiting and translate it into its Flink alternative.
 
     PTransform<?, ?> transform = node.getTransform();
-    StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
+    StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator
+        (transform);
     if (translator == null) {
       LOG.info(node.getTransform().getClass().toString());
-      throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
+      throw new UnsupportedOperationException("The transform " + transform + " is currently not "
+          + "supported.");
     }
     applyStreamingTransform(transform, node, translator);
   }
@@ -94,7 +100,10 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     // do nothing here
   }
 
-  private <T extends PTransform<?, ?>> void applyStreamingTransform(PTransform<?, ?> transform, TransformTreeNode node, StreamTransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> void applyStreamingTransform(PTransform<?, ?> transform,
+                                                                    TransformTreeNode node,
+                                                                    StreamTransformTranslator<?>
+                                                                        translator) {
 
     @SuppressWarnings("unchecked")
     T typedTransform = (T) transform;
@@ -113,8 +122,8 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
    * This interface is for <b>streaming</b> jobs. For examples of such translators see
    * {@link FlinkStreamingTransformTranslators}.
    */
-  public interface StreamTransformTranslator<Type extends PTransform> {
-    void translateNode(Type transform, FlinkStreamingTranslationContext context);
+  public interface StreamTransformTranslator<T extends PTransform> {
+    void translateNode(T transform, FlinkStreamingTranslationContext context);
   }
 
   private static String genSpaces(int n) {

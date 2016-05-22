@@ -47,7 +47,7 @@ public class FlinkStreamingTranslationContext {
   private final PipelineOptions options;
 
   /**
-   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the
+   * Keeps a mapping between the output value of the PTransform (in Beam) and the
    * Flink Operator that produced it, after the translation of the correspondinf PTransform
    * to its Flink equivalent.
    * */

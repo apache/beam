@@ -124,9 +124,10 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<WindowedValue<KV
 
   @Override
   public String toString() {
-    return "CoderTypeInformation{" +
-        "coder=" + coder +
-        '}';
+    return "CoderTypeInformation{"
+        + "coder="
+        + coder
+        + '}';
   }
 
   @Override

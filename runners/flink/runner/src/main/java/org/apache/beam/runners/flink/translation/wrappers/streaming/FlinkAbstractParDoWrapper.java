@@ -44,19 +44,24 @@ import org.joda.time.format.PeriodFormat;
 import java.util.Collection;
 
 /**
- * An abstract class that encapsulates the common code of the the {@link org.apache.beam.sdk.transforms.ParDo.Bound}
- * and {@link org.apache.beam.sdk.transforms.ParDo.BoundMulti} wrappers. See the {@link FlinkParDoBoundWrapper} and
- * {@link FlinkParDoBoundMultiWrapper} for the actual wrappers of the aforementioned transformations.
- * */
-public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFlatMapFunction<WindowedValue<IN>, WindowedValue<OUTFL>> {
+ * An abstract class that encapsulates the common code of the
+ * {@link org.apache.beam.sdk.transforms.ParDo.Bound} and
+ * {@link org.apache.beam.sdk.transforms.ParDo.BoundMulti} wrappers.
+ * See the {@link FlinkParDoBoundWrapper} and {@link FlinkParDoBoundMultiWrapper} for the actual
+ * wrappers of the aforementioned transformations.
+ */
+public abstract class FlinkAbstractParDoWrapper<InputT, OutputDoFnT, OutputT>
+    extends RichFlatMapFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
 
-  private final DoFn<IN, OUTDF> doFn;
+  private final DoFn<InputT, OutputDoFnT> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private transient PipelineOptions options;
 
   private DoFnProcessContext context;
 
-  public FlinkAbstractParDoWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUTDF> doFn) {
+  public FlinkAbstractParDoWrapper(PipelineOptions options,
+                                   WindowingStrategy<?, ?> windowingStrategy,
+                                   DoFn<InputT, OutputDoFnT> doFn) {
     Preconditions.checkNotNull(options);
     Preconditions.checkNotNull(windowingStrategy);
     Preconditions.checkNotNull(doFn);
@@ -66,14 +71,16 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     this.windowingStrategy = windowingStrategy;
   }
 
-  private void initContext(DoFn<IN, OUTDF> function, Collector<WindowedValue<OUTFL>> outCollector) {
+  private void initContext(DoFn<InputT, OutputDoFnT> function,
+                           Collector<WindowedValue<OutputT>> outCollector) {
     if (this.context == null) {
       this.context = new DoFnProcessContext(function, outCollector);
     }
   }
 
   @Override
-  public void flatMap(WindowedValue<IN> value, Collector<WindowedValue<OUTFL>> out) throws Exception {
+  public void flatMap(WindowedValue<InputT> value, Collector<WindowedValue<OutputT>> out)
+      throws Exception {
     this.initContext(doFn, out);
 
     // for each window the element belongs to, create a new copy here.
@@ -88,22 +95,23 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     }
   }
 
-  private void processElement(WindowedValue<IN> value) throws Exception {
+  private void processElement(WindowedValue<InputT> value) throws Exception {
     this.context.setElement(value);
     this.doFn.startBundle(context);
     doFn.processElement(context);
     this.doFn.finishBundle(context);
   }
 
-  private class DoFnProcessContext extends DoFn<IN, OUTDF>.ProcessContext {
+  private class DoFnProcessContext extends DoFn<InputT, OutputDoFnT>.ProcessContext {
 
-    private final DoFn<IN, OUTDF> fn;
+    private final DoFn<InputT, OutputDoFnT> fn;
 
-    protected final Collector<WindowedValue<OUTFL>> collector;
+    protected final Collector<WindowedValue<OutputT>> collector;
 
-    private WindowedValue<IN> element;
+    private WindowedValue<InputT> element;
 
-    private DoFnProcessContext(DoFn<IN, OUTDF> function, Collector<WindowedValue<OUTFL>> outCollector) {
+    private DoFnProcessContext(DoFn<InputT, OutputDoFnT> function,
+                               Collector<WindowedValue<OutputT>> outCollector) {
       function.super();
       super.setupDelegateAggregators();
 
@@ -111,12 +119,12 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
       this.collector = outCollector;
     }
 
-    public void setElement(WindowedValue<IN> value) {
+    public void setElement(WindowedValue<InputT> value) {
       this.element = value;
     }
 
     @Override
-    public IN element() {
+    public InputT element() {
       return this.element.getValue();
     }
 
@@ -134,8 +142,8 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
       Collection<? extends BoundedWindow> windows = this.element.getWindows();
       if (windows.size() != 1) {
-        throw new IllegalArgumentException("Each element is expected to belong to 1 window. " +
-            "This belongs to " + windows.size() + ".");
+        throw new IllegalArgumentException("Each element is expected to belong to 1 window. "
+            + "This belongs to " + windows.size() + ".");
       }
       return windows.iterator().next();
     }
@@ -146,7 +154,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     }
 
     @Override
-    public WindowingInternals<IN, OUTDF> windowingInternals() {
+    public WindowingInternals<InputT, OutputDoFnT> windowingInternals() {
       return windowingInternalsHelper(element, collector);
     }
 
@@ -161,12 +169,12 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     }
 
     @Override
-    public void output(OUTDF output) {
+    public void output(OutputDoFnT output) {
       outputWithTimestamp(output, this.element.getTimestamp());
     }
 
     @Override
-    public void outputWithTimestamp(OUTDF output, Instant timestamp) {
+    public void outputWithTimestamp(OutputDoFnT output, Instant timestamp) {
       outputWithTimestampHelper(element, output, timestamp, collector);
     }
 
@@ -181,7 +189,9 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     }
 
     @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name,
+        Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
       Accumulator acc = getRuntimeContext().getAccumulator(name);
       if (acc != null) {
         AccumulatorHelper.compareAccumulatorTypes(name,
@@ -196,7 +206,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     }
   }
 
-  protected void checkTimestamp(WindowedValue<IN> ref, Instant timestamp) {
+  protected void checkTimestamp(WindowedValue<InputT> ref, Instant timestamp) {
     if (timestamp.isBefore(ref.getTimestamp().minus(doFn.getAllowedTimestampSkew()))) {
       throw new IllegalArgumentException(String.format(
           "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
@@ -251,20 +261,20 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
   ///////////      ABSTRACT METHODS TO BE IMPLEMENTED BY SUBCLASSES      /////////////////
 
   public abstract void outputWithTimestampHelper(
-      WindowedValue<IN> inElement,
-      OUTDF output,
+      WindowedValue<InputT> inElement,
+      OutputDoFnT output,
       Instant timestamp,
-      Collector<WindowedValue<OUTFL>> outCollector);
+      Collector<WindowedValue<OutputT>> outCollector);
 
   public abstract <T> void sideOutputWithTimestampHelper(
-      WindowedValue<IN> inElement,
+      WindowedValue<InputT> inElement,
       T output,
       Instant timestamp,
-      Collector<WindowedValue<OUTFL>> outCollector,
+      Collector<WindowedValue<OutputT>> outCollector,
       TupleTag<T> tag);
 
-  public abstract WindowingInternals<IN, OUTDF> windowingInternalsHelper(
-      WindowedValue<IN> inElement,
-      Collector<WindowedValue<OUTFL>> outCollector);
+  public abstract WindowingInternals<InputT, OutputDoFnT> windowingInternalsHelper(
+      WindowedValue<InputT> inElement,
+      Collector<WindowedValue<OutputT>> outCollector);
 
 }

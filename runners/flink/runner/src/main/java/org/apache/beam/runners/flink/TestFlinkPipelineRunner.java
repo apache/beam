@@ -28,6 +28,9 @@ import org.apache.beam.sdk.values.POutput;
 
 import org.apache.flink.runtime.client.JobExecutionException;
 
+/**
+ * Test on Flink pipeline runner.
+ */
 public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   private FlinkPipelineRunner delegate;
@@ -39,7 +42,8 @@ public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
   }
 
   public static TestFlinkPipelineRunner fromOptions(PipelineOptions options) {
-    FlinkPipelineOptions flinkOptions = PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
+    FlinkPipelineOptions flinkOptions = PipelineOptionsValidator.validate(FlinkPipelineOptions
+        .class, options);
     return new TestFlinkPipelineRunner(flinkOptions);
   }
 
@@ -51,7 +55,7 @@ public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT,OutputT> transform, InputT input) {
+  OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
     return delegate.apply(transform, input);
   }
 
@@ -65,7 +69,7 @@ public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
       if (e.getCause() != null
           && e.getCause() instanceof JobExecutionException
           && e.getCause().getCause() instanceof AssertionError) {
-          throw (AssertionError) e.getCause().getCause();
+        throw (AssertionError) e.getCause().getCause();
       } else {
         throw e;
       }

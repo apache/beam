@@ -23,7 +23,6 @@ import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
-import org.apache.beam.sdk.values.PValue;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -94,15 +93,20 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     // get the transformation corresponding to the node we are
     // currently visiting and translate it into its Flink alternative.
     PTransform<?, ?> transform = node.getTransform();
-    BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+    BatchTransformTranslator<?> translator =
+        FlinkBatchTransformTranslators.getTranslator(transform);
     if (translator == null) {
       LOG.info(node.getTransform().getClass().toString());
-      throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
+      throw new UnsupportedOperationException("The transform "
+          + transform + " is currently not supported.");
     }
     applyBatchTransform(transform, node, translator);
   }
 
-  private <T extends PTransform<?, ?>> void applyBatchTransform(PTransform<?, ?> transform, TransformTreeNode node, BatchTransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> void applyBatchTransform(
+      PTransform<?, ?> transform,
+      TransformTreeNode node,
+      BatchTransformTranslator<?> translator) {
 
     @SuppressWarnings("unchecked")
     T typedTransform = (T) transform;
@@ -119,8 +123,8 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   /**
    * A translator of a {@link PTransform}.
    */
-  public interface BatchTransformTranslator<Type extends PTransform> {
-    void translateNode(Type transform, FlinkBatchTranslationContext context);
+  public interface BatchTransformTranslator<T extends PTransform> {
+    void translateNode(T transform, FlinkBatchTranslationContext context);
   }
 
   /**
@@ -134,7 +138,8 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
       return null;
     }
 
-    BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+    BatchTransformTranslator<?> translator =
+        FlinkBatchTransformTranslators.getTranslator(transform);
 
     // No translator known
     if (translator == null) {

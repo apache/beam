@@ -52,10 +52,12 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An implementation of the Beam {@link StateInternals}. This implementation simply keeps elements in memory.
+ * An implementation of the Beam {@link StateInternals}.
+ * This implementation simply keeps elements in memory.
  * This state is periodically checkpointed by Flink, for fault-tolerance.
- *
- * TODO: State should be rewritten to redirect to Flink per-key state so that coders and combiners don't need
+ * <p>
+ * TODO: State should be rewritten to redirect to Flink per-key state so
+ * that coders and combiners don't need
  * to be serialized along with encoded values when snapshotting.
  */
 public class FlinkStateInternals<K> implements StateInternals<K> {
@@ -97,44 +99,58 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
   protected final StateTable<K> inMemoryState = new StateTable<K>() {
     @Override
-    protected StateTag.StateBinder binderForNamespace(final StateNamespace namespace, final StateContext<?> c) {
+    protected StateTag.StateBinder binderForNamespace(
+        final StateNamespace namespace,
+        final StateContext<?> c) {
       return new StateTag.StateBinder<K>() {
 
         @Override
-        public <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
+        public <T> ValueState<T> bindValue(
+            StateTag<? super K, ValueState<T>> address,
+            Coder<T> coder) {
           return new FlinkInMemoryValue<>(encodeKey(namespace, address), coder);
         }
 
         @Override
-        public <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+        public <T> BagState<T> bindBag(
+            StateTag<? super K, BagState<T>> address,
+            Coder<T> elemCoder) {
           return new FlinkInMemoryBag<>(encodeKey(namespace, address), elemCoder);
         }
 
         @Override
-        public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+        public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+        bindCombiningValue(
             StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder, Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn, accumCoder, c);
+          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn,
+              accumCoder, c);
         }
 
         @Override
-        public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+        public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+        bindKeyedCombiningValue(
             StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn, accumCoder, c);
+          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn,
+              accumCoder, c);
         }
 
         @Override
-        public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+        public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+        bindKeyedCombiningValueWithContext(
             StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
-            CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn, accumCoder, c);
+            CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT>
+                combineFn) {
+          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn,
+              accumCoder, c);
         }
 
         @Override
-        public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(StateTag<? super K, WatermarkHoldState<W>> address, OutputTimeFn<? super W> outputTimeFn) {
+        public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(StateTag<? super K,
+            WatermarkHoldState<W>> address, OutputTimeFn<? super W> outputTimeFn) {
           return new FlinkWatermarkHoldStateImpl<>(encodeKey(namespace, address), outputTimeFn);
         }
       };
@@ -147,12 +163,14 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   }
 
   @Override
-  public <StateT extends State> StateT state(StateNamespace namespace, StateTag<? super K, StateT> address) {
+  public <StateT extends State> StateT state(StateNamespace namespace, StateTag<? super K,
+      StateT> address) {
     return inMemoryState.get(namespace, address, null);
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address, StateContext<?> c) {
+  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address,
+                                   StateContext<?> c) {
     return inMemoryState.get(namespace, address, c);
   }
 
@@ -241,33 +259,39 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         StateTag stateTag = StateTags.value(tagId, coder);
         stateTag = isSystemTag ? StateTags.makeSystemTagInternal(stateTag) : stateTag;
         @SuppressWarnings("unchecked")
-        FlinkInMemoryValue<?> value = (FlinkInMemoryValue<?>) inMemoryState.get(namespace, stateTag, null);
+        FlinkInMemoryValue<?> value = (FlinkInMemoryValue<?>) inMemoryState.get(namespace,
+            stateTag, null);
         value.restoreState(reader);
         break;
       }
       case WATERMARK: {
         @SuppressWarnings("unchecked")
-        StateTag<Object, WatermarkHoldState<BoundedWindow>> stateTag = StateTags.watermarkStateInternal(tagId, outputTimeFn);
+        StateTag<Object, WatermarkHoldState<BoundedWindow>> stateTag = StateTags
+            .watermarkStateInternal(tagId, outputTimeFn);
         stateTag = isSystemTag ? StateTags.makeSystemTagInternal(stateTag) : stateTag;
         @SuppressWarnings("unchecked")
-        FlinkWatermarkHoldStateImpl<?> watermark = (FlinkWatermarkHoldStateImpl<?>) inMemoryState.get(namespace, stateTag, null);
+        FlinkWatermarkHoldStateImpl<?> watermark = (FlinkWatermarkHoldStateImpl<?>) inMemoryState
+            .get(namespace, stateTag, null);
         watermark.restoreState(reader);
         break;
       }
       case LIST: {
         StateTag stateTag = StateTags.bag(tagId, coder);
         stateTag = isSystemTag ? StateTags.makeSystemTagInternal(stateTag) : stateTag;
-        FlinkInMemoryBag<?> bag = (FlinkInMemoryBag<?>) inMemoryState.get(namespace, stateTag, null);
+        FlinkInMemoryBag<?> bag = (FlinkInMemoryBag<?>) inMemoryState.get(namespace, stateTag,
+            null);
         bag.restoreState(reader);
         break;
       }
       case ACCUMULATOR: {
         @SuppressWarnings("unchecked")
-        StateTag<K, AccumulatorCombiningState<?, ?, ?>> stateTag = StateTags.keyedCombiningValueWithContext(tagId, (Coder) coder, combineFn);
+        StateTag<K, AccumulatorCombiningState<?, ?, ?>> stateTag = StateTags
+            .keyedCombiningValueWithContext(tagId, (Coder) coder, combineFn);
         stateTag = isSystemTag ? StateTags.makeSystemTagInternal(stateTag) : stateTag;
         @SuppressWarnings("unchecked")
         FlinkInMemoryKeyedCombiningValue<?, ?, ?> combiningValue =
-            (FlinkInMemoryKeyedCombiningValue<?, ?, ?>) inMemoryState.get(namespace, stateTag, null);
+            (FlinkInMemoryKeyedCombiningValue<?, ?, ?>) inMemoryState.get(namespace, stateTag,
+                null);
         combiningValue.restoreState(reader);
         break;
       }
@@ -292,8 +316,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     int noOfElements = 0;
     for (State state : inMemoryState.values()) {
       if (!(state instanceof CheckpointableIF)) {
-        throw new RuntimeException("State Implementations used by the " +
-            "Flink Dataflow Runner should implement the CheckpointableIF interface.");
+        throw new RuntimeException("State Implementations used by the "
+            + "Flink Beam Runner should implement the CheckpointableIF interface.");
       }
 
       if (((CheckpointableIF) state).shouldPersist()) {
@@ -353,15 +377,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         ByteString data = stream.toByteString();
 
         checkpointBuilder.addValueBuilder()
-          .setTag(stateKey)
-          .setData(coder)
-          .setData(data);
+            .setTag(stateKey)
+            .setData(coder)
+            .setData(data);
       }
     }
 
     public void restoreState(StateCheckpointReader checkpointReader) throws IOException {
       ByteString valueContent = checkpointReader.getData();
-      T outValue = elemCoder.decode(new ByteArrayInputStream(valueContent.toByteArray()), Coder.Context.OUTER);
+      T outValue = elemCoder.decode(new ByteArrayInputStream(valueContent.toByteArray()), Coder
+          .Context.OUTER);
       write(outValue);
     }
   }
@@ -454,7 +479,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   }
 
 
-  private static <K, InputT, AccumT, OutputT> CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> withContext(
+  private static <K, InputT, AccumT, OutputT> CombineWithContext.KeyedCombineFnWithContext<K,
+      InputT, AccumT, OutputT> withContext(
       final Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>() {
       @Override
@@ -463,12 +489,14 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       }
 
       @Override
-      public AccumT addInput(K key, AccumT accumulator, InputT value, CombineWithContext.Context c) {
+      public AccumT addInput(K key, AccumT accumulator, InputT value, CombineWithContext.Context
+          c) {
         return combineFn.addInput(key, accumulator, value);
       }
 
       @Override
-      public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, CombineWithContext.Context c) {
+      public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, CombineWithContext
+          .Context c) {
         return combineFn.mergeAccumulators(key, accumulators);
       }
 
@@ -479,7 +507,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     };
   }
 
-  private static <K, InputT, AccumT, OutputT> CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> withKeyAndContext(
+  private static <K, InputT, AccumT, OutputT> CombineWithContext.KeyedCombineFnWithContext<K,
+      InputT, AccumT, OutputT> withKeyAndContext(
       final Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>() {
       @Override
@@ -488,12 +517,14 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       }
 
       @Override
-      public AccumT addInput(K key, AccumT accumulator, InputT value, CombineWithContext.Context c) {
+      public AccumT addInput(K key, AccumT accumulator, InputT value, CombineWithContext.Context
+          c) {
         return combineFn.addInput(accumulator, value);
       }
 
       @Override
-      public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, CombineWithContext.Context c) {
+      public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, CombineWithContext
+          .Context c) {
         return combineFn.mergeAccumulators(accumulators);
       }
 
@@ -508,7 +539,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements AccumulatorCombiningState<InputT, AccumT, OutputT>, CheckpointableIF {
 
     private final ByteString stateKey;
-    private final CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn;
+    private final CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT,
+        OutputT> combineFn;
     private final Coder<AccumT> accumCoder;
     private final CombineWithContext.Context context;
 
@@ -524,14 +556,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
 
     private FlinkInMemoryKeyedCombiningValue(ByteString stateKey,
-                                             Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn,
+                                             Combine.KeyedCombineFn<? super K, InputT, AccumT,
+                                                 OutputT> combineFn,
                                              Coder<AccumT> accumCoder,
                                              final StateContext<?> stateContext) {
       this(stateKey, withContext(combineFn), accumCoder, stateContext);
     }
 
     private FlinkInMemoryKeyedCombiningValue(ByteString stateKey,
-                                             CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn,
+                                             CombineWithContext.KeyedCombineFnWithContext<? super
+                                                 K, InputT, AccumT, OutputT> combineFn,
                                              Coder<AccumT> accumCoder,
                                              final StateContext<?> stateContext) {
       Preconditions.checkNotNull(combineFn);
@@ -630,16 +664,17 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
         // put the flag that the next serialized element is an accumulator
         checkpointBuilder.addAccumulatorBuilder()
-          .setTag(stateKey)
-          .setData(coder)
-          .setData(combiner)
-          .setData(data);
+            .setTag(stateKey)
+            .setData(coder)
+            .setData(combiner)
+            .setData(data);
       }
     }
 
     public void restoreState(StateCheckpointReader checkpointReader) throws IOException {
       ByteString valueContent = checkpointReader.getData();
-      AccumT accum = this.accumCoder.decode(new ByteArrayInputStream(valueContent.toByteArray()), Coder.Context.OUTER);
+      AccumT accum = this.accumCoder.decode(new ByteArrayInputStream(valueContent.toByteArray()),
+          Coder.Context.OUTER);
       addAccum(accum);
     }
   }
@@ -724,7 +759,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       int noOfValues = checkpointReader.getInt();
       for (int j = 0; j < noOfValues; j++) {
         ByteString valueContent = checkpointReader.getData();
-        T outValue = elemCoder.decode(new ByteArrayInputStream(valueContent.toByteArray()), Coder.Context.OUTER);
+        T outValue = elemCoder.decode(new ByteArrayInputStream(valueContent.toByteArray()), Coder
+            .Context.OUTER);
         add(outValue);
       }
     }

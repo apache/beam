@@ -39,14 +39,22 @@ import java.util.Collection;
 /**
  * A wrapper for the {@link org.apache.beam.sdk.transforms.ParDo.Bound} Beam transformation.
  * */
-public class FlinkParDoBoundWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<IN, OUT, OUT> {
+public class FlinkParDoBoundWrapper<InputT, OutputT>
+    extends FlinkAbstractParDoWrapper<InputT, OutputT, OutputT> {
 
-  public FlinkParDoBoundWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUT> doFn) {
+  public FlinkParDoBoundWrapper(
+      PipelineOptions options,
+      WindowingStrategy<?, ?> windowingStrategy,
+      DoFn<InputT, OutputT> doFn) {
     super(options, windowingStrategy, doFn);
   }
 
   @Override
-  public void outputWithTimestampHelper(WindowedValue<IN> inElement, OUT output, Instant timestamp, Collector<WindowedValue<OUT>> collector) {
+  public void outputWithTimestampHelper(
+      WindowedValue<InputT> inElement,
+      OutputT output,
+      Instant timestamp,
+      Collector<WindowedValue<OutputT>> collector) {
     checkTimestamp(inElement, timestamp);
     collector.collect(makeWindowedValue(
         output,
@@ -56,22 +64,33 @@ public class FlinkParDoBoundWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<I
   }
 
   @Override
-  public <T> void sideOutputWithTimestampHelper(WindowedValue<IN> inElement, T output, Instant timestamp, Collector<WindowedValue<OUT>> outCollector, TupleTag<T> tag) {
+  public <T> void sideOutputWithTimestampHelper(
+      WindowedValue<InputT> inElement,
+      T output,
+      Instant timestamp,
+      Collector<WindowedValue<OutputT>> outCollector,
+      TupleTag<T> tag) {
     // ignore the side output, this can happen when a user does not register
     // side outputs but then outputs using a freshly created TupleTag.
     throw new RuntimeException("sideOutput() not not available in ParDo.Bound().");
   }
 
   @Override
-  public WindowingInternals<IN, OUT> windowingInternalsHelper(final WindowedValue<IN> inElement, final Collector<WindowedValue<OUT>> collector) {
-    return new WindowingInternals<IN, OUT>() {
+  public WindowingInternals<InputT, OutputT> windowingInternalsHelper(
+      final WindowedValue<InputT> inElement,
+      final Collector<WindowedValue<OutputT>> collector) {
+    return new WindowingInternals<InputT, OutputT>() {
       @Override
       public StateInternals stateInternals() {
         throw new NullPointerException("StateInternals are not available for ParDo.Bound().");
       }
 
       @Override
-      public void outputWindowedValue(OUT output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo pane) {
         collector.collect(makeWindowedValue(output, timestamp, windows, pane));
       }
 
@@ -91,7 +110,10 @@ public class FlinkParDoBoundWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<I
       }
 
       @Override
-      public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+      public <T> void writePCollectionViewData(
+          TupleTag<?> tag,
+          Iterable<WindowedValue<T>> data,
+          Coder<T> elemCoder) throws IOException {
         throw new RuntimeException("writePCollectionViewData() not supported in Streaming mode.");
       }
 

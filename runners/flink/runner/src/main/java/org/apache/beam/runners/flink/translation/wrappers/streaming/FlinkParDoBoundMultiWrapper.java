@@ -34,20 +34,29 @@ import java.util.Map;
 
 /**
  * A wrapper for the {@link org.apache.beam.sdk.transforms.ParDo.BoundMulti} Beam transformation.
- * */
-public class FlinkParDoBoundMultiWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<IN, OUT, RawUnionValue> {
+ */
+public class FlinkParDoBoundMultiWrapper<InputT, OutputT>
+    extends FlinkAbstractParDoWrapper<InputT, OutputT, RawUnionValue> {
 
   private final TupleTag<?> mainTag;
   private final Map<TupleTag<?>, Integer> outputLabels;
 
-  public FlinkParDoBoundMultiWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUT> doFn, TupleTag<?> mainTag, Map<TupleTag<?>, Integer> tagsToLabels) {
+  public FlinkParDoBoundMultiWrapper(
+      PipelineOptions options,
+      WindowingStrategy<?, ?> windowingStrategy,
+      DoFn<InputT, OutputT> doFn,
+      TupleTag<?> mainTag,
+      Map<TupleTag<?>, Integer> tagsToLabels) {
     super(options, windowingStrategy, doFn);
     this.mainTag = Preconditions.checkNotNull(mainTag);
     this.outputLabels = Preconditions.checkNotNull(tagsToLabels);
   }
 
   @Override
-  public void outputWithTimestampHelper(WindowedValue<IN> inElement, OUT output, Instant timestamp, Collector<WindowedValue<RawUnionValue>> collector) {
+  public void outputWithTimestampHelper(
+      WindowedValue<InputT> inElement,
+      OutputT output, Instant timestamp,
+      Collector<WindowedValue<RawUnionValue>> collector) {
     checkTimestamp(inElement, timestamp);
     Integer index = outputLabels.get(mainTag);
     collector.collect(makeWindowedValue(
@@ -58,7 +67,12 @@ public class FlinkParDoBoundMultiWrapper<IN, OUT> extends FlinkAbstractParDoWrap
   }
 
   @Override
-  public <T> void sideOutputWithTimestampHelper(WindowedValue<IN> inElement, T output, Instant timestamp, Collector<WindowedValue<RawUnionValue>> collector, TupleTag<T> tag) {
+  public <T> void sideOutputWithTimestampHelper(
+      WindowedValue<InputT> inElement,
+      T output,
+      Instant timestamp,
+      Collector<WindowedValue<RawUnionValue>> collector,
+      TupleTag<T> tag) {
     checkTimestamp(inElement, timestamp);
     Integer index = outputLabels.get(tag);
     if (index != null) {
@@ -71,9 +85,11 @@ public class FlinkParDoBoundMultiWrapper<IN, OUT> extends FlinkAbstractParDoWrap
   }
 
   @Override
-  public WindowingInternals<IN, OUT> windowingInternalsHelper(WindowedValue<IN> inElement, Collector<WindowedValue<RawUnionValue>> outCollector) {
-    throw new RuntimeException("FlinkParDoBoundMultiWrapper is just an internal operator serving as " +
-        "an intermediate transformation for the ParDo.BoundMulti translation. windowingInternals() " +
-        "is not available in this class.");
+  public WindowingInternals<InputT, OutputT> windowingInternalsHelper(
+      WindowedValue<InputT> inElement,
+      Collector<WindowedValue<RawUnionValue>> outCollector) {
+    throw new RuntimeException("FlinkParDoBoundMultiWrapper is just an internal "
+        + "operator serving as an intermediate transformation for the ParDo.BoundMulti "
+        + "translation. windowingInternals() is not available in this class.");
   }
 }

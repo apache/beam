@@ -35,7 +35,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -96,7 +95,8 @@ public class FlinkStreamingTransformTranslators {
   // --------------------------------------------------------------------------------------------
 
   @SuppressWarnings("rawtypes")
-  private static final Map<Class<? extends PTransform>, FlinkStreamingPipelineTranslator.StreamTransformTranslator> TRANSLATORS = new HashMap<>();
+  private static final Map<Class<? extends PTransform>, FlinkStreamingPipelineTranslator
+      .StreamTransformTranslator> TRANSLATORS = new HashMap<>();
 
   // here you can find all the available translators.
   static {
@@ -115,7 +115,8 @@ public class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiStreamingTranslator());
   }
 
-  public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
+  public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator
+      (PTransform<?, ?> transform) {
     return TRANSLATORS.get(transform.getClass());
   }
 
@@ -123,21 +124,22 @@ public class FlinkStreamingTransformTranslators {
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
 
-  private static class CreateStreamingTranslator<OUT> implements
-      FlinkStreamingPipelineTranslator.StreamTransformTranslator<Create.Values<OUT>> {
+  private static class CreateStreamingTranslator<OutputT> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<Create.Values<OutputT>> {
 
     @Override
-    public void translateNode(Create.Values<OUT> transform, FlinkStreamingTranslationContext context) {
-      PCollection<OUT> output = context.getOutput(transform);
-      Iterable<OUT> elements = transform.getElements();
+    public void translateNode(Create.Values<OutputT> transform, FlinkStreamingTranslationContext
+        context) {
+      PCollection<OutputT> output = context.getOutput(transform);
+      Iterable<OutputT> elements = transform.getElements();
 
       // we need to serialize the elements to byte arrays, since they might contain
       // elements that are not serializable by Java serialization. We deserialize them
       // in the FlatMap function using the Coder.
 
       List<byte[]> serializedElements = Lists.newArrayList();
-      Coder<OUT> elementCoder = output.getCoder();
-      for (OUT element: elements) {
+      Coder<OutputT> elementCoder = output.getCoder();
+      for (OutputT element : elements) {
         ByteArrayOutputStream bao = new ByteArrayOutputStream();
         try {
           elementCoder.encode(element, bao, Coder.Context.OUTER);
@@ -150,13 +152,14 @@ public class FlinkStreamingTransformTranslators {
 
       DataStream<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
 
-      FlinkStreamingCreateFunction<Integer, OUT> createFunction =
+      FlinkStreamingCreateFunction<Integer, OutputT> createFunction =
           new FlinkStreamingCreateFunction<>(serializedElements, elementCoder);
 
-      WindowedValue.ValueOnlyWindowedValueCoder<OUT> windowCoder = WindowedValue.getValueOnlyCoder(elementCoder);
-      TypeInformation<WindowedValue<OUT>> outputType = new CoderTypeInformation<>(windowCoder);
+      WindowedValue.ValueOnlyWindowedValueCoder<OutputT> windowCoder = WindowedValue
+          .getValueOnlyCoder(elementCoder);
+      TypeInformation<WindowedValue<OutputT>> outputType = new CoderTypeInformation<>(windowCoder);
 
-      DataStream<WindowedValue<OUT>> outputDataStream = initDataSet.flatMap(createFunction)
+      DataStream<WindowedValue<OutputT>> outputDataStream = initDataSet.flatMap(createFunction)
           .returns(outputType);
 
       context.setOutputDataStream(output, outputDataStream);
@@ -164,11 +167,14 @@ public class FlinkStreamingTransformTranslators {
   }
 
 
-  private static class TextIOWriteBoundStreamingTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound<T>> {
-    private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator.class);
+  private static class TextIOWriteBoundStreamingTranslator<T> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound<T>> {
+    private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator
+        .class);
 
     @Override
-    public void translateNode(TextIO.Write.Bound<T> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(TextIO.Write.Bound<T> transform, FlinkStreamingTranslationContext
+        context) {
       PValue input = context.getInput(transform);
       DataStream<WindowedValue<T>> inputDataStream = context.getInputDataStream(input);
 
@@ -179,17 +185,22 @@ public class FlinkStreamingTransformTranslators {
       String shardNameTemplate = transform.getShardNameTemplate();
 
       // TODO: Implement these. We need Flink support for this.
-      LOG.warn("Translation of TextIO.Write.needsValidation not yet supported. Is: {}.", needsValidation);
-      LOG.warn("Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.", filenameSuffix);
-      LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.", shardNameTemplate);
+      LOG.warn("Translation of TextIO.Write.needsValidation not yet supported. Is: {}.",
+          needsValidation);
+      LOG.warn("Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.",
+          filenameSuffix);
+      LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.",
+          shardNameTemplate);
 
-      DataStream<String> dataSink = inputDataStream.flatMap(new FlatMapFunction<WindowedValue<T>, String>() {
+      DataStream<String> dataSink = inputDataStream.flatMap(new FlatMapFunction<WindowedValue<T>,
+          String>() {
         @Override
         public void flatMap(WindowedValue<T> value, Collector<String> out) throws Exception {
           out.collect(value.getValue().toString());
         }
       });
-      DataStreamSink<String> output = dataSink.writeAsText(filenamePrefix, FileSystem.WriteMode.OVERWRITE);
+      DataStreamSink<String> output = dataSink.writeAsText(filenamePrefix, FileSystem.WriteMode
+          .OVERWRITE);
 
       if (numShards > 0) {
         output.setParallelism(numShards);
@@ -197,7 +208,8 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class WriteSinkStreamingTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write.Bound<T>> {
+  private static class WriteSinkStreamingTranslator<T> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write.Bound<T>> {
 
     @Override
     public void translateNode(Write.Bound<T> transform, FlinkStreamingTranslationContext context) {
@@ -206,7 +218,8 @@ public class FlinkStreamingTransformTranslators {
 
       Sink<T> sink = transform.getSink();
       if (!(sink instanceof UnboundedFlinkSink)) {
-        throw new UnsupportedOperationException("At the time, only unbounded Flink sinks are supported.");
+        throw new UnsupportedOperationException("At the time, only unbounded Flink sinks are "
+            + "supported.");
       }
 
       DataStream<WindowedValue<T>> inputDataSet = context.getInputDataStream(input);
@@ -241,22 +254,25 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class UnboundedReadSourceTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
+  private static class UnboundedReadSourceTranslator<T> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
 
     @Override
-    public void translateNode(Read.Unbounded<T> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(Read.Unbounded<T> transform, FlinkStreamingTranslationContext
+        context) {
       PCollection<T> output = context.getOutput(transform);
 
       DataStream<WindowedValue<T>> source;
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
         @SuppressWarnings("unchecked")
-        UnboundedFlinkSource<T> flinkSourceFunction = (UnboundedFlinkSource<T>) transform.getSource();
+        UnboundedFlinkSource<T> flinkSourceFunction = (UnboundedFlinkSource<T>) transform
+            .getSource();
         DataStream<T> flinkSource = context.getExecutionEnvironment()
             .addSource(flinkSourceFunction.getFlinkSource());
 
         flinkSourceFunction.setCoder(
             new FlinkCoder<T>(flinkSource.getType(),
-              context.getExecutionEnvironment().getConfig()));
+                context.getExecutionEnvironment().getConfig()));
 
         source = flinkSource
             .flatMap(new FlatMapFunction<T, WindowedValue<T>>() {
@@ -278,9 +294,11 @@ public class FlinkStreamingTransformTranslators {
                   context.getPipelineOptions(),
                   transform.getSource(),
                   context.getExecutionEnvironment().getParallelism());
-          source = context.getExecutionEnvironment().addSource(sourceWrapper).name(transform.getName());
+          source = context.getExecutionEnvironment().addSource(sourceWrapper).name(transform
+              .getName());
         } catch (Exception e) {
-          throw new RuntimeException("Error while translating UnboundedSource: " + transform.getSource(), e);
+          throw new RuntimeException("Error while translating UnboundedSource: " + transform
+              .getSource(), e);
         }
       }
 
@@ -288,25 +306,32 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class ParDoBoundStreamingTranslator<IN, OUT> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<ParDo.Bound<IN, OUT>> {
+  private static class ParDoBoundStreamingTranslator<InputT, OutputT> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<ParDo.Bound<InputT, OutputT>> {
 
     @Override
-    public void translateNode(ParDo.Bound<IN, OUT> transform, FlinkStreamingTranslationContext context) {
-      PCollection<OUT> output = context.getOutput(transform);
+    public void translateNode(ParDo.Bound<InputT, OutputT> transform,
+                              FlinkStreamingTranslationContext
+                                  context) {
+      PCollection<OutputT> output = context.getOutput(transform);
 
-      final WindowingStrategy<OUT, ? extends BoundedWindow> windowingStrategy =
-          (WindowingStrategy<OUT, ? extends BoundedWindow>)
+      final WindowingStrategy<OutputT, ? extends BoundedWindow> windowingStrategy =
+          (WindowingStrategy<OutputT, ? extends BoundedWindow>)
               context.getOutput(transform).getWindowingStrategy();
 
-      WindowedValue.WindowedValueCoder<OUT> outputStreamCoder = WindowedValue.getFullCoder(output.getCoder(),
-          windowingStrategy.getWindowFn().windowCoder());
-      CoderTypeInformation<WindowedValue<OUT>> outputWindowedValueCoder =
+      WindowedValue.WindowedValueCoder<OutputT> outputStreamCoder = WindowedValue.getFullCoder
+          (output
+                  .getCoder(),
+              windowingStrategy.getWindowFn().windowCoder());
+      CoderTypeInformation<WindowedValue<OutputT>> outputWindowedValueCoder =
           new CoderTypeInformation<>(outputStreamCoder);
 
-      FlinkParDoBoundWrapper<IN, OUT> doFnWrapper = new FlinkParDoBoundWrapper<>(
+      FlinkParDoBoundWrapper<InputT, OutputT> doFnWrapper = new FlinkParDoBoundWrapper<>(
           context.getPipelineOptions(), windowingStrategy, transform.getFn());
-      DataStream<WindowedValue<IN>> inputDataStream = context.getInputDataStream(context.getInput(transform));
-      SingleOutputStreamOperator<WindowedValue<OUT>> outDataStream = inputDataStream
+      DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(context
+          .getInput
+              (transform));
+      SingleOutputStreamOperator<WindowedValue<OutputT>> outDataStream = inputDataStream
           .flatMap(doFnWrapper)
           .name(transform.getName())
           .returns(outputWindowedValueCoder);
@@ -315,7 +340,11 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  public static class WindowBoundTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Window.Bound<T>> {
+  /**
+   * Window bound translator.
+   */
+  public static class WindowBoundTranslator<T> implements FlinkStreamingPipelineTranslator
+      .StreamTransformTranslator<Window.Bound<T>> {
 
     @Override
     public void translateNode(Window.Bound<T> transform, FlinkStreamingTranslationContext context) {
@@ -341,7 +370,8 @@ public class FlinkStreamingTransformTranslators {
       context.setOutputDataStream(context.getOutput(transform), windowedStream);
     }
 
-    private static <T, W extends BoundedWindow> DoFn<T, T> createWindowAssigner(final WindowFn<T, W> windowFn) {
+    private static <T, W extends BoundedWindow> DoFn<T, T> createWindowAssigner(final WindowFn<T,
+        W> windowFn) {
       return new DoFn<T, T>() {
 
         @Override
@@ -371,10 +401,15 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  public static class GroupByKeyTranslator<K, V> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<GroupByKey<K, V>> {
+  /**
+   * GroupByKey translator.
+   */
+  public static class GroupByKeyTranslator<K, V> implements FlinkStreamingPipelineTranslator
+      .StreamTransformTranslator<GroupByKey<K, V>> {
 
     @Override
-    public void translateNode(GroupByKey<K, V> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(GroupByKey<K, V> transform, FlinkStreamingTranslationContext
+        context) {
       PValue input = context.getInput(transform);
 
       DataStream<WindowedValue<KV<K, V>>> inputDataStream = context.getInputDataStream(input);
@@ -391,21 +426,29 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  public static class CombinePerKeyTranslator<K, VIN, VACC, VOUT> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Combine.PerKey<K, VIN, VOUT>> {
+  /**
+   * CombinePerKey translator.
+   */
+  public static class CombinePerKeyTranslator<K, InputT, AccumT, OutputT> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<Combine.PerKey<K, InputT,
+          OutputT>> {
 
     @Override
-    public void translateNode(Combine.PerKey<K, VIN, VOUT> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(Combine.PerKey<K, InputT, OutputT> transform,
+                              FlinkStreamingTranslationContext context) {
       PValue input = context.getInput(transform);
 
-      DataStream<WindowedValue<KV<K, VIN>>> inputDataStream = context.getInputDataStream(input);
-      KvCoder<K, VIN> inputKvCoder = (KvCoder<K, VIN>) context.getInput(transform).getCoder();
-      KvCoder<K, VOUT> outputKvCoder = (KvCoder<K, VOUT>) context.getOutput(transform).getCoder();
+      DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
+      KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) context.getInput(transform).getCoder();
+      KvCoder<K, OutputT> outputKvCoder = (KvCoder<K, OutputT>) context.getOutput(transform)
+          .getCoder();
 
-      KeyedStream<WindowedValue<KV<K, VIN>>, K> groupByKStream = FlinkGroupByKeyWrapper
+      KeyedStream<WindowedValue<KV<K, InputT>>, K> groupByKStream = FlinkGroupByKeyWrapper
           .groupStreamByKey(inputDataStream, inputKvCoder);
 
-      Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combineFn = (Combine.KeyedCombineFn<K, VIN, VACC, VOUT>) transform.getFn();
-      DataStream<WindowedValue<KV<K, VOUT>>> groupedByKNWstream =
+      Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
+      combineFn = (Combine.KeyedCombineFn<K, InputT, AccumT, OutputT>) transform.getFn();
+      DataStream<WindowedValue<KV<K, OutputT>>> groupedByKNWstream =
           FlinkGroupAlsoByWindowWrapper.create(context.getPipelineOptions(),
               context.getInput(transform), groupByKStream, combineFn, outputKvCoder);
 
@@ -413,10 +456,15 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  public static class FlattenPCollectionTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Flatten.FlattenPCollectionList<T>> {
+  /**
+   * FlattenPCollection translator.
+   */
+  public static class FlattenPCollectionTranslator<T> implements FlinkStreamingPipelineTranslator
+      .StreamTransformTranslator<Flatten.FlattenPCollectionList<T>> {
 
     @Override
-    public void translateNode(Flatten.FlattenPCollectionList<T> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(Flatten.FlattenPCollectionList<T> transform,
+                              FlinkStreamingTranslationContext context) {
       List<PCollection<T>> allInputs = context.getInput(transform).getAll();
       DataStream<T> result = null;
       for (PCollection<T> collection : allInputs) {
@@ -427,32 +475,42 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
-  public static class ParDoBoundMultiStreamingTranslator<IN, OUT> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<ParDo.BoundMulti<IN, OUT>> {
+  /**
+   * ParDo bound multi-streaming translator.
+   */
+  public static class ParDoBoundMultiStreamingTranslator<InputT, OutputT> implements
+      FlinkStreamingPipelineTranslator.StreamTransformTranslator<ParDo.BoundMulti<InputT,
+          OutputT>> {
 
-    private final int MAIN_TAG_INDEX = 0;
+    private final int mainTagIndex = 0;
 
     @Override
-    public void translateNode(ParDo.BoundMulti<IN, OUT> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(ParDo.BoundMulti<InputT, OutputT> transform,
+                              FlinkStreamingTranslationContext context) {
 
       // we assume that the transformation does not change the windowing strategy.
-      WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy = context.getInput(transform).getWindowingStrategy();
+      WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy = context.getInput
+          (transform).getWindowingStrategy();
 
       Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
       Map<TupleTag<?>, Integer> tagsToLabels = transformTupleTagsToLabels(
           transform.getMainOutputTag(), outputs.keySet());
 
       UnionCoder intermUnionCoder = getIntermUnionCoder(outputs.values());
-      WindowedValue.WindowedValueCoder<RawUnionValue> outputStreamCoder = WindowedValue.getFullCoder(
-          intermUnionCoder, windowingStrategy.getWindowFn().windowCoder());
+      WindowedValue.WindowedValueCoder<RawUnionValue> outputStreamCoder = WindowedValue
+          .getFullCoder(
+              intermUnionCoder, windowingStrategy.getWindowFn().windowCoder());
 
       CoderTypeInformation<WindowedValue<RawUnionValue>> intermWindowedValueCoder =
           new CoderTypeInformation<>(outputStreamCoder);
 
-      FlinkParDoBoundMultiWrapper<IN, OUT> doFnWrapper = new FlinkParDoBoundMultiWrapper<>(
+      FlinkParDoBoundMultiWrapper<InputT, OutputT> doFnWrapper = new FlinkParDoBoundMultiWrapper<>(
           context.getPipelineOptions(), windowingStrategy, transform.getFn(),
           transform.getMainOutputTag(), tagsToLabels);
 
-      DataStream<WindowedValue<IN>> inputDataStream = context.getInputDataStream(context.getInput(transform));
+      DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(context
+          .getInput
+              (transform));
       SingleOutputStreamOperator<WindowedValue<RawUnionValue>> intermDataStream =
           inputDataStream.flatMap(doFnWrapper).returns(intermWindowedValueCoder);
 
@@ -474,7 +532,8 @@ public class FlinkStreamingTransformTranslators {
               }
             }).flatMap(new FlatMapFunction<WindowedValue<RawUnionValue>, WindowedValue<?>>() {
               @Override
-              public void flatMap(WindowedValue<RawUnionValue> value, Collector<WindowedValue<?>> collector) throws Exception {
+              public void flatMap(WindowedValue<RawUnionValue> value, Collector<WindowedValue<?>>
+                  collector) throws Exception {
                 collector.collect(WindowedValue.of(
                     value.getValue().getValue(),
                     value.getTimestamp(),
@@ -485,10 +544,11 @@ public class FlinkStreamingTransformTranslators {
       }
     }
 
-    private Map<TupleTag<?>, Integer> transformTupleTagsToLabels(TupleTag<?> mainTag, Set<TupleTag<?>> secondaryTags) {
+    private Map<TupleTag<?>, Integer> transformTupleTagsToLabels(TupleTag<?> mainTag,
+                                                                 Set<TupleTag<?>> secondaryTags) {
       Map<TupleTag<?>, Integer> tagToLabelMap = Maps.newHashMap();
-      tagToLabelMap.put(mainTag, MAIN_TAG_INDEX);
-      int count = MAIN_TAG_INDEX + 1;
+      tagToLabelMap.put(mainTag, mainTagIndex);
+      int count = mainTagIndex + 1;
       for (TupleTag<?> tag : secondaryTags) {
         if (!tagToLabelMap.containsKey(tag)) {
           tagToLabelMap.put(tag, count++);

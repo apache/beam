@@ -54,14 +54,19 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * Test on GroupByWindow.
+ */
 public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
 
   private final Combine.CombineFn combiner = new Sum.SumIntegerFn();
 
   private final WindowingStrategy slidingWindowWithAfterWatermarkTriggerStrategy =
-      WindowingStrategy.of(SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5)))
+      WindowingStrategy.of(SlidingWindows.of(Duration.standardSeconds(10)).every(Duration
+          .standardSeconds(5)))
           .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-          .withTrigger(AfterWatermark.pastEndOfWindow()).withMode(WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES);
+          .withTrigger(AfterWatermark.pastEndOfWindow()).withMode(WindowingStrategy
+          .AccumulationMode.ACCUMULATING_FIRED_PANES);
 
   private final WindowingStrategy sessionWindowingStrategy =
       WindowingStrategy.of(Sessions.withGapDuration(Duration.standardSeconds(2)))
@@ -81,9 +86,9 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
       fixedWindowingStrategy.withTrigger(AfterWatermark.pastEndOfWindow());
 
   private final WindowingStrategy fixedWindowWithCompoundTriggerStrategy =
-    fixedWindowingStrategy.withTrigger(
-      AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(5))
-        .withLateFirings(AfterPane.elementCountAtLeast(5)).buildTrigger());
+      fixedWindowingStrategy.withTrigger(
+          AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(5))
+              .withLateFirings(AfterPane.elementCountAtLeast(5)).buildTrigger());
 
   /**
    * The default accumulation mode is
@@ -114,17 +119,24 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
             inputCoder,
             combiner.<String>asKeyedFn());
 
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         new OneInputStreamOperatorTestHarness<>(gbwOperaror);
     testHarness.open();
 
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1000), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1000), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
     testHarness.processWatermark(new Watermark(initialTime + 2000));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
     testHarness.processWatermark(new Watermark(initialTime + 4000));
 
     ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -152,7 +164,8 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
         , initialTime + 1999));
     expectedOutput.add(new Watermark(initialTime + 4000));
 
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
     testHarness.close();
   }
 
@@ -173,23 +186,35 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
             inputCoder,
             combiner.<String>asKeyedFn());
 
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         new OneInputStreamOperatorTestHarness<>(gbwOperaror);
     testHarness.open();
 
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1000), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 3500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 3700), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 2700), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1000), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 3500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 3700), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 2700), null, PaneInfo.NO_FIRING), initialTime + 20));
     testHarness.processWatermark(new Watermark(initialTime + 6000));
 
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 6700), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 6800), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 8900), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 7600), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 5600), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 6700), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 6800), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 8900), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 7600), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 5600), null, PaneInfo.NO_FIRING), initialTime + 20));
 
     testHarness.processWatermark(new Watermark(initialTime + 12000));
 
@@ -210,7 +235,8 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
         , initialTime + 6700));
     expectedOutput.add(new Watermark(initialTime + 12000));
 
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
     testHarness.close();
   }
 
@@ -218,7 +244,8 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
   public void testSlidingWindows() throws Exception {
     WindowingStrategy strategy = slidingWindowWithAfterWatermarkTriggerStrategy;
     long initialTime = 0L;
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         createTestingOperatorAndState(strategy, initialTime);
     ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
     testHarness.processWatermark(new Watermark(initialTime + 25000));
@@ -261,7 +288,7 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
         WindowedValue.of(KV.of("key2", 1),
             new Instant(initialTime + 20000),
             /**
-             * this is 20000 and not 19500 because of a convention in dataflow where
+             * this is 20000 and not 19500 because of a convention in Beam where
              * timestamps of windowed values in a window cannot be smaller than the
              * end of a previous window. Checkout the documentation of the
              * {@link WindowFn#getOutputTime(Instant, BoundedWindow)}
@@ -277,7 +304,8 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
         , initialTime + 20000));
     expectedOutput.add(new Watermark(initialTime + 25000));
 
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
     testHarness.close();
   }
 
@@ -285,21 +313,26 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
   public void testAfterWatermarkProgram() throws Exception {
     WindowingStrategy strategy = fixedWindowWithAfterWatermarkTriggerStrategy;
     long initialTime = 0L;
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         createTestingOperatorAndState(strategy, initialTime);
     ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 6),
-        new Instant(initialTime + 1), null, PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME)), initialTime + 1));
+        new Instant(initialTime + 1), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .ON_TIME)), initialTime + 1));
     expectedOutput.add(new Watermark(initialTime + 10000));
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 11),
-        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME)), initialTime + 10000));
+        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .ON_TIME)), initialTime + 10000));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key2", 1),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .ON_TIME)), initialTime + 19500));
     expectedOutput.add(new Watermark(initialTime + 20000));
 
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
     testHarness.close();
   }
 
@@ -308,20 +341,25 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
     WindowingStrategy strategy = fixedWindowWithCountTriggerStrategy;
 
     long initialTime = 0L;
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         createTestingOperatorAndState(strategy, initialTime);
     ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 1), null, PaneInfo.createPane(true, true, PaneInfo.Timing.EARLY)), initialTime + 1));
+        new Instant(initialTime + 1), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .EARLY)), initialTime + 1));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, true, PaneInfo.Timing.EARLY)), initialTime + 10000));
+        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .EARLY)), initialTime + 10000));
     expectedOutput.add(new Watermark(initialTime + 10000));
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key2", 1),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME, 0, 0)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .ON_TIME, 0, 0)), initialTime + 19500));
     expectedOutput.add(new Watermark(initialTime + 20000));
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
 
     testHarness.close();
   }
@@ -331,7 +369,8 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
     WindowingStrategy strategy = fixedWindowWithCompoundTriggerStrategy;
 
     long initialTime = 0L;
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         createTestingOperatorAndState(strategy, initialTime);
     ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -344,24 +383,31 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
      * */
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 1), null, PaneInfo.createPane(true, false, PaneInfo.Timing.EARLY)), initialTime + 1));
+        new Instant(initialTime + 1), null, PaneInfo.createPane(true, false, PaneInfo.Timing
+            .EARLY)), initialTime + 1));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, false, PaneInfo.Timing.EARLY)), initialTime + 10000));
+        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, false, PaneInfo.Timing
+            .EARLY)), initialTime + 10000));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, false, PaneInfo.Timing.EARLY, 1, -1)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, false, PaneInfo.Timing
+            .EARLY, 1, -1)), initialTime + 19500));
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
-        new Instant(initialTime + 1200), null, PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 1, 0)), initialTime + 1200));
+        new Instant(initialTime + 1200), null, PaneInfo.createPane(false, true, PaneInfo.Timing
+            .ON_TIME, 1, 0)), initialTime + 1200));
 
     expectedOutput.add(new Watermark(initialTime + 10000));
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 2, 0)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, true, PaneInfo.Timing
+            .ON_TIME, 2, 0)), initialTime + 19500));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key2", 1),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .ON_TIME)), initialTime + 19500));
 
     expectedOutput.add(new Watermark(initialTime + 20000));
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
 
     testHarness.close();
   }
@@ -370,34 +416,45 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
   public void testCompoundAccumulatingPanesProgram() throws Exception {
     WindowingStrategy strategy = fixedWindowWithCompoundTriggerStrategyAcc;
     long initialTime = 0L;
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         createTestingOperatorAndState(strategy, initialTime);
     ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 1), null, PaneInfo.createPane(true, false, PaneInfo.Timing.EARLY)), initialTime + 1));
+        new Instant(initialTime + 1), null, PaneInfo.createPane(true, false, PaneInfo.Timing
+            .EARLY)), initialTime + 1));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 5),
-        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, false, PaneInfo.Timing.EARLY)), initialTime + 10000));
+        new Instant(initialTime + 10000), null, PaneInfo.createPane(true, false, PaneInfo.Timing
+            .EARLY)), initialTime + 10000));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 10),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, false, PaneInfo.Timing.EARLY, 1, -1)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, false, PaneInfo.Timing
+            .EARLY, 1, -1)), initialTime + 19500));
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 6),
-        new Instant(initialTime + 1200), null, PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 1, 0)), initialTime + 1200));
+        new Instant(initialTime + 1200), null, PaneInfo.createPane(false, true, PaneInfo.Timing
+            .ON_TIME, 1, 0)), initialTime + 1200));
 
     expectedOutput.add(new Watermark(initialTime + 10000));
 
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 11),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 2, 0)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(false, true, PaneInfo.Timing
+            .ON_TIME, 2, 0)), initialTime + 19500));
     expectedOutput.add(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key2", 1),
-        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME)), initialTime + 19500));
+        new Instant(initialTime + 19500), null, PaneInfo.createPane(true, true, PaneInfo.Timing
+            .ON_TIME)), initialTime + 19500));
 
     expectedOutput.add(new Watermark(initialTime + 20000));
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput,
+        testHarness.getOutput(), new ResultSortComparator());
 
     testHarness.close();
   }
 
-  private OneInputStreamOperatorTestHarness createTestingOperatorAndState(WindowingStrategy strategy, long initialTime) throws Exception {
+  private OneInputStreamOperatorTestHarness createTestingOperatorAndState(WindowingStrategy
+                                                                              strategy, long
+                                                                              initialTime) throws
+      Exception {
     Pipeline pipeline = FlinkTestPipeline.createForStreaming();
 
     KvCoder<String, Integer> inputCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
@@ -410,30 +467,49 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
             inputCoder,
             combiner.<String>asKeyedFn());
 
-    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>> testHarness =
+    OneInputStreamOperatorTestHarness<WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
         new OneInputStreamOperatorTestHarness<>(gbwOperaror);
     testHarness.open();
 
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1000), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1000), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 1200), null, PaneInfo.NO_FIRING), initialTime + 20));
 
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 10000), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 12100), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 14200), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 15300), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 16500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 10000), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 12100), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 14200), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 15300), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 16500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key1", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
 
-    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key2", 1), new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
+    testHarness.processElement(new StreamRecord<>(makeWindowedValue(strategy, KV.of("key2", 1),
+        new Instant(initialTime + 19500), null, PaneInfo.NO_FIRING), initialTime + 20));
 
     testHarness.processWatermark(new Watermark(initialTime + 10000));
     testHarness.processWatermark(new Watermark(initialTime + 20000));
@@ -449,31 +525,37 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
         Watermark w2 = (Watermark) o2;
         return (int) (w1.getTimestamp() - w2.getTimestamp());
       } else {
-        StreamRecord<WindowedValue<KV<String, Integer>>> sr0 = (StreamRecord<WindowedValue<KV<String, Integer>>>) o1;
-        StreamRecord<WindowedValue<KV<String, Integer>>> sr1 = (StreamRecord<WindowedValue<KV<String, Integer>>>) o2;
+        StreamRecord<WindowedValue<KV<String, Integer>>> sr0 =
+            (StreamRecord<WindowedValue<KV<String, Integer>>>) o1;
+        StreamRecord<WindowedValue<KV<String, Integer>>> sr1 =
+            (StreamRecord<WindowedValue<KV<String, Integer>>>) o2;
 
-        int comparison = (int) (sr0.getValue().getTimestamp().getMillis() - sr1.getValue().getTimestamp().getMillis());
+        int comparison = (int) (sr0.getValue().getTimestamp().getMillis() - sr1.getValue()
+            .getTimestamp().getMillis());
         if (comparison != 0) {
           return comparison;
         }
 
-        comparison = sr0.getValue().getValue().getKey().compareTo(sr1.getValue().getValue().getKey());
-        if(comparison == 0) {
+        comparison = sr0.getValue().getValue().getKey().compareTo(sr1.getValue().getValue()
+            .getKey());
+        if (comparison == 0) {
           comparison = Integer.compare(
               sr0.getValue().getValue().getValue(),
               sr1.getValue().getValue().getValue());
         }
-        if(comparison == 0) {
+        if (comparison == 0) {
           Collection windowsA = sr0.getValue().getWindows();
           Collection windowsB = sr1.getValue().getWindows();
 
-          if(windowsA.size() != 1 || windowsB.size() != 1) {
-            throw new IllegalStateException("A value cannot belong to more than one windows after grouping.");
+          if (windowsA.size() != 1 || windowsB.size() != 1) {
+            throw new IllegalStateException("A value cannot belong to more than one windows after"
+                + " grouping.");
           }
 
           BoundedWindow windowA = (BoundedWindow) windowsA.iterator().next();
           BoundedWindow windowB = (BoundedWindow) windowsB.iterator().next();
-          comparison = Long.compare(windowA.maxTimestamp().getMillis(), windowB.maxTimestamp().getMillis());
+          comparison = Long.compare(windowA.maxTimestamp().getMillis(), windowB.maxTimestamp()
+              .getMillis());
         }
         return comparison;
       }
@@ -481,7 +563,8 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
   }
 
   private <T> WindowedValue<T> makeWindowedValue(WindowingStrategy strategy,
-                           T output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+                                                 T output, Instant timestamp, Collection<?
+      extends BoundedWindow> windows, PaneInfo pane) {
     final Instant inputTimestamp = timestamp;
     final WindowFn windowFn = strategy.getWindowFn();
 

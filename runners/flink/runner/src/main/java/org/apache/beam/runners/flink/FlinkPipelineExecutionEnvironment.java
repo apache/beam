@@ -37,14 +37,15 @@ import java.util.List;
 /**
  * The class that instantiates and manages the execution of a given job.
  * Depending on if the job is a Streaming or Batch processing one, it creates
- * the adequate execution environment ({@link ExecutionEnvironment} or {@link StreamExecutionEnvironment}),
- * the necessary {@link FlinkPipelineTranslator} ({@link FlinkBatchPipelineTranslator} or
- * {@link FlinkStreamingPipelineTranslator})to transform the Beam job into a Flink one, and
- * executes the (translated) job.
+ * the adequate execution environment ({@link ExecutionEnvironment}
+ * or {@link StreamExecutionEnvironment}), the necessary {@link FlinkPipelineTranslator}
+ * ({@link FlinkBatchPipelineTranslator} or {@link FlinkStreamingPipelineTranslator})to
+ * transform the Beam job into a Flink one, and executes the (translated) job.
  */
 public class FlinkPipelineExecutionEnvironment {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
 
   private final FlinkPipelineOptions options;
 
@@ -68,9 +69,9 @@ public class FlinkPipelineExecutionEnvironment {
 
   /**
    * Translator for this FlinkPipelineRunner. Its role is to translate the Beam operators to
-   * their Flink counterparts. Based on the options provided by the user, if we have a streaming job,
-   * this is instantiated as a {@link FlinkStreamingPipelineTranslator}. In other case, i.e. a batch job,
-   * a {@link FlinkBatchPipelineTranslator} is created.
+   * their Flink counterparts. Based on the options provided by the user, if we have a streaming
+   * job, this is instantiated as a {@link FlinkStreamingPipelineTranslator}. In other case, i.e.
+   * a batch job, a {@link FlinkBatchPipelineTranslator} is created.
    */
   private FlinkPipelineTranslator flinkPipelineTranslator;
 
@@ -101,7 +102,8 @@ public class FlinkPipelineExecutionEnvironment {
   /**
    * Depending on the type of job (Streaming or Batch), this method creates the adequate job graph
    * translator. In the case of batch, it will work with {@link org.apache.flink.api.java.DataSet},
-   * while for streaming, it will work with {@link org.apache.flink.streaming.api.datastream.DataStream}.
+   * while for streaming, it will work with
+   * {@link org.apache.flink.streaming.api.datastream.DataStream}.
    */
   private void createPipelineTranslator() {
     checkInitializationState();
@@ -109,21 +111,21 @@ public class FlinkPipelineExecutionEnvironment {
       throw new IllegalStateException("FlinkPipelineTranslator already initialized.");
     }
 
-    this.flinkPipelineTranslator = options.isStreaming() ?
-        new FlinkStreamingPipelineTranslator(flinkStreamEnv, options) :
-        new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
+    this.flinkPipelineTranslator = options.isStreaming()
+        ? new FlinkStreamingPipelineTranslator(flinkStreamEnv, options)
+        : new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
   }
 
   /**
    * Depending on if the job is a Streaming or a Batch one, this method creates
    * the necessary execution environment and pipeline translator, and translates
    * the {@link org.apache.beam.sdk.values.PCollection} program into
-   * a {@link org.apache.flink.api.java.DataSet} or {@link org.apache.flink.streaming.api.datastream.DataStream}
-   * one.
+   * a {@link org.apache.flink.api.java.DataSet}
+   * or {@link org.apache.flink.streaming.api.datastream.DataStream} one.
    * */
   public void translate(Pipeline pipeline) {
     checkInitializationState();
-    if(this.flinkBatchEnv == null && this.flinkStreamEnv == null) {
+    if (this.flinkBatchEnv == null && this.flinkStreamEnv == null) {
       createPipelineExecutionEnvironment();
     }
     if (this.flinkPipelineTranslator == null) {
@@ -253,7 +255,7 @@ public class FlinkPipelineExecutionEnvironment {
     // If the value is not -1, then the validity checks are applied.
     // By default, checkpointing is disabled.
     long checkpointInterval = options.getCheckpointingInterval();
-    if(checkpointInterval != -1) {
+    if (checkpointInterval != -1) {
       if (checkpointInterval < 1) {
         throw new IllegalArgumentException("The checkpoint interval must be positive");
       }
@@ -263,9 +265,11 @@ public class FlinkPipelineExecutionEnvironment {
 
   private void checkInitializationState() {
     if (options.isStreaming() && this.flinkBatchEnv != null) {
-      throw new IllegalStateException("Attempted to run a Streaming Job with a Batch Execution Environment.");
+      throw new IllegalStateException(
+          "Attempted to run a Streaming Job with a Batch Execution Environment.");
     } else if (!options.isStreaming() && this.flinkStreamEnv != null) {
-      throw new IllegalStateException("Attempted to run a Batch Job with a Streaming Execution Environment.");
+      throw new IllegalStateException(
+          "Attempted to run a Batch Job with a Streaming Execution Environment.");
     }
   }
 }

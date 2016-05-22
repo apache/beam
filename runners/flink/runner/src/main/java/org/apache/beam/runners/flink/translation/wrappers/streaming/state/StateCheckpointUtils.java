@@ -34,10 +34,14 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Utils for state checkpoint.
+ */
 public class StateCheckpointUtils {
 
   public static <K> void encodeState(Map<K, FlinkStateInternals<K>> perKeyStateInternals,
-               StateCheckpointWriter writer, Coder<K> keyCoder) throws IOException {
+                                     StateCheckpointWriter writer, Coder<K> keyCoder) throws
+      IOException {
     CoderTypeSerializer<K> keySerializer = new CoderTypeSerializer<>(keyCoder);
 
     int noOfKeys = perKeyStateInternals.size();
@@ -84,8 +88,8 @@ public class StateCheckpointUtils {
 
 
   public static <K> void encodeTimers(Map<K, Set<TimerInternals.TimerData>> allTimers,
-                StateCheckpointWriter writer,
-                Coder<K> keyCoder) throws IOException {
+                                      StateCheckpointWriter writer,
+                                      Coder<K> keyCoder) throws IOException {
     CoderTypeSerializer<K> keySerializer = new CoderTypeSerializer<>(keyCoder);
 
     int noOfKeys = allTimers.size();
@@ -124,7 +128,8 @@ public class StateCheckpointUtils {
     return activeTimers;
   }
 
-  private static void encodeTimerDataForKey(StateCheckpointWriter writer, Set<TimerInternals.TimerData> timers) throws IOException {
+  private static void encodeTimerDataForKey(StateCheckpointWriter writer, Set<TimerInternals
+      .TimerData> timers) throws IOException {
     // encode timers
     writer.writeInt(timers.size());
     for (TimerInternals.TimerData timer : timers) {

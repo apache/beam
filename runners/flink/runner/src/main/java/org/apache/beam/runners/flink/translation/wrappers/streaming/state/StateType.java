@@ -20,9 +20,10 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 import java.io.IOException;
 
 /**
- * The available types of state, as provided by the Beam SDK. This class is used for serialization/deserialization
+ * The available types of state, as provided by the Beam SDK. This class is used for
+ * serialization/deserialization
  * purposes.
- * */
+ */
 public enum StateType {
 
   VALUE(0),
@@ -44,7 +45,7 @@ public enum StateType {
       throw new IllegalArgumentException("Cannot write to a null output.");
     }
 
-    if(type.numVal < 0 || type.numVal > 3) {
+    if (type.numVal < 0 || type.numVal > 3) {
       throw new RuntimeException("Unknown State Type " + type + ".");
     }
 
@@ -57,13 +58,13 @@ public enum StateType {
     }
 
     int typeInt = (int) input.getByte();
-    if(typeInt < 0 || typeInt > 3) {
+    if (typeInt < 0 || typeInt > 3) {
       throw new RuntimeException("Unknown State Type " + typeInt + ".");
     }
 
     StateType resultType = null;
-    for(StateType st: values()) {
-      if(st.numVal == typeInt) {
+    for (StateType st : values()) {
+      if (st.numVal == typeInt) {
         resultType = st;
         break;
       }

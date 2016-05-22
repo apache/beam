@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -33,12 +32,14 @@ import javax.annotation.Nullable;
 /**
  * A wrapper translating Flink Sources implementing the {@link SourceFunction} interface, into
  * unbounded Beam sources (see {@link UnboundedSource}).
- * */
+ */
 public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
   private final SourceFunction<T> flinkSource;
 
-  /** Coder set during translation */
+  /**
+   * Coder set during translation.
+   */
   private Coder<T> coder;
 
   public UnboundedFlinkSource(SourceFunction<T> source) {
@@ -50,19 +51,24 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
   }
 
   @Override
-  public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark>> generateInitialSplits
+      (int desiredNumSplits, PipelineOptions options) throws Exception {
+    throw new RuntimeException("Flink Sources are supported only when running with the "
+        + "FlinkPipelineRunner.");
   }
 
   @Override
-  public UnboundedReader<T> createReader(PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  public UnboundedReader<T> createReader(PipelineOptions options, @Nullable CheckpointMark
+      checkpointMark) {
+    throw new RuntimeException("Flink Sources are supported only when running with the "
+        + "FlinkPipelineRunner.");
   }
 
   @Nullable
   @Override
   public Coder<UnboundedSource.CheckpointMark> getCheckpointMarkCoder() {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    throw new RuntimeException("Flink Sources are supported only when running with the "
+        + "FlinkPipelineRunner.");
   }
 
 
@@ -82,11 +88,13 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
 
   /**
    * Creates a new unbounded source from a Flink source.
+   *
    * @param flinkSource The Flink source function
-   * @param <T> The type that the source function produces.
+   * @param <T>         The type that the source function produces.
    * @return The wrapped source function.
    */
-  public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(SourceFunction<T> flinkSource) {
+  public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(SourceFunction<T>
+                                                                              flinkSource) {
     return new UnboundedFlinkSource<>(flinkSource);
   }
 }
