@@ -356,7 +356,7 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
           }
           // either no next split or all readers were empty
           currentPair = null;
-	  done = true;
+          done = true;
           return false;
         }
       } catch (InterruptedException e) {
