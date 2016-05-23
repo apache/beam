@@ -1026,6 +1026,25 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(component);
   }
 
+  @Test
+  public void testExceptionsNotWrappedRecursively() {
+    final RuntimeException cause = new RuntimeException("oh noes!");
+    HasDisplayData component = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include(new HasDisplayData() {
+          @Override
+          public void populateDisplayData(Builder builder) {
+            throw cause;
+          }
+        });
+      }
+    };
+
+    thrown.expectCause(is(cause));
+    DisplayData.from(component);
+  }
+
   private static class IdentityTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
