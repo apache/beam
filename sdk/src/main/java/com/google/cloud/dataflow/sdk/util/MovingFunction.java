@@ -28,11 +28,6 @@ import java.util.Arrays;
  */
 public class MovingFunction {
   /**
-   * How far back to retain samples, in ms.
-   */
-  private final long samplePeriodMs;
-
-  /**
    * How frequently to update the moving function, in ms.
    */
   private final long sampleUpdateMs;
@@ -75,7 +70,6 @@ public class MovingFunction {
   public MovingFunction(long samplePeriodMs, long sampleUpdateMs,
                         int numSignificantBuckets, int numSignificantSamples,
                         Combine.BinaryCombineLongFn function) {
-    this.samplePeriodMs = samplePeriodMs;
     this.sampleUpdateMs = sampleUpdateMs;
     this.numSignificantBuckets = numSignificantBuckets;
     this.numSignificantSamples = numSignificantSamples;
@@ -121,7 +115,7 @@ public class MovingFunction {
   }
 
   /**
-   * Return the minimum/maximum/sum of all retained values within {@link #samplePeriodMs}
+   * Return the minimum/maximum/sum of all retained values within samplePeriodMs
    * of {@code nowMsSinceEpoch}.
    */
   public long get(long nowMsSinceEpoch) {

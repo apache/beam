@@ -37,15 +37,18 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Tests for PubsubApiaryClient.
+ * Tests for PubsubJsonClient.
  */
-public class PubsubApiaryClientTest {
+@RunWith(JUnit4.class)
+public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;
 
@@ -65,7 +68,7 @@ public class PubsubApiaryClientTest {
   @Before
   public void setup() throws IOException {
     mockPubsub = Mockito.mock(Pubsub.class, Mockito.RETURNS_DEEP_STUBS);
-    client = new PubsubApiaryClient(TIMESTAMP_LABEL, ID_LABEL, mockPubsub);
+    client = new PubsubJsonClient(TIMESTAMP_LABEL, ID_LABEL, mockPubsub);
   }
 
   @After
@@ -92,7 +95,7 @@ public class PubsubApiaryClientTest {
                              .setAckId(ACK_ID);
     PullResponse expectedResponse =
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
-    Mockito.when(mockPubsub.projects()
+    Mockito.when((Object) mockPubsub.projects()
                            .subscriptions()
                            .pull(expectedSubscription, expectedRequest)
                            .execute())
@@ -119,7 +122,7 @@ public class PubsubApiaryClientTest {
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
         .setMessageIds(ImmutableList.of(MESSAGE_ID));
-    Mockito.when(mockPubsub.projects()
+    Mockito.when((Object) mockPubsub.projects()
                            .topics()
                            .publish(expectedTopic, expectedRequest)
                            .execute())

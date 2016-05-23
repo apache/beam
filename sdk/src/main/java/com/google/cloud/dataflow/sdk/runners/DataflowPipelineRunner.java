@@ -59,6 +59,8 @@ import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
+import com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound.PubsubReader;
+import com.google.cloud.dataflow.sdk.io.PubsubIO.Write.Bound.PubsubWriter;
 import com.google.cloud.dataflow.sdk.io.PubsubUnboundedSink;
 import com.google.cloud.dataflow.sdk.io.PubsubUnboundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
@@ -118,7 +120,6 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
@@ -362,15 +363,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
-      builder.put(PubsubIO.Read.Bound.PubsubBoundedReader.class, UnsupportedIO.class);
-      builder.put(PubsubIO.Write.Bound.PubsubBoundedWriter.class, UnsupportedIO.class);
-      if (options.getExperiments() == null
-          || !options.getExperiments().contains("enable_custom_pubsub_source")) {
-        builder.put(PubsubUnboundedSource.class, StreamingPubsubIORead.class);
-      }
+      builder.put(PubsubReader.class, UnsupportedIO.class);
+      builder.put(PubsubWriter.class, UnsupportedIO.class);
       if (options.getExperiments() == null
           || !options.getExperiments().contains("enable_custom_pubsub_sink")) {
-        builder.put(PubsubUnboundedSink.class, StreamingPubsubIOWrite.class);
+        builder.put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class);
       }
     } else {
       builder.put(Read.Unbounded.class, UnsupportedIO.class);
@@ -421,10 +418,19 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       OutputT outputT = (OutputT) PCollection.createPrimitiveOutputInternal(
           pc.getPipeline(),
           transform instanceof GroupByKey
-              ? ((GroupByKey<?, ?>) transform).updateWindowingStrategy(pc.getWindowingStrategy())
-              : pc.getWindowingStrategy(),
+          ? ((GroupByKey<?, ?>) transform).updateWindowingStrategy(pc.getWindowingStrategy())
+          : pc.getWindowingStrategy(),
           pc.isBounded());
       return outputT;
+    } else if (PubsubIO.Read.Bound.class.equals(transform.getClass())
+               && options.isStreaming()
+               && (options.getExperiments() == null
+                   || !options.getExperiments().contains("enable_custom_pubsub_source"))) {
+      // casting to wildcard
+      @SuppressWarnings("unchecked")
+      OutputT pubsub = (OutputT) applyPubsubStreamingRead((PubsubIO.Read.Bound<?>) transform,
+                                                          input);
+      return pubsub;
     } else if (Window.Bound.class.equals(transform.getClass())) {
       /*
        * TODO: make this the generic way overrides are applied (using super.apply() rather than
@@ -458,6 +464,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     } else {
       return super.apply(transform, input);
     }
+  }
+
+  private <T> PCollection<T>
+  applyPubsubStreamingRead(PubsubIO.Read.Bound<?> initialTransform, PInput input) {
+    // types are matched at compile time
+    @SuppressWarnings("unchecked")
+    PubsubIO.Read.Bound<T> transform = (PubsubIO.Read.Bound<T>) initialTransform;
+    return PCollection.<T>createPrimitiveOutputInternal(
+        input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
+        .setCoder(transform.getCoder());
   }
 
   private <T> PCollection<T> applyWindow(
@@ -2555,79 +2571,46 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   // PubsubIO translations
   // ================================================================================
 
-  /**
-   * Suppress application of {@link PubsubUnboundedSource#apply} in streaming mode so that we
-   * can instead defer to Windmill's implementation.
-   */
-  private static class StreamingPubsubIORead<T> extends PTransform<PBegin, PCollection<T>> {
-    private final PubsubUnboundedSource<T> transform;
-
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
-    public StreamingPubsubIORead(
-        DataflowPipelineRunner runner, PubsubUnboundedSource<T> transform) {
-      this.transform = transform;
-    }
-
-    PubsubUnboundedSource<T> getOverriddenTransform() {
-      return transform;
-    }
-
-    @Override
-    public PCollection<T> apply(PBegin input) {
-      return PCollection.<T>createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-          .setCoder(transform.getElementCoder());
-    }
-
-    @Override
-    protected String getKindString() {
-      return "StreamingPubsubIORead";
-    }
-
-    static {
-      DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator());
-    }
+  static {
+    DataflowPipelineTranslator.registerTransformTranslator(
+        PubsubIO.Read.Bound.class, new StreamingPubsubIOReadTranslator());
   }
 
   /**
-   * Rewrite {@link StreamingPubsubIORead} to the appropriate internal node.
+   * Rewrite {@link PubsubIO.Read.Bound} to the appropriate internal node.
    */
   private static class StreamingPubsubIOReadTranslator implements
-      TransformTranslator<StreamingPubsubIORead> {
+      TransformTranslator<PubsubIO.Read.Bound> {
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        StreamingPubsubIORead transform,
+        PubsubIO.Read.Bound transform,
         TranslationContext context) {
       translateTyped(transform, context);
     }
 
     private <T> void translateTyped(
-        StreamingPubsubIORead<T> transform,
+        PubsubIO.Read.Bound<T> transform,
         TranslationContext context) {
       Preconditions.checkState(context.getPipelineOptions().isStreaming(),
                                "StreamingPubsubIORead is only for streaming pipelines.");
-      PubsubUnboundedSource<T> overriddenTransform = transform.getOverriddenTransform();
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      if (overriddenTransform.getTopic() != null) {
+      if (transform.getTopic() != null) {
         context.addInput(PropertyNames.PUBSUB_TOPIC,
-                         overriddenTransform.getTopic().getV1Beta1Path());
+                         transform.getTopic().asV1Beta1Path());
       }
-      if (overriddenTransform.getSubscription() != null) {
+      if (transform.getSubscription() != null) {
         context.addInput(
             PropertyNames.PUBSUB_SUBSCRIPTION,
-            overriddenTransform.getSubscription().getV1Beta1Path());
+            transform.getSubscription().asV1Beta1Path());
       }
-      if (overriddenTransform.getTimestampLabel() != null) {
+      if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
-                         overriddenTransform.getTimestampLabel());
+                         transform.getTimestampLabel());
       }
-      if (overriddenTransform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+      if (transform.getIdLabel() != null) {
+        context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
       context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
@@ -2638,17 +2621,17 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * can instead defer to Windmill's implementation.
    */
   private static class StreamingPubsubIOWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final PubsubUnboundedSink<T> transform;
+    private final PubsubIO.Write.Bound<T> transform;
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
     public StreamingPubsubIOWrite(
-        DataflowPipelineRunner runner, PubsubUnboundedSink<T> transform) {
+        DataflowPipelineRunner runner, PubsubIO.Write.Bound<T> transform) {
       this.transform = transform;
     }
 
-    PubsubUnboundedSink<T> getOverriddenTransform() {
+    PubsubIO.Write.Bound<T> getOverriddenTransform() {
       return transform;
     }
 
@@ -2687,10 +2670,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         TranslationContext context) {
       Preconditions.checkState(context.getPipelineOptions().isStreaming(),
                                "StreamingPubsubIOWrite is only for streaming pipelines.");
-      PubsubUnboundedSink<T> overriddenTransform = transform.getOverriddenTransform();
+      PubsubIO.Write.Bound<T> overriddenTransform = transform.getOverriddenTransform();
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      context.addInput(PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
+      context.addInput(PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().asV1Beta1Path());
       if (overriddenTransform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
                          overriddenTransform.getTimestampLabel());
@@ -2699,7 +2682,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
       context.addEncodingInput(
-          WindowedValue.getValueOnlyCoder(overriddenTransform.getElementCoder()));
+          WindowedValue.getValueOnlyCoder(overriddenTransform.getCoder()));
       context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
@@ -3317,7 +3300,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      */
     @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public UnsupportedIO(DataflowPipelineRunner runner,
-                         PubsubIO.Read.Bound<?>.PubsubBoundedReader doFn) {
+                         PubsubReader doFn) {
       this.doFn = doFn;
     }
 
@@ -3326,7 +3309,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      */
     @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public UnsupportedIO(DataflowPipelineRunner runner,
-                         PubsubIO.Write.Bound<?>.PubsubBoundedWriter doFn) {
+                         PubsubWriter doFn) {
       this.doFn = doFn;
     }
 

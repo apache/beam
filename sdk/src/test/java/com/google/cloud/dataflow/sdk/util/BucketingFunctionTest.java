@@ -16,10 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.Combine;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
