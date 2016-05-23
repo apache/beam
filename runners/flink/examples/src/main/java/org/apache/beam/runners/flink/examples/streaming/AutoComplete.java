@@ -55,11 +55,11 @@ import java.util.List;
 
 /**
  * To run the example, first open a socket on a terminal by executing the command:
- * <li>
- * <li>
- * <code>nc -lk 9999</code>
- * </li>
- * </li>
+ * <ul>
+ *  <li>
+ *    <code>nc -lk 9999</code>
+ *  </li>
+ * </ul>
  * and then launch the example. Now whatever you type in the terminal is going to be
  * the input to the program.
  */
@@ -155,11 +155,14 @@ public class AutoComplete {
   }
 
   /**
-   * Cheaper but higher latency.
    * <p>
-   * <p> Returns two PCollections, the first is top prefixes of size greater
+   * Cheaper but higher latency.
+   * </p>
+   * <p>
+   * Returns two PCollections, the first is top prefixes of size greater
    * than minPrefix, and the second is top prefixes of size exactly
    * minPrefix.
+   * </p>
    */
   private static class ComputeTopRecursive
       extends PTransform<PCollection<CompletionCandidate>,

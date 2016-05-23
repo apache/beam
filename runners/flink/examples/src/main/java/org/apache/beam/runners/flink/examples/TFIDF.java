@@ -110,6 +110,11 @@ public class TFIDF {
 
   /**
    * Lists documents contained beneath the {@code options.input} prefix/directory.
+   *
+   * @param options The options.
+   * @return The set of documents URI.
+   * @throws URISyntaxException If the document URI is not valid.
+   * @throws IOException If the document URI can't be loaded.
    */
   public static Set<URI> listInputDocuments(Options options)
       throws URISyntaxException, IOException {
