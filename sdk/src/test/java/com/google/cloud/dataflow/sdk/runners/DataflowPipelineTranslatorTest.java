@@ -45,6 +45,8 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.PubsubIO;
+import com.google.cloud.dataflow.sdk.io.PubsubIO.PubsubTopic;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
@@ -745,6 +747,84 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Step collectionToSingletonStep = steps.get(1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
+  }
+
+  @Test
+  public void testPubsubIOReadTranslation() throws Exception {
+    // A "change detector" test that makes sure the translation of PubsubIO.Read
+    // does not change in bad ways during refactor
+    String project = "fakeproject";
+    String topicName = "faketopic";
+    PubsubTopic topic =
+        PubsubTopic.fromPath(String.format("projects/%s/topics/%s", project, topicName));
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    DataflowPipeline pipeline = DataflowPipeline.create(options);
+    pipeline.apply(PubsubIO.Read.topic(topic.asPath()));
+    Job job =
+        translator
+            .translate(pipeline, pipeline.getRunner(), Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    List<Step> steps = job.getSteps();
+    assertEquals(1, steps.size());
+
+    Step pubsubStep = steps.get(0);
+
+    // Ensure the core translation does not change; if we get this far, then the right translator
+    // was invoked, so we don't try to combinatorially test every combination of configuration
+    // options. That would be for the unit tests of that translator.
+    assertEquals("ParallelRead", pubsubStep.getKind());
+    assertEquals("pubsub", Structs.getString(pubsubStep.getProperties(), PropertyNames.FORMAT));
+    assertEquals(
+        topic.asV1Beta1Path(),
+        Structs.getString(pubsubStep.getProperties(), PropertyNames.PUBSUB_TOPIC));
+    assertEquals(
+        "PubsubIO.Read", Structs.getString(pubsubStep.getProperties(), PropertyNames.USER_NAME));
+  }
+
+  @Test
+  public void testPubsubIOWriteTranslation() throws Exception {
+    // A "change detector" test that makes sure the translation of PubsubIO.Read
+    // does not change in bad ways during refactor
+    String project = "fakeproject";
+    String topicName = "faketopic";
+    PubsubTopic topic =
+        PubsubTopic.fromPath(String.format("projects/%s/topics/%s", project, topicName));
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    DataflowPipeline pipeline = DataflowPipeline.create(options);
+    pipeline.apply(Create.of("hello", "goodbye"))
+       .apply(PubsubIO.Write.topic(topic.asPath()));
+    Job job =
+        translator
+            .translate(pipeline, pipeline.getRunner(), Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    // There are 6 steps from the Create and 1 from the PubsubIO.Write
+    List<Step> steps = job.getSteps();
+    assertEquals(7, steps.size());
+
+    Step prepStep = steps.get(5);
+    Step writeStep = steps.get(6);
+
+    // Ensure the core translation does not change; if we get this far, then the right translator
+    // was invoked, so we don't try to combinatorially test every combination of configuration
+    // options. That would be for the unit tests of that translator.
+    assertEquals("ParallelWrite", writeStep.getKind());
+    assertEquals("pubsub", Structs.getString(writeStep.getProperties(), PropertyNames.FORMAT));
+    assertEquals(
+        topic.asV1Beta1Path(),
+        Structs.getString(writeStep.getProperties(), PropertyNames.PUBSUB_TOPIC));
+    assertEquals(
+        "PubsubIO.Write/StreamingPubsubIOWrite",
+        Structs.getString(writeStep.getProperties(), PropertyNames.USER_NAME));
   }
 
   @Test
