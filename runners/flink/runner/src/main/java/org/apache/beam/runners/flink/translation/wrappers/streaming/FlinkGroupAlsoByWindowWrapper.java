@@ -81,23 +81,27 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * <p>
  * This class is the key class implementing all the windowing/triggering logic of Apache Beam.
  * To provide full compatibility and support for all the windowing/triggering combinations
  * offered by Beam, we opted for a strategy that uses the SDK's code for doing these operations.
- * See the code in ({@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}.
- * <p/>
+ * See the code in ({@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}.
+ * </p>
+ * <p>
  * In a nutshell, when the execution arrives to this operator, we expect to have a stream <b>already
  * grouped by key</b>. Each of the elements that enter here, registers a timer
  * (see {@link TimerInternals#setTimer(TimerInternals.TimerData)} in the
  * {@link FlinkGroupAlsoByWindowWrapper#activeTimers}.
  * This is essentially a timestamp indicating when to trigger the computation over the window this
  * element belongs to.
- * <p/>
+ * </p>
+ * <p>
  * When a watermark arrives, all the registered timers are checked to see which ones are ready to
  * fire (see {@link FlinkGroupAlsoByWindowWrapper#processWatermark(Watermark)}).
  * These are deregistered from the {@link FlinkGroupAlsoByWindowWrapper#activeTimers}
- * list, and are fed into the {@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}
- * for furhter processing.
+ * list, and are fed into the {@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}
+ * for further processing.
+ * </p>
  */
 public class FlinkGroupAlsoByWindowWrapper<K, InputT, AccumT, OutputT>
     extends AbstractStreamOperator<WindowedValue<KV<K, OutputT>>>
@@ -135,21 +139,29 @@ public class FlinkGroupAlsoByWindowWrapper<K, InputT, AccumT, OutputT>
   private FlinkTimerInternals timerInternals = new FlinkTimerInternals();
 
   /**
+   * <p>
    * Creates an DataStream where elements are grouped in windows based on the
    * specified windowing strategy.
    * This method assumes that <b>elements are already grouped by key</b>.
-   * <p/>
+   * </p>
+   * <p>
    * The difference with {@link #createForIterable(PipelineOptions, PCollection, KeyedStream)}
    * is that this method assumes that a combiner function is provided
    * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
    * A combiner helps at increasing the speed and, in most of the cases, reduce the
    * per-window state.
+   * </p>
    *
-   * @param options            the general job configuration options.
-   * @param input              the input Beam {@link org.apache.beam.sdk.values.PCollection}.
-   * @param groupedStreamByKey the input stream, it is assumed to already be grouped by key.
-   * @param combiner           the combiner to be used.
-   * @param outputKvCoder      the type of the output values.
+   * @param options The general job configuration options.
+   * @param input The input Beam {@link org.apache.beam.sdk.values.PCollection}.
+   * @param groupedStreamByKey The input stream, it is assumed to already be grouped by key.
+   * @param combiner The combiner to be used.
+   * @param outputKvCoder The type of the output values.
+   * @param <K> The key type.
+   * @param <InputT> The input type.
+   * @param <AccumT> The accumulator type.
+   * @param <OutputT> The output type.
+   * @return a {@link DataStream} with {@link WindowedValue} key-value pairs.
    */
   public static <K, InputT, AccumT, OutputT> DataStream<WindowedValue<KV<K, OutputT>>> create(
       PipelineOptions options,
@@ -182,18 +194,24 @@ public class FlinkGroupAlsoByWindowWrapper<K, InputT, AccumT, OutputT>
   }
 
   /**
+   * <p>
    * Creates an DataStream where elements are grouped in windows based on the specified
    * windowing strategy.
    * This method assumes that <b>elements are already grouped by key</b>.
-   * <p/>
+   * </p>
+   * <p>
    * The difference with
    * {@link #create(PipelineOptions, PCollection, KeyedStream, Combine.KeyedCombineFn, KvCoder)}
    * is that this method assumes no combiner function
    * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
+   * </p>
    *
-   * @param options            the general job configuration options.
-   * @param input              the input Beam {@link org.apache.beam.sdk.values.PCollection}.
+   * @param options the general job configuration options.
+   * @param input the input Beam {@link org.apache.beam.sdk.values.PCollection}.
    * @param groupedStreamByKey the input stream, it is assumed to already be grouped by key.
+   * @param <K> the key type.
+   * @param <InputT> the input type.
+   * @return a {@link DataStream} with the {@link WindowedValue} key-value pair.
    */
   public static <K, InputT> DataStream<WindowedValue<KV<K, Iterable<InputT>>>> createForIterable(
       PipelineOptions options,

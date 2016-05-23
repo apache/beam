@@ -40,10 +40,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * <p>
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
- * <p>
+ * </p>
  */
 public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
@@ -132,6 +133,8 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   /**
    * For testing.
+   *
+   * @return The {@link FlinkPipelineOptions}.
    */
   public FlinkPipelineOptions getPipelineOptions() {
     return options;

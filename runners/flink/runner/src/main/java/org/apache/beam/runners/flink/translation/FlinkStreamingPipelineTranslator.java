@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.beam.sdk.values.PCollection}-based job into a
  * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
  * <p>
- * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
+ * This is based on {@code org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
  */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 

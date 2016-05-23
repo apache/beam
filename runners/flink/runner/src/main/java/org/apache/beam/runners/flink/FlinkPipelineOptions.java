@@ -39,11 +39,17 @@ public interface FlinkPipelineOptions
     extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   /**
+   * <p>
    * List of local files to make available to workers.
+   * </p>
    * <p>
    * Jars are placed on the worker's classpath.
+   * </p>
    * <p>
    * The default value is the list of jars from the main program's classpath.
+   * </p>
+   *
+   * @return The list of files to stage.
    */
   @Description("Jar-Files to send to all workers and put on the classpath. "
       + "The default value is all files from the classpath.")
@@ -53,6 +59,8 @@ public interface FlinkPipelineOptions
 
   /**
    * The job name is used to identify jobs running on a Flink cluster.
+   *
+   * @return The Flink job name.
    */
   @Description("Flink job name, to uniquely identify active jobs. "
       + "Defaults to using the ApplicationName-UserName-Date.")
@@ -66,6 +74,8 @@ public interface FlinkPipelineOptions
    * Strings "[local]", "[collection]" or "[auto]". "[local]" will start a local Flink
    * Cluster in the JVM, "[collection]" will execute the pipeline on Java Collections while
    * "[auto]" will let the system decide where to execute the pipeline based on the environment.
+   *
+   * @return The Flink master URL.
    */
   @Description("Address of the Flink Master where the Pipeline should be executed. Can"
       + " either be of the form \"host:port\" or one of the special values [local], "
