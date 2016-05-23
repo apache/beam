@@ -511,15 +511,20 @@ public class BigQueryIOTest implements Serializable {
             .pollJobReturns(Status.FAILED, Status.FAILED, Status.SUCCEEDED));
 
     Pipeline p = TestPipeline.create(bqOptions);
-    p.apply(Create.of(new TableRow().set("name", "a").set("number", 1),
+    p.apply(Create.of(
+        new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
+    .setCoder(TableRowJsonCoder.of())
     .apply(BigQueryIO.Write.to("dataset-id.table-id")
-        .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED).withSchema(new TableSchema()
-            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))))
-        .withTestServices(fakeBqServices).withoutValidation());
+        .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+        .withSchema(new TableSchema().setFields(
+            ImmutableList.of(
+                new TableFieldSchema().setName("name").setType("STRING"),
+                new TableFieldSchema().setName("number").setType("INTEGER"))))
+        .withTestServices(fakeBqServices)
+        .withoutValidation());
     p.run();
 
     logged.verifyInfo("Starting BigQuery load job");
