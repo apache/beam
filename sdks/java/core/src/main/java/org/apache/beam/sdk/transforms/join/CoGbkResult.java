@@ -106,8 +106,8 @@ public class CoGbkResult {
       // schema.
       int unionTag = value.getUnionTag();
       if (schema.size() <= unionTag) {
-        throw new IllegalStateException("union tag " + unionTag +
-            " has no corresponding tuple tag in the result schema");
+        throw new IllegalStateException("union tag " + unionTag
+            + " has no corresponding tuple tag in the result schema");
       }
       List<Object> valueList = (List<Object>) valueMap.get(unionTag);
       valueList.add(value.getValue());
@@ -181,8 +181,8 @@ public class CoGbkResult {
   public <V> Iterable<V> getAll(TupleTag<V> tag) {
     int index = schema.getIndex(tag);
     if (index < 0) {
-      throw new IllegalArgumentException("TupleTag " + tag +
-          " is not in the schema");
+      throw new IllegalArgumentException("TupleTag " + tag
+          + " is not in the schema");
     }
     @SuppressWarnings("unchecked")
     Iterable<V> unions = (Iterable<V>) valueMap.get(index);

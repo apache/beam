@@ -104,7 +104,6 @@ public class OffsetRangeTrackerTest {
     assertFalse(tracker.tryReturnRecordAt(true, 150));
     assertFalse(tracker.tryReturnRecordAt(true, 151));
     // Should accept non-splitpoint records starting after stop offset.
-    assertTrue(tracker.tryReturnRecordAt(false, 135));
     assertTrue(tracker.tryReturnRecordAt(false, 152));
     assertTrue(tracker.tryReturnRecordAt(false, 160));
     assertFalse(tracker.tryReturnRecordAt(true, 171));

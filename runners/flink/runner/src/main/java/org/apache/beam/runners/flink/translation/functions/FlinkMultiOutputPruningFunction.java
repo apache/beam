@@ -18,27 +18,34 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.util.WindowedValue;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * A FlatMap function that filters out those elements that don't belong in this output. We need
- * this to implement MultiOutput ParDo functions.
+ * A {@link FlatMapFunction} function that filters out those elements that don't belong in this
+ * output. We need this to implement MultiOutput ParDo functions in combination with
+ * {@link FlinkMultiOutputDoFnFunction}.
  */
-public class FlinkMultiOutputPruningFunction<T> implements FlatMapFunction<RawUnionValue, T> {
+public class FlinkMultiOutputPruningFunction<T>
+    implements FlatMapFunction<WindowedValue<RawUnionValue>, WindowedValue<T>> {
 
-  private final int outputTag;
+  private final int ourOutputTag;
 
-  public FlinkMultiOutputPruningFunction(int outputTag) {
-    this.outputTag = outputTag;
+  public FlinkMultiOutputPruningFunction(int ourOutputTag) {
+    this.ourOutputTag = ourOutputTag;
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public void flatMap(RawUnionValue rawUnionValue, Collector<T> collector) throws Exception {
-    if (rawUnionValue.getUnionTag() == outputTag) {
-      collector.collect((T) rawUnionValue.getValue());
+  public void flatMap(
+      WindowedValue<RawUnionValue> windowedValue,
+      Collector<WindowedValue<T>> collector) throws Exception {
+    int unionTag = windowedValue.getValue().getUnionTag();
+    if (unionTag == ourOutputTag) {
+      collector.collect(
+          (WindowedValue<T>) windowedValue.withValue(windowedValue.getValue().getValue()));
     }
   }
 }

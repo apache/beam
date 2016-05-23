@@ -34,7 +34,6 @@ import com.google.api.services.pubsub.model.PullResponse;
 import com.google.api.services.pubsub.model.ReceivedMessage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.Hashing;
 
 import org.junit.After;
 import org.junit.Before;
@@ -61,8 +60,7 @@ public class PubsubApiaryClientTest {
   private static final String ID_LABEL = "id";
   private static final String MESSAGE_ID = "testMessageId";
   private static final String DATA = "testData";
-  private static final String CUSTOM_ID =
-      Hashing.murmur3_128().hashBytes(DATA.getBytes()).toString();
+  private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
 
   @Before
@@ -89,7 +87,7 @@ public class PubsubApiaryClientTest {
         .setPublishTime(String.valueOf(PUB_TIME))
         .setAttributes(
             ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
-                            ID_LABEL, CUSTOM_ID));
+                            ID_LABEL, RECORD_ID));
     ReceivedMessage expectedReceivedMessage =
         new ReceivedMessage().setMessage(expectedPubsubMessage)
                              .setAckId(ACK_ID);
@@ -105,7 +103,7 @@ public class PubsubApiaryClientTest {
     IncomingMessage actualMessage = acutalMessages.get(0);
     assertEquals(ACK_ID, actualMessage.ackId);
     assertEquals(DATA, new String(actualMessage.elementBytes));
-    assertEquals(CUSTOM_ID, new String(actualMessage.recordId));
+    assertEquals(RECORD_ID, actualMessage.recordId);
     assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
     assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
   }
@@ -117,7 +115,7 @@ public class PubsubApiaryClientTest {
         .encodeData(DATA.getBytes())
         .setAttributes(
             ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
-                            ID_LABEL, CUSTOM_ID));
+                            ID_LABEL, RECORD_ID));
     PublishRequest expectedRequest = new PublishRequest()
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
@@ -127,7 +125,7 @@ public class PubsubApiaryClientTest {
                            .publish(expectedTopic, expectedRequest)
                            .execute())
            .thenReturn(expectedResponse);
-    OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME);
+    OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

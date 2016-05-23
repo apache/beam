@@ -67,7 +67,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     PCollection<KV<String, WindowedValue<Integer>>> kvs =
         values.apply(new ReifyTimestampsAndWindows<String, Integer>());
     PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        kvs.apply(new GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
+        kvs.apply(new InProcessGroupByKey.InProcessGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
         bundleFactory.createRootBundle(kvs).commit(Instant.now());
@@ -89,7 +89,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     Coder<String> keyCoder =
         ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
-        new GroupByKeyEvaluatorFactory()
+        new InProcessGroupByKeyOnlyEvaluatorFactory()
             .forApplication(
                 groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
 

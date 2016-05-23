@@ -46,8 +46,8 @@ public final class SparkContextFactory {
         sparkContext = createSparkContext(master, appName);
         sparkMaster = master;
       } else if (!master.equals(sparkMaster)) {
-        throw new IllegalArgumentException(String.format("Cannot reuse spark context " +
-                "with different spark master URL. Existing: %s, requested: %s.",
+        throw new IllegalArgumentException(String.format("Cannot reuse spark context "
+                + "with different spark master URL. Existing: %s, requested: %s.",
             sparkMaster, master));
       }
       return sparkContext;

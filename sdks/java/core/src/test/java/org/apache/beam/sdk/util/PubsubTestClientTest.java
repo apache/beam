@@ -24,7 +24,9 @@ import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
+import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 
+import com.google.api.client.util.Clock;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -33,6 +35,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Tests for PubsubTestClient.
@@ -50,48 +53,62 @@ public class PubsubTestClientTest {
 
   @Test
   public void pullOneMessage() throws IOException {
+    final AtomicLong now = new AtomicLong();
+    Clock clock = new Clock() {
+      @Override
+      public long currentTimeMillis() {
+        return now.get();
+      }
+    };
     IncomingMessage expectedIncomingMessage =
-        new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID.getBytes());
-    try (PubsubTestClient client =
-             new PubsubTestClient(null, SUBSCRIPTION, ACK_TIMEOUT_S, null,
-                                  Lists.newArrayList(expectedIncomingMessage))) {
-      long now = REQ_TIME;
-      client.advanceTo(now);
-      List<IncomingMessage> incomingMessages = client.pull(now, SUBSCRIPTION, 1, true);
-      assertEquals(1, incomingMessages.size());
-      assertEquals(expectedIncomingMessage, incomingMessages.get(0));
-      // Timeout on ACK.
-      now += (ACK_TIMEOUT_S + 10) * 1000;
-      client.advanceTo(now);
-      incomingMessages = client.pull(now, SUBSCRIPTION, 1, true);
-      assertEquals(1, incomingMessages.size());
-      assertEquals(expectedIncomingMessage.withRequestTime(now), incomingMessages.get(0));
-      now += 10 * 1000;
-      client.advanceTo(now);
-      // Extend ack
-      client.modifyAckDeadline(SUBSCRIPTION, ImmutableList.of(ACK_ID), 20);
-      // Timeout on extended ACK
-      now += 30 * 1000;
-      client.advanceTo(now);
-      incomingMessages = client.pull(now, SUBSCRIPTION, 1, true);
-      assertEquals(1, incomingMessages.size());
-      assertEquals(expectedIncomingMessage.withRequestTime(now), incomingMessages.get(0));
-      // Extend ack
-      client.modifyAckDeadline(SUBSCRIPTION, ImmutableList.of(ACK_ID), 20);
-      // Ack
-      now += 15 * 1000;
-      client.advanceTo(now);
-      client.acknowledge(SUBSCRIPTION, ImmutableList.of(ACK_ID));
+        new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
+    try (PubsubTestClientFactory factory =
+             PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S,
+                                                   Lists.newArrayList(expectedIncomingMessage))) {
+      try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
+        now.set(REQ_TIME);
+        client.advance();
+        List<IncomingMessage> incomingMessages = client.pull(now.get(), SUBSCRIPTION, 1, true);
+        assertEquals(1, incomingMessages.size());
+        assertEquals(expectedIncomingMessage, incomingMessages.get(0));
+        // Timeout on ACK.
+        now.addAndGet((ACK_TIMEOUT_S + 10) * 1000);
+        client.advance();
+        incomingMessages = client.pull(now.get(), SUBSCRIPTION, 1, true);
+        assertEquals(1, incomingMessages.size());
+        assertEquals(expectedIncomingMessage.withRequestTime(now.get()), incomingMessages.get(0));
+        now.addAndGet(10 * 1000);
+        client.advance();
+        // Extend ack
+        client.modifyAckDeadline(SUBSCRIPTION, ImmutableList.of(ACK_ID), 20);
+        // Timeout on extended ACK
+        now.addAndGet(30 * 1000);
+        client.advance();
+        incomingMessages = client.pull(now.get(), SUBSCRIPTION, 1, true);
+        assertEquals(1, incomingMessages.size());
+        assertEquals(expectedIncomingMessage.withRequestTime(now.get()), incomingMessages.get(0));
+        // Extend ack
+        client.modifyAckDeadline(SUBSCRIPTION, ImmutableList.of(ACK_ID), 20);
+        // Ack
+        now.addAndGet(15 * 1000);
+        client.advance();
+        client.acknowledge(SUBSCRIPTION, ImmutableList.of(ACK_ID));
+      }
     }
   }
 
   @Test
   public void publishOneMessage() throws IOException {
-    OutgoingMessage expectedOutgoingMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME);
-    try (PubsubTestClient client =
-             new PubsubTestClient(TOPIC, null, ACK_TIMEOUT_S,
-                                  Sets.newHashSet(expectedOutgoingMessage), null)) {
-      client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
+    OutgoingMessage expectedOutgoingMessage =
+        new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, MESSAGE_ID);
+    try (PubsubTestClientFactory factory =
+             PubsubTestClient.createFactoryForPublish(
+                 TOPIC,
+                 Sets.newHashSet(expectedOutgoingMessage),
+                 ImmutableList.<OutgoingMessage>of())) {
+      try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
+        client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
+      }
     }
   }
 }

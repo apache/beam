@@ -33,7 +33,7 @@ import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
- * Dataflow {@link org.apache.beam.sdk.coders.Coder}s
+ * Dataflow {@link org.apache.beam.sdk.coders.Coder Coders}.
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   
@@ -128,14 +128,20 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   }
 
   @Override
-  public void copy(DataInputView dataInputView, DataOutputView dataOutputView) throws IOException {
+  public void copy(
+      DataInputView dataInputView,
+      DataOutputView dataOutputView) throws IOException {
     serialize(deserialize(dataInputView), dataOutputView);
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     CoderTypeSerializer that = (CoderTypeSerializer) o;
     return coder.equals(that.coder);

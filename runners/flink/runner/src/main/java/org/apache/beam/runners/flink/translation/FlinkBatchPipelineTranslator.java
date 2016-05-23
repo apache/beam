@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -24,13 +25,15 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.values.PValue;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * FlinkBatchPipelineTranslator knows how to translate Pipeline objects into Flink Jobs.
- * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
+ * {@link Pipeline.PipelineVisitor} for executing a {@link Pipeline} as a
+ * Flink batch job.
  */
 public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
@@ -45,6 +48,17 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
   public FlinkBatchPipelineTranslator(ExecutionEnvironment env, PipelineOptions options) {
     this.batchContext = new FlinkBatchTranslationContext(env, options);
+  }
+
+  @Override
+  @SuppressWarnings("rawtypes, unchecked")
+  public void translate(Pipeline pipeline) {
+    super.translate(pipeline);
+
+    // terminate dangling DataSets
+    for (DataSet<?> dataSet: batchContext.getDanglingDataSets().values()) {
+      dataSet.output(new DiscardingOutputFormat());
+    }
   }
 
   // --------------------------------------------------------------------------------------------

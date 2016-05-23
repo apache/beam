@@ -41,7 +41,9 @@ public class FlinkRunnerRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(FlinkPipelineRunner.class);
+      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
+          FlinkPipelineRunner.class,
+          TestFlinkPipelineRunner.class);
     }
   }
 

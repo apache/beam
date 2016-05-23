@@ -207,8 +207,8 @@ public class BigQueryTableInserter {
         rows.add(out);
 
         dataSize += row.toString().length();
-        if (dataSize >= UPLOAD_BATCH_SIZE_BYTES || rows.size() >= maxRowsPerBatch ||
-            i == rowsToPublish.size() - 1) {
+        if (dataSize >= UPLOAD_BATCH_SIZE_BYTES || rows.size() >= maxRowsPerBatch
+            || i == rowsToPublish.size() - 1) {
           TableDataInsertAllRequest content = new TableDataInsertAllRequest();
           content.setRows(rows);
 
@@ -328,8 +328,8 @@ public class BigQueryTableInserter {
       table = get.execute();
     } catch (IOException e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if (!errorExtractor.itemNotFound(e) ||
-          createDisposition != CreateDisposition.CREATE_IF_NEEDED) {
+      if (!errorExtractor.itemNotFound(e)
+          || createDisposition != CreateDisposition.CREATE_IF_NEEDED) {
         // Rethrow.
         throw e;
       }

@@ -40,7 +40,6 @@ import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.hash.Hashing;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -135,9 +134,8 @@ public class PubsubApiaryClient extends PubsubClient {
         attributes.put(timestampLabel, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
       }
 
-      if (idLabel != null) {
-        attributes.put(idLabel,
-                       Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
+      if (idLabel != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
+        attributes.put(idLabel, outgoingMessage.recordId);
       }
 
       pubsubMessages.add(pubsubMessage);
@@ -183,15 +181,13 @@ public class PubsubApiaryClient extends PubsubClient {
       checkState(!Strings.isNullOrEmpty(ackId));
 
       // Record id, if any.
-      @Nullable byte[] recordId = null;
+      @Nullable String recordId = null;
       if (idLabel != null && attributes != null) {
-        String recordIdString = attributes.get(idLabel);
-        if (!Strings.isNullOrEmpty(recordIdString)) {
-          recordId = recordIdString.getBytes();
-        }
+        recordId = attributes.get(idLabel);
       }
-      if (recordId == null) {
-        recordId = pubsubMessage.getMessageId().getBytes();
+      if (Strings.isNullOrEmpty(recordId)) {
+        // Fall back to the Pubsub provided message id.
+        recordId = pubsubMessage.getMessageId();
       }
 
       incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
@@ -299,5 +295,10 @@ public class PubsubApiaryClient extends PubsubClient {
   public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
     Subscription response = pubsub.projects().subscriptions().get(subscription.getPath()).execute();
     return response.getAckDeadlineSeconds();
+  }
+
+  @Override
+  public boolean isEOF() {
+    return false;
   }
 }
