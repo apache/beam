@@ -100,7 +100,10 @@ public class WriteToBigQuery<T>
     }
   }
 
-  /** Build the output table schema. */
+  /** Build the output table schema.
+   *
+   * @return The {@link TableSchema}.
+   */
   protected TableSchema getSchema() {
     List<TableFieldSchema> fields = new ArrayList<>();
     for (Map.Entry<String, FieldInfo<T>> entry : fieldInfo.entrySet()) {

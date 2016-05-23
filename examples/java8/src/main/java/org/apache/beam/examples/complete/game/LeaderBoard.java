@@ -72,7 +72,7 @@ import java.util.TimeZone;
  * results, e.g. for 'team prizes'. We're now outputing window results as they're
  * calculated, giving us much lower latency than with the previous batch examples.
  *
- * <p> Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
+ * <p> Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
  * documentation provides more detail on how to do this.
  *
  * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
@@ -128,6 +128,8 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write team score sums and includes event timing information.
+   *
+   * @return The map of fields to write on big query.
    */
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedTableWrite() {
@@ -158,6 +160,8 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write user score sums.
+   *
+   * @return the Map of field to write on big query.
    */
   protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
       configureGlobalWindowBigQueryWrite() {

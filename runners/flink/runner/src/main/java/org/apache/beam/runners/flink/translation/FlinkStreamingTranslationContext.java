@@ -82,7 +82,8 @@ public class FlinkStreamingTranslationContext {
 
   /**
    * Sets the AppliedPTransform which carries input/output.
-   * @param currentTransform
+   *
+   * @param currentTransform the current applied {@link PTransform}.
    */
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
     this.currentTransform = currentTransform;

@@ -119,6 +119,8 @@ public class HourlyTeamScore extends UserScore {
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is passed to the {@link WriteWindowedToBigQuery} constructor to write team score sums and
    * includes information about window start time.
+   *
+   * @return The map of field to write on big querey.
    */
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedTableWrite() {
@@ -142,6 +144,9 @@ public class HourlyTeamScore extends UserScore {
 
   /**
    * Run a batch pipeline to do windowed analysis of the data.
+   *
+   * @param args The main arguments.
+   * @throws Exception in case of execution failure.
    */
   // [START DocInclude_HTSMain]
   public static void main(String[] args) throws Exception {

@@ -27,6 +27,8 @@ public class InspectableByteArrayOutputStream extends ByteArrayOutputStream {
 
   /**
    * Get the underlying byte array.
+   *
+   * @return a buffer as {@code byte[]}.
    */
   public byte[] getBuffer() {
     return buf;

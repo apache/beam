@@ -110,6 +110,10 @@ public class TFIDF {
 
   /**
    * Lists documents contained beneath the {@code options.input} prefix/directory.
+   *
+   * @param options the pipeline options.
+   * @throws URISyntaxException in case of malformed URI
+   * @throws IOException in case of URI loading issue.
    */
   public static Set<URI> listInputDocuments(Options options)
       throws URISyntaxException, IOException {
