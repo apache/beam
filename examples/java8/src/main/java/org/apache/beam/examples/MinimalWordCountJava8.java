@@ -52,7 +52,7 @@ public class MinimalWordCountJava8 {
 
     Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/* "))
+    p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
          .withOutputType(TypeDescriptors.strings()))
      .apply(Filter.byPredicate((String word) -> !word.isEmpty()))
