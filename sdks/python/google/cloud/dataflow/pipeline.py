@@ -374,10 +374,10 @@ class AppliedPTransform(object):
     """Returns whether this is a composite transform.
 
     A composite transform has parts (inner transforms) or isn't the
-    producer for any of its outputs. (An exmaple of a transform that
+    producer for any of its outputs. (An example of a transform that
     is not a producer is one that returns its inputs instead.)
     """
-    return self.parts or all(
+    return bool(self.parts) or all(
         pval.producer is not self for pval in self.outputs.values())
 
   def visit(self, visitor, pipeline, visited):
