@@ -494,7 +494,10 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // Postcondition: same as above, but for the new current (formerly next) block.
     @Override
     public boolean readNextBlock() throws IOException {
-      long startOfNextBlock = currentBlockOffset + currentBlockSizeBytes;
+      long startOfNextBlock;
+      synchronized (progressLock) {
+        startOfNextBlock = currentBlockOffset + currentBlockSizeBytes;
+      }
 
       // Before reading the variable-sized block header, record the current number of bytes read.
       long preHeaderCount = countStream.getBytesRead();
