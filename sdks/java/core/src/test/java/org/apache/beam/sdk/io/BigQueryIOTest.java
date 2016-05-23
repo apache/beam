@@ -514,8 +514,8 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
-        new TableRow().set("name", "c").set("number", 3)))
-    .setCoder(TableRowJsonCoder.of())
+        new TableRow().set("name", "c").set("number", 3))
+        .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.Write.to("dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
@@ -547,8 +547,8 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
-        new TableRow().set("name", "c").set("number", 3)))
-    .setCoder(TableRowJsonCoder.of())
+        new TableRow().set("name", "c").set("number", 3))
+        .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.Write.to("project-id:dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
         .withTestServices(fakeBqServices)
