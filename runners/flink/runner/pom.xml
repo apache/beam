@@ -63,7 +63,7 @@
       <version>${flink.version}</version>
     </dependency>
 
-    <!--- Beam -->
+    <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
