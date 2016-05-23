@@ -647,8 +647,7 @@ public class PubsubIO {
           return input.getPipeline().begin()
                       .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
                       .apply(ParDo.of(new PubsubBoundedReader()))
-                      .setCoder(coder)
-                      .setIsBoundedInternal(IsBounded.BOUNDED);
+                      .setCoder(coder);
         } else {
           @Nullable ProjectPath projectPath =
               topic == null ? null : PubsubClient.projectPathFromId(topic.project);
