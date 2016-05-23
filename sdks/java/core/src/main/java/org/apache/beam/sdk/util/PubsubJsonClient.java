@@ -50,11 +50,11 @@ import java.util.TreeMap;
 import javax.annotation.Nullable;
 
 /**
- * A Pubsub client using Apiary.
+ * A Pubsub client using Google's JSON APIs.
  */
-public class PubsubApiaryClient extends PubsubClient {
+public class PubsubJsonClient extends PubsubClient {
 
-  private static class PubsubApiaryClientFactory implements PubsubClientFactory {
+  private static class PubsubJsonClientFactory implements PubsubClientFactory {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
@@ -70,19 +70,19 @@ public class PubsubApiaryClient extends PubsubClient {
           .setApplicationName(options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
           .build();
-      return new PubsubApiaryClient(timestampLabel, idLabel, pubsub);
+      return new PubsubJsonClient(timestampLabel, idLabel, pubsub);
     }
 
     @Override
     public String getKind() {
-      return "Apiary";
+      return "json";
     }
   }
 
   /**
-   * Factory for creating Pubsub clients using Apiary transport.
+   * Factory for creating Pubsub clients using JSON transport.
    */
-  public static final PubsubClientFactory FACTORY = new PubsubApiaryClientFactory();
+  public static final PubsubClientFactory FACTORY = new PubsubJsonClientFactory();
 
   /**
    * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
@@ -98,12 +98,12 @@ public class PubsubApiaryClient extends PubsubClient {
   private final String idLabel;
 
   /**
-   * Underlying Apiary client.
+   * Underlying JSON client.
    */
   private Pubsub pubsub;
 
   @VisibleForTesting
-  PubsubApiaryClient(
+  PubsubJsonClient(
       @Nullable String timestampLabel,
       @Nullable String idLabel,
       Pubsub pubsub) {

@@ -26,6 +26,9 @@ import com.google.api.client.util.Clock;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import javax.annotation.Nullable;
 
 /**
@@ -41,6 +45,7 @@ import javax.annotation.Nullable;
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
+@RunWith(JUnit4.class)
 public class PubsubTestClient extends PubsubClient {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
