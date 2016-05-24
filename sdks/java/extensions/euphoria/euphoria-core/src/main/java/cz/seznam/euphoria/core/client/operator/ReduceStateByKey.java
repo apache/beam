@@ -162,12 +162,6 @@ public class ReduceStateByKey<
           stateFactory, stateCombiner, BatchWindowing.get(), this)
           .output();
     }
-    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, OUT>> outputWindowed() {
-      // use default windowing
-      return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, BatchWindowing.get(), this)
-          .outputWindowed();
-    }
   }
 
   public static class DatasetBuilder6<
@@ -336,14 +330,6 @@ public class ReduceStateByKey<
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, BatchWindowing.get(), this)
           .output();
-    }
-    public Dataset<WindowedPair<BatchWindowing.Batch, CompositeKey<IN, KEY>, OUT>>
-    outputWindowed()
-    {
-      // use default windowing
-      return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, BatchWindowing.get(), this)
-          .outputWindowed();
     }
   }
 

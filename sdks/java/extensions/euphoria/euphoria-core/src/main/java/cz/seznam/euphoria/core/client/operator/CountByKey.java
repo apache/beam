@@ -68,9 +68,6 @@ public class CountByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
     public Dataset<Pair<KEY, Long>> output() {
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
-    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, Long>> outputWindowed() {
-      return new OutputBuilder<>(this, BatchWindowing.get()).outputWindowed();
-    }
   }
   public static class OutputBuilder<IN, KEY, WLABEL, W extends Window<?, WLABEL>> {
     private final WindowingBuilder<IN, KEY> prev;

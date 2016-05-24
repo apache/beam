@@ -147,13 +147,6 @@ public class ReduceByKey<
               reducer, BatchWindowing.get(), this)
           .output();
     }
-
-    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, OUT>> outputWindowed() {
-      // use default windowing
-      return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, BatchWindowing.get(), this)
-          .outputWindowed();
-    }
   }
 
   public static class DatasetBuilder5<
@@ -291,14 +284,6 @@ public class ReduceByKey<
       // use default windowing
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
           reducer, BatchWindowing.get(), this).output();
-    }
-    public Dataset<WindowedPair<BatchWindowing.Batch, CompositeKey<IN, KEY>, OUT>>
-    outputWindowed()
-    {
-      // use default windowing
-      return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, BatchWindowing.get(), this)
-          .outputWindowed();
     }
   }
 

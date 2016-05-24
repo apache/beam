@@ -53,9 +53,6 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
     public Dataset<IN> output() {
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
-    public Dataset<Pair<BatchWindowing.Batch, IN>> outputWindowed() {
-      return new OutputBuilder<>(this, BatchWindowing.get()).outputWindowed();
-    }
   }
 
   public static class OutputBuilder<IN, WLABEL, W extends Window<?, WLABEL>> {

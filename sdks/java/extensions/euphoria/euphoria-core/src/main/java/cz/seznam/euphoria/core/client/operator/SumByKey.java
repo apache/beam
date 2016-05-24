@@ -76,12 +76,6 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
           keyExtractor, valueExtractor, BatchWindowing.get(), this)
           .output();
     }
-    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, Long>> outputWindowed() {
-      // use default windowing
-      return new OutputBuilder<>(name, input,
-              keyExtractor, valueExtractor, BatchWindowing.get(), this)
-          .outputWindowed();
-    }
   }
   public static class OutputBuilder<IN, KEY, WLABEL, W extends Window<?, WLABEL>>
           extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, WLABEL, W>>
