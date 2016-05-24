@@ -22,13 +22,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>runners-parent</artifactId>
+    <groupId>org.apache.beam.runners</groupId>
+    <artifactId>parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>runners-core</artifactId>
+  <artifactId>core</artifactId>
   <name>Apache Beam :: Runners :: Core</name>
   <description>Beam Runners Core provides utilities to aid runner authors.</description>
 

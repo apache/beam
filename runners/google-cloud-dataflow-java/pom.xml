@@ -22,13 +22,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>runners-parent</artifactId>
+    <groupId>org.apache.beam.runners</groupId>
+    <artifactId>parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>google-cloud-dataflow-java-runner</artifactId>
+  <artifactId>google-cloud-dataflow-java</artifactId>
 
   <name>Apache Beam :: Runners :: Google Cloud Dataflow</name>
 
@@ -288,8 +288,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>runners-core</artifactId>
+      <groupId>org.apache.beam.runners</groupId>
+      <artifactId>core</artifactId>
     </dependency>
 
     <dependency>
