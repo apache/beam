@@ -75,8 +75,8 @@ public class WindowedWordCountTest {
   @Test
   public void testFixed2() throws Exception {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS))
-        .setCoder(StringUtf8Coder.of());
+    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS)
+        .withCoder(StringUtf8Coder.of()));
     PCollection<String> windowedWords = inputWords
         .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(5))));
 
@@ -95,8 +95,8 @@ public class WindowedWordCountTest {
   @Test
   public void testSliding() throws Exception {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS))
-        .setCoder(StringUtf8Coder.of());
+    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS)
+        .withCoder(StringUtf8Coder.of()));
     PCollection<String> windowedWords = inputWords
         .apply(Window.<String>into(SlidingWindows.of(Duration.standardMinutes(2))
         .every(Duration.standardMinutes(1))));
