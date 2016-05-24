@@ -519,7 +519,7 @@ public class Create<T> {
         Coder<T> coder = (Coder<T>) registry.getDefaultCoder(TypeDescriptor.of(elementClazz));
         return coder;
       } catch (CannotProvideCoderException exc) {
-        // let the next stage try
+        // Can't get a coder from the class of the elements, try with the elements next
       }
     }
 
