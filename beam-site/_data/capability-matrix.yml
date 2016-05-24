@@ -140,10 +140,9 @@ categories:
             l2: fully supported
             l3: 
           - class: flink
-            jira: BEAM-103
-            l1: 'Partially'
-            l2: parallelism 1 in streaming
-            l3: Fully supported in batch. In streaming, sources currently run with parallelism 1.
+            l1: 'Yes'
+            l2: fully supported
+            l3:
           - class: spark
             l1: 'Yes'
             l2: fully supported
