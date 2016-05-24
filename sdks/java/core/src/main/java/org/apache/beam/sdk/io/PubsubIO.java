@@ -645,7 +645,7 @@ public class PubsubIO {
 
         if (boundedOutput) {
           return input.getPipeline().begin()
-                      .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+                      .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
                       .apply(ParDo.of(new PubsubBoundedReader()))
                       .setCoder(coder);
         } else {
