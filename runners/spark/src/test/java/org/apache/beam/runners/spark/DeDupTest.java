@@ -51,7 +51,7 @@ public class DeDupTest {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
-    PCollection<String> input = p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
+    PCollection<String> input = p.apply(Create.of(LINES).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = input.apply(RemoveDuplicates.<String>create());
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_SET);

@@ -46,7 +46,7 @@ public class EmptyInputTest {
     options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
     List<String> empty = Collections.emptyList();
-    PCollection<String> inputWords = p.apply(Create.of(empty)).setCoder(StringUtf8Coder.of());
+    PCollection<String> inputWords = p.apply(Create.of(empty).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = inputWords.apply(Combine.globally(new ConcatWords()));
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
