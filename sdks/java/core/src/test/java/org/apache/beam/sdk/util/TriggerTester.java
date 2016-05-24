@@ -50,6 +50,7 @@ import com.google.common.collect.Maps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -104,6 +105,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final TriggerContextFactory<W> contextFactory;
   private final WindowFn<Object, W> windowFn;
   private final ActiveWindowSet<W> activeWindows;
+  private final Map<W, W> windowToMergeResult;
 
   /**
    * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link TriggerBuilder}
@@ -155,6 +157,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
         windowFn.isNonMerging()
             ? new NonMergingActiveWindowSet<W>()
             : new MergingActiveWindowSet<W>(windowFn, stateInternals);
+    this.windowToMergeResult = new HashMap<>();
 
     this.contextFactory =
         new TriggerContextFactory<>(windowingStrategy, stateInternals, activeWindows);
@@ -245,7 +248,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
             windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
 
         for (W window : assignedWindows) {
-          activeWindows.addActive(window);
+          activeWindows.addActiveForTesting(window);
 
           // Today, triggers assume onTimer firing at the watermark time, whether or not they
           // explicitly set the timer themselves. So this tester must set it.
@@ -263,7 +266,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       for (BoundedWindow untypedWindow : windowedValue.getWindows()) {
         // SDK is responsible for type safety
         @SuppressWarnings("unchecked")
-        W window = activeWindows.mergeResultWindow((W) untypedWindow);
+        W window = mergeResult((W) untypedWindow);
 
         Trigger.OnElementContext context = contextFactory.createOnElementContext(window,
             new TestTimers(windowNamespace(window)), windowedValue.getTimestamp(),
@@ -312,14 +315,20 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
    * since it is just to test the trigger's {@code OnMerge} method.
    */
   public final void mergeWindows() throws Exception {
+    windowToMergeResult.clear();
     activeWindows.merge(new MergeCallback<W>() {
       @Override
-      public void prefetchOnMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged,
-          W mergeResult) throws Exception {}
+      public void prefetchOnMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {}
 
       @Override
-      public void onMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
-          throws Exception {
+      public void onMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+        List<W> activeToBeMerged = new ArrayList<W>();
+        for (W window : toBeMerged) {
+          windowToMergeResult.put(window, mergeResult);
+          if (activeWindows.isActive(window)) {
+            activeToBeMerged.add(window);
+          }
+        }
         Map<W, FinishedTriggers> mergingFinishedSets =
             Maps.newHashMapWithExpectedSize(activeToBeMerged.size());
         for (W oldWindow : activeToBeMerged) {
@@ -332,6 +341,11 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
             windowNamespace(mergeResult), mergeResult.maxTimestamp(), TimeDomain.EVENT_TIME));
       }
     });
+  }
+
+  public  W mergeResult(W window) {
+    W result = windowToMergeResult.get(window);
+    return result == null ? window : result;
   }
 
   private FinishedTriggers getFinishedSet(W window) {
