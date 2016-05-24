@@ -28,6 +28,7 @@ import logging
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import error
 from google.cloud.dataflow.io import fileio
+from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.pvalue import DictPCollectionView
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.pvalue import IterablePCollectionView
@@ -114,8 +115,8 @@ class DirectPipelineRunner(PipelineRunner):
         # windowed values
         result = values[0].value
       else:
-        raise ValueError(("PCollection with more than one element accessed as "
-                          "a singleton view: %s.") % view)
+        raise ValueError(('PCollection with more than one element accessed as '
+                          'a singleton view: %s.') % view)
     elif isinstance(view, IterablePCollectionView):
       result = [v.value for v in values]
     elif isinstance(view, ListPCollectionView):
@@ -149,12 +150,15 @@ class DirectPipelineRunner(PipelineRunner):
         transform.dofn, transform_node.full_label)
 
     class RecordingReceiverSet(object):
+
       def __init__(self, tag):
         self.tag = tag
+
       def output(self, element):
         results[self.tag].append(element)
 
     class TaggedReceivers(dict):
+
       def __missing__(self, key):
         return RecordingReceiverSet(key)
 
@@ -229,11 +233,19 @@ class DirectPipelineRunner(PipelineRunner):
     # to sources and sinks when using DirectRunner.
     source = transform_node.transform.source
     source.pipeline_options = transform_node.inputs[0].pipeline.options
-    with source.reader() as reader:
+
+    def read_values(reader):
       read_result = [GlobalWindows.windowed_value(e) for e in reader]
       self.debug_counters['element_counts'][
           transform_node.full_label] += len(read_result)
       self._cache.cache_output(transform_node, read_result)
+
+    if isinstance(source, iobase.BoundedSource):
+      reader = source.read(None)
+      read_values(reader)
+    else:
+      with source.reader() as reader:
+        read_values(reader)
 
   @skip_if_cached
   def run__NativeWrite(self, transform_node):

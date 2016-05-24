@@ -349,16 +349,18 @@ class GroupedShuffleReader(ShuffleReaderBase):
           entry.key, self.value_coder, entry.position)
       group_start = entry.position
 
-      last_group_start = self._range_tracker.last_group_start
+      last_group_start = self._range_tracker.last_group_start()
       is_at_split_point = (
           last_group_start is None or group_start != last_group_start)
 
-      if not self._range_tracker.try_return_record_at(is_at_split_point,
-                                                      group_start):
-        # If an end position is defined, reader has read all records up to the
-        # defined end position, otherwise, reader has read all records of the
-        # source.
-        return
+      if is_at_split_point:
+        if not self._range_tracker.try_claim(group_start):
+          # If an end position is defined, reader has read all records up to the
+          # defined end position, otherwise, reader has read all records of the
+          # source.
+          return
+      else:
+        self._range_tracker.set_current_position(group_start)
 
       yield (self.key_coder.decode(entry.key), key_values)
       # We need to drain the iterator returned just in case this
@@ -372,7 +374,7 @@ class GroupedShuffleReader(ShuffleReaderBase):
         pass
 
   def get_progress(self):
-    last_group_start = self._range_tracker.last_group_start
+    last_group_start = self._range_tracker.last_group_start()
     if last_group_start is None:
       return None
     reader_position = iobase.ReaderPosition(
@@ -393,8 +395,7 @@ class GroupedShuffleReader(ShuffleReaderBase):
                       , split_request_progress.position)
       return
 
-    if self._range_tracker.try_split_at_position(
-        _shuffle_decode(encoded_shuffle_position)):
+    if self._range_tracker.try_split(_shuffle_decode(encoded_shuffle_position)):
       logging.info('Split GroupedShuffleReader at %s', encoded_shuffle_position)
       split_position = iobase.ReaderPosition(
           shuffle_position=encoded_shuffle_position)

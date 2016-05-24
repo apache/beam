@@ -586,8 +586,7 @@ class TextFileReader(iobase.NativeSourceReader):
 
   def __iter__(self):
     while True:
-      if not self.range_tracker.try_return_record_at(
-          is_at_split_point=True,
+      if not self.range_tracker.try_claim(
           record_start=self.current_offset):
         # Reader has completed reading the set of records in its range. Note
         # that the end offset of the range may be smaller than the original
@@ -620,8 +619,7 @@ class TextFileReader(iobase.NativeSourceReader):
           return
         split_position = iobase.ReaderPosition()
         split_position.byte_offset = (
-            self.range_tracker.get_position_for_fraction_consumed(
-                percent_complete))
+            self.range_tracker.position_at_fraction(percent_complete))
       else:
         logging.warning(
             'TextReader requires either a position or a percentage of work to '
@@ -629,7 +627,7 @@ class TextFileReader(iobase.NativeSourceReader):
             dynamic_split_request)
         return
 
-    if self.range_tracker.try_split_at_position(split_position.byte_offset):
+    if self.range_tracker.try_split(split_position.byte_offset):
       return iobase.DynamicSplitResultWithPosition(split_position)
     else:
       return

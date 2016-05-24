@@ -27,6 +27,7 @@ import time
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow.internal import pickler
+from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.pvalue import PCollectionView
 from google.cloud.dataflow.runners.runner import PipelineResult
 from google.cloud.dataflow.runners.runner import PipelineRunner
@@ -454,6 +455,12 @@ class DataflowPipelineRunner(PipelineRunner):
         TransformNames.READ, transform_node.full_label, transform_node)
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
+
+    if isinstance(transform.source, iobase.BoundedSource):
+      raise ValueError('DataflowPipelineRunner does not support reading '
+                       'BoundedSource implementations yet. Please use a source '
+                       'provided by Dataflow SDK or use DirectPipelineRunner.')
+
     if transform.source.format == 'text':
       step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
     elif transform.source.format == 'bigquery':
