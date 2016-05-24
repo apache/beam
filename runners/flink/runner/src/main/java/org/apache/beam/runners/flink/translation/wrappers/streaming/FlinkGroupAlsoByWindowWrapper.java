@@ -83,19 +83,19 @@ import java.util.Set;
  * This class is the key class implementing all the windowing/triggering logic of Apache Beam.
  * To provide full compatibility and support for all the windowing/triggering combinations offered by
  * Beam, we opted for a strategy that uses the SDK's code for doing these operations. See the code in
- * ({@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}.
- * <p/>
+ * ({@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}.
+ * <p>
  * In a nutshell, when the execution arrives to this operator, we expect to have a stream <b>already
  * grouped by key</b>. Each of the elements that enter here, registers a timer
  * (see {@link TimerInternals#setTimer(TimerInternals.TimerData)} in the
  * {@link FlinkGroupAlsoByWindowWrapper#activeTimers}.
  * This is essentially a timestamp indicating when to trigger the computation over the window this
  * element belongs to.
- * <p/>
+ * <p>
  * When a watermark arrives, all the registered timers are checked to see which ones are ready to
  * fire (see {@link FlinkGroupAlsoByWindowWrapper#processWatermark(Watermark)}). These are deregistered from
  * the {@link FlinkGroupAlsoByWindowWrapper#activeTimers}
- * list, and are fed into the {@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}
+ * list, and are fed into the {@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}
  * for furhter processing.
  */
 public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
@@ -134,7 +134,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   /**
    * Creates an DataStream where elements are grouped in windows based on the specified windowing strategy.
    * This method assumes that <b>elements are already grouped by key</b>.
-   * <p/>
+   * <p>
    * The difference with {@link #createForIterable(PipelineOptions, PCollection, KeyedStream)}
    * is that this method assumes that a combiner function is provided
    * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
@@ -177,7 +177,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   /**
    * Creates an DataStream where elements are grouped in windows based on the specified windowing strategy.
    * This method assumes that <b>elements are already grouped by key</b>.
-   * <p/>
+   * <p>
    * The difference with {@link #create(PipelineOptions, PCollection, KeyedStream, Combine.KeyedCombineFn, KvCoder)}
    * is that this method assumes no combiner function
    * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
@@ -253,8 +253,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   }
 
   /**
-   * Create the adequate {@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn},
-   * <b> if not already created</b>.
+   * Create the adequate {@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn},
+   * <b>if not already created</b>.
    * If a {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn} was provided, then
    * a function with that combiner is created, so that elements are combined as they arrive. This is
    * done for speed and (in most of the cases) for reduction of the per-window state.

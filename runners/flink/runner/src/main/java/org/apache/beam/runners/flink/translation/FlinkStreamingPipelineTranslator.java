@@ -31,9 +31,7 @@ import org.slf4j.LoggerFactory;
  * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the user-provided
  * {@link org.apache.beam.sdk.values.PCollection}-based job into a
  * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
- *
- * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
- * */
+ */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
