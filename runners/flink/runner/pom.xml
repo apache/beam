@@ -63,7 +63,7 @@
       <version>${flink.version}</version>
     </dependency>
 
-    <!--- Beam -->
+    <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
@@ -158,6 +158,19 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
       -->
+
+      <!-- Disable javadoc for now.
+           TODO: this section should be removed as soon as possible. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <phase/>
+          </execution>
+        </executions>
+      </plugin>
 
       <!-- Integration Tests -->
       <plugin>
