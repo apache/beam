@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -26,43 +25,39 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 /**
- * Track which active windows have their state associated with merged-away windows.
+ * Track which windows are <i>active</i>, and the <i>state address window(s)</i> under which their
+ * state is stored. Also help with the multi-step process of merging windows and their associated
+ * state.
  *
- * When windows are merged we must track which state previously associated with the merged windows
- * must now be associated with the result window. Some of that state may be combined eagerly when
- * the windows are merged. The rest is combined lazily when the final state is actually
- * required when emitting a pane. We keep track of this using an {@link ActiveWindowSet}.
+ * <p>When windows are merged we must also merge their state. For example, we may need to
+ * concatenate buffered elements, sum a count of elements, or find a new minimum timestamp.
+ * If we start with two windows {@code Wa} and {@code Wb} and later discover they should be
+ * merged into window {@code Wab} then, naively, we must copy and merge the states of {@code Wa}
+ * and {@code Wab} into {@code Wab}.
  *
- * <p>An {@link ActiveWindowSet} considers a window to be in one of the following states:
+ * <p>However, the common case for merging windows is for a new window to be merged into an
+ * existing window. Thus, if {@code Wa} is the existing window and {@code Wb} the new window it
+ * is more efficient to leave the state for {@code Wa} where it is, and simply redirect {@code
+ * Wab} to it. In this case we say {@code Wab} has a state address window of {@code Wa}.
  *
+ * <p>Even if windows {@code Wa} and {@code Wb} already have state, it can still be more efficient
+ * to append the state of {@code Wb} onto {@code Wa} rather than copy the state from {@code Wa}
+ * and {@code Wb} into {@code Wab}.
+ *
+ * <p>We use the following terminology for windows:
  * <ol>
- *   <li><b>NEW</b>: The initial state for a window on an incoming element; we do not yet know
- *       if it should be merged into an ACTIVE window, or whether it is already present as an
- *       ACTIVE window, since we have not yet called
- *       {@link WindowFn#mergeWindows}.</li>
- *   <li><b>ACTIVE</b>: A window that has state associated with it and has not itself been merged
- *       away. The window may have one or more <i>state address</i> windows under which its
- *       non-empty state is stored. A state value for an ACTIVE window must be derived by reading
- *       the state in all of its state address windows.</li>
- *   <li><b>EPHEMERAL</b>: A NEW window that has been merged into an ACTIVE window before any state
- *       has been associated with that window. Thus the window is neither ACTIVE nor MERGED. These
- *       windows are not persistently represented since if they reappear the merge function should
- *       again redirect them to an ACTIVE window. EPHEMERAL windows are an optimization for
- *       the common case of in-order events and {@link Sessions session window} by never associating
- *       state with windows that are created and immediately merged away.</li>
- *   <li><b>MERGED</b>: An ACTIVE window has been merged into another ACTIVE window after it had
- *       state associated with it. The window will thus appear as a state address window for exactly
- *       one ACTIVE window.</li>
- *   <li><b>EXPIRED</b>: The window has expired and may have been garbage collected. No new elements
- *       (even late elements) will ever be assigned to that window. These windows are not explicitly
- *       represented anywhere; it is expected that the user of {@link ActiveWindowSet} will store
- *       no state associated with the window.</li>
+ * <li><b>ACTIVE</b>: A window that has state associated with it and has not itself been merged
+ * away. The window may have one (or more) state address windows under which its
+ * non-empty state is stored. A state value for an ACTIVE window must be derived by reading
+ * the state in (all of) its state address windows. Note that only pre 1.4 pipelines
+ * use multiple state address windows per active window. From 1.4 onwards we eagerly merge
+ * window state into a single state address window.
+ * <li><b>NEW</b>: The initial state for a window of an incoming element which is not
+ * already ACTIVE. We have not yet called {@link WindowFn#mergeWindows}, and so don't yet know
+ * whether the window will be be merged into another NEW or ACTIVE window, or will
+ * become an ACTIVE window in its own right.
  * </ol>
- *
- * <p>
  *
  * <p>If no windows will ever be merged we can use the trivial implementation {@link
  * NonMergingActiveWindowSet}. Otherwise, the actual implementation of this data structure is in
@@ -78,27 +73,25 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
     /**
      * Called when windows are about to be merged, but before any {@link #onMerge} callback
      * has been made.
+     *
+     * @param toBeMerged  the windows about to be merged.
+     * @param mergeResult the result window, either a member of {@code toBeMerged} or new.
      */
-    void prefetchOnMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
-        throws Exception;
+    void prefetchOnMerge(Collection<W> toBeMerged, W mergeResult) throws Exception;
 
     /**
      * Called when windows are about to be merged, after all {@link #prefetchOnMerge} calls
      * have been made, but before the active window set has been updated to reflect the merge.
      *
-     * @param toBeMerged the windows about to be merged.
-     * @param activeToBeMerged the subset of {@code toBeMerged} corresponding to windows which
-     * are currently ACTIVE (and about to be merged). The remaining windows have been deemed
-     * EPHEMERAL, and thus have no state associated with them.
+     * @param toBeMerged  the windows about to be merged.
      * @param mergeResult the result window, either a member of {@code toBeMerged} or new.
      */
-    void onMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
-        throws Exception;
+    void onMerge(Collection<W> toBeMerged, W mergeResult) throws Exception;
   }
 
   /**
-   * Remove EPHEMERAL windows and remaining NEW windows since we only need to know about them
-   * while processing new elements.
+   * Remove any remaining NEW windows since they were not promoted to being ACTIVE
+   * by {@link #ensureWindowIsActive} and we don't need to record anything about them.
    */
   void cleanupTemporaryWindows();
 
@@ -108,17 +101,9 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   void persist();
 
   /**
-   * Return the ACTIVE window into which {@code window} has been merged.
-   * Return {@code window} itself if it is ACTIVE. Return null if {@code window} has not
-   * yet been seen.
+   * Return (a view of) the set of currently ACTIVE and NEW windows.
    */
-  @Nullable
-  W mergeResultWindow(W window);
-
-  /**
-   * Return (a view of) the set of currently ACTIVE windows.
-   */
-  Set<W> getActiveWindows();
+  Set<W> getActiveAndNewWindows();
 
   /**
    * Return {@code true} if {@code window} is ACTIVE.
@@ -126,24 +111,30 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   boolean isActive(W window);
 
   /**
+   * Return {@code true} if {@code window} is ACTIVE or NEW.
+   */
+  boolean isActiveOrNew(W window);
+
+  /**
    * Called when an incoming element indicates it is a member of {@code window}, but before we
    * have started processing that element. If {@code window} is not already known to be ACTIVE,
-   * MERGED or EPHEMERAL then add it as NEW.
+   * then add it as NEW.
    */
   void ensureWindowExists(W window);
 
   /**
    * Called when a NEW or ACTIVE window is now known to be ACTIVE.
-   * Ensure that if it is NEW then it becomes ACTIVE (with itself as its only state address window).
+   * Ensure that if it is NEW then it becomes ACTIVE (with itself as its only state address
+   * window).
    */
   void ensureWindowIsActive(W window);
 
   /**
-   * If {@code window} is not already known to be ACTIVE, MERGED or EPHEMERAL then add it
-   * as ACTIVE.
+   * If {@code window} is not already known to be ACTIVE then add it as ACTIVE.
+   * For testing only.
    */
   @VisibleForTesting
-  void addActive(W window);
+  void addActiveForTesting(W window);
 
   /**
    * Remove {@code window} from the set.
@@ -152,9 +143,9 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
 
   /**
    * Invoke {@link WindowFn#mergeWindows} on the {@code WindowFn} associated with this window set,
-   * merging as many of the active windows as possible. {@code mergeCallback} will be invoked for
-   * each group of windows that are merged. After this no NEW windows will remain, all merge
-   * result windows will be ACTIVE, and all windows which have been merged away will not be ACTIVE.
+   * merging as many of the NEW and ACTIVE windows as possible. {@code mergeCallback} will be
+   * invoked for each group of windows that are merged. After this all merge result windows will
+   * be ACTIVE, and all windows which have been merged away will be neither ACTIVE nor NEW.
    */
   void merge(MergeCallback<W> mergeCallback) throws Exception;
 
