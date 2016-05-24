@@ -95,7 +95,7 @@ class ProgressRequestRecordingInMemoryReader(inmemory.InMemoryReader):
   def get_progress(self):
     next_progress = super(ProgressRequestRecordingInMemoryReader,
                           self).get_progress()
-    self.progress_record.append(next_progress.percent_complete)
+    self.progress_record.append(next_progress.position.record_index)
     return next_progress
 
 
@@ -332,11 +332,7 @@ class ExecutorTest(unittest.TestCase):
     ]))
     self.assertEqual(elements, output_buffer)
 
-    expected_progress_record = []
-    len_elements = len(elements)
-    for i in range(len_elements):
-      expected_progress_record.append(float(i + 1) / len_elements)
-
+    expected_progress_record = range(len(elements))
     self.assertEqual(expected_progress_record,
                      source.last_reader.progress_record)
 
