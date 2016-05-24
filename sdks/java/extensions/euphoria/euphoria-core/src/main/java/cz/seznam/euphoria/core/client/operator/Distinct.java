@@ -68,10 +68,10 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
     public Dataset<Pair<WLABEL, IN>> outputWindowed() {
       return outputImpl(true);
     }
-    private Dataset outputImpl(boolean noWindowedOutput) {
+    private Dataset outputImpl(boolean windowedOutput) {
       Flow flow = prev.input.getFlow();
       Distinct<IN, WLABEL, W, ?> distinct = new Distinct<>(
-          prev.name, flow, prev.input, windowing, prev.getPartitioning(), noWindowedOutput);
+          prev.name, flow, prev.input, windowing, prev.getPartitioning(), windowedOutput);
       flow.add(distinct);
       return distinct.output();
     }
