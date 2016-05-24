@@ -83,7 +83,7 @@ import java.util.Set;
  * This class is the key class implementing all the windowing/triggering logic of Apache Beam.
  * To provide full compatibility and support for all the windowing/triggering combinations offered by
  * Beam, we opted for a strategy that uses the SDK's code for doing these operations. See the code in
- * ({@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}.
+ * ({@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}.
  * <p>
  * In a nutshell, when the execution arrives to this operator, we expect to have a stream <b>already
  * grouped by key</b>. Each of the elements that enter here, registers a timer
