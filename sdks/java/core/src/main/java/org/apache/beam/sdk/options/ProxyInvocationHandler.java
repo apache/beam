@@ -84,7 +84,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * {@link PipelineOptions#as(Class)}.
  */
 @ThreadSafe
-class ProxyInvocationHandler implements InvocationHandler {
+class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code
@@ -141,7 +141,8 @@ class ProxyInvocationHandler implements InvocationHandler {
         && args[0] instanceof DisplayData.Builder) {
       @SuppressWarnings("unchecked")
       DisplayData.Builder builder = (DisplayData.Builder) args[0];
-      populateDisplayData(builder);
+      // Explicitly set display data namespace so thrown exceptions will have sensible type.
+      builder.include(this, PipelineOptions.class);
       return Void.TYPE;
     }
     String methodName = method.getName();
@@ -266,7 +267,7 @@ class ProxyInvocationHandler implements InvocationHandler {
    * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
    * pipeline options will be added as display data.
    */
-  private void populateDisplayData(DisplayData.Builder builder) {
+  public void populateDisplayData(DisplayData.Builder builder) {
     Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
     Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
 
