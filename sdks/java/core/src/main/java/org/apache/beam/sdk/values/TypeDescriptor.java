@@ -18,13 +18,10 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.collect.Lists;
-
 import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
-
-import org.apache.velocity.runtime.parser.Token;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -176,7 +173,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Creates a new {@link SimpleTypeDescriptor} using the {@link Token}.
+   * Creates a new {@link SimpleTypeDescriptor} using the {@link #token}.
    * Package visible so this isn't abused.
    */
   <X> TypeDescriptor<T> where(TypeParameter<X> typeParam, TypeDescriptor<X> typeDescriptor) {
