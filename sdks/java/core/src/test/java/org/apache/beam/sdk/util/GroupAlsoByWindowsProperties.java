@@ -191,8 +191,9 @@ public class GroupAlsoByWindowsProperties {
       CombineFn<Long, ?, Long> combineFn)
           throws Exception {
 
-    WindowingStrategy<?, IntervalWindow> windowingStrategy = WindowingStrategy.of(
-        SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)));
+    WindowingStrategy<?, IntervalWindow> windowingStrategy =
+        WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
 
     List<WindowedValue<KV<String, Long>>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
@@ -360,14 +361,14 @@ public class GroupAlsoByWindowsProperties {
             KvMatcher.isKv(
                 equalTo("k"),
                 equalTo(combineFn.apply(ImmutableList.of(1L, 2L)))),
-            0, // aggregate timestamp
+            window(0, 15).maxTimestamp().getMillis(), // aggregate timestamp
             0, // window start
             15), // window end
         WindowMatchers.isSingleWindowedValue(
             KvMatcher.isKv(
                 equalTo("k"),
                 equalTo(combineFn.apply(ImmutableList.of(4L)))),
-            15, // aggregate timestamp
+            window(15, 25).maxTimestamp().getMillis(), // aggregate timestamp
             15, // window start
             25))); // window end
   }

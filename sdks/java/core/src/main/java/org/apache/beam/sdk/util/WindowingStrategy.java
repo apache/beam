@@ -287,7 +287,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    * </ul>
    */
   private static class CombineWindowFnOutputTimes<W extends BoundedWindow>
-      extends OutputTimeFn.Defaults<W> {
+      extends OutputTimeFn<W> {
 
     private final OutputTimeFn<? super W> outputTimeFn;
     private final WindowFn<?, W> windowFn;
@@ -312,6 +312,16 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     @Override
     public Instant merge(W newWindow, Iterable<? extends Instant> timestamps) {
       return outputTimeFn.merge(newWindow, timestamps);
+    }
+
+    @Override
+    public final boolean dependsOnlyOnWindow() {
+      return outputTimeFn.dependsOnlyOnWindow();
+    }
+
+    @Override
+    public boolean dependsOnlyOnEarliestInputTimestamp() {
+      return outputTimeFn.dependsOnlyOnEarliestInputTimestamp();
     }
   }
 }
