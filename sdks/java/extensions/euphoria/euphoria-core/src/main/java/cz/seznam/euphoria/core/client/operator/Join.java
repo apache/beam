@@ -135,10 +135,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
 
-    public Dataset<WindowedPair<BatchWindowing.Batch, KEY, OUT>> outputWindowed() {
-      return new OutputBuilder<>(this, BatchWindowing.get()).outputWindowed();
-    }
-
     public <WLABEL, W extends Window<?, WLABEL>>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)

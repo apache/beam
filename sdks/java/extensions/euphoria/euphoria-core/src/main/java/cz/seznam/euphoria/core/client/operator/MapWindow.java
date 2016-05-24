@@ -59,10 +59,6 @@ public class MapWindow<IN, OUT, WLABEL, W extends Window<?, WLABEL>, VOUT>
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
 
-    public Dataset<Pair<BatchWindowing.Batch, OUT>> outputWindowed() {
-      return new OutputBuilder<>(this, BatchWindowing.get()).outputWindowed();
-    }
-
     public <WLABEL, W extends Window<?, WLABEL>> OutputBuilder<IN, OUT, WLABEL, W>
     windowBy(Windowing<IN,?, WLABEL, W> windowing)
     {
