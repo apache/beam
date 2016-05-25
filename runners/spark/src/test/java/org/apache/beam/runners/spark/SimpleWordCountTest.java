@@ -66,8 +66,8 @@ public class SimpleWordCountTest {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder
-        .of());
+    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
+        .of()));
     PCollection<String> output = inputWords.apply(new CountWords());
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
@@ -84,8 +84,8 @@ public class SimpleWordCountTest {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder
-        .of());
+    PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
+        .of()));
     PCollection<String> output = inputWords.apply(new CountWords());
 
     File outputFile = testFolder.newFile();

@@ -52,7 +52,7 @@ public class CombinePerKeyTest {
     @Test
     public void testRun() {
         Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-        PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+        PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
         PCollection<KV<String, Long>> cnts = inputWords.apply(new SumPerKey<String>());
         EvaluationResult res = SparkPipelineRunner.create().run(p);
         Map<String, Long> actualCnts = new HashMap<>();
