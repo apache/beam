@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static org.hamcrest.Matchers.is;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -22,12 +24,19 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.I
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.MapElements;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -38,6 +47,8 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class InProcessPipelineRunnerTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void wordCountShouldSucceed() throws Throwable {
     Pipeline p = getPipeline();
@@ -65,6 +76,59 @@ public class InProcessPipelineRunnerTest implements Serializable {
     InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
     result.awaitCompletion();
   }
+
+  @Test
+  public void transformDisplayDataExceptionShouldFail() {
+    DoFn<Integer, Integer> brokenDoFn = new DoFn<Integer, Integer>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {}
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        throw new RuntimeException("oh noes!");
+      }
+    };
+
+    Pipeline p = getPipeline();
+    p
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(brokenDoFn));
+
+    thrown.expectMessage(brokenDoFn.getClass().getName());
+    thrown.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!")));
+    p.run();
+  }
+
+  @Test
+  public void pipelineOptionsDisplayDataExceptionShouldFail() {
+    Object brokenValueType = new Object() {
+      @JsonValue
+      public int getValue () {
+        return 42;
+      }
+
+      @Override
+      public String toString() {
+        throw new RuntimeException("oh noes!!");
+      }
+    };
+
+    Pipeline p = getPipeline();
+    p.getOptions().as(ObjectPipelineOptions.class).setValue(brokenValueType);
+
+    p.apply(Create.of(1, 2, 3));
+
+    thrown.expectMessage(PipelineOptions.class.getName());
+    thrown.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
+    p.run();
+  }
+
+  /** {@link PipelineOptions} to inject broken object type. */
+  public interface ObjectPipelineOptions extends PipelineOptions {
+    Object getValue();
+    void setValue(Object value);
+  }
+
 
   private Pipeline getPipeline() {
     PipelineOptions opts = PipelineOptionsFactory.create();
