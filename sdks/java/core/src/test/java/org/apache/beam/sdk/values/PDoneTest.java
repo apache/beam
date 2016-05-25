@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.TestUtils.LINES;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -90,6 +91,7 @@ public class PDoneTest {
   // instead of a local temp file.  Or switch to applying a different
   // transform that returns PDone.
   @Test
+  @Category(NeedsRunner.class)
   public void testSimpleTransform() throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
     String filename = tmpFile.getPath();

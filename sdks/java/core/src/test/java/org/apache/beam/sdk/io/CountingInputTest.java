@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -97,6 +98,7 @@ public class CountingInputTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testUnboundedInputRate() {
     Pipeline p = TestPipeline.create();
     long numElements = 5000;

@@ -46,6 +46,7 @@ import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -442,10 +443,10 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testValidateReadSetsDefaultProject() {
-    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     options.setProject("someproject");
 
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = TestPipeline.create(options);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId("somedataset");
@@ -501,6 +502,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReadFromTable() {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
@@ -531,6 +533,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCustomSink() throws Exception {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
@@ -564,6 +567,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCustomSinkUnknown() throws Exception {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
@@ -747,7 +751,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   private void testWriteValidatesDataset(boolean streaming) {
-    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     options.setProject("someproject");
     options.setStreaming(streaming);
 
@@ -1105,6 +1109,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testPassThroughThenCleanupExecuted() throws Exception {
     Pipeline p = TestPipeline.create();
 

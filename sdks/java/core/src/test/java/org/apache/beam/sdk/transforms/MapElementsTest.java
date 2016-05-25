@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,6 +52,7 @@ public class MapElementsTest implements Serializable {
    * Basic test of {@link MapElements} with a {@link SimpleFunction}.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testMapBasic() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> output = pipeline
@@ -71,6 +73,7 @@ public class MapElementsTest implements Serializable {
    * generally discouraged in Java 7, in favor of {@link SimpleFunction}.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testMapBasicSerializableFunction() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> output = pipeline
@@ -91,6 +94,7 @@ public class MapElementsTest implements Serializable {
    * of the output reflects its static type.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSimpleFunctionOutputTypeDescriptor() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<String> output = pipeline
@@ -111,6 +115,7 @@ public class MapElementsTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testVoidValues() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     pipeline

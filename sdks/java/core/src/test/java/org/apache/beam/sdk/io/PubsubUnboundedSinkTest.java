@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.PubsubUnboundedSink.RecordIdMethod;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -37,6 +38,7 @@ import com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -75,6 +77,7 @@ public class PubsubUnboundedSinkTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void sendOneMessage() throws IOException {
     List<OutgoingMessage> outgoing =
         ImmutableList.of(new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA)));
@@ -98,6 +101,7 @@ public class PubsubUnboundedSinkTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void sendMoreThanOneBatchByNumMessages() throws IOException {
     List<OutgoingMessage> outgoing = new ArrayList<>();
     List<String> data = new ArrayList<>();
@@ -126,6 +130,7 @@ public class PubsubUnboundedSinkTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void sendMoreThanOneBatchByByteSize() throws IOException {
     List<OutgoingMessage> outgoing = new ArrayList<>();
     List<String> data = new ArrayList<>();

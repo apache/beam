@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -28,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -44,6 +44,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -117,6 +118,7 @@ public class AvroIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadASingleFile() throws Throwable {
     TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
@@ -180,6 +182,7 @@ public class AvroIOTest {
    * <p>For more information, see http://avro.apache.org/docs/1.7.7/spec.html#Schema+Resolution
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadSchemaUpgrade() throws Throwable {
     TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
@@ -245,6 +248,7 @@ public class AvroIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testAvroSinkWrite() throws Exception {
     String[] expectedElements = new String[] {"first", "second", "third"};
 
@@ -252,6 +256,7 @@ public class AvroIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testAvroSinkShardedWrite() throws Exception {
     String[] expectedElements = new String[] {"first", "second", "third", "fourth", "fifth"};
 

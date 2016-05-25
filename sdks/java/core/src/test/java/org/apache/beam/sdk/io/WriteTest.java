@@ -37,6 +37,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -55,6 +56,7 @@ import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -120,6 +122,7 @@ public class WriteTest {
    * Test a Write transform with a PCollection of elements.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testWrite() {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
@@ -130,6 +133,7 @@ public class WriteTest {
    * Test a Write transform with an empty PCollection.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() {
     List<String> inputs = new ArrayList<>();
     runWrite(inputs, IDENTITY_MAP);
@@ -139,6 +143,7 @@ public class WriteTest {
    * Test a Write with a windowed PCollection.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteWindowed() {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
@@ -150,6 +155,7 @@ public class WriteTest {
    * Test a Write with sessions.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testWriteWithSessions() {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");

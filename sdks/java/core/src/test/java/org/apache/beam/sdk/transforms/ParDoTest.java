@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -544,6 +545,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoWritingToUndeclaredSideOutput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -564,6 +566,8 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  // TODO: The exception thrown is runner-specific, even if the behavior is general
+  @Category(NeedsRunner.class)
   public void testParDoUndeclaredSideOutputLimit() {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(3)));
@@ -742,6 +746,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoReadingFromUnknownSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -762,6 +767,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoWithErrorInStartBatch() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -776,6 +782,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoWithErrorInProcessElement() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -790,6 +797,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoWithErrorInFinishBatch() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -909,6 +917,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMultiOutputChaining() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1109,6 +1118,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testSideOutputUnknownCoder() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline
@@ -1119,7 +1129,7 @@ public class ParDoTest implements Serializable {
     input.apply(ParDo.of(new SideOutputDummyFn(sideOutputTag))
         .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder");
     pipeline.run();
   }
@@ -1143,10 +1153,10 @@ public class ParDoTest implements Serializable {
     outputTuple.get(sideOutputTag).finishSpecifyingOutput(); // Check for crashes
     assertEquals(new TestDummyCoder(),
         outputTuple.get(sideOutputTag).getCoder()); // Check for corruption
-    pipeline.run();
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMainOutputUnregisteredExplicitCoder() {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline
@@ -1163,6 +1173,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMainOutputApplySideOutputNoCoder() {
     // Regression test: applying a transform to the main output
     // should not cause a crash based on lack of a coder for the
@@ -1203,6 +1214,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoOutputWithTimestamp() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1224,6 +1236,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoSideOutputWithTimestamp() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1255,6 +1268,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoShiftTimestamp() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1277,6 +1291,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalid() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1295,6 +1310,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalidZeroAllowed() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1381,6 +1397,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testWindowingInStartBundleException() {
     Pipeline pipeline = TestPipeline.create();
 

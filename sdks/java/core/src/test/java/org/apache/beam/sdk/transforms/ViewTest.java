@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -143,6 +144,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testEmptySingletonSideInput() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -168,6 +170,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testNonSingletonSideInput() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -1045,6 +1048,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMapSideInputWithNullValuesCatchesDuplicates() {
     Pipeline pipeline = TestPipeline.create();
 

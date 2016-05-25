@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.CompressedSource.DecompressingChannelFactory;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -51,6 +52,7 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
@@ -88,6 +90,7 @@ public class CompressedSourceTest {
    * Test reading nonempty input with gzip.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testReadGzip() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, CompressionMode.GZIP);
@@ -97,6 +100,7 @@ public class CompressedSourceTest {
    * Test reading nonempty input with bzip2.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testReadBzip2() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, CompressionMode.BZIP2);
@@ -106,6 +110,7 @@ public class CompressedSourceTest {
    * Test reading empty input with gzip.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testEmptyReadGzip() throws Exception {
     byte[] input = generateInput(0);
     runReadTest(input, CompressionMode.GZIP);
@@ -133,6 +138,7 @@ public class CompressedSourceTest {
    * to be the concatenation of those individual files.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testReadConcatenatedGzip() throws IOException {
     byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
     byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
@@ -158,6 +164,7 @@ public class CompressedSourceTest {
    * Test reading empty input with bzip2.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testCompressedReadBzip2() throws Exception {
     byte[] input = generateInput(0);
     runReadTest(input, CompressionMode.BZIP2);
@@ -167,6 +174,7 @@ public class CompressedSourceTest {
    * Test reading according to filepattern when the file is bzipped.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testCompressedAccordingToFilepatternGzip() throws Exception {
     byte[] input = generateInput(100);
     File tmpFile = tmpFolder.newFile("test.gz");
@@ -178,6 +186,7 @@ public class CompressedSourceTest {
    * Test reading according to filepattern when the file is gzipped.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testCompressedAccordingToFilepatternBzip2() throws Exception {
     byte[] input = generateInput(100);
     File tmpFile = tmpFolder.newFile("test.bz2");
@@ -189,6 +198,7 @@ public class CompressedSourceTest {
    * Test reading multiple files with different compression.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testHeterogeneousCompression() throws Exception {
     String baseName = "test-input";
 
@@ -266,6 +276,7 @@ public class CompressedSourceTest {
    * this due to properties of services that we read from.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testFalseGzipStream() throws Exception {
     byte[] input = generateInput(1000);
     File tmpFile = tmpFolder.newFile("test.gz");
@@ -278,6 +289,7 @@ public class CompressedSourceTest {
    * we fail.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testFalseBzip2Stream() throws Exception {
     byte[] input = generateInput(1000);
     File tmpFile = tmpFolder.newFile("test.bz2");
@@ -294,6 +306,7 @@ public class CompressedSourceTest {
    * the gzip header is two bytes.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testEmptyReadGzipUncompressed() throws Exception {
     byte[] input = generateInput(0);
     File tmpFile = tmpFolder.newFile("test.gz");
@@ -306,6 +319,7 @@ public class CompressedSourceTest {
    * the gzip header is two bytes.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testOneByteReadGzipUncompressed() throws Exception {
     byte[] input = generateInput(1);
     File tmpFile = tmpFolder.newFile("test.gz");
@@ -317,6 +331,7 @@ public class CompressedSourceTest {
    * Test reading multiple files.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testCompressedReadMultipleFiles() throws Exception {
     int numFiles = 10;
     String baseName = "test_input-";

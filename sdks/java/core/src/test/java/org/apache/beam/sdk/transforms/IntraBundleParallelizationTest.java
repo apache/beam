@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -32,11 +31,13 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -157,6 +158,7 @@ public class IntraBundleParallelizationTest {
    * greater than that amount.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testParallelization() {
     int maxConcurrency = Integer.MIN_VALUE;
     // Take the minimum from multiple runs.
@@ -174,6 +176,7 @@ public class IntraBundleParallelizationTest {
   }
 
   @Test(timeout = 5000L)
+  @Category(NeedsRunner.class)
   public void testExceptionHandling() {
     ExceptionThrowingFn<Integer> fn = new ExceptionThrowingFn<>(10);
     try {
@@ -196,6 +199,7 @@ public class IntraBundleParallelizationTest {
   }
 
   @Test(timeout = 5000L)
+  @Category(NeedsRunner.class)
   public void testExceptionHandlingOnLastElement() {
     ExceptionThrowingFn<Integer> fn = new ExceptionThrowingFn<>(9);
     try {

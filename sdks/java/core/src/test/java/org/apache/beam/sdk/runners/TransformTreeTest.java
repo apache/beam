@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.values.PDone;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -180,6 +182,7 @@ public class TransformTreeTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMultiGraphSetup() {
     Pipeline p = TestPipeline.create();
 

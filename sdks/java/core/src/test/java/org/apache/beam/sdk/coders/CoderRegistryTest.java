@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry.IncompatibleCoderException;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,6 +42,7 @@ import com.google.protobuf.Duration;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -400,6 +402,7 @@ public class CoderRegistryTest {
    * {@link #testDefaultCoderAnnotationGeneric} is invoked in the right ways.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSpecializedButIgnoredGenericInPipeline() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -428,6 +431,7 @@ public class CoderRegistryTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testIgnoredGenericInPipeline() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 

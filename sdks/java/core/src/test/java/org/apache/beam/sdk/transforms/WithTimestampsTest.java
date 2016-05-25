@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.hamcrest.Matchers.isA;
 
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -85,6 +86,7 @@ public class WithTimestampsTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void withTimestampsBackwardsInTimeShouldThrow() {
     TestPipeline p = TestPipeline.create();
 
@@ -171,6 +173,7 @@ public class WithTimestampsTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void withTimestampsWithNullTimestampShouldThrow() {
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {

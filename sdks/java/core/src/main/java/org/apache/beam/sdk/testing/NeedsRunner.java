@@ -15,20 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.runners.PipelineRunner;
+
 /**
- * Category tag for validation tests which utilize {@link TestPipeline} for execution and
- * {@link PAssert} for validation. Example usage:
- * <pre><code>
- *     {@literal @}Test
- *     {@literal @}Category(RunnableOnService.class)
- *     public void testParDo() {
- *       Pipeline p = TestPipeline.create();
- *       p.apply(...);
- *       PAssert.that(p);
- *       p.run();
- *     }
- * </code></pre>
+ * Category tag for validation tests which utilize {@link TestPipeline} for execution and expect
+ * to be executed by a {@link PipelineRunner}.
  */
-public interface RunnableOnService extends NeedsRunner {}
+public interface NeedsRunner {
+}

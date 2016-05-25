@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -158,6 +159,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testFlattenNoListsNoCoder() {
     // not RunnableOnService because it should fail at pipeline construction time anyhow.
     thrown.expect(IllegalStateException.class);
@@ -263,6 +265,7 @@ public class FlattenTest implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   @Test
+  @Category(NeedsRunner.class)
   public void testEqualWindowFnPropagation() {
     Pipeline p = TestPipeline.create();
 
@@ -284,6 +287,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCompatibleWindowFnPropagation() {
     Pipeline p = TestPipeline.create();
 
