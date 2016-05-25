@@ -233,7 +233,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   static class PubsubCheckpoint<T> implements UnboundedSource.CheckpointMark {
     /**
      * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting.
-     * If the checkpoint is for restoring: initially {@literal null}, then explicitly set.
+     * If the checkpoint is for restoring: {@literal null}.
      * Not persisted in durable checkpoint.
      * CAUTION: Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called
      * the 'true' active reader may have changed.
@@ -248,7 +248,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Not persisted in durable checkpoint.
      */
     @Nullable
-    private final List<String> safeToAckIds;
+    private List<String> safeToAckIds;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been received
@@ -299,6 +299,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       } finally {
         checkState(reader.numInFlightCheckpoints.decrementAndGet() >= 0,
                    "Miscounted in-flight checkpoints");
+        reader = null;
+        safeToAckIds = null;
       }
     }
 
