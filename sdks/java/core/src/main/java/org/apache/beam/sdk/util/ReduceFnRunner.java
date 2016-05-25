@@ -581,16 +581,17 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           "ReduceFnRunner.onTimer: Note that timer {} is for non-ACTIVE window {}", timer, window);
     }
 
-    // If this is an end-of-window timer then we'll need to set a garbage collection timer.
+    // If this is an end-of-window timer then we may need to set a garbage collection timer
+    // if allowed lateness is non-zero.
     boolean isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
-                            && timer.getTimestamp().equals(window.maxTimestamp());
+        && timer.getTimestamp().equals(window.maxTimestamp());
 
     // If this is a garbage collection timer then we should trigger and garbage collect the window.
-    // Be as generous as possible with the test to protect against accidental overflow/clipping
-    // of timer timestamps.
+    // We'll consider any timer at or after the end-of-window time to be a signal to garbage
+    // collect.
     Instant cleanupTime = garbageCollectionTime(window);
     boolean isGarbageCollection = TimeDomain.EVENT_TIME == timer.getDomain()
-                                  && !timer.getTimestamp().isBefore(cleanupTime);
+        && !timer.getTimestamp().isBefore(cleanupTime);
 
     if (isGarbageCollection) {
       WindowTracing.debug(
@@ -688,8 +689,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // placed by WatermarkHold.extractAndRelease.
       // Thus all the state clearing above is unnecessary.
       //
-      // But(!) for backwards compatibility over update with sdk <= 1.3 we may
-      // have an end-of-window or garbage collection holds keyed by the current window.
+      // But(!) for backwards compatibility we must allow a pipeline to be updated from
+      // an sdk version <= 1.3. In that case it is possible we have an end-of-window or
+      // garbage collection holds keyed by the current window (reached via directContext) rather
+      // than the state address window (reached via renamedContext).
       // However this can only happen if:
       // - We have merging windows.
       // - We are DISCARDING_FIRED_PANES.
@@ -785,8 +788,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   /**
    * Run the {@link ReduceFn#onTrigger} method and produce any necessary output.
-   * Return output watermark hold added, or {@literal null} if none.
+   *
+   * @return output watermark hold added, or {@literal null} if none.
    */
+  @Nullable
   private Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
