@@ -24,7 +24,8 @@ import java.util.Collection;
 import java.util.Set;
 
 /**
- * Implementation of {@link ActiveWindowSet} used with {@link WindowFn WindowFns} that don't support
+ * Implementation of {@link ActiveWindowSet} used with {@link WindowFn WindowFns} that don't
+ * support
  * merging.
  *
  * @param <W> the types of windows being managed
@@ -37,13 +38,7 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   public void persist() {}
 
   @Override
-  public W mergeResultWindow(W window) {
-    // Always represented by itself.
-    return window;
-  }
-
-  @Override
-  public Set<W> getActiveWindows() {
+  public Set<W> getActiveAndNewWindows() {
     // Only supported when merging.
     throw new java.lang.UnsupportedOperationException();
   }
@@ -55,6 +50,11 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   }
 
   @Override
+  public boolean isActiveOrNew(W window) {
+    return true;
+  }
+
+  @Override
   public void ensureWindowExists(W window) {}
 
   @Override
@@ -62,7 +62,7 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
 
   @Override
   @VisibleForTesting
-  public void addActive(W window) {}
+  public void addActiveForTesting(W window) {}
 
   @Override
   public void remove(W window) {}
