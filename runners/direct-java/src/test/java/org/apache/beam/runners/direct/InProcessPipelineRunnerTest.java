@@ -125,7 +125,8 @@ public class InProcessPipelineRunnerTest implements Serializable {
     p.run();
   }
 
-  interface ObjectPipelineOptions extends PipelineOptions {
+  /** {@link PipelineOptions} to inject bad object implementations. */
+  public interface ObjectPipelineOptions extends PipelineOptions {
     Object getValue();
     void setValue(Object value);
   }
