@@ -136,8 +136,13 @@ if 'save_module' in dir(dill.dill):
     if not known_module_dicts or '__file__' in obj or '__package__' in obj:
       if obj_id not in known_module_dicts:
         for m in sys.modules.values():
-          if m and m.__name__ != '__main__':
-            known_module_dicts[id(m.__dict__)] = m
+          try:
+            if m and m.__name__ != '__main__':
+              known_module_dicts[id(m.__dict__)] = m
+          except AttributeError:
+            # Skip modules that do not have the __name__ attribute.
+            pass
+    # TODO(silviuc): Must investigate the disabled if branch below.
     if obj_id in known_module_dicts and dill.dill.is_dill(pickler) and False:
       return pickler.save_reduce(
           getattr, (known_module_dicts[obj_id], '__dict__'), obj=obj)

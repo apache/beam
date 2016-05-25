@@ -45,77 +45,83 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 DESCRIPTOR.has_options = True
 DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('\n5com.google.cloud.dataflow.sdk.runners.worker.windmill'))
-import abc
-import six
 from grpc.beta import implementations as beta_implementations
+from grpc.beta import interfaces as beta_interfaces
 from grpc.framework.common import cardinality
 from grpc.framework.interfaces.face import utilities as face_utilities
 
-class BetaCloudWindmillServiceV1Alpha1Servicer(six.with_metaclass(abc.ABCMeta, object)):
-  """<fill me in later!>"""
-  @abc.abstractmethod
-  def GetWork(self, request, context):
-    raise NotImplementedError()
-  @abc.abstractmethod
-  def GetData(self, request, context):
-    raise NotImplementedError()
-  @abc.abstractmethod
-  def CommitWork(self, request, context):
-    raise NotImplementedError()
-  @abc.abstractmethod
-  def GetConfig(self, request, context):
-    raise NotImplementedError()
-  @abc.abstractmethod
-  def ReportStats(self, request, context):
-    raise NotImplementedError()
 
-class BetaCloudWindmillServiceV1Alpha1Stub(six.with_metaclass(abc.ABCMeta, object)):
-  """The interface to which stubs will conform."""
-  @abc.abstractmethod
-  def GetWork(self, request, timeout):
+class BetaCloudWindmillServiceV1Alpha1Servicer(object):
+  """The Cloud Windmill Service API used by GCE to acquire and process streaming
+  Dataflow work.
+  """
+  def GetWork(self, request, context):
+    """Gets streaming Dataflow work.
+    """
+    context.code(beta_interfaces.StatusCode.UNIMPLEMENTED)
+  def GetData(self, request, context):
+    """Gets data from Windmill.
+    """
+    context.code(beta_interfaces.StatusCode.UNIMPLEMENTED)
+  def CommitWork(self, request, context):
+    """Commits previously acquired work.
+    """
+    context.code(beta_interfaces.StatusCode.UNIMPLEMENTED)
+  def GetConfig(self, request, context):
+    """Gets dependant configuration from windmill.
+    """
+    context.code(beta_interfaces.StatusCode.UNIMPLEMENTED)
+  def ReportStats(self, request, context):
+    """Reports stats to Windmill.
+    """
+    context.code(beta_interfaces.StatusCode.UNIMPLEMENTED)
+
+
+class BetaCloudWindmillServiceV1Alpha1Stub(object):
+  """The Cloud Windmill Service API used by GCE to acquire and process streaming
+  Dataflow work.
+  """
+  def GetWork(self, request, timeout, metadata=None, with_call=False, protocol_options=None):
+    """Gets streaming Dataflow work.
+    """
     raise NotImplementedError()
   GetWork.future = None
-  @abc.abstractmethod
-  def GetData(self, request, timeout):
+  def GetData(self, request, timeout, metadata=None, with_call=False, protocol_options=None):
+    """Gets data from Windmill.
+    """
     raise NotImplementedError()
   GetData.future = None
-  @abc.abstractmethod
-  def CommitWork(self, request, timeout):
+  def CommitWork(self, request, timeout, metadata=None, with_call=False, protocol_options=None):
+    """Commits previously acquired work.
+    """
     raise NotImplementedError()
   CommitWork.future = None
-  @abc.abstractmethod
-  def GetConfig(self, request, timeout):
+  def GetConfig(self, request, timeout, metadata=None, with_call=False, protocol_options=None):
+    """Gets dependant configuration from windmill.
+    """
     raise NotImplementedError()
   GetConfig.future = None
-  @abc.abstractmethod
-  def ReportStats(self, request, timeout):
+  def ReportStats(self, request, timeout, metadata=None, with_call=False, protocol_options=None):
+    """Reports stats to Windmill.
+    """
     raise NotImplementedError()
   ReportStats.future = None
 
+
 def beta_create_CloudWindmillServiceV1Alpha1_server(servicer, pool=None, pool_size=None, default_timeout=None, maximum_timeout=None):
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
   request_deserializers = {
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill_pb2.CommitWorkRequest.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill_pb2.GetConfigRequest.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill_pb2.GetDataRequest.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill_pb2.GetWorkRequest.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill_pb2.ReportStatsRequest.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill__pb2.CommitWorkRequest.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill__pb2.GetConfigRequest.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill__pb2.GetDataRequest.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill__pb2.GetWorkRequest.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill__pb2.ReportStatsRequest.FromString,
   }
   response_serializers = {
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill_pb2.CommitWorkResponse.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill_pb2.GetConfigResponse.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill_pb2.GetDataResponse.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill_pb2.GetWorkResponse.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill_pb2.ReportStatsResponse.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill__pb2.CommitWorkResponse.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill__pb2.GetConfigResponse.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill__pb2.GetDataResponse.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill__pb2.GetWorkResponse.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill__pb2.ReportStatsResponse.SerializeToString,
   }
   method_implementations = {
     ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): face_utilities.unary_unary_inline(servicer.CommitWork),
@@ -127,30 +133,21 @@ def beta_create_CloudWindmillServiceV1Alpha1_server(servicer, pool=None, pool_si
   server_options = beta_implementations.server_options(request_deserializers=request_deserializers, response_serializers=response_serializers, thread_pool=pool, thread_pool_size=pool_size, default_timeout=default_timeout, maximum_timeout=maximum_timeout)
   return beta_implementations.server(method_implementations, options=server_options)
 
+
 def beta_create_CloudWindmillServiceV1Alpha1_stub(channel, host=None, metadata_transformer=None, pool=None, pool_size=None):
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
-  import windmill_pb2
   request_serializers = {
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill_pb2.CommitWorkRequest.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill_pb2.GetConfigRequest.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill_pb2.GetDataRequest.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill_pb2.GetWorkRequest.SerializeToString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill_pb2.ReportStatsRequest.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill__pb2.CommitWorkRequest.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill__pb2.GetConfigRequest.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill__pb2.GetDataRequest.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill__pb2.GetWorkRequest.SerializeToString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill__pb2.ReportStatsRequest.SerializeToString,
   }
   response_deserializers = {
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill_pb2.CommitWorkResponse.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill_pb2.GetConfigResponse.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill_pb2.GetDataResponse.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill_pb2.GetWorkResponse.FromString,
-    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill_pb2.ReportStatsResponse.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'CommitWork'): windmill__pb2.CommitWorkResponse.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetConfig'): windmill__pb2.GetConfigResponse.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetData'): windmill__pb2.GetDataResponse.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'GetWork'): windmill__pb2.GetWorkResponse.FromString,
+    ('google.dataflow.windmillservice.v1alpha1.CloudWindmillServiceV1Alpha1', 'ReportStats'): windmill__pb2.ReportStatsResponse.FromString,
   }
   cardinalities = {
     'CommitWork': cardinality.Cardinality.UNARY_UNARY,

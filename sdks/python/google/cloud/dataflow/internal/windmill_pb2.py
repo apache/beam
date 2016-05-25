@@ -2261,9 +2261,8 @@ DESCRIPTOR.has_options = True
 DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('\n5com.google.cloud.dataflow.sdk.runners.worker.windmillB\010Windmill'))
 _WATERMARKHOLD.fields_by_name['timestamps'].has_options = True
 _WATERMARKHOLD.fields_by_name['timestamps']._options = _descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b('\020\001'))
-import abc
-import six
 from grpc.beta import implementations as beta_implementations
+from grpc.beta import interfaces as beta_interfaces
 from grpc.framework.common import cardinality
 from grpc.framework.interfaces.face import utilities as face_utilities
 # @@protoc_insertion_point(module_scope)
