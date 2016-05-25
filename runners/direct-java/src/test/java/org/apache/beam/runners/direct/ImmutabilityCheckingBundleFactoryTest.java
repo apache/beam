@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
@@ -32,7 +31,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.IllegalMutationException;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -168,8 +166,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     root.add(WindowedValue.valueInGlobalWindow(array));
 
     array[1] = 2;
-    thrown.expect(UserCodeException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("Values must not be mutated in any way after being output");
     CommittedBundle<byte[]> committed = root.commit(Instant.now());
   }
@@ -191,8 +188,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     keyed.add(windowedArray);
 
     array[0] = Byte.MAX_VALUE;
-    thrown.expect(UserCodeException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("Values must not be mutated in any way after being output");
     CommittedBundle<byte[]> committed = keyed.commit(Instant.now());
   }
@@ -212,8 +208,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     intermediate.add(windowedArray);
 
     array[2] = -3;
-    thrown.expect(UserCodeException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("Values must not be mutated in any way after being output");
     CommittedBundle<byte[]> committed = intermediate.commit(Instant.now());
   }
