@@ -79,12 +79,10 @@
 
   <build>
     <plugins>
-      <!-- Checkstyle errors for now
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
-      -->
 
       <!-- Disable javadoc for now.
            TODO: this section should be removed as soon as possible. -->

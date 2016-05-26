@@ -33,24 +33,26 @@ import java.util.List;
  * This flat map function bootstraps from collection elements and turns them into WindowedValues
  * (as required by the Flink runner).
  */
-public class FlinkStreamingCreateFunction<IN, OUT> implements FlatMapFunction<IN, WindowedValue<OUT>> {
+public class FlinkStreamingCreateFunction<InputT, OutputT> implements FlatMapFunction<InputT,
+    WindowedValue<OutputT>> {
 
   private final List<byte[]> elements;
-  private final Coder<OUT> coder;
+  private final Coder<OutputT> coder;
 
-  public FlinkStreamingCreateFunction(List<byte[]> elements, Coder<OUT> coder) {
+  public FlinkStreamingCreateFunction(List<byte[]> elements, Coder<OutputT> coder) {
     this.elements = elements;
     this.coder = coder;
   }
 
   @Override
-  public void flatMap(IN value, Collector<WindowedValue<OUT>> out) throws Exception {
+  public void flatMap(InputT value, Collector<WindowedValue<OutputT>> out) throws Exception {
 
     for (byte[] element : elements) {
       ByteArrayInputStream bai = new ByteArrayInputStream(element);
-      OUT outValue = coder.decode(bai, Coder.Context.OUTER);
+      OutputT outValue = coder.decode(bai, Coder.Context.OUTER);
 
-      out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+      out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo
+          .NO_FIRING));
     }
 
     out.close();

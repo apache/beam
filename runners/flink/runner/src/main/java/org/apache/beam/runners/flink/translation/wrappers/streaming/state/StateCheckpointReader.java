@@ -27,6 +27,9 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * State checkpoint reader.
+ */
 public class StateCheckpointReader {
 
   private final DataInputView input;
@@ -80,7 +83,8 @@ public class StateCheckpointReader {
     byte[] serData = new byte[size];
     int bytesRead = input.read(serData);
     if (bytesRead != size) {
-      throw new RuntimeException("Error while deserializing checkpoint. Not enough bytes in the input stream.");
+      throw new RuntimeException("Error while deserializing checkpoint. Not enough bytes in the "
+          + "input stream.");
     }
     return serData;
   }

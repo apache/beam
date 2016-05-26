@@ -39,8 +39,10 @@ import org.joda.time.Instant;
 import java.io.Serializable;
 import java.util.Arrays;
 
+/**
+ * Test on GroupBy with null key.
+ */
 public class GroupByNullKeyTest extends StreamingProgramTestBase implements Serializable {
-
 
   protected String resultPath;
 
@@ -61,6 +63,9 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
   }
 
+  /**
+   * DoFn extracting user and timestamp.
+   */
   public static class ExtractUserAndTimestamp extends DoFn<KV<Integer, String>, String> {
     private static final long serialVersionUID = 0;
 

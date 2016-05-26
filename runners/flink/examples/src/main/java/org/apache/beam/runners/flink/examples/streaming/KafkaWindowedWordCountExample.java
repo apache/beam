@@ -42,6 +42,9 @@ import org.joda.time.Duration;
 
 import java.util.Properties;
 
+/**
+ * Example on windowed word count writing on Kafka.
+ */
 public class KafkaWindowedWordCountExample {
 
   static final String KAFKA_TOPIC = "test";  // Default kafka topic to read from
@@ -49,6 +52,9 @@ public class KafkaWindowedWordCountExample {
   static final String GROUP_ID = "myGroup";  // Default groupId
   static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect to for Kafka
 
+  /**
+   * DoFn to extract words.
+   */
   public static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
@@ -71,16 +77,24 @@ public class KafkaWindowedWordCountExample {
     }
   }
 
+  /**
+   * DoFn to format as String.
+   */
   public static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
     @Override
     public void processElement(ProcessContext c) {
-      String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
+      String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp()
+          .toString();
       System.out.println(row);
       c.output(row);
     }
   }
 
-  public interface KafkaStreamingWordCountOptions extends WindowedWordCount.StreamingWordCountOptions {
+  /**
+   * Kafka streaming word count options.
+   */
+  public interface KafkaStreamingWordCountOptions extends WindowedWordCount
+      .StreamingWordCountOptions {
     @Description("The Kafka topic to read from")
     @Default.String(KAFKA_TOPIC)
     String getKafkaTopic();
@@ -109,7 +123,8 @@ public class KafkaWindowedWordCountExample {
 
   public static void main(String[] args) {
     PipelineOptionsFactory.register(KafkaStreamingWordCountOptions.class);
-    KafkaStreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).as(KafkaStreamingWordCountOptions.class);
+    KafkaStreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).as
+        (KafkaStreamingWordCountOptions.class);
     options.setJobName("KafkaExample - WindowSize: " + options.getWindowSize() + " seconds");
     options.setStreaming(true);
     options.setCheckpointingInterval(1000L);
@@ -117,7 +132,8 @@ public class KafkaWindowedWordCountExample {
     options.setExecutionRetryDelay(3000L);
     options.setRunner(FlinkPipelineRunner.class);
 
-    System.out.println(options.getKafkaTopic() +" "+ options.getZookeeper() +" "+ options.getBroker() +" "+ options.getGroup() );
+    System.out.println(options.getKafkaTopic() + " " + options.getZookeeper() + " " + options
+        .getBroker() + " " + options.getGroup());
     Pipeline pipeline = Pipeline.create(options);
 
     Properties p = new Properties();
@@ -134,7 +150,8 @@ public class KafkaWindowedWordCountExample {
     PCollection<String> words = pipeline
         .apply(Read.named("StreamingWordCount").from(UnboundedFlinkSource.of(kafkaConsumer)))
         .apply(ParDo.of(new ExtractWordsFn()))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(options.getWindowSize())))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(options.getWindowSize
+            ())))
             .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
             .discardingFiredPanes());
 

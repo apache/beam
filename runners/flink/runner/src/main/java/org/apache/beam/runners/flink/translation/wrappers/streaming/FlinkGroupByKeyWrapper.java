@@ -40,10 +40,12 @@ public class FlinkGroupByKeyWrapper {
    * Just an auxiliary interface to bypass the fact that java anonymous classes cannot implement
    * multiple interfaces.
    */
-  private interface KeySelectorWithQueryableResultType<K, V> extends KeySelector<WindowedValue<KV<K, V>>, K>, ResultTypeQueryable<K> {
+  private interface KeySelectorWithQueryableResultType<K, V>
+      extends KeySelector<WindowedValue<KV<K, V>>, K>, ResultTypeQueryable<K> {
   }
 
-  public static <K, V> KeyedStream<WindowedValue<KV<K, V>>, K> groupStreamByKey(DataStream<WindowedValue<KV<K, V>>> inputDataStream, KvCoder<K, V> inputKvCoder) {
+  public static <K, V> KeyedStream<WindowedValue<KV<K, V>>, K> groupStreamByKey(
+      DataStream<WindowedValue<KV<K, V>>> inputDataStream, KvCoder<K, V> inputKvCoder) {
     final Coder<K> keyCoder = inputKvCoder.getKeyCoder();
     final TypeInformation<K> keyTypeInfo = new CoderTypeInformation<>(keyCoder);
     final boolean isKeyVoid = keyCoder instanceof VoidCoder;
@@ -53,7 +55,7 @@ public class FlinkGroupByKeyWrapper {
 
           @Override
           public K getKey(WindowedValue<KV<K, V>> value) throws Exception {
-            return isKeyVoid ? (K) VoidValue.INSTANCE :
+            return isKeyVoid ? (K) VoidValue.instance :
                 value.getValue().getKey();
           }
 
@@ -64,10 +66,12 @@ public class FlinkGroupByKeyWrapper {
         });
   }
 
-  // special type to return as key for null key
+  /**
+   * Special type to return  as key for null key.
+   */
   public static class VoidValue {
     private VoidValue() {}
 
-    public static VoidValue INSTANCE = new VoidValue();
+    public static VoidValue instance = new VoidValue();
   }
 }

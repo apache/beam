@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
@@ -52,20 +53,20 @@ import java.util.Properties;
  */
 public class KafkaIOExamples {
 
-
   private static final String KAFKA_TOPIC = "input";  // Default kafka topic to read from
   private static final String KAFKA_AVRO_TOPIC = "output";  // Default kafka topic to read from
   private static final String KAFKA_BROKER = "localhost:9092";  // Default kafka broker to contact
   private static final String GROUP_ID = "myGroup";  // Default groupId
-  private static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect to for Kafka
+  private static final String ZOOKEEPER =
+      "localhost:2181";  // Default zookeeper to connect to kafka
 
   /**
-   * Read/Write String data to Kafka
+   * Read/Write String data to Kafka.
    */
   public static class KafkaString {
 
     /**
-     * Read String data from Kafka
+     * Read String data from Kafka.
      */
     public static class ReadStringFromKafka {
 
@@ -89,7 +90,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Write String data to Kafka
+     * Write String data to Kafka.
      */
     public static class WriteStringToKafka {
 
@@ -114,12 +115,12 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Read/Write Avro data to Kafka
+   * Read/Write Avro data to Kafka.
    */
   public static class KafkaAvro {
 
     /**
-     * Read Avro data from Kafka
+     * Read Avro data from Kafka.
      */
     public static class ReadAvroFromKafka {
 
@@ -143,7 +144,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Write Avro data to Kafka
+     * Write Avro data to Kafka.
      */
     public static class WriteAvroToKafka {
 
@@ -170,8 +171,9 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Serialiation/Deserialiation schema for Avro types
-     * @param <T>
+     * Serialiation/Deserialiation schema for Avro types.
+     *
+     * @param <T> The serialization schema type.
      */
     static class AvroSerializationDeserializationSchema<T>
         implements SerializationSchema<T>, DeserializationSchema<T> {
@@ -218,11 +220,12 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Custom type for Avro serialization
+     * Custom type for Avro serialization.
      */
     static class MyType implements Serializable {
 
-      public MyType() {}
+      public MyType() {
+      }
 
       MyType(String word, long count) {
         this.word = word;
@@ -234,10 +237,10 @@ public class KafkaIOExamples {
 
       @Override
       public String toString() {
-        return "MyType{" +
-            "word='" + word + '\'' +
-            ", count=" + count +
-            '}';
+        return "MyType{"
+            + "word='" + word + '\''
+            + ", count=" + count
+            + '}';
       }
     }
   }
@@ -245,7 +248,7 @@ public class KafkaIOExamples {
   // -------------- Utilities --------------
 
   /**
-   * Custom options for the Pipeline
+   * Custom options for the Pipeline.
    */
   public interface KafkaOptions extends FlinkPipelineOptions {
     @Description("The Kafka topic to read from")
@@ -280,7 +283,8 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Initializes some options for the Flink runner
+   * Initializes some options for the Flink runner.
+   *
    * @param args The command line args
    * @return the pipeline
    */
@@ -299,7 +303,8 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Gets KafkaOptions from the Pipeline
+   * Gets KafkaOptions from the Pipeline.
+   *
    * @param p the pipeline
    * @return KafkaOptions
    */
@@ -309,6 +314,7 @@ public class KafkaIOExamples {
 
   /**
    * Helper method to set the Kafka props from the pipeline options.
+   *
    * @param options KafkaOptions
    * @return Kafka props
    */
@@ -323,7 +329,8 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Print contents to stdout
+   * Print contents to stdout.
+   *
    * @param <T> type of the input
    */
   private static class PrintFn<T> extends DoFn<T, T> {

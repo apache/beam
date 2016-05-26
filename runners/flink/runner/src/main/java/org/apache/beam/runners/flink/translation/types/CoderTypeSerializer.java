@@ -33,10 +33,10 @@ import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
- * Dataflow {@link org.apache.beam.sdk.coders.Coder Coders}.
+ * Beam {@link org.apache.beam.sdk.coders.Coder Coders}.
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
-  
+
   private Coder<T> coder;
   private transient DataInputViewWrapper inputWrapper;
   private transient DataOutputViewWrapper outputWrapper;
@@ -51,7 +51,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
     buffer = new InspectableByteArrayOutputStream();
   }
-  
+
   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
     in.defaultReadObject();
     this.inputWrapper = new DataInputViewWrapper(null);
@@ -59,7 +59,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
     buffer = new InspectableByteArrayOutputStream();
   }
-  
+
   @Override
   public boolean isImmutableType() {
     return false;

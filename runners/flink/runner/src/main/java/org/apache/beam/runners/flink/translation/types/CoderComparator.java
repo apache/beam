@@ -83,7 +83,7 @@ public class CoderComparator<T> extends TypeComparator<T> {
         return false;
       }
       int len = buffer2.size();
-      for(int i = 0; i < len; i++ ) {
+      for (int i = 0; i < len; i++) {
         if (arr[i] != arrOther[i]) {
           return false;
         }
@@ -96,7 +96,8 @@ public class CoderComparator<T> extends TypeComparator<T> {
 
   @Override
   public int compareToReference(TypeComparator<T> other) {
-    InspectableByteArrayOutputStream otherReferenceBuffer = ((CoderComparator<T>) other).referenceBuffer;
+    InspectableByteArrayOutputStream otherReferenceBuffer =
+        ((CoderComparator<T>) other).referenceBuffer;
 
     byte[] arr = referenceBuffer.getBuffer();
     byte[] arrOther = otherReferenceBuffer.getBuffer();
@@ -125,7 +126,7 @@ public class CoderComparator<T> extends TypeComparator<T> {
         return buffer1.size() - buffer2.size();
       }
       int len = buffer1.size();
-      for(int i = 0; i < len; i++ ) {
+      for (int i = 0; i < len; i++) {
         if (arr[i] != arrOther[i]) {
           return arr[i] - arrOther[i];
         }
@@ -137,7 +138,8 @@ public class CoderComparator<T> extends TypeComparator<T> {
   }
 
   @Override
-  public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
+  public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+      throws IOException {
     CoderTypeSerializer<T> serializer = new CoderTypeSerializer<>(coder);
     T first = serializer.deserialize(firstSource);
     T second = serializer.deserialize(secondSource);
@@ -170,7 +172,8 @@ public class CoderComparator<T> extends TypeComparator<T> {
     try {
       coder.encode(record, buffer1, Coder.Context.OUTER);
     } catch (IOException e) {
-      throw new RuntimeException("Could not serializer " + record + " using coder " + coder + ": " + e);
+      throw new RuntimeException("Could not serializer "
+          + record + " using coder " + coder + ": " + e);
     }
     final byte[] data = buffer1.getBuffer();
     final int limit = offset + numBytes;

@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -41,10 +40,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * <p>
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
- * <p>
+ * </p>
  */
 public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
@@ -133,14 +133,16 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   /**
    * For testing.
+   *
+   * @return The {@link FlinkPipelineOptions}.
    */
   public FlinkPipelineOptions getPipelineOptions() {
     return options;
   }
 
   @Override
-  public <Output extends POutput, Input extends PInput> Output apply(
-      PTransform<Input, Output> transform, Input input) {
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
     return super.apply(transform, input);
   }
 
@@ -148,7 +150,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public String toString() {
-    return "DataflowPipelineRunner#" + hashCode();
+    return "FlinkPipelineRunner#" + hashCode();
   }
 
   /**
@@ -158,7 +160,8 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
    * @param classLoader The URLClassLoader to use to detect resources to stage.
    * @return A list of absolute paths to the resources the class loader uses.
    * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one
-   *                                  of the resources the class loader exposes is not a file resource.
+   *                                  of the resources the class loader exposes is not a
+   *                                  file resource.
    */
   protected static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
     if (!(classLoader instanceof URLClassLoader)) {

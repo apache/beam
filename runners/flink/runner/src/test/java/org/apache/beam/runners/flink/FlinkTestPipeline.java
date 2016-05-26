@@ -23,7 +23,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
- * {@link org.apache.beam.sdk.Pipeline} for testing Dataflow programs on the
+ * {@link org.apache.beam.sdk.Pipeline} for testing Beam programs on the
  * {@link org.apache.beam.runners.flink.FlinkPipelineRunner}.
  */
 public class FlinkTestPipeline extends Pipeline {

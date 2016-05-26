@@ -45,10 +45,10 @@ public class WriteSinkITCase extends JavaProgramTestBase {
 
   protected String resultPath;
 
-  public WriteSinkITCase(){
+  public WriteSinkITCase() {
   }
 
-  static final String[] EXPECTED_RESULT = new String[] {
+  static final String[] EXPECTED_RESULT = new String[]{
       "Joe red 3", "Mary blue 4", "Max yellow 23"};
 
   @Override
@@ -70,7 +70,7 @@ public class WriteSinkITCase extends JavaProgramTestBase {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
     p.apply(Create.of(EXPECTED_RESULT)).setCoder(StringUtf8Coder.of())
-      .apply("CustomSink", Write.to(new MyCustomSink(resultPath)));
+        .apply("CustomSink", Write.to(new MyCustomSink(resultPath)));
 
     p.run();
   }
@@ -109,7 +109,8 @@ public class WriteSinkITCase extends JavaProgramTestBase {
       }
 
       @Override
-      public void finalize(Iterable<String> writerResults, PipelineOptions options) throws Exception {
+      public void finalize(Iterable<String> writerResults, PipelineOptions options) throws
+          Exception {
 
       }
 

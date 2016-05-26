@@ -27,11 +27,15 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * State checkpoint writer.
+ */
 public class StateCheckpointWriter {
 
   private final AbstractStateBackend.CheckpointStateOutputView output;
 
-  public static StateCheckpointWriter create(AbstractStateBackend.CheckpointStateOutputView output) {
+  public static StateCheckpointWriter create(AbstractStateBackend.CheckpointStateOutputView
+                                                 output) {
     return new StateCheckpointWriter(output);
   }
 
@@ -39,7 +43,8 @@ public class StateCheckpointWriter {
     this.output = output;
   }
 
-  /////////      Creating the serialized versions of the different types of state held by dataflow      ///////
+  /////////      Creating the serialized versions of the different types of state held by
+  // beam      ///////
 
   public StateCheckpointWriter addValueBuilder() throws IOException {
     validate();
@@ -77,11 +82,13 @@ public class StateCheckpointWriter {
   }
 
 
-  public <K> StateCheckpointWriter serializeKey(K key, CoderTypeSerializer<K> keySerializer) throws IOException {
+  public <K> StateCheckpointWriter serializeKey(K key, CoderTypeSerializer<K> keySerializer)
+      throws IOException {
     return serializeObject(key, keySerializer);
   }
 
-  public <T> StateCheckpointWriter serializeObject(T object, CoderTypeSerializer<T> objectSerializer) throws IOException {
+  public <T> StateCheckpointWriter serializeObject(T object, CoderTypeSerializer<T>
+      objectSerializer) throws IOException {
     objectSerializer.serialize(object, output);
     return this;
   }

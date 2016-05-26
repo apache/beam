@@ -55,14 +55,14 @@ import java.util.List;
 
 /**
  * To run the example, first open a socket on a terminal by executing the command:
- * <li>
- *     <li>
- *     <code>nc -lk 9999</code>
- *     </li>
- * </li>
+ * <ul>
+ *  <li>
+ *    <code>nc -lk 9999</code>
+ *  </li>
+ * </ul>
  * and then launch the example. Now whatever you type in the terminal is going to be
  * the input to the program.
- * */
+ */
 public class AutoComplete {
 
   /**
@@ -88,29 +88,30 @@ public class AutoComplete {
     @Override
     public PCollection<KV<String, List<CompletionCandidate>>> apply(PCollection<String> input) {
       PCollection<CompletionCandidate> candidates = input
-        // First count how often each token appears.
-        .apply(new Count.PerElement<String>())
+          // First count how often each token appears.
+          .apply(new Count.PerElement<String>())
 
-        // Map the KV outputs of Count into our own CompletionCandiate class.
-        .apply(ParDo.named("CreateCompletionCandidates").of(
-            new DoFn<KV<String, Long>, CompletionCandidate>() {
-              private static final long serialVersionUID = 0;
+          // Map the KV outputs of Count into our own CompletionCandiate class.
+          .apply(ParDo.named("CreateCompletionCandidates").of(
+              new DoFn<KV<String, Long>, CompletionCandidate>() {
+                private static final long serialVersionUID = 0;
 
-              @Override
-              public void processElement(ProcessContext c) {
-                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(), c.element().getValue());
-                c.output(cand);
-              }
-            }));
+                @Override
+                public void processElement(ProcessContext c) {
+                  CompletionCandidate cand = new CompletionCandidate(c.element().getKey(), c
+                      .element().getValue());
+                  c.output(cand);
+                }
+              }));
 
       // Compute the top via either a flat or recursive algorithm.
       if (recursive) {
         return candidates
-          .apply(new ComputeTopRecursive(candidatesPerPrefix, 1))
-          .apply(Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
+            .apply(new ComputeTopRecursive(candidatesPerPrefix, 1))
+            .apply(Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
       } else {
         return candidates
-          .apply(new ComputeTopFlat(candidatesPerPrefix, 1));
+            .apply(new ComputeTopFlat(candidatesPerPrefix, 1));
       }
     }
   }
@@ -120,7 +121,7 @@ public class AutoComplete {
    */
   private static class ComputeTopFlat
       extends PTransform<PCollection<CompletionCandidate>,
-                         PCollection<KV<String, List<CompletionCandidate>>>> {
+      PCollection<KV<String, List<CompletionCandidate>>>> {
     private static final long serialVersionUID = 0;
 
     private final int candidatesPerPrefix;
@@ -135,12 +136,12 @@ public class AutoComplete {
     public PCollection<KV<String, List<CompletionCandidate>>> apply(
         PCollection<CompletionCandidate> input) {
       return input
-        // For each completion candidate, map it to all prefixes.
-        .apply(ParDo.of(new AllPrefixes(minPrefix)))
+          // For each completion candidate, map it to all prefixes.
+          .apply(ParDo.of(new AllPrefixes(minPrefix)))
 
-        // Find and return the top candiates for each prefix.
-        .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
-             .withHotKeyFanout(new HotKeyFanout()));
+          // Find and return the top candiates for each prefix.
+          .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
+              .withHotKeyFanout(new HotKeyFanout()));
     }
 
     private static class HotKeyFanout implements SerializableFunction<String, Integer> {
@@ -154,15 +155,18 @@ public class AutoComplete {
   }
 
   /**
+   * <p>
    * Cheaper but higher latency.
-   *
-   * <p> Returns two PCollections, the first is top prefixes of size greater
+   * </p>
+   * <p>
+   * Returns two PCollections, the first is top prefixes of size greater
    * than minPrefix, and the second is top prefixes of size exactly
    * minPrefix.
+   * </p>
    */
   private static class ComputeTopRecursive
       extends PTransform<PCollection<CompletionCandidate>,
-                         PCollectionList<KV<String, List<CompletionCandidate>>>> {
+      PCollectionList<KV<String, List<CompletionCandidate>>>> {
     private static final long serialVersionUID = 0;
 
     private final int candidatesPerPrefix;
@@ -196,43 +200,44 @@ public class AutoComplete {
 
     @Override
     public PCollectionList<KV<String, List<CompletionCandidate>>> apply(
-          PCollection<CompletionCandidate> input) {
-        if (minPrefix > 10) {
-          // Base case, partitioning to return the output in the expected format.
-          return input
+        PCollection<CompletionCandidate> input) {
+      if (minPrefix > 10) {
+        // Base case, partitioning to return the output in the expected format.
+        return input
             .apply(new ComputeTopFlat(candidatesPerPrefix, minPrefix))
             .apply(Partition.of(2, new KeySizePartitionFn()));
-        } else {
-          // If a candidate is in the top N for prefix a...b, it must also be in the top
-          // N for a...bX for every X, which is typlically a much smaller set to consider.
-          // First, compute the top candidate for prefixes of size at least minPrefix + 1.
-          PCollectionList<KV<String, List<CompletionCandidate>>> larger = input
+      } else {
+        // If a candidate is in the top N for prefix a...b, it must also be in the top
+        // N for a...bX for every X, which is typlically a much smaller set to consider.
+        // First, compute the top candidate for prefixes of size at least minPrefix + 1.
+        PCollectionList<KV<String, List<CompletionCandidate>>> larger = input
             .apply(new ComputeTopRecursive(candidatesPerPrefix, minPrefix + 1));
-          // Consider the top candidates for each prefix of length minPrefix + 1...
-          PCollection<KV<String, List<CompletionCandidate>>> small =
+        // Consider the top candidates for each prefix of length minPrefix + 1...
+        PCollection<KV<String, List<CompletionCandidate>>> small =
             PCollectionList
-            .of(larger.get(1).apply(ParDo.of(new FlattenTops())))
-            // ...together with those (previously excluded) candidates of length
-            // exactly minPrefix...
-            .and(input.apply(Filter.by(new SerializableFunction<CompletionCandidate, Boolean>() {
-                    private static final long serialVersionUID = 0;
+                .of(larger.get(1).apply(ParDo.of(new FlattenTops())))
+                // ...together with those (previously excluded) candidates of length
+                // exactly minPrefix...
+                .and(input.apply(Filter.by(new SerializableFunction<CompletionCandidate, Boolean>
+                    () {
+                  private static final long serialVersionUID = 0;
 
-                    @Override
-                    public Boolean apply(CompletionCandidate c) {
-                      return c.getValue().length() == minPrefix;
-                    }
-                  })))
-            .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
-            // ...set the key to be the minPrefix-length prefix...
-            .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
-            // ...and (re)apply the Top operator to all of them together.
-            .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix));
+                  @Override
+                  public Boolean apply(CompletionCandidate c) {
+                    return c.getValue().length() == minPrefix;
+                  }
+                })))
+                .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
+                // ...set the key to be the minPrefix-length prefix...
+                .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
+                // ...and (re)apply the Top operator to all of them together.
+                .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix));
 
-          PCollection<KV<String, List<CompletionCandidate>>> flattenLarger = larger
-              .apply("FlattenLarge", Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
+        PCollection<KV<String, List<CompletionCandidate>>> flattenLarger = larger
+            .apply("FlattenLarge", Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
 
-          return PCollectionList.of(flattenLarger).and(small);
-        }
+        return PCollectionList.of(flattenLarger).and(small);
+      }
     }
   }
 
@@ -245,15 +250,18 @@ public class AutoComplete {
 
     private final int minPrefix;
     private final int maxPrefix;
+
     public AllPrefixes(int minPrefix) {
       this(minPrefix, Integer.MAX_VALUE);
     }
+
     public AllPrefixes(int minPrefix, int maxPrefix) {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
+
     @Override
-      public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
         KV<String, CompletionCandidate> kv = KV.of(word.substring(0, i), c.element());
@@ -281,7 +289,8 @@ public class AutoComplete {
 
     // Empty constructor required for Avro decoding.
     @SuppressWarnings("unused")
-    public CompletionCandidate() {}
+    public CompletionCandidate() {
+    }
 
     @Override
     public int compareTo(CompletionCandidate o) {
@@ -317,7 +326,7 @@ public class AutoComplete {
 
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
-            createAggregator("emptyLines", new Sum.SumLongFn());
+        createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {
@@ -342,7 +351,7 @@ public class AutoComplete {
    * suitable for writing to Datastore.
    */
   static class FormatForPerTaskLocalFile extends DoFn<KV<String, List<CompletionCandidate>>, String>
-          implements DoFn.RequiresWindowAccess{
+      implements DoFn.RequiresWindowAccess {
 
     private static final long serialVersionUID = 0;
 
@@ -351,8 +360,8 @@ public class AutoComplete {
       StringBuilder str = new StringBuilder();
       KV<String, List<CompletionCandidate>> elem = c.element();
 
-      str.append(elem.getKey() +" @ "+ c.window() +" -> ");
-      for(CompletionCandidate cand: elem.getValue()) {
+      str.append(elem.getKey() + " @ " + c.window() + " -> ");
+      for (CompletionCandidate cand : elem.getValue()) {
         str.append(cand.toString() + " ");
       }
       System.out.println(str.toString());
@@ -362,13 +371,14 @@ public class AutoComplete {
 
   /**
    * Options supported by this class.
-   *
+   * <p>
    * <p> Inherits standard Dataflow configuration options.
    */
   private interface Options extends WindowedWordCount.StreamingWordCountOptions {
     @Description("Whether to use the recursive algorithm")
     @Default.Boolean(true)
     Boolean getRecursive();
+
     void setRecursive(Boolean value);
   }
 
@@ -381,22 +391,23 @@ public class AutoComplete {
     options.setRunner(FlinkPipelineRunner.class);
 
     PTransform<? super PBegin, PCollection<String>> readSource =
-            Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)).named("WordStream");
-    WindowFn<Object, ?> windowFn = FixedWindows.of(Duration.standardSeconds(options.getWindowSize()));
+        Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)).named("WordStream");
+    WindowFn<Object, ?> windowFn = FixedWindows.of(Duration.standardSeconds(options.getWindowSize
+        ()));
 
     // Create the pipeline.
     Pipeline p = Pipeline.create(options);
     PCollection<KV<String, List<CompletionCandidate>>> toWrite = p
-      .apply(readSource)
-      .apply(ParDo.of(new ExtractWordsFn()))
-      .apply(Window.<String>into(windowFn)
-              .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
+        .apply(readSource)
+        .apply(ParDo.of(new ExtractWordsFn()))
+        .apply(Window.<String>into(windowFn)
+            .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
             .discardingFiredPanes())
-      .apply(ComputeTopCompletions.top(10, options.getRecursive()));
+        .apply(ComputeTopCompletions.top(10, options.getRecursive()));
 
     toWrite
-      .apply(ParDo.named("FormatForPerTaskFile").of(new FormatForPerTaskLocalFile()))
-      .apply(TextIO.Write.to("./outputAutoComplete.txt"));
+        .apply(ParDo.named("FormatForPerTaskFile").of(new FormatForPerTaskLocalFile()))
+        .apply(TextIO.Write.to("./outputAutoComplete.txt"));
 
     p.run();
   }

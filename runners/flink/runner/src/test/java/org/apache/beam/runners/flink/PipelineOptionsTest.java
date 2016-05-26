@@ -17,15 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /**
  * Tests the serialization and deserialization of PipelineOptions.
@@ -36,13 +37,14 @@ public class PipelineOptionsTest {
     @Description("Bla bla bla")
     @Default.String("Hello")
     String getTestOption();
+
     void setTestOption(String value);
   }
 
   private static MyOptions options;
   private static SerializedPipelineOptions serializedOptions;
 
-  private final static String[] args = new String[]{"--testOption=nothing"};
+  private static String[] args = new String[]{"--testOption=nothing"};
 
   @BeforeClass
   public static void beforeTest() {

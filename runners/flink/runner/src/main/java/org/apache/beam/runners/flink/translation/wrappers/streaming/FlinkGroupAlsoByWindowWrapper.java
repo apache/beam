@@ -21,7 +21,8 @@ import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.state.AbstractFlinkTimerInternals;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state
+    .AbstractFlinkTimerInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointReader;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointUtils;
@@ -80,27 +81,32 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * <p>
  * This class is the key class implementing all the windowing/triggering logic of Apache Beam.
- * To provide full compatibility and support for all the windowing/triggering combinations offered by
- * Beam, we opted for a strategy that uses the SDK's code for doing these operations. See the code in
- * ({@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}.
- * <p/>
+ * To provide full compatibility and support for all the windowing/triggering combinations
+ * offered by Beam, we opted for a strategy that uses the SDK's code for doing these operations.
+ * See the code in ({@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}.
+ * </p>
+ * <p>
  * In a nutshell, when the execution arrives to this operator, we expect to have a stream <b>already
  * grouped by key</b>. Each of the elements that enter here, registers a timer
  * (see {@link TimerInternals#setTimer(TimerInternals.TimerData)} in the
  * {@link FlinkGroupAlsoByWindowWrapper#activeTimers}.
  * This is essentially a timestamp indicating when to trigger the computation over the window this
  * element belongs to.
- * <p/>
+ * </p>
+ * <p>
  * When a watermark arrives, all the registered timers are checked to see which ones are ready to
- * fire (see {@link FlinkGroupAlsoByWindowWrapper#processWatermark(Watermark)}). These are deregistered from
- * the {@link FlinkGroupAlsoByWindowWrapper#activeTimers}
- * list, and are fed into the {@link org.apache.beam.runners.core.GroupAlsoByWindowsDoFn}
- * for furhter processing.
+ * fire (see {@link FlinkGroupAlsoByWindowWrapper#processWatermark(Watermark)}).
+ * These are deregistered from the {@link FlinkGroupAlsoByWindowWrapper#activeTimers}
+ * list, and are fed into the {@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}
+ * for further processing.
+ * </p>
  */
-public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
-    extends AbstractStreamOperator<WindowedValue<KV<K, VOUT>>>
-    implements OneInputStreamOperator<WindowedValue<KV<K, VIN>>, WindowedValue<KV<K, VOUT>>> {
+public class FlinkGroupAlsoByWindowWrapper<K, InputT, AccumT, OutputT>
+    extends AbstractStreamOperator<WindowedValue<KV<K, OutputT>>>
+    implements OneInputStreamOperator<WindowedValue<KV<K, InputT>>,
+    WindowedValue<KV<K, OutputT>>> {
 
   private static final long serialVersionUID = 1L;
 
@@ -108,19 +114,20 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   private transient CoderRegistry coderRegistry;
 
-  private DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> operator;
+  private DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> operator;
 
   private ProcessContext context;
 
-  private final WindowingStrategy<KV<K, VIN>, BoundedWindow> windowingStrategy;
+  private final WindowingStrategy<KV<K, InputT>, BoundedWindow> windowingStrategy;
 
-  private final Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combineFn;
+  private final Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
 
-  private final KvCoder<K, VIN> inputKvCoder;
+  private final KvCoder<K, InputT> inputKvCoder;
 
   /**
-   * State is kept <b>per-key</b>. This data structure keeps this mapping between an active key, i.e. a
-   * key whose elements are currently waiting to be processed, and its associated state.
+   * State is kept <b>per-key</b>. This data structure keeps this mapping between
+   * an active key, i.e. a key whose elements are currently waiting to be processed,
+   * and its associated state.
    */
   private Map<K, FlinkStateInternals<K>> perKeyStateInternals = new HashMap<>();
 
@@ -132,40 +139,52 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   private FlinkTimerInternals timerInternals = new FlinkTimerInternals();
 
   /**
-   * Creates an DataStream where elements are grouped in windows based on the specified windowing strategy.
+   * <p>
+   * Creates an DataStream where elements are grouped in windows based on the
+   * specified windowing strategy.
    * This method assumes that <b>elements are already grouped by key</b>.
-   * <p/>
+   * </p>
+   * <p>
    * The difference with {@link #createForIterable(PipelineOptions, PCollection, KeyedStream)}
    * is that this method assumes that a combiner function is provided
    * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
-   * A combiner helps at increasing the speed and, in most of the cases, reduce the per-window state.
+   * A combiner helps at increasing the speed and, in most of the cases, reduce the
+   * per-window state.
+   * </p>
    *
-   * @param options            the general job configuration options.
-   * @param input              the input Dataflow {@link org.apache.beam.sdk.values.PCollection}.
-   * @param groupedStreamByKey the input stream, it is assumed to already be grouped by key.
-   * @param combiner           the combiner to be used.
-   * @param outputKvCoder      the type of the output values.
+   * @param options The general job configuration options.
+   * @param input The input Beam {@link org.apache.beam.sdk.values.PCollection}.
+   * @param groupedStreamByKey The input stream, it is assumed to already be grouped by key.
+   * @param combiner The combiner to be used.
+   * @param outputKvCoder The type of the output values.
+   * @param <K> The key type.
+   * @param <InputT> The input type.
+   * @param <AccumT> The accumulator type.
+   * @param <OutputT> The output type.
+   * @return a {@link DataStream} with {@link WindowedValue} key-value pairs.
    */
-  public static <K, VIN, VACC, VOUT> DataStream<WindowedValue<KV<K, VOUT>>> create(
+  public static <K, InputT, AccumT, OutputT> DataStream<WindowedValue<KV<K, OutputT>>> create(
       PipelineOptions options,
       PCollection input,
-      KeyedStream<WindowedValue<KV<K, VIN>>, K> groupedStreamByKey,
-      Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner,
-      KvCoder<K, VOUT> outputKvCoder) {
+      KeyedStream<WindowedValue<KV<K, InputT>>, K> groupedStreamByKey,
+      Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combiner,
+      KvCoder<K, OutputT> outputKvCoder) {
     Preconditions.checkNotNull(options);
 
-    KvCoder<K, VIN> inputKvCoder = (KvCoder<K, VIN>) input.getCoder();
+    KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) input.getCoder();
     FlinkGroupAlsoByWindowWrapper windower = new FlinkGroupAlsoByWindowWrapper<>(options,
-        input.getPipeline().getCoderRegistry(), input.getWindowingStrategy(), inputKvCoder, combiner);
+        input.getPipeline().getCoderRegistry(),
+        input.getWindowingStrategy(), inputKvCoder, combiner);
 
-    Coder<WindowedValue<KV<K, VOUT>>> windowedOutputElemCoder = WindowedValue.FullWindowedValueCoder.of(
-        outputKvCoder,
-        input.getWindowingStrategy().getWindowFn().windowCoder());
+    Coder<WindowedValue<KV<K, OutputT>>> windowedOutputElemCoder =
+        WindowedValue.FullWindowedValueCoder.of(
+            outputKvCoder,
+            input.getWindowingStrategy().getWindowFn().windowCoder());
 
-    CoderTypeInformation<WindowedValue<KV<K, VOUT>>> outputTypeInfo =
+    CoderTypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
         new CoderTypeInformation<>(windowedOutputElemCoder);
 
-    DataStream<WindowedValue<KV<K, VOUT>>> groupedByKeyAndWindow = groupedStreamByKey
+    DataStream<WindowedValue<KV<K, OutputT>>> groupedByKeyAndWindow = groupedStreamByKey
         .transform("GroupByWindowWithCombiner",
             new CoderTypeInformation<>(outputKvCoder),
             windower)
@@ -175,41 +194,50 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   }
 
   /**
-   * Creates an DataStream where elements are grouped in windows based on the specified windowing strategy.
+   * <p>
+   * Creates an DataStream where elements are grouped in windows based on the specified
+   * windowing strategy.
    * This method assumes that <b>elements are already grouped by key</b>.
-   * <p/>
-   * The difference with {@link #create(PipelineOptions, PCollection, KeyedStream, Combine.KeyedCombineFn, KvCoder)}
+   * </p>
+   * <p>
+   * The difference with
+   * {@link #create(PipelineOptions, PCollection, KeyedStream, Combine.KeyedCombineFn, KvCoder)}
    * is that this method assumes no combiner function
    * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
+   * </p>
    *
-   * @param options            the general job configuration options.
-   * @param input              the input Dataflow {@link org.apache.beam.sdk.values.PCollection}.
+   * @param options the general job configuration options.
+   * @param input the input Beam {@link org.apache.beam.sdk.values.PCollection}.
    * @param groupedStreamByKey the input stream, it is assumed to already be grouped by key.
+   * @param <K> the key type.
+   * @param <InputT> the input type.
+   * @return a {@link DataStream} with the {@link WindowedValue} key-value pair.
    */
-  public static <K, VIN> DataStream<WindowedValue<KV<K, Iterable<VIN>>>> createForIterable(
+  public static <K, InputT> DataStream<WindowedValue<KV<K, Iterable<InputT>>>> createForIterable(
       PipelineOptions options,
       PCollection input,
-      KeyedStream<WindowedValue<KV<K, VIN>>, K> groupedStreamByKey) {
+      KeyedStream<WindowedValue<KV<K, InputT>>, K> groupedStreamByKey) {
     Preconditions.checkNotNull(options);
 
-    KvCoder<K, VIN> inputKvCoder = (KvCoder<K, VIN>) input.getCoder();
+    KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) input.getCoder();
     Coder<K> keyCoder = inputKvCoder.getKeyCoder();
-    Coder<VIN> inputValueCoder = inputKvCoder.getValueCoder();
+    Coder<InputT> inputValueCoder = inputKvCoder.getValueCoder();
 
     FlinkGroupAlsoByWindowWrapper windower = new FlinkGroupAlsoByWindowWrapper(options,
         input.getPipeline().getCoderRegistry(), input.getWindowingStrategy(), inputKvCoder, null);
 
-    Coder<Iterable<VIN>> valueIterCoder = IterableCoder.of(inputValueCoder);
-    KvCoder<K, Iterable<VIN>> outputElemCoder = KvCoder.of(keyCoder, valueIterCoder);
+    Coder<Iterable<InputT>> valueIterCoder = IterableCoder.of(inputValueCoder);
+    KvCoder<K, Iterable<InputT>> outputElemCoder = KvCoder.of(keyCoder, valueIterCoder);
 
-    Coder<WindowedValue<KV<K, Iterable<VIN>>>> windowedOutputElemCoder = WindowedValue.FullWindowedValueCoder.of(
-        outputElemCoder,
-        input.getWindowingStrategy().getWindowFn().windowCoder());
+    Coder<WindowedValue<KV<K, Iterable<InputT>>>> windowedOutputElemCoder =
+        WindowedValue.FullWindowedValueCoder.of(
+            outputElemCoder,
+            input.getWindowingStrategy().getWindowFn().windowCoder());
 
-    CoderTypeInformation<WindowedValue<KV<K, Iterable<VIN>>>> outputTypeInfo =
+    CoderTypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
         new CoderTypeInformation<>(windowedOutputElemCoder);
 
-    DataStream<WindowedValue<KV<K, Iterable<VIN>>>> groupedByKeyAndWindow = groupedStreamByKey
+    DataStream<WindowedValue<KV<K, Iterable<InputT>>>> groupedByKeyAndWindow = groupedStreamByKey
         .transform("GroupByWindow",
             new CoderTypeInformation<>(windowedOutputElemCoder),
             windower)
@@ -218,28 +246,32 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     return groupedByKeyAndWindow;
   }
 
-  public static <K, VIN, VACC, VOUT> FlinkGroupAlsoByWindowWrapper
+  public static <K, InputT, AccumT, OutputT> FlinkGroupAlsoByWindowWrapper
   createForTesting(PipelineOptions options,
                    CoderRegistry registry,
-                   WindowingStrategy<KV<K, VIN>, BoundedWindow> windowingStrategy,
-                   KvCoder<K, VIN> inputCoder,
-                   Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner) {
+                   WindowingStrategy<KV<K, InputT>, BoundedWindow> windowingStrategy,
+                   KvCoder<K, InputT> inputCoder,
+                   Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combiner) {
     Preconditions.checkNotNull(options);
 
-    return new FlinkGroupAlsoByWindowWrapper(options, registry, windowingStrategy, inputCoder, combiner);
+    return new FlinkGroupAlsoByWindowWrapper(options,
+        registry, windowingStrategy, inputCoder, combiner);
   }
 
-  private FlinkGroupAlsoByWindowWrapper(PipelineOptions options,
-                                        CoderRegistry registry,
-                                        WindowingStrategy<KV<K, VIN>, BoundedWindow> windowingStrategy,
-                                        KvCoder<K, VIN> inputCoder,
-                                        Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner) {
+  private FlinkGroupAlsoByWindowWrapper(
+      PipelineOptions options,
+      CoderRegistry registry,
+      WindowingStrategy<KV<K, InputT>, BoundedWindow> windowingStrategy,
+      KvCoder<K, InputT> inputCoder,
+      Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combiner) {
     Preconditions.checkNotNull(options);
 
     this.serializedOptions = new SerializedPipelineOptions(Preconditions.checkNotNull(options));
     this.coderRegistry = Preconditions.checkNotNull(registry);
-    this.inputKvCoder = Preconditions.checkNotNull(inputCoder);//(KvCoder<K, VIN>) input.getCoder();
-    this.windowingStrategy = Preconditions.checkNotNull(windowingStrategy);//input.getWindowingStrategy();
+    this.inputKvCoder =
+        Preconditions.checkNotNull(inputCoder); //(KvCoder<K, InputT>) input.getCoder();
+    this.windowingStrategy =
+        Preconditions.checkNotNull(windowingStrategy); //input.getWindowingStrategy();
     this.combineFn = combiner;
     this.operator = createGroupAlsoByWindowOperator();
     this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -248,7 +280,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   @Override
   public void open() throws Exception {
     super.open();
-    this.context = new ProcessContext(operator, new TimestampedCollector<>(output), this.timerInternals);
+    this.context =
+        new ProcessContext(operator, new TimestampedCollector<>(output), this.timerInternals);
     operator.startBundle(context);
   }
 
@@ -259,38 +292,42 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
    * a function with that combiner is created, so that elements are combined as they arrive. This is
    * done for speed and (in most of the cases) for reduction of the per-window state.
    */
-  private <W extends BoundedWindow> DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> createGroupAlsoByWindowOperator() {
+  private <W extends BoundedWindow> DoFn<KeyedWorkItem<K, InputT>,
+      KV<K, OutputT>> createGroupAlsoByWindowOperator() {
     if (this.operator == null) {
       if (this.combineFn == null) {
-        // Thus VOUT == Iterable<VIN>
-        Coder<VIN> inputValueCoder = inputKvCoder.getValueCoder();
+        // Thus OutputT == Iterable<InputT>
+        Coder<InputT> inputValueCoder = inputKvCoder.getValueCoder();
 
         this.operator = (DoFn) GroupAlsoByWindowViaWindowSetDoFn.create(
-            (WindowingStrategy<?, W>) this.windowingStrategy, SystemReduceFn.<K, VIN, W>buffering(inputValueCoder));
+            (WindowingStrategy<?, W>) this.windowingStrategy,
+            SystemReduceFn.<K, InputT, W>buffering(inputValueCoder));
       } else {
         Coder<K> inputKeyCoder = inputKvCoder.getKeyCoder();
 
-        AppliedCombineFn<K, VIN, VACC, VOUT> appliedCombineFn = AppliedCombineFn
+        AppliedCombineFn<K, InputT, AccumT, OutputT> appliedCombineFn = AppliedCombineFn
             .withInputCoder(combineFn, coderRegistry, inputKvCoder);
 
         this.operator = GroupAlsoByWindowViaWindowSetDoFn.create(
-            (WindowingStrategy<?, W>) this.windowingStrategy, SystemReduceFn.<K, VIN, VACC, VOUT, W>combining(inputKeyCoder, appliedCombineFn));
+            (WindowingStrategy<?, W>) this.windowingStrategy,
+            SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(
+                inputKeyCoder, appliedCombineFn));
       }
     }
     return this.operator;
   }
 
-  private void processKeyedWorkItem(KeyedWorkItem<K, VIN> workItem) throws Exception {
+  private void processKeyedWorkItem(KeyedWorkItem<K, InputT> workItem) throws Exception {
     context.setElement(workItem, getStateInternalsForKey(workItem.key()));
     operator.processElement(context);
   }
 
   @Override
-  public void processElement(StreamRecord<WindowedValue<KV<K, VIN>>> element) throws Exception {
-    final WindowedValue<KV<K, VIN>> windowedValue = element.getValue();
-    final KV<K, VIN> kv = windowedValue.getValue();
+  public void processElement(StreamRecord<WindowedValue<KV<K, InputT>>> element) throws Exception {
+    final WindowedValue<KV<K, InputT>> windowedValue = element.getValue();
+    final KV<K, InputT> kv = windowedValue.getValue();
 
-    final WindowedValue<VIN> updatedWindowedValue = WindowedValue.of(kv.getValue(),
+    final WindowedValue<InputT> updatedWindowedValue = WindowedValue.of(kv.getValue(),
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
         windowedValue.getPane());
@@ -308,13 +345,13 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     Multimap<K, TimerInternals.TimerData> timers = getTimersReadyToProcess(mark.getTimestamp());
     if (!timers.isEmpty()) {
       for (K key : timers.keySet()) {
-        processKeyedWorkItem(KeyedWorkItems.<K, VIN>timersWorkItem(key, timers.get(key)));
+        processKeyedWorkItem(KeyedWorkItems.<K, InputT>timersWorkItem(key, timers.get(key)));
       }
     }
 
     /**
      * This is to take into account the different semantics of the Watermark in Flink and
-     * in Dataflow. To understand the reasoning behind the Dataflow semantics and its
+     * in Beam. To understand the reasoning behind the Beam semantics and its
      * watermark holding logic, see the documentation of
      * {@link WatermarkHold#addHold(ReduceFn.ProcessValueContext, boolean)}
      * */
@@ -411,15 +448,20 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   private FlinkStateInternals<K> getStateInternalsForKey(K key) {
     FlinkStateInternals<K> stateInternals = perKeyStateInternals.get(key);
     if (stateInternals == null) {
-      Coder<? extends BoundedWindow> windowCoder = this.windowingStrategy.getWindowFn().windowCoder();
+      Coder<? extends BoundedWindow> windowCoder =
+          this.windowingStrategy.getWindowFn().windowCoder();
       OutputTimeFn<? super BoundedWindow> outputTimeFn = this.windowingStrategy.getOutputTimeFn();
-      stateInternals = new FlinkStateInternals<>(key, inputKvCoder.getKeyCoder(), windowCoder, outputTimeFn);
+      stateInternals = new FlinkStateInternals<>(
+          key,
+          inputKvCoder.getKeyCoder(),
+          windowCoder,
+          outputTimeFn);
       perKeyStateInternals.put(key, stateInternals);
     }
     return stateInternals;
   }
 
-  private class FlinkTimerInternals extends AbstractFlinkTimerInternals<K, VIN> {
+  private class FlinkTimerInternals extends AbstractFlinkTimerInternals<K, InputT> {
     @Override
     public void setTimer(TimerData timerKey) {
       registerActiveTimer(context.element().key(), timerKey);
@@ -431,18 +473,21 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     }
   }
 
-  private class ProcessContext extends GroupAlsoByWindowViaWindowSetDoFn<K, VIN, VOUT, ?, KeyedWorkItem<K, VIN>>.ProcessContext {
+  private class ProcessContext
+      extends
+      GroupAlsoByWindowViaWindowSetDoFn<K, InputT, OutputT, ?, KeyedWorkItem<K, InputT>>
+          .ProcessContext {
 
     private final FlinkTimerInternals timerInternals;
 
-    private final TimestampedCollector<WindowedValue<KV<K, VOUT>>> collector;
+    private final TimestampedCollector<WindowedValue<KV<K, OutputT>>> collector;
 
     private FlinkStateInternals<K> stateInternals;
 
-    private KeyedWorkItem<K, VIN> element;
+    private KeyedWorkItem<K, InputT> element;
 
-    public ProcessContext(DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> function,
-                          TimestampedCollector<WindowedValue<KV<K, VOUT>>> outCollector,
+    public ProcessContext(DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> function,
+                          TimestampedCollector<WindowedValue<KV<K, OutputT>>> outCollector,
                           FlinkTimerInternals timerInternals) {
       function.super();
       super.setupDelegateAggregators();
@@ -451,7 +496,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       this.timerInternals = Preconditions.checkNotNull(timerInternals);
     }
 
-    public void setElement(KeyedWorkItem<K, VIN> element,
+    public void setElement(KeyedWorkItem<K, InputT> element,
                            FlinkStateInternals<K> stateForKey) {
       this.element = element;
       this.stateInternals = stateForKey;
@@ -466,13 +511,14 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     }
 
     @Override
-    public KeyedWorkItem<K, VIN> element() {
+    public KeyedWorkItem<K, InputT> element() {
       return this.element;
     }
 
     @Override
     public Instant timestamp() {
-      throw new UnsupportedOperationException("timestamp() is not available when processing KeyedWorkItems.");
+      throw new UnsupportedOperationException(
+          "timestamp() is not available when processing KeyedWorkItems.");
     }
 
     @Override
@@ -481,20 +527,21 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     }
 
     @Override
-    public void output(KV<K, VOUT> output) {
+    public void output(KV<K, OutputT> output) {
       throw new UnsupportedOperationException(
           "output() is not available when processing KeyedWorkItems.");
     }
 
     @Override
-    public void outputWithTimestamp(KV<K, VOUT> output, Instant timestamp) {
+    public void outputWithTimestamp(KV<K, OutputT> output, Instant timestamp) {
       throw new UnsupportedOperationException(
           "outputWithTimestamp() is not available when processing KeyedWorkItems.");
     }
 
     @Override
     public PaneInfo pane() {
-      throw new UnsupportedOperationException("pane() is not available when processing KeyedWorkItems.");
+      throw new UnsupportedOperationException(
+          "pane() is not available when processing KeyedWorkItems.");
     }
 
     @Override
@@ -504,8 +551,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     }
 
     @Override
-    public WindowingInternals<KeyedWorkItem<K, VIN>, KV<K, VOUT>> windowingInternals() {
-      return new WindowingInternals<KeyedWorkItem<K, VIN>, KV<K, VOUT>>() {
+    public WindowingInternals<KeyedWorkItem<K, InputT>, KV<K, OutputT>> windowingInternals() {
+      return new WindowingInternals<KeyedWorkItem<K, InputT>, KV<K, OutputT>>() {
 
         @Override
         public org.apache.beam.sdk.util.state.StateInternals stateInternals() {
@@ -513,7 +560,10 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
         }
 
         @Override
-        public void outputWindowedValue(KV<K, VOUT> output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+        public void outputWindowedValue(
+            KV<K, OutputT> output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows, PaneInfo pane) {
           // TODO: No need to represent timestamp twice.
           collector.setAbsoluteTimestamp(timestamp.getMillis());
           collector.collect(WindowedValue.of(output, timestamp, windows, pane));
@@ -536,7 +586,9 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
         }
 
         @Override
-        public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+        public <T> void writePCollectionViewData(
+            TupleTag<?> tag,
+            Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
           throw new RuntimeException("writePCollectionViewData() not available in Streaming mode.");
         }
 
@@ -565,7 +617,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     }
 
     @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
       Accumulator acc = getRuntimeContext().getAccumulator(name);
       if (acc != null) {
         AccumulatorHelper.compareAccumulatorTypes(name,
@@ -585,7 +638,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   @Override
   public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
     StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-    AbstractStateBackend.CheckpointStateOutputView out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+    AbstractStateBackend.CheckpointStateOutputView out =
+        getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
     StateCheckpointWriter writer = StateCheckpointWriter.create(out);
     Coder<K> keyCoder = inputKvCoder.getKeyCoder();
 
@@ -613,7 +667,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     Coder<K> keyCoder = inputKvCoder.getKeyCoder();
 
     @SuppressWarnings("unchecked")
-    StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
+    StateHandle<DataInputView> inputState =
+        (StateHandle<DataInputView>) taskState.getOperatorState();
     DataInputView in = inputState.getState(userClassloader);
     StateCheckpointReader reader = new StateCheckpointReader(in);
 

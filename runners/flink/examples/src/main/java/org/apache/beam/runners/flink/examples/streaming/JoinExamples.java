@@ -42,21 +42,21 @@ import org.joda.time.Duration;
 
 /**
  * To run the example, first open two sockets on two terminals by executing the commands:
- * <li>
- *     <li>
- *         <code>nc -lk 9999</code>, and
- *     </li>
- *     <li>
- *         <code>nc -lk 9998</code>
- *     </li>
- * </li>
+ * <ul>
+ *  <li>
+ *    <code>nc -lk 9999</code>, and
+ *  </li>
+ *  <li>
+ *    <code>nc -lk 9998</code>
+ *  </li>
+ * </ul>
  * and then launch the example. Now whatever you type in the terminal is going to be
  * the input to the program.
- * */
+ */
 public class JoinExamples {
 
   static PCollection<String> joinEvents(PCollection<String> streamA,
-                      PCollection<String> streamB) throws Exception {
+                                        PCollection<String> streamB) throws Exception {
 
     final TupleTag<String> firstInfoTag = new TupleTag<>();
     final TupleTag<String> secondInfoTag = new TupleTag<>();
@@ -140,7 +140,8 @@ public class JoinExamples {
     PTransform<? super PBegin, PCollection<String>> readSourceB =
         Read.from(new UnboundedSocketSource<>("localhost", 9998, '\n', 3)).named("SecondStream");
 
-    WindowFn<Object, ?> windowFn = FixedWindows.of(Duration.standardSeconds(options.getWindowSize()));
+    WindowFn<Object, ?> windowFn = FixedWindows.of(Duration.standardSeconds(options.getWindowSize
+        ()));
 
     Pipeline p = Pipeline.create(options);
 
