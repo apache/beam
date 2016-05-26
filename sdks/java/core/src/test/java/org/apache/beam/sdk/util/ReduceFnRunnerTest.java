@@ -48,6 +48,8 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -62,6 +64,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1199,6 +1202,116 @@ public class ReduceFnRunnerTest {
     assertThat(
         output.get(3),
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 3, 2)));
+  }
+
+  /**
+   * We should fire a non-empty ON_TIME pane in the GlobalWindow when the watermark moves to
+   * end-of-time.
+   */
+  @Test
+  public void fireNonEmptyOnDrainInGlobalWindow() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
+        ReduceFnTester.nonCombining(
+            WindowingStrategy.of(new GlobalWindows())
+                             .withTrigger(Repeatedly.<GlobalWindow>forever(
+                                 AfterPane.elementCountAtLeast(3)))
+                             .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
+
+    tester.advanceInputWatermark(new Instant(0));
+
+    final int n = 20;
+    for (int i = 0; i < n; i++) {
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+    }
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals(n / 3, output.size());
+    for (int i = 0; i < output.size(); i++) {
+      assertEquals(Timing.EARLY, output.get(i).getPane().getTiming());
+      assertEquals(i, output.get(i).getPane().getIndex());
+      assertEquals(3, Iterables.size(output.get(i).getValue()));
+    }
+
+    tester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    output = tester.extractOutput();
+    assertEquals(1, output.size());
+    assertEquals(Timing.ON_TIME, output.get(0).getPane().getTiming());
+    assertEquals(n / 3, output.get(0).getPane().getIndex());
+    assertEquals(n - ((n / 3) * 3), Iterables.size(output.get(0).getValue()));
+  }
+
+  /**
+   * We should fire an empty ON_TIME pane in the GlobalWindow when the watermark moves to
+   * end-of-time.
+   */
+  @Test
+  public void fireEmptyOnDrainInGlobalWindowIfRequested() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
+        ReduceFnTester.nonCombining(
+            WindowingStrategy.of(new GlobalWindows())
+                             .withTrigger(Repeatedly.<GlobalWindow>forever(
+                                 AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
+                                     new Duration(3))))
+                             .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
+
+    final int n = 20;
+    for (int i = 0; i < n; i++) {
+      tester.advanceProcessingTime(new Instant(i));
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+    }
+    tester.advanceProcessingTime(new Instant(n + 4));
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals((n + 3) / 4, output.size());
+    for (int i = 0; i < output.size(); i++) {
+      assertEquals(Timing.EARLY, output.get(i).getPane().getTiming());
+      assertEquals(i, output.get(i).getPane().getIndex());
+      assertEquals(4, Iterables.size(output.get(i).getValue()));
+    }
+
+    tester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    output = tester.extractOutput();
+    assertEquals(1, output.size());
+    assertEquals(Timing.ON_TIME, output.get(0).getPane().getTiming());
+    assertEquals((n + 3) / 4, output.get(0).getPane().getIndex());
+    assertEquals(0, Iterables.size(output.get(0).getValue()));
+  }
+
+  /**
+   * Late elements should still have a garbage collection hold set so that they
+   * can make a late pane rather than be dropped due to lateness.
+   */
+  @Test
+  public void setGarbageCollectionHoldOnLateElements() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(
+            FixedWindows.of(Duration.millis(10)),
+            AfterWatermark.pastEndOfWindow().withLateFirings(AfterPane.elementCountAtLeast(2)),
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
+
+    tester.advanceInputWatermark(new Instant(0));
+    tester.advanceOutputWatermark(new Instant(0));
+    tester.injectElements(TimestampedValue.of(1,  new Instant(1)));
+
+    // Fire ON_TIME pane @ 9 with 1
+
+    tester.advanceInputWatermark(new Instant(109));
+    tester.advanceOutputWatermark(new Instant(109));
+    tester.injectElements(TimestampedValue.of(2,  new Instant(2)));
+    // We should have set a garbage collection hold for the final pane.
+    Instant hold = tester.getWatermarkHold();
+    assertEquals(new Instant(109), hold);
+
+    tester.advanceInputWatermark(new Instant(110));
+    tester.advanceOutputWatermark(new Instant(110));
+
+    // Fire final LATE pane @ 9 with 2
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals(2, output.size());
   }
 
   private static class SumAndVerifyContextFn extends CombineFnWithContext<Integer, int[], Integer> {
