@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import org.apache.avro.reflect.Nullable;
 import org.slf4j.Logger;
@@ -168,7 +168,8 @@ public class UserScore {
       return gameInfo
         .apply(MapElements
             .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore()))
-            .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}))
+            .withOutputType(
+                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())))
         .apply(Sum.<String>integersPerKey());
     }
   }
