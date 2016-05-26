@@ -19,6 +19,11 @@
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
 
+# String constants related to sources framework
+SOURCE_FORMAT = 'custom_source'
+SOURCE_TYPE = 'CustomSourcesType'
+SERIALIZED_SOURCE_KEY = 'serialized_source'
+
 
 class TransformNames(object):
   """Transform strings as they are expected in the CloudWorkflow protos."""
@@ -61,6 +66,7 @@ class PropertyNames(object):
   PUBSUB_ID_LABEL = 'pubsub_id_label'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
+  SOURCE_STEP_INPUT = 'custom_source_step_input'
   STEP_NAME = 'step_name'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'

@@ -201,6 +201,7 @@ class ProgressReporter(object):
   def report_status(self,
                     completed=False,
                     progress=None,
+                    source_operation_response=None,
                     exception_details=None):
     """Reports to the service status of a work item (completion or progress).
 
@@ -209,6 +210,7 @@ class ProgressReporter(object):
         either because it succeeded or because it failed. False if this is a
         progress report.
       progress: Progress of processing the work_item.
+      source_operation_response: Response to a custom source operation
       exception_details: A string representation of the stack trace for an
         exception raised while executing the work item. The string is the
         output of the standard traceback.format_exc() function.
@@ -226,7 +228,8 @@ class ProgressReporter(object):
         completed,
         progress if not completed else None,
         self.dynamic_split_result_to_report if not completed else None,
-        exception_details)
+        source_operation_response=source_operation_response,
+        exception_details=exception_details)
 
     # Resetting dynamic_split_result_to_report after reporting status
     # successfully.
@@ -368,6 +371,7 @@ class BatchWorker(object):
       self,
       current_work_item,
       progress_reporter,
+      source_operation_response=None,
       exception_details=None):
     """Reports to the service a work item completion (successful or failed).
 
@@ -383,6 +387,7 @@ class BatchWorker(object):
       current_work_item: A WorkItem instance describing the work.
       progress_reporter: A ProgressReporter configured to process work item
         current_work_item.
+      source_operation_response: Response to a custom source operation.
       exception_details: A string representation of the stack trace for an
         exception raised while executing the work item. The string is the
         output of the standard traceback.format_exc() function.
@@ -395,8 +400,10 @@ class BatchWorker(object):
                  'successfully' if exception_details is None
                  else 'with exception')
 
-    progress_reporter.report_status(completed=True,
-                                    exception_details=exception_details)
+    progress_reporter.report_status(
+        completed=True,
+        source_operation_response=source_operation_response,
+        exception_details=exception_details)
 
   @staticmethod
   def log_memory_usage_if_needed(worker_id, force=False):
@@ -416,12 +423,21 @@ class BatchWorker(object):
   def shutdown(self):
     self._shutdown = True
 
+  def get_executor_for_work_item(self, work_item):
+    if work_item.map_task is not None:
+      return executor.MapTaskExecutor(work_item.map_task)
+    elif work_item.source_operation_split_task is not None:
+      return executor.CustomSourceSplitExecutor(
+          work_item.source_operation_split_task)
+    else:
+      raise ValueError('Unknown type of work item : %s', work_item)
+
   def do_work(self, work_item, deferred_exception_details=None):
     """Executes worker operations and adds any failures to the report status."""
     logging.info('Executing %s', work_item)
     BatchWorker.log_memory_usage_if_needed(self.worker_id, force=True)
 
-    work_executor = executor.MapTaskExecutor()
+    work_executor = self.get_executor_for_work_item(work_item)
     progress_reporter = ProgressReporter(
         work_item, work_executor, self, self.client)
 
@@ -441,7 +457,7 @@ class BatchWorker(object):
     exception_details = None
     try:
       progress_reporter.start_reporting_progress()
-      work_executor.execute(work_item.map_task)
+      work_executor.execute()
     except Exception:  # pylint: disable=broad-except
       exception_details = traceback.format_exc()
       logging.error('An exception was raised when trying to execute the '
@@ -464,8 +480,14 @@ class BatchWorker(object):
           exception_details = traceback.format_exc()
 
       with work_item.lock:
-        self.report_completion_status(work_item, progress_reporter,
-                                      exception_details=exception_details)
+        source_split_response = None
+        if isinstance(work_executor, executor.CustomSourceSplitExecutor):
+          source_split_response = work_executor.response
+
+        self.report_completion_status(
+            work_item, progress_reporter,
+            source_operation_response=source_split_response,
+            exception_details=exception_details)
         work_item.done = True
 
   def status_server(self):
@@ -559,9 +581,13 @@ class BatchWorker(object):
           time.sleep(1.0 * (1 - 0.5 * random.random()))
           continue
 
+        stage_name = None
+        if work_item.map_task:
+          stage_name = work_item.map_task.stage_name
+
         with logger.PerThreadLoggingContext(
             work_item_id=work_item.proto.id,
-            stage_name=work_item.map_task.stage_name):
+            stage_name=stage_name):
           # TODO(silviuc): Add more detailed timing and profiling support.
           start_time = time.time()
 

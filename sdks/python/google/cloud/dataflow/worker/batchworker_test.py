@@ -87,9 +87,9 @@ class BatchWorkerTest(unittest.TestCase):
     worker.do_work(mock_work_item)
 
     mock_report_status.assert_called_with(
-        completed=True, exception_details=None)
+        completed=True, source_operation_response=None, exception_details=None)
     mock_start.assert_called_once_with()
-    mock_execute.assert_called_once_with(mock.ANY)
+    mock_execute.assert_called_once_with()
     mock_stop.assert_called_once_with()
 
   @patch.object(executor.MapTaskExecutor, 'execute')
@@ -103,7 +103,9 @@ class BatchWorkerTest(unittest.TestCase):
     worker.do_work(mock_work_item, deferred_exception_details='deferred_exc')
 
     mock_report_status.assert_called_with(
-        completed=True, exception_details='deferred_exc')
+        completed=True,
+        source_operation_response=None,
+        exception_details='deferred_exc')
     assert not mock_stop.called
     assert not mock_start.called
     assert not mock_execute.called
@@ -121,10 +123,11 @@ class BatchWorkerTest(unittest.TestCase):
 
     mock_report_status.assert_called_with(
         completed=True,
+        source_operation_response=None,
         exception_details=AnyStringWith(expected_exception))
 
     mock_start.assert_called_once_with()
-    mock_execute.assert_called_once_with(mock.ANY)
+    mock_execute.assert_called_once_with()
     mock_stop.assert_called_once_with()
 
   @patch.object(executor.MapTaskExecutor, 'execute')
@@ -167,8 +170,8 @@ class ProgressReporterTest(unittest.TestCase):
   @patch.object(batchworker.ProgressReporter, 'process_report_status_response')
   def test_progress_reporter_reports_progress(
       self, mock_report_response, mock_next_progress):  # pylint: disable=unused-argument
-    work_item = workitem.BatchWorkItem(
-        proto=mock.MagicMock(), map_task=mock.MagicMock())
+    work_item = workitem.BatchWorkItem(proto=mock.MagicMock())
+    work_item.map_task = mock.MagicMock()
     mock_work_executor = mock.MagicMock()
     mock_batch_worker = mock.MagicMock()
     mock_client = mock.MagicMock()
@@ -181,7 +184,8 @@ class ProgressReporterTest(unittest.TestCase):
     time.sleep(10)
     progress_reporter.stop_reporting_progress()
     mock_client.report_status.assert_called_with(
-        mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
+        mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY,
+        exception_details=mock.ANY, source_operation_response=mock.ANY)
 
   @patch.object(batchworker.ProgressReporter, 'next_progress_report_interval')
   @patch.object(batchworker.ProgressReporter, 'process_report_status_response')
@@ -200,7 +204,7 @@ class ProgressReporterTest(unittest.TestCase):
     progress_reporter.stop_reporting_progress()
     mock_client.report_status.assert_called_with(
         mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock_split_result,
-        mock.ANY)
+        exception_details=mock.ANY, source_operation_response=mock.ANY)
 
 
 if __name__ == '__main__':

@@ -26,7 +26,9 @@ from google.cloud.dataflow import pvalue
 from google.cloud.dataflow.coders import BytesCoder
 from google.cloud.dataflow.coders import TupleCoder
 from google.cloud.dataflow.coders import WindowedValueCoder
+from google.cloud.dataflow.internal import apiclient
 from google.cloud.dataflow.internal import pickler
+from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.runners import common
 import google.cloud.dataflow.transforms as ptransform
@@ -727,8 +729,21 @@ class StreamingGroupAlsoByWindowsOperation(Operation):
         self.output(wvalue.with_value((key, wvalue.value)))
 
 
-class MapTaskExecutor(object):
-  """A class for executing map tasks.
+class Executor(object):
+  """An abstract executor for WorkItem tasks."""
+
+  def execute(self):
+    raise NotImplementedError
+
+  def get_progress(self):
+    pass
+
+  def request_dynamic_split(self, dynamic_split_request):  # pylint:disable=unused-argument
+    pass
+
+
+class MapTaskExecutor(Executor):
+  """An executor for map tasks.
 
    Stores progress of the read operation that is the first operation of a map
    task.
@@ -737,9 +752,23 @@ class MapTaskExecutor(object):
   multiple_read_instruction_error_msg = (
       'Found more than one \'read instruction\' in a single \'map task\'')
 
-  def __init__(self):
+  def __init__(
+      self, map_task, test_shuffle_source=None, test_shuffle_sink=None):
+    """Initializes MapTaskExecutor.
+
+    Args:
+      map_task: The map task we are to run.
+      test_shuffle_source: Used during tests for dependency injection into
+        shuffle read operation objects.
+      test_shuffle_sink: Used during tests for dependency injection into
+        shuffle write operation objects.
+    """
+
     self._ops = []
     self._read_operation = None
+    self._test_shuffle_source = test_shuffle_source
+    self._test_shuffle_sink = test_shuffle_sink
+    self._map_task = map_task
 
   def get_progress(self):
     return (self._read_operation.get_progress()
@@ -749,17 +778,10 @@ class MapTaskExecutor(object):
     if self._read_operation is not None:
       return self._read_operation.request_dynamic_split(dynamic_split_request)
 
-  def execute(self, map_task, test_shuffle_source=None, test_shuffle_sink=None):
+  def execute(self):
     """Executes all the maptask.Worker* instructions in a map task.
 
     We update the map_task with the execution status, expressed as counters.
-
-    Args:
-      map_task: The map task we are to run.
-      test_shuffle_source: Used during tests for dependency injection into
-        shuffle read operation objects.
-      test_shuffle_sink: Used during tests for dependency injection into
-        shuffle write operation objects.
 
     Raises:
       RuntimeError: if we find more than on read instruction in task spec.
@@ -769,25 +791,27 @@ class MapTaskExecutor(object):
 
     # operations is a list of maptask.Worker* instances. The order of the
     # elements is important because the inputs use list indexes as references.
-    for spec in map_task.operations:
+
+    for spec in self._map_task.operations:
       if isinstance(spec, maptask.WorkerRead):
-        op = ReadOperation(spec, map_task.counter_factory)
+        op = ReadOperation(spec, self._map_task.counter_factory)
         if self._read_operation is not None:
           raise RuntimeError(
               MapTaskExecutor.multiple_read_instruction_error_msg)
         else:
           self._read_operation = op
       elif isinstance(spec, maptask.WorkerWrite):
-        op = WriteOperation(spec, map_task.counter_factory)
+        op = WriteOperation(spec, self._map_task.counter_factory)
       elif isinstance(spec, maptask.WorkerCombineFn):
-        op = CombineOperation(spec, map_task.counter_factory)
+        op = CombineOperation(spec, self._map_task.counter_factory)
       elif isinstance(spec, maptask.WorkerPartialGroupByKey):
-        op = create_pgbk_op(spec, map_task.counter_factory)
+        op = create_pgbk_op(spec, self._map_task.counter_factory)
       elif isinstance(spec, maptask.WorkerDoFn):
-        op = DoOperation(spec, map_task.counter_factory)
+        op = DoOperation(spec, self._map_task.counter_factory)
       elif isinstance(spec, maptask.WorkerGroupingShuffleRead):
         op = GroupedShuffleReadOperation(
-            spec, map_task.counter_factory, shuffle_source=test_shuffle_source)
+            spec, self._map_task.counter_factory,
+            shuffle_source=self._test_shuffle_source)
         if self._read_operation is not None:
           raise RuntimeError(
               MapTaskExecutor.multiple_read_instruction_error_msg)
@@ -795,29 +819,33 @@ class MapTaskExecutor(object):
           self._read_operation = op
       elif isinstance(spec, maptask.WorkerUngroupedShuffleRead):
         op = UngroupedShuffleReadOperation(
-            spec, map_task.counter_factory, shuffle_source=test_shuffle_source)
+            spec, self._map_task.counter_factory,
+            shuffle_source=self._test_shuffle_source)
         if self._read_operation is not None:
           raise RuntimeError(
               MapTaskExecutor.multiple_read_instruction_error_msg)
         else:
           self._read_operation = op
       elif isinstance(spec, maptask.WorkerInMemoryWrite):
-        op = InMemoryWriteOperation(spec, map_task.counter_factory)
+        op = InMemoryWriteOperation(spec, self._map_task.counter_factory)
       elif isinstance(spec, maptask.WorkerShuffleWrite):
         op = ShuffleWriteOperation(
-            spec, map_task.counter_factory, shuffle_sink=test_shuffle_sink)
+            spec, self._map_task.counter_factory,
+            shuffle_sink=self._test_shuffle_sink)
       elif isinstance(spec, maptask.WorkerFlatten):
-        op = FlattenOperation(spec, map_task.counter_factory)
+        op = FlattenOperation(spec, self._map_task.counter_factory)
       elif isinstance(spec, maptask.WorkerMergeWindows):
         if isinstance(spec.context, maptask.BatchExecutionContext):
-          op = BatchGroupAlsoByWindowsOperation(spec, map_task.counter_factory)
+          op = BatchGroupAlsoByWindowsOperation(
+              spec, self._map_task.counter_factory)
         elif isinstance(spec.context, maptask.StreamingExecutionContext):
-          op = StreamingGroupAlsoByWindowsOperation(spec,
-                                                    map_task.counter_factory)
+          op = StreamingGroupAlsoByWindowsOperation(
+              spec, self._map_task.counter_factory)
         else:
           raise RuntimeError('Unknown execution context: %s' % spec.context)
       elif isinstance(spec, maptask.WorkerReifyTimestampAndWindows):
-        op = ReifyTimestampAndWindowsOperation(spec, map_task.counter_factory)
+        op = ReifyTimestampAndWindowsOperation(
+            spec, self._map_task.counter_factory)
       else:
         raise TypeError('Expected an instance of maptask.Worker* class '
                         'instead of %s' % (spec,))
@@ -837,9 +865,9 @@ class MapTaskExecutor(object):
 
     # Inject the step names into the operations.
     # This is used for logging and assigning names to counters.
-    if map_task.step_names is not None:
+    if self._map_task.step_names is not None:
       for ix, op in enumerate(self._ops):
-        op.step_name = map_task.step_names[ix]
+        op.step_name = self._map_task.step_names[ix]
 
     ix = len(self._ops)
     for op in reversed(self._ops):
@@ -848,3 +876,29 @@ class MapTaskExecutor(object):
       op.start()
     for op in self._ops:
       op.finish(*())
+
+
+class CustomSourceSplitExecutor(Executor):
+  """An executor for custom source split requests."""
+
+  def __init__(self, split_task):
+    self.response = None
+    self._split_task = split_task
+
+  def execute(self):
+    self.response = self._perform_source_split(self._split_task)
+
+  def _perform_source_split(self, source_operation_split_task):
+    """Splits a source into a set of bundles."""
+
+    source = source_operation_split_task.source
+
+    splits = []
+    for split in source.split(
+        source_operation_split_task.desired_bundle_size_bytes):
+      assert isinstance(split, iobase.SourceBundle)
+      assert isinstance(split.weight, int) or  isinstance(split.weight, float)
+      assert isinstance(split.source, iobase.BoundedSource)
+      splits.append(split)
+
+    return apiclient.splits_to_split_response(splits)

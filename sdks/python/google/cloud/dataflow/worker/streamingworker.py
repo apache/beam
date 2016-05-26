@@ -225,10 +225,9 @@ class StreamingWorker(object):
                   output_data_watermark, workitem_commit_request,
                   self.windmill, state)
 
-    map_task_executor = executor.MapTaskExecutor()
     map_task = maptask.decode_map_task(map_task_proto, env, context)
-
-    map_task_executor.execute(map_task)
+    map_task_executor = executor.MapTaskExecutor(map_task)
+    map_task_executor.execute()
     state_internals.persist_to(workitem_commit_request)
 
     # Send result to Windmill.

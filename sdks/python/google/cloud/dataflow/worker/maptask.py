@@ -23,12 +23,16 @@ import collections
 
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import io
+from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.internal.json_value import from_json_value
 from google.cloud.dataflow.io import fileio
+from google.cloud.dataflow.io import iobase
+from google.cloud.dataflow.utils import names
 from google.cloud.dataflow.utils.counters import CounterFactory
 from google.cloud.dataflow.worker import concat_reader
 from google.cloud.dataflow.worker import inmemory
 from google.cloud.dataflow.worker import windmillio
+from google.cloud.dataflow.worker import workercustomsources
 
 
 def build_worker_instruction(*args):
@@ -386,10 +390,22 @@ def get_output_coders(work):
           for output in work.outputs]
 
 
+def get_custom_source_read_spec(source_spec):
+  source_info = pickler.loads(source_spec['serialized_source']['value'])
+  assert isinstance(source_info, tuple)
+  assert len(source_info) == 3
+  assert isinstance(source_info[0], iobase.BoundedSource)
+  return WorkerRead(
+      workercustomsources.NativeBoundedSource(source_info[0],
+                                              source_info[1],
+                                              source_info[2]),
+      [source_info[0].default_output_coder()])
+
+
 def get_read_work_item(work, env, context):
   """Parses a read parallel instruction into the appropriate Worker* object."""
-  specs = {p.key: from_json_value(p.value)
-           for p in work.read.source.spec.additionalProperties}
+  source_spec = {p.key: from_json_value(p.value)
+                 for p in work.read.source.spec.additionalProperties}
   # Only sources for which a custom coder can be specified have the
   # codec property (e.g. TextSource).
   codec_specs = None
@@ -398,7 +414,7 @@ def get_read_work_item(work, env, context):
         p.key: from_json_value(p.value)
         for p in work.read.source.codec.additionalProperties}
 
-  source = env.parse_source(specs, codec_specs, context)
+  source = env.parse_source(source_spec, codec_specs, context)
   if source:
     return WorkerRead(source, output_coders=get_output_coders(work))
 
@@ -407,22 +423,24 @@ def get_read_work_item(work, env, context):
   # coders so this special case won't be necessary.
   if isinstance(coder, coders.WindowedValueCoder):
     coder = coder.wrapped_value_coder
-  if specs['@type'] == 'GroupingShuffleSource':
+  if source_spec['@type'] == 'GroupingShuffleSource':
     return WorkerGroupingShuffleRead(
-        start_shuffle_position=specs['start_shuffle_position']['value'],
-        end_shuffle_position=specs['end_shuffle_position']['value'],
-        shuffle_reader_config=specs['shuffle_reader_config']['value'],
+        start_shuffle_position=source_spec['start_shuffle_position']['value'],
+        end_shuffle_position=source_spec['end_shuffle_position']['value'],
+        shuffle_reader_config=source_spec['shuffle_reader_config']['value'],
         coder=coder,
         output_coders=get_output_coders(work))
-  elif specs['@type'] == 'UngroupedShuffleSource':
+  elif source_spec['@type'] == 'UngroupedShuffleSource':
     return WorkerUngroupedShuffleRead(
-        start_shuffle_position=specs['start_shuffle_position']['value'],
-        end_shuffle_position=specs['end_shuffle_position']['value'],
-        shuffle_reader_config=specs['shuffle_reader_config']['value'],
+        start_shuffle_position=source_spec['start_shuffle_position']['value'],
+        end_shuffle_position=source_spec['end_shuffle_position']['value'],
+        shuffle_reader_config=source_spec['shuffle_reader_config']['value'],
         coder=coder,
         output_coders=get_output_coders(work))
+  elif source_spec['@type'] == names.SOURCE_TYPE:
+    return get_custom_source_read_spec(source_spec)
   else:
-    raise NotImplementedError('Unknown source type: %r' % specs)
+    raise NotImplementedError('Unknown source type: %r' % source_spec)
 
 
 # pylint: enable=invalid-name

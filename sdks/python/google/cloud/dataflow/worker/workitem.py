@@ -23,6 +23,7 @@ write to a sink, parallel do, etc.
 import threading
 
 from google.cloud.dataflow.worker import maptask
+from google.cloud.dataflow.worker import workercustomsources
 
 
 class BatchWorkItem(object):
@@ -46,9 +47,10 @@ class BatchWorkItem(object):
       zero milliseconds).
   """
 
-  def __init__(self, proto, map_task):
+  def __init__(self, proto):
     self.proto = proto
-    self.map_task = map_task
+    self._map_task = None
+    self._source_operation_split_task = None
     # Lock to be acquired when reporting status (either reporting progress or
     # reporting completion). The attributes following the lock attribute (e.g.,
     # 'done', 'next_report_index', etc.) must be accessed using the lock because
@@ -56,14 +58,33 @@ class BatchWorkItem(object):
     # thread handling progress reports will modify them in parallel.
     self.lock = threading.Lock()
     self.done = False
-    self.next_report_index = self.proto.initialReportIndex
-    self.lease_expire_time = self.proto.leaseExpireTime
-    self.report_status_interval = self.proto.reportStatusInterval
+    if self.proto is not None:
+      self.next_report_index = self.proto.initialReportIndex
+      self.lease_expire_time = self.proto.leaseExpireTime
+      self.report_status_interval = self.proto.reportStatusInterval
+
+  @property
+  def map_task(self):
+    return self._map_task
+
+  @map_task.setter
+  def map_task(self, map_task):
+    self._map_task = map_task
+
+  @property
+  def source_operation_split_task(self):
+    return self._source_operation_split_task
+
+  @source_operation_split_task.setter
+  def source_operation_split_task(self, source_operation_split_task):
+    self._source_operation_split_task = source_operation_split_task
 
   def __str__(self):
+    stage_name = self.map_task.stage_name if self.map_task else ''
+    step_names = '+'.join(self.map_task.step_names) if self.map_task else ''
     return '<%s %s steps=%s %s>' % (
-        self.__class__.__name__, self.map_task.stage_name,
-        '+'.join(self.map_task.step_names), self.proto.id)
+        self.__class__.__name__, stage_name,
+        step_names, self.proto.id)
 
 
 def get_work_items(response, env=maptask.WorkerEnvironment(),
@@ -83,12 +104,28 @@ def get_work_items(response, env=maptask.WorkerEnvironment(),
     A tuple of work item id and the list of Worker* objects (see definitions
     above) representing the list of operations to be executed as part of the
     work item.
+
+  Raises:
+    ValueError: if type of WorkItem cannot be determined.
   """
   # Check if the request for work did not return anything.
   if not response.workItems:
     return None
   # For now service always sends one work item only.
   assert len(response.workItems) == 1
-  work_item = response.workItems[0]
-  map_task = maptask.decode_map_task(work_item.mapTask, env, context)
-  return BatchWorkItem(work_item, map_task)
+  work_item_proto = response.workItems[0]
+  work_item = BatchWorkItem(work_item_proto)
+
+  if work_item_proto.mapTask is not None:
+    map_task = maptask.decode_map_task(work_item_proto.mapTask, env, context)
+    work_item.map_task = map_task
+  elif (
+      work_item_proto.sourceOperationTask and
+      work_item_proto.sourceOperationTask.split):
+    source_operation_split_task = workercustomsources.SourceOperationSplitTask(
+        work_item_proto.sourceOperationTask.split)
+    work_item.source_operation_split_task = source_operation_split_task
+  else:
+    raise ValueError('Unknown type of work item: %s', work_item_proto)
+
+  return work_item

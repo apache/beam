@@ -34,6 +34,7 @@ from google.cloud.dataflow.runners.runner import PipelineRunner
 from google.cloud.dataflow.runners.runner import PipelineState
 from google.cloud.dataflow.runners.runner import PValueCache
 from google.cloud.dataflow.typehints import typehints
+from google.cloud.dataflow.utils import names
 from google.cloud.dataflow.utils.names import PropertyNames
 from google.cloud.dataflow.utils.names import TransformNames
 from google.cloud.dataflow.utils.options import StandardOptions
@@ -456,12 +457,17 @@ class DataflowPipelineRunner(PipelineRunner):
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
 
-    if isinstance(transform.source, iobase.BoundedSource):
-      raise ValueError('DataflowPipelineRunner does not support reading '
-                       'BoundedSource implementations yet. Please use a source '
-                       'provided by Dataflow SDK or use DirectPipelineRunner.')
+    if not hasattr(transform.source, 'format'):
+      # If a format is not set, we assume the source to be a custom source.
+      source_dict = dict()
+      spec_dict = dict()
 
-    if transform.source.format == 'text':
+      spec_dict[names.SERIALIZED_SOURCE_KEY] = pickler.dumps(transform.source)
+      spec_dict['@type'] = names.SOURCE_TYPE
+      source_dict['spec'] = spec_dict
+      step.add_property(PropertyNames.SOURCE_STEP_INPUT,
+                        source_dict)
+    elif transform.source.format == 'text':
       step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
     elif transform.source.format == 'bigquery':
       # TODO(silviuc): Add table validation if transform.source.validate.
@@ -494,15 +500,22 @@ class DataflowPipelineRunner(PipelineRunner):
       if transform.source.id_label:
         step.add_property(PropertyNames.PUBSUB_ID_LABEL,
                           transform.source.id_label)
-    elif transform.source.format == 'custom':
-      # TODO(silviuc): Implement custom sources.
-      raise NotImplementedError
     else:
       raise ValueError(
           'Source %r has unexpected format %s.' % (
               transform.source, transform.source.format))
-    step.add_property(PropertyNames.FORMAT, transform.source.format)
-    step.encoding = self._get_cloud_encoding(transform.source.coder)
+
+    if not hasattr(transform.source, 'format'):
+      step.add_property(PropertyNames.FORMAT, names.SOURCE_FORMAT)
+    else:
+      step.add_property(PropertyNames.FORMAT, transform.source.format)
+
+    if isinstance(transform.source, iobase.BoundedSource):
+      coder = transform.source.default_output_coder()
+    else:
+      coder = transform.source.coder
+
+    step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
