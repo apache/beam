@@ -87,6 +87,14 @@ class DoFnUsingStartBundle(ptransform.DoFn):
       f.write('finish called.')
 
 
+class DoFnUsingWithUndeclaredSideOutput(ptransform.DoFn):
+  """A DoFn class that emits an undeclared side output."""
+
+  def process(self, context, *args, **kwargs):
+    yield pvalue.SideOutputValue('undeclared', context.element)
+    yield context.element
+
+
 class ProgressRequestRecordingInMemoryReader(inmemory.InMemoryReader):
 
   def __init__(self, source):
@@ -174,6 +182,31 @@ class ExecutorTest(unittest.TestCase):
     # expected side-effect by writing a file with a specific content.
     with open(finish_path) as f:
       self.assertEqual('finish called.', f.read())
+
+  def test_read_do_write_with_undeclared_output(self):
+    input_path = self.create_temp_file('01234567890123456789\n0123456789')
+    output_path = '%s.out' % input_path
+    work_item = workitem.BatchWorkItem(None)
+    work_item.map_task = make_map_task([
+        maptask.WorkerRead(
+            fileio.TextFileSource(file_path=input_path,
+                                  start_offset=0,
+                                  end_offset=15,
+                                  strip_trailing_newlines=True,
+                                  coder=coders.StrUtf8Coder()),
+            output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
+            DoFnUsingWithUndeclaredSideOutput()),
+                           output_tags=['out'],
+                           output_coders=[self.OUTPUT_CODER],
+                           input=(0, 0),
+                           side_inputs=None),
+        make_text_sink(output_path, input=(1, 0))
+    ])
+
+    executor.MapTaskExecutor(work_item.map_task).execute()
+    with open(output_path) as f:
+      self.assertEqual('01234567890123456789\n', f.read())
 
   def test_read_do_shuffle_write(self):
     input_path = self.create_temp_file('a\nb\nc\nd\n')

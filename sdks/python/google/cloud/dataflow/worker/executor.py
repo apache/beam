@@ -388,6 +388,19 @@ class ShuffleWriteOperation(Operation):
     self.receivers[0].update_counters_finish()
 
 
+class _TaggedReceivers(dict):
+
+  class NullReceiver(object):
+
+    def output(self, element):
+      pass
+
+  def __missing__(self, unused_key):
+    if not getattr(self, '_null_receiver', None):
+      self._null_receiver = _TaggedReceivers.NullReceiver()
+    return self._null_receiver
+
+
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
@@ -473,7 +486,8 @@ class DoOperation(Operation):
     # Tag to output index map used to dispatch the side output values emitted
     # by the DoFn function to the appropriate receivers. The main output is
     # tagged with None and is associated with its corresponding index.
-    tagged_receivers = {}
+    tagged_receivers = _TaggedReceivers()
+
     output_tag_prefix = PropertyNames.OUT + '_'
     for index, tag in enumerate(self.spec.output_tags):
       if tag == PropertyNames.OUT:

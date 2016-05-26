@@ -575,7 +575,8 @@ class ParDo(PTransformWithSideInputs):
     the available tags (e.g., for tag in o: ...).
 
     Args:
-      *tags: if non-empty, list of valid tags
+      *tags: if non-empty, list of valid tags. If a list of valid tags is given,
+        it will be an error to use an undeclared tag later in the pipeline.
       **main_kw: dictionary empty or with one key 'main' defining the tag to be
         used for the main output (which will not have a tag associated with it).
 
