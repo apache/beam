@@ -15,8 +15,6 @@ Though Beam is relatively new, its design draws heavily on many years of experie
 
 The original FlumeJava API has methods like `count` and `parallelDo` on the PCollections. Though slightly more succinct, this approach has many disadvantages to extensibility. Every new user to FlumeJava wanted to add transforms, and adding them as methods to PCollection simply doesn't scale well. In contrast, a PCollection in Beam has a single `apply` method which takes any PTransform as an argument.
 
-Have you ever wondered why Beam has PTransforms for everything instead of having methods on PCollection? Take a look at the history that led to this (and other) design decisions.
-
 <table class="table">
   <tr>
     <th>FlumeJava</th>
