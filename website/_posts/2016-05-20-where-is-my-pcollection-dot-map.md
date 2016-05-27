@@ -82,7 +82,7 @@ As pipelines grow and evolve, it is useful to structure your pipeline into modul
 <img class="center-block" src="{{ "/images/blog/simple-wordcount-pipeline.png" | prepend: site.baseurl }}" alt="Three different visualizations of a simple WordCount pipeline" width="500">
 
 <div class="text-center">
-<i>Three different visualizations of a simple WordCount pipeline which computes the number of occurrences of every word in a set of text files. The flag view gives the full DAG of all operations performed. The execution view groups operations according to how they're executed, e.g. after performing runner-specific optimizations like function composition. The structured view nests operations according to their grouping in PTransforms.</i>
+<i>Three different visualizations of a simple WordCount pipeline which computes the number of occurrences of every word in a set of text files. The flat view gives the full DAG of all operations performed. The execution view groups operations according to how they're executed, e.g. after performing runner-specific optimizations like function composition. The structured view nests operations according to their grouping in PTransforms.</i>
 </div>
 
 ## Summary
