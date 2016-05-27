@@ -70,6 +70,10 @@ class DirectPipelineRunner(PipelineRunner):
     self.debug_counters = {}
     self.debug_counters['element_counts'] = collections.Counter()
 
+  @property
+  def cache(self):
+    return self._cache
+
   def get_pvalue(self, pvalue):
     """Gets the PValue's computed value from the runner's cache."""
     try:
@@ -285,3 +289,38 @@ class EagerPipelineRunner(DirectPipelineRunner):
     if transform not in self._seen_transforms:
       self._seen_transforms.add(transform)
       super(EagerPipelineRunner, self).run_transform(transform)
+
+
+class DiskCachedPipelineRunner(DirectPipelineRunner):
+  """A DirectPipelineRunner that uses a disk backed cache.
+
+  DiskCachedPipelineRunner uses a temporary disk backed cache for running
+  pipelines. This allows for running pipelines that will require more memory
+  than it is available, however this comes with a performance cost due to disk
+  IO.
+
+  Memory requirement for DiskCachedPipelineRunner is approximately capped by the
+  single transform in the pipeline that consumes and outputs largest total
+  collection (i.e. inputs, side-inputs and outputs in aggregate). In the extreme
+  case a where a transform will use all previous intermediate values as input,
+  memory requirements for DiskCachedPipelineRunner will be the same as
+  DirectPipelineRunner.
+  """
+
+  def __init__(self):
+    self._null_cache = ()
+    super(DiskCachedPipelineRunner, self).__init__(self._null_cache)
+
+  def run(self, pipeline):
+    try:
+      self._cache = PValueCache(use_disk_backed_cache=True)
+      return super(DirectPipelineRunner, self).run(pipeline)
+    finally:
+      del self._cache
+      self._cache = self._null_cache
+
+  @property
+  def cache(self):
+    raise NotImplementedError(
+        'DiskCachedPipelineRunner does not keep cache outside the scope of its '
+        'run method.')

@@ -412,8 +412,11 @@ class PTransform(WithTypeHints):
     if deferred:
       return result
     else:
+      # Get a reference to the runners internal cache, otherwise runner may
+      # clean it after run.
+      cache = p.runner.cache
       p.run()
-      return _MaterializePValues(p.runner._cache).visit(result)
+      return _MaterializePValues(cache).visit(result)
 
   def _extract_input_pvalues(self, pvalueish):
     """Extract all the pvalues contained in the input pvalueish.

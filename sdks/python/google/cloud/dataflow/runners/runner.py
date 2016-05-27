@@ -17,6 +17,10 @@
 from __future__ import absolute_import
 
 import logging
+import os
+import shelve
+import shutil
+import tempfile
 
 
 def create_runner(runner_name):
@@ -37,6 +41,10 @@ def create_runner(runner_name):
   if runner_name == 'DirectPipelineRunner':
     import google.cloud.dataflow.runners.direct_runner
     return google.cloud.dataflow.runners.direct_runner.DirectPipelineRunner()
+  if runner_name == 'DiskCachedPipelineRunner':
+    import google.cloud.dataflow.runners.direct_runner
+    return google.cloud.dataflow.runners.direct_runner.DiskCachedPipelineRunner(
+    )
   if runner_name == 'EagerPipelineRunner':
     import google.cloud.dataflow.runners.direct_runner
     return google.cloud.dataflow.runners.direct_runner.EagerPipelineRunner()
@@ -164,16 +172,31 @@ class PipelineRunner(object):
 class PValueCache(object):
   """Local cache for arbitrary information computed for PValue objects."""
 
-  def __init__(self):
+  def __init__(self, use_disk_backed_cache=False):
     # Cache of values computed while a runner executes a pipeline. This is a
     # dictionary of PValues and their computed values. Note that in principle
     # the runner could contain PValues from several pipelines without clashes
     # since a PValue is associated with one and only one pipeline. The keys of
-    # the dictionary are PValue instance addresses obtained using id().
-    self._cache = {}
+    # the dictionary are tuple of PValue instance addresses obtained using id()
+    # and tag names converted to strings.
+
+    self._use_disk_backed_cache = use_disk_backed_cache
+    if use_disk_backed_cache:
+      self._tempdir = tempfile.mkdtemp()
+      self._cache = shelve.open(os.path.join(self._tempdir, 'shelve'))
+    else:
+      self._cache = {}
+
+  def __del__(self):
+    if self._use_disk_backed_cache:
+      self._cache.close()
+      shutil.rmtree(self._tempdir)
 
   def __len__(self):
     return len(self._cache)
+
+  def to_cache_key(self, transform, tag):
+    return str((id(transform), tag))
 
   def _ensure_pvalue_has_real_producer(self, pvalue):
     """Ensure the passed-in PValue has the real_producer attribute.
@@ -201,7 +224,7 @@ class PValueCache(object):
       self._ensure_pvalue_has_real_producer(pobj)
       transform = pobj.real_producer
       tag = pobj.tag
-    return (id(transform), tag) in self._cache
+    return self.to_cache_key(transform, tag) in self._cache
 
   def cache_output(self, transform, tag_or_value, value=None):
     if value is None:
@@ -209,7 +232,8 @@ class PValueCache(object):
       tag = None
     else:
       tag = tag_or_value
-    self._cache[id(transform), tag] = [value, transform.refcounts[tag]]
+    self._cache[
+        self.to_cache_key(transform, tag)] = [value, transform.refcounts[tag]]
 
   def get_pvalue(self, pvalue):
     """Gets the value associated with a PValue from the cache."""
@@ -225,7 +249,7 @@ class PValueCache(object):
       return value_with_refcount[0]
     except KeyError:
       if (pvalue.tag is not None
-          and (id(pvalue.real_producer), None) in self._cache):
+          and self.to_cache_key(pvalue.real_producer, None) in self._cache):
         # This is an undeclared, empty side output of a DoFn executed
         # in the local runner before this side output referenced.
         return []
@@ -242,7 +266,7 @@ class PValueCache(object):
 
   def key(self, pobj):
     self._ensure_pvalue_has_real_producer(pobj)
-    return id(pobj.real_producer), pobj.tag
+    return self.to_cache_key(pobj.real_producer, pobj.tag)
 
 
 class PipelineState(object):

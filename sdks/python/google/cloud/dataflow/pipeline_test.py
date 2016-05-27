@@ -24,7 +24,6 @@ from google.cloud.dataflow.pipeline import PipelineOptions
 from google.cloud.dataflow.pipeline import PipelineVisitor
 from google.cloud.dataflow.pvalue import AsIter
 from google.cloud.dataflow.pvalue import SideOutputValue
-from google.cloud.dataflow.runners import DirectPipelineRunner
 from google.cloud.dataflow.transforms import CombinePerKey
 from google.cloud.dataflow.transforms import Create
 from google.cloud.dataflow.transforms import FlatMap
@@ -62,6 +61,9 @@ class FakeSource(NativeSource):
 
 class PipelineTest(unittest.TestCase):
 
+  def setUp(self):
+    self.runner_name = 'DirectPipelineRunner'
+
   @staticmethod
   def custom_callable(pcoll):
     return pcoll | FlatMap('+1', lambda x: [x + 1])
@@ -92,7 +94,7 @@ class PipelineTest(unittest.TestCase):
       self.leave_composite.append(transform_node)
 
   def test_create(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | Create('label1', [1, 2, 3])
     assert_that(pcoll, equal_to([1, 2, 3]))
 
@@ -103,20 +105,19 @@ class PipelineTest(unittest.TestCase):
     pipeline.run()
 
   def test_create_singleton_pcollection(self):
-    pipeline = Pipeline(DirectPipelineRunner())
+    pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | Create('label', [[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
     pipeline.run()
 
   def test_read(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | Read('read', FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
     pipeline.run()
 
   def test_visit_entire_graph(self):
-
-    pipeline = Pipeline(DirectPipelineRunner())
+    pipeline = Pipeline(self.runner_name)
     pcoll1 = pipeline | Create('pcoll', [1, 2, 3])
     pcoll2 = pcoll1 | FlatMap('do1', lambda x: [x + 1])
     pcoll3 = pcoll2 | FlatMap('do2', lambda x: [x + 1])
@@ -135,14 +136,14 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(visitor.leave_composite[0].transform, transform)
 
   def test_apply_custom_transform(self):
-    pipeline = Pipeline(DirectPipelineRunner())
+    pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | Create('pcoll', [1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
     assert_that(result, equal_to([2, 3, 4]))
     pipeline.run()
 
   def test_reuse_custom_transform_instance(self):
-    pipeline = Pipeline(DirectPipelineRunner())
+    pipeline = Pipeline(self.runner_name)
     pcoll1 = pipeline | Create('pcoll1', [1, 2, 3])
     pcoll2 = pipeline | Create('pcoll2', [4, 5, 6])
     transform = PipelineTest.CustomTransform()
@@ -157,7 +158,7 @@ class PipelineTest(unittest.TestCase):
         'transform.clone("NEW LABEL").')
 
   def test_reuse_cloned_custom_transform_instance(self):
-    pipeline = Pipeline(DirectPipelineRunner())
+    pipeline = Pipeline(self.runner_name)
     pcoll1 = pipeline | Create('pcoll1', [1, 2, 3])
     pcoll2 = pipeline | Create('pcoll2', [4, 5, 6])
     transform = PipelineTest.CustomTransform()
@@ -168,7 +169,7 @@ class PipelineTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_custom_callable(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | Create('pcoll', [1, 2, 3])
     result = pipeline.apply(PipelineTest.custom_callable, pcoll)
     assert_that(result, equal_to([2, 3, 4]))
@@ -247,6 +248,20 @@ class PipelineTest(unittest.TestCase):
   def test_eager_pipeline(self):
     p = Pipeline('EagerPipelineRunner')
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
+
+
+class DiskCachedRunnerPipelineTest(PipelineTest):
+
+  def setUp(self):
+    self.runner_name = 'DiskCachedPipelineRunner'
+
+  def test_cached_pvalues_are_refcounted(self):
+    # Takes long with disk spilling.
+    pass
+
+  def test_eager_pipeline(self):
+    # Tests eager runner only
+    pass
 
 
 class Bacon(PipelineOptions):
