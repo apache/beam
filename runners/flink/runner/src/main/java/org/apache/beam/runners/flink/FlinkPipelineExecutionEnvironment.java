@@ -120,6 +120,8 @@ public class FlinkPipelineExecutionEnvironment {
    * the {@link org.apache.beam.sdk.values.PCollection} program into
    * a {@link org.apache.flink.api.java.DataSet} or {@link org.apache.flink.streaming.api.datastream.DataStream}
    * one.
+   *
+   * @param pipeline The pipeline to translate.
    * */
   public void translate(Pipeline pipeline) {
     checkInitializationState();
@@ -134,7 +136,10 @@ public class FlinkPipelineExecutionEnvironment {
 
   /**
    * Launches the program execution.
-   * */
+   *
+   * @return The job execution result.
+   * @throws Exception In case of error during pipeline execution.
+   */
   public JobExecutionResult executePipeline() throws Exception {
     if (options.isStreaming()) {
       if (this.flinkStreamEnv == null) {

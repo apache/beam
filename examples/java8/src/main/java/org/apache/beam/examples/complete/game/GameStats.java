@@ -102,7 +102,7 @@ public class GameStats extends LeaderBoard {
   /**
    * Filter out all but those users with a high clickrate, which we will consider as 'spammy' uesrs.
    * We do this by finding the mean total score per user, then using that information as a side
-   * input to filter out all but those user scores that are > (mean * SCORE_WEIGHT)
+   * input to filter out all but those user scores that are greater (mean * SCORE_WEIGHT).
    */
   // [START DocInclude_AbuseDetect]
   public static class CalculateSpammyUsers
@@ -193,6 +193,8 @@ public class GameStats extends LeaderBoard {
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write information about team score sums.
+   *
+   * @return The map of fields to write on big query.
    */
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedWrite() {
@@ -219,6 +221,8 @@ public class GameStats extends LeaderBoard {
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write information about mean user session time.
+   *
+   * @return The map of fields to write on big query.
    */
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<Double>>
       configureSessionWindowWrite() {

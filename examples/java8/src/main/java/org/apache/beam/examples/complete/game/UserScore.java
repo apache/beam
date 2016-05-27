@@ -70,7 +70,7 @@ import java.util.Map;
  * where the BigQuery dataset you specify must already exist.
  *
  * <p> Optionally include the --input argument to specify a batch input file.
- * See the --input default value for example batch data file, or use {@link injector.Injector} to
+ * See the --input default value for example batch data file, or use {@code injector.Injector} to
  * generate your own batch data.
   */
 public class UserScore {
@@ -201,6 +201,8 @@ public class UserScore {
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
+   *
+   * @return A map to fields written on big query.
    */
   protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
     configureBigQueryWrite() {
@@ -216,6 +218,9 @@ public class UserScore {
 
   /**
    * Run a batch pipeline.
+   *
+   * @param args The main arguments.
+   * @throws Exception in case of execution failure.
    */
  // [START DocInclude_USMain]
   public static void main(String[] args) throws Exception {
