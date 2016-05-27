@@ -6,15 +6,22 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
+<<<<<<< 23feafc0bb80d835bfd9a05a1d98b0c997aafc84
     <pubDate>Fri, 27 May 2016 09:58:31 -0700</pubDate>
     <lastBuildDate>Fri, 27 May 2016 09:58:31 -0700</lastBuildDate>
+=======
+    <pubDate>Fri, 27 May 2016 09:51:00 -0700</pubDate>
+    <lastBuildDate>Fri, 27 May 2016 09:51:00 -0700</lastBuildDate>
+>>>>>>> Update date for blog post
     <generator>Jekyll v3.1.3</generator>
     
       <item>
         <title>Where&#39;s my PCollection.map()?</title>
-        <description>&lt;p&gt;Have you ever wondered why Beam has PTransforms for everything instead of having methods on PCollection? Take a look at the history that led to this (and other) design decisions.
+        <description>&lt;p&gt;Have you ever wondered why Beam has PTransforms for everything instead of having methods on PCollection? Take a look at the history that led to this (and other) design decisions.&lt;/p&gt;
+
 &lt;!--more--&gt;
-Though Beam is relatively new, its design draws heavily on many years of experience with real-world pipelines. One of the primary inspirations is &lt;a href=&quot;http://research.google.com/pubs/pub35650.html&quot;&gt;FlumeJava&lt;/a&gt;, which is Google’s internal successor to MapReduce first introduced in 2009.&lt;/p&gt;
+
+&lt;p&gt;Though Beam is relatively new, its design draws heavily on many years of experience with real-world pipelines. One of the primary inspirations is &lt;a href=&quot;http://research.google.com/pubs/pub35650.html&quot;&gt;FlumeJava&lt;/a&gt;, which is Google’s internal successor to MapReduce first introduced in 2009.&lt;/p&gt;
 
 &lt;p&gt;The original FlumeJava API has methods like &lt;code class=&quot;highlighter-rouge&quot;&gt;count&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;parallelDo&lt;/code&gt; on the PCollections. Though slightly more succinct, this approach has many disadvantages to extensibility. Every new user to FlumeJava wanted to add transforms, and adding them as methods to PCollection simply doesn’t scale well. In contrast, a PCollection in Beam has a single &lt;code class=&quot;highlighter-rouge&quot;&gt;apply&lt;/code&gt; method which takes any PTransform as an argument.&lt;/p&gt;
 
@@ -93,9 +100,9 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
 &lt;p&gt;Although it’s tempting to add methods to PCollections, such an approach is not scalable, extensible, or sufficiently expressive. Putting a single apply method on PCollection and all the logic into the operation itself lets us have the best of both worlds, and avoids hard cliffs of complexity by having a single consistent style across simple and complex pipelines, and between predefined and user-defined operations.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 20 May 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/blog/2016/05/20/where-is-my-pcollection-dot-map.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/05/20/where-is-my-pcollection-dot-map.html</guid>
+        <pubDate>Fri, 27 May 2016 09:00:00 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</guid>
         
         
         <category>blog</category>
