@@ -28,7 +28,6 @@ import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFun
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvCoderTypeInformation;
-import org.apache.beam.runners.flink.translation.wrappers.SinkOutputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,11 +35,8 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -69,27 +65,19 @@ import com.google.common.collect.Maps;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.io.AvroOutputFormat;
-import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
-import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -100,7 +88,7 @@ import java.util.Map;
  * Translators for transforming {@link PTransform PTransforms} to
  * Flink {@link DataSet DataSets}.
  */
-public class FlinkBatchTransformTranslators {
+class FlinkBatchTransformTranslators {
 
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry
@@ -128,7 +116,7 @@ public class FlinkBatchTransformTranslators {
   }
 
 
-  public static FlinkBatchPipelineTranslator.BatchTransformTranslator<?> getTranslator(
+  static FlinkBatchPipelineTranslator.BatchTransformTranslator<?> getTranslator(
       PTransform<?, ?> transform) {
     return TRANSLATORS.get(transform.getClass());
   }
@@ -151,119 +139,6 @@ public class FlinkBatchTransformTranslators {
           name);
 
       context.setOutputDataSet(output, dataSource);
-    }
-  }
-
-  private static class WriteSinkTranslatorBatch<T>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Write.Bound<T>> {
-
-    @Override
-    public void translateNode(Write.Bound<T> transform, FlinkBatchTranslationContext context) {
-      String name = transform.getName();
-      PValue input = context.getInput(transform);
-      DataSet<WindowedValue<T>> inputDataSet = context.getInputDataSet(input);
-
-      inputDataSet.output(new SinkOutputFormat<>(transform, context.getPipelineOptions()))
-          .name(name);
-    }
-  }
-
-  private static class AvroIOWriteTranslatorBatch<T> implements
-      FlinkBatchPipelineTranslator.BatchTransformTranslator<AvroIO.Write.Bound<T>> {
-    private static final Logger LOG = LoggerFactory.getLogger(AvroIOWriteTranslatorBatch.class);
-
-
-    @Override
-    public void translateNode(
-        AvroIO.Write.Bound<T> transform,
-        FlinkBatchTranslationContext context) {
-      DataSet<WindowedValue<T>> inputDataSet = context.getInputDataSet(context.getInput(transform));
-
-      String filenamePrefix = transform.getFilenamePrefix();
-      String filenameSuffix = transform.getFilenameSuffix();
-      int numShards = transform.getNumShards();
-      String shardNameTemplate = transform.getShardNameTemplate();
-
-      // TODO: Implement these. We need Flink support for this.
-      LOG.warn(
-          "Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.",
-          filenameSuffix);
-      LOG.warn(
-          "Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.",
-          shardNameTemplate);
-
-      // This is super hacky, but unfortunately we cannot get the type otherwise
-      Class<T> extractedAvroType;
-      try {
-        Field typeField = transform.getClass().getDeclaredField("type");
-        typeField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Class<T> avroType = (Class<T>) typeField.get(transform);
-        extractedAvroType = avroType;
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        // we know that the field is there and it is accessible
-        throw new RuntimeException("Could not access type from AvroIO.Bound", e);
-      }
-
-      MapOperator<WindowedValue<T>, T> valueStream = inputDataSet.map(
-          new MapFunction<WindowedValue<T>, T>() {
-            @Override
-            public T map(WindowedValue<T> value) throws Exception {
-              return value.getValue();
-            }
-          }).returns(new CoderTypeInformation<>(context.getInput(transform).getCoder()));
-
-
-      DataSink<T> dataSink = valueStream.output(
-          new AvroOutputFormat<>(new Path(filenamePrefix), extractedAvroType));
-
-      if (numShards > 0) {
-        dataSink.setParallelism(numShards);
-      }
-    }
-  }
-
-  private static class TextIOWriteTranslatorBatch<T>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<TextIO.Write.Bound<T>> {
-    private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteTranslatorBatch.class);
-
-    @Override
-    public void translateNode(
-        TextIO.Write.Bound<T> transform,
-        FlinkBatchTranslationContext context) {
-      PValue input = context.getInput(transform);
-      DataSet<WindowedValue<T>> inputDataSet = context.getInputDataSet(input);
-
-      String filenamePrefix = transform.getFilenamePrefix();
-      String filenameSuffix = transform.getFilenameSuffix();
-      boolean needsValidation = transform.needsValidation();
-      int numShards = transform.getNumShards();
-      String shardNameTemplate = transform.getShardNameTemplate();
-
-      // TODO: Implement these. We need Flink support for this.
-      LOG.warn(
-          "Translation of TextIO.Write.needsValidation not yet supported. Is: {}.",
-          needsValidation);
-      LOG.warn(
-          "Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.",
-          filenameSuffix);
-      LOG.warn(
-          "Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.",
-          shardNameTemplate);
-
-      MapOperator<WindowedValue<T>, T> valueStream = inputDataSet.map(
-          new MapFunction<WindowedValue<T>, T>() {
-            @Override
-            public T map(WindowedValue<T> value) throws Exception {
-              return value.getValue();
-            }
-          }).returns(new CoderTypeInformation<>(transform.getCoder()));
-
-      DataSink<T> dataSink = valueStream.writeAsText(filenamePrefix);
-
-      if (numShards > 0) {
-        dataSink.setParallelism(numShards);
-      }
     }
   }
 
@@ -431,7 +306,7 @@ public class FlinkBatchTransformTranslators {
   private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>();
+      return new ArrayList<>();
     }
 
     @Override
