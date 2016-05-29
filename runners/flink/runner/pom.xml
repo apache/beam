@@ -51,12 +51,6 @@
       <artifactId>flink-clients_2.10</artifactId>
       <version>${flink.version}</version>
     </dependency>
-    <!-- Libraries not part of Flink which need to be included by the user (see flink-examples) -->
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-connector-kafka-0.8_2.10</artifactId>
-      <version>${flink.version}</version>
-    </dependency>
 
     <!-- Beam -->
     <dependency>
@@ -124,6 +118,7 @@
       </exclusions>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-streaming-java_2.10</artifactId>
@@ -135,7 +130,9 @@
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-test-utils_2.10</artifactId>
       <version>${flink.version}</version>
+      <scope>test</scope>
     </dependency>
+
     <!-- Optional Pipeline Registration -->
     <dependency>
       <groupId>com.google.auto.service</groupId>
