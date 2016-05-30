@@ -27,11 +27,14 @@ and sinks or use the provided support for Apache Kafka.
 
 ### Seamless integration
 
-To execute a Beam program in streaming mode, just enable streaming in the `PipelineOptions`:
+The Flink Runner decides to use batch or streaming execution mode based on whether programs use
+unbounded sources. When unbounded sources are used, it executes in streaming mode, otherwise it
+uses the batch execution mode.
+
+If you wish to explicitly enable streaming mode, please set the streaming flag in the
+`PipelineOptions`:
 
     options.setStreaming(true);
-
-That's it. If you prefer batched execution, simply disable streaming mode.
 
 ## Batch
 

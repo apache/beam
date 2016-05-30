@@ -31,8 +31,6 @@ import org.slf4j.LoggerFactory;
  * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the user-provided
  * {@link org.apache.beam.sdk.values.PCollection}-based job into a
  * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
- *
- * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
  * */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
@@ -115,14 +113,6 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
    */
   public interface StreamTransformTranslator<Type extends PTransform> {
     void translateNode(Type transform, FlinkStreamingTranslationContext context);
-  }
-
-  private static String genSpaces(int n) {
-    String s = "";
-    for (int i = 0; i < n; i++) {
-      s += "|   ";
-    }
-    return s;
   }
 
   private static String formatNodeName(TransformTreeNode node) {
