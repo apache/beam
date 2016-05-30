@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfPane;
 import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.InMemExecutor.QueueCollector;
 import org.slf4j.Logger;
@@ -25,7 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -185,10 +185,13 @@ class ReduceStateByKeyReducer implements Runnable {
       }
       State state = wState.getSecond().get(itemKey);
       if (state == null) {
-        // ~ collector decorating state output with a key
-        Collector collector =
-                el -> stateOutput.collect(
-                    WindowedPair.of(wState.getFirst().getLabel(), itemKey, el));
+        // ~ collector decorating state output with a window label and item key
+        DatumCollector collector = new DatumCollector(stateOutput) {
+          @Override public void collect(Object elem) {
+            super.collect(WindowedPair.of(getAssignLabel(), itemKey, elem));
+          }
+        };
+        collector.assignWindowing(w.getGroup(), w.getLabel());
         state = (State) stateFactory.apply(collector);
         wState.getSecond().put(itemKey, state);
       }
@@ -200,7 +203,6 @@ class ReduceStateByKeyReducer implements Runnable {
     // with it
     private Pair<Window, Map<Object, State>>
     getWindowKeyStates(Window w, boolean setWindowInstance) {
-
       Pair<Window, Map<Object, State>> wState =
           wStorage.getWindow(w.getGroup(), w.getLabel());
       if (wState == null) {
@@ -244,12 +246,15 @@ class ReduceStateByKeyReducer implements Runnable {
         Pair<Window, Map<Object, State>> toMergeState =
             wStorage.removeWindow(toMerge.getGroup(), toMerge.getLabel());
         if (toMergeState != null) {
-          mergeWindowKeyStates(toMergeState.getSecond(), ws.getSecond());
+          mergeWindowKeyStates(
+              toMergeState.getSecond(), ws.getSecond(), ws.getFirst());
         }
       }
     }
 
-    private void mergeWindowKeyStates(Map<Object, State> src, Map<Object, State> dst) {
+    private void mergeWindowKeyStates(
+        Map<Object, State> src, Map<Object, State> dst, Window dstWindow)
+    {
       List<State> toCombine = new ArrayList<>(2);
 
       for (Map.Entry<Object, State> s : src.entrySet()) {
@@ -258,11 +263,15 @@ class ReduceStateByKeyReducer implements Runnable {
         State dstKeyState = dst.get(s.getKey());
         if (dstKeyState == null) {
           dst.put(s.getKey(), s.getValue());
-
         } else {
           toCombine.add(s.getValue());
           toCombine.add(dstKeyState);
-          dst.put(s.getKey(), (State) stateCombiner.apply(toCombine));
+          State newState = (State) stateCombiner.apply(toCombine);
+          if (newState.collector instanceof DatumCollector) {
+            ((DatumCollector) newState.collector)
+                .assignWindowing(dstWindow.getGroup(), dstWindow.getLabel());
+          }
+          dst.put(s.getKey(), newState);
         }
       }
     }
@@ -289,34 +298,42 @@ class ReduceStateByKeyReducer implements Runnable {
                           CombinableReduceFunction stateCombiner,
                           Triggering triggering,
                           boolean isBounded) {
-
     this.input = requireNonNull(input);
-    this.windowing = requireNonNull(windowing);
+    this.windowing = windowing == null ? DatumAttachedWindowing.INSTANCE : windowing;
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
     this.triggering = requireNonNull(triggering);
     this.processing = new ProcessingState(
         output, triggering,
         createEvictTrigger(),
-        stateFactory, stateCombiner, windowing.isAggregating(),
+        stateFactory, stateCombiner, this.windowing.isAggregating(),
         isBounded);
   }
 
   private UnaryFunction<Window, Void> createEvictTrigger() {
     return (UnaryFunction<Window, Void>) window -> {
-      Collection<State> evicted;
-      synchronized (processing) {
-        if (!processing.active) {
-          return null;
-        }
-        evicted = processing.evictWindow(window);
-      }
-      evicted.stream().forEachOrdered(
-          windowing.isAggregating()
-            ? State::flush
-            : (Consumer<State>) s -> { s.flush(); s.close(); });
+      fireEvictTrigger(window);
       return null;
     };
+  }
+
+  private void fireEvictTrigger(Window window) {
+    Collection<State> evicted;
+    synchronized (processing) {
+      if (!processing.active) {
+        return;
+      }
+      evicted = processing.evictWindow(window);
+    }
+    evicted.stream().forEachOrdered(s -> flush(s, window, !windowing.isAggregating()));
+  }
+
+  private void flush(State state, Window window, boolean close) {
+    state.flush();
+    processing.stateOutput.collect(new EndOfPane<>(window));
+    if (close) {
+      state.close();
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -331,7 +348,12 @@ class ReduceStateByKeyReducer implements Runnable {
         }
 
         synchronized (processing) {
-          processInput(item);
+          if (item instanceof EndOfPane) {
+            Window w = ((EndOfPane) item).getWindow();
+            fireEvictTrigger(w);
+          } else {
+            processInput((Datum) item);
+          }
         }
       } catch (InterruptedException ex) {
         throw new RuntimeException(ex);
@@ -355,15 +377,24 @@ class ReduceStateByKeyReducer implements Runnable {
   Set<Object> seenGroups = new HashSet<>();
 
   @SuppressWarnings("unchecked")
-  private void processInput(Object item) {
+  private void processInput(Datum datum) {
+
+    Object item = datum.element;
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
     seenGroups.clear();
-    windowing.updateTriggering(triggering, item);
-    Set<Window> itemWindows = windowing.assignWindows(item);
+    Set<Window> itemWindows;
+    if (windowing == DatumAttachedWindowing.INSTANCE) {
+      windowing.updateTriggering(triggering, datum);
+      itemWindows = windowing.assignWindows(datum);
+    } else {
+      windowing.updateTriggering(triggering, item);
+      itemWindows = windowing.assignWindows(item);
+    }
     for (Window itemWindow : itemWindows) {
-      Pair<Window, State> windowState = processing.getWindowState(itemWindow, itemKey);
+      Pair<Window, State> windowState =
+          processing.getWindowState(itemWindow, itemKey);
       if (windowState != null) {
         windowState.getSecond().add(itemValue);
         seenGroups.add(itemWindow.getGroup());

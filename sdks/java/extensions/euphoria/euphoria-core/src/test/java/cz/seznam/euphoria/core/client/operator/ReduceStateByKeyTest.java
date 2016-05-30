@@ -22,12 +22,14 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
+    Windowing.Time<String> windowing = Windowing.Time.hours(1);
     Dataset<Pair<String, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
             .of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
+            .windowBy(windowing)
             .output();
 
     assertEquals(flow, reduced.getFlow());
@@ -41,8 +43,7 @@ public class ReduceStateByKeyTest {
     assertNotNull(reduce.getStateCombiner());
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
-    // batch windowing by default
-    assertEquals(BatchWindowing.get(), reduce.getWindowing());
+    assertSame(windowing, reduce.getWindowing());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
@@ -132,12 +133,14 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .output();
 
+    Windowing.Count<Object> windowing = Windowing.Count.of(10);
     Dataset<Pair<CompositeKey<String, String>, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
             .of(grouped)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
+            .windowBy(windowing)
             .output();
 
     assertEquals(flow, reduced.getFlow());
@@ -151,8 +154,7 @@ public class ReduceStateByKeyTest {
     assertNotNull(reduce.getStateCombiner());
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
-    // batch windowing by default
-    assertEquals(BatchWindowing.get(), reduce.getWindowing());
+    assertSame(windowing, reduce.getWindowing());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);

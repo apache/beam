@@ -5,8 +5,6 @@ import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
-import java.util.Objects;
-
 /**
  * Operator working on some context.
  */
@@ -18,10 +16,10 @@ public abstract class WindowWiseOperator<
 
   public WindowWiseOperator(String name,
                             Flow flow,
-                            Windowing<WIN, ?, WLABEL, W> windowing)
+                            Windowing<WIN, ?, WLABEL, W> windowing /* optional */)
   {
     super(name, flow);
-    this.windowing = Objects.requireNonNull(windowing);
+    this.windowing = windowing;
   }
 
   @Override

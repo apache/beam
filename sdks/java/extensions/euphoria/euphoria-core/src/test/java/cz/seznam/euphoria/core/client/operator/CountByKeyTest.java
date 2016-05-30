@@ -18,9 +18,11 @@ public class CountByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
+    Windowing.Time<String> windowing = Windowing.Time.hours(1);
     Dataset<Pair<String, Long>> counted = CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
+            .windowBy(windowing)
             .output();
 
     assertEquals(flow, counted.getFlow());
@@ -31,8 +33,7 @@ public class CountByKeyTest {
     assertEquals("CountByKey1", count.getName());
     assertNotNull(count.keyExtractor);
     assertEquals(counted, count.output());
-    // batch windowing by default
-    assertEquals(BatchWindowing.get(), count.getWindowing());
+    assertSame(windowing, count.getWindowing());
 
     // default partitioning used
     assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);

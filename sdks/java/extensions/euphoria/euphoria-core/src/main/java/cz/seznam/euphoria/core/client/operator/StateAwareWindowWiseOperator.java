@@ -21,7 +21,7 @@ public abstract class StateAwareWindowWiseOperator<
   protected Partitioning<KEY> partitioning;
 
   protected StateAwareWindowWiseOperator(
-          String name, Flow flow, Windowing<WIN, ?, WLABEL, W> windowing,
+          String name, Flow flow, Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
           UnaryFunction<KIN, KEY> keyExtractor,
           Partitioning<KEY> partitioning) {
     

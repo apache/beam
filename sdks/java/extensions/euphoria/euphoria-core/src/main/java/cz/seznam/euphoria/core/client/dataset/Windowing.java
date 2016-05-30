@@ -216,8 +216,8 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
       @Override
       public String toString() {
-        return "CountWindow { currentCount = " + currentCount + ", label = " +
-            System.identityHashCode(label) + " }";
+        return "CountWindow { currentCount = " + currentCount
+            + ", label = " + label + " }";
       }
     } // ~ end of CountWindow
 

@@ -24,7 +24,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
           String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-          Windowing<WIN, ?, WLABEL, W> windowing,
+          Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, extractor, partitioning);

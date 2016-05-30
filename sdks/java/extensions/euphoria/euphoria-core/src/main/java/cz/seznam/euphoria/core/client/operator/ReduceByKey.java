@@ -1,7 +1,5 @@
-
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -138,13 +136,12 @@ public class ReduceByKey<
     DatasetBuilder5<IN, KEY, VALUE, OUT, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, windowing, this);
+              reducer, Objects.requireNonNull(windowing), this);
     }
 
     public Dataset<Pair<KEY, OUT>> output() {
-      // use default windowing
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, BatchWindowing.get(), this)
+              reducer, null, this)
           .output();
     }
   }
@@ -165,7 +162,7 @@ public class ReduceByKey<
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
-                    Windowing<IN, ?, WLABEL, W> windowing,
+                    Windowing<IN, ?, WLABEL, W> windowing /* optional */,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize default partitioning according to input
@@ -176,7 +173,7 @@ public class ReduceByKey<
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
-      this.windowing = Objects.requireNonNull(windowing);
+      this.windowing = windowing;
     }
 
     public Dataset<Pair<KEY, OUT>> output() {
@@ -278,12 +275,11 @@ public class ReduceByKey<
     GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, windowing, this);
+              reducer, Objects.requireNonNull(windowing), this);
     }
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
-      // use default windowing
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-          reducer, BatchWindowing.get(), this).output();
+          reducer, null, this).output();
     }
   }
 
@@ -313,7 +309,7 @@ public class ReduceByKey<
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
-      this.windowing = Objects.requireNonNull(windowing);
+      this.windowing = windowing;
     }
 
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
