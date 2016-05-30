@@ -204,7 +204,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       if (executorService.isShutdown() && visibleUpdates.isEmpty()) {
         return;
       }
-      update = visibleUpdates.take();
+      // Get an update; don't block forever if another thread has handled it
+      update = visibleUpdates.poll(2L, TimeUnit.SECONDS);
+      if (update == null) {
+        continue;
+      }
       if (update.throwable.isPresent()) {
         throw update.throwable.get();
       }
