@@ -1,11 +1,12 @@
 
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
+import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -36,6 +37,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -69,9 +71,23 @@ public class InMemExecutor implements Executor {
     }
   }
 
+  // Instances of this class are wandering around the dataflow in the inmem executor
+  // and signal the end of a fired window pane.
+  static class EndOfPane<W extends Window> {
+    private final W window;
+    EndOfPane(W window) {
+      this.window = Objects.requireNonNull(window);
+    }
+    W getWindow() {
+      return window;
+    }
+  }
+
   private static class EndOfStreamException extends Exception {}
 
-  private static final class PartitionSupplierStream<T> implements Supplier<T> {
+  static final class PartitionSupplierStream<T>
+      implements Supplier
+  {
     final Reader<T> reader;
     final Partition partition;
     PartitionSupplierStream(Partition<T> partition) {
@@ -84,7 +100,7 @@ public class InMemExecutor implements Executor {
       }
     }
     @Override
-    public T get() throws EndOfStreamException {
+    public Object get() throws EndOfStreamException {
       if (!this.reader.hasNext()) {
         try {
           this.reader.close();
@@ -95,10 +111,11 @@ public class InMemExecutor implements Executor {
         throw new EndOfStreamException();
       }
       T next = this.reader.next();
-      return next;
+      BatchWindowing.BatchWindow w =
+          BatchWindowing.get().assignWindows(next).iterator().next();
+      return new Datum<>(w.getGroup(), w.getLabel(), next);
     }
   }
-
 
   /** Partitioned provider of input data for single operator. */
   private static final class InputProvider<T> implements Iterable<Supplier<T>> {
@@ -270,6 +287,7 @@ public class InMemExecutor implements Executor {
     List<DataSink<?>> sinks = leafs.stream()
             .map(n -> n.get().output().getOutputSink())
             .filter(s -> s != null)
+            .map(DatumCleanupSink::new)
             .collect(Collectors.toList());
 
     // wait for all threads to finish
@@ -306,7 +324,7 @@ public class InMemExecutor implements Executor {
     List<Future> tasks = new ArrayList<>();
     // consume outputs
     for (Node<Operator<?, ?>> output : leafs) {
-      DataSink<?> sink = output.get().output().getOutputSink();
+      DataSink<?> sink = new DatumCleanupSink(output.get().output().getOutputSink());
       final InputProvider<?> provider = context.get(output.get(), null);
       int part = 0;
       for (Supplier<?> s : provider) {
@@ -442,7 +460,6 @@ public class InMemExecutor implements Executor {
 
   }
 
-
   @SuppressWarnings("unchecked")
   private InputProvider<?> execMap(Node<FlatMap> flatMap,
       ExecutionContext context) {
@@ -451,19 +468,26 @@ public class InMemExecutor implements Executor {
     InputProvider<?> ret = new InputProvider<>();
     final UnaryFunctor mapper = flatMap.get().getFunctor();
     for (Supplier<?> s : suppliers) {
-      final BlockingQueue<?> blockingQueue = new ArrayBlockingQueue(5000);
-      ret.add((Supplier) QueueSupplier.wrap(blockingQueue));
-      final Collector c = QueueCollector.wrap(blockingQueue);
+      final BlockingQueue<?> out = new ArrayBlockingQueue(5000);
+      ret.add((Supplier) QueueSupplier.wrap(out));
       executor.execute(() -> {
+        QueueCollector outQ = QueueCollector.wrap(out);
+        DatumCollector outC = new DatumCollector(outQ);
         try {
           for (;;) {
             // read input
             Object o = s.get();
-            // transform
-            mapper.apply(o, c);
+            if (o instanceof EndOfPane) {
+              outQ.collect(o);
+            } else {
+              Datum d = (Datum) o;
+              // transform
+              outC.assignWindowing(d.group, d.label);
+              mapper.apply(d.element, outC);
+            }
           }
         } catch (EndOfStreamException ex) {
-          c.collect(EndOfStream.get());
+          outQ.collect(EndOfStream.get());
         }
       });
     }
@@ -597,12 +621,23 @@ public class InMemExecutor implements Executor {
         try {
           try {
             for (;;) {
+              // read input
               Object o = s.get();
-              Object key = keyExtractor.apply(o);
-              int partition
-                  = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
-                  % outputPartitions;
-              ret.get(partition).put(o);
+              if (o instanceof EndOfPane) {
+                // re-send to all partitions
+                for (BlockingQueue r : ret) {
+                  r.put(o);
+                }
+              } else {
+                Datum d = (Datum) o;
+                // determine partition
+                Object key = keyExtractor.apply(d.element);
+                int partition
+                    = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
+                      % outputPartitions;
+                // write to the right partition
+                ret.get(partition).put(d);
+              }
             }
           } catch (EndOfStreamException ex) {
             // ~ no-op
