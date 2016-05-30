@@ -72,10 +72,10 @@ public class InMemExecutor implements Executor {
   }
 
   // Instances of this class are wandering around the dataflow in the inmem executor
-  // and signal the end of a fired window pane.
-  static class EndOfPane<W extends Window> {
+  // and signal the end of a fired window (pane.)
+  static class EndOfWindow<W extends Window> {
     private final W window;
-    EndOfPane(W window) {
+    EndOfWindow(W window) {
       this.window = Objects.requireNonNull(window);
     }
     W getWindow() {
@@ -477,7 +477,7 @@ public class InMemExecutor implements Executor {
           for (;;) {
             // read input
             Object o = s.get();
-            if (o instanceof EndOfPane) {
+            if (o instanceof EndOfWindow) {
               outQ.collect(o);
             } else {
               Datum d = (Datum) o;
@@ -623,7 +623,7 @@ public class InMemExecutor implements Executor {
             for (;;) {
               // read input
               Object o = s.get();
-              if (o instanceof EndOfPane) {
+              if (o instanceof EndOfWindow) {
                 // re-send to all partitions
                 for (BlockingQueue r : ret) {
                   r.put(o);
