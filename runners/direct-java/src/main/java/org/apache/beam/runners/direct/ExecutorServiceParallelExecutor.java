@@ -212,7 +212,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       if (update.throwable.isPresent()) {
         throw update.throwable.get();
       }
-    } while (!update.isDone());
+    } while (update == null || !update.isDone());
     executorService.shutdown();
   }
 
