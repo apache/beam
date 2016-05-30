@@ -10,7 +10,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfPane;
+import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfWindow;
 import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.InMemExecutor.QueueCollector;
 import org.slf4j.Logger;
@@ -330,7 +330,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private void flush(State state, Window window, boolean close) {
     state.flush();
-    processing.stateOutput.collect(new EndOfPane<>(window));
+    processing.stateOutput.collect(new EndOfWindow<>(window));
     if (close) {
       state.close();
     }
@@ -348,8 +348,8 @@ class ReduceStateByKeyReducer implements Runnable {
         }
 
         synchronized (processing) {
-          if (item instanceof EndOfPane) {
-            Window w = ((EndOfPane) item).getWindow();
+          if (item instanceof EndOfWindow) {
+            Window w = ((EndOfWindow) item).getWindow();
             fireEvictTrigger(w);
           } else {
             processInput((Datum) item);
