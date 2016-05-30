@@ -21,7 +21,7 @@ class DatumCleanupSink implements DataSink<Object> {
 
     @Override
     public void write(Object elem) throws IOException {
-      if (elem instanceof InMemExecutor.EndOfPane) {
+      if (elem instanceof InMemExecutor.EndOfWindow) {
         // ~ ignore
         return;
       }
