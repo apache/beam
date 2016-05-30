@@ -120,10 +120,17 @@ public class UnboundedSourceWrapper<
     }
 
     Coder<CheckpointMarkT> checkpointMarkCoder = source.getCheckpointMarkCoder();
-    Coder<? extends UnboundedSource<OutputT, CheckpointMarkT>> sourceCoder =
-        SerializableCoder.of(new TypeDescriptor<UnboundedSource<OutputT, CheckpointMarkT>>() {});
+    if (checkpointMarkCoder == null) {
+      LOG.info("No CheckpointMarkCoder specified for this source. Won't create snapshots.");
+      checkpointCoder = null;
+    } else {
 
-    checkpointCoder = (ListCoder) ListCoder.of(KvCoder.of(sourceCoder, checkpointMarkCoder));
+      Coder<? extends UnboundedSource<OutputT, CheckpointMarkT>> sourceCoder =
+          SerializableCoder.of(new TypeDescriptor<UnboundedSource<OutputT, CheckpointMarkT>>() {
+          });
+
+      checkpointCoder = (ListCoder) ListCoder.of(KvCoder.of(sourceCoder, checkpointMarkCoder));
+    }
 
     // get the splits early. we assume that the generated splits are stable,
     // this is necessary so that the mapping of state to source is correct
@@ -308,6 +315,12 @@ public class UnboundedSourceWrapper<
 
   @Override
   public byte[] snapshotState(long l, long l1) throws Exception {
+
+    if (checkpointCoder == null) {
+      // no checkpoint coder available in this source
+      return null;
+    }
+
     // we checkpoint the sources along with the CheckpointMarkT to ensure
     // than we have a correct mapping of checkpoints to sources when
     // restoring
@@ -333,6 +346,11 @@ public class UnboundedSourceWrapper<
 
   @Override
   public void restoreState(byte[] bytes) throws Exception {
+    if (checkpointCoder == null) {
+      // no checkpoint coder available in this source
+      return;
+    }
+
     try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
       restoredState = checkpointCoder.decode(bais, Coder.Context.OUTER);
     }
