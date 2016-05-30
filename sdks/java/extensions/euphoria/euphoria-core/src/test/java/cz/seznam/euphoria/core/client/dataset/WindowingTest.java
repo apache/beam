@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.client.dataset;
 
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
@@ -9,6 +10,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.InMemExecutor;
@@ -20,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -211,7 +214,7 @@ public class WindowingTest {
     third.persist(output);
 
     executor.waitForCompletion(flow);
-    LOG.debug("output.getOutput(0): {}", output.getOutput(0));
+//    LOG.debug("output.getOutput(0): {}", output.getOutput(0));
 
     assertNotNull(output.getOutput(0));
     assertEquals(3, output.getOutput(0).size());
@@ -228,5 +231,57 @@ public class WindowingTest {
                  ordered.get(1).getSecond().getSecond());
     assertEquals(Sets.newHashSet("!", "t1-t-one"),
                  ordered.get(2).getSecond().getSecond());
+  }
+
+  @Test
+  public void testAttachedWindowing1() throws Exception {
+    Flow flow = Flow.create("Test", settings);
+
+    InMemFileSystem.get().setFile("/tmp/foo.txt", Duration.ofMillis(100L),
+        asList(
+            Pair.of("one", 2000000000000L),
+            Pair.of("one", 2000000000001L),
+            Pair.of("two", 2000000000002L),
+            Pair.of("two", 2000000000003L),
+            Pair.of("three", 2000000000004L),
+            Pair.of("four", 2000000000005L),
+            Pair.of("five", 2000000000006L),
+            Pair.of("one", 2000000001001L),
+            Pair.of("two", 2000000001002L),
+            Pair.of("three", 2000000001003L),
+            Pair.of("four", 2000000001004L)));
+
+    Dataset<Pair<String, Long>> input =
+        flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+
+    Dataset<WindowedPair<TimeInterval, String, Void>> distinctRBK =
+        ReduceByKey.of(input)
+        .keyBy(Pair::getFirst)
+        .valueBy(e -> (Void) null)
+        .combineBy(e -> null)
+        .windowBy(Windowing.Time.seconds(1).using(Pair::getSecond))
+        .outputWindowed();
+
+    Dataset<Pair<TimeInterval, Long>> counts = ReduceByKey.of(distinctRBK)
+        .keyBy(WindowedPair::getWindowLabel)
+        .valueBy(e -> 1L)
+        .combineBy(Sums.ofLongs())
+        .output();
+
+    ListDataSink<Pair<TimeInterval, Long>> output = ListDataSink.get(1);
+    counts.persist(output);
+
+    executor.waitForCompletion(flow);
+//    LOG.debug("output.getOutput(0): {}", output.getOutput(0));
+
+    assertEquals(2, output.getOutput(0).size());
+    List<Pair<Long, Long>> ordered = output.getOutput(0)
+        .stream()
+        .sorted(Comparator.comparing(e -> e.getFirst().getStartMillis()))
+        .map(e -> Pair.of(e.getFirst().getStartMillis(), e.getSecond()))
+        .collect(Collectors.toList());
+    assertEquals(asList(
+        Pair.of(2000000000000L, 5L), Pair.of(2000000001000L, 4L)),
+        ordered);
   }
 }
