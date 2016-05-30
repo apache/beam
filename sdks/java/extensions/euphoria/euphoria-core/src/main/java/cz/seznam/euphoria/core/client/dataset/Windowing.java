@@ -75,6 +75,14 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
         result = 31 * result + (int) (intervalMillis ^ (intervalMillis >>> 32));
         return result;
       }
+
+      @Override
+      public String toString() {
+        return "TimeInterval{" +
+            "startMillis=" + startMillis +
+            ", intervalMillis=" + intervalMillis +
+            '}';
+      }
     } // ~ end of TimeInterval
 
     public static class TimeWindow
