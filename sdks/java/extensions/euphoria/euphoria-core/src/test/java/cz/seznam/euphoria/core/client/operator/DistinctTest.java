@@ -1,16 +1,13 @@
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class DistinctTest {
 
@@ -19,9 +16,11 @@ public class DistinctTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
+    Windowing.Time<String> windowing = Windowing.Time.hours(1);
     Dataset<String> uniq =
         Distinct.named("Distinct1")
             .of(dataset)
+            .windowBy(windowing)
             .output();
 
     assertEquals(flow, uniq.getFlow());
@@ -31,8 +30,7 @@ public class DistinctTest {
     assertEquals(flow, distinct.getFlow());
     assertEquals("Distinct1", distinct.getName());
     assertEquals(uniq, distinct.output());
-    // batch windowing by default
-    assertEquals(BatchWindowing.get(), distinct.getWindowing());
+    assertSame(windowing, distinct.getWindowing());
 
     // default partitioning used
     assertTrue(distinct.getPartitioning().getPartitioner() instanceof HashPartitioner);

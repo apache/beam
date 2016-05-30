@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
@@ -21,11 +20,13 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
+    Windowing.Time<String> windowing = Windowing.Time.hours(1);
     Dataset<Pair<String, Long>> reduced = ReduceByKey.named("ReduceByKey1")
             .of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .windowBy(windowing)
             .output();
 
     assertEquals(flow, reduced.getFlow());
@@ -38,8 +39,7 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueExtractor);
     assertNotNull(reduce.reducer);
     assertEquals(reduced, reduce.output());
-    // batch windowing by default
-    assertEquals(BatchWindowing.get(), reduce.getWindowing());
+    assertSame(windowing, reduce.getWindowing());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
@@ -142,12 +142,14 @@ public class ReduceByKeyTest {
             .keyBy(s -> s)
             .output();
 
+    Windowing.Time<String> windowing = Windowing.Time.hours(1);
     Dataset<Pair<CompositeKey<String, String>, Long>> reduced =
             ReduceByKey.named("ReduceByKey1")
                     .of(grouped)
                     .keyBy(s -> s)
                     .valueBy(s -> 1L)
                     .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+                    .windowBy(windowing)
                     .output();
 
     assertEquals(flow, reduced.getFlow());
@@ -159,8 +161,7 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.getKeyExtractor());
     assertNotNull(reduce.valueExtractor);
     assertEquals(reduced, reduce.output());
-    // batch windowing by default
-    assertEquals(BatchWindowing.get(), reduce.getWindowing());
+    assertEquals(windowing, reduce.getWindowing());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
