@@ -149,14 +149,6 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     return translator;
   }
 
-  private static String genSpaces(int n) {
-    String s = "";
-    for (int i = 0; i < n; i++) {
-      s += "|   ";
-    }
-    return s;
-  }
-
   private static String formatNodeName(TransformTreeNode node) {
     return node.toString().split("@")[1] + node.getTransform();
   }

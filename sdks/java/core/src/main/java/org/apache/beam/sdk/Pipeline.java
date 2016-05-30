@@ -275,7 +275,7 @@ public class Pipeline {
 
   /**
    * Invokes the {@link PipelineVisitor PipelineVisitor's}
-   * {@link PipelineVisitor#visitTransform} and
+   * {@link PipelineVisitor#visitPrimitiveTransform} and
    * {@link PipelineVisitor#visitValue} operations on each of this
    * {@link Pipeline Pipeline's} transform and value nodes, in forward
    * topological order.

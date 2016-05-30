@@ -30,7 +30,24 @@ import org.apache.beam.sdk.Pipeline;
  */
 public abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
 
+  /**
+   * Translates the pipeline by passing this class as a visitor.
+   * @param pipeline The pipeline to be translated
+   */
   public void translate(Pipeline pipeline) {
     pipeline.traverseTopologically(this);
+  }
+
+  /**
+   * Utility formatting method
+   * @param n number of spaces to generate
+   * @return String with "|" followed by n spaces
+   */
+  protected static String genSpaces(int n) {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < n; i++) {
+      builder.append("|   ");
+    }
+    return builder.toString();
   }
 }
