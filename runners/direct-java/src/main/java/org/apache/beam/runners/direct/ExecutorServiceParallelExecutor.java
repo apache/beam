@@ -200,6 +200,10 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   public void awaitCompletion() throws Throwable {
     VisibleExecutorUpdate update;
     do {
+      // Return immediately if there no updates will ever be published
+      if (executorService.isShutdown() && visibleUpdates.isEmpty()) {
+        return;
+      }
       update = visibleUpdates.take();
       if (update.throwable.isPresent()) {
         throw update.throwable.get();
