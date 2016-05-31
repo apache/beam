@@ -15,7 +15,7 @@ import java.io.Closeable;
 public abstract class State<IN, OUT> implements Closeable {
 
   /** Collector of output of this state. */
-  public final Collector<OUT> collector;
+  private final Collector<OUT> collector;
 
   /** Add element to this state. */
   public abstract void add(IN element);
@@ -28,6 +28,10 @@ public abstract class State<IN, OUT> implements Closeable {
 
   protected State(Collector<OUT> collector) {
     this.collector = collector;
+  }
+
+  public Collector<OUT> getCollector() {
+    return collector;
   }
 
   /**

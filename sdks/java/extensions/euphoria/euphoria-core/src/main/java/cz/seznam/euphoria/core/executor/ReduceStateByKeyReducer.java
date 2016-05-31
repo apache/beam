@@ -267,8 +267,8 @@ class ReduceStateByKeyReducer implements Runnable {
           toCombine.add(s.getValue());
           toCombine.add(dstKeyState);
           State newState = (State) stateCombiner.apply(toCombine);
-          if (newState.collector instanceof DatumCollector) {
-            ((DatumCollector) newState.collector)
+          if (newState.getCollector() instanceof DatumCollector) {
+            ((DatumCollector) newState.getCollector())
                 .assignWindowing(dstWindow.getGroup(), dstWindow.getLabel());
           }
           dst.put(s.getKey(), newState);
