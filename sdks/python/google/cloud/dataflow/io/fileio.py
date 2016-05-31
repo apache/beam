@@ -283,6 +283,18 @@ class ChannelFactory(object):
         raise IOError(err)
 
   @staticmethod
+  def rm(path):
+    if path.startswith('gs://'):
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      gcsio.GcsIO().delete(path)
+    else:
+      try:
+        os.remove(path)
+      except OSError as err:
+        raise IOError(err)
+
+  @staticmethod
   def glob(path):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
