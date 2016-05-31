@@ -257,14 +257,14 @@ public class InMemExecutorTest {
     public void flush() {
       Collections.sort((List) data);
       data.stream().forEachOrdered(
-          c -> this.collector.collect(c));
+          c -> this.getCollector().collect(c));
     }
 
     static SortState combine(Iterable<SortState> others) {
       SortState ret = null;
       for (SortState s : others) {
         if (ret == null) {
-          ret = new SortState(s.collector);
+          ret = new SortState(s.getCollector());
         }
         ret.data.addAll(s.data);
       }
