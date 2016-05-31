@@ -22,8 +22,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey;
-import org.apache.beam.sdk.values.PValue;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -134,19 +132,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
       return null;
     }
 
-    BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
-
-    // No translator known
-    if (translator == null) {
-      return null;
-    }
-
-    // We actually only specialize CoGroupByKey when exactly 2 inputs
-    if (transform instanceof CoGroupByKey && node.getInput().expand().size() != 2) {
-      return null;
-    }
-
-    return translator;
+    return FlinkBatchTransformTranslators.getTranslator(transform);
   }
 
   private static String formatNodeName(TransformTreeNode node) {
