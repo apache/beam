@@ -287,7 +287,6 @@ public class InMemExecutor implements Executor {
     List<DataSink<?>> sinks = leafs.stream()
             .map(n -> n.get().output().getOutputSink())
             .filter(s -> s != null)
-            .map(DatumCleanupSink::new)
             .collect(Collectors.toList());
 
     // wait for all threads to finish
@@ -333,7 +332,13 @@ public class InMemExecutor implements Executor {
           try {
             try {
               for (;;) {
-                writer.write(s.get());
+                Object elem = s.get();
+                // ~ swallow EndOfWindow events from leaving
+                // the inmem executor
+                if (elem instanceof EndOfWindow) {
+                  continue;
+                }
+                writer.write(elem);
               }
             } catch (EndOfStreamException ex) {
               // end of the stream
