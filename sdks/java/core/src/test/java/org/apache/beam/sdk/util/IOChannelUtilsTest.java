@@ -80,6 +80,13 @@ public class IOChannelUtilsTest {
   }
 
   @Test
+  public void testFilePrefix() throws Exception {
+    IOChannelUtils.getFactory("file://tmp");
+    IOChannelUtils.getFactory("file:/tmp");
+    IOChannelUtils.getFactory("file:tmp");
+  }
+
+  @Test
   public void testGetSizeBytes() throws Exception {
     String data = "TestData";
     File file = tmpFolder.newFile();
