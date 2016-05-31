@@ -14,7 +14,7 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.core.executor.InMemExecutor;
+import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.util.Settings;
 
 import java.io.ByteArrayInputStream;
