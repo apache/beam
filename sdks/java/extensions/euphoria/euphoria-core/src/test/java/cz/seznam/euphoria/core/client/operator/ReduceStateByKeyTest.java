@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
@@ -267,14 +266,14 @@ public class ReduceStateByKeyTest {
 
     @Override
     public void flush() {
-      this.collector.collect(sum);
+      this.getCollector().collect(sum);
     }
 
     static WordCountState combine(Iterable<WordCountState> others) {
       WordCountState state = null;
       for (WordCountState s : others) {
         if (state == null) {
-          state = new WordCountState(s.collector);
+          state = new WordCountState(s.getCollector());
         }
         state.add(s.sum);
       }
