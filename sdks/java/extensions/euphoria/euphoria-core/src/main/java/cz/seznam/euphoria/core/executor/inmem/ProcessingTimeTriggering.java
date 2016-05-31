@@ -1,6 +1,6 @@
 
 
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Trigger;
 import cz.seznam.euphoria.core.client.dataset.Triggering;

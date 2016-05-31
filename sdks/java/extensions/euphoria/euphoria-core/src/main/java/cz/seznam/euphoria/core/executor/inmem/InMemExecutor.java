@@ -1,5 +1,5 @@
 
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -24,7 +24,11 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.ExecUnit;
+import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
+import cz.seznam.euphoria.core.executor.SerializableUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

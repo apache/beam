@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
+import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
 import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Before;
 import org.junit.Test;

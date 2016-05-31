@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.core.executor.inmem;
 
 import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.DataSink;

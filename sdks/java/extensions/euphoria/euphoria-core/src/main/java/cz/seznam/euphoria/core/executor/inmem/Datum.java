@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.core.executor.inmem;
 
 /**
  * A single data element flowing through the inmem executor. Every such element

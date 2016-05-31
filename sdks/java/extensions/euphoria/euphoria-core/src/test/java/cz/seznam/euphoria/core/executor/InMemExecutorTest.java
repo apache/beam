@@ -20,6 +20,8 @@ import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
+import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggering;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
