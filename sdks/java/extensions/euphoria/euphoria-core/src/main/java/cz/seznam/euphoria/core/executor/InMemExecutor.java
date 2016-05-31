@@ -323,7 +323,7 @@ public class InMemExecutor implements Executor {
     List<Future> tasks = new ArrayList<>();
     // consume outputs
     for (Node<Operator<?, ?>> output : leafs) {
-      DataSink<?> sink = new DatumCleanupSink(output.get().output().getOutputSink());
+      DataSink<?> sink = output.get().output().getOutputSink();
       final InputProvider<?> provider = context.get(output.get(), null);
       int part = 0;
       for (Supplier<?> s : provider) {
@@ -338,7 +338,10 @@ public class InMemExecutor implements Executor {
                 if (elem instanceof EndOfWindow) {
                   continue;
                 }
-                writer.write(elem);
+                // ~ unwrap the bare bone element from the inmem
+                // specific "Datum" cargo object
+                Datum datum = (Datum) elem;
+                writer.write(datum.element);
               }
             } catch (EndOfStreamException ex) {
               // end of the stream
