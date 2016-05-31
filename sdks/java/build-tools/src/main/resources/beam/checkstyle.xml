@@ -25,21 +25,6 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
 
-  <!-- Requires the Apache copyright header in each file.
-    Code intended to be open-sourced may have a multi-line copyright
-    notice, so that this required text appears on the second line:
-    <pre>
-      /*
-       * Licensed to the Apache Software Foundation (ASF) under one
-       * ...
-    </pre>
-    See http://checkstyle.sf.net/config_header.html -->
-  <module name="Header">
-    <property name="headerFile" value="${checkstyle.header.file}"/>
-    <property name="ignoreLines" value="2"/>
-    <property name="fileExtensions" value="java, scala"/>
-  </module>
-
   <module name="FileTabCharacter">
     <!-- Checks that there are no tab characters in the file. -->
   </module>
