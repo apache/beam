@@ -397,7 +397,7 @@ public class ReduceByKey<
     @Override
     @SuppressWarnings("unchecked")
     public void flush() {
-      collector.collect(reducer.apply(reducableValues));
+      getCollector().collect(reducer.apply(reducableValues));
     }
 
     void add(ReduceState other) {

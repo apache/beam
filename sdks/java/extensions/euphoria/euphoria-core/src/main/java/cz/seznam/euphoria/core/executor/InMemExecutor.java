@@ -366,9 +366,8 @@ public class InMemExecutor implements Executor {
   }
   
 
-  @SuppressWarnings("unchecked")
   private InputProvider<?> createStream(DataSource<?> source) {
-    InputProvider ret = new InputProvider();
+    InputProvider<?> ret = new InputProvider<>();
     source.getPartitions().stream()
         .map(PartitionSupplierStream::new)
         .forEach(ret::add);

@@ -230,7 +230,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
     // store the elements in memory for this implementation
     final Collection<LEFT> leftElements = new ArrayList<>();
     final Collection<RIGHT> rightElements = new ArrayList<>();
-    final Collector<OUT> functorCollector = collector::collect;
+    final Collector<OUT> functorCollector = getCollector()::collect;
 
     public JoinState(Collector<OUT> collector) {
       super(collector);
