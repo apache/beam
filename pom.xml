@@ -240,6 +240,7 @@
                   <!-- Keep exclude sync with .gitignore -->
                   <exclude>**/target/**/*</exclude>
                   <exclude>**/dependency-reduced-pom.xml</exclude>
+                  <exclude>.github/**/*</exclude>
                   <exclude>**/*.iml</exclude>
                   <exclude>**/package-list</exclude>
                   <exclude>**/user.avsc</exclude>
