@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
@@ -10,9 +10,9 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfWindow;
-import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfStream;
-import cz.seznam.euphoria.core.executor.InMemExecutor.QueueCollector;
+import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.EndOfWindow;
+import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.EndOfStream;
+import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.QueueCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
