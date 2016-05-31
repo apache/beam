@@ -63,6 +63,7 @@ public class IOChannelUtils {
    */
   public static void registerStandardIOFactories(PipelineOptions options) {
     setIOFactory("gs", new GcsIOChannelFactory(options.as(GcsOptions.class)));
+    setIOFactory("file", new FileIOChannelFactory());
   }
 
   /**
