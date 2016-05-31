@@ -25,13 +25,13 @@ import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -68,22 +68,20 @@ public class FlattenStreamingTest {
 
     PCollection<String> w1 =
             p.apply(CreateStream.fromQueue(WORDS_QUEUE_1)).setCoder(StringUtf8Coder.of());
-    PCollection<String> windowedW1 =
-            w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollection<String> windowedW1 = w1
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollection<String> w2 =
             p.apply(CreateStream.fromQueue(WORDS_QUEUE_2)).setCoder(StringUtf8Coder.of());
-    PCollection<String> windowedW2 =
-            w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollection<String> windowedW2 = w2
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssert.thatIterable(union.apply(View.<String>asIterable()))
-            .containsInAnyOrder(EXPECTED_UNION);
+    union.apply(new AssertContains<>(ImmutableList.copyOf(EXPECTED_UNION)));
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
 
     PAssertStreaming.assertNoFailures(res);
   }
-
 }
