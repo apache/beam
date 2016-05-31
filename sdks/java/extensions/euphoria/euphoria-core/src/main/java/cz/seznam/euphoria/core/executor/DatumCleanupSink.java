@@ -21,10 +21,6 @@ class DatumCleanupSink implements DataSink<Object> {
 
     @Override
     public void write(Object elem) throws IOException {
-      if (elem instanceof InMemExecutor.EndOfWindow) {
-        // ~ ignore
-        return;
-      }
       if (elem instanceof Datum) {
         // ~ strip the datum information from the emitted element
         this.wrap.write(((Datum) elem).element);
