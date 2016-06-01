@@ -18,8 +18,6 @@ import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
 import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.time.Duration;
@@ -34,8 +32,6 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 
 public class WindowingTest {
-
-  private static final Logger LOG = LoggerFactory.getLogger(WindowingTest.class);
 
   private InMemExecutor executor;
   private Settings settings;
@@ -225,7 +221,6 @@ public class WindowingTest {
     third.persist(output);
 
     executor.waitForCompletion(flow);
-//    LOG.debug("output.getOutput(0): {}", output.getOutput(0));
 
     assertNotNull(output.getOutput(0));
     assertEquals(3, output.getOutput(0).size());
@@ -287,7 +282,6 @@ public class WindowingTest {
     counts.persist(output);
 
     executor.waitForCompletion(flow);
-//    LOG.debug("output.getOutput(0): {}", output.getOutput(0));
 
     assertEquals(2, output.getOutput(0).size());
     List<Pair<Long, Long>> ordered = output.getOutput(0)
