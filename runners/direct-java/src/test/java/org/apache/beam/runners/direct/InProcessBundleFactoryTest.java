@@ -19,11 +19,15 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -69,34 +73,38 @@ public class InProcessBundleFactoryTest {
   }
 
   @Test
-  public void createRootBundleShouldCreateWithNullKey() {
+  public void createRootBundleShouldCreateWithEmptyKey() {
     PCollection<Integer> pcollection = TestPipeline.create().apply(Create.of(1));
 
     UncommittedBundle<Integer> inFlightBundle = bundleFactory.createRootBundle(pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
 
-    assertThat(bundle.getKey(), nullValue());
+    assertThat(bundle.getKey(),
+        Matchers.<StructuralKey<?>>equalTo(StructuralKey.of(null, VoidCoder.of())));
   }
 
-  private void createKeyedBundle(Object key) {
+  private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
     PCollection<Integer> pcollection = TestPipeline.create().apply(Create.of(1));
+    StructuralKey skey = StructuralKey.of(key, coder);
 
     UncommittedBundle<Integer> inFlightBundle =
-        bundleFactory.createKeyedBundle(null, key, pcollection);
+        bundleFactory.createKeyedBundle(null, skey, pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-    assertThat(bundle.getKey(), equalTo(key));
+    assertThat(bundle.getKey(), equalTo(skey));
   }
 
   @Test
-  public void keyedWithNullKeyShouldCreateKeyedBundle() {
-    createKeyedBundle(null);
+  public void keyedWithNullKeyShouldCreateKeyedBundle() throws Exception {
+    createKeyedBundle(VoidCoder.of(), null);
   }
 
   @Test
-  public void keyedWithKeyShouldCreateKeyedBundle() {
-    createKeyedBundle(new Object());
+  public void keyedWithKeyShouldCreateKeyedBundle() throws Exception {
+    createKeyedBundle(StringUtf8Coder.of(), "foo");
+    createKeyedBundle(VarIntCoder.of(), 1234);
+    createKeyedBundle(ByteArrayCoder.of(), new byte[] {0, 2, 4, 99});
   }
 
   private <T> CommittedBundle<T>
@@ -154,7 +162,7 @@ public class InProcessBundleFactoryTest {
 
     assertThat(withed.getElements(), containsInAnyOrder(firstReplacement, secondReplacement));
     assertThat(committed.getElements(), containsInAnyOrder(firstValue, secondValue));
-    assertThat(withed.getKey(), equalTo(committed.getKey()));
+    assertThat(withed.getKey(), Matchers.<StructuralKey<?>>equalTo(committed.getKey()));
     assertThat(withed.getPCollection(), equalTo(committed.getPCollection()));
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
@@ -203,21 +211,21 @@ public class InProcessBundleFactoryTest {
   @Test
   public void createBundleKeyedResultPropagatesKey() {
     CommittedBundle<KV<String, Integer>> newBundle =
-        bundleFactory
-            .createBundle(
-                bundleFactory.createKeyedBundle(null, "foo", created).commit(Instant.now()),
-                downstream)
-            .commit(Instant.now());
-    assertThat(newBundle.getKey(), Matchers.<Object>equalTo("foo"));
+        bundleFactory.createBundle(
+            bundleFactory.createKeyedBundle(
+                null,
+                StructuralKey.of("foo", StringUtf8Coder.of()),
+                created).commit(Instant.now()),
+            downstream).commit(Instant.now());
+    assertThat(newBundle.getKey().getKey(), Matchers.<Object>equalTo("foo"));
   }
 
   @Test
   public void createKeyedBundleKeyed() {
-    CommittedBundle<KV<String, Integer>> keyedBundle =
-        bundleFactory
-            .createKeyedBundle(
-                bundleFactory.createRootBundle(created).commit(Instant.now()), "foo", downstream)
-            .commit(Instant.now());
-    assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
+    CommittedBundle<KV<String, Integer>> keyedBundle = bundleFactory.createKeyedBundle(
+        bundleFactory.createRootBundle(created).commit(Instant.now()),
+        StructuralKey.of("foo", StringUtf8Coder.of()),
+        downstream).commit(Instant.now());
+    assertThat(keyedBundle.getKey().getKey(), Matchers.<Object>equalTo("foo"));
   }
 }
