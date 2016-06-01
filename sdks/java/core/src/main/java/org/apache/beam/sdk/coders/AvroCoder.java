@@ -317,7 +317,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
     } else {
       // Workaround AVRO-607, a race in Avro's getSchema function.
       //    https://issues.apache.org/jira/browse/AVRO-607
-      AvroUtils.getSchemaThreadsafe(type);
+//      AvroUtils.getSchemaThreadsafe(type);
       return new ReflectDatumReader<>(schema);
     }
   }
@@ -335,7 +335,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
     } else {
       // Workaround AVRO-607, a race in Avro's getSchema function.
       //    https://issues.apache.org/jira/browse/AVRO-607
-      AvroUtils.getSchemaThreadsafe(type);
+//      AvroUtils.getSchemaThreadsafe(type);
       return new ReflectDatumWriter<>(schema);
     }
   }

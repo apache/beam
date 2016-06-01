@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -27,6 +28,10 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -46,8 +51,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 /**
  * Tests for AvroUtils.
@@ -223,5 +233,55 @@ public class AvroUtilsTest {
       records.add(bird);
     }
     return records;
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  public static class MyClass {
+    public MyClass() {}
+    public MyClass(@Nullable Long value, @Nullable MyClass inner) {
+      this.value = value;
+      this.inner = inner;
+    }
+    @Nullable MyClass inner;
+    @Nullable Long value;
+    @Nullable Bird inner2;
+  }
+
+  @Test
+  public void getMyClassSchema()
+      throws ClassNotFoundException, ExecutionException, InterruptedException {
+    fail(AvroCoder.of(MyClass.class).getSchema().toString());
+  }
+
+
+  @Test
+  public void reproThreadAvro607Issue()
+      throws ClassNotFoundException, ExecutionException, InterruptedException {
+    final String schemaStr = "{\"type\":\"record\",\"name\":\"MyClass\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$\",\"fields\":[{\"name\":\"inner\",\"type\":[\"null\",\"MyClass\"],\"default\":null},{\"name\":\"value\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"inner2\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bird\",\"fields\":[{\"name\":\"number\",\"type\":\"long\"},{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"quality\",\"type\":[\"null\",\"double\"],\"default\":null},{\"name\":\"quantity\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"birthday\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"flighted\",\"type\":[\"null\",\"boolean\"],\"default\":null},{\"name\":\"scion\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubBird\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$\",\"fields\":[{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null}]}],\"default\":null},{\"name\":\"associates\",\"type\":{\"type\":\"array\",\"items\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$.SubBird\",\"java-class\":\"[Lorg.apache.beam.sdk.util.AvroUtilsTest$Bird$SubBird;\"}}]}],\"default\":null}]}";
+    final Schema schema = new Schema.Parser().parse(schemaStr);
+    final AvroCoder<MyClass> coder = AvroCoder.of(MyClass.class, schema);
+    final int numThreads = 128;
+    final CountDownLatch latch = new CountDownLatch(numThreads);
+    ListeningExecutorService executorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(numThreads));
+    List<ListenableFuture<byte[]>> ret = new LinkedList<>();
+    for (int i = 0; i < numThreads; ++i) {
+      ret.add(executorService.submit(new Callable<byte[]>() {
+        @Override
+        public byte[] call() throws Exception {
+          latch.countDown();
+          latch.await();
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          return CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+        }
+      }));
+    }
+    Futures.allAsList(ret).get();
+    executorService.shutdown();
   }
 }
