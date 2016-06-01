@@ -29,16 +29,16 @@ import java.util.Objects;
  */
 final class StepAndKey {
   private final AppliedPTransform<?, ?, ?> step;
-  private final Object key;
+  private final StructuralKey<?> key;
 
   /**
    * Create a new {@link StepAndKey} with the provided step and key.
    */
-  public static StepAndKey of(AppliedPTransform<?, ?, ?> step, Object key) {
+  public static StepAndKey of(AppliedPTransform<?, ?, ?> step, StructuralKey<?> key) {
     return new StepAndKey(step, key);
   }
 
-  private StepAndKey(AppliedPTransform<?, ?, ?> step, Object key) {
+  private StepAndKey(AppliedPTransform<?, ?, ?> step, StructuralKey<?> key) {
     this.step = step;
     this.key = key;
   }
@@ -47,7 +47,7 @@ final class StepAndKey {
   public String toString() {
     return MoreObjects.toStringHelper(StepAndKey.class)
         .add("step", step.getFullName())
-        .add("key", key)
+        .add("key", key.getKey())
         .toString();
   }
 

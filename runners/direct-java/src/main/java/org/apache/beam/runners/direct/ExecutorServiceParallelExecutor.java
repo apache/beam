@@ -259,7 +259,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   /**
    * A {@link CompletionCallback} where the completed bundle was produced to deliver some collection
    * of {@link TimerData timers}. When the evaluator completes successfully, reports all of the
-   * timers used to create the input to the {@link InProcessEvaluationContext evaluation context}
+   * timers used to of the input to the {@link InProcessEvaluationContext evaluation context}
    * as part of the result.
    */
   private class TimerCompletionCallback extends CompletionCallbackBase {
@@ -396,17 +396,18 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     private boolean fireTimers() throws Exception {
       try {
         boolean firedTimers = false;
-        for (Map.Entry<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> transformTimers :
+        for (Map.Entry<
+               AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> transformTimers :
             evaluationContext.extractFiredTimers().entrySet()) {
           AppliedPTransform<?, ?, ?> transform = transformTimers.getKey();
-          for (Map.Entry<Object, FiredTimers> keyTimers : transformTimers.getValue().entrySet()) {
+          for (Map.Entry<StructuralKey<?>, FiredTimers> keyTimers : transformTimers.getValue().entrySet()) {
             for (TimeDomain domain : TimeDomain.values()) {
               Collection<TimerData> delivery = keyTimers.getValue().getTimers(domain);
               if (delivery.isEmpty()) {
                 continue;
               }
               KeyedWorkItem<Object, Object> work =
-                  KeyedWorkItems.timersWorkItem(keyTimers.getKey(), delivery);
+                  KeyedWorkItems.timersWorkItem(keyTimers.getKey().getKey(), delivery);
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
                   evaluationContext

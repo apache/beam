@@ -17,24 +17,37 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.transforms.MapElements.via;
 import static org.hamcrest.Matchers.is;
+
+import static org.junit.Assert.fail;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -43,6 +56,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Tests for basic {@link InProcessPipelineRunner} functionality.
@@ -57,7 +71,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
-            .apply(MapElements.via(new SimpleFunction<String, String>() {
+            .apply(via(new SimpleFunction<String, String>() {
               @Override
               public String apply(String input) {
                 return input;
@@ -65,7 +79,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
             }))
             .apply(Count.<String>perElement());
     PCollection<String> countStrs =
-        counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
+        counts.apply(via(new SimpleFunction<KV<String, Long>, String>() {
           @Override
           public String apply(KV<String, Long> input) {
             String str = String.format("%s: %s", input.getKey(), input.getValue());
@@ -77,6 +91,45 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
     result.awaitCompletion();
+  }
+
+  @Test(timeout=5000L)
+  public void byteArrayCountShouldSucceed() {
+    Pipeline p = getPipeline();
+
+    SerializableFunction<String, byte[]> getBytes = new SerializableFunction<String, byte[]>() {
+      @Override
+      public byte[] apply(String input) {
+        try {
+          return CoderUtils.encodeToByteArray(StringUtf8Coder.of(), input);
+        } catch (CoderException e) {
+          fail("Unexpected Coder Exception " + e);
+          throw new AssertionError("Unreachable");
+        }
+      }
+    };
+    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {};
+    PCollection<byte[]> foos = p.apply(Create.of("foo", "foo", "foo", "bar", "baz"))
+        .apply(MapElements.via(getBytes).withOutputType(td));
+    PCollection<byte[]> msync = p.apply(Create.of("foo", "spam", "bar", "ham", "eggs"))
+        .apply(via(getBytes).withOutputType(td));
+    PCollection<byte[]> bytes = PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
+    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
+    PCollection<KV<String, Long>> countsBackToString = counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<String, Long>>() {
+      @Override
+      public KV<String, Long> apply(KV<byte[], Long> input) {
+        return KV.of(new String(input.getKey()), input.getValue());
+      }
+    }));
+
+    Map<String, Long> expected = ImmutableMap.<String, Long>builder().put("foo", 4L)
+        .put("bar", 2L)
+        .put("baz", 1L)
+        .put("spam", 1L)
+        .put("ham", 1L)
+        .put("eggs", 1L)
+        .build();
+    PAssert.thatMap(countsBackToString).isEqualTo(expected);
   }
 
   @Test

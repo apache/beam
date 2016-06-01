@@ -78,7 +78,7 @@ class InProcessEvaluationContext {
   /** The step name for each {@link AppliedPTransform} in the {@link Pipeline}. */
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
-  /** The options that were used to create this {@link Pipeline}. */
+  /** The options that were used to of this {@link Pipeline}. */
   private final InProcessPipelineOptions options;
 
   private final BundleFactory bundleFactory;
@@ -233,8 +233,8 @@ class InProcessEvaluationContext {
    * Create a {@link UncommittedBundle} with the specified keys at the specified step. For use by
    * {@link InProcessGroupByKeyOnly} {@link PTransform PTransforms}.
    */
-  public <T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, Object key, PCollection<T> output) {
+  public <K, T> UncommittedBundle<T> createKeyedBundle(
+      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
     return bundleFactory.createKeyedBundle(input, key, output);
   }
 
@@ -302,7 +302,7 @@ class InProcessEvaluationContext {
    * Get an {@link ExecutionContext} for the provided {@link AppliedPTransform} and key.
    */
   public InProcessExecutionContext getExecutionContext(
-      AppliedPTransform<?, ?, ?> application, Object key) {
+      AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
     return new InProcessExecutionContext(
         options.getClock(),
@@ -372,9 +372,9 @@ class InProcessEvaluationContext {
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> extractFiredTimers() {
+  public Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> extractFiredTimers() {
     forceRefresh();
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> fired =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> fired =
         watermarkManager.extractFiredTimers();
     return fired;
   }
