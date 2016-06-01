@@ -163,20 +163,20 @@ public class WindowingTest {
   }
 
   @Test
-  public void testAttachedWindowing0() {
+  public void testAttachedWindowing_ContinuousOutput() {
     final long READ_DELAY_MS = 100L;
     Flow flow = Flow.create("Test", settings);
 
     // ~ one partition; supplying every READ_DELAYS_MS a new element
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
-        asList(("t1-r-one t1-r-two t1-r-three t1-s-one t1-s-two t1-s-three t1-t-one")
+        asList(("r-one r-two r-three s-one s-two s-three t-one")
             .split(" "))
     ).setSleepTime(READ_DELAY_MS));
 
     // ~ emits after 3 input elements received due to "count windowing"
     Dataset<Pair<String, Set<String>>> first =
         ReduceByKey.of(input)
-        .keyBy(e -> e.substring(0, 2))
+        .keyBy(e -> "")
         .valueBy(e -> e)
         .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
         .windowBy(Windowing.Count.of(3))
@@ -233,18 +233,18 @@ public class WindowingTest {
     // output element approx. every 3*READ_DELAY_MS (READ_DELAY_MS for every read
     // element from the input source times window-of-3-items) except for the very
     // last item which is triggered earlier due to "end-of-stream"
-    assertTrue(ordered.get(0).getFirst() + 3*READ_DELAY_MS - 1 < ordered.get(1).getFirst());
-    assertTrue(ordered.get(1).getFirst() + READ_DELAY_MS - 1 < ordered.get(2).getFirst());
-    assertEquals(Sets.newHashSet("!", "t1-r-one", "t1-r-two", "t1-r-three"),
+    assertTrue(ordered.get(0).getFirst() + READ_DELAY_MS < ordered.get(1).getFirst());
+    assertTrue(ordered.get(1).getFirst() + READ_DELAY_MS < ordered.get(2).getFirst());
+    assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
                  ordered.get(0).getSecond().getSecond());
-    assertEquals(Sets.newHashSet("!", "t1-s-one", "t1-s-two", "t1-s-three"),
+    assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
                  ordered.get(1).getSecond().getSecond());
-    assertEquals(Sets.newHashSet("!", "t1-t-one"),
+    assertEquals(Sets.newHashSet("!", "t-one"),
                  ordered.get(2).getSecond().getSecond());
   }
 
   @Test
-  public void testAttachedWindowing1() throws Exception {
+  public void testAttachedWindowing_InhertitedLabel() throws Exception {
     Flow flow = Flow.create("Test", settings);
 
     InMemFileSystem.get().setFile("/tmp/foo.txt", Duration.ofMillis(100L),
