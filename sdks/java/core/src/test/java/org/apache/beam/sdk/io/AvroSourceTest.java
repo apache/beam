@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.AvroUtils;
 
 import com.google.common.base.MoreObjects;
 
@@ -45,7 +47,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
-import org.apache.avro.reflect.ReflectData;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -385,13 +386,13 @@ public class AvroSourceTest {
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
 
     // Create a source with a schema object
-    Schema schema = ReflectData.get().getSchema(Bird.class);
+    Schema schema = AvroUtils.getSchemaThreadsafe(Bird.class);
     AvroSource<GenericRecord> source = AvroSource.from(filename).withSchema(schema);
     List<GenericRecord> records = SourceTestUtils.readFromSource(source, null);
     assertEqualsWithGeneric(expected, records);
 
     // Create a source with a JSON schema
-    String schemaString = ReflectData.get().getSchema(Bird.class).toString();
+    String schemaString = AvroUtils.getSchemaThreadsafe(Bird.class).toString();
     source = AvroSource.from(filename).withSchema(schemaString);
     records = SourceTestUtils.readFromSource(source, null);
     assertEqualsWithGeneric(expected, records);

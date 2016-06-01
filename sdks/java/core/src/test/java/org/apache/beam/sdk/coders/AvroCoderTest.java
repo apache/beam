@@ -33,6 +33,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,7 +46,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.Nullable;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
@@ -353,7 +353,7 @@ public class AvroCoderTest {
     // the same name. This is important for our error reporting, and also how
     // we lookup a field.
     try {
-      ReflectData.get().getSchema(SubclassHidingParent.class);
+      AvroUtils.getSchemaThreadsafe(SubclassHidingParent.class);
       fail("Expected AvroTypeException");
     } catch (AvroTypeException e) {
       assertThat(e.getMessage(), containsString("mapField"));
