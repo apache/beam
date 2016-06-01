@@ -22,12 +22,12 @@
   <parent>
     <groupId>org.apache.beam.runners</groupId>
     <artifactId>parent</artifactId>
-    <version>0.1.0-incubating-SNAPSHOT</version>
+    <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>flink-parent</artifactId>
-  <version>0.1.0-incubating-SNAPSHOT</version>
+  <version>0.2.0-incubating-SNAPSHOT</version>
 
   <name>Apache Beam :: Runners :: Flink</name>
 
