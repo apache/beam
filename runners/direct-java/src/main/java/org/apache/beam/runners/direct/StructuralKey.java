@@ -60,6 +60,9 @@ class StructuralKey<K> {
 
   @Override
   public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
     if (other instanceof StructuralKey) {
       StructuralKey that = (StructuralKey) other;
       return structuralValue.equals(that.structuralValue);

@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
  */
 public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNameOptions {
   /**
-   * Gets the {@link ExecutorServiceFactory} to use to of instances of {@link ExecutorService}
+   * Gets the {@link ExecutorServiceFactory} to use to create instances of {@link ExecutorService}
    * to execute {@link PTransform PTransforms}.
    *
    * <p>Note that {@link ExecutorService ExecutorServices} returned by the factory must ensure that

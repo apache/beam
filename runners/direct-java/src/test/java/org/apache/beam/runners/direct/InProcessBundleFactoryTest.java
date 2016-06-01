@@ -93,8 +93,6 @@ public class InProcessBundleFactoryTest {
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
     assertThat(bundle.getKey(), equalTo(skey));
-    assertThat(coder.structuralValue((T) bundle.getKey().getKey()),
-        equalTo(coder.structuralValue(key)));
   }
 
   @Test

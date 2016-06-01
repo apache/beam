@@ -74,27 +74,27 @@ public class InProcessGroupByKeyOnlyEvaluatorFactoryTest {
         bundleFactory.createRootBundle(kvs).commit(Instant.now());
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
 
+    StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle = bundleFactory.createKeyedBundle(
-        null,
-        StructuralKey.of("foo", StringUtf8Coder.of()),
+        null, fooKey,
         groupedKvs);
+    StructuralKey<String> barKey = StructuralKey.of("bar", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle = bundleFactory.createKeyedBundle(
-        null,
-        StructuralKey.of("bar", StringUtf8Coder.of()),
+        null, barKey,
         groupedKvs);
+    StructuralKey<String> bazKey = StructuralKey.of("baz", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle = bundleFactory.createKeyedBundle(
-        null,
-        StructuralKey.of("baz", StringUtf8Coder.of()),
+        null, bazKey,
         groupedKvs);
 
     when(evaluationContext.createKeyedBundle(inputBundle,
-        StructuralKey.of("foo", StringUtf8Coder.of()),
+        fooKey,
         groupedKvs)).thenReturn(fooBundle);
     when(evaluationContext.createKeyedBundle(inputBundle,
-        StructuralKey.of("bar", StringUtf8Coder.of()),
+        barKey,
         groupedKvs)).thenReturn(barBundle);
     when(evaluationContext.createKeyedBundle(inputBundle,
-        StructuralKey.of("baz", StringUtf8Coder.of()),
+        bazKey,
         groupedKvs)).thenReturn(bazBundle);
 
     // The input to a GroupByKey is assumed to be a KvCoder

@@ -78,7 +78,7 @@ class InProcessEvaluationContext {
   /** The step name for each {@link AppliedPTransform} in the {@link Pipeline}. */
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
-  /** The options that were used to of this {@link Pipeline}. */
+  /** The options that were used create of this {@link Pipeline}. */
   private final InProcessPipelineOptions options;
 
   private final BundleFactory bundleFactory;

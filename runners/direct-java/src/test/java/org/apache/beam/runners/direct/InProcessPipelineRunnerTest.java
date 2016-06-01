@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.sdk.transforms.MapElements.via;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.fail;
 
@@ -70,7 +69,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
-            .apply(via(new SimpleFunction<String, String>() {
+            .apply(MapElements.via(new SimpleFunction<String, String>() {
               @Override
               public String apply(String input) {
                 return input;
@@ -78,7 +77,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
             }))
             .apply(Count.<String>perElement());
     PCollection<String> countStrs =
-        counts.apply(via(new SimpleFunction<KV<String, Long>, String>() {
+        counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
           @Override
           public String apply(KV<String, Long> input) {
             String str = String.format("%s: %s", input.getKey(), input.getValue());
@@ -92,7 +91,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
     result.awaitCompletion();
   }
 
-  @Test(timeout=5000L)
+  @Test(timeout = 5000L)
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
@@ -112,7 +111,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
     PCollection<byte[]> foos =
         p.apply(Create.of(1, 1, 1, 2, 2, 3)).apply(MapElements.via(getBytes).withOutputType(td));
     PCollection<byte[]> msync =
-        p.apply(Create.of(1, -2, -8, -16)).apply(via(getBytes).withOutputType(td));
+        p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.via(getBytes).withOutputType(td));
     PCollection<byte[]> bytes =
         PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
     PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());

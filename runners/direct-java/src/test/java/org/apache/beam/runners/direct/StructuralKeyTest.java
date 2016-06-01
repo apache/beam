@@ -54,7 +54,7 @@ public class StructuralKeyTest {
   }
 
   @Test
-  public void objectsEqualsEquals() {
+  public void objectEqualsTrueKeyEquals() {
     StructuralKey<Integer> original = StructuralKey.of(1234, VarIntCoder.of());
     assertThat(StructuralKey.of(1234, VarIntCoder.of()), equalTo(original));
   }
@@ -70,7 +70,7 @@ public class StructuralKeyTest {
   }
 
   @Test
-  public void unequalEncodingsEqual() {
+  public void notEqualEncodingsEqual() {
     byte[] original = new byte[] {1, 4, 9, 127, -22};
     StructuralKey<byte[]> key = StructuralKey.of(original, ByteArrayCoder.of());
 

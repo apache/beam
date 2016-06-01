@@ -652,7 +652,8 @@ public class InMemoryWatermarkManager {
       Instant latestTime, Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers) {
     Map<StructuralKey<?>, List<TimerData>> result = new HashMap<>();
     Set<StructuralKey<?>> emptyKeys = new HashSet<>();
-    for (Map.Entry<StructuralKey<?>, NavigableSet<TimerData>> pendingTimers : objectTimers.entrySet()) {
+    for (Map.Entry<StructuralKey<?>, NavigableSet<TimerData>> pendingTimers :
+        objectTimers.entrySet()) {
       NavigableSet<TimerData> timers = pendingTimers.getValue();
       if (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
         ArrayList<TimerData> keyFiredTimers = new ArrayList<>();
@@ -1133,7 +1134,8 @@ public class InMemoryWatermarkManager {
     }
 
     private Map<StructuralKey<?>, FiredTimers> extractFiredTimers() {
-      Map<StructuralKey<?>, List<TimerData>> eventTimeTimers = inputWatermark.extractFiredEventTimeTimers();
+      Map<StructuralKey<?>, List<TimerData>> eventTimeTimers =
+          inputWatermark.extractFiredEventTimeTimers();
       Map<StructuralKey<?>, List<TimerData>> processingTimers;
       Map<StructuralKey<?>, List<TimerData>> synchronizedTimers;
       if (inputWatermark.get().equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {

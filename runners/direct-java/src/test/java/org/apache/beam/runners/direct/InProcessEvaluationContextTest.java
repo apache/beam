@@ -388,7 +388,8 @@ public class InProcessEvaluationContextTest {
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
 
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> fired = context.extractFiredTimers();
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> fired =
+        context.extractFiredTimers();
     assertThat(
         fired,
         Matchers.<AppliedPTransform<?, ?, ?>>hasKey(downstream.getProducingTransformInternal()));
@@ -407,27 +408,27 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void createBundleKeyedResultPropagatesKey() {
+    StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
     CommittedBundle<KV<String, Integer>> newBundle =
         context
             .createBundle(
                 bundleFactory.createKeyedBundle(
-                    null,
-                    StructuralKey.of("foo", StringUtf8Coder.of()),
+                    null, key,
                     created).commit(Instant.now()),
                 downstream).commit(Instant.now());
-    assertThat(newBundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
+    assertThat(newBundle.getKey(), Matchers.<StructuralKey<?>>equalTo(key));
   }
 
   @Test
   public void createKeyedBundleKeyed() {
+    StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
     CommittedBundle<KV<String, Integer>> keyedBundle =
         context.createKeyedBundle(
             bundleFactory.createRootBundle(created).commit(Instant.now()),
-            StructuralKey.of("foo", StringUtf8Coder.of()),
+            key,
             downstream).commit(Instant.now());
     assertThat(keyedBundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
+        Matchers.<StructuralKey<?>>equalTo(key));
   }
 
   @Test
