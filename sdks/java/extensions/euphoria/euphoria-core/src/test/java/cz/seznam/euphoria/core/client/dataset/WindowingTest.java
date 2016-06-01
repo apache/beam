@@ -171,12 +171,13 @@ public class WindowingTest {
     final long READ_DELAY_MS = 100L;
     Flow flow = Flow.create("Test", settings);
 
+    // ~ one partition; supplying every READ_DELAYS_MS a new element
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
         asList(("t1-r-one t1-r-two t1-r-three t1-s-one t1-s-two t1-s-three t1-t-one")
             .split(" "))
     ).setSleepTime(READ_DELAY_MS));
 
-    // ~ emits after 3 input elements received
+    // ~ emits after 3 input elements received due to "count windowing"
     Dataset<Pair<String, Set<String>>> first =
         ReduceByKey.of(input)
         .keyBy(e -> e.substring(0, 2))
@@ -185,12 +186,21 @@ public class WindowingTest {
         .windowBy(Windowing.Count.of(3))
         .output();
 
+    // ~ consume the output of the previous operator and forward to the next
+    // serving merely as another operator in the pipeline; must emit its
+    // inputs elements as soon they arrive (note: this is a
+    // non-window-wise operator)
     Dataset<Pair<String, Set<String>>> mediator =
         MapElements.of(first)
         .using(e -> e)
         .output();
 
-    // ~ should emit as soon as it receives input from the previous operator
+    // ~ a window-wise operator with the default "attached windowing". it's
+    // attaching itself to the windowing of the preceding window-wise operator
+    // in the pipeline and is supposed to emit equivalent windows as that one.
+    // further, the operator is supposed to emit the windows as soon as possible,
+    // i.e. once the last item for a window from the preceding window-wise operator
+    // is received.
     Dataset<Pair<String, Set<String>>> second = ReduceByKey.of(mediator)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
@@ -204,7 +214,8 @@ public class WindowingTest {
         })
         .output();
 
-    // ~ emits as soon as it receives input from the previous operator
+    // ~ consume the output and put a timestamp on each element. emits output
+    // itself as soon as it receives input, due to the operator's streaming nature.
     Dataset<Pair<Long, Pair<String, Set<String>>>> third =
         MapElements.of(second)
         .using(what -> Pair.of(System.currentTimeMillis(), what))
@@ -223,7 +234,11 @@ public class WindowingTest {
             .stream()
             .sorted(Comparator.comparing(Pair::getFirst))
             .collect(Collectors.toList());
-    assertTrue(ordered.get(0).getFirst() + READ_DELAY_MS - 1 < ordered.get(1).getFirst());
+    // ~ if no threads got blocked (e.g. system overload) we shall receive at
+    // output element approx. every 3*READ_DELAY_MS (READ_DELAY_MS for every read
+    // element from the input source times window-of-3-items) except for the very
+    // last item which is triggered earlier due to "end-of-stream"
+    assertTrue(ordered.get(0).getFirst() + 3*READ_DELAY_MS - 1 < ordered.get(1).getFirst());
     assertTrue(ordered.get(1).getFirst() + READ_DELAY_MS - 1 < ordered.get(2).getFirst());
     assertEquals(Sets.newHashSet("!", "t1-r-one", "t1-r-two", "t1-r-three"),
                  ordered.get(0).getSecond().getSecond());
