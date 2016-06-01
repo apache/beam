@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -76,7 +75,6 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -976,18 +974,12 @@ public class DataflowPipelineRunnerTest {
         new BatchViewAsSingleton.IsmRecordForSingularValuePerWindowDoFn
         <String, GlobalWindow>(GlobalWindow.Coder.INSTANCE));
 
-    try {
-      doFnTester.processBatch(
-          ImmutableList.of(KV.<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>of(
-              0, ImmutableList.of(
-                  KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("a")),
-                  KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("b"))))));
-      fail("Expected UserCodeException");
-    } catch (UserCodeException e) {
-      assertTrue(e.getCause() instanceof IllegalStateException);
-      IllegalStateException rootCause = (IllegalStateException) e.getCause();
-      assertThat(rootCause.getMessage(), containsString("found for singleton within window"));
-    }
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("found for singleton within window");
+    doFnTester.processBatch(ImmutableList.of(
+        KV.<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>of(0,
+            ImmutableList.of(KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("a")),
+                KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("b"))))));
   }
 
   @Test
@@ -1192,14 +1184,9 @@ public class DataflowPipelineRunnerTest {
                 KV.of(KV.of(1L, windowA),
                     WindowedValue.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)))));
 
-    try {
-      doFnTester.processBatch(inputElements);
-      fail("Expected UserCodeException");
-    } catch (UserCodeException e) {
-      assertTrue(e.getCause() instanceof IllegalStateException);
-      IllegalStateException rootCause = (IllegalStateException) e.getCause();
-      assertThat(rootCause.getMessage(), containsString("Unique keys are expected but found key"));
-    }
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Unique keys are expected but found key");
+    doFnTester.processBatch(inputElements);
   }
 
   @Test
