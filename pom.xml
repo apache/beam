@@ -15,9 +15,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
@@ -36,7 +34,7 @@
   <url>http://beam.incubator.apache.org</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.1.0-incubating-SNAPSHOT</version>
+  <version>0.1.0-incubating</version>
 
   <licenses>
     <license>
@@ -50,6 +48,7 @@
     <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
     <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
     <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
+    <tag>0.1.0-incubating-1</tag>
   </scm>
 
   <issueManagement>
@@ -97,7 +96,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <dataflow.javadoc_opts></dataflow.javadoc_opts>
+    <dataflow.javadoc_opts />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.7.7</avro.version>
