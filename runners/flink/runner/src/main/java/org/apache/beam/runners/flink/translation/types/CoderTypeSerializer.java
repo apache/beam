@@ -21,6 +21,7 @@ import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.util.CoderUtils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -38,28 +39,11 @@ import java.io.ObjectInputStream;
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   
   private Coder<T> coder;
-  private transient DataInputViewWrapper inputWrapper;
-  private transient DataOutputViewWrapper outputWrapper;
-
-  // We use this for internal encoding/decoding for creating copies using the Coder.
-  private transient InspectableByteArrayOutputStream buffer;
 
   public CoderTypeSerializer(Coder<T> coder) {
     this.coder = coder;
-    this.inputWrapper = new DataInputViewWrapper(null);
-    this.outputWrapper = new DataOutputViewWrapper(null);
-
-    buffer = new InspectableByteArrayOutputStream();
   }
-  
-  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    this.inputWrapper = new DataInputViewWrapper(null);
-    this.outputWrapper = new DataOutputViewWrapper(null);
 
-    buffer = new InspectableByteArrayOutputStream();
-  }
-  
   @Override
   public boolean isImmutableType() {
     return false;
@@ -77,17 +61,10 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public T copy(T t) {
-    buffer.reset();
     try {
-      coder.encode(t, buffer, Coder.Context.OUTER);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not copy.", e);
-    }
-    try {
-      return coder.decode(new ByteArrayInputStream(buffer.getBuffer(), 0, buffer
-          .size()), Coder.Context.OUTER);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not copy.", e);
+      return CoderUtils.clone(coder, t);
+    } catch (CoderException e) {
+      throw new RuntimeException("Could not clone.", e);
     }
   }
 
@@ -98,19 +75,19 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public int getLength() {
-    return 0;
+    return -1;
   }
 
   @Override
   public void serialize(T t, DataOutputView dataOutputView) throws IOException {
-    outputWrapper.setOutputView(dataOutputView);
+    DataOutputViewWrapper outputWrapper = new DataOutputViewWrapper(dataOutputView);
     coder.encode(t, outputWrapper, Coder.Context.NESTED);
   }
 
   @Override
   public T deserialize(DataInputView dataInputView) throws IOException {
     try {
-      inputWrapper.setInputView(dataInputView);
+      DataInputViewWrapper inputWrapper = new DataInputViewWrapper(dataInputView);
       return coder.decode(inputWrapper, Coder.Context.NESTED);
     } catch (CoderException e) {
       Throwable cause = e.getCause();
