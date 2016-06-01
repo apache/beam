@@ -52,7 +52,5 @@ public class FlinkStreamingCreateFunction<IN, OUT> implements FlatMapFunction<IN
 
       out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
     }
-
-    out.close();
   }
 }
