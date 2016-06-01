@@ -19,13 +19,12 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.transforms.MapElements.via;
 import static org.hamcrest.Matchers.is;
-
 import static org.junit.Assert.fail;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -97,37 +96,46 @@ public class InProcessPipelineRunnerTest implements Serializable {
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
-    SerializableFunction<String, byte[]> getBytes = new SerializableFunction<String, byte[]>() {
+    SerializableFunction<Integer, byte[]> getBytes = new SerializableFunction<Integer, byte[]>() {
       @Override
-      public byte[] apply(String input) {
+      public byte[] apply(Integer input) {
         try {
-          return CoderUtils.encodeToByteArray(StringUtf8Coder.of(), input);
+          return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
         } catch (CoderException e) {
           fail("Unexpected Coder Exception " + e);
           throw new AssertionError("Unreachable");
         }
       }
     };
-    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {};
-    PCollection<byte[]> foos = p.apply(Create.of("foo", "foo", "foo", "bar", "baz"))
-        .apply(MapElements.via(getBytes).withOutputType(td));
-    PCollection<byte[]> msync = p.apply(Create.of("foo", "spam", "bar", "ham", "eggs"))
-        .apply(via(getBytes).withOutputType(td));
-    PCollection<byte[]> bytes = PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
+    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {
+    };
+    PCollection<byte[]> foos =
+        p.apply(Create.of(1, 1, 1, 2, 2, 3)).apply(MapElements.via(getBytes).withOutputType(td));
+    PCollection<byte[]> msync =
+        p.apply(Create.of(1, -2, -8, -16)).apply(via(getBytes).withOutputType(td));
+    PCollection<byte[]> bytes =
+        PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
     PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
-    PCollection<KV<String, Long>> countsBackToString = counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<String, Long>>() {
-      @Override
-      public KV<String, Long> apply(KV<byte[], Long> input) {
-        return KV.of(new String(input.getKey()), input.getValue());
+    PCollection<KV<Integer, Long>> countsBackToString =
+        counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<Integer, Long>>() {
+          @Override
+          public KV<Integer, Long> apply(KV<byte[], Long> input) {
+            try {
+              return KV.of(CoderUtils.decodeFromByteArray(VarIntCoder.of(), input.getKey()),
+                  input.getValue());
+            } catch (CoderException e) {
+              fail("Unexpected Coder Exception " + e);
+              throw new AssertionError("Unreachable");
+        }
       }
     }));
 
-    Map<String, Long> expected = ImmutableMap.<String, Long>builder().put("foo", 4L)
-        .put("bar", 2L)
-        .put("baz", 1L)
-        .put("spam", 1L)
-        .put("ham", 1L)
-        .put("eggs", 1L)
+    Map<Integer, Long> expected = ImmutableMap.<Integer, Long>builder().put(1, 4L)
+        .put(2, 2L)
+        .put(3, 1L)
+        .put(-2, 1L)
+        .put(-8, 1L)
+        .put(-16, 1L)
         .build();
     PAssert.thatMap(countsBackToString).isEqualTo(expected);
   }
