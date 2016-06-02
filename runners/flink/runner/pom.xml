@@ -20,8 +20,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.runners</groupId>
-    <artifactId>flink-parent</artifactId>
+    <groupId>org.apache.beam.runners.flink</groupId>
+    <artifactId>parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -52,8 +52,8 @@
 
     <!-- Beam -->
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <groupId>org.apache.beam.sdks.java</groupId>
+      <artifactId>core</artifactId>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -93,8 +93,8 @@
 
     <!-- Depend on test jar to scan for RunnableOnService tests -->
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <groupId>org.apache.beam.sdks.java</groupId>
+      <artifactId>core</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
       <exclusions>
@@ -106,8 +106,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-examples-all</artifactId>
+      <groupId>org.apache.beam.examples</groupId>
+      <artifactId>java</artifactId>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -179,7 +179,7 @@
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
-                <dependency>org.apache.beam:java-sdk-all</dependency>
+                <dependency>org.apache.beam.sdks.java:core</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
@@ -203,7 +203,7 @@
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
-                <dependency>org.apache.beam:java-sdk-all</dependency>
+                <dependency>org.apache.beam.sdks.java:core</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>

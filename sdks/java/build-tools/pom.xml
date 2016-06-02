@@ -20,13 +20,13 @@
   <modelVersion>4.0.0</modelVersion>
   
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>java-sdk-parent</artifactId>
+    <groupId>org.apache.beam.sdks.java</groupId>
+    <artifactId>parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-build-tools</artifactId>
+  <artifactId>build-tools</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Build Tools</name>
   
 </project>

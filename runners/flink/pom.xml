@@ -26,8 +26,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>flink-parent</artifactId>
-  <version>0.2.0-incubating-SNAPSHOT</version>
+  <groupId>org.apache.beam.runners.flink</groupId>
+  <artifactId>parent</artifactId>
 
   <name>Apache Beam :: Runners :: Flink</name>
 

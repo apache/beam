@@ -20,8 +20,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.runners</groupId>
-    <artifactId>flink-parent</artifactId>
+    <groupId>org.apache.beam.runners.flink</groupId>
+    <artifactId>parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -68,7 +68,7 @@
   <dependencies>
 
     <dependency>
-      <groupId>org.apache.beam.runners</groupId>
+      <groupId>org.apache.beam.runners.flink</groupId>
       <artifactId>flink_2.10</artifactId>
       <version>${project.version}</version>
     </dependency>

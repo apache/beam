@@ -72,8 +72,8 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <groupId>org.apache.beam.sdks.java</groupId>
+      <artifactId>core</artifactId>
       <exclusions>
         <!-- Use Hadoop/Spark's backend logger -->
         <exclusion>
@@ -83,8 +83,8 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-examples-all</artifactId>
+      <groupId>org.apache.beam.examples</groupId>
+      <artifactId>java</artifactId>
       <exclusions>
         <!-- Use Hadoop/Spark's backend logger -->
         <exclusion>

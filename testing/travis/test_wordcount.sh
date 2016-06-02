@@ -35,7 +35,7 @@ set -o pipefail
 
 PASS=1
 VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
-JAR_FILE=examples/java/target/java-examples-all-bundled-${VERSION}.jar
+JAR_FILE=examples/java/target/java-bundled-${VERSION}.jar
 
 function check_result_hash {
   local name=$1
