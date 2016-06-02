@@ -41,6 +41,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.Nullable;
+import org.apache.avro.reflect.ReflectData;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -51,9 +52,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -237,14 +241,26 @@ public class AvroUtilsTest {
 
   @DefaultCoder(AvroCoder.class)
   public static class MyClass {
-    public MyClass() {}
-    public MyClass(@Nullable Long value, @Nullable MyClass inner) {
-      this.value = value;
-      this.inner = inner;
+    public MyClass() {
+      str = "abadsdsa";
+      bird = new Bird();
+      birds = new LinkedList<Bird>();
+      map = new HashMap<>();
+      map2 = new HashMap<>();
+      map2.put("aninnermap", new HashMap<String, MyClass>());
     }
-    @Nullable MyClass inner;
-    @Nullable Long value;
-    @Nullable Bird inner2;
+    @Nullable String str;
+    @Nullable Bird bird;
+    @Nullable List<Bird> birds;
+    @Nullable Map<String, Set<MyClass>> map;
+    @Nullable Map<String, Map<String, MyClass>> map2;
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  public static class MyClass2 {
+    public MyClass2() {}
+    long value;
+    Bird bird;
   }
 
   @Test
@@ -257,27 +273,27 @@ public class AvroUtilsTest {
   @Test
   public void reproThreadAvro607Issue()
       throws ClassNotFoundException, ExecutionException, InterruptedException {
-    final String schemaStr = "{\"type\":\"record\",\"name\":\"MyClass\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$\",\"fields\":[{\"name\":\"inner\",\"type\":[\"null\",\"MyClass\"],\"default\":null},{\"name\":\"value\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"inner2\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bird\",\"fields\":[{\"name\":\"number\",\"type\":\"long\"},{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"quality\",\"type\":[\"null\",\"double\"],\"default\":null},{\"name\":\"quantity\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"birthday\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"flighted\",\"type\":[\"null\",\"boolean\"],\"default\":null},{\"name\":\"scion\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubBird\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$\",\"fields\":[{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null}]}],\"default\":null},{\"name\":\"associates\",\"type\":{\"type\":\"array\",\"items\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$.SubBird\",\"java-class\":\"[Lorg.apache.beam.sdk.util.AvroUtilsTest$Bird$SubBird;\"}}]}],\"default\":null}]}";
+    final String schemaStr = "{\"type\":\"record\",\"name\":\"MyClass\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$\",\"fields\":[{\"name\":\"str\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"bird\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bird\",\"fields\":[{\"name\":\"number\",\"type\":\"long\"},{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"quality\",\"type\":[\"null\",\"double\"],\"default\":null},{\"name\":\"quantity\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"birthday\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"flighted\",\"type\":[\"null\",\"boolean\"],\"default\":null},{\"name\":\"scion\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubBird\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$\",\"fields\":[{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null}]}],\"default\":null},{\"name\":\"associates\",\"type\":{\"type\":\"array\",\"items\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$.SubBird\",\"java-class\":\"[Lorg.apache.beam.sdk.util.AvroUtilsTest$Bird$SubBird;\"}}]}],\"default\":null},{\"name\":\"birds\",\"type\":[\"null\",{\"type\":\"array\",\"items\":\"Bird\",\"java-class\":\"java.util.List\"}],\"default\":null},{\"name\":\"map\",\"type\":[\"null\",{\"type\":\"map\",\"values\":{\"type\":\"array\",\"items\":\"MyClass\",\"java-class\":\"java.util.Set\"}}],\"default\":null},{\"name\":\"map2\",\"type\":[\"null\",{\"type\":\"map\",\"values\":{\"type\":\"map\",\"values\":\"MyClass\"}}],\"default\":null}]}";
     final Schema schema = new Schema.Parser().parse(schemaStr);
-    final AvroCoder<MyClass> coder = AvroCoder.of(MyClass.class, schema);
-    final int numThreads = 128;
+    final int numThreads = 1024;
     final CountDownLatch latch = new CountDownLatch(numThreads);
     ListeningExecutorService executorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(numThreads));
     List<ListenableFuture<byte[]>> ret = new LinkedList<>();
     for (int i = 0; i < numThreads; ++i) {
+      final int current = i;
       ret.add(executorService.submit(new Callable<byte[]>() {
         @Override
         public byte[] call() throws Exception {
           latch.countDown();
           latch.await();
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
-          return CoderUtils.encodeToByteArray(coder, new MyClass(5L, new MyClass(6L, new MyClass(7L, null))));
+          if (current % 3 == 0) {
+            ReflectData.get().getSchema(MyClass.class);
+          } else if (current % 3 == 1) {
+            ReflectData.get().getSchema(MyClass2.class);
+          } else {
+            ReflectData.get().getSchema(Bird.class);
+          }
+          return null;
         }
       }));
     }
