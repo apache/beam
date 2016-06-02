@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -25,8 +26,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
-
-import javax.annotation.Nullable;
 
 /**
  * A factory that produces bundles that perform no additional validation.
@@ -40,7 +39,7 @@ class InProcessBundleFactory implements BundleFactory {
 
   @Override
   public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return InProcessBundle.create(output, null);
+    return InProcessBundle.create(output, StructuralKey.of(null, VoidCoder.of()));
   }
 
   @Override
@@ -49,8 +48,8 @@ class InProcessBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, @Nullable Object key, PCollection<T> output) {
+  public <K, T> UncommittedBundle<T> createKeyedBundle(
+      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
     return InProcessBundle.create(output, key);
   }
 
@@ -59,18 +58,18 @@ class InProcessBundleFactory implements BundleFactory {
    */
   private static final class InProcessBundle<T> implements UncommittedBundle<T> {
     private final PCollection<T> pcollection;
-    @Nullable private final Object key;
+    private final StructuralKey<?> key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
 
     /**
      * Create a new {@link InProcessBundle} for the specified {@link PCollection}.
      */
-    public static <T> InProcessBundle<T> create(PCollection<T> pcollection, @Nullable Object key) {
-      return new InProcessBundle<T>(pcollection, key);
+    public static <T> InProcessBundle<T> create(PCollection<T> pcollection, StructuralKey<?> key) {
+      return new InProcessBundle<>(pcollection, key);
     }
 
-    private InProcessBundle(PCollection<T> pcollection, Object key) {
+    private InProcessBundle(PCollection<T> pcollection, StructuralKey<?> key) {
       this.pcollection = pcollection;
       this.key = key;
       this.elements = ImmutableList.builder();
@@ -105,7 +104,7 @@ class InProcessBundleFactory implements BundleFactory {
   private static class CommittedInProcessBundle<T> implements CommittedBundle<T> {
     public CommittedInProcessBundle(
         PCollection<T> pcollection,
-        Object key,
+        StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
         Instant synchronizedCompletionTime) {
       this.pcollection = pcollection;
@@ -115,13 +114,13 @@ class InProcessBundleFactory implements BundleFactory {
     }
 
     private final PCollection<T> pcollection;
-    private final Object key;
+    /** The structural value key of the Bundle, as specified by the coder that created it. */
+    private final StructuralKey<?> key;
     private final Iterable<WindowedValue<T>> committedElements;
     private final Instant synchronizedCompletionTime;
 
     @Override
-    @Nullable
-    public Object getKey() {
+    public StructuralKey<?> getKey() {
       return key;
     }
 

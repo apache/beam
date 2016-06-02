@@ -151,7 +151,7 @@ public class ParDoInProcessEvaluatorTest {
     when(stepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());
     when(
             evaluationContext.getExecutionContext(
-                Mockito.any(AppliedPTransform.class), Mockito.any(Object.class)))
+                Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
         .thenReturn(executionContext);
     when(evaluationContext.createCounterSet()).thenReturn(new CounterSet());
 

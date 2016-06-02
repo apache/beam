@@ -16,8 +16,11 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessPipelineResult;
@@ -25,14 +28,21 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -41,6 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Tests for basic {@link InProcessPipelineRunner} functionality.
@@ -75,6 +86,54 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
     result.awaitCompletion();
+  }
+
+  @Test(timeout = 5000L)
+  public void byteArrayCountShouldSucceed() {
+    Pipeline p = getPipeline();
+
+    SerializableFunction<Integer, byte[]> getBytes = new SerializableFunction<Integer, byte[]>() {
+      @Override
+      public byte[] apply(Integer input) {
+        try {
+          return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
+        } catch (CoderException e) {
+          fail("Unexpected Coder Exception " + e);
+          throw new AssertionError("Unreachable");
+        }
+      }
+    };
+    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {
+    };
+    PCollection<byte[]> foos =
+        p.apply(Create.of(1, 1, 1, 2, 2, 3)).apply(MapElements.via(getBytes).withOutputType(td));
+    PCollection<byte[]> msync =
+        p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.via(getBytes).withOutputType(td));
+    PCollection<byte[]> bytes =
+        PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
+    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
+    PCollection<KV<Integer, Long>> countsBackToString =
+        counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<Integer, Long>>() {
+          @Override
+          public KV<Integer, Long> apply(KV<byte[], Long> input) {
+            try {
+              return KV.of(CoderUtils.decodeFromByteArray(VarIntCoder.of(), input.getKey()),
+                  input.getValue());
+            } catch (CoderException e) {
+              fail("Unexpected Coder Exception " + e);
+              throw new AssertionError("Unreachable");
+        }
+      }
+    }));
+
+    Map<Integer, Long> expected = ImmutableMap.<Integer, Long>builder().put(1, 4L)
+        .put(2, 2L)
+        .put(3, 1L)
+        .put(-2, 1L)
+        .put(-8, 1L)
+        .put(-16, 1L)
+        .build();
+    DataflowAssert.thatMap(countsBackToString).isEqualTo(expected);
   }
 
   @Test

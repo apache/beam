@@ -32,11 +32,11 @@ import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInterna
 class InProcessExecutionContext
     extends BaseExecutionContext<InProcessExecutionContext.InProcessStepContext> {
   private final Clock clock;
-  private final Object key;
+  private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals<Object> existingState;
   private final TransformWatermarks watermarks;
 
-  public InProcessExecutionContext(Clock clock, Object key,
+  public InProcessExecutionContext(Clock clock, StructuralKey<?> key,
       CopyOnAccessInMemoryStateInternals<Object> existingState, TransformWatermarks watermarks) {
     this.clock = clock;
     this.key = key;

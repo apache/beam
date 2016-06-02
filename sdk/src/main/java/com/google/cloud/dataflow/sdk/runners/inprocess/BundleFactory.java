@@ -42,7 +42,7 @@ public interface BundleFactory {
    * {@link InProcessGroupByKeyOnly} {@link PTransform PTransforms}. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  public <T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, Object key, PCollection<T> output);
+  public <K, T> UncommittedBundle<T> createKeyedBundle(
+      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output);
 }
 

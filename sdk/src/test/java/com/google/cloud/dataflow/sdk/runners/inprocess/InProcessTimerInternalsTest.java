@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
@@ -53,7 +54,7 @@ public class InProcessTimerInternalsTest {
     MockitoAnnotations.initMocks(this);
     clock = MockClock.fromInstant(new Instant(0));
 
-    timerUpdateBuilder = TimerUpdate.builder(1234);
+    timerUpdateBuilder = TimerUpdate.builder(StructuralKey.of(1234, VarIntCoder.of()));
 
     internals = InProcessTimerInternals.create(clock, watermarks, timerUpdateBuilder);
   }

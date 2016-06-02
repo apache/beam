@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -73,7 +74,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   @Test
   public void noMutationKeyedBundleSucceeds() {
     CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root, "mykey", transformed);
+    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
+        StructuralKey.of("mykey", StringUtf8Coder.of()),
+        transformed);
 
     WindowedValue<byte[]> windowedArray =
         WindowedValue.of(
@@ -119,7 +122,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   @Test
   public void mutationBeforeAddKeyedBundleSucceeds() {
     CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root, "mykey", transformed);
+    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
+        StructuralKey.of("mykey", StringUtf8Coder.of()),
+        transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     array[0] = Byte.MAX_VALUE;
@@ -170,7 +175,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   @Test
   public void mutationAfterAddKeyedBundleThrows() {
     CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root, "mykey", transformed);
+    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
+        StructuralKey.of("mykey", StringUtf8Coder.of()),
+        transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
