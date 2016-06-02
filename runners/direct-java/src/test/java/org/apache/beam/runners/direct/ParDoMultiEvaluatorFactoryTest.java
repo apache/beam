@@ -114,8 +114,8 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
 
     InProcessExecutionContext executionContext =
         new InProcessExecutionContext(null, null, null, null);
-    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
-        .thenReturn(executionContext);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
+        inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
@@ -199,8 +199,8 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
 
     InProcessExecutionContext executionContext =
         new InProcessExecutionContext(null, null, null, null);
-    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
-        .thenReturn(executionContext);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
+        inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
@@ -287,10 +287,12 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, elementOutput))
         .thenReturn(elementOutputBundle);
 
-    InProcessExecutionContext executionContext =
-        new InProcessExecutionContext(null, "myKey", null, null);
-    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
-        .thenReturn(executionContext);
+    InProcessExecutionContext executionContext = new InProcessExecutionContext(null,
+        StructuralKey.of("myKey", StringUtf8Coder.of()),
+        null,
+        null);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
+        inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
@@ -397,10 +399,11 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, elementOutput))
         .thenReturn(elementOutputBundle);
 
-    InProcessExecutionContext executionContext =
-        new InProcessExecutionContext(null, "myKey", null, null);
-    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
-        .thenReturn(executionContext);
+    InProcessExecutionContext executionContext = new InProcessExecutionContext(null,
+        StructuralKey.of("myKey", StringUtf8Coder.of()),
+        null, null);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
+        inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
@@ -419,7 +422,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     assertThat(
         result.getTimerUpdate(),
         equalTo(
-            TimerUpdate.builder("myKey")
+            TimerUpdate.builder(StructuralKey.of("myKey", StringUtf8Coder.of()))
                 .setTimer(addedTimer)
                 .setTimer(addedTimer)
                 .setTimer(addedTimer)

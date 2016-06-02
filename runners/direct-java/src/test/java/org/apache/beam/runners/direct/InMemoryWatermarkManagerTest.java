@@ -31,6 +31,9 @@ import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate.Timer
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -397,16 +400,18 @@ public class InMemoryWatermarkManagerTest implements Serializable {
    */
   @Test
   public void updateWatermarkWithKeyedWatermarkHolds() {
-    CommittedBundle<Integer> firstKeyBundle =
-        bundleFactory.createKeyedBundle(null, "Odd", createdInts)
-            .add(WindowedValue.timestampedValueInGlobalWindow(1, new Instant(1_000_000L)))
-            .add(WindowedValue.timestampedValueInGlobalWindow(3, new Instant(-1000L)))
-            .commit(clock.now());
+    CommittedBundle<Integer> firstKeyBundle = bundleFactory.createKeyedBundle(null,
+        StructuralKey.of("Odd", StringUtf8Coder.of()),
+        createdInts)
+        .add(WindowedValue.timestampedValueInGlobalWindow(1, new Instant(1_000_000L)))
+        .add(WindowedValue.timestampedValueInGlobalWindow(3, new Instant(-1000L)))
+        .commit(clock.now());
 
-    CommittedBundle<Integer> secondKeyBundle =
-        bundleFactory.createKeyedBundle(null, "Even", createdInts)
-            .add(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1234L)))
-            .commit(clock.now());
+    CommittedBundle<Integer> secondKeyBundle = bundleFactory.createKeyedBundle(null,
+        StructuralKey.of("Even", StringUtf8Coder.of()),
+        createdInts)
+        .add(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1234L)))
+        .commit(clock.now());
 
     manager.updateWatermarks(null,
         TimerUpdate.empty(),
@@ -435,8 +440,9 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         not(earlierThan(BoundedWindow.TIMESTAMP_MAX_VALUE)));
     assertThat(filteredWatermarks.getOutputWatermark(), not(laterThan(new Instant(-1000L))));
 
-    CommittedBundle<Integer> fauxFirstKeyTimerBundle =
-        bundleFactory.createKeyedBundle(null, "Odd", createdInts).commit(clock.now());
+    CommittedBundle<Integer> fauxFirstKeyTimerBundle = bundleFactory.createKeyedBundle(null,
+        StructuralKey.of("Odd", StringUtf8Coder.of()),
+        createdInts).commit(clock.now());
     manager.updateWatermarks(fauxFirstKeyTimerBundle,
         TimerUpdate.empty(),
         result(filtered.getProducingTransformInternal(),
@@ -447,8 +453,9 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     assertThat(filteredWatermarks.getOutputWatermark(), equalTo(new Instant(1234L)));
 
-    CommittedBundle<Integer> fauxSecondKeyTimerBundle =
-        bundleFactory.createKeyedBundle(null, "Even", createdInts).commit(clock.now());
+    CommittedBundle<Integer> fauxSecondKeyTimerBundle = bundleFactory.createKeyedBundle(null,
+        StructuralKey.of("Even", StringUtf8Coder.of()),
+        createdInts).commit(clock.now());
     manager.updateWatermarks(fauxSecondKeyTimerBundle,
         TimerUpdate.empty(),
         result(filtered.getProducingTransformInternal(),
@@ -846,13 +853,14 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     Instant initialFilteredWm = filteredWms.getSynchronizedProcessingOutputTime();
     Instant initialFilteredDoubledWm = filteredDoubledWms.getSynchronizedProcessingOutputTime();
 
+    StructuralKey<String> key = StructuralKey.of("key", StringUtf8Coder.of());
     CommittedBundle<Integer> filteredBundle = multiWindowedBundle(filtered, 2, 8);
     TimerData pastTimer =
         TimerData.of(StateNamespaces.global(), new Instant(250L), TimeDomain.PROCESSING_TIME);
     TimerData futureTimer =
         TimerData.of(StateNamespaces.global(), new Instant(4096L), TimeDomain.PROCESSING_TIME);
     TimerUpdate timers =
-        TimerUpdate.builder("key").setTimer(pastTimer).setTimer(futureTimer).build();
+        TimerUpdate.builder(key).setTimer(pastTimer).setTimer(futureTimer).build();
     manager.updateWatermarks(createdBundle,
         timers,
         result(filtered.getProducingTransformInternal(),
@@ -872,11 +880,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         filteredDoubledWms.getSynchronizedProcessingOutputTime(),
         not(earlierThan(initialFilteredDoubledWm)));
 
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> firedTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firedTimers =
         manager.extractFiredTimers();
     assertThat(
         firedTimers.get(filtered.getProducingTransformInternal())
-            .get("key")
+            .get(key)
             .getTimers(TimeDomain.PROCESSING_TIME),
         contains(pastTimer));
     // Our timer has fired, but has not been completed, so it holds our synchronized processing WM
@@ -885,14 +893,14 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     CommittedBundle<Integer> filteredTimerBundle =
         bundleFactory
-            .createKeyedBundle(null, "key", filtered)
+            .createKeyedBundle(null, key, filtered)
             .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
     CommittedBundle<Integer> filteredTimerResult =
-        bundleFactory.createKeyedBundle(null, "key", filteredTimesTwo)
+        bundleFactory.createKeyedBundle(null, key, filteredTimesTwo)
             .commit(filteredWms.getSynchronizedProcessingOutputTime());
     // Complete the processing time timer
     manager.updateWatermarks(filteredTimerBundle,
-        TimerUpdate.builder("key")
+        TimerUpdate.builder(key)
             .withCompletedTimers(Collections.<TimerData>singleton(pastTimer)).build(),
         result(filtered.getProducingTransformInternal(),
             filteredTimerBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
@@ -988,7 +996,9 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     TimerData upstreamProcessingTimer =
         TimerData.of(StateNamespaces.global(), upstreamHold, TimeDomain.PROCESSING_TIME);
     manager.updateWatermarks(created,
-        TimerUpdate.builder("key").setTimer(upstreamProcessingTimer).build(),
+        TimerUpdate.builder(StructuralKey.of("key", StringUtf8Coder.of()))
+            .setTimer(upstreamProcessingTimer)
+            .build(),
         result(filtered.getProducingTransformInternal(),
             created.withElements(Collections.<WindowedValue<Integer>>emptyList()),
             Collections.<CommittedBundle<?>>singleton(filteredBundle)),
@@ -1009,7 +1019,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     CommittedBundle<Integer> otherCreated = multiWindowedBundle(createdInts, 4, 8, 12);
     manager.updateWatermarks(otherCreated,
-        TimerUpdate.builder("key")
+        TimerUpdate.builder(StructuralKey.of("key", StringUtf8Coder.of()))
             .withCompletedTimers(Collections.singleton(upstreamProcessingTimer)).build(),
         result(filtered.getProducingTransformInternal(),
             otherCreated.withElements(Collections.<WindowedValue<Integer>>emptyList()),
@@ -1032,8 +1042,9 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         new Instant(29_919_235L));
 
     Instant upstreamHold = new Instant(2048L);
-    CommittedBundle<Integer> filteredBundle =
-        bundleFactory.createKeyedBundle(created, "key", filtered).commit(upstreamHold);
+    CommittedBundle<Integer> filteredBundle = bundleFactory.createKeyedBundle(created,
+        StructuralKey.of("key", StringUtf8Coder.of()),
+        filtered).commit(upstreamHold);
     manager.updateWatermarks(
         created,
         TimerUpdate.empty(),
@@ -1053,7 +1064,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
   @Test
   public void extractFiredTimersReturnsFiredEventTimeTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> initialTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> initialTimers =
         manager.extractFiredTimers();
     // Watermarks haven't advanced
     assertThat(initialTimers.entrySet(), emptyIterable());
@@ -1074,7 +1085,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         TimerData.of(StateNamespaces.global(), new Instant(5000L), TimeDomain.EVENT_TIME);
     TimerData lastTimer =
         TimerData.of(StateNamespaces.global(), new Instant(10000L), TimeDomain.EVENT_TIME);
-    Object key = new Object();
+    StructuralKey<byte[]> key = StructuralKey.of(new byte[] {1, 4, 9}, ByteArrayCoder.of());
     TimerUpdate update =
         TimerUpdate.builder(key)
             .setTimer(earliestTimer)
@@ -1090,11 +1101,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         new Instant(1000L));
     manager.refreshAll();
 
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> firstTransformFiredTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firstTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
         firstTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<Object, FiredTimers> firstFilteredTimers =
+    Map<StructuralKey<?>, FiredTimers> firstFilteredTimers =
         firstTransformFiredTimers.get(filtered.getProducingTransformInternal());
     assertThat(firstFilteredTimers.get(key), not(nullValue()));
     FiredTimers firstFired = firstFilteredTimers.get(key);
@@ -1107,11 +1118,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
             Collections.<CommittedBundle<?>>emptyList()),
         new Instant(50_000L));
     manager.refreshAll();
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> secondTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
         secondTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<Object, FiredTimers> secondFilteredTimers =
+    Map<StructuralKey<?>, FiredTimers> secondFilteredTimers =
         secondTransformFiredTimers.get(filtered.getProducingTransformInternal());
     assertThat(secondFilteredTimers.get(key), not(nullValue()));
     FiredTimers secondFired = secondFilteredTimers.get(key);
@@ -1121,7 +1132,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
   @Test
   public void extractFiredTimersReturnsFiredProcessingTimeTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> initialTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> initialTimers =
         manager.extractFiredTimers();
     // Watermarks haven't advanced
     assertThat(initialTimers.entrySet(), emptyIterable());
@@ -1141,7 +1152,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         TimerData.of(StateNamespaces.global(), new Instant(5000L), TimeDomain.PROCESSING_TIME);
     TimerData lastTimer =
         TimerData.of(StateNamespaces.global(), new Instant(10000L), TimeDomain.PROCESSING_TIME);
-    Object key = new Object();
+    StructuralKey<?> key = StructuralKey.of(-12L, VarLongCoder.of());
     TimerUpdate update =
         TimerUpdate.builder(key)
             .setTimer(lastTimer)
@@ -1158,11 +1169,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         new Instant(1000L));
     manager.refreshAll();
 
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> firstTransformFiredTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firstTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
         firstTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<Object, FiredTimers> firstFilteredTimers =
+    Map<StructuralKey<?>, FiredTimers> firstFilteredTimers =
         firstTransformFiredTimers.get(filtered.getProducingTransformInternal());
     assertThat(firstFilteredTimers.get(key), not(nullValue()));
     FiredTimers firstFired = firstFilteredTimers.get(key);
@@ -1176,11 +1187,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
             Collections.<CommittedBundle<?>>emptyList()),
         new Instant(50_000L));
     manager.refreshAll();
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> secondTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
         secondTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<Object, FiredTimers> secondFilteredTimers =
+    Map<StructuralKey<?>, FiredTimers> secondFilteredTimers =
         secondTransformFiredTimers.get(filtered.getProducingTransformInternal());
     assertThat(secondFilteredTimers.get(key), not(nullValue()));
     FiredTimers secondFired = secondFilteredTimers.get(key);
@@ -1190,7 +1201,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
   @Test
   public void extractFiredTimersReturnsFiredSynchronizedProcessingTimeTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> initialTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> initialTimers =
         manager.extractFiredTimers();
     // Watermarks haven't advanced
     assertThat(initialTimers.entrySet(), emptyIterable());
@@ -1210,7 +1221,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         StateNamespaces.global(), new Instant(5000L), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     TimerData lastTimer = TimerData.of(
         StateNamespaces.global(), new Instant(10000L), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-    Object key = new Object();
+    StructuralKey<byte[]> key = StructuralKey.of(new byte[] {2, -2, 22}, ByteArrayCoder.of());
     TimerUpdate update =
         TimerUpdate.builder(key)
             .setTimer(lastTimer)
@@ -1227,11 +1238,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         new Instant(1000L));
     manager.refreshAll();
 
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> firstTransformFiredTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firstTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
         firstTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<Object, FiredTimers> firstFilteredTimers =
+    Map<StructuralKey<?>, FiredTimers> firstFilteredTimers =
         firstTransformFiredTimers.get(filtered.getProducingTransformInternal());
     assertThat(firstFilteredTimers.get(key), not(nullValue()));
     FiredTimers firstFired = firstFilteredTimers.get(key);
@@ -1246,11 +1257,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
             Collections.<CommittedBundle<?>>emptyList()),
         new Instant(50_000L));
     manager.refreshAll();
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> secondTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
         secondTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<Object, FiredTimers> secondFilteredTimers =
+    Map<StructuralKey<?>, FiredTimers> secondFilteredTimers =
         secondTransformFiredTimers.get(filtered.getProducingTransformInternal());
     assertThat(secondFilteredTimers.get(key), not(nullValue()));
     FiredTimers secondFired = secondFilteredTimers.get(key);
@@ -1271,7 +1282,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         TimerData.of(StateNamespaces.global(), new Instant(2048L), TimeDomain.EVENT_TIME);
 
     TimerUpdate update =
-        TimerUpdate.builder("foo")
+        TimerUpdate.builder(StructuralKey.of("foo", StringUtf8Coder.of()))
             .withCompletedTimers(ImmutableList.of(completedOne, completedTwo))
             .setTimer(set)
             .deletedTimer(deleted)

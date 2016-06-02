@@ -31,6 +31,8 @@ import org.apache.beam.runners.direct.InProcessExecutionContext.InProcessStepCon
 import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -159,16 +161,16 @@ public class InProcessEvaluationContextTest {
   @Test
   public void getExecutionContextSameStepSameKeyState() {
     InProcessExecutionContext fooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(), "foo");
+        context.getExecutionContext(created.getProducingTransformInternal(),
+            StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     InProcessStepContext stepContext = fooContext.getOrCreateStepContext("s1", "s1");
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
-    context.handleResult(
-        InProcessBundleFactory.create()
-            .createKeyedBundle(null, "foo", created)
+    context.handleResult(InProcessBundleFactory.create()
+            .createKeyedBundle(null, StructuralKey.of("foo", StringUtf8Coder.of()), created)
             .commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
@@ -176,7 +178,8 @@ public class InProcessEvaluationContextTest {
             .build());
 
     InProcessExecutionContext secondFooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(), "foo");
+        context.getExecutionContext(created.getProducingTransformInternal(),
+            StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
         secondFooContext
             .getOrCreateStepContext("s1", "s1")
@@ -190,7 +193,8 @@ public class InProcessEvaluationContextTest {
   @Test
   public void getExecutionContextDifferentKeysIndependentState() {
     InProcessExecutionContext fooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(), "foo");
+        context.getExecutionContext(created.getProducingTransformInternal(),
+            StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
@@ -201,7 +205,8 @@ public class InProcessEvaluationContextTest {
         .add(1);
 
     InProcessExecutionContext barContext =
-        context.getExecutionContext(created.getProducingTransformInternal(), "bar");
+        context.getExecutionContext(created.getProducingTransformInternal(),
+            StructuralKey.of("bar", StringUtf8Coder.of()));
     assertThat(barContext, not(equalTo(fooContext)));
     assertThat(
         barContext
@@ -214,7 +219,7 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void getExecutionContextDifferentStepsIndependentState() {
-    String myKey = "foo";
+    StructuralKey<?> myKey = StructuralKey.of("foo", StringUtf8Coder.of());
     InProcessExecutionContext fooContext =
         context.getExecutionContext(created.getProducingTransformInternal(), myKey);
 
@@ -269,7 +274,7 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void handleResultStoresState() {
-    String myKey = "foo";
+    StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
     InProcessExecutionContext fooContext =
         context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
 
@@ -359,7 +364,7 @@ public class InProcessEvaluationContextTest {
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), holdResult);
 
-    String key = "foo";
+    StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(StateNamespaces.global(), new Instant(100L), TimeDomain.EVENT_TIME);
     InProcessTransformResult timerResult =
@@ -383,11 +388,12 @@ public class InProcessEvaluationContextTest {
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
 
-    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> fired = context.extractFiredTimers();
+    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> fired =
+        context.extractFiredTimers();
     assertThat(
         fired,
         Matchers.<AppliedPTransform<?, ?, ?>>hasKey(downstream.getProducingTransformInternal()));
-    Map<Object, FiredTimers> downstreamFired =
+    Map<StructuralKey<?>, FiredTimers> downstreamFired =
         fired.get(downstream.getProducingTransformInternal());
     assertThat(downstreamFired, Matchers.<Object>hasKey(key));
 
@@ -402,23 +408,27 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void createBundleKeyedResultPropagatesKey() {
+    StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
     CommittedBundle<KV<String, Integer>> newBundle =
         context
             .createBundle(
-                bundleFactory.createKeyedBundle(null, "foo", created).commit(Instant.now()),
-                downstream)
-            .commit(Instant.now());
-    assertThat(newBundle.getKey(), Matchers.<Object>equalTo("foo"));
+                bundleFactory.createKeyedBundle(
+                    null, key,
+                    created).commit(Instant.now()),
+                downstream).commit(Instant.now());
+    assertThat(newBundle.getKey(), Matchers.<StructuralKey<?>>equalTo(key));
   }
 
   @Test
   public void createKeyedBundleKeyed() {
+    StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
     CommittedBundle<KV<String, Integer>> keyedBundle =
-        context
-            .createKeyedBundle(
-                bundleFactory.createRootBundle(created).commit(Instant.now()), "foo", downstream)
-            .commit(Instant.now());
-    assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
+        context.createKeyedBundle(
+            bundleFactory.createRootBundle(created).commit(Instant.now()),
+            key,
+            downstream).commit(Instant.now());
+    assertThat(keyedBundle.getKey(),
+        Matchers.<StructuralKey<?>>equalTo(key));
   }
 
   @Test

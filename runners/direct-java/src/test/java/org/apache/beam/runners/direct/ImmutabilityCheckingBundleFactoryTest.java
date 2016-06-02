@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -75,7 +76,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   @Test
   public void noMutationKeyedBundleSucceeds() {
     CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root, "mykey", transformed);
+    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
+        StructuralKey.of("mykey", StringUtf8Coder.of()),
+        transformed);
 
     WindowedValue<byte[]> windowedArray =
         WindowedValue.of(
@@ -121,7 +124,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   @Test
   public void mutationBeforeAddKeyedBundleSucceeds() {
     CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root, "mykey", transformed);
+    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
+        StructuralKey.of("mykey", StringUtf8Coder.of()),
+        transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     array[0] = Byte.MAX_VALUE;
@@ -172,7 +177,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   @Test
   public void mutationAfterAddKeyedBundleThrows() {
     CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root, "mykey", transformed);
+    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
+        StructuralKey.of("mykey", StringUtf8Coder.of()),
+        transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
