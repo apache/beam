@@ -324,6 +324,7 @@ class BoundedSource(object):
 
   This class defines following operations which can be used to read the source
   efficiently.
+
   * Size estimation - method ``estimate_size()`` may return an accurate
     estimation in bytes for the size of the source.
   * Splitting into bundles of a given size - method ``split()`` can be used to
@@ -385,6 +386,7 @@ class BoundedSource(object):
 
     The returned set of data must respect the boundaries defined by the given
     ``RangeTracker`` object. For example:
+
       * Returned set of data must be for the range
         ``[range_tracker.start_position, range_tracker.stop_position)``. Note
         that a source may decide to return records that start after
@@ -397,6 +399,7 @@ class BoundedSource(object):
         that starts at a split point.
       * Method ``range_tracker.record_current_position()`` may be invoked for
         records that do not start at split points.
+
     Args:
       range_tracker: a ``RangeTracker`` whose boundaries must be respected
                      when reading data from the source. If 'None' all records
