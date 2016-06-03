@@ -83,7 +83,7 @@ An example invocation for **Query10** on the Google Cloud Dataflow
 service.
 
 ```
-java -cp integration/java/target/java-integration-all-0.1.0-incubating-SNAPSHOT.jar \
+java -cp integration/java/target/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar \
   org.apache.beam.integration.nexmark.NexmarkGoogleDriver \
   --project=<your project> \
   --zone=<your zone> \
@@ -116,7 +116,7 @@ java -cp integration/java/target/java-integration-all-0.1.0-incubating-SNAPSHOT.
 ```
 
 ```
-java -cp integration/java/target/java-integration-all-0.1.0-incubating-SNAPSHOT.jar \
+java -cp integration/java/target/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar \
   org.apache.beam.integration.nexmark.NexmarkGoogleDriver \
   --project=<your project> \
   --zone=<your zone> \

@@ -23,17 +23,19 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>parent</artifactId>
-    <version>0.1.0-incubating-SNAPSHOT</version>
+    <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
   <artifactId>java-integration-all</artifactId>
+
   <name>Apache Beam :: Integration Tests :: Java All</name>
-  <description>Beam SDK Java All provides a simple, Java-based
-  interface for processing virtually any size data. This
-  artifact includes some Java SDK integration tests.</description>
 
   <packaging>jar</packaging>
+
+  <properties>
+    <skipITs>true</skipITs>
+  </properties>
 
   <build>
     <extensions>
@@ -47,11 +49,18 @@
 
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <systemPropertyVariables>
+            <beamTestPipelineOptions>
+            </beamTestPipelineOptions>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
 
@@ -65,10 +74,17 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
 
+
+      <!-- Source plugin for generating source and test-source JARs. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+      </plugin>
+
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.1</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -76,6 +92,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
               <artifactSet>
                 <includes>
                   <include>*:*</include>
@@ -94,6 +111,11 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
       </plugin>
 
       <!-- Avro plugin for automatic code generation -->
@@ -116,25 +138,6 @@
         </executions>
       </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-jar</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>default-test-jar</id>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
       <!-- Coverage analysis for unit tests. -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -152,14 +155,8 @@
 
     <!-- Java runner for Google Cloud Dataflow -->
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>google-cloud-dataflow-java-runner</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>runners-core</artifactId>
+      <groupId>org.apache.beam.runners</groupId>
+      <artifactId>google-cloud-dataflow-java</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -172,12 +169,60 @@
 
     <!-- Java runner for Flink -->
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>flink-runner_2.10</artifactId>
+      <groupId>org.apache.beam.runners</groupId>
+      <artifactId>flink_2.10</artifactId>
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-shaded-hadoop2</artifactId>
+      <version>1.0.3</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Extra libraries -->
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-dataflow</artifactId>
+      <version>${dataflow.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-bigquery</artifactId>
+      <version>${bigquery.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>gcsio</artifactId>
+      <version>${google-cloud-bigdataoss.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
@@ -200,6 +245,7 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>${slf4j.version}</version>
+      <scope>compile</scope>
     </dependency>
 
     <dependency>
@@ -214,30 +260,21 @@
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
       <version>${jsr305.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>commons-logging</groupId>
-      <artifactId>commons-logging</artifactId>
-      <version>1.2</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>log4j</groupId>
       <artifactId>log4j</artifactId>
       <version>1.2.17</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-api</artifactId>
-      <version>2.4</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <scope>provided</scope>
+      <version>${junit.version}</version>
+      <scope>compile</scope>
     </dependency>
 
     <dependency>
@@ -245,11 +282,7 @@
       <artifactId>netty-tcnative-boringssl-static</artifactId>
       <version>1.1.33.Fork13</version>
       <classifier>${os.detected.classifier}</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.beam.runners</groupId>
-      <artifactId>direct</artifactId>
-      <version>0.1.0-incubating-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 </project>

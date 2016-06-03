@@ -150,9 +150,6 @@ cp -f \
   ~/masters ~/slaves \
   ~/log4j.properties \
   $FLINK/conf/
-cp -f \
-  $BEAM/integration/java/target/java-integration-all-0.1.0-incubating-SNAPSHOT.jar \
-  $FLINK/lib/
 ```
 
 Package configured Flink for distribution to workers:
@@ -191,14 +188,14 @@ Bring up the Flink monitoring UI:
 
 Distribute the Beam + NexMark jar to all workers:
 ```
-$GSUTIL cp $BEAM/integration/java/target/java-integration-all-0.1.0-incubating-SNAPSHOT.jar gs://nexmark
+$GSUTIL cp $BEAM/integration/java/target/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar gs://nexmark
 for m in $ALL; do
   echo "*** $m ***"
   $GCLOUD compute ssh \
     --project=$PROJECT \
     --zone=$ZONE \
     $m \
-    --command "gsutil cp gs://nexmark/java-integration-all-0.1.0-incubating-SNAPSHOT.jar ~/$FLINK_VER/lib/"
+    --command "gsutil cp gs://nexmark/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar ~/$FLINK_VER/lib/"
 done
 ```
 
@@ -228,7 +225,7 @@ $GCLOUD compute ssh \
   $MASTER \
   --command "~/$FLINK_VER/bin/flink run \
   -c org.apache.beam.integration.nexmark.NexmarkFlinkDriver \
-  ~/$FLINK_VER/lib/java-integration-all-0.1.0-incubating-SNAPSHOT.jar \
+  ~/$FLINK_VER/lib/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar \
   --project=$PROJECT \
   --streaming=true \
   --query=0 \
