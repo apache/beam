@@ -4,7 +4,6 @@ package cz.seznam.euphoria.core.executor.inmem;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
-import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -41,7 +40,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -72,18 +70,6 @@ public class InMemExecutor implements Executor {
   static class EndOfStream {
     static EndOfStream get() {
       return new EndOfStream();
-    }
-  }
-
-  // Instances of this class are wandering around the dataflow in the inmem executor
-  // and signal the end of a fired window (pane.)
-  static class EndOfWindow<W extends Window> {
-    private final W window;
-    EndOfWindow(W window) {
-      this.window = Objects.requireNonNull(window);
-    }
-    W getWindow() {
-      return window;
     }
   }
 
@@ -617,15 +603,19 @@ public class InMemExecutor implements Executor {
       final UnaryFunction keyExtractor,
       final Partitioning partitioning) {
 
+    int numInputPartitions = suppliers.size();
     final int outputPartitions = partitioning.getNumPartitions() > 0
-        ? partitioning.getNumPartitions() : suppliers.size();
+        ? partitioning.getNumPartitions() : numInputPartitions;
     final List<BlockingQueue> ret = new ArrayList(outputPartitions);
     for (int i = 0; i < outputPartitions; i++) {
       ret.add(new ArrayBlockingQueue(5000));
     }
 
     // count running partition readers
-    CountDownLatch workers = new CountDownLatch(suppliers.size());
+    CountDownLatch workers = new CountDownLatch(numInputPartitions);
+
+    // track end-of-window occurrences
+    EndOfWindowCountDown eowCounter = new EndOfWindowCountDown();
 
     for (Supplier s : suppliers) {
       executor.execute(() -> {
@@ -635,9 +625,10 @@ public class InMemExecutor implements Executor {
               // read input
               Object o = s.get();
               if (o instanceof EndOfWindow) {
-                // re-send to all partitions
-                for (BlockingQueue r : ret) {
-                  r.put(o);
+                if (eowCounter.countDown((EndOfWindow) o, numInputPartitions)) {
+                  for (BlockingQueue r : ret) {
+                    r.put(o);
+                  }
                 }
               } else {
                 Datum d = (Datum) o;

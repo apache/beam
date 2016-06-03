@@ -6,10 +6,13 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
@@ -292,5 +295,88 @@ public class WindowingTest {
     assertEquals(asList(
         Pair.of(2000000000000L, 5L), Pair.of(2000000001000L, 4L)),
         ordered);
+  }
+
+  @Test
+  public void testWindowing_EndOfWindow_RBK_OnePartition() {
+    testWindowing_EndOfWindowImpl(1);
+  }
+
+  @Test
+  public void testWindowing_EndOfWindow_RBK_ManyPartitions() {
+    // ~ this causes the initial reduce-by-key to output three
+    // partitions of which only one receives data.
+    testWindowing_EndOfWindowImpl(2);
+  }
+
+  private void testWindowing_EndOfWindowImpl(int dataPartitions) {
+    final long READ_DELAY_MS = 100L;
+    Flow flow = Flow.create("Test", settings);
+
+    Dataset<String> input = flow.createInput(ListDataSource.unbounded(
+        asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" "))
+    ).setSleepTime(READ_DELAY_MS));
+
+    // ~ create windows of size three
+    Dataset<Pair<String, Set<String>>> first =
+        ReduceByKey.of(input)
+        .keyBy(e -> "")
+        .valueBy(e -> e)
+        .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+        .setNumPartitions(dataPartitions)
+        .windowBy(Windowing.Count.of(3))
+        .output();
+    // ~ strip the needless key and flatten out the elements thereby
+    // creating multiple elements in the output belonging to the same window
+    Dataset<String> second = FlatMap.of(first)
+        .using((UnaryFunctor<Pair<String, Set<String>>, String>) (e, c) -> {
+          e.getSecond().stream().forEachOrdered(c::collect);
+        })
+        .output();
+
+    // ~ now spread the elements (belonging to the same window) over
+    // multiple partitions
+    Dataset<String> third = Repartition.of(second)
+        .setNumPartitions(2)
+        .setPartitioner((Partitioner<String>) element -> '0' - element.charAt(0))
+        .output();
+
+    // ~ now reduce all of the partitions to one
+    Dataset<String> fourth = Repartition.of(third)
+        .setNumPartitions(1)
+        .output();
+
+    // ~ now process the single partition
+    // ~ we now expect to reconstruct the same windowing
+    // as the very initial step
+    Dataset<Pair<String, Set<String>>> fifth =
+        ReduceByKey.of(fourth)
+            .keyBy(e -> "")
+            .valueBy(e -> e)
+            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+            .output();
+
+    // ~ strip the needless key
+    Dataset<Set<String>> sixth =
+        MapElements.of(fifth)
+            .using(Pair::getSecond)
+            .output();
+
+    ListDataSink<Set<String>> out = ListDataSink.get(1);
+    sixth.persist(out);
+
+    executor.waitForCompletion(flow);
+    System.out.println("0: " + out.getOutput(0));
+
+    assertEquals(3, out.getOutput(0).size());
+    assertEquals(
+        Sets.newHashSet("0-one", "1-two", "0-three"),
+        out.getOutput(0).get(0));
+    assertEquals(
+        Sets.newHashSet("1-four", "0-five", "1-six"),
+        out.getOutput(0).get(1));
+    assertEquals(
+        Sets.newHashSet("0-seven"),
+        out.getOutput(0).get(2));
   }
 }
