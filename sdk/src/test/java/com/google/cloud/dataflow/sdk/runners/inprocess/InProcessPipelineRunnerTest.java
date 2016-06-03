@@ -88,7 +88,6 @@ public class InProcessPipelineRunnerTest implements Serializable {
     result.awaitCompletion();
   }
 
-  @Test(timeout = 5000L)
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
