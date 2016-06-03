@@ -163,7 +163,7 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>flink-runner_2.10</artifactId>
+      <artifactId>beam-runners-flink_2.10</artifactId>
       <version>0.2.0-incubating-SNAPSHOT</version>
     </dependency>
   </dependencies>
@@ -186,11 +186,6 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
                   <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
                 </transformer>
               </transformers>
-              <artifactSet>
-                <excludes>
-                  <exclude>org.apache.flink:*</exclude>
-                </excludes>
-              </artifactSet>
             </configuration>
           </execution>
         </executions>
