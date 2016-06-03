@@ -140,6 +140,7 @@
       build order. -->
     <module>sdks/java/maven-archetypes</module>
     <module>examples</module>
+    <module>distributions</module>
   </modules>
 
   <profiles>
@@ -200,26 +201,6 @@
             </plugin>
 
             <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-assembly-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>src</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>single</goal>
-                  </goals>
-                  <configuration>
-                    <finalName>apache-beam-${project.version}</finalName>
-                    <descriptors>
-                      <descriptor>sdks/java/build-tools/src/main/assembly/src.xml</descriptor>
-                    </descriptors>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-
-            <plugin>
               <groupId>org.apache.rat</groupId>
               <artifactId>apache-rat-plugin</artifactId>
               <version>0.11</version>
@@ -256,10 +237,6 @@
           <plugin>
             <groupId>org.apache.rat</groupId>
             <artifactId>apache-rat-plugin</artifactId>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-assembly-plugin</artifactId>
           </plugin>
         </plugins>
       </build>
