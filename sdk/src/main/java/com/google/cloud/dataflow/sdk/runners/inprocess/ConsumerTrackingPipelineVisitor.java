@@ -39,7 +39,7 @@ import java.util.Set;
  * {@link Pipeline}. This is used to schedule consuming {@link PTransform PTransforms} to consume
  * input after the upstream transform has produced and committed output.
  */
-public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
+class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
   private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers = new HashMap<>();
   private Collection<AppliedPTransform<?, ?, ?>> rootTransforms = new ArrayList<>();
   private Collection<PCollectionView<?>> views = new ArrayList<>();

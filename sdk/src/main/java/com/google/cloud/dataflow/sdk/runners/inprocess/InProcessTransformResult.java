@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 /**
  * The result of evaluating an {@link AppliedPTransform} with a {@link TransformEvaluator}.
  */
-public interface InProcessTransformResult {
+interface InProcessTransformResult {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.
    */

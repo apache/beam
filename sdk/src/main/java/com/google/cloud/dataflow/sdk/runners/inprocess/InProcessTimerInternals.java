@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 /**
  * An implementation of {@link TimerInternals} where all relevant data exists in memory.
  */
-public class InProcessTimerInternals implements TimerInternals {
+class InProcessTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;
   private final TimerUpdateBuilder timerUpdateBuilder;

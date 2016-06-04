@@ -122,7 +122,7 @@ import javax.annotation.Nullable;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-public class InMemoryWatermarkManager {
+class InMemoryWatermarkManager {
   /**
    * The watermark of some {@link Pipeline} element, usually a {@link PTransform} or a
    * {@link PCollection}.

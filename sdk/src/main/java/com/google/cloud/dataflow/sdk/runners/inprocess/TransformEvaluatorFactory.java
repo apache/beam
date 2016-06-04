@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
  * A factory for creating instances of {@link TransformEvaluator} for the application of a
  * {@link PTransform}.
  */
-public interface TransformEvaluatorFactory {
+interface TransformEvaluatorFactory {
   /**
    * Create a new {@link TransformEvaluator} for the application of the {@link PTransform}.
    *

@@ -27,7 +27,7 @@ import java.util.Map;
  * An {@link OutputManager} that outputs to {@link CommittedBundle Bundles} used by the
  * {@link InProcessPipelineRunner}.
  */
-public class InProcessBundleOutputManager implements OutputManager {
+class InProcessBundleOutputManager implements OutputManager {
   private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
 
   public static InProcessBundleOutputManager create(
