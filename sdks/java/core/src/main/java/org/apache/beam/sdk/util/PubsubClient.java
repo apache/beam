@@ -123,20 +123,27 @@ public abstract class PubsubClient implements Closeable {
    * Path representing a cloud project id.
    */
   public static class ProjectPath implements Serializable {
-    private final String path;
+    private final String projectId;
 
+    /**
+     * Creates a {@link ProjectPath} from a {@link String} representation, which
+     * must be of the form {@code "projects/" + projectId}.
+     */
     ProjectPath(String path) {
-      this.path = path;
+      String[] splits = path.split("/");
+      checkArgument(
+          splits.length == 2 && splits[0].equals("projects"),
+          "Malformed project path \"%s\": must be of the form \"projects/\" + <project id>",
+          path);
+      this.projectId = splits[1];
     }
 
     public String getPath() {
-      return path;
+      return String.format("projects/%s", projectId);
     }
 
     public String getId() {
-      String[] splits = path.split("/");
-      checkState(splits.length == 1, "Malformed project path %s", path);
-      return splits[1];
+      return projectId;
     }
 
     @Override
@@ -150,18 +157,17 @@ public abstract class PubsubClient implements Closeable {
 
       ProjectPath that = (ProjectPath) o;
 
-      return path.equals(that.path);
-
+      return projectId.equals(that.projectId);
     }
 
     @Override
     public int hashCode() {
-      return path.hashCode();
+      return projectId.hashCode();
     }
 
     @Override
     public String toString() {
-      return path;
+      return getPath();
     }
   }
 
@@ -177,26 +183,29 @@ public abstract class PubsubClient implements Closeable {
    * Path representing a Pubsub subscription.
    */
   public static class SubscriptionPath implements Serializable {
-    private final String path;
+    private final String projectId;
+    private final String subscriptionName;
 
     SubscriptionPath(String path) {
-      this.path = path;
+      String[] splits = path.split("/");
+      checkState(
+          splits.length == 4 && splits[0].equals("projects") && splits[2].equals("subscriptions"),
+          "Malformed subscription path %s: "
+          + "must be of the form \"projects/\" + <project id> + \"subscriptions\"", path);
+      this.projectId = splits[1];
+      this.subscriptionName = splits[3];
     }
 
     public String getPath() {
-      return path;
+      return String.format("projects/%s/subscriptions/%s", projectId, subscriptionName);
     }
 
     public String getName() {
-      String[] splits = path.split("/");
-      checkState(splits.length == 4, "Malformed subscription path %s", path);
-      return splits[3];
+      return subscriptionName;
     }
 
     public String getV1Beta1Path() {
-      String[] splits = path.split("/");
-      checkState(splits.length == 4, "Malformed subscription path %s", path);
-      return String.format("/subscriptions/%s/%s", splits[1], splits[3]);
+      return String.format("/subscriptions/%s/%s", projectId, subscriptionName);
     }
 
     @Override
@@ -208,17 +217,18 @@ public abstract class PubsubClient implements Closeable {
         return false;
       }
       SubscriptionPath that = (SubscriptionPath) o;
-      return path.equals(that.path);
+      return this.subscriptionName.equals(that.subscriptionName)
+          && this.projectId.equals(that.projectId);
     }
 
     @Override
     public int hashCode() {
-      return path.hashCode();
+      return Objects.hashCode(projectId, subscriptionName);
     }
 
     @Override
     public String toString() {
-      return path;
+      return getPath();
     }
   }
 
