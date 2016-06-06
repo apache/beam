@@ -226,6 +226,8 @@ public class WindowingTest {
     executor.waitForCompletion(flow);
 
     assertNotNull(output.getOutput(0));
+    System.out.println("output.getOutput(0): " + output.getOutput(0));
+
     assertEquals(3, output.getOutput(0).size());
     List<Pair<Long, Pair<String, Set<String>>>> ordered =
         output.getOutput(0)

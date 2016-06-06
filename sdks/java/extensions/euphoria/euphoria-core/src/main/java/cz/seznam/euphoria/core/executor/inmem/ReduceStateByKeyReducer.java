@@ -31,7 +31,7 @@ import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
 
-class ReduceStateByKeyReducer implements Runnable {
+class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscriber {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
 
@@ -138,6 +138,10 @@ class ReduceStateByKeyReducer implements Runnable {
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    public boolean isKnownWindow(Window w) {
+      return wStorage.getWindow(w.getGroup(), w.getLabel()) != null;
     }
 
     // ~ evicts the specified window returning states accumulated for it
@@ -288,6 +292,8 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private final Triggering triggering;
 
+  private final EndOfWindowBroadcast eowBroadcast;
+
   ReduceStateByKeyReducer(BlockingQueue input,
                           BlockingQueue output,
                           Windowing windowing,
@@ -296,17 +302,20 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction stateFactory,
                           CombinableReduceFunction stateCombiner,
                           Triggering triggering,
-                          boolean isBounded) {
+                          boolean isBounded,
+                          EndOfWindowBroadcast eowBroadcast) {
     this.input = requireNonNull(input);
     this.windowing = windowing == null ? DatumAttachedWindowing.INSTANCE : windowing;
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
     this.triggering = requireNonNull(triggering);
+    this.eowBroadcast = requireNonNull(eowBroadcast);
     this.processing = new ProcessingState(
         output, triggering,
         createEvictTrigger(),
         stateFactory, stateCombiner, this.windowing.isAggregating(),
         isBounded);
+    this.eowBroadcast.subscribe(this);
   }
 
   private UnaryFunction<Window, Void> createEvictTrigger() {
@@ -317,6 +326,9 @@ class ReduceStateByKeyReducer implements Runnable {
   }
 
   private void fireEvictTrigger(Window window) {
+    // ~ notify others we're about to evict the window
+    eowBroadcast.notifyEndOfWindow(new EndOfWindow<>(window), this);
+
     Collection<State> evicted;
     synchronized (processing) {
       if (!processing.active) {
@@ -324,14 +336,26 @@ class ReduceStateByKeyReducer implements Runnable {
       }
       evicted = processing.evictWindow(window);
     }
-    evicted.stream().forEachOrdered(s -> flush(s, window, !windowing.isAggregating()));
+    evicted.stream().forEachOrdered(state -> {
+      state.flush();
+      processing.stateOutput.collect(new EndOfWindow<>(window));
+      if (!windowing.isAggregating()) {
+        state.close();
+      }
+    });
   }
 
-  private void flush(State state, Window window, boolean close) {
-    state.flush();
-    processing.stateOutput.collect(new EndOfWindow<>(window));
-    if (close) {
-      state.close();
+  // ~ notified by peer partitions about the end-of-an-window; we'll
+  // resend the event to our own partition output unless we know the
+  // window
+  @Override
+  public void onEndOfWindowBroadcast(EndOfWindow eow) {
+    final boolean known;
+    synchronized (processing) {
+      known = processing.isKnownWindow(eow.getWindow());
+    }
+    if (!known) {
+      processing.stateOutput.collect(eow);
     }
   }
 
@@ -346,12 +370,16 @@ class ReduceStateByKeyReducer implements Runnable {
           break;
         }
 
-        synchronized (processing) {
-          if (item instanceof EndOfWindow) {
-            Window w = ((EndOfWindow) item).getWindow();
+        if (item instanceof EndOfWindow) {
+          Window w = ((EndOfWindow) item).getWindow();
+          fireEvictTrigger(w);
+        } else {
+          final List<Window> toEvict;
+          synchronized (processing) {
+            toEvict = processInput((Datum) item);
+          }
+          for (Window w : toEvict) {
             fireEvictTrigger(w);
-          } else {
-            processInput((Datum) item);
           }
         }
       } catch (InterruptedException ex) {
@@ -374,15 +402,19 @@ class ReduceStateByKeyReducer implements Runnable {
   }
 
   Set<Object> seenGroups = new HashSet<>();
+  List<Window> toEvict = new ArrayList<>();
 
+  // ~ returns a list of windows which are to be evicted (the list may be {@code null})
   @SuppressWarnings("unchecked")
-  private void processInput(Datum datum) {
+  private List<Window> processInput(Datum datum) {
 
     Object item = datum.element;
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
     seenGroups.clear();
+    toEvict.clear();
+
     Set<Window> itemWindows;
     if (windowing == DatumAttachedWindowing.INSTANCE) {
       windowing.updateTriggering(triggering, datum);
@@ -416,17 +448,14 @@ class ReduceStateByKeyReducer implements Runnable {
         if (merges != null && !merges.isEmpty()) {
           for (Pair<Collection<Window>, Window> merge : merges) {
             processing.mergeWindows(merge.getFirst(), merge.getSecond());
-            triggerIfComplete(mwindowing, merge.getSecond());
+            if (mwindowing.isComplete(merge.getSecond())) {
+              toEvict = new ArrayList<>();
+              toEvict.add(merge.getSecond());
+            }
           }
         }
       }
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  private void triggerIfComplete(MergingWindowing windowing, Window w) {
-    if (windowing.isComplete(w)) {
-      processing.evictFn.apply(w);
-    }
+    return toEvict;
   }
 }
