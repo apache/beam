@@ -8,7 +8,7 @@ import java.util.Map;
 
 // ~ instances of this class are thread-safe;
 // no external synchronization is necessary
-class WindowCountDown {
+class EndOfWindowCountDown {
 
   static final class CounterData {
     private int pending;
@@ -31,7 +31,7 @@ class WindowCountDown {
   // ~ returns {@code true} if the count down for the given window reached zero,
   // otherwise {@code false}
   boolean countDown(EndOfWindow eow, int expectedCountDowns) {
-    if (expectedCountDowns == 1) {
+    if (expectedCountDowns <= 1) {
       return true;
     }
 
@@ -40,9 +40,8 @@ class WindowCountDown {
       Pair wkey = Pair.of(w.getGroup(), w.getLabel());
       CounterData cd = counters.get(wkey);
       if (cd == null) {
-        counters.put(wkey, cd = new CounterData(expectedCountDowns));
-      }
-      if (cd.countDown()) {
+        counters.put(wkey, new CounterData(expectedCountDowns - 1));
+      } else if (cd.countDown()) {
         counters.remove(wkey);
         return true;
       }

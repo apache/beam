@@ -584,6 +584,12 @@ public class InMemExecutor implements Executor {
     List<BlockingQueue> repartitioned =
         repartitionSuppliers(suppliers, keyExtractor, partitioning);
 
+    EndOfWindowBroadcast eowBroadcast =
+        // ~ no need for broad-casts upong "batched and attached windowing"
+        windowing == null || windowing == BatchWindowing.get()
+            ? new EndOfWindowBroadcast.NoopInstance()
+            : new EndOfWindowBroadcast.NotifyingInstance();
+
     InputProvider<?> outputSuppliers = new InputProvider<>();
     // consume repartitioned suppliers
     repartitioned.stream().forEach(q -> {
@@ -592,7 +598,7 @@ public class InMemExecutor implements Executor {
       executor.execute(new ReduceStateByKeyReducer(q, output, windowing,
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
           SerializableUtils.cloneSerializable(triggering),
-          reduceStateByKey.input().isBounded()));
+          reduceStateByKey.input().isBounded(), eowBroadcast));
     });
     return outputSuppliers;
   }
