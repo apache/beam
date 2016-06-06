@@ -138,14 +138,20 @@ if 'save_module' in dir(dill.dill):
         for m in sys.modules.values():
           try:
             if m and m.__name__ != '__main__':
-              known_module_dicts[id(m.__dict__)] = m
+              d = m.__dict__
+              known_module_dicts[id(d)] = m, d
           except AttributeError:
             # Skip modules that do not have the __name__ attribute.
             pass
-    # TODO(silviuc): Must investigate the disabled if branch below.
-    if obj_id in known_module_dicts and dill.dill.is_dill(pickler) and False:
-      return pickler.save_reduce(
-          getattr, (known_module_dicts[obj_id], '__dict__'), obj=obj)
+    if obj_id in known_module_dicts and dill.dill.is_dill(pickler):
+      m = known_module_dicts[obj_id][0]
+      try:
+        # pylint: disable=protected-access
+        dill.dill._import_module(m.__name__)
+        return pickler.save_reduce(
+            getattr, (known_module_dicts[obj_id][0], '__dict__'), obj=obj)
+      except (ImportError, AttributeError):
+        return old_save_module_dict(pickler, obj)
     else:
       return old_save_module_dict(pickler, obj)
   dill.dill.save_module_dict = new_save_module_dict

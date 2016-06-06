@@ -33,7 +33,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='windmill.proto',
   package='windmill',
   syntax='proto2',
-  serialized_pb=_b('\n\x0ewindmill.proto\x12\x08windmill\"R\n\x07Message\x12\'\n\ttimestamp\x18\x01 \x02(\x03:\x14-9223372036854775808\x12\x0c\n\x04\x64\x61ta\x18\x02 \x02(\x0c\x12\x10\n\x08metadata\x18\x03 \x01(\x0c\"\xbf\x01\n\x05Timer\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12\'\n\ttimestamp\x18\x02 \x01(\x03:\x14-9223372036854775808\x12-\n\x04type\x18\x03 \x01(\x0e\x32\x14.windmill.Timer.Type:\tWATERMARK\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\";\n\x04Type\x12\r\n\tWATERMARK\x10\x00\x12\x0c\n\x08REALTIME\x10\x01\x12\x16\n\x12\x44\x45PENDENT_REALTIME\x10\x02\"X\n\x12InputMessageBundle\x12\x1d\n\x15source_computation_id\x18\x01 \x02(\t\x12#\n\x08messages\x18\x02 \x03(\x0b\x32\x11.windmill.Message\"r\n\x12KeyedMessageBundle\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x14\n\x0csharding_key\x18\x04 \x01(\x06\x12#\n\x08messages\x18\x02 \x03(\x0b\x32\x11.windmill.Message\x12\x14\n\x0cmessages_ids\x18\x03 \x03(\x0c\"\x87\x01\n\x13OutputMessageBundle\x12\"\n\x1a\x64\x65stination_computation_id\x18\x01 \x01(\t\x12\x1d\n\x15\x64\x65stination_stream_id\x18\x03 \x01(\t\x12-\n\x07\x62undles\x18\x02 \x03(\x0b\x32\x1c.windmill.KeyedMessageBundle\"t\n\x13PubSubMessageBundle\x12\r\n\x05topic\x18\x01 \x02(\t\x12#\n\x08messages\x18\x02 \x03(\x0b\x32\x11.windmill.Message\x12\x17\n\x0ftimestamp_label\x18\x03 \x01(\t\x12\x10\n\x08id_label\x18\x04 \x01(\t\".\n\x0bTimerBundle\x12\x1f\n\x06timers\x18\x01 \x03(\x0b\x32\x0f.windmill.Timer\">\n\x05Value\x12\'\n\ttimestamp\x18\x01 \x02(\x03:\x14-9223372036854775808\x12\x0c\n\x04\x64\x61ta\x18\x02 \x02(\x0c\"M\n\x08TagValue\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12\x1e\n\x05value\x18\x02 \x01(\x0b\x32\x0f.windmill.Value\x12\x14\n\x0cstate_family\x18\x03 \x01(\t\"\xdb\x01\n\x07TagList\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12+\n\rend_timestamp\x18\x02 \x01(\x03:\x14-9223372036854775808\x12\x1f\n\x06values\x18\x03 \x03(\x0b\x32\x0f.windmill.Value\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\x12\x15\n\rrequest_token\x18\x07 \x01(\x0c\x12\x1a\n\x12\x63ontinuation_token\x18\x05 \x01(\x0c\x12,\n\x0f\x66\x65tch_max_bytes\x18\x06 \x01(\x03:\x13\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x37\",\n\x0cGlobalDataId\x12\x0b\n\x03tag\x18\x01 \x02(\t\x12\x0f\n\x07version\x18\x02 \x02(\x0c\"k\n\nGlobalData\x12\'\n\x07\x64\x61ta_id\x18\x01 \x02(\x0b\x32\x16.windmill.GlobalDataId\x12\x10\n\x08is_ready\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\"2\n\x0bSourceState\x12\r\n\x05state\x18\x01 \x01(\x0c\x12\x14\n\x0c\x66inalize_ids\x18\x02 \x03(\x06\"Y\n\rWatermarkHold\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12\x16\n\ntimestamps\x18\x02 \x03(\x03\x42\x02\x10\x01\x12\r\n\x05reset\x18\x03 \x01(\x08\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\"\xd4\x02\n\x08WorkItem\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x12\n\nwork_token\x18\x02 \x02(\x06\x12\x14\n\x0csharding_key\x18\t \x01(\x06\x12\x13\n\x0b\x63\x61\x63he_token\x18\x07 \x01(\x06\x12\x35\n\x0fmessage_bundles\x18\x03 \x03(\x0b\x32\x1c.windmill.InputMessageBundle\x12%\n\x06timers\x18\x04 \x01(\x0b\x32\x15.windmill.TimerBundle\x12<\n\x1cglobal_data_id_notifications\x18\x05 \x03(\x0b\x32\x16.windmill.GlobalDataId\x12+\n\x0csource_state\x18\x06 \x01(\x0b\x32\x15.windmill.SourceState\x12\x33\n\x15output_data_watermark\x18\x08 \x01(\x03:\x14-9223372036854775808\"\xc6\x01\n\x14\x43omputationWorkItems\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12 \n\x04work\x18\x02 \x03(\x0b\x32\x12.windmill.WorkItem\x12\x32\n\x14input_data_watermark\x18\x03 \x01(\x03:\x14-9223372036854775808\x12@\n\"dependent_realtime_input_watermark\x18\x04 \x01(\x03:\x14-9223372036854775808\"\x8d\x01\n\x0eGetWorkRequest\x12\x11\n\tclient_id\x18\x01 \x02(\x06\x12\x11\n\tworker_id\x18\x04 \x01(\t\x12\x0e\n\x06job_id\x18\x05 \x01(\t\x12\x1d\n\tmax_items\x18\x02 \x01(\x03:\n4294967295\x12&\n\tmax_bytes\x18\x03 \x01(\x03:\x13\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x37\"?\n\x0fGetWorkResponse\x12,\n\x04work\x18\x01 \x03(\x0b\x32\x1e.windmill.ComputationWorkItems\"\xdf\x01\n\x13KeyedGetDataRequest\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x12\n\nwork_token\x18\x02 \x02(\x06\x12\x14\n\x0csharding_key\x18\x06 \x01(\x06\x12+\n\x0fvalues_to_fetch\x18\x03 \x03(\x0b\x32\x12.windmill.TagValue\x12)\n\x0elists_to_fetch\x18\x04 \x03(\x0b\x32\x11.windmill.TagList\x12\x39\n\x18watermark_holds_to_fetch\x18\x05 \x03(\x0b\x32\x17.windmill.WatermarkHold\"d\n\x19\x43omputationGetDataRequest\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12/\n\x08requests\x18\x02 \x03(\x0b\x32\x1d.windmill.KeyedGetDataRequest\"\xce\x01\n\x0eGetDataRequest\x12\x0e\n\x06job_id\x18\x04 \x01(\t\x12\x35\n\x08requests\x18\x01 \x03(\x0b\x32#.windmill.ComputationGetDataRequest\x12?\n\x1aglobal_data_fetch_requests\x18\x03 \x03(\x0b\x32\x1b.windmill.GlobalDataRequest\x12\x34\n\x14global_data_to_fetch\x18\x02 \x03(\x0b\x32\x16.windmill.GlobalDataId\"\xab\x01\n\x14KeyedGetDataResponse\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x0e\n\x06\x66\x61iled\x18\x02 \x01(\x08\x12\"\n\x06values\x18\x03 \x03(\x0b\x32\x12.windmill.TagValue\x12 \n\x05lists\x18\x04 \x03(\x0b\x32\x11.windmill.TagList\x12\x30\n\x0fwatermark_holds\x18\x05 \x03(\x0b\x32\x17.windmill.WatermarkHold\"b\n\x1a\x43omputationGetDataResponse\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12,\n\x04\x64\x61ta\x18\x02 \x03(\x0b\x32\x1e.windmill.KeyedGetDataResponse\"p\n\x0fGetDataResponse\x12\x32\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32$.windmill.ComputationGetDataResponse\x12)\n\x0bglobal_data\x18\x02 \x03(\x0b\x32\x14.windmill.GlobalData\"\xbd\x01\n\x07\x43ounter\x12\x0c\n\x04name\x18\x01 \x01(\t\x12$\n\x04kind\x18\x02 \x01(\x0e\x32\x16.windmill.Counter.Kind\x12\x15\n\rdouble_scalar\x18\x03 \x01(\x01\x12\x12\n\nint_scalar\x18\x04 \x01(\x03\x12\x12\n\nmean_count\x18\x06 \x01(\x03\x12\x12\n\ncumulative\x18\x07 \x01(\x08\"+\n\x04Kind\x12\x07\n\x03SUM\x10\x00\x12\x07\n\x03MAX\x10\x01\x12\x07\n\x03MIN\x10\x02\x12\x08\n\x04MEAN\x10\x03\"\x8d\x01\n\x11GlobalDataRequest\x12\'\n\x07\x64\x61ta_id\x18\x01 \x02(\x0b\x32\x16.windmill.GlobalDataId\x12\x39\n\x1c\x65xistence_watermark_deadline\x18\x02 \x01(\x03:\x13\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x37\x12\x14\n\x0cstate_family\x18\x03 \x01(\t\"\xa4\x05\n\x15WorkItemCommitRequest\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x12\n\nwork_token\x18\x02 \x02(\x06\x12\x14\n\x0csharding_key\x18\x0f \x01(\x06\x12\x36\n\x0foutput_messages\x18\x03 \x03(\x0b\x32\x1d.windmill.OutputMessageBundle\x12\x36\n\x0fpubsub_messages\x18\x07 \x03(\x0b\x32\x1d.windmill.PubSubMessageBundle\x12&\n\routput_timers\x18\x04 \x03(\x0b\x32\x0f.windmill.Timer\x12)\n\rvalue_updates\x18\x05 \x03(\x0b\x32\x12.windmill.TagValue\x12\'\n\x0clist_updates\x18\x06 \x03(\x0b\x32\x11.windmill.TagList\x12*\n\x0f\x63ounter_updates\x18\x08 \x03(\x0b\x32\x11.windmill.Counter\x12\x39\n\x14global_data_requests\x18\x0b \x03(\x0b\x32\x1b.windmill.GlobalDataRequest\x12\x31\n\x13global_data_updates\x18\n \x03(\x0b\x32\x14.windmill.GlobalData\x12\x33\n\x14source_state_updates\x18\x0c \x01(\x0b\x32\x15.windmill.SourceState\x12.\n\x10source_watermark\x18\r \x01(\x03:\x14-9223372036854775808\x12\x30\n\x0fwatermark_holds\x18\x0e \x03(\x0b\x32\x17.windmill.WatermarkHold\x12\x37\n\x17global_data_id_requests\x18\t \x03(\x0b\x32\x16.windmill.GlobalDataId\"i\n\x1c\x43omputationCommitWorkRequest\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12\x31\n\x08requests\x18\x02 \x03(\x0b\x32\x1f.windmill.WorkItemCommitRequest\"]\n\x11\x43ommitWorkRequest\x12\x0e\n\x06job_id\x18\x02 \x01(\t\x12\x38\n\x08requests\x18\x01 \x03(\x0b\x32&.windmill.ComputationCommitWorkRequest\"\x14\n\x12\x43ommitWorkResponse\"8\n\x10GetConfigRequest\x12\x0e\n\x06job_id\x18\x02 \x01(\t\x12\x14\n\x0c\x63omputations\x18\x01 \x03(\t\"\xd8\x02\n\x11GetConfigResponse\x12\x13\n\x0b\x63loud_works\x18\x01 \x03(\t\x12:\n\x08name_map\x18\x02 \x03(\x0b\x32(.windmill.GetConfigResponse.NameMapEntry\x12h\n!system_name_to_computation_id_map\x18\x03 \x03(\x0b\x32=.windmill.GetConfigResponse.SystemNameToComputationIdMapEntry\x1a\x36\n\x0cNameMapEntry\x12\x11\n\tuser_name\x18\x01 \x01(\t\x12\x13\n\x0bsystem_name\x18\x02 \x01(\t\x1aP\n!SystemNameToComputationIdMapEntry\x12\x13\n\x0bsystem_name\x18\x01 \x01(\t\x12\x16\n\x0e\x63omputation_id\x18\x02 \x01(\t\"E\n\tException\x12\x14\n\x0cstack_frames\x18\x01 \x03(\t\x12\"\n\x05\x63\x61use\x18\x02 \x01(\x0b\x32\x13.windmill.Exception\"\xc8\x01\n\x12ReportStatsRequest\x12\x0e\n\x06job_id\x18\x06 \x01(\t\x12\x16\n\x0e\x63omputation_id\x18\x01 \x01(\t\x12\x0b\n\x03key\x18\x02 \x01(\x0c\x12\x12\n\nwork_token\x18\x03 \x01(\x06\x12\x14\n\x0csharding_key\x18\x07 \x01(\x06\x12\'\n\nexceptions\x18\x04 \x03(\x0b\x32\x13.windmill.Exception\x12*\n\x0f\x63ounter_updates\x18\x05 \x03(\x0b\x32\x11.windmill.Counter\"%\n\x13ReportStatsResponse\x12\x0e\n\x06\x66\x61iled\x18\x01 \x01(\x08\x42\x41\n5com.google.cloud.dataflow.sdk.runners.worker.windmillB\x08Windmill')
+  serialized_pb=_b('\n\x0ewindmill.proto\x12\x08windmill\"R\n\x07Message\x12\'\n\ttimestamp\x18\x01 \x02(\x03:\x14-9223372036854775808\x12\x0c\n\x04\x64\x61ta\x18\x02 \x02(\x0c\x12\x10\n\x08metadata\x18\x03 \x01(\x0c\"\xbf\x01\n\x05Timer\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12\'\n\ttimestamp\x18\x02 \x01(\x03:\x14-9223372036854775808\x12-\n\x04type\x18\x03 \x01(\x0e\x32\x14.windmill.Timer.Type:\tWATERMARK\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\";\n\x04Type\x12\r\n\tWATERMARK\x10\x00\x12\x0c\n\x08REALTIME\x10\x01\x12\x16\n\x12\x44\x45PENDENT_REALTIME\x10\x02\"X\n\x12InputMessageBundle\x12\x1d\n\x15source_computation_id\x18\x01 \x02(\t\x12#\n\x08messages\x18\x02 \x03(\x0b\x32\x11.windmill.Message\"r\n\x12KeyedMessageBundle\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x14\n\x0csharding_key\x18\x04 \x01(\x06\x12#\n\x08messages\x18\x02 \x03(\x0b\x32\x11.windmill.Message\x12\x14\n\x0cmessages_ids\x18\x03 \x03(\x0c\"\x87\x01\n\x13OutputMessageBundle\x12\"\n\x1a\x64\x65stination_computation_id\x18\x01 \x01(\t\x12\x1d\n\x15\x64\x65stination_stream_id\x18\x03 \x01(\t\x12-\n\x07\x62undles\x18\x02 \x03(\x0b\x32\x1c.windmill.KeyedMessageBundle\"t\n\x13PubSubMessageBundle\x12\r\n\x05topic\x18\x01 \x02(\t\x12#\n\x08messages\x18\x02 \x03(\x0b\x32\x11.windmill.Message\x12\x17\n\x0ftimestamp_label\x18\x03 \x01(\t\x12\x10\n\x08id_label\x18\x04 \x01(\t\".\n\x0bTimerBundle\x12\x1f\n\x06timers\x18\x01 \x03(\x0b\x32\x0f.windmill.Timer\">\n\x05Value\x12\'\n\ttimestamp\x18\x01 \x02(\x03:\x14-9223372036854775808\x12\x0c\n\x04\x64\x61ta\x18\x02 \x02(\x0c\"M\n\x08TagValue\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12\x1e\n\x05value\x18\x02 \x01(\x0b\x32\x0f.windmill.Value\x12\x14\n\x0cstate_family\x18\x03 \x01(\t\"\xdb\x01\n\x07TagList\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12+\n\rend_timestamp\x18\x02 \x01(\x03:\x14-9223372036854775808\x12\x1f\n\x06values\x18\x03 \x03(\x0b\x32\x0f.windmill.Value\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\x12\x15\n\rrequest_token\x18\x07 \x01(\x0c\x12\x1a\n\x12\x63ontinuation_token\x18\x05 \x01(\x0c\x12,\n\x0f\x66\x65tch_max_bytes\x18\x06 \x01(\x03:\x13\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x37\",\n\x0cGlobalDataId\x12\x0b\n\x03tag\x18\x01 \x02(\t\x12\x0f\n\x07version\x18\x02 \x02(\x0c\"k\n\nGlobalData\x12\'\n\x07\x64\x61ta_id\x18\x01 \x02(\x0b\x32\x16.windmill.GlobalDataId\x12\x10\n\x08is_ready\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\"I\n\x0bSourceState\x12\r\n\x05state\x18\x01 \x01(\x0c\x12\x14\n\x0c\x66inalize_ids\x18\x02 \x03(\x06\x12\x15\n\ronly_finalize\x18\x03 \x01(\x08\"Y\n\rWatermarkHold\x12\x0b\n\x03tag\x18\x01 \x02(\x0c\x12\x16\n\ntimestamps\x18\x02 \x03(\x03\x42\x02\x10\x01\x12\r\n\x05reset\x18\x03 \x01(\x08\x12\x14\n\x0cstate_family\x18\x04 \x01(\t\"\xd4\x02\n\x08WorkItem\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x12\n\nwork_token\x18\x02 \x02(\x06\x12\x14\n\x0csharding_key\x18\t \x01(\x06\x12\x13\n\x0b\x63\x61\x63he_token\x18\x07 \x01(\x06\x12\x35\n\x0fmessage_bundles\x18\x03 \x03(\x0b\x32\x1c.windmill.InputMessageBundle\x12%\n\x06timers\x18\x04 \x01(\x0b\x32\x15.windmill.TimerBundle\x12<\n\x1cglobal_data_id_notifications\x18\x05 \x03(\x0b\x32\x16.windmill.GlobalDataId\x12+\n\x0csource_state\x18\x06 \x01(\x0b\x32\x15.windmill.SourceState\x12\x33\n\x15output_data_watermark\x18\x08 \x01(\x03:\x14-9223372036854775808\"\xc6\x01\n\x14\x43omputationWorkItems\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12 \n\x04work\x18\x02 \x03(\x0b\x32\x12.windmill.WorkItem\x12\x32\n\x14input_data_watermark\x18\x03 \x01(\x03:\x14-9223372036854775808\x12@\n\"dependent_realtime_input_watermark\x18\x04 \x01(\x03:\x14-9223372036854775808\"\x8d\x01\n\x0eGetWorkRequest\x12\x11\n\tclient_id\x18\x01 \x02(\x06\x12\x11\n\tworker_id\x18\x04 \x01(\t\x12\x0e\n\x06job_id\x18\x05 \x01(\t\x12\x1d\n\tmax_items\x18\x02 \x01(\x03:\n4294967295\x12&\n\tmax_bytes\x18\x03 \x01(\x03:\x13\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x37\"?\n\x0fGetWorkResponse\x12,\n\x04work\x18\x01 \x03(\x0b\x32\x1e.windmill.ComputationWorkItems\"\xdf\x01\n\x13KeyedGetDataRequest\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x12\n\nwork_token\x18\x02 \x02(\x06\x12\x14\n\x0csharding_key\x18\x06 \x01(\x06\x12+\n\x0fvalues_to_fetch\x18\x03 \x03(\x0b\x32\x12.windmill.TagValue\x12)\n\x0elists_to_fetch\x18\x04 \x03(\x0b\x32\x11.windmill.TagList\x12\x39\n\x18watermark_holds_to_fetch\x18\x05 \x03(\x0b\x32\x17.windmill.WatermarkHold\"d\n\x19\x43omputationGetDataRequest\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12/\n\x08requests\x18\x02 \x03(\x0b\x32\x1d.windmill.KeyedGetDataRequest\"\xce\x01\n\x0eGetDataRequest\x12\x0e\n\x06job_id\x18\x04 \x01(\t\x12\x35\n\x08requests\x18\x01 \x03(\x0b\x32#.windmill.ComputationGetDataRequest\x12?\n\x1aglobal_data_fetch_requests\x18\x03 \x03(\x0b\x32\x1b.windmill.GlobalDataRequest\x12\x34\n\x14global_data_to_fetch\x18\x02 \x03(\x0b\x32\x16.windmill.GlobalDataId\"\xab\x01\n\x14KeyedGetDataResponse\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x0e\n\x06\x66\x61iled\x18\x02 \x01(\x08\x12\"\n\x06values\x18\x03 \x03(\x0b\x32\x12.windmill.TagValue\x12 \n\x05lists\x18\x04 \x03(\x0b\x32\x11.windmill.TagList\x12\x30\n\x0fwatermark_holds\x18\x05 \x03(\x0b\x32\x17.windmill.WatermarkHold\"b\n\x1a\x43omputationGetDataResponse\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12,\n\x04\x64\x61ta\x18\x02 \x03(\x0b\x32\x1e.windmill.KeyedGetDataResponse\"p\n\x0fGetDataResponse\x12\x32\n\x04\x64\x61ta\x18\x01 \x03(\x0b\x32$.windmill.ComputationGetDataResponse\x12)\n\x0bglobal_data\x18\x02 \x03(\x0b\x32\x14.windmill.GlobalData\"\xbd\x01\n\x07\x43ounter\x12\x0c\n\x04name\x18\x01 \x01(\t\x12$\n\x04kind\x18\x02 \x01(\x0e\x32\x16.windmill.Counter.Kind\x12\x15\n\rdouble_scalar\x18\x03 \x01(\x01\x12\x12\n\nint_scalar\x18\x04 \x01(\x03\x12\x12\n\nmean_count\x18\x06 \x01(\x03\x12\x12\n\ncumulative\x18\x07 \x01(\x08\"+\n\x04Kind\x12\x07\n\x03SUM\x10\x00\x12\x07\n\x03MAX\x10\x01\x12\x07\n\x03MIN\x10\x02\x12\x08\n\x04MEAN\x10\x03\"\x8d\x01\n\x11GlobalDataRequest\x12\'\n\x07\x64\x61ta_id\x18\x01 \x02(\x0b\x32\x16.windmill.GlobalDataId\x12\x39\n\x1c\x65xistence_watermark_deadline\x18\x02 \x01(\x03:\x13\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x37\x12\x14\n\x0cstate_family\x18\x03 \x01(\t\"\xa4\x05\n\x15WorkItemCommitRequest\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\x12\n\nwork_token\x18\x02 \x02(\x06\x12\x14\n\x0csharding_key\x18\x0f \x01(\x06\x12\x36\n\x0foutput_messages\x18\x03 \x03(\x0b\x32\x1d.windmill.OutputMessageBundle\x12\x36\n\x0fpubsub_messages\x18\x07 \x03(\x0b\x32\x1d.windmill.PubSubMessageBundle\x12&\n\routput_timers\x18\x04 \x03(\x0b\x32\x0f.windmill.Timer\x12)\n\rvalue_updates\x18\x05 \x03(\x0b\x32\x12.windmill.TagValue\x12\'\n\x0clist_updates\x18\x06 \x03(\x0b\x32\x11.windmill.TagList\x12*\n\x0f\x63ounter_updates\x18\x08 \x03(\x0b\x32\x11.windmill.Counter\x12\x39\n\x14global_data_requests\x18\x0b \x03(\x0b\x32\x1b.windmill.GlobalDataRequest\x12\x31\n\x13global_data_updates\x18\n \x03(\x0b\x32\x14.windmill.GlobalData\x12\x33\n\x14source_state_updates\x18\x0c \x01(\x0b\x32\x15.windmill.SourceState\x12.\n\x10source_watermark\x18\r \x01(\x03:\x14-9223372036854775808\x12\x30\n\x0fwatermark_holds\x18\x0e \x03(\x0b\x32\x17.windmill.WatermarkHold\x12\x37\n\x17global_data_id_requests\x18\t \x03(\x0b\x32\x16.windmill.GlobalDataId\"i\n\x1c\x43omputationCommitWorkRequest\x12\x16\n\x0e\x63omputation_id\x18\x01 \x02(\t\x12\x31\n\x08requests\x18\x02 \x03(\x0b\x32\x1f.windmill.WorkItemCommitRequest\"]\n\x11\x43ommitWorkRequest\x12\x0e\n\x06job_id\x18\x02 \x01(\t\x12\x38\n\x08requests\x18\x01 \x03(\x0b\x32&.windmill.ComputationCommitWorkRequest\"\x14\n\x12\x43ommitWorkResponse\"8\n\x10GetConfigRequest\x12\x0e\n\x06job_id\x18\x02 \x01(\t\x12\x14\n\x0c\x63omputations\x18\x01 \x03(\t\"\xd8\x02\n\x11GetConfigResponse\x12\x13\n\x0b\x63loud_works\x18\x01 \x03(\t\x12:\n\x08name_map\x18\x02 \x03(\x0b\x32(.windmill.GetConfigResponse.NameMapEntry\x12h\n!system_name_to_computation_id_map\x18\x03 \x03(\x0b\x32=.windmill.GetConfigResponse.SystemNameToComputationIdMapEntry\x1a\x36\n\x0cNameMapEntry\x12\x11\n\tuser_name\x18\x01 \x01(\t\x12\x13\n\x0bsystem_name\x18\x02 \x01(\t\x1aP\n!SystemNameToComputationIdMapEntry\x12\x13\n\x0bsystem_name\x18\x01 \x01(\t\x12\x16\n\x0e\x63omputation_id\x18\x02 \x01(\t\"E\n\tException\x12\x14\n\x0cstack_frames\x18\x01 \x03(\t\x12\"\n\x05\x63\x61use\x18\x02 \x01(\x0b\x32\x13.windmill.Exception\"\xc8\x01\n\x12ReportStatsRequest\x12\x0e\n\x06job_id\x18\x06 \x01(\t\x12\x16\n\x0e\x63omputation_id\x18\x01 \x01(\t\x12\x0b\n\x03key\x18\x02 \x01(\x0c\x12\x12\n\nwork_token\x18\x03 \x01(\x06\x12\x14\n\x0csharding_key\x18\x07 \x01(\x06\x12\'\n\nexceptions\x18\x04 \x03(\x0b\x32\x13.windmill.Exception\x12*\n\x0f\x63ounter_updates\x18\x05 \x03(\x0b\x32\x11.windmill.Counter\"%\n\x13ReportStatsResponse\x12\x0e\n\x06\x66\x61iled\x18\x01 \x01(\x08\x42\x41\n5com.google.cloud.dataflow.sdk.runners.worker.windmillB\x08Windmill')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -90,8 +90,8 @@ _COUNTER_KIND = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=3304,
-  serialized_end=3347,
+  serialized_start=3327,
+  serialized_end=3370,
 )
 _sym_db.RegisterEnumDescriptor(_COUNTER_KIND)
 
@@ -679,6 +679,13 @@ _SOURCESTATE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='only_finalize', full_name='windmill.SourceState.only_finalize', index=2,
+      number=3, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -692,7 +699,7 @@ _SOURCESTATE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=1336,
-  serialized_end=1386,
+  serialized_end=1409,
 )
 
 
@@ -743,8 +750,8 @@ _WATERMARKHOLD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1388,
-  serialized_end=1477,
+  serialized_start=1411,
+  serialized_end=1500,
 )
 
 
@@ -830,8 +837,8 @@ _WORKITEM = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1480,
-  serialized_end=1820,
+  serialized_start=1503,
+  serialized_end=1843,
 )
 
 
@@ -882,8 +889,8 @@ _COMPUTATIONWORKITEMS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1823,
-  serialized_end=2021,
+  serialized_start=1846,
+  serialized_end=2044,
 )
 
 
@@ -941,8 +948,8 @@ _GETWORKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2024,
-  serialized_end=2165,
+  serialized_start=2047,
+  serialized_end=2188,
 )
 
 
@@ -972,8 +979,8 @@ _GETWORKRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2167,
-  serialized_end=2230,
+  serialized_start=2190,
+  serialized_end=2253,
 )
 
 
@@ -1038,8 +1045,8 @@ _KEYEDGETDATAREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2233,
-  serialized_end=2456,
+  serialized_start=2256,
+  serialized_end=2479,
 )
 
 
@@ -1076,8 +1083,8 @@ _COMPUTATIONGETDATAREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2458,
-  serialized_end=2558,
+  serialized_start=2481,
+  serialized_end=2581,
 )
 
 
@@ -1128,8 +1135,8 @@ _GETDATAREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2561,
-  serialized_end=2767,
+  serialized_start=2584,
+  serialized_end=2790,
 )
 
 
@@ -1187,8 +1194,8 @@ _KEYEDGETDATARESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2770,
-  serialized_end=2941,
+  serialized_start=2793,
+  serialized_end=2964,
 )
 
 
@@ -1225,8 +1232,8 @@ _COMPUTATIONGETDATARESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2943,
-  serialized_end=3041,
+  serialized_start=2966,
+  serialized_end=3064,
 )
 
 
@@ -1263,8 +1270,8 @@ _GETDATARESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3043,
-  serialized_end=3155,
+  serialized_start=3066,
+  serialized_end=3178,
 )
 
 
@@ -1330,8 +1337,8 @@ _COUNTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3158,
-  serialized_end=3347,
+  serialized_start=3181,
+  serialized_end=3370,
 )
 
 
@@ -1375,8 +1382,8 @@ _GLOBALDATAREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3350,
-  serialized_end=3491,
+  serialized_start=3373,
+  serialized_end=3514,
 )
 
 
@@ -1504,8 +1511,8 @@ _WORKITEMCOMMITREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3494,
-  serialized_end=4170,
+  serialized_start=3517,
+  serialized_end=4193,
 )
 
 
@@ -1542,8 +1549,8 @@ _COMPUTATIONCOMMITWORKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4172,
-  serialized_end=4277,
+  serialized_start=4195,
+  serialized_end=4300,
 )
 
 
@@ -1580,8 +1587,8 @@ _COMMITWORKREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4279,
-  serialized_end=4372,
+  serialized_start=4302,
+  serialized_end=4395,
 )
 
 
@@ -1604,8 +1611,8 @@ _COMMITWORKRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4374,
-  serialized_end=4394,
+  serialized_start=4397,
+  serialized_end=4417,
 )
 
 
@@ -1642,8 +1649,8 @@ _GETCONFIGREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4396,
-  serialized_end=4452,
+  serialized_start=4419,
+  serialized_end=4475,
 )
 
 
@@ -1680,8 +1687,8 @@ _GETCONFIGRESPONSE_NAMEMAPENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4663,
-  serialized_end=4717,
+  serialized_start=4686,
+  serialized_end=4740,
 )
 
 _GETCONFIGRESPONSE_SYSTEMNAMETOCOMPUTATIONIDMAPENTRY = _descriptor.Descriptor(
@@ -1717,8 +1724,8 @@ _GETCONFIGRESPONSE_SYSTEMNAMETOCOMPUTATIONIDMAPENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4719,
-  serialized_end=4799,
+  serialized_start=4742,
+  serialized_end=4822,
 )
 
 _GETCONFIGRESPONSE = _descriptor.Descriptor(
@@ -1761,8 +1768,8 @@ _GETCONFIGRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4455,
-  serialized_end=4799,
+  serialized_start=4478,
+  serialized_end=4822,
 )
 
 
@@ -1799,8 +1806,8 @@ _EXCEPTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4801,
-  serialized_end=4870,
+  serialized_start=4824,
+  serialized_end=4893,
 )
 
 
@@ -1872,8 +1879,8 @@ _REPORTSTATSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4873,
-  serialized_end=5073,
+  serialized_start=4896,
+  serialized_end=5096,
 )
 
 
@@ -1903,8 +1910,8 @@ _REPORTSTATSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5075,
-  serialized_end=5112,
+  serialized_start=5098,
+  serialized_end=5135,
 )
 
 _TIMER.fields_by_name['type'].enum_type = _TIMER_TYPE
