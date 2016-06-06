@@ -21,8 +21,11 @@ import random
 import threading
 import unittest
 
-from google.cloud.dataflow.io import gcsio
 
+import httplib2
+
+from google.cloud.dataflow.io import gcsio
+from apitools.base.py.exceptions import HttpError
 from google.cloud.dataflow.internal.clients import storage
 
 
@@ -53,13 +56,23 @@ class FakeGcsObjects(object):
 
   def __init__(self):
     self.files = {}
+    # Store the last generation used for a given object name.  Note that this
+    # has to persist even past the deletion of the object.
+    self.last_generation = {}
     self.list_page_tokens = {}
 
   def add_file(self, f):
     self.files[(f.bucket, f.object)] = f
+    self.last_generation[(f.bucket, f.object)] = f.generation
 
   def get_file(self, bucket, obj):
     return self.files.get((bucket, obj), None)
+
+  def delete_file(self, bucket, obj):
+    del self.files[(bucket, obj)]
+
+  def get_last_generation(self, bucket, obj):
+    return self.last_generation.get((bucket, obj), 0)
 
   def Get(self, get_request, download=None):  # pylint: disable=invalid-name
     f = self.get_file(get_request.bucket, get_request.object)
@@ -77,10 +90,8 @@ class FakeGcsObjects(object):
 
   def Insert(self, insert_request, upload=None):  # pylint: disable=invalid-name
     assert upload is not None
-    generation = 1
-    f = self.get_file(insert_request.bucket, insert_request.name)
-    if f is not None:
-      generation = f.generation + 1
+    generation = self.get_last_generation(insert_request.bucket,
+                                          insert_request.name) + 1
     f = FakeFile(insert_request.bucket, insert_request.name, '', generation)
 
     # Stream data into file.
@@ -94,6 +105,26 @@ class FakeGcsObjects(object):
     f.contents = ''.join(data_list)
 
     self.add_file(f)
+
+  def Copy(self, copy_request):  # pylint: disable=invalid-name
+    src_file = self.get_file(copy_request.sourceBucket,
+                             copy_request.sourceObject)
+    assert src_file is not None
+    generation = self.get_last_generation(copy_request.destinationBucket,
+                                          copy_request.destinationObject) + 1
+    dest_file = FakeFile(copy_request.destinationBucket,
+                         copy_request.destinationObject,
+                         src_file.contents, generation)
+    self.add_file(dest_file)
+
+  def Delete(self, delete_request):  # pylint: disable=invalid-name
+    # Here, we emulate the behavior of the GCS service in raising a 404 error
+    # if this object already exists.
+    if self.get_file(delete_request.bucket, delete_request.object):
+      self.delete_file(delete_request.bucket, delete_request.object)
+    else:
+      raise HttpError(httplib2.Response({'status': '404'}), '404 Not Found',
+                      'https://fake/url')
 
   def List(self, list_request):  # pylint: disable=invalid-name
     bucket = list_request.bucket
@@ -153,6 +184,58 @@ class TestGCSIO(unittest.TestCase):
   def setUp(self):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
+
+  def test_delete(self):
+    file_name = 'gs://gcsio-test/delete_me'
+    file_size = 1024
+
+    # Test deletion of non-existent file.
+    self.gcs.delete(file_name)
+
+    self._insert_random_file(self.client, file_name, file_size)
+    self.assertTrue(gcsio.parse_gcs_path(file_name) in
+                    self.client.objects.files)
+
+    self.gcs.delete(file_name)
+
+    self.assertFalse(gcsio.parse_gcs_path(file_name) in
+                     self.client.objects.files)
+
+  def test_copy(self):
+    src_file_name = 'gs://gcsio-test/source'
+    dest_file_name = 'gs://gcsio-test/dest'
+    file_size = 1024
+    self._insert_random_file(self.client, src_file_name,
+                             file_size)
+    self.assertTrue(gcsio.parse_gcs_path(src_file_name) in
+                    self.client.objects.files)
+    self.assertFalse(gcsio.parse_gcs_path(dest_file_name) in
+                     self.client.objects.files)
+
+    self.gcs.copy(src_file_name, dest_file_name)
+
+    self.assertTrue(gcsio.parse_gcs_path(src_file_name) in
+                    self.client.objects.files)
+    self.assertTrue(gcsio.parse_gcs_path(dest_file_name) in
+                    self.client.objects.files)
+
+  def test_rename(self):
+    src_file_name = 'gs://gcsio-test/source'
+    dest_file_name = 'gs://gcsio-test/dest'
+    file_size = 1024
+    self._insert_random_file(self.client, src_file_name,
+                             file_size)
+    self.assertTrue(gcsio.parse_gcs_path(src_file_name) in
+                    self.client.objects.files)
+    self.assertFalse(gcsio.parse_gcs_path(dest_file_name) in
+                     self.client.objects.files)
+
+    self.gcs.rename(src_file_name, dest_file_name)
+
+    self.assertFalse(gcsio.parse_gcs_path(src_file_name) in
+                     self.client.objects.files)
+    self.assertTrue(gcsio.parse_gcs_path(dest_file_name) in
+                    self.client.objects.files)
 
   def test_full_file_read(self):
     file_name = 'gs://gcsio-test/full_file'

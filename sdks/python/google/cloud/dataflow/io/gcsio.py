@@ -139,7 +139,7 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
   def delete(self, path):
-    """Deletes the given gcs object.
+    """Deletes the object at the given GCS path.
 
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
@@ -147,30 +147,46 @@ class GcsIO(object):
     bucket, object_path = parse_gcs_path(path)
     request = storage.StorageObjectsDeleteRequest(bucket=bucket,
                                                   object=object_path)
-    self.client.objects.Delete(request)
+    try:
+      self.client.objects.Delete(request)
+    except HttpError as http_error:
+      if http_error.status_code == 404:
+        # Return success when the file doesn't exist anymore for idempotency.
+        return
+      raise
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def rename(self, src, dst):
-    """Renames the given gcs object from src to dst.
+  def copy(self, src, dest):
+    """Copies the given GCS object from src to dest.
 
     Args:
       src: GCS file path pattern in the form gs://<bucket>/<name>.
-      dst: GCS file path pattern in the form gs://<bucket>/<name>.
+      dest: GCS file path pattern in the form gs://<bucket>/<name>.
     """
     src_bucket, src_path = parse_gcs_path(src)
-    dst_bucket, dst_path = parse_gcs_path(dst)
+    dest_bucket, dest_path = parse_gcs_path(dest)
     request = storage.StorageObjectsCopyRequest(sourceBucket=src_bucket,
                                                 sourceObject=src_path,
-                                                destinationBucket=dst_bucket,
-                                                destinationObject=dst_path)
+                                                destinationBucket=dest_bucket,
+                                                destinationObject=dest_path)
     self.client.objects.Copy(request)
-    request = storage.StorageObjectsDeleteRequest(bucket=src_bucket,
-                                                  object=src_path)
-    self.client.objects.Delete(request)
+
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.
+  def rename(self, src, dest):
+    """Renames the given GCS object from src to dest.
+
+    Args:
+      src: GCS file path pattern in the form gs://<bucket>/<name>.
+      dest: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    self.copy(src, dest)
+    self.delete(src)
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
   def exists(self, path):
-    """Returns whether the given gcs object exists.
+    """Returns whether the given GCS object exists.
 
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
