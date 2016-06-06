@@ -21,12 +21,12 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>beam-parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>examples-parent</artifactId>
+  <artifactId>beam-examples-parent</artifactId>
 
   <packaging>pom</packaging>
 
