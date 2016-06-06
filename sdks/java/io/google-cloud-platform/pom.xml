@@ -20,13 +20,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.io</groupId>
-    <artifactId>parent</artifactId>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-sdks-java-io-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>google-cloud-platform</artifactId>
+  <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform</name>
   <description>IO library to read and write Google Cloud Platform systems from Beam.</description>
   <packaging>jar</packaging>
@@ -59,7 +59,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>
@@ -82,7 +82,7 @@
     <!-- test -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>

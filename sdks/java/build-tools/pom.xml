@@ -21,12 +21,12 @@
   
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>java-sdk-parent</artifactId>
+    <artifactId>beam-sdks-java-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-build-tools</artifactId>
+  <artifactId>beam-sdks-java-build-tools</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Build Tools</name>
   
 </project>

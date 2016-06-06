@@ -20,13 +20,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.io</groupId>
-    <artifactId>parent</artifactId>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-sdks-java-io-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>hdfs</artifactId>
+  <artifactId>beam-sdks-java-io-hdfs</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: HDFS</name>
   <description>Library to read and write Hadoop/HDFS file formats from Beam.</description>
 
@@ -54,7 +54,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>

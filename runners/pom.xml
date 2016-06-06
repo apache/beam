@@ -21,13 +21,12 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>beam-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.apache.beam.runners</groupId>
-  <artifactId>parent</artifactId>
+  <artifactId>beam-runners-parent</artifactId>
 
   <packaging>pom</packaging>
 
@@ -58,7 +57,7 @@
                 <parallel>all</parallel>
                 <threadCount>4</threadCount>
                 <dependenciesToScan>
-                  <dependency>org.apache.beam:java-sdk-all</dependency>
+                  <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                 </dependenciesToScan>
                 <systemPropertyVariables>
                   <beamTestPipelineOptions>${runnableOnServicePipelineOptions}</beamTestPipelineOptions>

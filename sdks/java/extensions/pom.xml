@@ -21,13 +21,12 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>java-sdk-parent</artifactId>
+    <artifactId>beam-sdks-java-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.apache.beam.extensions</groupId>
-  <artifactId>parent</artifactId>
+  <artifactId>beam-sdks-java-extensions-parent</artifactId>
   <packaging>pom</packaging>
 
   <name>Apache Beam :: SDKs :: Java :: Extensions</name>
