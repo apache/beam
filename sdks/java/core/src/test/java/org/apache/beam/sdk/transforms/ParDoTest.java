@@ -121,7 +121,8 @@ public class ParDoTest implements Serializable {
 
     @Override
     public void startBundle(Context c) {
-      assertEquals(State.UNSTARTED, state);
+      // The Fn can be reused, but only if FinishBundle has been called.
+      assertThat(state, anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
       state = State.STARTED;
       outputToAll(c, "started");
     }
