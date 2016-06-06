@@ -21,13 +21,12 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>java-sdk-parent</artifactId>
+    <artifactId>beam-java-sdk-parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.apache.beam.io</groupId>
-  <artifactId>parent</artifactId>
+  <artifactId>beam-java-sdk-io-parent</artifactId>
   <packaging>pom</packaging>
   <name>Apache Beam :: SDKs :: Java :: IO</name>
   <description>Beam SDK Java IO provides different connectivity components

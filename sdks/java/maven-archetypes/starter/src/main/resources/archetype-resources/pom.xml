@@ -41,7 +41,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <artifactId>beam-java-sdk-all</artifactId>
       <version>[0-incubating, 1-incubating)</version>
     </dependency>
 
