@@ -20,13 +20,14 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>sdks-parent</artifactId>
+    <groupId>org.apache.beam.sdks</groupId>
+    <artifactId>parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-sdk-parent</artifactId>
+  <groupId>org.apache.beam.sdks.java</groupId>
+  <artifactId>parent</artifactId>
 
   <packaging>pom</packaging>
 

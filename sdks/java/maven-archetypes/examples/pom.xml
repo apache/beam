@@ -20,13 +20,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>maven-archetypes-parent</artifactId>
+    <groupId>org.apache.beam.sdks.java.archetypes</groupId>
+    <artifactId>parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>maven-archetypes-examples</artifactId>
+  <artifactId>examples</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples</name>
   <description>A Maven Archetype to create a project containing all the
     example pipelines from the Apache Beam Java SDK.</description>

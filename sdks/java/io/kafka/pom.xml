@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.io</groupId>
+    <groupId>org.apache.beam.sdks.java.io</groupId>
     <artifactId>parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
@@ -52,8 +52,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <groupId>org.apache.beam.sdks.java</groupId>
+      <artifactId>core</artifactId>
     </dependency>
 
     <dependency>

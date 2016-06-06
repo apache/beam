@@ -26,7 +26,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>sdks-parent</artifactId>
+  <groupId>org.apache.beam.sdks</groupId>
+  <artifactId>parent</artifactId>
 
   <packaging>pom</packaging>
 

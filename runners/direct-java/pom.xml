@@ -90,7 +90,7 @@
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
-                <dependency>org.apache.beam:java-sdk-all</dependency>
+                <dependency>org.apache.beam.sdks.java:core</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
@@ -246,8 +246,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <groupId>org.apache.beam.sdks.java</groupId>
+      <artifactId>core</artifactId>
     </dependency>
 
     <dependency>
@@ -331,8 +331,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <groupId>org.apache.beam.sdks.java</groupId>
+      <artifactId>core</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
