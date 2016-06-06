@@ -26,7 +26,7 @@
   </parent>
 
   <groupId>org.apache.beam</groupId>
-  <artifactId>parent</artifactId>
+  <artifactId>beam-parent</artifactId>
   <name>Apache Beam :: Parent</name>
   <description>Apache Beam provides a simple, Java-based interface
   for processing virtually any size data. This artifact includes the parent POM
@@ -259,25 +259,25 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>java-sdk-all</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam.runners</groupId>
-        <artifactId>core</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam.runners</groupId>
-        <artifactId>google-cloud-dataflow-java</artifactId>
+        <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>java-examples-all</artifactId>
+        <artifactId>beam-runners-core-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-examples-java</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -585,7 +585,7 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>java-sdk-all</artifactId>
+        <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
@@ -593,7 +593,7 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>java-sdk-all</artifactId>
+        <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
         <scope>test</scope>
@@ -659,7 +659,7 @@
             </dependency>
             <dependency>
               <groupId>org.apache.beam</groupId>
-              <artifactId>java-build-tools</artifactId>
+              <artifactId>beam-sdks-java-build-tools</artifactId>
               <version>${project.version}</version>
             </dependency>
           </dependencies>

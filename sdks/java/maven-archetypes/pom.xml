@@ -21,12 +21,12 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>java-sdk-parent</artifactId>
+    <artifactId>beam-sdks-java-parent</artifactId>
     <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>maven-archetypes-parent</artifactId>
+  <artifactId>beam-sdks-java-maven-archetypes-parent</artifactId>
   <packaging>pom</packaging>
 
   <name>Apache Beam :: SDKs :: Java :: Maven Archetypes</name>
