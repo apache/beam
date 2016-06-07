@@ -167,9 +167,8 @@ import javax.annotation.Nullable;
  *
  * <pre>{@code
  *
- *  pipeline
- *    .apply(...) // returns PCollection<KV<Long, String>>
- *    .apply(KafkaIO.write()
+ *  PCollection<KV<Long, String>> kvColl = ...;
+ *  kvColl.apply(KafkaIO.write()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
  *       .withTopic("results")
  *
