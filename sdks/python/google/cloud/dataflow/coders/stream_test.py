@@ -56,6 +56,15 @@ class StreamTest(unittest.TestCase):
     self.assertEquals(0, in_s.read_byte())
     self.assertEquals(0xFF, in_s.read_byte())
 
+  def test_read_write_large(self):
+    values = range(4 * 1024)
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_bigendian_int64(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEquals(v, in_s.read_bigendian_int64())
+
   def run_read_write_var_int64(self, values):
     out_s = self.OutputStream()
     for v in values:

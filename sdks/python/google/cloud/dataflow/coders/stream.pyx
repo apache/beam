@@ -25,6 +25,7 @@ cdef class OutputStream(object):
     self.size = 1024
     self.pos = 0
     self.data = <char*>libc.stdlib.malloc(self.size)
+    assert self.data, "OutputStream malloc failed."
 
   def __dealloc__(self):
     if self.data:
@@ -34,13 +35,13 @@ cdef class OutputStream(object):
     cdef size_t blen = len(b)
     if nested:
       self.write_var_int64(blen)
-    if blen > self.size - self.pos:
+    if self.size < self.pos + blen:
       self.extend(blen)
     libc.string.memcpy(self.data + self.pos, <char*>b, blen)
     self.pos += blen
 
   cpdef write_byte(self, unsigned char val):
-    if  self.size <= self.pos:
+    if  self.size < self.pos + 1:
       self.extend(1)
     self.data[self.pos] = val
     self.pos += 1
@@ -60,7 +61,7 @@ cdef class OutputStream(object):
 
   cpdef write_bigendian_int64(self, libc.stdint.int64_t signed_v):
     cdef libc.stdint.uint64_t v = signed_v
-    if  self.size < self.pos - 8:
+    if  self.size < self.pos + 8:
       self.extend(8)
     self.data[self.pos    ] = <unsigned char>(v >> 56)
     self.data[self.pos + 1] = <unsigned char>(v >> 48)
@@ -74,7 +75,7 @@ cdef class OutputStream(object):
 
   cpdef write_bigendian_int32(self, libc.stdint.int32_t signed_v):
     cdef libc.stdint.uint32_t v = signed_v
-    if  self.size < self.pos - 4:
+    if  self.size < self.pos + 4:
       self.extend(4)
     self.data[self.pos    ] = <unsigned char>(v >> 24)
     self.data[self.pos + 1] = <unsigned char>(v >> 16)
@@ -92,6 +93,7 @@ cdef class OutputStream(object):
     while missing > self.size - self.pos:
       self.size *= 2
     self.data = <char*>libc.stdlib.realloc(self.data, self.size)
+    assert self.data, "OutputStream realloc failed."
 
 
 cdef class ByteCountingOutputStream(OutputStream):
