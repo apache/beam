@@ -84,7 +84,7 @@ public class JoinExamplesTest {
     };
 
   @Test
-  public void testExtractEventDataFn() {
+  public void testExtractEventDataFn() throws Exception {
     DoFnTester<TableRow, KV<String, String>> extractEventDataFn =
         DoFnTester.of(new ExtractEventDataFn());
     List<KV<String, String>> results = extractEventDataFn.processBatch(EVENTS);
@@ -93,7 +93,7 @@ public class JoinExamplesTest {
   }
 
   @Test
-  public void testExtractCountryInfoFn() {
+  public void testExtractCountryInfoFn() throws Exception {
     DoFnTester<TableRow, KV<String, String>> extractCountryInfoFn =
         DoFnTester.of(new ExtractCountryInfoFn());
     List<KV<String, String>> results = extractCountryInfoFn.processBatch(CCS);

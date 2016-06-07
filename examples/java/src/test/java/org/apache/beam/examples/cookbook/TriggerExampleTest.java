@@ -87,7 +87,7 @@ public class TriggerExampleTest {
       .set("window", "[1970-01-01T00:00:00.000Z..1970-01-01T00:01:00.000Z)");
 
   @Test
-  public void testExtractTotalFlow() {
+  public void testExtractTotalFlow() throws Exception {
     DoFnTester<String, KV<String, Integer>> extractFlowInfow = DoFnTester
         .of(new ExtractFlowInfo());
 
