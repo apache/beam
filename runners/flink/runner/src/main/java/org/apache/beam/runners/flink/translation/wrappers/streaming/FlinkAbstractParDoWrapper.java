@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -37,6 +38,7 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -52,7 +54,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
   private final DoFn<IN, OUTDF> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
-  private transient PipelineOptions options;
+  private final SerializedPipelineOptions serializedPipelineOptions;
 
   private DoFnProcessContext context;
 
@@ -62,7 +64,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     Preconditions.checkNotNull(doFn);
 
     this.doFn = doFn;
-    this.options = options;
+    this.serializedPipelineOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
   }
 
@@ -107,7 +109,8 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
     private WindowedValue<IN> element;
 
-    private DoFnProcessContext(DoFn<IN, OUTDF> function, Collector<WindowedValue<OUTFL>> outCollector) {
+    private DoFnProcessContext(DoFn<IN, OUTDF> function,
+          Collector<WindowedValue<OUTFL>> outCollector) {
       function.super();
       super.setupDelegateAggregators();
 
@@ -156,7 +159,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return options;
+      return serializedPipelineOptions.getPipelineOptions();
     }
 
     @Override
