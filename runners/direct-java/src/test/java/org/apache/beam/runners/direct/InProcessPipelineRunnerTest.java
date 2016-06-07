@@ -18,23 +18,34 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.fail;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -43,6 +54,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Tests for basic {@link InProcessPipelineRunner} functionality.
@@ -77,6 +89,54 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
     result.awaitCompletion();
+  }
+
+  @Test(timeout = 5000L)
+  public void byteArrayCountShouldSucceed() {
+    Pipeline p = getPipeline();
+
+    SerializableFunction<Integer, byte[]> getBytes = new SerializableFunction<Integer, byte[]>() {
+      @Override
+      public byte[] apply(Integer input) {
+        try {
+          return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
+        } catch (CoderException e) {
+          fail("Unexpected Coder Exception " + e);
+          throw new AssertionError("Unreachable");
+        }
+      }
+    };
+    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {
+    };
+    PCollection<byte[]> foos =
+        p.apply(Create.of(1, 1, 1, 2, 2, 3)).apply(MapElements.via(getBytes).withOutputType(td));
+    PCollection<byte[]> msync =
+        p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.via(getBytes).withOutputType(td));
+    PCollection<byte[]> bytes =
+        PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
+    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
+    PCollection<KV<Integer, Long>> countsBackToString =
+        counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<Integer, Long>>() {
+          @Override
+          public KV<Integer, Long> apply(KV<byte[], Long> input) {
+            try {
+              return KV.of(CoderUtils.decodeFromByteArray(VarIntCoder.of(), input.getKey()),
+                  input.getValue());
+            } catch (CoderException e) {
+              fail("Unexpected Coder Exception " + e);
+              throw new AssertionError("Unreachable");
+        }
+      }
+    }));
+
+    Map<Integer, Long> expected = ImmutableMap.<Integer, Long>builder().put(1, 4L)
+        .put(2, 2L)
+        .put(3, 1L)
+        .put(-2, 1L)
+        .put(-8, 1L)
+        .put(-16, 1L)
+        .build();
+    PAssert.thatMap(countsBackToString).isEqualTo(expected);
   }
 
   @Test

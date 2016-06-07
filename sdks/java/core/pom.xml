@@ -21,12 +21,12 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>java-sdk-parent</artifactId>
+    <artifactId>beam-sdks-java-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-sdk-all</artifactId>
+  <artifactId>beam-sdks-java-core</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Core</name>
   <description>Beam SDK Java All provides a simple, Java-based
   interface for processing virtually any size data. This

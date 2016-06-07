@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.state.StateNamespaces;
@@ -55,7 +56,7 @@ public class InProcessTimerInternalsTest {
     MockitoAnnotations.initMocks(this);
     clock = MockClock.fromInstant(new Instant(0));
 
-    timerUpdateBuilder = TimerUpdate.builder(1234);
+    timerUpdateBuilder = TimerUpdate.builder(StructuralKey.of(1234, VarIntCoder.of()));
 
     internals = InProcessTimerInternals.create(clock, watermarks, timerUpdateBuilder);
   }

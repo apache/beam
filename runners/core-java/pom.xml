@@ -20,14 +20,14 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.runners</groupId>
-    <artifactId>parent</artifactId>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-runners-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>core</artifactId>
-  <name>Apache Beam :: Runners :: Core</name>
+  <artifactId>beam-runners-core-java</artifactId>
+  <name>Apache Beam :: Runners :: Core Java</name>
   <description>Beam Runners Core provides utilities to aid runner authors.</description>
 
   <packaging>jar</packaging>
@@ -179,7 +179,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <!-- build dependencies -->

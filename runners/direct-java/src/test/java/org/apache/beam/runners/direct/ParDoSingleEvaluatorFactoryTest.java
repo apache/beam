@@ -90,8 +90,8 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
     InProcessExecutionContext executionContext =
         new InProcessExecutionContext(null, null, null, null);
-    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(), null))
-        .thenReturn(executionContext);
+    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(),
+        inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
@@ -142,8 +142,8 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
     InProcessExecutionContext executionContext =
         new InProcessExecutionContext(null, null, null, null);
-    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(), null))
-        .thenReturn(executionContext);
+    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(),
+        inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
@@ -204,9 +204,11 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
 
-    InProcessExecutionContext executionContext =
-        new InProcessExecutionContext(null, "myKey", null, null);
-    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
+    InProcessExecutionContext executionContext = new InProcessExecutionContext(null,
+        StructuralKey.of("myKey", StringUtf8Coder.of()),
+        null, null);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
+        inputBundle.getKey()))
         .thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
@@ -292,6 +294,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
             });
     PCollection<KV<String, Integer>> mainOutput = input.apply(pardo);
 
+    StructuralKey<?> key = StructuralKey.of("myKey", StringUtf8Coder.of());
     CommittedBundle<String> inputBundle =
         bundleFactory.createRootBundle(input).commit(Instant.now());
 
@@ -301,9 +304,12 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
 
-    InProcessExecutionContext executionContext =
-        new InProcessExecutionContext(null, "myKey", null, null);
-    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
+    InProcessExecutionContext executionContext = new InProcessExecutionContext(null,
+        key,
+        null,
+        null);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
+        inputBundle.getKey()))
         .thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
@@ -316,9 +322,10 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
 
     InProcessTransformResult result = evaluator.finishBundle();
-    assertThat(
-        result.getTimerUpdate(),
-        equalTo(
-            TimerUpdate.builder("myKey").setTimer(addedTimer).deletedTimer(deletedTimer).build()));
+    assertThat(result.getTimerUpdate(),
+        equalTo(TimerUpdate.builder(StructuralKey.of("myKey", StringUtf8Coder.of()))
+            .setTimer(addedTimer)
+            .deletedTimer(deletedTimer)
+            .build()));
   }
 }

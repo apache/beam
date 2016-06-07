@@ -20,13 +20,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.beam.extensions</groupId>
-    <artifactId>parent</artifactId>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-sdks-java-extensions-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>join-library</artifactId>
+  <artifactId>beam-sdks-java-extensions-join-library</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Extensions :: Join library</name>
 
   <build>
@@ -53,7 +53,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>

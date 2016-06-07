@@ -21,19 +21,42 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-parent</artifactId>
-    <version>0.1.0-incubating-SNAPSHOT</version>
+    <artifactId>beam-parent</artifactId>
+    <version>0.2.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-maven-archetypes-parent</artifactId>
+  <artifactId>apache-beam</artifactId>
   <packaging>pom</packaging>
+  <name>Apache Beam :: Distributions</name>
 
-  <name>Apache Beam :: SDKs :: Java :: Maven Archetypes</name>
-
-  <modules>
-    <module>starter</module>
-    <module>examples</module>
-  </modules>
+  <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>src</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <finalName>apache-beam-${project.version}</finalName>
+                  <descriptors>
+                    <descriptor>src/main/assembly/src.xml</descriptor>
+                  </descriptors>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>
