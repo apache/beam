@@ -202,15 +202,17 @@ public class TextIOTest {
     }
     if (numShards == 1) {
       write = write.withoutSharding();
-    } else {
+    } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
+    int numOutputShards = (numShards > 0) ? numShards : 1;
 
     input.apply(write);
 
     p.run();
 
-    assertOutputFiles(elems, coder, numShards, tmpFolder, outputName, write.getShardNameTemplate());
+    assertOutputFiles(elems, coder, numOutputShards, tmpFolder, outputName,
+        write.getShardNameTemplate());
   }
 
   public static <T> void assertOutputFiles(
@@ -257,6 +259,12 @@ public class TextIOTest {
   @Category(NeedsRunner.class)
   public void testWriteStrings() throws Exception {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteEmptyStringsNoSharding() throws Exception {
+    runTestWrite(NO_LINES_ARRAY, StringUtf8Coder.of(), 0);
   }
 
   @Test
