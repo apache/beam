@@ -368,7 +368,6 @@ public class WindowingTest {
     sixth.persist(out);
 
     executor.waitForCompletion(flow);
-    System.out.println("0: " + out.getOutput(0));
 
     assertEquals(3, out.getOutput(0).size());
     assertEquals(
