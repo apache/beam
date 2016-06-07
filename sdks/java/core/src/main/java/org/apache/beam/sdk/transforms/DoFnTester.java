@@ -383,14 +383,13 @@ public class DoFnTester<InputT, OutputT> {
    * Returns the value of the provided {@link Aggregator}.
    */
   public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
-    return extractAggregatorValue(agg, agg.getCombineFn());
+    return extractAggregatorValue(agg.getName(), agg.getCombineFn());
   }
 
   private <AccumT, AggregateT> AggregateT extractAggregatorValue(
-      Aggregator<?, AggregateT> agg,
-      CombineFn<?, AccumT, AggregateT> combiner) {
+      String name, CombineFn<?, AccumT, AggregateT> combiner) {
     @SuppressWarnings("unchecked")
-    AccumT accumulator = (AccumT) accumulators.get(agg.getName());
+    AccumT accumulator = (AccumT) accumulators.get(name);
     return combiner.extractOutput(accumulator);
   }
 
