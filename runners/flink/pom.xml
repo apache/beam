@@ -27,8 +27,6 @@
   </parent>
 
   <artifactId>beam-runners-flink-parent</artifactId>
-  <version>0.2.0-incubating-SNAPSHOT</version>
-
   <name>Apache Beam :: Runners :: Flink</name>
 
   <packaging>pom</packaging>
