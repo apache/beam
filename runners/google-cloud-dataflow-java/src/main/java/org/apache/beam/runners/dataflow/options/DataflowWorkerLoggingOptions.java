@@ -65,12 +65,30 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   Level getDefaultWorkerLogLevel();
   void setDefaultWorkerLogLevel(Level level);
 
-  @Description("Controls the log level of messages printed to System.out")
+  /**
+   * Controls the log level given to messages printed to System.out.
+   *
+   * <p>Note that the message may may be filtered depending on the
+   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a 'System.out' override is
+   * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
+   */
+  @Description("Controls the log level given to messages printed to System.out. Note that the "
+      + "message may may be filtered depending on the defaultWorkerLogLevel or if a 'System.out' "
+      + "override is specified via workerLogLevelOverrides.")
   @Default.Enum("INFO")
   Level getWorkerSystemOutMessageLevel();
   void setWorkerSystemOutMessageLevel(Level level);
 
-  @Description("Controls the log level of messages printed to System.err")
+  /**
+   * Controls the log level given to messages printed to System.err.
+   *
+   * <p>Note that the message may may be filtered depending on the
+   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a 'System.err' override is
+   * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
+   */
+  @Description("Controls the log level given to messages printed to System.err. Note that the "
+      + "message may may be filtered depending on the defaultWorkerLogLevel or if a 'System.err' "
+      + "override is specified via workerLogLevelOverrides.")
   @Default.Enum("ERROR")
   Level getWorkerSystemErrMessageLevel();
   void setWorkerSystemErrMessageLevel(Level level);
@@ -92,7 +110,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
       + "for the class 'a.b.c.Foo' will be configured to output logs at the DEBUG level. "
       + "Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, all loggers underneath the "
       + "'a.b.c' package will be configured to output logs at the WARN level. System.out and "
-      + "System.err messages are configured via loggers of the corresponding name. Also, note that "
+      + "System.err levels are configured via loggers of the corresponding name. Also, note that "
       + "when multiple overrides are specified, the exact name followed by the closest parent "
       + "takes precedence.")
   WorkerLogLevelOverrides getWorkerLogLevelOverrides();
