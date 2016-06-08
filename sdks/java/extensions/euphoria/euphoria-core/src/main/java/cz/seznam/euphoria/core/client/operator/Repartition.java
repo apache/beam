@@ -1,9 +1,8 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
 import java.util.Objects;
@@ -28,7 +27,9 @@ public class Repartition<IN>
     }
   }
 
-  public static class OutputBuilder<IN> extends PartitioningBuilder<IN, OutputBuilder<IN>> {
+  public static class OutputBuilder<IN> extends PartitioningBuilder<IN, OutputBuilder<IN>>
+      implements OutputProvider<IN>
+  {
     private final String name;
     private final Dataset<IN> input;
     OutputBuilder(String name, Dataset<IN> input) {
@@ -39,6 +40,7 @@ public class Repartition<IN>
       this.input = Objects.requireNonNull(input);
     }
 
+    @Override
     public Dataset<IN> output() {
       Flow flow = input.getFlow();
       Repartition<IN> repartition =

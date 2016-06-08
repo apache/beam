@@ -1,9 +1,8 @@
-
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;
 
 import java.util.Objects;
@@ -35,7 +34,8 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
   public static class Builder2<IN> implements
           ByBuilder<IN>,
-          OutputBuilder<IN>
+          OutputBuilder<IN>,
+          OutputProvider<IN>
   {
     private final String name;
     private final Dataset<IN> input;
