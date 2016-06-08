@@ -124,6 +124,7 @@ public class ReduceStateByKey<
   public static class DatasetBuilder5<
       IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
           extends PartitioningBuilder<KEY,  DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>
+      implements OutputProvider<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -156,6 +157,7 @@ public class ReduceStateByKey<
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
     }
+    @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
           stateFactory, stateCombiner, null, this)
@@ -168,6 +170,7 @@ public class ReduceStateByKey<
           WLABEL, W extends Window<?, WLABEL>>
       extends PartitioningBuilder<
           KEY,DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
+      implements OutputProvider<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -198,6 +201,7 @@ public class ReduceStateByKey<
       this.windowing = windowing;
     }
 
+    @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return (Dataset) outputWindowed();
     }
@@ -289,7 +293,8 @@ public class ReduceStateByKey<
   }
   public static class GroupedDatasetBuilder5<
           IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
-          extends PartitioningBuilder<KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, STATE>>
+      extends PartitioningBuilder<KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, STATE>>
+      implements OutputProvider<Pair<CompositeKey<IN, KEY>, OUT>>
   {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
@@ -322,6 +327,8 @@ public class ReduceStateByKey<
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
     }
+
+    @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, null, this)
@@ -334,6 +341,7 @@ public class ReduceStateByKey<
           WLABEL, W extends Window<?, WLABEL>>
       extends PartitioningBuilder<
           KEY, GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
+      implements OutputProvider<Pair<CompositeKey<IN, KEY>, OUT>>
   {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
@@ -364,6 +372,7 @@ public class ReduceStateByKey<
       this.windowing = windowing;
     }
 
+    @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
       return (Dataset) outputWindowed();
     }

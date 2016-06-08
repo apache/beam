@@ -36,7 +36,7 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
   }
 
-  public static class OutputBuilder<IN, OUT> {
+  public static class OutputBuilder<IN, OUT> implements OutputProvider<OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, OUT> mapper;
@@ -47,6 +47,7 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
       this.mapper = mapper;
     }
 
+    @Override
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
       MapElements<IN, OUT> map = new MapElements<>(name, flow, input, mapper);
