@@ -327,7 +327,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   private void fireEvictTrigger(Window window) {
     // ~ notify others we're about to evict the window
-    eowBroadcast.notifyEndOfWindow(new EndOfWindow<>(window), this);
+    EndOfWindow eow = new EndOfWindow<>(window);
+    eowBroadcast.notifyEndOfWindow(eow, this);
 
     Collection<State> evicted;
     synchronized (processing) {
@@ -338,11 +339,11 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     }
     evicted.stream().forEachOrdered(state -> {
       state.flush();
-      processing.stateOutput.collect(new EndOfWindow<>(window));
       if (!windowing.isAggregating()) {
         state.close();
       }
     });
+    processing.stateOutput.collect(eow);
   }
 
   // ~ notified by peer partitions about the end-of-an-window; we'll
