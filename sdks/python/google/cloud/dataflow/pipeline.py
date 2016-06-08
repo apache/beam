@@ -157,6 +157,13 @@ class Pipeline(object):
         shutil.rmtree(tmpdir)
     return self.runner.run(self)
 
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if not exc_type:
+      self.run()
+
   def visit(self, visitor):
     """Visits depth-first every node of a pipeline's DAG.
 

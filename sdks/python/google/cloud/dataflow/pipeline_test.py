@@ -245,6 +245,14 @@ class PipelineTest(unittest.TestCase):
             ('oom:combine/GroupByKey/group_by_window', None): 1,
             ('oom:combine/Combine/ParDo(CombineValuesDoFn)', None): 1})
 
+  def test_pipeline_as_context(self):
+    def raise_exception(exn):
+      raise exn
+    with self.assertRaises(ValueError):
+      with Pipeline(self.runner_name) as p:
+        # pylint: disable=expression-not-assigned
+        p | Create([ValueError]) | Map(raise_exception)
+
   def test_eager_pipeline(self):
     p = Pipeline('EagerPipelineRunner')
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
