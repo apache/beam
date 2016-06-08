@@ -30,6 +30,7 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Ordering;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -333,12 +334,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final List<String> copyToOutputFiles(List<String> filenames, PipelineOptions options)
         throws IOException {
       int numFiles = filenames.size();
-      List<String> srcFilenames = new ArrayList<>();
+      // Sort files for idempotence.
+      List<String> srcFilenames = Ordering.natural().sortedCopy(filenames);
       List<String> destFilenames = generateDestinationFilenames(numFiles);
-
-      // Sort files for copying.
-      srcFilenames.addAll(filenames);
-      Collections.sort(srcFilenames);
 
       if (numFiles > 0) {
         LOG.debug("Copying {} files.", numFiles);
@@ -365,6 +363,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       for (int i = 0; i < numFiles; i++) {
         destFilenames.add(IOChannelUtils.constructName(
             baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
+      }
+      if (new HashSet<String>(destFilenames).size() != numFiles) {
+        throw new IllegalArgumentException(
+            "Shard name template '" + fileNamingTemplate + "' does not disambiguate "
+            + numFiles + " shards; perhaps this runner is not respecting sharding limits");
       }
       return destFilenames;
     }
