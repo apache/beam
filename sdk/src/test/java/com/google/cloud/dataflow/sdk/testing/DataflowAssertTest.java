@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.anything;
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -152,30 +150,6 @@ public class DataflowAssertTest implements Serializable {
         });
 
     pipeline.run();
-  }
-
-  /**
-   * Basic test of succeeding {@link DataflowAssert} using a {@link SerializableMatcher}.
-   */
-  @Test
-  @Category(RunnableOnService.class)
-  public void testBasicMatcherSuccess() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.that(pcollection).containsInAnyOrder(anything());
-    pipeline.run();
-  }
-
-  /**
-   * Basic test of failing {@link DataflowAssert} using a {@link SerializableMatcher}.
-   */
-  @Test
-  @Category(RunnableOnService.class)
-  public void testBasicMatcherFailure() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.that(pcollection).containsInAnyOrder(not(anything()));
-    runExpectingAssertionFailure(pipeline);
   }
 
   /**

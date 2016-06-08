@@ -158,7 +158,8 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
     if (transform instanceof DataflowAssert.OneSideInputAssert
-        || transform instanceof DataflowAssert.TwoSideInputAssert) {
+        || transform instanceof DataflowAssert.GroupThenAssert
+        || transform instanceof DataflowAssert.GroupThenAssertForSingleton) {
       expectedNumberOfAssertions += 1;
     }
 
