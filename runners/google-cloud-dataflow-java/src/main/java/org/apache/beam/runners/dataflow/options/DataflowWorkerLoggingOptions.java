@@ -38,46 +38,22 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * The set of log levels that can be used on the Dataflow worker.
    */
   public enum Level {
-    /**
-     * Special level used to turn off logging.
-     *
-     * @see java.util.logging.Level#OFF
-     */
+    /** Special level used to turn off logging. */
     OFF,
 
-    /**
-     * Level for logging error messages.
-     *
-     * @see java.util.logging.Level#SEVERE
-     */
+    /** Level for logging error messages. */
     ERROR,
 
-    /**
-     * Level for logging warning messages.
-     *
-     * @see java.util.logging.Level#WARNING
-     */
+    /** Level for logging warning messages. */
     WARN,
 
-    /**
-     * Level for logging informational messages.
-     *
-     * @see java.util.logging.Level#INFO
-     */
+    /** Level for logging informational messages. */
     INFO,
 
-    /**
-     * Level for logging diagnostic messages.
-     *
-     * @see java.util.logging.Level#FINE
-     */
+    /** Level for logging diagnostic messages. */
     DEBUG,
 
-    /**
-     * Level for logging tracing messages.
-     *
-     * @see java.util.logging.Level#FINEST
-     */
+    /** Level for logging tracing messages. */
     TRACE
   }
 
