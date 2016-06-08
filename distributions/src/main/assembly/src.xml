@@ -26,7 +26,7 @@
 
   <fileSets>
     <fileSet>
-      <directory>${basedir}</directory>
+      <directory>${basedir}/..</directory>
       <outputDirectory>/</outputDirectory>
       <excludes>
         <!-- NB: the exclude here should be sync with content of .gitignore -->
