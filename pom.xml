@@ -140,7 +140,6 @@
       build order. -->
     <module>sdks/java/maven-archetypes</module>
     <module>examples</module>
-    <module>distributions</module>
   </modules>
 
   <profiles>
@@ -922,8 +921,8 @@
           </configuration>
         </plugin>
 
-        <!-- Unconditionally disable invocation of the assembly
-             plugin from the Apache parent. -->
+        <!-- Rename the artifact produced by the Apache parent's
+             source release. -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
@@ -931,7 +930,7 @@
             <execution>
               <id>source-release-assembly</id>
               <configuration>
-                <skipAssembly>true</skipAssembly>
+                <finalName>apache-beam-${project.version}</finalName>
               </configuration>
             </execution>
           </executions>
