@@ -27,7 +27,6 @@ import org.apache.beam.sdk.util.DoFnRunners;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.PushbackSideInputDoFnRunner;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.CounterSet;
@@ -74,7 +73,7 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
     DoFnRunner<InputT, OutputT> underlying =
         DoFnRunners.createDefault(
             evaluationContext.getPipelineOptions(),
-            SerializableUtils.clone(fn),
+            fn,
             sideInputReader,
             BundleOutputManager.create(outputBundles),
             mainOutputTag,
