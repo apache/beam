@@ -68,7 +68,7 @@ public class FilterExamplesTest {
 
 
   @Test
-  public void testProjectionFn() {
+  public void testProjectionFn() throws Exception {
     DoFnTester<TableRow, TableRow> projectionFn =
         DoFnTester.of(new ProjectionFn());
     List<TableRow> results = projectionFn.processBatch(ROWS_ARRAY);
@@ -78,7 +78,7 @@ public class FilterExamplesTest {
   }
 
   @Test
-  public void testFilterSingleMonthDataFn() {
+  public void testFilterSingleMonthDataFn() throws Exception {
     DoFnTester<TableRow, TableRow> filterSingleMonthDataFn =
         DoFnTester.of(new FilterSingleMonthDataFn(7));
     List<TableRow> results = filterSingleMonthDataFn.processBatch(PROJROWS_ARRAY);

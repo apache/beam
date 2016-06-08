@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -39,7 +39,7 @@ import java.util.List;
 public class DoFnTesterTest {
 
   @Test
-  public void processElement() {
+  public void processElement() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
@@ -61,7 +61,7 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void processElementsWithPeeks() {
+  public void processElementsWithPeeks() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
@@ -119,7 +119,7 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void processBatch() {
+  public void processBatch() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
@@ -138,7 +138,7 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void processElementWithTimestamp() {
+  public void processElementWithTimestamp() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
@@ -175,7 +175,7 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void getAggregatorValuesShouldGetValueOfCounter() {
+  public void getAggregatorValuesShouldGetValueOfCounter() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
     tester.processBatch(1L, 2L, 4L, 8L);
@@ -186,7 +186,7 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void getAggregatorValuesWithEmptyCounterShouldSucceed() {
+  public void getAggregatorValuesWithEmptyCounterShouldSucceed() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
     tester.processBatch();
@@ -196,7 +196,7 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void getAggregatorValuesInStartFinishBundleShouldGetValues() {
+  public void getAggregatorValuesInStartFinishBundleShouldGetValues() throws Exception {
     CounterDoFn fn = new CounterDoFn(1L, 2L);
     DoFnTester<Long, String> tester = DoFnTester.of(fn);
     tester.processBatch(0L, 0L);
