@@ -46,7 +46,8 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
     }
   }
   public static class ByBuilder2<IN, KEY>
-          extends PartitioningBuilder<KEY, ByBuilder2<IN, KEY>>
+      extends PartitioningBuilder<KEY, ByBuilder2<IN, KEY>>
+      implements OutputProvider<Pair<KEY, Long>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -70,6 +71,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
       return new OutputBuilder<>(
               name, input, keyExtractor, valueExtractor, windowing, this);
     }
+    @Override
     public Dataset<Pair<KEY, Long>> output() {
       // use default windowing
       return new OutputBuilder<>(name, input,
@@ -78,7 +80,8 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
     }
   }
   public static class OutputBuilder<IN, KEY, WLABEL, W extends Window<?, WLABEL>>
-          extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, WLABEL, W>>
+      extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, WLABEL, W>>
+      implements OutputProvider<Pair<KEY, Long>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -100,6 +103,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.windowing = Objects.requireNonNull(windowing);
     }
+    @Override
     public Dataset<Pair<KEY, Long>> output() {
       return (Dataset) outputWindowed();
     }

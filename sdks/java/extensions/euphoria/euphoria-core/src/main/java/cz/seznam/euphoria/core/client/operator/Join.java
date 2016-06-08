@@ -27,7 +27,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
                   PAIROUT extends Pair<KEY, OUT>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
-    Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, PAIROUT>> {
+    Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, PAIROUT>>
+    implements OutputProvider<PAIROUT>
+{
 
   public static class OfBuilder {
     private final String name;
@@ -96,7 +98,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
   }
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
-          extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
+      extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
+      implements OutputProvider<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<LEFT> left;
@@ -131,6 +134,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
       return this;
     }
 
+    @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
@@ -143,7 +147,10 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
     }
   }
 
-  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>> {
+  public static class OutputBuilder<
+      LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>>
+      implements OutputProvider<Pair<KEY, OUT>>
+  {
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
     private final Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
 
@@ -154,6 +161,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
       this.windowing = windowing;
     }
 
+    @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return (Dataset) outputWindowed();
     }

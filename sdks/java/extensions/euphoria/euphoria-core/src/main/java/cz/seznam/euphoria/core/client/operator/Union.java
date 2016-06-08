@@ -11,7 +11,7 @@ import java.util.Objects;
 /**
  * Union of two datasets of same type.
  */
-public class Union<IN> extends Operator<IN, IN> {
+public class Union<IN> extends Operator<IN, IN> implements OutputProvider<IN> {
 
   public static class OfBuilder {
     private final String name;
@@ -30,7 +30,7 @@ public class Union<IN> extends Operator<IN, IN> {
     }
   }
 
-  public static class OutputBuilder<IN> {
+  public static class OutputBuilder<IN> implements OutputProvider<IN> {
     private final String name;
     private final Dataset<IN> left;
     private final Dataset<IN> right;
@@ -40,6 +40,7 @@ public class Union<IN> extends Operator<IN, IN> {
       this.right = Objects.requireNonNull(right);
     }
 
+    @Override
     public Dataset<IN> output() {
       Flow flow = left.getFlow();
       Union<IN> union = new Union<>(name, flow, left, right);

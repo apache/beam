@@ -2,9 +2,9 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 
 import java.util.Objects;
 
@@ -39,7 +39,7 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
   }
 
-  public static class OutputBuilder<IN, OUT> {
+  public static class OutputBuilder<IN, OUT> implements OutputProvider<OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunctor<IN, OUT> functor;
@@ -50,6 +50,7 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
       this.functor = functor;
     }
 
+    @Override
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
       FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor);
