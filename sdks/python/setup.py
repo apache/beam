@@ -114,6 +114,7 @@ setuptools.setup(
         'google/cloud/dataflow/coders/coder_impl.py',
         'google/cloud/dataflow/runners/common.py',
         'google/cloud/dataflow/worker/executor.py',
+        'google/cloud/dataflow/worker/opcounters.py',
         'google/cloud/dataflow/utils/counters.py',
     ]),
     setup_requires=['nose>=1.0'],
