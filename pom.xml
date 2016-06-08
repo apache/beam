@@ -921,6 +921,21 @@
             <autoVersionSubmodules>true</autoVersionSubmodules>
           </configuration>
         </plugin>
+
+        <!-- Unconditionally disable invocation of the assembly
+             plugin from the Apache parent. -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>source-release-assembly</id>
+              <configuration>
+                <skipAssembly>true</skipAssembly>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
 
