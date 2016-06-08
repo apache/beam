@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
-import static org.apache.beam.sdk.testing.SerializableMatchers.not;
-
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -148,30 +145,6 @@ public class PAssertTest implements Serializable {
         });
 
     pipeline.run();
-  }
-
-  /**
-   * Basic test of succeeding {@link PAssert} using a {@link SerializableMatcher}.
-   */
-  @Test
-  @Category(RunnableOnService.class)
-  public void testBasicMatcherSuccess() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    PAssert.that(pcollection).containsInAnyOrder(anything());
-    pipeline.run();
-  }
-
-  /**
-   * Basic test of failing {@link PAssert} using a {@link SerializableMatcher}.
-   */
-  @Test
-  @Category(RunnableOnService.class)
-  public void testBasicMatcherFailure() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    PAssert.that(pcollection).containsInAnyOrder(not(anything()));
-    runExpectingAssertionFailure(pipeline);
   }
 
   /**
