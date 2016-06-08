@@ -85,7 +85,7 @@ public class UserScoreTest implements Serializable {
 
   /** Test the ParseEventFn DoFn. */
   @Test
-  public void testParseEventFn() {
+  public void testParseEventFn() throws Exception {
     DoFnTester<String, GameActionInfo> parseEventFn =
         DoFnTester.of(new ParseEventFn());
 

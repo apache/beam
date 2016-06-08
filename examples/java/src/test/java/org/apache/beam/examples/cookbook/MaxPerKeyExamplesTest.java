@@ -66,7 +66,7 @@ public class MaxPerKeyExamplesTest {
 
 
   @Test
-  public void testExtractTempFn() {
+  public void testExtractTempFn() throws Exception {
     DoFnTester<TableRow, KV<Integer, Double>> extractTempFn =
         DoFnTester.of(new ExtractTempFn());
     List<KV<Integer, Double>> results = extractTempFn.processBatch(TEST_ROWS);
@@ -76,7 +76,7 @@ public class MaxPerKeyExamplesTest {
   }
 
   @Test
-  public void testFormatMaxesFn() {
+  public void testFormatMaxesFn() throws Exception {
     DoFnTester<KV<Integer, Double>, TableRow> formatMaxesFnFn =
         DoFnTester.of(new FormatMaxesFn());
     List<TableRow> results = formatMaxesFnFn.processBatch(TEST_KVS);

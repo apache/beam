@@ -48,7 +48,7 @@ public class WordCountTest {
 
   /** Example test that tests a specific DoFn. */
   @Test
-  public void testExtractWordsFn() {
+  public void testExtractWordsFn() throws Exception {
     DoFnTester<String, String> extractWordsFn =
         DoFnTester.of(new ExtractWordsFn());
 
