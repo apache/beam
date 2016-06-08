@@ -215,7 +215,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   private DataflowPipelineRunnerHooks hooks;
 
   // Environment version information.
-  private static final String ENVIRONMENT_MAJOR_VERSION = "4";
+  private static final String ENVIRONMENT_MAJOR_VERSION = "5";
 
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
