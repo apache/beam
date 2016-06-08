@@ -257,6 +257,23 @@ class ChannelFactory(object):
         raise IOError(err)
 
   @staticmethod
+  def copytree(src, dst):
+    if src.startswith('gs://'):
+      assert dst.startswith('gs://'), dst
+      assert src.endswith('/'), src
+      assert dst.endswith('/'), dst
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      gcsio.GcsIO().copytree(src, dst)
+    else:
+      try:
+        if os.path.exists(dst):
+          shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+      except OSError as err:
+        raise IOError(err)
+
+  @staticmethod
   def exists(path):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top

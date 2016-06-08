@@ -174,6 +174,22 @@ class GcsIO(object):
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
   # protected by retry decorators.
+  def copytree(self, src, dest):
+    """Renames the given GCS "directory" recursively from src to dest.
+
+    Args:
+      src: GCS file path pattern in the form gs://<bucket>/<name>/.
+      dest: GCS file path pattern in the form gs://<bucket>/<name>/.
+    """
+    assert src.endswith('/')
+    assert dest.endswith('/')
+    for entry in self.glob(src + '*'):
+      rel_path = entry[len(src):]
+      self.copy(entry, dest + rel_path)
+
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.
   def rename(self, src, dest):
     """Renames the given GCS object from src to dest.
 

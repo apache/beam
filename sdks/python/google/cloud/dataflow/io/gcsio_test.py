@@ -219,6 +219,31 @@ class TestGCSIO(unittest.TestCase):
     self.assertTrue(gcsio.parse_gcs_path(dest_file_name) in
                     self.client.objects.files)
 
+  def test_copytree(self):
+    src_dir_name = 'gs://gcsio-test/source/'
+    dest_dir_name = 'gs://gcsio-test/dest/'
+    file_size = 1024
+    paths = ['a', 'b/c', 'b/d']
+    for path in paths:
+      src_file_name = src_dir_name + path
+      dest_file_name = dest_dir_name + path
+      self._insert_random_file(self.client, src_file_name,
+                               file_size)
+      self.assertTrue(gcsio.parse_gcs_path(src_file_name) in
+                      self.client.objects.files)
+      self.assertFalse(gcsio.parse_gcs_path(dest_file_name) in
+                       self.client.objects.files)
+
+    self.gcs.copytree(src_dir_name, dest_dir_name)
+
+    for path in paths:
+      src_file_name = src_dir_name + path
+      dest_file_name = dest_dir_name + path
+      self.assertTrue(gcsio.parse_gcs_path(src_file_name) in
+                      self.client.objects.files)
+      self.assertTrue(gcsio.parse_gcs_path(dest_file_name) in
+                      self.client.objects.files)
+
   def test_rename(self):
     src_file_name = 'gs://gcsio-test/source'
     dest_file_name = 'gs://gcsio-test/dest'
