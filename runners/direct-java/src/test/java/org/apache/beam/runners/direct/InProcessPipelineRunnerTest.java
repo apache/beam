@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,12 +38,14 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.collect.ImmutableMap;
+
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -54,6 +57,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -62,6 +67,14 @@ import java.util.Map;
 @RunWith(JUnit4.class)
 public class InProcessPipelineRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  private Pipeline getPipeline() {
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.setRunner(InProcessPipelineRunner.class);
+
+    Pipeline p = Pipeline.create(opts);
+    return p;
+  }
 
   @Test
   public void wordCountShouldSucceed() throws Throwable {
@@ -192,11 +205,126 @@ public class InProcessPipelineRunnerTest implements Serializable {
   }
 
 
-  private Pipeline getPipeline() {
-    PipelineOptions opts = PipelineOptionsFactory.create();
-    opts.setRunner(InProcessPipelineRunner.class);
+  /**
+   * Tests that a {@link DoFn} that mutates an output with a good equals() fails in the
+   * {@link InProcessPipelineRunner}.
+   */
+  @Test
+  public void testMutatingOutputThenOutputDoFnError() throws Exception {
+    Pipeline pipeline = getPipeline();
 
-    Pipeline p = Pipeline.create(opts);
-    return p;
+    pipeline
+        .apply(Create.of(42))
+        .apply(ParDo.of(new DoFn<Integer, List<Integer>>() {
+          @Override public void processElement(ProcessContext c) {
+            List<Integer> outputList = Arrays.asList(1, 2, 3, 4);
+            c.output(outputList);
+            outputList.set(0, 37);
+            c.output(outputList);
+          }
+        }));
+
+    thrown.expect(IllegalMutationException.class);
+    thrown.expectMessage("output");
+    thrown.expectMessage("must not be mutated");
+    pipeline.run();
+  }
+
+  /**
+   * Tests that a {@link DoFn} that mutates an output with a good equals() fails in the
+   * {@link InProcessPipelineRunner}.
+   */
+  @Test
+  public void testMutatingOutputThenTerminateDoFnError() throws Exception {
+    Pipeline pipeline = getPipeline();
+
+    pipeline
+        .apply(Create.of(42))
+        .apply(ParDo.of(new DoFn<Integer, List<Integer>>() {
+          @Override public void processElement(ProcessContext c) {
+            List<Integer> outputList = Arrays.asList(1, 2, 3, 4);
+            c.output(outputList);
+            outputList.set(0, 37);
+          }
+        }));
+
+    thrown.expect(IllegalMutationException.class);
+    thrown.expectMessage("output");
+    thrown.expectMessage("must not be mutated");
+    pipeline.run();
+  }
+
+  /**
+   * Tests that a {@link DoFn} that mutates an output with a bad equals() still fails
+   * in the {@link InProcessPipelineRunner}.
+   */
+  @Test
+  public void testMutatingOutputCoderDoFnError() throws Exception {
+    Pipeline pipeline = getPipeline();
+
+    pipeline
+        .apply(Create.of(42))
+        .apply(ParDo.of(new DoFn<Integer, byte[]>() {
+          @Override public void processElement(ProcessContext c) {
+            byte[] outputArray = new byte[]{0x1, 0x2, 0x3};
+            c.output(outputArray);
+            outputArray[0] = 0xa;
+            c.output(outputArray);
+          }
+        }));
+
+    thrown.expect(IllegalMutationException.class);
+    thrown.expectMessage("output");
+    thrown.expectMessage("must not be mutated");
+    pipeline.run();
+  }
+
+  /**
+   * Tests that a {@link DoFn} that mutates its input with a good equals() fails in the
+   * {@link InProcessPipelineRunner}.
+   */
+  @Test
+  public void testMutatingInputDoFnError() throws Exception {
+    Pipeline pipeline = getPipeline();
+
+    pipeline
+        .apply(Create.of(Arrays.asList(1, 2, 3), Arrays.asList(4, 5, 6))
+            .withCoder(ListCoder.of(VarIntCoder.of())))
+        .apply(ParDo.of(new DoFn<List<Integer>, Integer>() {
+          @Override public void processElement(ProcessContext c) {
+            List<Integer> inputList = c.element();
+            inputList.set(0, 37);
+            c.output(12);
+          }
+        }));
+
+    thrown.expect(IllegalMutationException.class);
+    thrown.expectMessage("Input");
+    thrown.expectMessage("must not be mutated");
+    pipeline.run();
+  }
+
+  /**
+   * Tests that a {@link DoFn} that mutates an input with a bad equals() still fails
+   * in the {@link InProcessPipelineRunner}.
+   */
+  @Test
+  public void testMutatingInputCoderDoFnError() throws Exception {
+    Pipeline pipeline = getPipeline();
+
+    pipeline
+        .apply(Create.of(new byte[]{0x1, 0x2, 0x3}, new byte[]{0x4, 0x5, 0x6}))
+        .apply(ParDo.of(new DoFn<byte[], Integer>() {
+          @Override public void processElement(ProcessContext c) {
+            byte[] inputArray = c.element();
+            inputArray[0] = 0xa;
+            c.output(13);
+          }
+        }));
+
+    thrown.expect(IllegalMutationException.class);
+    thrown.expectMessage("Input");
+    thrown.expectMessage("must not be mutated");
+    pipeline.run();
   }
 }
