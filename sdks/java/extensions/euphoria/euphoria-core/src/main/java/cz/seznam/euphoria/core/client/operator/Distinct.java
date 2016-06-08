@@ -35,6 +35,7 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
 
   public static class WindowingBuilder<IN>
           extends PartitioningBuilder<IN, WindowingBuilder<IN>>
+          implements OutputProvider<IN>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -50,18 +51,22 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
     {
       return new OutputBuilder<>(this, windowing);
     }
+    @Override
     public Dataset<IN> output() {
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
   }
 
-  public static class OutputBuilder<IN, WLABEL, W extends Window<?, WLABEL>> {
+  public static class OutputBuilder<IN, WLABEL, W extends Window<?, WLABEL>>
+      implements OutputProvider<IN>
+  {
     private final WindowingBuilder<IN> prev;
     private final Windowing<IN, ?, WLABEL, W> windowing;
     OutputBuilder(WindowingBuilder<IN> prev, Windowing<IN, ?, WLABEL, W> windowing) {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
+    @Override
     public Dataset<IN> output() {
       return outputImpl(false);
     }
