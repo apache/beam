@@ -192,6 +192,7 @@ public class Write {
                 // Discard write result and close the write.
                 try {
                   writer.close();
+                  // The writer does not need to be reset, as this DoFn cannot be reused
                 } catch (Exception closeException) {
                   // Do not mask the exception that caused the write to fail.
                 }
@@ -204,6 +205,8 @@ public class Write {
               if (writer != null) {
                 WriteT result = writer.close();
                 c.output(result);
+                // Reset state in case of reuse
+                writer = null;
               }
             }
 
