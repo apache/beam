@@ -91,13 +91,13 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
 
   @Description("Controls the log level of messages printed to System.out")
   @Default.Enum("INFO")
-  Level getWorkerSystemOutLogLevel();
-  void setWorkerSystemOutLogLevel(Level level);
+  Level getWorkerSystemOutMessageLevel();
+  void setWorkerSystemOutMessageLevel(Level level);
 
   @Description("Controls the log level of messages printed to System.err")
   @Default.Enum("ERROR")
-  Level getWorkerSystemErrLogLevel();
-  void setWorkerSystemErrLogLevel(Level level);
+  Level getWorkerSystemErrMessageLevel();
+  void setWorkerSystemErrMessageLevel(Level level);
 
   /**
    * This option controls the log levels for specifically named loggers.
