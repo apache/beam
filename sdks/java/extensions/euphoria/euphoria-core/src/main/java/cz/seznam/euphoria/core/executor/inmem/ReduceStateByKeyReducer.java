@@ -375,10 +375,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           Window w = ((EndOfWindow) item).getWindow();
           fireEvictTrigger(w);
         } else {
-          final List<Window> toEvict;
-          synchronized (processing) {
-            toEvict = processInput((Datum) item);
-          }
+          final List<Window> toEvict = processInput((Datum) item);
           for (Window w : toEvict) {
             fireEvictTrigger(w);
           }
@@ -413,9 +410,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
-    seenGroups.clear();
-    toEvict.clear();
-
     Set<Window> itemWindows;
     if (windowing == DatumAttachedWindowing.INSTANCE) {
       windowing.updateTriggering(triggering, datum);
@@ -424,39 +418,46 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       windowing.updateTriggering(triggering, item);
       itemWindows = windowing.assignWindows(item);
     }
-    for (Window itemWindow : itemWindows) {
-      Pair<Window, State> windowState =
-          processing.getWindowState(itemWindow, itemKey);
-      if (windowState != null) {
-        windowState.getSecond().add(itemValue);
-        seenGroups.add(itemWindow.getGroup());
-      } else {
-        // window is already closed
-        LOG.trace("Element window {} discarded", itemWindow);
-      }
-    }
 
-    if (windowing instanceof MergingWindowing) {
-      for (Object group : seenGroups) {
-        Collection<Window> actives = processing.getActiveWindows(group);
-        MergingWindowing mwindowing = (MergingWindowing) this.windowing;
-        if (actives.isEmpty()) {
-          // ~ we've seen the group ... so we must have some actives
-          throw new IllegalStateException("No active windows!");
+    seenGroups.clear();
+    toEvict.clear();
+
+    synchronized (processing) {
+      for (Window itemWindow : itemWindows) {
+        Pair<Window, State> windowState =
+            processing.getWindowState(itemWindow, itemKey);
+        if (windowState != null) {
+          windowState.getSecond().add(itemValue);
+          seenGroups.add(itemWindow.getGroup());
+        } else {
+          // window is already closed
+          LOG.trace("Element window {} discarded", itemWindow);
         }
-        Collection<Pair<Collection<Window>, Window>> merges
-            = mwindowing.mergeWindows(actives);
-        if (merges != null && !merges.isEmpty()) {
-          for (Pair<Collection<Window>, Window> merge : merges) {
-            processing.mergeWindows(merge.getFirst(), merge.getSecond());
-            if (mwindowing.isComplete(merge.getSecond())) {
-              toEvict = new ArrayList<>();
-              toEvict.add(merge.getSecond());
+      }
+
+      if (windowing instanceof MergingWindowing) {
+        for (Object group : seenGroups) {
+          Collection<Window> actives = processing.getActiveWindows(group);
+          MergingWindowing mwindowing = (MergingWindowing) this.windowing;
+          if (actives.isEmpty()) {
+            // ~ we've seen the group ... so we must have some actives
+            throw new IllegalStateException("No active windows!");
+          }
+          Collection<Pair<Collection<Window>, Window>> merges
+              = mwindowing.mergeWindows(actives);
+          if (merges != null && !merges.isEmpty()) {
+            for (Pair<Collection<Window>, Window> merge : merges) {
+              processing.mergeWindows(merge.getFirst(), merge.getSecond());
+              if (mwindowing.isComplete(merge.getSecond())) {
+                toEvict = new ArrayList<>();
+                toEvict.add(merge.getSecond());
+              }
             }
           }
         }
       }
     }
+
     return toEvict;
   }
 }
