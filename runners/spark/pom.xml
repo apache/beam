@@ -187,6 +187,10 @@
                     <pattern>com.google.common</pattern>
                     <shadedPattern>org.apache.beam.spark.relocated.com.google.common</shadedPattern>
                   </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <shadedPattern>org.apache.beam.spark.relocated.com.google.thirdparty</shadedPattern>
+                  </relocation>
                 </relocations>
                 <shadedArtifactAttached>true</shadedArtifactAttached>
                 <shadedClassifierName>spark-app</shadedClassifierName>
