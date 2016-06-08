@@ -201,6 +201,10 @@
                   <pattern>com.google.common</pattern>
                   <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.common</shadedPattern>
                 </relocation>
+                <relocation>
+                  <pattern>com.google.thirdparty</pattern>
+                  <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.thirdparty</shadedPattern>
+                </relocation>
               </relocations>
             </configuration>
           </execution>
