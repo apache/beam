@@ -183,12 +183,7 @@ public class PAssert {
   public static <T> IterableAssert<T> thatSingletonIterable(
       PCollection<? extends Iterable<T>> actual) {
 
-    List<? extends Coder<?>> maybeElementCoder = actual.getCoder().getCoderArguments();
-    Coder<T> tCoder;
     try {
-      @SuppressWarnings("unchecked")
-      Coder<T> tCoderTmp = (Coder<T>) Iterables.getOnlyElement(maybeElementCoder);
-      tCoder = tCoderTmp;
     } catch (NoSuchElementException | IllegalArgumentException exc) {
       throw new IllegalArgumentException(
           "PAssert.<T>thatSingletonIterable requires a PCollection<Iterable<T>>"
@@ -269,8 +264,21 @@ public class PAssert {
      *
      * <p>Returns this {@code IterableAssert}.
      */
+    @Override
     public PCollectionContentsAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
       return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> empty() {
+      return containsInAnyOrder(Collections.<T>emptyList());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> satisfies(
+        SerializableFunction<Iterable<T>, Void> checkerFn) {
+      actual.apply("PAssert$" + (assertCount++), new GroupThenAssert<>(checkerFn));
+      return this;
     }
 
     /**
@@ -283,27 +291,6 @@ public class PAssert {
     final PCollectionContentsAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
       return satisfies(SerializableMatchers.<T>containsInAnyOrder(elementMatchers));
-    }
-
-    /**
-     * Checks that the {@link Iterable} is empty.
-     *
-     * <p>Returns this {@link IterableAssert}.
-     */
-    public PCollectionContentsAssert<T> empty() {
-      return containsInAnyOrder(Collections.<T>emptyList());
-    }
-
-    /**
-     * Applies a {@link SerializableFunction} to check the elements of the {@link PCollection}.
-     *
-     * <p>Returns this {@link IterableAssert}.
-     */
-    @Override
-    public PCollectionContentsAssert<T> satisfies(
-        SerializableFunction<Iterable<T>, Void> checkerFn) {
-      actual.apply("PAssert$" + (assertCount++), new GroupThenAssert<>(checkerFn));
-      return this;
     }
 
     /**
@@ -382,11 +369,15 @@ public class PAssert {
 
     public PCollectionSingletonIterableAssert(PCollection<Iterable<T>> actual) {
       this.actual = actual;
-      this.elementCoder = (Coder<T>) actual.getCoder().getCoderArguments().get(0);
+
+      @SuppressWarnings("unchecked")
+      Coder<T> typedCoder = (Coder<T>) actual.getCoder().getCoderArguments().get(0);
+      this.elementCoder = typedCoder;
     }
 
     @Override
-    public PCollectionSingletonIterableAssert<T> containsInAnyOrder(T... expectedElements) {
+    @SafeVarargs
+    public final PCollectionSingletonIterableAssert<T> containsInAnyOrder(T... expectedElements) {
       return containsInAnyOrder(Arrays.asList(expectedElements));
     }
 
@@ -433,31 +424,16 @@ public class PAssert {
       this.coder = coder;
     }
 
-    /**
-     * Checks that the value of this {@code SingletonAssert}'s view is equal to the expected value.
-     *
-     * <p>Returns this {@code SingletonAssert}.
-     */
+    @Override
     public PCollectionViewAssert<ElemT, ViewT> isEqualTo(ViewT expectedValue) {
       return satisfies(new AssertIsEqualToRelation<ViewT>(), expectedValue);
     }
 
-    /**
-     * Checks that the value of this {@code SingletonAssert}'s view is not equal to the expected
-     * value.
-     *
-     * <p>Returns this {@code SingletonAssert}.
-     */
+    @Override
     public PCollectionViewAssert<ElemT, ViewT> notEqualTo(ViewT expectedValue) {
       return satisfies(new AssertNotEqualToRelation<ViewT>(), expectedValue);
     }
 
-    /**
-     * Applies a {@link SerializableFunction} to check the value of this {@code SingletonAssert}'s
-     * view.
-     *
-     * <p>Returns this {@code SingletonAssert}.
-     */
     @Override
     public PCollectionViewAssert<ElemT, ViewT> satisfies(
         SerializableFunction<ViewT, Void> checkerFn) {
