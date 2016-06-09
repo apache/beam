@@ -109,12 +109,34 @@ public class PAssert {
    * Builder interface for assertions applicable to iterables and PCollection contents.
    */
   public interface IterableAssert<T> {
+
+    /**
+     * Asserts that the iterable in question contains the provided elements.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
     IterableAssert<T> containsInAnyOrder(T... expectedElements);
 
+    /**
+     * Asserts that the iterable in question contains the provided elements.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
     IterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements);
 
+    /**
+     * Asserts that the iterable in question is empty.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
     IterableAssert<T> empty();
 
+    /**
+     * Applies the provided checking function (presumably containing assertions) to the
+     * iterable in question.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
     IterableAssert<T> satisfies(SerializableFunction<Iterable<T>, Void> checkerFn);
   }
 
@@ -122,10 +144,28 @@ public class PAssert {
    * Builder interface for assertions applicable to a single value.
    */
   public interface SingletonAssert<T> {
+    /**
+     * Asserts that the value in question is equal to the provided value, according to
+     * {@link Object#equals}.
+     *
+     * @return the same {@link SingletonAssert} builder for further assertions
+     */
     SingletonAssert<T> isEqualTo(T expected);
 
+    /**
+     * Asserts that the value in question is not equal to the provided value, according
+     * to {@link Object#equals}.
+     *
+     * @return the same {@link SingletonAssert} builder for further assertions
+     */
     SingletonAssert<T> notEqualTo(T notExpected);
 
+    /**
+     * Applies the provided checking function (presumably containing assertions) to the
+     * value in question.
+     *
+     * @return the same {@link SingletonAssert} builder for further assertions
+     */
     SingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn);
   }
 
@@ -616,10 +656,9 @@ public class PAssert {
   /**
    * An assertion checker that takes a single {@link PCollectionView
    * PCollectionView&lt;ActualT&gt;} and an assertion over {@code ActualT}, and checks it within a
-   * dataflow pipeline.
+   * Beam pipeline.
    *
-   * <p>Note that the entire assertion must be serializable. If you need to make assertions
-   * involving multiple inputs that are each not serializable, use TwoSideInputAssert.
+   * <p>Note that the entire assertion must be serializable.
    *
    * <p>This is generally useful for assertion functions that are serializable but whose underlying
    * data may not have a coder.
