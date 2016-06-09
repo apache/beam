@@ -374,7 +374,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     EndOfWindow eow = new EndOfWindow<>(window);
 
     // ~ notify others we're about to evict the window
-    LOG.debug("[{}] - OnEviction - Broadcasting EoW for: {}", name, eow.getWindow());
     List<EndOfWindowBroadcast.Subscriber> eowPeers = null;
     synchronized (processing) {
       WindowStorage ws =
@@ -399,7 +398,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         state.close();
       }
     });
-    LOG.debug("[{}] - OnEviction - Flushing EoW for: {}", name, eow.getWindow());
     processing.stateOutput.collect(eow);
   }
 
@@ -421,7 +419,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       }
     }
     if (!known) {
-      LOG.debug("[{}] - OnBroadcast - Flushing EoW for: {}", name, eow.getWindow());
       processing.stateOutput.collect(eow);
     }
   }
