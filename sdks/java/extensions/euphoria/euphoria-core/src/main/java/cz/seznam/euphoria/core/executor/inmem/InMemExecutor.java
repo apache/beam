@@ -592,14 +592,19 @@ public class InMemExecutor implements Executor {
 
     InputProvider<?> outputSuppliers = new InputProvider<>();
     // consume repartitioned suppliers
-    repartitioned.stream().forEach(q -> {
+    int i = 0;
+    for (BlockingQueue q : repartitioned) {
       final BlockingQueue output = new ArrayBlockingQueue(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
-      executor.execute(new ReduceStateByKeyReducer(q, output, windowing,
+      executor.execute(new ReduceStateByKeyReducer(
+          Integer.toHexString(System.identityHashCode(reduceStateByKey))
+              + "@" + reduceStateByKey.getName() + ":" + i + "/" + repartitioned.size(),
+          q, output, windowing,
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
           SerializableUtils.cloneSerializable(triggering),
           reduceStateByKey.input().isBounded(), eowBroadcast));
-    });
+      i++;
+    }
     return outputSuppliers;
   }
 
