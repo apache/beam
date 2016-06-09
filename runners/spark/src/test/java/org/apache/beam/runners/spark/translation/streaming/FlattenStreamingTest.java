@@ -25,9 +25,7 @@ import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -77,13 +75,10 @@ public class FlattenStreamingTest {
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssert.thatIterable(union.apply(View.<String>asIterable()))
-            .containsInAnyOrder(EXPECTED_UNION);
+    PAssertStreaming.assertContents(union, EXPECTED_UNION);
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
-
-    PAssertStreaming.assertNoFailures(res);
   }
 
 }
