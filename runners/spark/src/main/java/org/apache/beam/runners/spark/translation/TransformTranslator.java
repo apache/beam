@@ -699,13 +699,16 @@ public final class TransformTranslator {
         JavaRDDLike<WindowedValue<T>, ?> inRDD =
             (JavaRDDLike<WindowedValue<T>, ?>) context.getInputRDD(transform);
         WindowFn<? super T, W> windowFn = WINDOW_FG.get("windowFn", transform);
-        if (windowFn instanceof GlobalWindows) {
+        // Avoid running assign windows if both source and destination are global window
+        if (context.getInput(transform).getWindowingStrategy().getWindowFn()
+                instanceof GlobalWindows
+            && windowFn instanceof GlobalWindows) {
           context.setOutputRDD(transform, inRDD);
         } else {
           @SuppressWarnings("unchecked")
           DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           DoFnFunction<T, T> dofn =
-                  new DoFnFunction<>(addWindowsDoFn, context.getRuntimeContext(), null);
+              new DoFnFunction<>(addWindowsDoFn, context.getRuntimeContext(), null);
           context.setOutputRDD(transform, inRDD.mapPartitions(dofn));
         }
       }
