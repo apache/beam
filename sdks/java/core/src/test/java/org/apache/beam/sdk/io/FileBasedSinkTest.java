@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation.TemporaryFileRetention;
@@ -371,6 +372,28 @@ public class FileBasedSinkTest {
     expected = new ArrayList<>();
     actual = writeOp.generateDestinationFilenames(0);
     assertEquals(expected, actual);
+  }
+
+  /**
+   * Reject non-distinct output filenames.
+   */
+  @Test
+  public void testCollidingOutputFilenames() {
+    SimpleSink sink = new SimpleSink("output", "test", "-NN");
+    SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
+
+    // A single shard doesn't need to include the shard number.
+    assertEquals(Arrays.asList("output-01.test"),
+                 writeOp.generateDestinationFilenames(1));
+
+    // More than one shard does.
+    try {
+      writeOp.generateDestinationFilenames(3);
+      fail("Should have failed.");
+    } catch (IllegalStateException exn) {
+      assertEquals("Shard name template '-NN' only generated 1 distinct file names for 3 files.",
+                   exn.getMessage());
+    }
   }
 
   /**
