@@ -26,8 +26,6 @@ import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -71,8 +69,7 @@ public class SimpleStreamingWordCountTest {
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    PAssert.thatIterable(output.apply(View.<String>asIterable()))
-        .containsInAnyOrder(EXPECTED_COUNT_SET);
+    output.apply(new AssertContains<>(EXPECTED_COUNT_SET));
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();

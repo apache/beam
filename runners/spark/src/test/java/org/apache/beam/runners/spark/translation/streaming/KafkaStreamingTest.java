@@ -27,10 +27,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -116,8 +114,7 @@ public class KafkaStreamingTest {
 
     PCollection<String> formattedKV = windowedWords.apply(ParDo.of(new FormatKVFn()));
 
-    PAssert.thatIterable(formattedKV.apply(View.<String>asIterable()))
-        .containsInAnyOrder(EXPECTED);
+    formattedKV.apply(new AssertContains<>(EXPECTED));
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
@@ -137,5 +134,4 @@ public class KafkaStreamingTest {
       c.output(c.element().getKey() + "," + c.element().getValue());
     }
   }
-
 }

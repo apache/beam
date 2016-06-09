@@ -30,8 +30,8 @@ public final class PAssertStreaming {
   /**
    * Copied aggregator names from {@link org.apache.beam.sdk.testing.PAssert}.
    */
-  static final String SUCCESS_COUNTER = "PAssertSuccess";
-  static final String FAILURE_COUNTER = "PAssertFailure";
+  public static final String SUCCESS_COUNTER = "PAssertSuccess";
+  public static final String FAILURE_COUNTER = "PAssertFailure";
 
   private PAssertStreaming() {
   }
