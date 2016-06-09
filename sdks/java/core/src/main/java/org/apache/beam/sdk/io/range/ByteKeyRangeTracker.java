@@ -48,10 +48,18 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
     return range.getEndKey();
   }
 
+  /** Returns the current range. */
+  public synchronized ByteKeyRange getRange() {
+    return range;
+  }
+
   @Override
   public synchronized boolean tryReturnRecordAt(boolean isAtSplitPoint, ByteKey recordStart) {
     if (isAtSplitPoint && !range.containsKey(recordStart)) {
       return false;
+    }
+    if (position == null) {
+      range = range.withStartKey(recordStart);
     }
     position = recordStart;
     return true;
