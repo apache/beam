@@ -35,63 +35,78 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
 
+  // ~ storage of a single window's (internal) state
   private static final class WindowStorage {
+    private final Window window;
+    private final Map<Object, State> keyStates;
+    WindowStorage(Window window, Map<Object, State> keyStates) {
+      this.window = requireNonNull(window);
+      this.keyStates = requireNonNull(keyStates);
+    }
+    Window getWindow() {
+      return window;
+    }
+    Map<Object, State> getKeyStates() {
+      return keyStates;
+    }
+  } // ~ end of WindowStorage
+
+  private static final class WindowRegistry {
     // ~ a mapping of GROUP -> LABEL -> (WINDOW, ITEMKEY -> STATE)
-    final Map<Object, Map<Object, Pair<Window, Map<Object, State>>>> wStates
-        = new HashMap<>();
+    final Map<Object, Map<Object, WindowStorage>> windows = new HashMap<>();
 
     // ~ removes the given window and returns its key states (possibly null)
-    Pair<Window, Map<Object, State>> removeWindow(Object wGroup, Object wLabel) {
-      Map<Object, Pair<Window, Map<Object, State>>> byLabel = wStates.get(wGroup);
+    WindowStorage removeWindow(Object wGroup, Object wLabel) {
+      Map<Object, WindowStorage> byLabel = windows.get(wGroup);
       if (byLabel == null) {
         return null;
       }
-      Pair<Window, Map<Object, State>> wState = byLabel.remove(wLabel);
+      WindowStorage wStore = byLabel.remove(wLabel);
       // ~ garbage collect
       if (byLabel.isEmpty()) {
-        wStates.remove(wGroup);
+        windows.remove(wGroup);
       }
-      return wState;
+      return wStore;
     }
 
-    Pair<Window, Map<Object, State>> getWindow(Object wGroup, Object wLabel) {
-      Map<Object, Pair<Window, Map<Object, State>>> byLabel = wStates.get(wGroup);
+    WindowStorage getWindow(Object wGroup, Object wLabel) {
+      Map<Object, WindowStorage> byLabel = windows.get(wGroup);
       if (byLabel == null) {
         return null;
       }
       return byLabel.get(wLabel);
     }
 
-    void setWindow(Pair<Window, Map<Object, State>> states) {
-      Window w = states.getFirst();
-      Map<Object, Pair<Window, Map<Object, State>>> byLabel = wStates.get(w.getGroup());
+    void setWindow(WindowStorage store) {
+      Window w = store.getWindow();
+      Map<Object, WindowStorage> byLabel = windows.get(w.getGroup());
       if (byLabel == null) {
-        wStates.put(w.getGroup(), byLabel = new HashMap<>());
+        windows.put(w.getGroup(), byLabel = new HashMap<>());
       }
-      byLabel.put(w.getLabel(), states);
+      byLabel.put(w.getLabel(), store);
     }
 
     List<Window> getAllWindowsList() {
-      return wStates.values().stream()
+      return windows.values().stream()
           .flatMap(l -> l.values().stream())
-          .map(Pair::getFirst)
+          .map(WindowStorage::getWindow)
           .collect(Collectors.toList());
     }
 
     List<Window> getAllWindowsList(Object windowGroup) {
-      Map<Object, Pair<Window, Map<Object, State>>> group = wStates.get(windowGroup);
+      Map<Object, WindowStorage> group = windows.get(windowGroup);
       if (group == null) {
         return Collections.emptyList();
       }
       return group.values().stream()
-          .map(Pair::getFirst)
+          .map(WindowStorage::getWindow)
           .collect(Collectors.toList());
     }
-  }
+  } // ~ end of WindowRegistry
 
   private static final class ProcessingState {
 
-    final WindowStorage wStorage = new WindowStorage();
+    final WindowRegistry wRegistry = new WindowRegistry();
 
     // ~ an index over (item) keys to their held aggregating state
     final Map<Object, State> aggregatingStates = new HashMap<>();
@@ -141,17 +156,17 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     }
 
     public boolean isKnownWindow(Window w) {
-      return wStorage.getWindow(w.getGroup(), w.getLabel()) != null;
+      return wRegistry.getWindow(w.getGroup(), w.getLabel()) != null;
     }
 
     // ~ evicts the specified window returning states accumulated for it
     public Collection<State> evictWindow(Window w) {
-      Pair<Window, Map<Object, State>> wKeyStates =
-          wStorage.removeWindow(w.getGroup(), w.getLabel());
+      WindowStorage wKeyStates =
+          wRegistry.removeWindow(w.getGroup(), w.getLabel());
       if (wKeyStates == null) {
         return Collections.emptySet();
       }
-      Map<Object, State> keyStates = wKeyStates.getSecond();
+      Map<Object, State> keyStates = wKeyStates.getKeyStates();
       if (keyStates == null) {
         return Collections.emptySet();
       }
@@ -172,7 +187,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     }
 
     public Collection<State> evictAllWindows() {
-      List<Window> ws = wStorage.getAllWindowsList();
+      List<Window> ws = wRegistry.getAllWindowsList();
       List<State> states = newArrayListWithCapacity(ws.size());
       for (Window w : ws) {
         states.addAll(evictWindow(w));
@@ -181,12 +196,12 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     }
 
     public Pair<Window, State> getWindowState(Window w, Object itemKey) {
-      Pair<Window, Map<Object, State>> wState = getWindowKeyStates(w, false);
-      if (wState == null) {
+      WindowStorage wStore = getOrCreateWindowStorage(w, false);
+      if (wStore == null) {
         // the window is already closed
         return null;
       }
-      State state = wState.getSecond().get(itemKey);
+      State state = wStore.getKeyStates().get(itemKey);
       if (state == null) {
         // ~ collector decorating state output with a window label and item key
         DatumCollector collector = new DatumCollector(stateOutput) {
@@ -196,19 +211,19 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         };
         collector.assignWindowing(w.getGroup(), w.getLabel());
         state = (State) stateFactory.apply(collector);
-        wState.getSecond().put(itemKey, state);
+        wStore.getKeyStates().put(itemKey, state);
       }
-      return Pair.of(wState.getFirst(), state);
+      return Pair.of(wStore.getWindow(), state);
     }
 
     // ~ retrieves the keyStates associated with a window
     // and optionally override the window instance associated
     // with it
-    private Pair<Window, Map<Object, State>>
-    getWindowKeyStates(Window w, boolean setWindowInstance) {
-      Pair<Window, Map<Object, State>> wState =
-          wStorage.getWindow(w.getGroup(), w.getLabel());
-      if (wState == null) {
+    private WindowStorage
+    getOrCreateWindowStorage(Window w, boolean setWindowInstance) {
+      WindowStorage wStore =
+          wRegistry.getWindow(w.getGroup(), w.getLabel());
+      if (wStore == null) {
         Window.TriggerState triggerState = Window.TriggerState.INACTIVE;
         if (!isBounded) {
           // ~ give the window a chance to register triggers
@@ -220,37 +235,36 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           return null;
         } else {
           // ~ if no such window yet ... set it up
-          wStorage.setWindow(wState = Pair.of(w, new HashMap<>()));
+          wRegistry.setWindow(wStore = new WindowStorage(w, new HashMap<>()));
         }
-      } else if (setWindowInstance && wState.getFirst() != w) {
+      } else if (setWindowInstance && wStore.getWindow() != w) {
         // ~ identity comparison on purpose
-        wStorage.setWindow(wState = Pair.of(w, wState.getSecond()));
+        wRegistry.setWindow(wStore = new WindowStorage(w, wStore.getKeyStates()));
       }
-      return wState;
+      return wStore;
     }
 
     public Collection<Window> getActiveWindows(Object windowGroup) {
-      return wStorage.getAllWindowsList(windowGroup);
+      return wRegistry.getAllWindowsList(windowGroup);
     }
 
-    @SuppressWarnings("unchecked")
+//    @SuppressWarnings("unchecked")
     public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
       // ~ make sure 'mergeWindow' does exist
-      Pair<Window, Map<Object, State>> ws = getWindowKeyStates(mergeWindow, true);
+      WindowStorage ws = getOrCreateWindowStorage(mergeWindow, true);
 
       for (Window toMerge : toBeMerged) {
-        if (Objects.equals(toMerge.getGroup(), ws.getFirst().getGroup())
-            && Objects.equals(toMerge.getLabel(), ws.getFirst().getLabel())) {
+        if (Objects.equals(toMerge.getGroup(), ws.getWindow().getGroup())
+            && Objects.equals(toMerge.getLabel(), ws.getWindow().getLabel())) {
           continue;
         }
 
         // ~ remove the toMerge window and merge all
         // of its keyStates into the mergeWindow
-        Pair<Window, Map<Object, State>> toMergeState =
-            wStorage.removeWindow(toMerge.getGroup(), toMerge.getLabel());
+        WindowStorage toMergeState =
+            wRegistry.removeWindow(toMerge.getGroup(), toMerge.getLabel());
         if (toMergeState != null) {
-          mergeWindowKeyStates(
-              toMergeState.getSecond(), ws.getSecond(), ws.getFirst());
+          mergeWindowKeyStates(toMergeState.getKeyStates(), ws.getKeyStates(), ws.getWindow());
         }
       }
     }
