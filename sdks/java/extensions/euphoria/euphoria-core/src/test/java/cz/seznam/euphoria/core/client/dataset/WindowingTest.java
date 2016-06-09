@@ -7,9 +7,11 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.Fluent;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
@@ -308,6 +310,7 @@ public class WindowingTest {
   @Test
   public void testWindowing_EndOfWindow_RBK_OnePartition() {
     testWindowing_EndOfWindowImpl(1);
+    testWindowing_EndOfWindowImpl_Fluent(1);
   }
 
   @Test
@@ -315,6 +318,43 @@ public class WindowingTest {
     // ~ this causes the initial reduce-by-key to output three
     // partitions of which only one receives data.
     testWindowing_EndOfWindowImpl(2);
+    testWindowing_EndOfWindowImpl_Fluent(2);
+  }
+
+  private void testWindowing_EndOfWindowImpl_Fluent(int dataPartitions) {
+    final long READ_DELAY_MS = 100L;
+    ListDataSink<Set<String>> out = ListDataSink.get(1);
+    Fluent.flow("Test", settings)
+        .read(ListDataSource.unbounded(
+            asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
+            .setSleepTime(READ_DELAY_MS))
+        // ~ create windows of size three
+        .apply(input -> ReduceByKey.of(input)
+            .keyBy(e -> "")
+            .valueBy(e -> e)
+            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+            .setNumPartitions(dataPartitions)
+            .windowBy(Windowing.Count.of(3)))
+        // ~ strip the needless key and flatten out the elements thereby
+        // creating multiple elements in the output belonging to the same window
+        .flatMap((Pair<String, Set<String>> e, Collector<String> c) ->
+            e.getSecond().stream().forEachOrdered(c::collect))
+        // ~ now spread the elements (belonging to the same window) over
+        // multiple partitions
+        .repartition(2, e -> '0' - e.charAt(0))
+        // ~ now reduce all of the partitions to one
+        .repartition(1)
+        // ~ now process the single partition
+        // ~ we now expect to reconstruct the same windowing
+        // as the very initial step
+        .apply(input -> ReduceByKey.of(input)
+            .keyBy(e -> "")
+            .valueBy(e -> e)
+            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet))
+        // ~ strip the needless key
+        .mapElements(Pair::getSecond)
+        .persist(out)
+        .execute(executor);
   }
 
   private void testWindowing_EndOfWindowImpl(int dataPartitions) {
