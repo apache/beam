@@ -27,17 +27,14 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -52,7 +49,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import kafka.serializer.StringDecoder;
 /**
@@ -68,9 +64,7 @@ public class KafkaStreamingTest {
   private static final Map<String, String> KAFKA_MESSAGES = ImmutableMap.of(
       "k1", "v1", "k2", "v2", "k3", "v3", "k4", "v4"
   );
-  private static final Set<String> EXPECTED = ImmutableSet.of(
-      "k1,v1", "k2,v2", "k3,v3", "k4,v4"
-  );
+  private static final String[] EXPECTED = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
   private static final long TEST_TIMEOUT_MSEC = 1000L;
 
   @BeforeClass
@@ -116,13 +110,10 @@ public class KafkaStreamingTest {
 
     PCollection<String> formattedKV = windowedWords.apply(ParDo.of(new FormatKVFn()));
 
-    PAssert.thatIterable(formattedKV.apply(View.<String>asIterable()))
-        .containsInAnyOrder(EXPECTED);
+    PAssertStreaming.assertContents(formattedKV, EXPECTED);
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
-
-    PAssertStreaming.assertNoFailures(res);
   }
 
   @AfterClass

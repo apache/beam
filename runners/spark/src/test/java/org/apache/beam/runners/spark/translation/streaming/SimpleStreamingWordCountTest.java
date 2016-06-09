@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SimpleWordCountTest;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
@@ -26,33 +27,28 @@ import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.common.collect.ImmutableSet;
-
 import org.joda.time.Duration;
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Simple word count streaming test.
  */
-public class SimpleStreamingWordCountTest {
+public class SimpleStreamingWordCountTest implements Serializable {
 
   private static final String[] WORDS_ARRAY = {
       "hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
   private static final List<Iterable<String>> WORDS_QUEUE =
       Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY));
-  private static final Set<String> EXPECTED_COUNT_SET =
-      ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
+  private static final String[] EXPECTED_COUNTS = {"hi: 5", "there: 1", "sue: 2", "bob: 2"};
   private static final long TEST_TIMEOUT_MSEC = 1000L;
 
   @Test
@@ -71,12 +67,8 @@ public class SimpleStreamingWordCountTest {
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    PAssert.thatIterable(output.apply(View.<String>asIterable()))
-        .containsInAnyOrder(EXPECTED_COUNT_SET);
-
+    PAssertStreaming.assertContents(output, EXPECTED_COUNTS);
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
-
-    PAssertStreaming.assertNoFailures(res);
   }
 }
