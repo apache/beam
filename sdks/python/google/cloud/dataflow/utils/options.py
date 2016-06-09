@@ -269,6 +269,19 @@ class WorkerOptions(PipelineOptions):
         help=
         ('Number of workers to use when executing the Dataflow job. If not '
          'set, the Dataflow service will use a reasonable default.'))
+    parser.add_argument(
+        '--max_num_workers',
+        type=int,
+        default=None,
+        help=
+        ('Maximum number of workers to use when executing the Dataflow job.'))
+    parser.add_argument(
+        '--autoscaling_algorithm',
+        type=str,
+        choices=['NONE', 'THROUGHPUT_BASED'],
+        default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
+        help=
+        ('If and how to auotscale the workerpool.'))
     # TODO(silviuc): Remove --machine_type variant of the flag.
     parser.add_argument(
         '--worker_machine_type', '--machine_type',
@@ -427,9 +440,6 @@ class SetupOptions(PipelineOptions):
          'staged in the staging area (--staging_location option) and the '
          'workers will install them in same order they were specified on the '
          'command line.'))
-
-# TODO(silviuc): Add autoscaling related options:
-# --autoscaling_algorithm, --max_num_workers.
 
 # TODO(silviuc): Add --files_to_stage option.
 # This could potentially replace the --requirements_file and --setup_file.

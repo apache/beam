@@ -224,9 +224,19 @@ class Environment(object):
             parallelWorkerSettings=dataflow.WorkerSettings(
                 baseUrl='https://dataflow.googleapis.com',
                 servicePath=self.google_cloud_options.dataflow_endpoint)))
+    pool.autoscalingSettings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
     if self.worker_options.num_workers:
       pool.numWorkers = self.worker_options.num_workers
+    if self.worker_options.max_num_workers:
+      pool.autoscalingSettings.maxNumWorkers = (
+          self.worker_options.max_num_workers)
+    if self.worker_options.autoscaling_algorithm:
+      values_enum = dataflow.AutoscalingSettings.AlgorithmValueValuesEnum
+      pool.autoscalingSettings.algorithm = {
+          'NONE': values_enum.AUTOSCALING_ALGORITHM_NONE,
+          'THROUGHPUT_BASED': values_enum.AUTOSCALING_ALGORITHM_BASIC,
+      }.get(self.worker_options.autoscaling_algorithm)
     if self.worker_options.machine_type:
       pool.machineType = self.worker_options.machine_type
     if self.worker_options.disk_size_gb:
