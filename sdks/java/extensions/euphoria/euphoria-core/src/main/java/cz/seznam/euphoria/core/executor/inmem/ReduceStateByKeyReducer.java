@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -39,15 +40,35 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   private static final class WindowStorage {
     private final Window window;
     private final Map<Object, State> keyStates;
-    WindowStorage(Window window, Map<Object, State> keyStates) {
+    // ~ initialized lazily; peers which have seen this window (and will eventually
+    // emit or have already emitted a corresponding EoW)
+    private List<EndOfWindowBroadcast.Subscriber> eowPeers;
+    WindowStorage(Window window) {
       this.window = requireNonNull(window);
-      this.keyStates = requireNonNull(keyStates);
+      this.keyStates = new HashMap<>();
+      this.eowPeers = null;
+    }
+    // ~ make a copy of 'base' with the specified 'window' assigned
+    WindowStorage(Window window, WindowStorage base) {
+      this.window = requireNonNull(window);
+      this.keyStates = base.keyStates;
+      this.eowPeers = base.eowPeers;
     }
     Window getWindow() {
       return window;
     }
     Map<Object, State> getKeyStates() {
       return keyStates;
+    }
+    List<EndOfWindowBroadcast.Subscriber> getEowPeers() {
+      return eowPeers;
+    }
+    void addEowPeer(EndOfWindowBroadcast.Subscriber eow) {
+      if (eowPeers == null) {
+        eowPeers = new CopyOnWriteArrayList<>(Collections.singletonList(eow));
+      } else if (!eowPeers.contains(requireNonNull(eow))) {
+        eowPeers.add(eow);
+      }
     }
   } // ~ end of WindowStorage
 
@@ -155,8 +176,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       }
     }
 
-    public boolean isKnownWindow(Window w) {
-      return wRegistry.getWindow(w.getGroup(), w.getLabel()) != null;
+    public WindowStorage getWindowStorage(Window w) {
+      return wRegistry.getWindow(w.getGroup(), w.getLabel());
     }
 
     // ~ evicts the specified window returning states accumulated for it
@@ -235,11 +256,11 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           return null;
         } else {
           // ~ if no such window yet ... set it up
-          wRegistry.setWindow(wStore = new WindowStorage(w, new HashMap<>()));
+          wRegistry.setWindow(wStore = new WindowStorage(w));
         }
       } else if (setWindowInstance && wStore.getWindow() != w) {
         // ~ identity comparison on purpose
-        wRegistry.setWindow(wStore = new WindowStorage(w, wStore.getKeyStates()));
+        wRegistry.setWindow(wStore = new WindowStorage(w, wStore));
       }
       return wStore;
     }
@@ -248,10 +269,16 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       return wRegistry.getAllWindowsList(windowGroup);
     }
 
-//    @SuppressWarnings("unchecked")
     public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
       // ~ make sure 'mergeWindow' does exist
       WindowStorage ws = getOrCreateWindowStorage(mergeWindow, true);
+      if (ws == null) {
+        LOG.warn("No window storage for {}; potentially the triggering discarded it!",
+            mergeWindow);
+        wRegistry.removeWindow(mergeWindow.getGroup(), mergeWindow.getLabel());
+        // XXX should drop the "toBeMerged" windows as well? i think so
+        return;
+      }
 
       for (Window toMerge : toBeMerged) {
         if (Objects.equals(toMerge.getGroup(), ws.getWindow().getGroup())
@@ -308,7 +335,10 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   private final EndOfWindowBroadcast eowBroadcast;
 
-  ReduceStateByKeyReducer(BlockingQueue input,
+  private final String name;
+
+  ReduceStateByKeyReducer(String name,
+                          BlockingQueue input,
                           BlockingQueue output,
                           Windowing windowing,
                           UnaryFunction keyExtractor,
@@ -318,6 +348,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
                           Triggering triggering,
                           boolean isBounded,
                           EndOfWindowBroadcast eowBroadcast) {
+    this.name = name;
     this.input = requireNonNull(input);
     this.windowing = windowing == null ? DatumAttachedWindowing.INSTANCE : windowing;
     this.keyExtractor = requireNonNull(keyExtractor);
@@ -340,9 +371,20 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   }
 
   private void fireEvictTrigger(Window window) {
-    // ~ notify others we're about to evict the window
     EndOfWindow eow = new EndOfWindow<>(window);
-    eowBroadcast.notifyEndOfWindow(eow, this);
+
+    // ~ notify others we're about to evict the window
+    LOG.debug("[{}] - OnEviction - Broadcasting EoW for: {}", name, eow.getWindow());
+    List<EndOfWindowBroadcast.Subscriber> eowPeers = null;
+    synchronized (processing) {
+      WindowStorage ws =
+          processing.getWindowStorage(window);
+      if (ws != null) {
+        eowPeers = ws.getEowPeers();
+      }
+    }
+    eowBroadcast.notifyEndOfWindow(eow, this,
+        eowPeers == null ? Collections.emptyList() : eowPeers);
 
     Collection<State> evicted;
     synchronized (processing) {
@@ -357,6 +399,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         state.close();
       }
     });
+    LOG.debug("[{}] - OnEviction - Flushing EoW for: {}", name, eow.getWindow());
     processing.stateOutput.collect(eow);
   }
 
@@ -364,12 +407,21 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   // resend the event to our own partition output unless we know the
   // window
   @Override
-  public void onEndOfWindowBroadcast(EndOfWindow eow) {
+  public void onEndOfWindowBroadcast(
+      EndOfWindow eow, EndOfWindowBroadcast.Subscriber src)
+  {
     final boolean known;
     synchronized (processing) {
-      known = processing.isKnownWindow(eow.getWindow());
+      WindowStorage ws = processing.getWindowStorage(eow.getWindow());
+      if (ws == null) {
+        known = false;
+      } else {
+        known = true;
+        ws.addEowPeer(src);
+      }
     }
     if (!known) {
+      LOG.debug("[{}] - OnBroadcast - Flushing EoW for: {}", name, eow.getWindow());
       processing.stateOutput.collect(eow);
     }
   }

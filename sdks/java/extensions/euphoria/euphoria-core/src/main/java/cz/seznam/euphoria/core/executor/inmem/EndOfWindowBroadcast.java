@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -12,7 +13,9 @@ abstract class EndOfWindowBroadcast {
       // ~ no-op
     }
     @Override
-    void notifyEndOfWindow(EndOfWindow eow, Subscriber excludeSubscriber) {
+    void notifyEndOfWindow(EndOfWindow eow, Subscriber src,
+                           Collection<Subscriber> excludes)
+    {
       // ~ no-op
     }
   }
@@ -26,20 +29,23 @@ abstract class EndOfWindowBroadcast {
     }
 
     @Override
-    void notifyEndOfWindow(EndOfWindow eow, Subscriber excludeSubscriber) {
+    void notifyEndOfWindow(EndOfWindow eow, Subscriber src,
+                           Collection<Subscriber> excludes)
+    {
       for (Subscriber s : subscribers) {
-        if (!s.equals(excludeSubscriber)) {
-          s.onEndOfWindowBroadcast(eow);
+        if (!src.equals(s) && !excludes.contains(s)) {
+          s.onEndOfWindowBroadcast(eow, src);
         }
       }
     }
   }
 
   interface Subscriber {
-    void onEndOfWindowBroadcast(EndOfWindow eow);
+    void onEndOfWindowBroadcast(EndOfWindow eow, Subscriber src);
   }
 
   abstract void subscribe(Subscriber s);
 
-  abstract void notifyEndOfWindow(EndOfWindow eow, Subscriber excludeSubscriber);
+  abstract void notifyEndOfWindow(EndOfWindow eow, Subscriber src,
+                                  Collection<Subscriber> excludes);
 }
