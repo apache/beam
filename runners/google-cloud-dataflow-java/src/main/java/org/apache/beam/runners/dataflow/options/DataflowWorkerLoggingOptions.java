@@ -68,12 +68,12 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * Controls the log level given to messages printed to System.out.
    *
-   * <p>Note that the message may may be filtered depending on the
+   * <p>Note that the message may be filtered depending on the
    * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a 'System.out' override is
    * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
    */
   @Description("Controls the log level given to messages printed to System.out. Note that the "
-      + "message may may be filtered depending on the defaultWorkerLogLevel or if a 'System.out' "
+      + "message may be filtered depending on the defaultWorkerLogLevel or if a 'System.out' "
       + "override is specified via workerLogLevelOverrides.")
   @Default.Enum("INFO")
   Level getWorkerSystemOutMessageLevel();
@@ -82,12 +82,12 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * Controls the log level given to messages printed to System.err.
    *
-   * <p>Note that the message may may be filtered depending on the
+   * <p>Note that the message may be filtered depending on the
    * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a 'System.err' override is
    * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
    */
   @Description("Controls the log level given to messages printed to System.err. Note that the "
-      + "message may may be filtered depending on the defaultWorkerLogLevel or if a 'System.err' "
+      + "message may be filtered depending on the defaultWorkerLogLevel or if a 'System.err' "
       + "override is specified via workerLogLevelOverrides.")
   @Default.Enum("ERROR")
   Level getWorkerSystemErrMessageLevel();
