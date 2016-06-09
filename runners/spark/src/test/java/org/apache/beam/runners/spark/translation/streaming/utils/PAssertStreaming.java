@@ -52,6 +52,11 @@ public final class PAssertStreaming implements Serializable {
     Assert.assertEquals("Found " + failures + " failures, see the log for details", 0, failures);
   }
 
+  /**
+   * Adds a pipeline run-time assertion that the contents of {@code actual} are {@code expected}.
+   * Note that it is oblivious to windowing, so the assertion will apply indiscriminately to all
+   * windows.
+   */
   public static <T> void assertContents(PCollection<T> actual, final T[] expected) {
     // Because PAssert does not support non-global windowing, but all our data is in one window,
     // we set up the assertion directly.
