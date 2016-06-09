@@ -364,11 +364,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         destFilenames.add(IOChannelUtils.constructName(
             baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
       }
-      if (new HashSet<String>(destFilenames).size() != numFiles) {
-        throw new IllegalArgumentException(
-            "Shard name template '" + fileNamingTemplate + "' does not disambiguate "
-            + numFiles + " shards; perhaps this runner is not respecting sharding limits");
-      }
+
+      int numDistinctShards = new HashSet<String>(destFilenames).size();
+      Preconditions.checkState(numDistinctShards == numFiles,
+          "Shard name template '%s' only generated %s distinct file names for %s files.",
+          fileNamingTemplate, numDistinctShards, numFiles);
+
       return destFilenames;
     }
 
