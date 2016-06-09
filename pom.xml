@@ -754,6 +754,7 @@
             </execution>
           </executions>
           <configuration>
+            <cleanupDaemonThreads>false</cleanupDaemonThreads>
             <systemProperties>
               <systemProperty>
                 <key>java.util.logging.config.file</key>
