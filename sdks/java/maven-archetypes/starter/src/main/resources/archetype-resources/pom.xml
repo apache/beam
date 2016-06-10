@@ -46,7 +46,6 @@
           <configuration>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
           </configuration>
-          <plugins>
         </plugin>
       </plugins>
     </pluginManagement>
