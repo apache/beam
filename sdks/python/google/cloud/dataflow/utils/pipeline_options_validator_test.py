@@ -193,13 +193,28 @@ class SetupTest(unittest.TestCase):
             'expected': False,
         },
         {
+            'runner': MockRunners.OtherRunner(),
+            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
+            'expected': False,
+        },
+        {
             'runner': MockRunners.DataflowPipelineRunner(),
             'options': ['--dataflow_endpoint=https://another.service.com'],
             'expected': False,
         },
         {
             'runner': MockRunners.DataflowPipelineRunner(),
+            'options': ['--dataflow_endpoint=https://another.service.com/'],
+            'expected': False,
+        },
+        {
+            'runner': MockRunners.DataflowPipelineRunner(),
             'options': ['--dataflow_endpoint=https://dataflow.googleapis.com'],
+            'expected': True,
+        },
+        {
+            'runner': MockRunners.DataflowPipelineRunner(),
+            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
             'expected': True,
         },
         {

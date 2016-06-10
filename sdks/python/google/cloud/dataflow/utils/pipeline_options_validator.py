@@ -70,7 +70,7 @@ class PipelineOptionsValidator(object):
   JOB_PATTERN = '[a-z]([-a-z0-9]*[a-z0-9])?'
   PROJECT_ID_PATTERN = '[a-z][-a-z0-9:.]+[a-z0-9]'
   PROJECT_NUMBER_PATTERN = '[0-9]*'
-  ENDPOINT_PATTERN = r'https://[\S]*googleapis\.com'
+  ENDPOINT_PATTERN = r'https://[\S]*googleapis\.com[/]?'
 
   def __init__(self, options, runner):
     self.options = options
