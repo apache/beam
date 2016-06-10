@@ -3,6 +3,9 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Trigger;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -16,8 +19,22 @@ import java.util.TimerTask;
  */
 public class WatermarkTriggering implements Triggering {
 
+  private static final Logger LOG = LoggerFactory.getLogger(WatermarkTriggering.class);
+
+  private static final class Scheduled {
+    final TimerTask tt;
+    final long stamp;
+    Scheduled(TimerTask tt, long stamp) {
+      this.tt = tt;
+      this.stamp = stamp;
+    }
+    void cancel() {
+      tt.cancel();
+    }
+  }
+
   transient Timer timer = new Timer();
-  transient Map<Trigger, Long> activeTriggers = new HashMap<>();
+  transient Map<Trigger, Scheduled> activeTriggers = new HashMap<>();
 
   final long watermarkDuration;
   long currentWatermark;
@@ -34,7 +51,7 @@ public class WatermarkTriggering implements Triggering {
   @Override
   public boolean scheduleAt(long stamp, Trigger trigger) {
     if (stamp >= currentWatermark) {
-      timer.schedule(new TimerTask() {
+      TimerTask tt = new TimerTask() {
         @Override
         public void run() {
           synchronized (WatermarkTriggering.this) {
@@ -42,36 +59,42 @@ public class WatermarkTriggering implements Triggering {
           }
           trigger.fire();
         }
-      }, stamp - currentWatermark);
+      };
       synchronized (this) {
-        activeTriggers.put(trigger, stamp);
+        timer.schedule(tt, stamp - currentWatermark);
+        activeTriggers.put(trigger, new Scheduled(tt, stamp));
+        return true;
       }
-      return true;
     }
     return false;
   }
 
   @Override
   public void close() {
-    timer.cancel();
-    activeTriggers.clear();
+    synchronized (this) {
+      timer.cancel();
+      activeTriggers.values().forEach(Scheduled::cancel);
+      activeTriggers.clear();
+      timer.purge();
+    }
   }
 
   @Override
   public void updateProcessed(long stamp) {
     long newWatermark = stamp - watermarkDuration;
     if (currentWatermark < newWatermark) {
-      final ArrayList<Map.Entry<Trigger, Long>> active;
+      final ArrayList<Map.Entry<Trigger, Scheduled>> active;
       synchronized (this) {
         // reschedule all active triggers
         active = new ArrayList<>(activeTriggers.entrySet());
-        timer.purge();
+        active.forEach(x -> x.getValue().cancel());
         activeTriggers.clear();
+        timer.purge();
         currentWatermark = newWatermark;
       }
-      for (Map.Entry<Trigger, Long> e : active) {
-        if (e.getValue() > currentWatermark) {
-          scheduleAt(e.getValue(), e.getKey());
+      for (Map.Entry<Trigger, Scheduled> e : active) {
+        if (e.getValue().stamp > currentWatermark) {
+          scheduleAt(e.getValue().stamp, e.getKey());
         } else {
           e.getKey().fire();
         }
@@ -79,12 +102,12 @@ public class WatermarkTriggering implements Triggering {
     }
   }
 
-
- private void readObject(ObjectInputStream stream)
-     throws IOException, ClassNotFoundException {
-   stream.defaultReadObject();
-   this.timer = new Timer();
-   this.activeTriggers = new HashMap<>();
- }
+  private void readObject(ObjectInputStream stream)
+      throws IOException, ClassNotFoundException
+  {
+    stream.defaultReadObject();
+    this.timer = new Timer();
+    this.activeTriggers = new HashMap<>();
+  }
 
 }

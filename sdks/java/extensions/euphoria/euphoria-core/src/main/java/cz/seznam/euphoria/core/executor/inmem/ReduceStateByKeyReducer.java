@@ -494,7 +494,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           seenGroups.add(itemWindow.getGroup());
         } else {
           // window is already closed
-          LOG.trace("Element window {} discarded", itemWindow);
+          LOG.debug("Element window {} discarded", itemWindow);
         }
       }
 
