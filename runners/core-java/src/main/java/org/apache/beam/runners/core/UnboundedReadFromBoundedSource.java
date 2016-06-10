@@ -48,6 +48,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,6 +66,9 @@ import javax.annotation.Nullable;
  * <p>Created by {@link Read}.
  */
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
+
   private final BoundedSource<T> source;
 
   /**
@@ -115,10 +120,18 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     @Override
     public List<BoundedToUnboundedSourceAdapter<T>> generateInitialSplits(
         int desiredNumSplits, PipelineOptions options) throws Exception {
-      long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
-      List<? extends BoundedSource<T>> splits;
-      if (desiredBundleSize > 0
-          && (splits = boundedSource.splitIntoBundles(desiredBundleSize, options)) != null) {
+      try {
+        long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
+        if (desiredBundleSize <= 0) {
+          LOG.warn("BoundedSource cannot estimate its size, skips the initial splits.");
+          return ImmutableList.of(this);
+        }
+        List<? extends BoundedSource<T>> splits
+            = boundedSource.splitIntoBundles(desiredBundleSize, options);
+        if (splits == null) {
+          LOG.warn("BoundedSource cannot split, skips the initial splits.");
+          return ImmutableList.of(this);
+        }
         return Lists.transform(
             splits,
             new Function<BoundedSource<T>, BoundedToUnboundedSourceAdapter<T>>() {
@@ -126,7 +139,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
               public BoundedToUnboundedSourceAdapter<T> apply(BoundedSource<T> input) {
                 return new BoundedToUnboundedSourceAdapter<>(input);
               }});
-      } else {
+      } catch (Exception e) {
+        LOG.warn("Exception while splitting, skips the initial splits.", e);
         return ImmutableList.of(this);
       }
     }
@@ -244,7 +258,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
         this.residualElements = Preconditions.checkNotNull(residualElements, "residualElements");
         this.residualSource = residualSource;
         this.options = Preconditions.checkNotNull(options, "options");
-        this.currentElementInList = true;
+        this.currentElementInList = false;
         this.currentIndexInList = -1;
         this.reader = null;
         this.done = false;
