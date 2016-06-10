@@ -15,6 +15,7 @@
 """Tests for worker counters."""
 
 import logging
+import random
 import unittest
 
 from google.cloud.dataflow import coders
@@ -91,6 +92,38 @@ class OperationCountersTest(unittest.TestCase):
     opcounts.update_collect()
     self.verify_counters(opcounts, 3)
 
+  def test_should_sample(self):
+    # Order of magnitude more buckets than highest constant in code under test.
+    buckets = [0] * 300
+    # The seed is arbitrary and exists just to ensure this test is robust.
+    # If you don't like this seed, try your own; the test should still pass.
+    random.seed(1717)
+    # Do enough runs that the expected hits even in the last buckets
+    # is big enough to expect some statistical smoothing.
+    total_runs = 10 * len(buckets)
+
+    # Fill the buckets.
+    for _ in xrange(total_runs):
+      opcounts = OperationCounters(CounterFactory(), 'some-name',
+                                   coders.PickleCoder(), 0)
+      for i in xrange(len(buckets)):
+        if opcounts.should_sample():
+          buckets[i] += 1
+
+    # Look at the buckets to see if they are likely.
+    for i in xrange(10):
+      self.assertEqual(total_runs, buckets[i])
+    for i in xrange(10, len(buckets)):
+      self.assertTrue(buckets[i] > 7 * total_runs / i,
+                      'i=%d, buckets[i]=%d, expected=%d, ratio=%f' % (
+                          i, buckets[i],
+                          10 * total_runs / i,
+                          buckets[i] / (10.0 * total_runs / i)))
+      self.assertTrue(buckets[i] < 14 * total_runs / i,
+                      'i=%d, buckets[i]=%d, expected=%d, ratio=%f' % (
+                          i, buckets[i],
+                          10 * total_runs / i,
+                          buckets[i] / (10.0 * total_runs / i)))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
