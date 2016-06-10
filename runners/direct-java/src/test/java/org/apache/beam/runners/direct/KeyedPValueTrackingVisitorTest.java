@@ -26,8 +26,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -61,9 +60,7 @@ public class KeyedPValueTrackingVisitorTest {
 
   @Before
   public void setup() {
-    PipelineOptions options = PipelineOptionsFactory.create();
-
-    p = Pipeline.create(options);
+    p = TestPipeline.create();
     @SuppressWarnings("rawtypes")
     Set<Class<? extends PTransform>> producesKeyed =
         ImmutableSet.<Class<? extends PTransform>>of(PrimitiveKeyer.class, CompositeKeyer.class);
