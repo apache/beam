@@ -196,6 +196,7 @@ public class BlockingDataflowPipelineRunnerTest {
     DataflowPipelineRunner mockRunner = mock(DataflowPipelineRunner.class);
     TestDataflowPipelineOptions options =
         PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
+    options.setRunner(BlockingDataflowPipelineRunner.class);
     options.setProject(job.getProjectId());
 
     when(mockRunner.run(isA(Pipeline.class))).thenReturn(job);
@@ -296,6 +297,7 @@ public class BlockingDataflowPipelineRunnerTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
+    options.setRunner(BlockingDataflowPipelineRunner.class);
     assertEquals("BlockingDataflowPipelineRunner#testjobname",
         BlockingDataflowPipelineRunner.fromOptions(options).toString());
   }
