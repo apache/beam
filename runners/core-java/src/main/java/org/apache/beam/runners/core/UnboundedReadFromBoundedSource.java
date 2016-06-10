@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 
@@ -25,6 +25,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,9 +38,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-import com.google.api.client.util.Lists;
-import com.google.api.client.util.Preconditions;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -61,6 +66,9 @@ import javax.annotation.Nullable;
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
   private final BoundedSource<T> source;
 
+  /**
+   * Constructs a {@link PTransform} that performs an unbounded read from a {@link BoundedSource}.
+   */
   public UnboundedReadFromBoundedSource(BoundedSource<T> source) {
     this.source = source;
   }
@@ -90,7 +98,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
   }
 
   @VisibleForTesting
-  static class BoundedToUnboundedSourceAdapter<T>
+  public static class BoundedToUnboundedSourceAdapter<T>
       extends UnboundedSource<T, BoundedToUnboundedSourceAdapter.Checkpoint<T>> {
 
     private BoundedSource<T> boundedSource;
@@ -108,11 +116,19 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     public List<BoundedToUnboundedSourceAdapter<T>> generateInitialSplits(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
-      List<BoundedToUnboundedSourceAdapter<T>> result = Lists.newArrayList();
-      for (BoundedSource<T> split : boundedSource.splitIntoBundles(desiredBundleSize, options)) {
-        result.add(new BoundedToUnboundedSourceAdapter<>(split));
+      List<? extends BoundedSource<T>> splits;
+      if (desiredBundleSize > 0
+          && (splits = boundedSource.splitIntoBundles(desiredBundleSize, options)) != null) {
+        return Lists.transform(
+            splits,
+            new Function<BoundedSource<T>, BoundedToUnboundedSourceAdapter<T>>() {
+              @Override
+              public BoundedToUnboundedSourceAdapter<T> apply(BoundedSource<T> input) {
+                return new BoundedToUnboundedSourceAdapter<>(input);
+              }});
+      } else {
+        return ImmutableList.of(this);
       }
-      return result;
     }
 
     @Override
@@ -203,6 +219,12 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       }
     }
 
+    /**
+     * An {@code UnboundedReader<T>} that wraps a {@code BoundedSource<T>}.
+     *
+     * <p>It checkpoints by splitting the {@code BoundedSource<T>} and tracking residual
+     * elements from the current source.
+     */
     @VisibleForTesting
     class Reader extends UnboundedReader<T> {
       private final PipelineOptions options;
@@ -215,7 +237,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       private @Nullable BoundedReader<T> reader;
       private boolean done;
 
-      public Reader(
+      Reader(
           List<TimestampedValue<T>> residualElements,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
@@ -311,11 +333,19 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
         List<TimestampedValue<T>> newResidualElements = Lists.newArrayList();
         BoundedSource<T> newResidualSource;
         if (currentElementInList) {
+          // 1. Part of residualElements are consumed.
+          // Checkpoints the remaining elements and residualSource.
           while (advanceInList()) {
             newResidualElements.add(residualElements.get(currentIndexInList));
           }
           newResidualSource = residualSource;
-        } else if (reader != null) {
+        } else if (reader == null) {
+          // 2. All of residualElements are consumed.
+          // Only checkpoints the residualSource.
+          newResidualSource = residualSource;
+        } else {
+          // 3. All of residualElements and part of residualSource are consumed.
+          // Splits the residualSource and tracks the new residualElements in current source.
           BoundedSource<T> residualSplit = reader.splitAtFraction(reader.getFractionConsumed());
           try {
             while (advanceInReader()) {
@@ -326,8 +356,6 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
             throw new RuntimeException("Failed to read elements from the bounded reader.", e);
           }
           newResidualSource = residualSplit;
-        } else {
-          newResidualSource = residualSource;
         }
         return new Checkpoint<T>(newResidualElements, newResidualSource);
       }

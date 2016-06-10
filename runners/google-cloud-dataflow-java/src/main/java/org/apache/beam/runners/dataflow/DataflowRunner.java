@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
@@ -68,7 +69,6 @@ import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;

@@ -15,12 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.runners.core;
 
+import static org.junit.Assert.assertEquals;
+
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
-import org.apache.beam.sdk.io.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -36,7 +42,6 @@ import org.apache.beam.sdk.values.PCollection;
 import com.google.api.client.util.Lists;
 import com.google.common.collect.Sets;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -103,22 +108,25 @@ public class UnboundedReadFromBoundedSourceTest {
     List<Long> actual = Lists.newArrayList();
     for (boolean hasNext = reader.start(); hasNext;) {
       actual.add(reader.getCurrent());
+      // checkpoint every 9 elements
       if (actual.size() % 9 == 0) {
+        Checkpoint<Long> checkpoint = reader.getCheckpointMark();
         Coder<Checkpoint<Long>> checkpointCoder = unboundedSource.getCheckpointMarkCoder();
         Checkpoint<Long> decodedCheckpoint = CoderUtils.decodeFromByteArray(
             checkpointCoder,
-            CoderUtils.encodeToByteArray(checkpointCoder, reader.getCheckpointMark()));
+            CoderUtils.encodeToByteArray(checkpointCoder, checkpoint));
+        reader.close();
+        checkpoint.finalizeCheckpoint();
 
         BoundedToUnboundedSourceAdapter<Long>.Reader restarted =
             unboundedSource.createReader(options, decodedCheckpoint);
-        reader.close();
         reader = restarted;
         hasNext = reader.start();
       } else {
         hasNext = reader.advance();
       }
     }
-    Assert.assertEquals(100, actual.size());
-    Assert.assertEquals(expected, Sets.newHashSet(actual));
+    assertEquals(numElements, actual.size());
+    assertEquals(expected, Sets.newHashSet(actual));
   }
 }
