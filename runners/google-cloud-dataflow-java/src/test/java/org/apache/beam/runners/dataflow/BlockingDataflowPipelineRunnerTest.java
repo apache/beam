@@ -296,6 +296,7 @@ public class BlockingDataflowPipelineRunnerTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
+    options.setRunner(BlockingDataflowPipelineRunner.class);
     assertEquals("BlockingDataflowPipelineRunner#testjobname",
         BlockingDataflowPipelineRunner.fromOptions(options).toString());
   }
