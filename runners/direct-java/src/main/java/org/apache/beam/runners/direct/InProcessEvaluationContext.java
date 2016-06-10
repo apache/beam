@@ -46,13 +46,13 @@ import org.apache.beam.sdk.values.PValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
 
@@ -130,7 +130,8 @@ class InProcessEvaluationContext {
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedCounters = new CounterSet();
 
-    this.callbackExecutor = WatermarkCallbackExecutor.create(Executors.newSingleThreadExecutor());
+    this.callbackExecutor =
+        WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
 
   /**
