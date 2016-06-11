@@ -94,8 +94,8 @@ public class FlinkDoFnFunction<InputT, OutputT>
       }
     }
 
-    // set the windowed value to null so that the logic
-    // or outputting in finishBundle kicks in
+    // set the windowed value to null so that the special logic for outputting
+    // in startBundle/finishBundle kicks in
     context = context.forWindowedValue(null);
     this.doFn.finishBundle(context);
   }
