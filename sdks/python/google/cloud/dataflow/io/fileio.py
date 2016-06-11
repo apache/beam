@@ -34,6 +34,8 @@ from google.cloud.dataflow.utils import retry
 
 __all__ = ['TextFileSource', 'TextFileSink']
 
+DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
+
 
 # Retrying is needed because there are transient errors that can happen.
 @retry.with_exponential_backoff(num_retries=4, retry_filter=lambda _: True)
@@ -150,77 +152,6 @@ class TextFileSource(iobase.NativeSource):
       return TextFileReader(self)
 
 
-def TextFileSink(file_path_prefix,     # pylint: disable=invalid-name
-                 append_trailing_newlines=True,
-                 file_name_suffix='',
-                 num_shards=0,
-                 shard_name_template=None,
-                 validate=True,
-                 coder=coders.ToStringCoder()):
-  """Initialize a TextSink.
-
-  Args:
-    file_path_prefix: The file path to write to. The files written will begin
-      with this prefix, followed by a shard identifier (see num_shards), and
-      end in a common extension, if given by file_name_suffix. In most cases,
-      only this argument is specified and num_shards, shard_name_template, and
-      file_name_suffix use default values.
-    append_trailing_newlines: indicate whether this sink should write an
-        additional newline char after writing each element.
-    file_name_suffix: Suffix for the files written.
-    num_shards: The number of files (shards) used for output. If not set, the
-      service will decide on the optimal number of shards.
-      Constraining the number of shards is likely to reduce
-      the performance of a pipeline.  Setting this value is not recommended
-      unless you require a specific number of output files.
-    shard_name_template: A template string containing placeholders for
-      the shard number and shard count. Currently only '' and
-      '-SSSSS-of-NNNNN' are patterns accepted by the service.
-      When constructing a filename for a particular shard number, the
-      upper-case letters 'S' and 'N' are replaced with the 0-padded shard
-      number and shard count respectively.  This argument can be '' in which
-      case it behaves as if num_shards was set to 1 and only one file will be
-      generated. The default pattern used is '-SSSSS-of-NNNNN'.
-    validate: Enable path validation on pipeline creation.
-    coder: Coder used to encode each line.
-
-  Raises:
-    TypeError: if file_path is not a string.
-    ValueError: if shard_name_template is not of expected format.
-
-  Returns:
-    A TextFileSink object usable for writing.
-  """
-  if not isinstance(file_path_prefix, basestring):
-    raise TypeError(
-        'TextFileSink: file_path_prefix must be a string; got %r instead' %
-        file_path_prefix)
-  if not isinstance(file_name_suffix, basestring):
-    raise TypeError(
-        'TextFileSink: file_name_suffix must be a string; got %r instead' %
-        file_name_suffix)
-  if shard_name_template not in (None, '', '-SSSSS-of-NNNNN'):
-    raise ValueError(
-        'The shard_name_template argument must be an empty string or the '
-        'pattern -SSSSS-of-NNNNN instead of %s' % shard_name_template)
-  if shard_name_template == '':  # pylint: disable=g-explicit-bool-comparison
-    num_shards = 1
-
-  if num_shards:
-    return NativeTextFileSink(file_path_prefix,
-                              append_trailing_newlines=append_trailing_newlines,
-                              file_name_suffix=file_name_suffix,
-                              num_shards=num_shards,
-                              shard_name_template=shard_name_template,
-                              validate=validate,
-                              coder=coder)
-  else:
-    return PureTextFileSink(file_path_prefix,
-                            append_trailing_newlines=append_trailing_newlines,
-                            file_name_suffix=file_name_suffix,
-                            coder=coder)
-
-
 class ChannelFactory(object):
   # TODO(robertwb): Generalize into extensible framework.
 
@@ -239,7 +170,7 @@ class ChannelFactory(object):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
       from google.cloud.dataflow.io import gcsio
-      return gcsio.GcsIO().open(path, mode, mime_type)
+      return gcsio.GcsIO().open(path, mode, mime_type=mime_type)
     else:
       return open(path, mode)
 
@@ -358,11 +289,19 @@ class FileSink(iobase.Sink):
                file_path_prefix,
                coder,
                file_name_suffix='',
+               num_shards=0,
+               shard_name_template=None,
                mime_type='application/octet-stream'):
+    if shard_name_template is None:
+      shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
+    elif shard_name_template is '':
+      num_shards = 1
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
+    self.num_shards = num_shards
     self.coder = coder
     self.mime_type = mime_type
+    self.shard_name_format = self._template_to_format(shard_name_template)
 
   def open(self, temp_path):
     """Opens ``temp_path``, returning an opaque file handle object.
@@ -410,8 +349,11 @@ class FileSink(iobase.Sink):
     # TODO(robertwb): Threadpool?
     channel_factory = ChannelFactory()
     for shard_num, shard in enumerate(writer_results):
-      final_name = '%s-%05d-of-%05d%s' % (self.file_path_prefix, shard_num,
-                                          num_shards, self.file_name_suffix)
+      final_name = ''.join([
+          self.file_path_prefix,
+          self.shard_name_format % dict(shard_num=shard_num,
+                                        num_shards=num_shards),
+          self.file_name_suffix])
       try:
         channel_factory.rename(shard, final_name)
       except IOError:
@@ -425,6 +367,22 @@ class FileSink(iobase.Sink):
     except IOError:
       # May have already been removed.
       pass
+
+  @staticmethod
+  def _template_to_format(shard_name_template):
+    if not shard_name_template:
+      return ''
+    m = re.search('S+', shard_name_template)
+    if m is None:
+      raise ValueError("Shard number pattern S+ not found in template '%s'"
+                       % shard_name_template)
+    shard_name_format = shard_name_template.replace(
+        m.group(0), '%%(shard_num)0%dd' % len(m.group(0)))
+    m = re.search('N+', shard_name_format)
+    if m:
+      shard_name_format = shard_name_format.replace(
+          m.group(0), '%%(num_shards)0%dd' % len(m.group(0)))
+    return shard_name_format
 
   def __eq__(self, other):
     # TODO(robertwb): Clean up workitem_test which uses this.
@@ -449,16 +407,19 @@ class FileSinkWriter(iobase.Writer):
     return self.temp_shard_path
 
 
-class PureTextFileSink(FileSink):
+class TextFileSink(FileSink):
   """A sink to a GCS or local text file or files."""
 
   def __init__(self,
                file_path_prefix,
                file_name_suffix='',
+               append_trailing_newlines=True,
+               num_shards=0,
+               shard_name_template=None,
                coder=coders.ToStringCoder(),
                compression_type=CompressionTypes.NO_COMPRESSION,
-               append_trailing_newlines=True):
-    """Initialize a PureTextFileSink.
+              ):
+    """Initialize a TextFileSink.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin
@@ -467,33 +428,57 @@ class PureTextFileSink(FileSink):
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
       file_name_suffix: Suffix for the files written.
-      coder: Coder used to encode each line.
-      compression_type: Type of compression to use for this sink.
       append_trailing_newlines: indicate whether this sink should write an
         additional newline char after writing each element.
+      num_shards: The number of files (shards) used for output. If not set, the
+        service will decide on the optimal number of shards.
+        Constraining the number of shards is likely to reduce
+        the performance of a pipeline.  Setting this value is not recommended
+        unless you require a specific number of output files.
+      shard_name_template: A template string containing placeholders for
+        the shard number and shard count. Currently only '' and
+        '-SSSSS-of-NNNNN' are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
+        number and shard count respectively.  This argument can be '' in which
+        case it behaves as if num_shards was set to 1 and only one file will be
+        generated. The default pattern used is '-SSSSS-of-NNNNN'.
+      coder: Coder used to encode each line.
+      compression_type: Type of compression to use for this sink.
 
     Raises:
-      TypeError: if file_path is not a string or if compression_type is not
-        member of CompressionTypes.
+      TypeError: if file path parameters are not a string or if compression_type
+        is not member of CompressionTypes.
+      ValueError: if shard_name_template is not of expected format.
 
     Returns:
-      A PureTextFileSink object usable for writing.
+      A TextFileSink object usable for writing.
     """
+    if not isinstance(file_path_prefix, basestring):
+      raise TypeError(
+          'TextFileSink: file_path_prefix must be a string; got %r instead' %
+          file_path_prefix)
+    if not isinstance(file_name_suffix, basestring):
+      raise TypeError(
+          'TextFileSink: file_name_suffix must be a string; got %r instead' %
+          file_name_suffix)
+
     if not CompressionTypes.valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
-
     if compression_type == CompressionTypes.DEFLATE:
       mime_type = 'application/x-gzip'
     else:
       mime_type = 'text/plain'
+
+    super(TextFileSink, self).__init__(file_path_prefix,
+                                       file_name_suffix=file_name_suffix,
+                                       num_shards=num_shards,
+                                       shard_name_template=shard_name_template,
+                                       coder=coder,
+                                       mime_type=mime_type)
+
     self.compression_type = compression_type
-
-    super(PureTextFileSink, self).__init__(file_path_prefix,
-                                           file_name_suffix=file_name_suffix,
-                                           coder=coder,
-                                           mime_type=mime_type)
-
     self.append_trailing_newlines = append_trailing_newlines
 
   def open(self, temp_path):

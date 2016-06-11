@@ -26,33 +26,22 @@ from google.cloud.dataflow.utils.options import PipelineOptions
 
 
 class _TestSink(iobase.Sink):
-  STATE_UNSTARTED, STATE_INITIALIZED, STATE_OPENED, STATE_FINALIZED = 0, 1, 2, 3
   TEST_INIT_RESULT = 'test_init_result'
 
   def __init__(self, return_init_result=True, return_write_results=True):
-    self.state = _TestSink.STATE_UNSTARTED
-    self.last_writer = None
     self.return_init_result = return_init_result
     self.return_write_results = return_write_results
 
   def initialize_write(self):
-    assert self.state == _TestSink.STATE_UNSTARTED
-    self.state = _TestSink.STATE_INITIALIZED
     if self.return_init_result:
       return _TestSink.TEST_INIT_RESULT
 
   def finalize_write(self, init_result, writer_results):
-    assert (self.state == _TestSink.STATE_OPENED or
-            self.state == _TestSink.STATE_INITIALIZED)
-    self.state = _TestSink.STATE_FINALIZED
     self.init_result_at_finalize = init_result
     self.write_results_at_finalize = writer_results
 
   def open_writer(self, init_result, uid):
-    assert self.state == _TestSink.STATE_INITIALIZED
-    self.state = _TestSink.STATE_OPENED
     writer = _TestWriter(init_result, uid, self.return_write_results)
-    self.last_writer = writer
     return writer
 
 
@@ -68,7 +57,8 @@ class _TestWriter(iobase.Writer):
     self.return_write_results = return_write_results
 
   def close(self):
-    assert self.state == _TestWriter.STATE_WRITTEN
+    assert self.state in (
+        _TestWriter.STATE_WRITTEN, _TestWriter.STATE_UNSTARTED)
     self.state = _TestWriter.STATE_CLOSED
     if self.return_write_results:
       return _TestWriter.TEST_WRITE_RESULT
@@ -114,23 +104,6 @@ class WriteTest(unittest.TestCase):
 
     sink = write_to_test_sink.last_sink
     self.assertIsNotNone(sink)
-
-    self.assertEqual(sink.state, _TestSink.STATE_FINALIZED)
-    if data:
-      self.assertIsNotNone(sink.last_writer)
-      self.assertEqual(sink.last_writer.state, _TestWriter.STATE_CLOSED)
-      self.assertEqual(sink.last_writer.write_output, data)
-      if return_init_result:
-        self.assertEqual(sink.last_writer.init_result,
-                         _TestSink.TEST_INIT_RESULT)
-        self.assertEqual(sink.init_result_at_finalize,
-                         _TestSink.TEST_INIT_RESULT)
-      self.assertIsNotNone(sink.last_writer.uid)
-      if return_write_results:
-        self.assertEqual(sink.write_results_at_finalize,
-                         [_TestWriter.TEST_WRITE_RESULT])
-    else:
-      self.assertIsNone(sink.last_writer)
 
   def test_write(self):
     self._run_write_test(WriteTest.DATA)

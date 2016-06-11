@@ -29,6 +29,7 @@ the sink.
 from collections import namedtuple
 
 import logging
+import random
 import uuid
 
 from google.cloud.dataflow import pvalue
@@ -988,21 +989,33 @@ class WriteImpl(ptransform.PTransform):
     self.sink = sink
 
   def apply(self, pcoll):
-    sink_coll = pcoll.pipeline | core.Create('create_sink_collection',
-                                             [self.sink])
-    init_result_coll = sink_coll | core.Map(
-        'initialize_write', lambda sink: sink.initialize_write())
-    write_result_coll = pcoll | core.ParDo(
-        'write_bundles', _WriteBundleDoFn(),
-        AsSingleton(sink_coll),
-        AsSingleton(init_result_coll))
-    return sink_coll | core.FlatMap(
+    do_once = pcoll.pipeline | core.Create('DoOnce', [None])
+    init_result_coll = do_once | core.Map(
+        'initialize_write', lambda _, sink: sink.initialize_write(), self.sink)
+    if getattr(self.sink, 'num_shards', 0):
+      min_shards = self.sink.num_shards
+      if min_shards == 1:
+        keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
+      else:
+        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(min_shards))
+      write_result_coll = (keyed_pcoll
+                           | core.WindowInto(window.GlobalWindows())
+                           | core.GroupByKey()
+                           | core.Map('write_bundles',
+                                      _write_keyed_bundle, self.sink,
+                                      AsSingleton(init_result_coll)))
+    else:
+      min_shards = 1
+      write_result_coll = pcoll | core.ParDo('write_bundles',
+                                             _WriteBundleDoFn(), self.sink,
+                                             AsSingleton(init_result_coll))
+    return do_once | core.FlatMap(
         'finalize_write',
-        lambda sink, init_result, write_results:
-        (window.TimestampedValue(v, window.MAX_TIMESTAMP)
-         for v in sink.finalize_write(init_result, write_results) or ()),
+        _finalize_write,
+        self.sink,
         AsSingleton(init_result_coll),
-        AsIter(write_result_coll))
+        AsIter(write_result_coll),
+        min_shards)
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -1022,3 +1035,39 @@ class _WriteBundleDoFn(core.DoFn):
   def finish_bundle(self, context, *args, **kwargs):
     if self.writer is not None:
       yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
+
+
+def _write_keyed_bundle(bundle, sink, init_result):
+  writer = sink.open_writer(init_result, str(uuid.uuid4()))
+  for element in bundle[1]:  # values
+    writer.write(element)
+  return window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)
+
+
+def _finalize_write(_, sink, init_result, write_results, min_shards):
+  write_results = list(write_results)
+  extra_shards = []
+  if len(write_results) < min_shards:
+    logging.debug(
+        'Creating %s empty shard(s).', min_shards - len(write_results))
+    for _ in range(min_shards - len(write_results)):
+      writer = sink.open_writer(init_result, str(uuid.uuid4()))
+      extra_shards.append(writer.close())
+  outputs = sink.finalize_write(init_result, write_results + extra_shards)
+  if outputs:
+    return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
+
+
+class _RoundRobinKeyFn(core.DoFn):
+
+  def __init__(self, count):
+    self.count = count
+
+  def start_bundle(self, context):
+    self.counter = random.randint(0, self.count - 1)
+
+  def process(self, context):
+    self.counter += 1
+    if self.counter >= self.count:
+      self.counter -= self.count
+    yield self.counter, context.element

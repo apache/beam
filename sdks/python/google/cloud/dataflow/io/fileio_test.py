@@ -21,6 +21,7 @@ import logging
 import tempfile
 import unittest
 
+import google.cloud.dataflow as df
 from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import fileio
 from google.cloud.dataflow.io import iobase
@@ -355,14 +356,14 @@ class TestPureTextFileSink(unittest.TestCase):
     sink.close(f)
 
   def test_write_text_file(self):
-    sink = fileio.PureTextFileSink(self.path)
+    sink = fileio.TextFileSink(self.path)
     self._write_lines(sink, self.lines)
 
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
   def test_write_gzip_file(self):
-    sink = fileio.PureTextFileSink(
+    sink = fileio.TextFileSink(
         self.path, compression_type=fileio.CompressionTypes.DEFLATE)
     self._write_lines(sink, self.lines)
 
@@ -373,7 +374,9 @@ class TestPureTextFileSink(unittest.TestCase):
 class MyFileSink(fileio.FileSink):
 
   def open(self, temp_path):
-    file_handle = super(MyFileSink, self).open(temp_path)
+    # TODO(robertwb): Fix main session pickling.
+    # file_handle = super(MyFileSink, self).open(temp_path)
+    file_handle = fileio.FileSink.open(self, temp_path)
     file_handle.write('[start]')
     return file_handle
 
@@ -384,7 +387,9 @@ class MyFileSink(fileio.FileSink):
 
   def close(self, file_handle):
     file_handle.write('[end]')
-    file_handle = super(MyFileSink, self).close(file_handle)
+    # TODO(robertwb): Fix main session pickling.
+    # file_handle = super(MyFileSink, self).close(file_handle)
+    file_handle = fileio.FileSink.close(self, file_handle)
 
 
 class TestFileSink(unittest.TestCase):
@@ -423,6 +428,34 @@ class TestFileSink(unittest.TestCase):
     # Check that any temp files are deleted.
     self.assertEqual([shard1, shard2], sorted(glob.glob(temp_path + '*')))
 
+  def test_empty_write(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(temp_path,
+                      file_name_suffix='.foo',
+                      coder=coders.ToStringCoder())
+    p = df.Pipeline('DirectPipelineRunner')
+    p | df.Create([]) | df.io.Write(sink)  # pylint: disable=expression-not-assigned
+    p.run()
+
+    self.assertEqual(open(temp_path + '-00000-of-00001.foo').read(),
+                     '[start][end]')
+
+  def test_fixed_shard_write(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(temp_path,
+                      file_name_suffix='.foo',
+                      num_shards=3,
+                      shard_name_template='_NN_SSS_',
+                      coder=coders.ToStringCoder())
+    p = df.Pipeline('DirectPipelineRunner')
+    p | df.Create(['a', 'b']) | df.io.Write(sink)  # pylint: disable=expression-not-assigned
+
+    p.run()
+
+    concat = ''.join(open(temp_path + '_03_%03d_.foo' % shard_num).read()
+                     for shard_num in range(3))
+    self.assertTrue('][a][' in concat, concat)
+    self.assertTrue('][b][' in concat, concat)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
