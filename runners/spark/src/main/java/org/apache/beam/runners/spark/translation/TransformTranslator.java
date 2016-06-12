@@ -81,6 +81,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -287,7 +288,7 @@ public final class TransformTranslator {
                 new PairFlatMapFunction<WindowedValue<KV<K, InputT>>, WindowedValue<K>,
                     WindowedValue<KV<K, InputT>>>() {
                   @Override
-                  public Iterable<Tuple2<WindowedValue<K>,
+                  public Iterator<Tuple2<WindowedValue<K>,
                       WindowedValue<KV<K, InputT>>>>
                   call(WindowedValue<KV<K, InputT>> kv) {
                       List<Tuple2<WindowedValue<K>,
@@ -298,7 +299,7 @@ public final class TransformTranslator {
                             boundedWindow.maxTimestamp(), boundedWindow, kv.getPane());
                         tuple2s.add(new Tuple2<>(wk, kv));
                       }
-                    return tuple2s;
+                    return tuple2s.iterator();
                   }
                 });
         //-- windowed coders

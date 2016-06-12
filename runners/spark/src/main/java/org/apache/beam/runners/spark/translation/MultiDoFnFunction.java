@@ -62,12 +62,12 @@ class MultiDoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>>
+  public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>>
       call(Iterator<WindowedValue<InputT>> iter) throws Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     mFunction.startBundle(ctxt);
     ctxt.setup();
-    return ctxt.getOutputIterable(iter, mFunction);
+    return ctxt.getOutputIterable(iter, mFunction).iterator();
   }
 
   private class ProcCtxt

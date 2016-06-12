@@ -57,12 +57,12 @@ public class DoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public Iterable<WindowedValue<OutputT>> call(Iterator<WindowedValue<InputT>> iter) throws
+  public Iterator<WindowedValue<OutputT>> call(Iterator<WindowedValue<InputT>> iter) throws
       Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     ctxt.setup();
     mFunction.startBundle(ctxt);
-    return ctxt.getOutputIterable(iter, mFunction);
+    return ctxt.getOutputIterable(iter, mFunction).iterator();
   }
 
   private class ProcCtxt extends SparkProcessContext<InputT, OutputT, WindowedValue<OutputT>> {

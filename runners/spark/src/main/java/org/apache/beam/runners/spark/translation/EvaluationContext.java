@@ -44,6 +44,8 @@ import com.google.common.collect.Iterables;
 
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -56,6 +58,8 @@ import java.util.Set;
  * Evaluation context allows us to define how pipeline instructions.
  */
 public class EvaluationContext implements EvaluationResult {
+  protected static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
+
   private final JavaSparkContext jsc;
   private final Pipeline pipeline;
   private final SparkRuntimeContext runtime;

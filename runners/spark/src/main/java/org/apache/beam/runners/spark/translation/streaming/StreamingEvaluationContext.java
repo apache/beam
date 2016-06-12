@@ -160,10 +160,14 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   @Override
   public void close() {
-    if (timeout > 0) {
-      jssc.awaitTerminationOrTimeout(timeout);
-    } else {
-      jssc.awaitTermination();
+    try {
+      if (timeout > 0) {
+        jssc.awaitTerminationOrTimeout(timeout);
+      } else {
+        jssc.awaitTermination();
+      }
+    } catch (InterruptedException e) {
+      LOG.error("Failed to wait for Spark streaming execution to stop.", e);
     }
     //TODO: stop gracefully ?
     jssc.stop(false, false);

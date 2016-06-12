@@ -34,7 +34,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <spark.version>1.6.2</spark.version>
+    <spark.version>2.0.0-SNAPSHOT</spark.version>
     <hadoop.version>2.2.0</hadoop.version>
     <kafka.version>0.8.2.1</kafka.version>
   </properties>
@@ -96,15 +96,16 @@
   </profiles>
 
   <dependencies>
+    <!-- streaming dependency for as long as DStream is used-->
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_2.10</artifactId>
+      <artifactId>spark-streaming_2.10</artifactId>
       <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-streaming_2.10</artifactId>
+      <artifactId>spark-sql_2.11</artifactId>
       <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
