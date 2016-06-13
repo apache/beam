@@ -584,15 +584,7 @@ public class PAssert {
     public PDone apply(PCollection<T> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<T>())
-          .apply(
-              "RunChecks",
-              ParDo.of(
-                  new DoFn<Iterable<T>, Void>() {
-                    @Override
-                    public void processElement(ProcessContext context) {
-                      checkerFn.apply(context.element());
-                    }
-                  }));
+          .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn)));
 
       return PDone.in(input.getPipeline());
     }
@@ -614,15 +606,7 @@ public class PAssert {
     public PDone apply(PCollection<Iterable<T>> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<Iterable<T>>())
-          .apply(
-              "RunChecks",
-              ParDo.of(
-                  new DoFn<Iterable<Iterable<T>>, Void>() {
-                    @Override
-                    public void processElement(ProcessContext context) {
-                      checkerFn.apply(Iterables.getOnlyElement(context.element()));
-                    }
-                  }));
+          .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn)));
 
       return PDone.in(input.getPipeline());
     }
@@ -659,7 +643,7 @@ public class PAssert {
           .apply(
               ParDo.named("RunChecks")
                   .withSideInputs(actual)
-                  .of(new CheckerDoFn<>(checkerFn, actual)));
+                  .of(new SideInputCheckerDoFn<>(checkerFn, actual)));
 
       return PDone.in(input.getPipeline());
     }
@@ -672,7 +656,7 @@ public class PAssert {
    * <p>The input is ignored, but is {@link Integer} to be usable on runners that do not support
    * null values.
    */
-  private static class CheckerDoFn<ActualT> extends DoFn<Integer, Void> {
+  private static class SideInputCheckerDoFn<ActualT> extends DoFn<Integer, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
         createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
@@ -680,7 +664,7 @@ public class PAssert {
         createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
     private final PCollectionView<ActualT> actual;
 
-    private CheckerDoFn(
+    private SideInputCheckerDoFn(
         SerializableFunction<ActualT, Void> checkerFn, PCollectionView<ActualT> actual) {
       this.checkerFn = checkerFn;
       this.actual = actual;
@@ -690,16 +674,92 @@ public class PAssert {
     public void processElement(ProcessContext c) {
       try {
         ActualT actualContents = c.sideInput(actual);
-        checkerFn.apply(actualContents);
-        success.addValue(1);
+        doChecks(actualContents, checkerFn, success, failure);
       } catch (Throwable t) {
-        LOG.error("PAssert failed expectations.", t);
-        failure.addValue(1);
-        // TODO: allow for metrics to propagate on failure when running a streaming pipeline
+        // Suppress exception in streaming
         if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
           throw t;
         }
       }
+    }
+  }
+
+  /**
+   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
+   * the single iterable element of the input {@link PCollection} and adjusts counters and
+   * thrown exceptions for use in testing.
+   *
+   * <p>The singleton property is presumed, not enforced.
+   */
+  private static class GroupedValuesCheckerDoFn<ActualT> extends DoFn<ActualT, Void> {
+    private final SerializableFunction<ActualT, Void> checkerFn;
+    private final Aggregator<Integer, Integer> success =
+        createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+    private final Aggregator<Integer, Integer> failure =
+        createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+
+    private GroupedValuesCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
+      this.checkerFn = checkerFn;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) {
+      try {
+        doChecks(c.element(), checkerFn, success, failure);
+      } catch (Throwable t) {
+        // Suppress exception in streaming
+        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
+          throw t;
+        }
+      }
+    }
+  }
+
+  /**
+   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
+   * the single item contained within the single iterable on input and
+   * adjusts counters and thrown exceptions for use in testing.
+   *
+   * <p>The singleton property of the input {@link PCollection} is presumed, not enforced. However,
+   * each input element must be a singleton iterable, or this will fail.
+   */
+  private static class SingletonCheckerDoFn<ActualT> extends DoFn<Iterable<ActualT>, Void> {
+    private final SerializableFunction<ActualT, Void> checkerFn;
+    private final Aggregator<Integer, Integer> success =
+        createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+    private final Aggregator<Integer, Integer> failure =
+        createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+
+    private SingletonCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
+      this.checkerFn = checkerFn;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) {
+      try {
+        ActualT actualContents = Iterables.getOnlyElement(c.element());
+        doChecks(actualContents, checkerFn, success, failure);
+      } catch (Throwable t) {
+        // Suppress exception in streaming
+        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
+          throw t;
+        }
+      }
+    }
+  }
+
+  private static <ActualT> void doChecks(
+      ActualT actualContents,
+      SerializableFunction<ActualT, Void> checkerFn,
+      Aggregator<Integer, Integer> successAggregator,
+      Aggregator<Integer, Integer> failureAggregator) {
+    try {
+      checkerFn.apply(actualContents);
+      successAggregator.addValue(1);
+    } catch (Throwable t) {
+      LOG.error("PAssert failed expectations.", t);
+      failureAggregator.addValue(1);
+      throw t;
     }
   }
 
