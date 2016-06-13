@@ -66,10 +66,10 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   void setDefaultWorkerLogLevel(Level level);
 
   /**
-   * Controls the log level given to messages printed to System.out.
+   * Controls the log level given to messages printed to {@code System.out}.
    *
    * <p>Note that the message may be filtered depending on the
-   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a 'System.out' override is
+   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a {@code System.out} override is
    * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
    */
   @Description("Controls the log level given to messages printed to System.out. Note that the "
@@ -80,10 +80,10 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   void setWorkerSystemOutMessageLevel(Level level);
 
   /**
-   * Controls the log level given to messages printed to System.err.
+   * Controls the log level given to messages printed to {@code System.err}.
    *
    * <p>Note that the message may be filtered depending on the
-   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a 'System.err' override is
+   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a {@code System.err} override is
    * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
    */
   @Description("Controls the log level given to messages printed to System.err. Note that the "
@@ -131,9 +131,9 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    *    <li>for {@code Foo} and {@code Bar} by specifying both of their names or classes.
    * </ul>
    *
-   * <p>System.out and System.err messages are configured via loggers of the corresponding name.
-   * Note that by specifying multiple overrides, the exact name followed by the closest parent takes
-   * precedence.
+   * <p>{@code System.out} and {@code System.err} messages are configured via loggers of the
+   * corresponding name. Note that by specifying multiple overrides, the exact name followed by the
+   * closest parent takes precedence.
    */
   public static class WorkerLogLevelOverrides extends HashMap<String, Level> {
     /**
