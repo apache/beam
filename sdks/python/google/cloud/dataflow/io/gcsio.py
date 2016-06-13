@@ -57,7 +57,6 @@ def parse_gcs_path(gcs_path):
 
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
-  _instance = None
 
   def __new__(cls, storage_client=None):
     if storage_client:
