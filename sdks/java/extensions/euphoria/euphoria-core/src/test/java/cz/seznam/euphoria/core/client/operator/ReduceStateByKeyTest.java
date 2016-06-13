@@ -249,7 +249,7 @@ public class ReduceStateByKeyTest {
 
 
   /**
-   * Simple aggregating state
+   * Simple aggregating state.
    */
   private static class WordCountState extends State<Long, Long> {
 

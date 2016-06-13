@@ -91,7 +91,6 @@ public class BasicOperatorTest {
 
     @SuppressWarnings("unchecked")
     List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
-//    System.out.println(f);
 
     // ~ assert the total amount of data produced
     assertEquals(7, f.size());
@@ -218,7 +217,6 @@ public class BasicOperatorTest {
 
     @SuppressWarnings("unchecked")
     List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
-//    System.out.println(f);
 
     // ~ assert the total amount of data produced
     assertEquals(7, f.size());
@@ -269,7 +267,6 @@ public class BasicOperatorTest {
     executor.waitForCompletion(flow);
 
     assertNotNull(output.getOutput(0));
-//    System.out.println(output.getOutput(0));
 
     assertEquals(8, output.getOutput(0).size());
     // ~ first 6 input elements processed
@@ -309,7 +306,6 @@ public class BasicOperatorTest {
     executor.waitForCompletion(flow);
 
     assertNotNull(output.getOutput(0));
-//    System.out.println(output.getOutput(0));
 
     assertEquals(8, output.getOutput(0).size());
     // ~ first 6 input elements processed

@@ -49,8 +49,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
 
   public static class ByBuilder<LEFT, RIGHT> {
     private final String name;
-    private Dataset<LEFT> left;
-    private Dataset<RIGHT> right;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
 
     ByBuilder(String name, Dataset<LEFT> left, Dataset<RIGHT> right) {
       this.name = Objects.requireNonNull(name);
