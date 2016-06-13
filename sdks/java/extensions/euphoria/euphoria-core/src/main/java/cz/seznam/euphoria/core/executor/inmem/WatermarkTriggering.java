@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Trigger;
