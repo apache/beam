@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import glob
 import gzip
 import logging
+from multiprocessing.pool import ThreadPool
 import os
 import re
 import shutil
@@ -285,6 +286,13 @@ class FileSink(iobase.Sink):
   The output of this write is a PCollection of all written shards.
   """
 
+  # Approximate number of write results be assigned for each rename thread.
+  _WRITE_RESULTS_PER_RENAME_THREAD = 100
+
+  # Max number of threads to be used for renaming even if it means each thread
+  # will process more write results.
+  _MAX_RENAME_THREADS = 64
+
   def __init__(self,
                file_path_prefix,
                coder,
@@ -346,22 +354,56 @@ class FileSink(iobase.Sink):
   def finalize_write(self, init_result, writer_results):
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
-    # TODO(robertwb): Threadpool?
     channel_factory = ChannelFactory()
+    num_threads = max(1, min(
+        num_shards / FileSink._WRITE_RESULTS_PER_RENAME_THREAD,
+        FileSink._MAX_RENAME_THREADS))
+
+    rename_ops = []
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
           self.file_path_prefix,
           self.shard_name_format % dict(shard_num=shard_num,
                                         num_shards=num_shards),
           self.file_name_suffix])
+      rename_ops.append((shard, final_name))
+
+    logging.info(
+        'Starting finalize_write threads with num_shards: %d, num_threads: %d',
+        num_shards, num_threads)
+    start_time = time.time()
+
+    # Use a thread pool for renaming operations.
+    def _rename_file(rename_op):
+      """_rename_file executes single (old_name, new_name) rename operation."""
+      old_name, final_name = rename_op
       try:
-        channel_factory.rename(shard, final_name)
-      except IOError:
+        channel_factory.rename(old_name, final_name)
+      except IOError as e:
         # May have already been copied.
-        print shard, final_name, os.path.exists(final_name)
-        if not channel_factory.exists(final_name):
-          raise
-      yield final_name
+        exists = channel_factory.exists(final_name)
+        if not exists:
+          logging.warning(('IOError in _rename_file. old_name: %s, '
+                           'final_name: %s, err: %s'), old_name, final_name, e)
+          return(None, e)
+      except Exception as e:  # pylint: disable=broad-except
+        logging.warning(('Exception in _rename_file. old_name: %s, '
+                         'final_name: %s, err: %s'), old_name, final_name, e)
+        return(None, e)
+      return (final_name, None)
+
+    rename_results = ThreadPool(num_threads).map(_rename_file, rename_ops)
+
+    for final_name, err in rename_results:
+      if err:
+        logging.warning('Error when processing rename_results: %s', err)
+        raise err
+      else:
+        yield final_name
+
+    logging.info('Renamed %d shards in %.2f seconds.',
+                 num_shards, time.time() - start_time)
+
     try:
       channel_factory.rmdir(init_result)
     except IOError:

@@ -18,6 +18,7 @@
 import glob
 import gzip
 import logging
+import os
 import tempfile
 import unittest
 
@@ -426,7 +427,7 @@ class TestFileSink(unittest.TestCase):
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
 
     # Check that any temp files are deleted.
-    self.assertEqual([shard1, shard2], sorted(glob.glob(temp_path + '*')))
+    self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
@@ -436,7 +437,6 @@ class TestFileSink(unittest.TestCase):
     p = df.Pipeline('DirectPipelineRunner')
     p | df.Create([]) | df.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
-
     self.assertEqual(open(temp_path + '-00000-of-00001.foo').read(),
                      '[start][end]')
 
@@ -456,6 +456,66 @@ class TestFileSink(unittest.TestCase):
                      for shard_num in range(3))
     self.assertTrue('][a][' in concat, concat)
     self.assertTrue('][b][' in concat, concat)
+
+  def test_file_sink_multi_shards(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(temp_path,
+                      file_name_suffix='.foo',
+                      coder=coders.ToStringCoder())
+
+    # Manually invoke the generic Sink API.
+    init_token = sink.initialize_write()
+
+    num_shards = 1000
+    writer_results = []
+    for i in range(num_shards):
+      uuid = 'uuid-%05d' % i
+      writer = sink.open_writer(init_token, uuid)
+      writer.write('a')
+      writer.write('b')
+      writer.write(uuid)
+      writer_results.append(writer.close())
+
+    res_first = list(sink.finalize_write(init_token, writer_results))
+    # Retry the finalize operation (as if the first attempt was lost).
+    res_second = list(sink.finalize_write(init_token, writer_results))
+
+    self.assertItemsEqual(res_first, res_second)
+
+    res = sorted(res_second)
+    for i in range(num_shards):
+      shard_name = '%s-%05d-of-%05d.foo' % (temp_path, i, num_shards)
+      uuid = 'uuid-%05d' % i
+      self.assertEqual(res[i], shard_name)
+      self.assertEqual(
+          open(shard_name).read(), ('[start][a][b][%s][end]' % uuid))
+
+    # Check that any temp files are deleted.
+    self.assertItemsEqual(res, glob.glob(temp_path + '*'))
+
+  def test_file_sink_io_error(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(temp_path,
+                      file_name_suffix='.foo',
+                      coder=coders.ToStringCoder())
+
+    # Manually invoke the generic Sink API.
+    init_token = sink.initialize_write()
+
+    writer1 = sink.open_writer(init_token, '1')
+    writer1.write('a')
+    writer1.write('b')
+    res1 = writer1.close()
+
+    writer2 = sink.open_writer(init_token, '2')
+    writer2.write('x')
+    writer2.write('y')
+    writer2.write('z')
+    res2 = writer2.close()
+
+    os.remove(res2)
+    with self.assertRaises(IOError):
+      list(sink.finalize_write(init_token, [res1, res2]))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
