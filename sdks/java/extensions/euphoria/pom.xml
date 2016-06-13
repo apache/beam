@@ -71,6 +71,7 @@
 
   <modules>
     <module>euphoria-core</module>
+    <module>euphoria-fluent</module>
     <module>euphoria-kafka</module>
     <module>euphoria-hadoop</module>
     <module>euphoria-testapps</module>
@@ -324,7 +325,7 @@
         <configuration>
           <forkCount>1</forkCount>
           <threadCount>1</threadCount>
-          <runOrder>alphabetical</runOrder>
+          <runOrder>hourly</runOrder>
           <argLine>-Xmx512m</argLine>
         </configuration>
       </plugin>
