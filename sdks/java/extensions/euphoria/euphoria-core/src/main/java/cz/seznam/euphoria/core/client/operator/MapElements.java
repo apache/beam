@@ -36,7 +36,8 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
   }
 
-  public static class OutputBuilder<IN, OUT> implements OutputProvider<OUT> {
+  public static class OutputBuilder<IN, OUT>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, OUT> mapper;

@@ -7,7 +7,7 @@ import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
-import cz.seznam.euphoria.core.client.operator.OutputProvider;
+import cz.seznam.euphoria.core.client.operator.OutputBuilder;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.Executor;
@@ -28,13 +28,13 @@ public class Dataset<T> {
 
   public <S> Dataset<S>
   apply(UnaryFunction<cz.seznam.euphoria.core.client.dataset.Dataset<T>,
-          OutputProvider<S>> output)
+      OutputBuilder<S>> output)
   {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
   }
 
   public Dataset<T> repartition(Partitioner<T> partitioner) {
-    return new Dataset<>(Repartition.of(this.wrap)
+    return new Dataset<>(Repartition.of(wrap)
         .setPartitioner(requireNonNull(partitioner))
         .output());
   }

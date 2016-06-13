@@ -35,7 +35,7 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
   public static class Builder2<IN> implements
           ByBuilder<IN>,
           OutputBuilder<IN>,
-          OutputProvider<IN>
+      cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
   {
     private final String name;
     private final Dataset<IN> input;

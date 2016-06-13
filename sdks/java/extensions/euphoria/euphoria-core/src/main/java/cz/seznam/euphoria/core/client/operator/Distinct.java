@@ -35,7 +35,7 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
 
   public static class WindowingBuilder<IN>
           extends PartitioningBuilder<IN, WindowingBuilder<IN>>
-          implements OutputProvider<IN>
+          implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -58,7 +58,7 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
   }
 
   public static class OutputBuilder<IN, WLABEL, W extends Window<?, WLABEL>>
-      implements OutputProvider<IN>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
   {
     private final WindowingBuilder<IN> prev;
     private final Windowing<IN, ?, WLABEL, W> windowing;

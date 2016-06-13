@@ -47,7 +47,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
   }
   public static class ByBuilder2<IN, KEY>
       extends PartitioningBuilder<KEY, ByBuilder2<IN, KEY>>
-      implements OutputProvider<Pair<KEY, Long>>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, Long>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -81,7 +81,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
   }
   public static class OutputBuilder<IN, KEY, WLABEL, W extends Window<?, WLABEL>>
       extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, WLABEL, W>>
-      implements OutputProvider<Pair<KEY, Long>>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, Long>>
   {
     private final String name;
     private final Dataset<IN> input;

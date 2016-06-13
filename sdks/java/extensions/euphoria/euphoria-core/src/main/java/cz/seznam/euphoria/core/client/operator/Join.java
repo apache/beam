@@ -28,7 +28,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
     Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, PAIROUT>>
-    implements OutputProvider<PAIROUT>
+    implements OutputBuilder<PAIROUT>
 {
 
   public static class OfBuilder {
@@ -99,7 +99,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
       extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
-      implements OutputProvider<Pair<KEY, OUT>>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<LEFT> left;
@@ -149,7 +149,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
 
   public static class OutputBuilder<
       LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>>
-      implements OutputProvider<Pair<KEY, OUT>>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>>
   {
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
     private final Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
