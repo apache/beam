@@ -32,9 +32,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.common.base.Strings;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -176,9 +179,10 @@ public class WordCount {
     public static class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
-        if (options.getTempLocation() != null) {
-          return GcsPath.fromUri(options.getTempLocation())
-              .resolve("counts.txt").toString();
+        String tempLocation = options.getTempLocation();
+        if (!Strings.isNullOrEmpty(tempLocation)) {
+          OChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+          return factory.resolve("counts.txt");
         } else {
           throw new IllegalArgumentException("Must specify --output or --tempLocation");
         }
