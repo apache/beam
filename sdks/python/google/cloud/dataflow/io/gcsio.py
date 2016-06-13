@@ -55,6 +55,11 @@ def parse_gcs_path(gcs_path):
   return match.group(1), match.group(2)
 
 
+class GcsIOError(IOError, retry.PermanentException):
+  """GCS IO error that should not be retried."""
+  pass
+
+
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
 
@@ -168,7 +173,15 @@ class GcsIO(object):
                                                 sourceObject=src_path,
                                                 destinationBucket=dest_bucket,
                                                 destinationObject=dest_path)
-    self.client.objects.Copy(request)
+    try:
+      self.client.objects.Copy(request)
+    except HttpError as http_error:
+      if http_error.status_code == 404:
+        # This is a permanent error that should not be retried.  Note that
+        # FileSink.finalize_write expects an IOError when the source file does
+        # not exist.
+        raise GcsIOError(errno.ENOENT, 'Source file not found: %s' % src)
+      raise
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations

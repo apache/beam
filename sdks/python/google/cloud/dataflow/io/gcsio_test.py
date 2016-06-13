@@ -109,7 +109,9 @@ class FakeGcsObjects(object):
   def Copy(self, copy_request):  # pylint: disable=invalid-name
     src_file = self.get_file(copy_request.sourceBucket,
                              copy_request.sourceObject)
-    assert src_file is not None
+    if not src_file:
+      raise HttpError(httplib2.Response({'status': '404'}), '404 Not Found',
+                      'https://fake/url')
     generation = self.get_last_generation(copy_request.destinationBucket,
                                           copy_request.destinationObject) + 1
     dest_file = FakeFile(copy_request.destinationBucket,
@@ -218,6 +220,10 @@ class TestGCSIO(unittest.TestCase):
                     self.client.objects.files)
     self.assertTrue(gcsio.parse_gcs_path(dest_file_name) in
                     self.client.objects.files)
+
+    self.assertRaises(IOError, self.gcs.copy,
+                      'gs://gcsio-test/non-existent',
+                      'gs://gcsio-test/non-existent-destination')
 
   def test_copytree(self):
     src_dir_name = 'gs://gcsio-test/source/'
