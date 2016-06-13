@@ -103,8 +103,7 @@ public class WatermarkTriggering implements Triggering {
   }
 
   private void readObject(ObjectInputStream stream)
-      throws IOException, ClassNotFoundException
-  {
+      throws IOException, ClassNotFoundException {
     stream.defaultReadObject();
     this.timer = new Timer();
     this.activeTriggers = new HashMap<>();
