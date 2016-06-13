@@ -759,6 +759,8 @@ public class KafkaIO {
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
+    // how long to wait for new records from kafka consumer inside start()
+    private static final Duration START_NEW_RECORDS_POLL_TIMEOUT = Duration.standardSeconds(5);
     // how long to wait for new records from kafka consumer inside advance()
     private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
 
@@ -891,12 +893,12 @@ public class KafkaIO {
       LOG.info("{}: Returning from consumer pool loop", this);
     }
 
-    private void nextBatch() {
+    private void nextBatch(Duration timeout) {
       curBatch = Collections.emptyIterator();
 
       ConsumerRecords<byte[], byte[]> records;
       try {
-        records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
+        records = availableRecordsQueue.poll(timeout.getMillis(),
                                              TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -965,6 +967,9 @@ public class KafkaIO {
             }
           }, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
+      // Wait for longer than normal when fetching a batch to improve chances a record is available
+      // when start() returns.
+      nextBatch(START_NEW_RECORDS_POLL_TIMEOUT);
       return advance();
     }
 
@@ -1028,7 +1033,7 @@ public class KafkaIO {
           return true;
 
         } else { // -- (b)
-          nextBatch();
+          nextBatch(NEW_RECORDS_POLL_TIMEOUT);
 
           if (!curBatch.hasNext()) {
             return false;
