@@ -226,14 +226,20 @@ public class WindowingTest {
     executor.waitForCompletion(flow);
 
     assertNotNull(output.getOutput(0));
-    System.out.println("output.getOutput(0): " + output.getOutput(0));
-
     assertEquals(3, output.getOutput(0).size());
+    output.getOutput(0).forEach(x -> {
+      assertNotNull(x);
+      assertNotNull(x.getFirst());
+      assertNotNull(x.getSecond());
+      assertNotNull(x.getSecond().getFirst());
+      assertNotNull(x.getSecond().getSecond());
+    });
     List<Pair<Long, Pair<String, Set<String>>>> ordered =
         output.getOutput(0)
             .stream()
             .sorted(Comparator.comparing(Pair::getFirst))
             .collect(Collectors.toList());
+    assertEquals(3, ordered.size());
     // ~ if no threads got blocked (e.g. system overload) we shall receive at
     // output element approx. every 3*READ_DELAY_MS (READ_DELAY_MS for every read
     // element from the input source times window-of-3-items) except for the very
