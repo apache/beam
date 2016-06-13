@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -416,6 +417,7 @@ public class AutoComplete {
    */
   private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input text file")
+    @Validation.Required
     String getInputFile();
     void setInputFile(String value);
 
@@ -494,7 +496,9 @@ public class AutoComplete {
                .to(tableRef)
                .withSchema(FormatForBigquery.getSchema())
                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-               .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+               .withWriteDisposition(options.isStreaming()
+                   ? BigQueryIO.Write.WriteDisposition.WRITE_APPEND
+                   : BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     }
 
     // Run the pipeline.
