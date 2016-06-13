@@ -40,11 +40,11 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -978,7 +978,6 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  @Ignore("TODO: Help Text")
   public void testSpecificHelpAsArgument() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
@@ -994,7 +993,6 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  @Ignore("TODO: Help Text")
   public void testSpecificHelpAsArgumentWithSimpleClassName() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
@@ -1010,7 +1008,6 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  @Ignore("TODO: Help text")
   public void testSpecificHelpAsArgumentWithClassNameSuffix() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
@@ -1108,7 +1105,6 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  @Ignore("Going to fix last - default runner is difficult")
   public void testProgrammaticPrintHelpForSpecificType() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PipelineOptionsFactory.printHelp(new PrintStream(baos), PipelineOptions.class);
