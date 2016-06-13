@@ -108,7 +108,7 @@ public class StdoutSink<T> implements DataSink<T> {
   private final boolean debug;
   private final String discriminator;
 
-  StdoutSink(boolean debug, String discriminator) {
+  public StdoutSink(boolean debug, String discriminator) {
     this.debug = debug;
     this.discriminator = discriminator;
   }

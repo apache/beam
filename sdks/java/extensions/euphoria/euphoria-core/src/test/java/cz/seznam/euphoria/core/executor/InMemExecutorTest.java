@@ -394,7 +394,7 @@ public class InMemExecutorTest {
 
     @Override
     public Integer getLabel() {
-      return System.identityHashCode(this);
+      return hashCode();
     }
 
     @Override
