@@ -269,15 +269,17 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       return wRegistry.getAllWindowsList(windowGroup);
     }
 
-    public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
+    boolean mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
       // ~ make sure 'mergeWindow' does exist
       WindowStorage ws = getOrCreateWindowStorage(mergeWindow, true);
       if (ws == null) {
         LOG.warn("No window storage for {}; potentially the triggering discarded it!",
             mergeWindow);
         wRegistry.removeWindow(mergeWindow.getGroup(), mergeWindow.getLabel());
-        // XXX should drop the "toBeMerged" windows as well? i think so
-        return;
+        for (Window w : toBeMerged) {
+          wRegistry.removeWindow(w.getGroup(), w.getLabel());
+        }
+        return false;
       }
 
       for (Window toMerge : toBeMerged) {
@@ -294,6 +296,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           mergeWindowKeyStates(toMergeState.getKeyStates(), ws.getKeyStates(), ws.getWindow());
         }
       }
+
+      return true;
     }
 
     private void mergeWindowKeyStates(
@@ -510,8 +514,9 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
               = mwindowing.mergeWindows(actives);
           if (merges != null && !merges.isEmpty()) {
             for (Pair<Collection<Window>, Window> merge : merges) {
-              processing.mergeWindows(merge.getFirst(), merge.getSecond());
-              if (mwindowing.isComplete(merge.getSecond())) {
+              boolean merged = processing.mergeWindows(
+                  merge.getFirst(), merge.getSecond());
+              if (merged && mwindowing.isComplete(merge.getSecond())) {
                 toEvict = new ArrayList<>();
                 toEvict.add(merge.getSecond());
               }
