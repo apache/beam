@@ -11,7 +11,7 @@ import java.util.Objects;
 /**
  * Union of two datasets of same type.
  */
-public class Union<IN> extends Operator<IN, IN> implements OutputProvider<IN> {
+public class Union<IN> extends Operator<IN, IN> implements OutputBuilder<IN> {
 
   public static class OfBuilder {
     private final String name;
@@ -30,7 +30,8 @@ public class Union<IN> extends Operator<IN, IN> implements OutputProvider<IN> {
     }
   }
 
-  public static class OutputBuilder<IN> implements OutputProvider<IN> {
+  public static class OutputBuilder<IN>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN> {
     private final String name;
     private final Dataset<IN> left;
     private final Dataset<IN> right;
