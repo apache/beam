@@ -201,8 +201,8 @@ import javax.annotation.Nullable;
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
- * empty. Note that the dataset being written to must already exist. Write
- * dispositions are not supported in streaming mode.
+ * empty. Note that the dataset being written to must already exist. Unbounded PCollections can only
+ * be written using {@link WriteDisposition#WRITE_EMPTY} or {@link WriteDisposition#WRITE_APPEND}.
  *
  * <h3>Sharding BigQuery output tables</h3>
  * <p>A common use case is to dynamically generate BigQuery table names based on
@@ -1674,7 +1674,7 @@ public class BigQueryIO {
           }
         }
 
-        if (options.isStreaming() || tableRefFunction != null) {
+        if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefFunction != null) {
           // We will use BigQuery's streaming write API -- validate supported dispositions.
           checkArgument(
               createDisposition != CreateDisposition.CREATE_NEVER,
