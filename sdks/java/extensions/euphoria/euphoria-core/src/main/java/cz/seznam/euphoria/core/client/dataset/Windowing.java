@@ -336,7 +336,13 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
         return (int) (startTime ^ (startTime >>> Integer.SIZE));
       }
 
-
+      @Override
+      public String toString() {
+        return "SlidingWindow{" +
+            "startTime=" + startTime +
+            ", duration=" + duration +
+            '}';
+      }
     }
 
     public static <T> TimeSliding<T> of(long duration, long step) {
@@ -372,6 +378,14 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
 
+    @Override
+    public String toString() {
+      return "TimeSliding{" +
+          "duration=" + duration +
+          ", step=" + step +
+          ", stepsPerWindow=" + stepsPerWindow +
+          '}';
+    }
   }
 
   Set<W> assignWindows(T input);
