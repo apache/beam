@@ -49,7 +49,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
     public void flush() {
       Collections.sort(data);
       for (Integer i : data) {
-        this.collector.collect(i);
+        this.getCollector().collect(i);
       }
     }
 
@@ -57,7 +57,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
       SortState ret = null;
       for (SortState state : states) {
         if (ret == null) {
-          ret = new SortState(state.collector);
+          ret = new SortState(state.getCollector());
         }
         ret.data.addAll(state.data);
       }
