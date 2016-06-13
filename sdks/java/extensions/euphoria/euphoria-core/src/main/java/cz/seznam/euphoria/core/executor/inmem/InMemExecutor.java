@@ -585,7 +585,7 @@ public class InMemExecutor implements Executor {
         repartitionSuppliers(suppliers, keyExtractor, partitioning);
 
     EndOfWindowBroadcast eowBroadcast =
-        // ~ no need for broad-casts upong "batched and attached windowing"
+        // ~ no need for broadcasts upon "batched and attached windowing"
         windowing == null || windowing == BatchWindowing.get()
             ? new EndOfWindowBroadcast.NoopInstance()
             : new EndOfWindowBroadcast.NotifyingInstance();
