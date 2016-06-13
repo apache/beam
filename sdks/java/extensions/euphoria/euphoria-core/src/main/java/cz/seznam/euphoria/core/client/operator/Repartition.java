@@ -27,8 +27,9 @@ public class Repartition<IN>
     }
   }
 
-  public static class OutputBuilder<IN> extends PartitioningBuilder<IN, OutputBuilder<IN>>
-      implements OutputProvider<IN>
+  public static class OutputBuilder<IN>
+      extends PartitioningBuilder<IN, OutputBuilder<IN>>
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
   {
     private final String name;
     private final Dataset<IN> input;

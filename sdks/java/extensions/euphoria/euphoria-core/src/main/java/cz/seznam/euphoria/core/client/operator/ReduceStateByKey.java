@@ -124,7 +124,7 @@ public class ReduceStateByKey<
   public static class DatasetBuilder5<
       IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
           extends PartitioningBuilder<KEY,  DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>
-      implements OutputProvider<Pair<KEY, OUT>>
+      implements OutputBuilder<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -170,7 +170,7 @@ public class ReduceStateByKey<
           WLABEL, W extends Window<?, WLABEL>>
       extends PartitioningBuilder<
           KEY,DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
-      implements OutputProvider<Pair<KEY, OUT>>
+      implements OutputBuilder<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -294,7 +294,7 @@ public class ReduceStateByKey<
   public static class GroupedDatasetBuilder5<
           IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
       extends PartitioningBuilder<KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, STATE>>
-      implements OutputProvider<Pair<CompositeKey<IN, KEY>, OUT>>
+      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
   {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
@@ -341,7 +341,7 @@ public class ReduceStateByKey<
           WLABEL, W extends Window<?, WLABEL>>
       extends PartitioningBuilder<
           KEY, GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
-      implements OutputProvider<Pair<CompositeKey<IN, KEY>, OUT>>
+      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
   {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
