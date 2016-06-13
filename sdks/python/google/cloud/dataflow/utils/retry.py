@@ -88,6 +88,13 @@ def retry_on_server_errors_filter(exception):
     return True
 
 
+def retry_on_server_errors_and_timeout_filter(exception):
+  if isinstance(exception, HttpError):
+    if exception.status_code == 408:  # 408 Request Timeout
+      return True
+  return retry_on_server_errors_filter(exception)
+
+
 class Clock(object):
   """A simple clock implementing sleep()."""
 
@@ -110,7 +117,7 @@ def with_exponential_backoff(
   Args:
     num_retries: The total number of times to retry.
     initial_delay_secs: The delay before the first retry, in seconds.
-    logger: A callable used to report en exception. Must have the same signature
+    logger: A callable used to report an exception. Must have the same signature
       as functions in the standard logging module. The default is
       logging.warning.
     retry_filter: A callable getting the exception raised and returning True

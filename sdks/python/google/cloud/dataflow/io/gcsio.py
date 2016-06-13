@@ -112,7 +112,8 @@ class GcsIO(object):
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def glob(self, pattern):
     """Return the GCS path names matching a given path name pattern.
 
@@ -141,7 +142,8 @@ class GcsIO(object):
         break
     return object_paths
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def delete(self, path):
     """Deletes the object at the given GCS path.
 
@@ -159,7 +161,8 @@ class GcsIO(object):
         return
       raise
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def copy(self, src, dest):
     """Copies the given GCS object from src to dest.
 
@@ -212,7 +215,8 @@ class GcsIO(object):
     self.copy(src, dest)
     self.delete(src)
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def exists(self, path):
     """Returns whether the given GCS object exists.
 
@@ -267,7 +271,8 @@ class GcsBufferedReader(object):
     self.buffer_start_position = 0
     self.closed = False
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_object_metadata(self, get_request):
     return self.client.objects.Get(get_request)
 
