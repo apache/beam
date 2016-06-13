@@ -1268,7 +1268,7 @@ public class DirectPipelineRunner
       List<V> values = entry.getValue();
       values = context.randomizeIfUnordered(values, true /* inPlaceAllowed */);
       outputElems.add(ValueWithMetadata
-                      .of(WindowedValue.valueInEmptyWindows(KV.<K, Iterable<V>>of(key, values)))
+                      .of(WindowedValue.valueInGlobalWindow(KV.<K, Iterable<V>>of(key, values)))
                       .withKey(key));
     }
 

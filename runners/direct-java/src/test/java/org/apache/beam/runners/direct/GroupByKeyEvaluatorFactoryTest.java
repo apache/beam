@@ -104,12 +104,12 @@ public class GroupByKeyEvaluatorFactoryTest {
             .forApplication(
                 groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
 
-    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstFoo)));
-    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(secondFoo)));
-    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(thirdFoo)));
-    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstBar)));
-    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(secondBar)));
-    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstBaz)));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(gwValue(firstFoo)));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(gwValue(secondFoo)));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(gwValue(thirdFoo)));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(gwValue(firstBar)));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(gwValue(secondBar)));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(gwValue(firstBaz)));
 
     evaluator.finishBundle();
 

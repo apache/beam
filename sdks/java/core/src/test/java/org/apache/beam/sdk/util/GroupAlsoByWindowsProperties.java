@@ -628,7 +628,7 @@ public class GroupAlsoByWindowsProperties {
     runner.startBundle();
 
     if (values.size() > 0) {
-      runner.processElement(WindowedValue.valueInEmptyWindows(
+      runner.processElement(WindowedValue.valueInGlobalWindow(
           KV.of(key, (Iterable<WindowedValue<InputT>>) values)));
     }
 
