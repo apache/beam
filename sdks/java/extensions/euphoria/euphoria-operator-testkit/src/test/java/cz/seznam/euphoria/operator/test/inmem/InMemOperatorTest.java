@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.operator.test.inmem;
 
-import cz.seznam.euphoria.core.executor.InMemExecutor;
+import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.operator.test.AllOperatorTest;
 
 /**
