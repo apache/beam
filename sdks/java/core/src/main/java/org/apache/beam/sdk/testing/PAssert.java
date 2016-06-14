@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -34,20 +36,22 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
@@ -100,6 +104,10 @@ public class PAssert {
   public static final String FAILURE_COUNTER = "PAssertFailure";
 
   private static int assertCount = 0;
+
+  private static String nextAssertionName() {
+    return "PAssert$" + (assertCount++);
+  }
 
   // Do not instantiate.
   private PAssert() {}
@@ -270,13 +278,14 @@ public class PAssert {
 
     @Override
     public PCollectionContentsAssert<T> empty() {
-      return containsInAnyOrder(Collections.<T>emptyList());
+      containsInAnyOrder(Collections.<T>emptyList());
+      return this;
     }
 
     @Override
     public PCollectionContentsAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
-      actual.apply("PAssert$" + (assertCount++), new GroupThenAssert<>(checkerFn));
+      actual.apply(nextAssertionName(), new GroupThenAssert<>(checkerFn));
       return this;
     }
 
@@ -552,6 +561,9 @@ public class PAssert {
    * A transform that gathers the contents of a {@link PCollection} into a single main input
    * iterable in the global window. This requires a runner to support {@link GroupByKey} in the
    * global window, but not side inputs or other windowing or triggers.
+   *
+   * <p>If the {@link PCollection} is empty, this transform returns a {@link PCollection} containing
+   * a single empty iterable, even though in practice most runners will not produce any element.
    */
   private static class GroupGlobally<T> extends PTransform<PCollection<T>, PCollection<Iterable<T>>>
       implements Serializable {
@@ -560,11 +572,77 @@ public class PAssert {
 
     @Override
     public PCollection<Iterable<T>> apply(PCollection<T> input) {
-      return input
-          .apply("GloballyWindow", Window.<T>into(new GlobalWindows()))
-          .apply("DummyKey", WithKeys.<Integer, T>of(0))
-          .apply("GroupByKey", GroupByKey.<Integer, T>create())
-          .apply("GetOnlyValue", Values.<Iterable<T>>create());
+
+      final int contentsKey = 0;
+      final int dummyKey = 1;
+      final int combinedKey = 42;
+
+      // Group the contents by key. If it is empty, this PCollection will be empty, too.
+      // Then key it again with a dummy key.
+      PCollection<KV<Integer, KV<Integer, Iterable<T>>>> doubleKeyedGroupedInput =
+          input
+              .apply("GloballyWindow", Window.<T>into(new GlobalWindows()))
+              .apply("ContentsWithKeys", WithKeys.<Integer, T>of(contentsKey))
+              .apply(
+                  "NeverTriggerContents",
+                  Window.<KV<Integer, T>>triggering(Never.ever()).discardingFiredPanes())
+              .apply("ContentsGBK", GroupByKey.<Integer, T>create())
+              .apply(
+                  "DoubleKeyContents", WithKeys.<Integer, KV<Integer, Iterable<T>>>of(combinedKey));
+
+      // Create another non-empty PCollection that is keyed with a distinct dummy key
+      PCollection<KV<Integer, KV<Integer, Iterable<T>>>> doubleKeyedDummy =
+          input
+              .getPipeline()
+              .apply(
+                  Create.of(
+                          KV.of(
+                              combinedKey,
+                              KV.of(dummyKey, (Iterable<T>) Collections.<T>emptyList())))
+                      .withCoder(doubleKeyedGroupedInput.getCoder()))
+              .setWindowingStrategyInternal(doubleKeyedGroupedInput.getWindowingStrategy());
+
+      // Flatten them together and group by the combined key to get a single element
+      PCollection<KV<Integer, Iterable<KV<Integer, Iterable<T>>>>> dummyAndContents =
+          PCollectionList.<KV<Integer, KV<Integer, Iterable<T>>>>of(doubleKeyedGroupedInput)
+              .and(doubleKeyedDummy)
+              .apply(
+                  "FlattenDummyAndContents",
+                  Flatten.<KV<Integer, KV<Integer, Iterable<T>>>>pCollections())
+              .apply(
+                  "GroupDummyAndContents", GroupByKey.<Integer, KV<Integer, Iterable<T>>>create());
+
+      // Extract the contents if they exist else empty contents.
+      return dummyAndContents
+          .apply(
+              "GetContents",
+              ParDo.of(
+                  new DoFn<KV<Integer, Iterable<KV<Integer, Iterable<T>>>>, Iterable<T>>() {
+                    @Override
+                    public void processElement(ProcessContext ctx) {
+                      Iterable<KV<Integer, Iterable<T>>> groupedDummyAndContents =
+                          ctx.element().getValue();
+
+                      if (Iterables.size(groupedDummyAndContents) == 1) {
+                        // Only the dummy value, so just output empty
+                        ctx.output(Collections.<T>emptyList());
+                      } else {
+                        checkState(
+                            Iterables.size(groupedDummyAndContents) == 2,
+                            "Internal error: PAssert grouped contents with a"
+                                + " dummy value resulted in more than 2 groupings: %s",
+                                groupedDummyAndContents);
+
+                        if (Iterables.get(groupedDummyAndContents, 0).getKey() == contentsKey) {
+                          // The first iterable in the group holds the real contents
+                          ctx.output(Iterables.get(groupedDummyAndContents, 0).getValue());
+                        } else {
+                          // The second iterable holds the real contents
+                          ctx.output(Iterables.get(groupedDummyAndContents, 1).getValue());
+                        }
+                      }
+                    }
+                  }));
     }
   }
 
