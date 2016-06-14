@@ -45,6 +45,7 @@ public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   public static TestFlinkPipelineRunner create(boolean streaming) {
     FlinkPipelineOptions flinkOptions = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    flinkOptions.setRunner(TestFlinkPipelineRunner.class);
     flinkOptions.setStreaming(streaming);
     return TestFlinkPipelineRunner.fromOptions(flinkOptions);
   }
