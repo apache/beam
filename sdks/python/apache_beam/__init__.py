@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-"""Google Cloud Dataflow SDK for Python.
+"""Apache Beam SDK for Python.
 
-Google Cloud Dataflow <http://cloud.google.com/dataflow/>
+Apache Beam <http://cloud.google.com/dataflow/>
 provides a simple, powerful programming model for building both batch
 and streaming parallel data processing pipelines.
 
-The Dataflow SDK for Python provides access to Dataflow capabilities
+The Apache Beam SDK for Python provides access to Apache Beam capabilities
 from the Python programming language.
 
 Status

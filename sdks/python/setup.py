@@ -1,18 +1,21 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""Python Dataflow SDK and Worker setup configuration."""
+"""Apache Beam SDK setup configuration."""
 
 import os
 import platform
@@ -21,7 +24,6 @@ import setuptools
 
 
 # Currently all compiled modules are optional  (for performance only).
-# Cython is available on the workers, but we don't require it for development.
 if platform.system() == 'Windows':
   # Windows doesn't always provide int64_t.
   cythonize = lambda *args, **kwargs: []
@@ -31,6 +33,13 @@ else:
     from Cython.Build import cythonize
   except ImportError:
     cythonize = lambda *args, **kwargs: []
+
+
+def get_version():
+  global_names = {}
+  execfile(os.path.normpath('./apache_beam/version.py'),
+           global_names)
+  return global_names['__version__']
 
 
 # Configure the required packages and scripts to install.
@@ -45,80 +54,31 @@ REQUIRED_PACKAGES = [
     # 'google-apitools-storage-v1',
     'httplib2>=0.8',
     'mock>=1.0.1',
+    'nose>=1.0',
     'oauth2client>=2.0.1',
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
     'pyyaml>=3.10',
     ]
 
-CONSOLE_SCRIPTS = [
-    ]
-
-
-def get_dataflow_version():
-  global_names = {}
-  execfile(os.path.normpath('./google/cloud/dataflow/version.py'),
-           global_names)
-  return global_names['__version__']
-
-
-def get_dataflow_docstring():
-  """Get docstring for Dataflow module and give it an rST title."""
-  init_file_path = os.path.normpath('./google/cloud/dataflow/__init__.py')
-  try:
-    with open(init_file_path, 'r') as init_file:
-      init_file_contents = init_file.read()
-  except IOError:
-    return None
-  doc_match = re.search(r'"""(.*)"""', init_file_contents, flags=re.DOTALL)
-  if not doc_match:
-    return None
-  docstring = doc_match.group(1).rstrip()
-  title_match = re.match(r'(.*)\.\n\n', docstring)
-  if title_match:
-    # A module docstring has a first line that ends with a period and has a
-    # blank line after it.  reStructuredText, the format used by setuptools
-    # (and other Python API documentation tools), wants no trailing period
-    # and a highlighting line of equal signs under the title line.
-    # Convert by removing the period and adding a highlighting line.
-    equalsigns_fill_format = '\n{:=^%d}\n' % title_match.end(1)
-    title_underline = equalsigns_fill_format.format('=')
-    docstring = re.sub(r'\.\n', title_underline, docstring, count=1)
-  return docstring
-
-
-_PYTHON_DATAFLOW_VERSION = get_dataflow_version()
-
-
-def get_download_url():
-  """Calculate a permanent download URL for this version."""
-  return ('https://github.com/GoogleCloudPlatform/DataflowPythonSDK/'
-          'archive/v%s.tar.gz' % _PYTHON_DATAFLOW_VERSION)
-
 
 setuptools.setup(
-    name='python_dataflow',
-    version=_PYTHON_DATAFLOW_VERSION,
-    description='Google Cloud Dataflow SDK for Python',
-    long_description=get_dataflow_docstring(),
-    url='https://cloud.google.com/dataflow/',
-    download_url=get_download_url(),
-    author='Google, Inc.',
+    name='apache-beam-sdk',
+    version=get_version(),
+    description='Apache Beam SDK for Python',
+    long_description='',
+    url='https://beam.incubator.apache.org',
+    download_url='TBD',
+    author='Apache Software Foundation',
     packages=setuptools.find_packages(),
-    namespace_packages=['google', 'google.cloud'],
-    entry_points={
-        'console_scripts': CONSOLE_SCRIPTS,
-        },
     ext_modules=cythonize([
         '**/*.pyx',
-        'google/cloud/dataflow/coders/coder_impl.py',
-        'google/cloud/dataflow/runners/common.py',
-        'google/cloud/dataflow/worker/executor.py',
-        'google/cloud/dataflow/worker/opcounters.py',
-        'google/cloud/dataflow/utils/counters.py',
+        'apache_beam/coders/coder_impl.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/utils/counters.py',
     ]),
-    setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
+    package_data={'': ['*.pyx', '*.pxd']},
     test_suite='nose.collector',
     zip_safe=False,
     # PyPI package information.
@@ -131,5 +91,5 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],
     license='Apache 2.0',
-    keywords='google cloud dataflow',
+    keywords='apache beam',
     )
