@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 
+import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -203,6 +207,24 @@ public class DoFnTesterTest {
 
     Long aggValue = tester.getAggregatorValue(fn.agg);
     assertThat(aggValue, equalTo(1L + 2L));
+  }
+
+  @Test
+  public void peekValuesInWindow() throws Exception {
+    CounterDoFn fn = new CounterDoFn(1L, 2L);
+    DoFnTester<Long, String> tester = DoFnTester.of(fn);
+
+    tester.startBundle();
+    tester.processElement(1L);
+    tester.processElement(2L);
+    tester.finishBundle();
+
+    assertThat(tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
+        containsInAnyOrder(TimestampedValue.of("1", new Instant(1000L)),
+            TimestampedValue.of("2", new Instant(2000L))));
+    assertThat(tester.peekOutputElementsInWindow(
+        new IntervalWindow(new Instant(0L), new Instant(10L))),
+        Matchers.<TimestampedValue<String>>emptyIterable());
   }
 
   /**
