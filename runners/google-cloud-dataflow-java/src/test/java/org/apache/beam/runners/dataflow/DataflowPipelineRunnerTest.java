@@ -452,6 +452,7 @@ public class DataflowPipelineRunnerTest {
     options.setProject(PROJECT_ID);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+    options.setRunner(DataflowPipelineRunner.class);
 
     DataflowPipelineRunner.fromOptions(options);
 
@@ -866,6 +867,7 @@ public class DataflowPipelineRunnerTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
+    options.setRunner(DataflowPipelineRunner.class);
     assertEquals(
         "DataflowPipelineRunner#testjobname",
         DataflowPipelineRunner.fromOptions(options).toString());

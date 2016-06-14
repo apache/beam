@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -46,9 +48,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.collect.ImmutableMap;
 
-
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -74,6 +76,13 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     Pipeline p = Pipeline.create(opts);
     return p;
+  }
+
+  @Test
+  public void defaultRunnerLoaded() {
+    assertThat(InProcessPipelineRunner.class,
+        Matchers.<Class<? extends PipelineRunner>>equalTo(PipelineOptionsFactory.create()
+            .getRunner()));
   }
 
   @Test

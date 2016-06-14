@@ -49,6 +49,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
+            <beamUseDummyRunner></beamUseDummyRunner>
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
@@ -209,6 +210,12 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>

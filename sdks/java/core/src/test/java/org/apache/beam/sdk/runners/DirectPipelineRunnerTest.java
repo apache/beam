@@ -68,6 +68,7 @@ public class DirectPipelineRunnerTest implements Serializable {
   @Test
   public void testToString() {
     PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectPipelineRunner.class);
     DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
     assertEquals("DirectPipelineRunner#" + runner.hashCode(),
         runner.toString());
