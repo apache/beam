@@ -438,7 +438,7 @@ public class CoGroupByKeyTest implements Serializable {
                 purchasesTag,
                 addressesTag,
                 namesTag))
-                .processBatch(
+                .processBundle(
                     KV.of(1, result1),
                     KV.of(2, result2),
                     KV.of(3, result3),

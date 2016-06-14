@@ -123,8 +123,8 @@ public class DoFnTesterTest {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
-    // processBatch() returns all the output like takeOutputElements().
-    List<String> take = tester.processBatch(1L, 2L, 3L, 4L);
+    // processBundle() returns all the output like takeOutputElements().
+    List<String> take = tester.processBundle(1L, 2L, 3L, 4L);
 
     assertThat(take, hasItems("1", "2", "3", "4"));
 
@@ -178,7 +178,7 @@ public class DoFnTesterTest {
   public void getAggregatorValuesShouldGetValueOfCounter() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
-    tester.processBatch(1L, 2L, 4L, 8L);
+    tester.processBundle(1L, 2L, 4L, 8L);
 
     Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
 
@@ -189,7 +189,7 @@ public class DoFnTesterTest {
   public void getAggregatorValuesWithEmptyCounterShouldSucceed() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
-    tester.processBatch();
+    tester.processBundle();
     Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
     // empty bundle
     assertThat(aggregatorVal, equalTo(0L));
@@ -199,7 +199,7 @@ public class DoFnTesterTest {
   public void getAggregatorValuesInStartFinishBundleShouldGetValues() throws Exception {
     CounterDoFn fn = new CounterDoFn(1L, 2L);
     DoFnTester<Long, String> tester = DoFnTester.of(fn);
-    tester.processBatch(0L, 0L);
+    tester.processBundle(0L, 0L);
 
     Long aggValue = tester.getAggregatorValue(fn.agg);
     assertThat(aggValue, equalTo(1L + 2L));

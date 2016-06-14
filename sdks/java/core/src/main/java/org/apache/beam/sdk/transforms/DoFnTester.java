@@ -56,18 +56,18 @@ import java.util.Map;
  *
  * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
  *
- * // Set arguments shared across all batches:
+ * // Set arguments shared across all bundles:
  * fnTester.setSideInputs(...);      // If fn takes side inputs.
  * fnTester.setSideOutputTags(...);  // If fn writes to side outputs.
  *
- * // Process a batch containing a single input element:
+ * // Process a bundle containing a single input element:
  * Input testInput = ...;
- * List<OutputT> testOutputs = fnTester.processBatch(testInput);
+ * List<OutputT> testOutputs = fnTester.processBundle(testInput);
  * Assert.assertThat(testOutputs,
  *                   JUnitMatchers.hasItems(...));
  *
- * // Process a bigger batch:
- * Assert.assertThat(fnTester.processBatch(i1, i2, ...),
+ * // Process a bigger bundle:
+ * Assert.assertThat(fnTester.processBundle(i1, i2, ...),
  *                   JUnitMatchers.hasItems(...));
  * } </pre>
  *
@@ -163,7 +163,7 @@ public class DoFnTester<InputT, OutputT> {
    * calls {@link #finishBundle}, then returns the result of
    * {@link #takeOutputElements}.
    */
-  public List<OutputT> processBatch(Iterable <? extends InputT> inputElements) throws Exception {
+  public List<OutputT> processBundle(Iterable <? extends InputT> inputElements) throws Exception {
     startBundle();
     for (InputT inputElement : inputElements) {
       processElement(inputElement);
@@ -184,8 +184,8 @@ public class DoFnTester<InputT, OutputT> {
    * </ol>
    */
   @SafeVarargs
-  public final List<OutputT> processBatch(InputT... inputElements) throws Exception {
-    return processBatch(Arrays.asList(inputElements));
+  public final List<OutputT> processBundle(InputT... inputElements) throws Exception {
+    return processBundle(Arrays.asList(inputElements));
   }
 
   /**
