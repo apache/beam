@@ -109,7 +109,7 @@ import javax.annotation.Nullable;
  * }</pre>
  *
  * <h3>Permissions</h3>
- * <p>When run using the {@link DirectRunner}, your pipeline can read and write text files
+ * <p>When run using the {@code DirectRunner}, your pipeline can read and write text files
  * on your local drive and remote text files on Google Cloud Storage that you have access to using
  * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
  * read and write files from GCS. For more information about permissions, see the Cloud Dataflow
@@ -608,12 +608,13 @@ public class TextIO {
               "need to set the filename prefix of a TextIO.Write transform");
         }
 
-        // Note that custom sinks currently do not expose sharding controls.
-        // Thus pipeline runner writers need to individually add support internally to
-        // apply user requested sharding limits.
-        return input.apply("Write", org.apache.beam.sdk.io.Write.to(
-            new TextSink<>(
-                filenamePrefix, filenameSuffix, shardTemplate, coder)));
+        org.apache.beam.sdk.io.Write.Bound<T> write =
+            org.apache.beam.sdk.io.Write.to(
+                new TextSink<>(filenamePrefix, filenameSuffix, shardTemplate, coder));
+        if (getNumShards() > 0) {
+          write = write.withNumShards(getNumShards());
+        }
+        return input.apply("Write", write);
       }
 
       @Override
