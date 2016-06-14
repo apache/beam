@@ -384,9 +384,7 @@ public class CompressedSourceTest {
     // Arbitrary but fixed seed
     Random random = new Random(285930);
     byte[] buff = new byte[size];
-    for (int i = 0; i < size; i++) {
-      buff[i] = (byte) (random.nextInt() % Byte.MAX_VALUE);
-    }
+    random.nextBytes(buff);
     return buff;
   }
 
