@@ -23,7 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.transforms.DoFnTester.OutputElementWithTimestamp;
+import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -145,23 +145,23 @@ public class DoFnTesterTest {
     tester.processElement(1L);
     tester.processElement(2L);
 
-    List<OutputElementWithTimestamp<String>> peek = tester.peekOutputElementsWithTimestamp();
-    OutputElementWithTimestamp<String> one =
-        new OutputElementWithTimestamp<>("1", new Instant(1000L));
-    OutputElementWithTimestamp<String> two =
-        new OutputElementWithTimestamp<>("2", new Instant(2000L));
+    List<TimestampedValue<String>> peek = tester.peekOutputElementsWithTimestamp();
+    TimestampedValue<String> one =
+        TimestampedValue.of("1", new Instant(1000L));
+    TimestampedValue<String> two =
+        TimestampedValue.of("2", new Instant(2000L));
     assertThat(peek, hasItems(one, two));
 
     tester.processElement(3L);
     tester.processElement(4L);
 
-    OutputElementWithTimestamp<String> three =
-        new OutputElementWithTimestamp<>("3", new Instant(3000L));
-    OutputElementWithTimestamp<String> four =
-        new OutputElementWithTimestamp<>("4", new Instant(4000L));
+    TimestampedValue<String> three =
+        TimestampedValue.of("3", new Instant(3000L));
+    TimestampedValue<String> four =
+        TimestampedValue.of("4", new Instant(4000L));
     peek = tester.peekOutputElementsWithTimestamp();
     assertThat(peek, hasItems(one, two, three, four));
-    List<OutputElementWithTimestamp<String>> take = tester.takeOutputElementsWithTimestamp();
+    List<TimestampedValue<String>> take = tester.takeOutputElementsWithTimestamp();
     assertThat(take, hasItems(one, two, three, four));
 
     // Following takeOutputElementsWithTimestamp(), neither takeOutputElementsWithTimestamp()
