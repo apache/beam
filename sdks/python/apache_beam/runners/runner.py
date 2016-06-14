@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """PipelineRunner, an abstract base runner object."""
 
@@ -39,19 +42,19 @@ def create_runner(runner_name):
   """
   # pylint: disable=g-import-not-at-top
   if runner_name == 'DirectPipelineRunner':
-    import google.cloud.dataflow.runners.direct_runner
-    return google.cloud.dataflow.runners.direct_runner.DirectPipelineRunner()
+    import apache_beam.runners.direct_runner
+    return apache_beam.runners.direct_runner.DirectPipelineRunner()
   if runner_name == 'DiskCachedPipelineRunner':
-    import google.cloud.dataflow.runners.direct_runner
-    return google.cloud.dataflow.runners.direct_runner.DiskCachedPipelineRunner(
+    import apache_beam.runners.direct_runner
+    return apache_beam.runners.direct_runner.DiskCachedPipelineRunner(
     )
   if runner_name == 'EagerPipelineRunner':
-    import google.cloud.dataflow.runners.direct_runner
-    return google.cloud.dataflow.runners.direct_runner.EagerPipelineRunner()
+    import apache_beam.runners.direct_runner
+    return apache_beam.runners.direct_runner.EagerPipelineRunner()
   elif runner_name in ('DataflowPipelineRunner',
                        'BlockingDataflowPipelineRunner'):
-    import google.cloud.dataflow.runners.dataflow_runner
-    return google.cloud.dataflow.runners.dataflow_runner.DataflowPipelineRunner(
+    import apache_beam.runners.dataflow_runner
+    return apache_beam.runners.dataflow_runner.DataflowPipelineRunner(
         blocking=runner_name == 'BlockingDataflowPipelineRunner')
   else:
     raise RuntimeError(
@@ -79,7 +82,7 @@ class PipelineRunner(object):
 
     # Imported here to avoid circular dependencies.
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.pipeline import PipelineVisitor
+    from apache_beam.pipeline import PipelineVisitor
 
     class RunVisitor(PipelineVisitor):
 
@@ -115,7 +118,7 @@ class PipelineRunner(object):
 
     # Imported here to avoid circular dependencies.
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.pipeline import PipelineVisitor
+    from apache_beam.pipeline import PipelineVisitor
 
     class ClearVisitor(PipelineVisitor):
 
@@ -216,7 +219,7 @@ class PValueCache(object):
       pvalue.real_producer = real_producer
 
   def is_cached(self, pobj):
-    from google.cloud.dataflow.pipeline import AppliedPTransform
+    from apache_beam.pipeline import AppliedPTransform
     if isinstance(pobj, AppliedPTransform):
       transform = pobj
       tag = None

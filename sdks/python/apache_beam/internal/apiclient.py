@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Dataflow client utility functions."""
 
@@ -22,25 +25,25 @@ import re
 import time
 
 
-from google.cloud.dataflow import utils
-from google.cloud.dataflow import version
-from google.cloud.dataflow.internal import pickler
-from google.cloud.dataflow.internal.auth import get_service_credentials
-from google.cloud.dataflow.internal.json_value import to_json_value
-from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.transforms import cy_combiners
-from google.cloud.dataflow.utils import dependency
-from google.cloud.dataflow.utils import names
-from google.cloud.dataflow.utils import retry
-from google.cloud.dataflow.utils.names import PropertyNames
-from google.cloud.dataflow.utils.options import GoogleCloudOptions
-from google.cloud.dataflow.utils.options import StandardOptions
-from google.cloud.dataflow.utils.options import WorkerOptions
+from apache_beam import utils
+from apache_beam import version
+from apache_beam.internal import pickler
+from apache_beam.internal.auth import get_service_credentials
+from apache_beam.internal.json_value import to_json_value
+from apache_beam.io import iobase
+from apache_beam.transforms import cy_combiners
+from apache_beam.utils import dependency
+from apache_beam.utils import names
+from apache_beam.utils import retry
+from apache_beam.utils.names import PropertyNames
+from apache_beam.utils.options import GoogleCloudOptions
+from apache_beam.utils.options import StandardOptions
+from apache_beam.utils.options import WorkerOptions
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
-from google.cloud.dataflow.internal.clients import storage
-import google.cloud.dataflow.internal.clients.dataflow as dataflow
+from apache_beam.internal.clients import storage
+import apache_beam.internal.clients.dataflow as dataflow
 
 
 BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'
@@ -683,7 +686,7 @@ class DataflowWorkerClient(object):
     """Reports status for a work item (success or failure).
 
     This is an integration point. The @retry decorator is used on callers
-    of this method defined in google/cloud/dataflow/worker/worker.py because
+    of this method defined in apache_beam/worker/worker.py because
     there are different retry strategies for a completed versus in progress
     work item.
 

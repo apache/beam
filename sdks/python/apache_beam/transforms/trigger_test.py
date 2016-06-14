@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Unit tests for the triggering classes."""
 
@@ -20,28 +23,28 @@ import unittest
 
 import yaml
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow.pipeline import Pipeline
-from google.cloud.dataflow.transforms.core import Windowing
-from google.cloud.dataflow.transforms.trigger import AccumulationMode
-from google.cloud.dataflow.transforms.trigger import AfterAll
-from google.cloud.dataflow.transforms.trigger import AfterCount
-from google.cloud.dataflow.transforms.trigger import AfterEach
-from google.cloud.dataflow.transforms.trigger import AfterFirst
-from google.cloud.dataflow.transforms.trigger import AfterWatermark
-from google.cloud.dataflow.transforms.trigger import DefaultTrigger
-from google.cloud.dataflow.transforms.trigger import GeneralTriggerDriver
-from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
-from google.cloud.dataflow.transforms.trigger import Repeatedly
-from google.cloud.dataflow.transforms.util import assert_that, equal_to
-from google.cloud.dataflow.transforms.window import FixedWindows
-from google.cloud.dataflow.transforms.window import IntervalWindow
-from google.cloud.dataflow.transforms.window import MIN_TIMESTAMP
-from google.cloud.dataflow.transforms.window import OutputTimeFn
-from google.cloud.dataflow.transforms.window import Sessions
-from google.cloud.dataflow.transforms.window import TimestampedValue
-from google.cloud.dataflow.transforms.window import WindowedValue
-from google.cloud.dataflow.transforms.window import WindowFn
+import apache_beam as beam
+from apache_beam.pipeline import Pipeline
+from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterAll
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import AfterEach
+from apache_beam.transforms.trigger import AfterFirst
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.trigger import DefaultTrigger
+from apache_beam.transforms.trigger import GeneralTriggerDriver
+from apache_beam.transforms.trigger import InMemoryUnmergedState
+from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.util import assert_that, equal_to
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import MIN_TIMESTAMP
+from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import Sessions
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.window import WindowFn
 
 
 class CustomTimestampingFixedWindowsWindowFn(FixedWindows):
@@ -367,13 +370,13 @@ class TriggerPipelineTest(unittest.TestCase):
   def test_after_count(self):
     p = Pipeline('DirectPipelineRunner')
     result = (p
-              | df.Create([1, 2, 3, 4, 5, 10, 11])
-              | df.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-              | df.Map(lambda (k, t): TimestampedValue((k, t), t))
-              | df.WindowInto(FixedWindows(10), trigger=AfterCount(3),
+              | beam.Create([1, 2, 3, 4, 5, 10, 11])
+              | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+              | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
+              | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
                               accumulation_mode=AccumulationMode.DISCARDING)
-              | df.GroupByKey()
-              | df.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
+              | beam.GroupByKey()
+              | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
     assert_that(result, equal_to(
         {
             'A-5': {1, 2, 3, 4, 5},
@@ -474,8 +477,8 @@ class TranscriptTest(unittest.TestCase):
         return fn
 
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.transforms import window as window_module
-    from google.cloud.dataflow.transforms import trigger as trigger_module
+    from apache_beam.transforms import window as window_module
+    from apache_beam.transforms import trigger as trigger_module
     # pylint: enable=g-import-not-at-top
     window_fn_names = dict(window_module.__dict__)
     window_fn_names.update({'CustomTimestampingFixedWindowsWindowFn':

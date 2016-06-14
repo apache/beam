@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for google.cloud.dataflow.typehints.trivial_inference."""
+"""Tests for apache_beam.typehints.trivial_inference."""
 import unittest
 
 
-from google.cloud.dataflow.typehints import trivial_inference
-from google.cloud.dataflow.typehints import typehints
+from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import typehints
 
 global_int = 1
 

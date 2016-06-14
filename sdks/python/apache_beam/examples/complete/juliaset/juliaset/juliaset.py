@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A Julia set computing workflow: https://en.wikipedia.org/wiki/Julia_set.
 
@@ -21,7 +24,7 @@ from __future__ import absolute_import
 
 import argparse
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
 def from_pixel(x, y, n):
@@ -47,8 +50,8 @@ def generate_julia_set_colors(pipeline, c, n, max_iterations):
         yield (x, y)
 
   julia_set_colors = (pipeline
-                      | df.Create('add points', point_set(n))
-                      | df.Map(get_julia_set_point_color, c, n, max_iterations))
+                      | beam.Create('add points', point_set(n))
+                      | beam.Map(get_julia_set_point_color, c, n, max_iterations))
 
   return julia_set_colors
 
@@ -93,7 +96,7 @@ def run(argv=None):  # pylint: disable=missing-docstring
                       help='Output file to write the resulting image to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
   n = int(known_args.grid_size)
 
   coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
@@ -102,11 +105,11 @@ def run(argv=None):  # pylint: disable=missing-docstring
   # the output file with an x-coordinate grouping per line.
   # pylint: disable=expression-not-assigned
   # pylint: disable=g-long-lambda
-  (coordinates | df.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
-   | df.GroupByKey('x coord') | df.Map(
+  (coordinates | beam.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
+   | beam.GroupByKey('x coord') | beam.Map(
        'format',
        lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
-   | df.io.Write('write', df.io.TextFileSink(known_args.coordinate_output)))
+   | beam.io.Write('write', beam.io.TextFileSink(known_args.coordinate_output)))
   # pylint: enable=g-long-lambda
   # pylint: enable=expression-not-assigned
   p.run()

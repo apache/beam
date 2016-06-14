@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 
 """A workflow demonstrating a DoFn with multiple outputs.
@@ -49,11 +52,11 @@ import argparse
 import logging
 import re
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow import pvalue
+import apache_beam as beam
+from apache_beam import pvalue
 
 
-class SplitLinesToWordsFn(df.DoFn):
+class SplitLinesToWordsFn(beam.DoFn):
   """A transform to split a line of text into individual words.
 
   This transform will have 3 outputs:
@@ -100,7 +103,7 @@ class SplitLinesToWordsFn(df.DoFn):
         yield word
 
 
-class CountWords(df.PTransform):
+class CountWords(beam.PTransform):
   """A transform to count the occurrences of each word.
 
   A PTransform that converts a PCollection containing words into a PCollection
@@ -109,10 +112,10 @@ class CountWords(df.PTransform):
 
   def apply(self, pcoll):
     return (pcoll
-            | df.Map('pair_with_one', lambda x: (x, 1))
-            | df.GroupByKey('group')
-            | df.Map('count', lambda (word, ones): (word, sum(ones)))
-            | df.Map('format', lambda (word, c): '%s: %s' % (word, c)))
+            | beam.Map('pair_with_one', lambda x: (x, 1))
+            | beam.GroupByKey('group')
+            | beam.Map('count', lambda (word, ones): (word, sum(ones)))
+            | beam.Map('format', lambda (word, c): '%s: %s' % (word, c)))
 
 
 def run(argv=None):
@@ -127,13 +130,13 @@ def run(argv=None):
                       help='Output prefix for files to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
-  lines = p | df.Read('read', df.io.TextFileSource(known_args.input))
+  lines = p | beam.Read('read', beam.io.TextFileSource(known_args.input))
 
   # with_outputs allows accessing the side outputs of a DoFn.
   split_lines_result = (lines
-                        | df.ParDo(SplitLinesToWordsFn()).with_outputs(
+                        | beam.ParDo(SplitLinesToWordsFn()).with_outputs(
                             SplitLinesToWordsFn.SIDE_OUTPUT_TAG_SHORT_WORDS,
                             SplitLinesToWordsFn.SIDE_OUTPUT_TAG_CHARACTER_COUNT,
                             main='words'))
@@ -147,21 +150,21 @@ def run(argv=None):
 
   # pylint: disable=expression-not-assigned
   (character_count
-   | df.Map('pair_with_key', lambda x: ('chars_temp_key', x))
-   | df.GroupByKey()
-   | df.Map('count chars', lambda (_, counts): sum(counts))
-   | df.Write('write chars', df.io.TextFileSink(known_args.output + '-chars')))
+   | beam.Map('pair_with_key', lambda x: ('chars_temp_key', x))
+   | beam.GroupByKey()
+   | beam.Map('count chars', lambda (_, counts): sum(counts))
+   | beam.Write('write chars', beam.io.TextFileSink(known_args.output + '-chars')))
 
   # pylint: disable=expression-not-assigned
   (short_words
    | CountWords('count short words')
-   | df.Write('write short words',
-              df.io.TextFileSink(known_args.output + '-short-words')))
+   | beam.Write('write short words',
+              beam.io.TextFileSink(known_args.output + '-short-words')))
 
   # pylint: disable=expression-not-assigned
   (words
    | CountWords('count words')
-   | df.Write('write words', df.io.TextFileSink(known_args.output + '-words')))
+   | beam.Write('write words', beam.io.TextFileSink(known_args.output + '-words')))
 
   p.run()
 

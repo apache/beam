@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A workflow using custom JSON-based coders for text sources and sinks.
 
@@ -31,7 +34,7 @@ import argparse
 import json
 import logging
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
 class JsonCoder(object):
@@ -75,14 +78,14 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
-   | df.io.Read('read',
-                df.io.TextFileSource(known_args.input,
+   | beam.io.Read('read',
+                beam.io.TextFileSource(known_args.input,
                                      coder=JsonCoder()))
-   | df.FlatMap('points', compute_points) | df.CombinePerKey(sum) | df.io.Write(
+   | beam.FlatMap('points', compute_points) | beam.CombinePerKey(sum) | beam.io.Write(
        'write',
-       df.io.TextFileSink(known_args.output,
+       beam.io.TextFileSink(known_args.output,
                           coder=JsonCoder())))
   p.run()
 

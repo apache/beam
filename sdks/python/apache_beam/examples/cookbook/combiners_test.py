@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Simple tests to showcase combiners.
 
@@ -23,7 +26,7 @@ checked directly on the last PCollection produced.
 import logging
 import unittest
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
 class CombinersTest(unittest.TestCase):
@@ -41,11 +44,11 @@ class CombinersTest(unittest.TestCase):
     can be used.
     """
     result = (
-        df.Pipeline(runner=df.runners.DirectPipelineRunner())
-        | df.Create(CombinersTest.SAMPLE_DATA)
-        | df.CombinePerKey(sum))
+        beam.Pipeline(runner=beam.runners.DirectPipelineRunner())
+        | beam.Create(CombinersTest.SAMPLE_DATA)
+        | beam.CombinePerKey(sum))
 
-    df.assert_that(result, df.equal_to([('a', 6), ('b', 30), ('c', 100)]))
+    beam.assert_that(result, beam.equal_to([('a', 6), ('b', 30), ('c', 100)]))
     result.pipeline.run()
 
   def test_combine_per_key_with_custom_callable(self):
@@ -57,11 +60,11 @@ class CombinersTest(unittest.TestCase):
       return result
 
     result = (
-        df.Pipeline(runner=df.runners.DirectPipelineRunner())
-        | df.Create(CombinersTest.SAMPLE_DATA)
-        | df.CombinePerKey(multiply))
+        beam.Pipeline(runner=beam.runners.DirectPipelineRunner())
+        | beam.Create(CombinersTest.SAMPLE_DATA)
+        | beam.CombinePerKey(multiply))
 
-    df.assert_that(result, df.equal_to([('a', 6), ('b', 200), ('c', 100)]))
+    beam.assert_that(result, beam.equal_to([('a', 6), ('b', 200), ('c', 100)]))
     result.pipeline.run()
 
 

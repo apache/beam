@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
@@ -19,32 +22,32 @@ from __future__ import absolute_import
 import copy
 import uuid
 
-from google.cloud.dataflow import pvalue
-from google.cloud.dataflow import typehints
-from google.cloud.dataflow.coders import typecoders
-from google.cloud.dataflow.internal import util
-from google.cloud.dataflow.pvalue import AsIter
-from google.cloud.dataflow.pvalue import AsSingleton
-from google.cloud.dataflow.transforms import ptransform
-from google.cloud.dataflow.transforms import window
-from google.cloud.dataflow.transforms.ptransform import PTransform
-from google.cloud.dataflow.transforms.ptransform import ptransform_fn
-from google.cloud.dataflow.transforms.ptransform import PTransformWithSideInputs
-from google.cloud.dataflow.transforms.window import MIN_TIMESTAMP
-from google.cloud.dataflow.transforms.window import OutputTimeFn
-from google.cloud.dataflow.transforms.window import WindowedValue
-from google.cloud.dataflow.transforms.window import WindowFn
-from google.cloud.dataflow.typehints import Any
-from google.cloud.dataflow.typehints import get_type_hints
-from google.cloud.dataflow.typehints import is_consistent_with
-from google.cloud.dataflow.typehints import Iterable
-from google.cloud.dataflow.typehints import KV
-from google.cloud.dataflow.typehints import trivial_inference
-from google.cloud.dataflow.typehints import TypeCheckError
-from google.cloud.dataflow.typehints import Union
-from google.cloud.dataflow.typehints import WithTypeHints
-from google.cloud.dataflow.typehints.trivial_inference import element_type
-from google.cloud.dataflow.utils.options import TypeOptions
+from apache_beam import pvalue
+from apache_beam import typehints
+from apache_beam.coders import typecoders
+from apache_beam.internal import util
+from apache_beam.pvalue import AsIter
+from apache_beam.pvalue import AsSingleton
+from apache_beam.transforms import ptransform
+from apache_beam.transforms import window
+from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.transforms.ptransform import PTransformWithSideInputs
+from apache_beam.transforms.window import MIN_TIMESTAMP
+from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import Any
+from apache_beam.typehints import get_type_hints
+from apache_beam.typehints import is_consistent_with
+from apache_beam.typehints import Iterable
+from apache_beam.typehints import KV
+from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import Union
+from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.utils.options import TypeOptions
 
 
 class DoFnProcessContext(object):
@@ -443,7 +446,7 @@ class CallableWrapperCombineFn(CombineFn):
 
   def for_input_type(self, input_type):
     # Avoid circular imports.
-    from google.cloud.dataflow.transforms import cy_combiners
+    from apache_beam.transforms import cy_combiners
     if self._fn is any:
       return cy_combiners.AnyCombineFn()
     elif self._fn is all:
@@ -995,8 +998,8 @@ class GroupByKey(PTransform):
     def process(self, context):
       k, vs = context.element
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
-      from google.cloud.dataflow.transforms.trigger import create_trigger_driver
+      from apache_beam.transforms.trigger import InMemoryUnmergedState
+      from apache_beam.transforms.trigger import create_trigger_driver
       # pylint: enable=g-import-not-at-top
       driver = create_trigger_driver(self.windowing, True)
       state = InMemoryUnmergedState()
@@ -1110,7 +1113,7 @@ class Windowing(object):
                output_time_fn=None):
     global AccumulationMode, DefaultTrigger
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.transforms.trigger import AccumulationMode, DefaultTrigger
+    from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
     # pylint: enable=g-import-not-at-top
     if triggerfn is None:
       triggerfn = DefaultTrigger()
@@ -1283,10 +1286,10 @@ class Create(PTransform):
 
 
 def Read(*args, **kwargs):
-  from google.cloud.dataflow import io
+  from apache_beam import io
   return io.Read(*args, **kwargs)
 
 
 def Write(*args, **kwargs):
-  from google.cloud.dataflow import io
+  from apache_beam import io
   return io.Write(*args, **kwargs)

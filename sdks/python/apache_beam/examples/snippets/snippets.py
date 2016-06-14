@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Code snippets used in Cloud Dataflow webdocs.
 
@@ -29,7 +32,7 @@ at https://cloud.google.com/dataflow/model/pipelines will have the tag
 model_pipelines_DESCRIPTION. The tags can contain only letters, digits and _.
 """
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -42,7 +45,7 @@ import google.cloud.dataflow as df
 
 
 class SnippetUtils(object):
-  from google.cloud.dataflow.pipeline import PipelineVisitor
+  from apache_beam.pipeline import PipelineVisitor
 
   class RenameFiles(PipelineVisitor):
     """RenameFiles will rewire source and sink for unit testing.
@@ -74,36 +77,36 @@ def construct_pipeline(renames):
   """
   import re
 
-  class ReverseWords(df.PTransform):
+  class ReverseWords(beam.PTransform):
     """A PTransform that reverses individual elements in a PCollection."""
 
     def apply(self, pcoll):
-      return pcoll | df.Map(lambda e: e[::-1])
+      return pcoll | beam.Map(lambda e: e[::-1])
 
   def filter_words(unused_x):
     """Pass through filter to select everything."""
     return True
 
   # [START pipelines_constructing_creating]
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  from apache_beam.utils.options import PipelineOptions
 
-  p = df.Pipeline(options=PipelineOptions())
+  p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
 
   # [START pipelines_constructing_reading]
-  lines = p | df.io.Read('ReadMyFile',
-                      df.io.TextFileSource('gs://some/inputData.txt'))
+  lines = p | beam.io.Read('ReadMyFile',
+                      beam.io.TextFileSource('gs://some/inputData.txt'))
   # [END pipelines_constructing_reading]
 
   # [START pipelines_constructing_applying]
-  words = lines | df.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+  words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
   reversed_words = words | ReverseWords()
   # [END pipelines_constructing_applying]
 
   # [START pipelines_constructing_writing]
-  filtered_words = reversed_words | df.Filter('FilterWords', filter_words)
-  filtered_words | df.io.Write('WriteMyFile',
-                               df.io.TextFileSink('gs://some/outputData.txt'))
+  filtered_words = reversed_words | beam.Filter('FilterWords', filter_words)
+  filtered_words | beam.io.Write('WriteMyFile',
+                               beam.io.TextFileSink('gs://some/outputData.txt'))
   # [END pipelines_constructing_writing]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -121,8 +124,8 @@ def model_pipelines(argv):
   # [START model_pipelines]
   import re
 
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -141,13 +144,13 @@ def model_pipelines(argv):
   pipeline_options = PipelineOptions(argv)
   my_options = pipeline_options.view_as(MyOptions)
 
-  p = df.Pipeline(options=pipeline_options)
+  p = beam.Pipeline(options=pipeline_options)
 
   (p
-   | df.io.Read(df.io.TextFileSource(my_options.input))
-   | df.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | df.Map(lambda x: (x, 1)) | df.combiners.Count.PerKey()
-   | df.io.Write(df.io.TextFileSink(my_options.output)))
+   | beam.io.Read(beam.io.TextFileSource(my_options.input))
+   | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+   | beam.Map(lambda x: (x, 1)) | beam.combiners.Count.PerKey()
+   | beam.io.Write(beam.io.TextFileSink(my_options.output)))
 
   p.run()
   # [END model_pipelines]
@@ -158,7 +161,7 @@ def model_pcollection(argv):
 
   URL: https://cloud.google.com/dataflow/model/pcollection
   """
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  from apache_beam.utils.options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -173,15 +176,15 @@ def model_pcollection(argv):
   my_options = pipeline_options.view_as(MyOptions)
 
   # [START model_pcollection]
-  p = df.Pipeline(options=pipeline_options)
+  p = beam.Pipeline(options=pipeline_options)
 
   (p
-   | df.Create([
+   | beam.Create([
        'To be, or not to be: that is the question: ',
        'Whether \'tis nobler in the mind to suffer ',
        'The slings and arrows of outrageous fortune, ',
        'Or to take arms against a sea of troubles, '])
-   | df.io.Write(df.io.TextFileSink(my_options.output)))
+   | beam.io.Write(beam.io.TextFileSink(my_options.output)))
 
   p.run()
   # [END model_pcollection]
@@ -193,8 +196,8 @@ def pipeline_options_remote(argv):
   URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
   """
 
-  from google.cloud.dataflow import Pipeline
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  from apache_beam import Pipeline
+  from apache_beam.utils.options import PipelineOptions
 
   # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
@@ -209,8 +212,8 @@ def pipeline_options_remote(argv):
       parser.add_argument('--output')
   # [END pipeline_options_define_custom]
 
-  from google.cloud.dataflow.utils.options import GoogleCloudOptions
-  from google.cloud.dataflow.utils.options import StandardOptions
+  from apache_beam.utils.options import GoogleCloudOptions
+  from apache_beam.utils.options import StandardOptions
 
   # [START pipeline_options_dataflow_service]
   # Create and set your PipelineOptions.
@@ -238,8 +241,8 @@ def pipeline_options_remote(argv):
   options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
   p = Pipeline(options=options)
 
-  lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(my_input))
-  lines | df.io.Write('WriteToText', df.io.TextFileSink(my_output))
+  lines = p | beam.io.Read('ReadFromText', beam.io.TextFileSource(my_input))
+  lines | beam.io.Write('WriteToText', beam.io.TextFileSink(my_output))
 
   p.run()
 
@@ -250,8 +253,8 @@ def pipeline_options_local(argv):
   URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
   """
 
-  from google.cloud.dataflow import Pipeline
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  from apache_beam import Pipeline
+  from apache_beam.utils.options import PipelineOptions
 
   options = PipelineOptions(flags=argv)
 
@@ -279,8 +282,8 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
-  lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(my_input))
-  lines | df.io.Write('WriteToText', df.io.TextFileSink(my_output))
+  lines = p | beam.io.Read('ReadFromText', beam.io.TextFileSource(my_input))
+  lines | beam.io.Write('WriteToText', beam.io.TextFileSink(my_output))
   p.run()
 
 
@@ -300,9 +303,9 @@ def pipeline_options_command_line(argv):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # Create the Pipeline with remaining arguments.
-  p = df.Pipeline(argv=pipeline_args)
-  lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(known_args.input))
-  lines | df.io.Write('WriteToText', df.io.TextFileSink(known_args.output))
+  p = beam.Pipeline(argv=pipeline_args)
+  lines = p | beam.io.Read('ReadFromText', beam.io.TextFileSource(known_args.input))
+  lines | beam.io.Write('WriteToText', beam.io.TextFileSink(known_args.output))
   # [END pipeline_options_command_line]
 
   p.run()
@@ -315,14 +318,14 @@ def pipeline_logging(lines, output):
   """
 
   import re
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   # [START pipeline_logging]
   # import Python logging module.
   import logging
 
-  class ExtractWordsFn(df.DoFn):
+  class ExtractWordsFn(beam.DoFn):
 
     def process(self, context):
       words = re.findall(r'[A-Za-z\']+', context.element)
@@ -336,11 +339,11 @@ def pipeline_logging(lines, output):
   # Remaining WordCount example code ...
   # [END pipeline_logging]
 
-  p = df.Pipeline(options=PipelineOptions())
+  p = beam.Pipeline(options=PipelineOptions())
   (p
-   | df.Create(lines)
-   | df.ParDo('ExtractWords', ExtractWordsFn())
-   | df.io.Write('WriteToText', df.io.TextFileSink(output)))
+   | beam.Create(lines)
+   | beam.ParDo('ExtractWords', ExtractWordsFn())
+   | beam.io.Write('WriteToText', beam.io.TextFileSink(output)))
 
   p.run()
 
@@ -352,8 +355,8 @@ def pipeline_monitoring(renames):
   """
 
   import re
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   class WordCountOptions(PipelineOptions):
 
@@ -366,14 +369,14 @@ def pipeline_monitoring(renames):
                           help='output for the dataflow pipeline',
                           default='gs://my-bucket/output')
 
-  class ExtractWordsFn(df.DoFn):
+  class ExtractWordsFn(beam.DoFn):
 
     def process(self, context):
       words = re.findall(r'[A-Za-z\']+', context.element)
       for word in words:
         yield word
 
-  class FormatCountsFn(df.DoFn):
+  class FormatCountsFn(beam.DoFn):
 
     def process(self, context):
       word, count = context.element
@@ -381,30 +384,30 @@ def pipeline_monitoring(renames):
 
   # [START pipeline_monitoring_composite]
   # The CountWords Composite Transform inside the WordCount pipeline.
-  class CountWords(df.PTransform):
+  class CountWords(beam.PTransform):
 
     def apply(self, pcoll):
       return (pcoll
               # Convert lines of text into individual words.
-              | df.ParDo('ExtractWords', ExtractWordsFn())
+              | beam.ParDo('ExtractWords', ExtractWordsFn())
               # Count the number of times each word occurs.
-              | df.combiners.Count.PerElement()
+              | beam.combiners.Count.PerElement()
               # Format each word and count into a printable string.
-              | df.ParDo('FormatCounts', FormatCountsFn()))
+              | beam.ParDo('FormatCounts', FormatCountsFn()))
   # [END pipeline_monitoring_composite]
 
   pipeline_options = PipelineOptions()
   options = pipeline_options.view_as(WordCountOptions)
-  p = df.Pipeline(options=pipeline_options)
+  p = beam.Pipeline(options=pipeline_options)
 
   # [START pipeline_monitoring_execution]
   (p
    # Read the lines of the input text.
-   | df.io.Read('ReadLines', df.io.TextFileSource(options.input))
+   | beam.io.Read('ReadLines', beam.io.TextFileSource(options.input))
    # Count the words.
    | CountWords()
    # Write the formatted word counts to output.
-   | df.io.Write('WriteCounts', df.io.TextFileSink(options.output)))
+   | beam.io.Write('WriteCounts', beam.io.TextFileSink(options.output)))
   # [END pipeline_monitoring_execution]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -419,11 +422,11 @@ def examples_wordcount_minimal(renames):
   """
   import re
 
-  import google.cloud.dataflow as df
+  import apache_beam as beam
 
-  from google.cloud.dataflow.utils.options import GoogleCloudOptions
-  from google.cloud.dataflow.utils.options import StandardOptions
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  from apache_beam.utils.options import GoogleCloudOptions
+  from apache_beam.utils.options import StandardOptions
+  from apache_beam.utils.options import PipelineOptions
 
   # [START examples_wordcount_minimal_options]
   options = PipelineOptions()
@@ -439,29 +442,29 @@ def examples_wordcount_minimal(renames):
   options = PipelineOptions()
 
   # [START examples_wordcount_minimal_create]
-  p = df.Pipeline(options=options)
+  p = beam.Pipeline(options=options)
   # [END examples_wordcount_minimal_create]
 
   (
       # [START examples_wordcount_minimal_read]
-      p | df.io.Read(df.io.TextFileSource(
+      p | beam.io.Read(beam.io.TextFileSource(
           'gs://dataflow-samples/shakespeare/kinglear.txt'))
       # [END examples_wordcount_minimal_read]
 
       # [START examples_wordcount_minimal_pardo]
-      | df.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+      | beam.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
       # [END examples_wordcount_minimal_pardo]
 
       # [START examples_wordcount_minimal_count]
-      | df.combiners.Count.PerElement()
+      | beam.combiners.Count.PerElement()
       # [END examples_wordcount_minimal_count]
 
       # [START examples_wordcount_minimal_map]
-      | df.Map(lambda (word, count): '%s: %s' % (word, count))
+      | beam.Map(lambda (word, count): '%s: %s' % (word, count))
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
-      | df.io.Write(df.io.TextFileSink('gs://my-bucket/counts.txt'))
+      | beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
       # [END examples_wordcount_minimal_write]
   )
 
@@ -480,8 +483,8 @@ def examples_wordcount_wordcount(renames):
   """
   import re
 
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   argv = []
 
@@ -495,38 +498,38 @@ def examples_wordcount_wordcount(renames):
                           default='gs://my-bucket/input')
 
   options = PipelineOptions(argv)
-  p = df.Pipeline(options=options)
+  p = beam.Pipeline(options=options)
   # [END examples_wordcount_wordcount_options]
 
-  lines = p | df.io.Read(df.io.TextFileSource(
+  lines = p | beam.io.Read(beam.io.TextFileSource(
       'gs://dataflow-samples/shakespeare/kinglear.txt'))
 
   # [START examples_wordcount_wordcount_composite]
-  class CountWords(df.PTransform):
+  class CountWords(beam.PTransform):
 
     def apply(self, pcoll):
       return (pcoll
               # Convert lines of text into individual words.
-              | df.FlatMap(
+              | beam.FlatMap(
                   'ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
 
               # Count the number of times each word occurs.
-              | df.combiners.Count.PerElement())
+              | beam.combiners.Count.PerElement())
 
   counts = lines | CountWords()
   # [END examples_wordcount_wordcount_composite]
 
   # [START examples_wordcount_wordcount_dofn]
-  class FormatAsTextFn(df.DoFn):
+  class FormatAsTextFn(beam.DoFn):
 
     def process(self, context):
       word, count = context.element
       yield '%s: %s' % (word, count)
 
-  formatted = counts | df.ParDo(FormatAsTextFn())
+  formatted = counts | beam.ParDo(FormatAsTextFn())
   # [END examples_wordcount_wordcount_dofn]
 
-  formatted | df.io.Write(df.io.TextFileSink('gs://my-bucket/counts.txt'))
+  formatted | beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
 
@@ -539,20 +542,20 @@ def examples_wordcount_debugging(renames):
   """
   import re
 
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   # [START example_wordcount_debugging_logging]
   # [START example_wordcount_debugging_aggregators]
   import logging
 
-  class FilterTextFn(df.DoFn):
+  class FilterTextFn(beam.DoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
 
     # A custom aggregator can track values in your pipeline as it runs. Create
     # custom aggregators matched_word and unmatched_words.
-    matched_words = df.Aggregator('matched_words')
-    umatched_words = df.Aggregator('umatched_words')
+    matched_words = beam.Aggregator('matched_words')
+    umatched_words = beam.Aggregator('umatched_words')
 
     def __init__(self, pattern):
       self.pattern = pattern
@@ -581,23 +584,23 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
-  p = df.Pipeline(options=PipelineOptions())
+  p = beam.Pipeline(options=PipelineOptions())
   filtered_words = (
       p
-      | df.io.Read(df.io.TextFileSource(
+      | beam.io.Read(beam.io.TextFileSource(
           'gs://dataflow-samples/shakespeare/kinglear.txt'))
-      | df.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
-      | df.combiners.Count.PerElement()
-      | df.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
+      | beam.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+      | beam.combiners.Count.PerElement()
+      | beam.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
 
   # [START example_wordcount_debugging_assert]
-  df.assert_that(filtered_words, df.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.assert_that(filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
   # [END example_wordcount_debugging_assert]
 
   output = (filtered_words
-            | df.Map('format', lambda (word, c): '%s: %s' % (word, c))
-            | df.io.Write(
-                'write', df.io.TextFileSink('gs://my-bucket/counts.txt')))
+            | beam.Map('format', lambda (word, c): '%s: %s' % (word, c))
+            | beam.io.Write(
+                'write', beam.io.TextFileSink('gs://my-bucket/counts.txt')))
 
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
@@ -614,23 +617,23 @@ def model_textio(renames):
     import re
     return re.findall(r'[A-Za-z\']+', x)
 
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   # [START model_textio_read]
-  p = df.Pipeline(options=PipelineOptions())
+  p = beam.Pipeline(options=PipelineOptions())
   # [START model_pipelineio_read]
-  lines = p | df.io.Read(
+  lines = p | beam.io.Read(
       'ReadFromText',
-      df.io.TextFileSource('gs://my_bucket/path/to/input-*.csv'))
+      beam.io.TextFileSource('gs://my_bucket/path/to/input-*.csv'))
   # [END model_pipelineio_read]
   # [END model_textio_read]
 
   # [START model_textio_write]
-  filtered_words = lines | df.FlatMap('FilterWords', filter_words)
+  filtered_words = lines | beam.FlatMap('FilterWords', filter_words)
   # [START model_pipelineio_write]
-  filtered_words | df.io.Write(
-      'WriteToText', df.io.TextFileSink('gs://my_bucket/path/to/numbers',
+  filtered_words | beam.io.Write(
+      'WriteToText', beam.io.TextFileSink('gs://my_bucket/path/to/numbers',
                                         file_name_suffix='.csv'))
   # [END model_pipelineio_write]
   # [END model_textio_write]
@@ -644,22 +647,22 @@ def model_bigqueryio():
 
   URL: https://cloud.google.com/dataflow/model/bigquery-io
   """
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
 
   # [START model_bigqueryio_read]
-  p = df.Pipeline(options=PipelineOptions())
-  weather_data = p | df.io.Read(
+  p = beam.Pipeline(options=PipelineOptions())
+  weather_data = p | beam.io.Read(
       'ReadWeatherStations',
-      df.io.BigQuerySource(
+      beam.io.BigQuerySource(
           'clouddataflow-readonly:samples.weather_stations'))
   # [END model_bigqueryio_read]
 
   # [START model_bigqueryio_query]
-  p = df.Pipeline(options=PipelineOptions())
-  weather_data = p | df.io.Read(
+  p = beam.Pipeline(options=PipelineOptions())
+  weather_data = p | beam.io.Read(
       'ReadYearAndTemp',
-      df.io.BigQuerySource(
+      beam.io.BigQuerySource(
           query='SELECT year, mean_temp FROM samples.weather_stations'))
   # [END model_bigqueryio_query]
 
@@ -668,14 +671,14 @@ def model_bigqueryio():
   # [END model_bigqueryio_schema]
 
   # [START model_bigqueryio_write]
-  quotes = p | df.Create(
+  quotes = p | beam.Create(
       [{'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'}])
-  quotes | df.io.Write(
-      'Write', df.io.BigQuerySink(
+  quotes | beam.io.Write(
+      'Write', beam.io.BigQuerySink(
           'my-project:output.output_table',
           schema=schema,
-          write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE,
-          create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED))
+          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED))
   # [END model_bigqueryio_write]
 
 
@@ -691,28 +694,28 @@ def model_composite_transform_example(contents, output_path):
   """
   import re
 
-  import google.cloud.dataflow as df
+  import apache_beam as beam
 
   # [START composite_transform_example]
   # [START composite_ptransform_apply_method]
   # [START composite_ptransform_declare]
-  class CountWords(df.PTransform):
+  class CountWords(beam.PTransform):
     # [END composite_ptransform_declare]
 
     def apply(self, pcoll):
       return (pcoll
-              | df.FlatMap(lambda x: re.findall(r'\w+', x))
-              | df.combiners.Count.PerElement()
-              | df.Map(lambda (word, c): '%s: %s' % (word, c)))
+              | beam.FlatMap(lambda x: re.findall(r'\w+', x))
+              | beam.combiners.Count.PerElement()
+              | beam.Map(lambda (word, c): '%s: %s' % (word, c)))
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  from google.cloud.dataflow.utils.options import PipelineOptions
-  p = df.Pipeline(options=PipelineOptions())
+  from apache_beam.utils.options import PipelineOptions
+  p = beam.Pipeline(options=PipelineOptions())
   (p
-   | df.Create(contents)
+   | beam.Create(contents)
    | CountWords()
-   | df.io.Write(df.io.TextFileSink(output_path)))
+   | beam.io.Write(beam.io.TextFileSink(output_path)))
   p.run()
 
 
@@ -722,13 +725,13 @@ def model_multiple_pcollections_flatten(contents, output_path):
   URL: https://cloud.google.com/dataflow/model/multiple-pcollections
   """
   some_hash_fn = lambda s: ord(s[0])
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
-  p = df.Pipeline(options=PipelineOptions())
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
+  p = beam.Pipeline(options=PipelineOptions())
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
   # Partition into deciles
-  partitioned = p | df.Create(contents) | df.Partition(partition_fn, 3)
+  partitioned = p | beam.Create(contents) | beam.Partition(partition_fn, 3)
   pcoll1 = partitioned[0]
   pcoll2 = partitioned[1]
   pcoll3 = partitioned[2]
@@ -746,9 +749,9 @@ def model_multiple_pcollections_flatten(contents, output_path):
       (pcoll1, pcoll2, pcoll3)
       # [END model_multiple_pcollections_tuple]
       # A list of tuples can be "piped" directly into a Flatten transform.
-      | df.Flatten())
+      | beam.Flatten())
   # [END model_multiple_pcollections_flatten]
-  merged | df.io.Write(df.io.TextFileSink(output_path))
+  merged | beam.io.Write(beam.io.TextFileSink(output_path))
 
   p.run()
 
@@ -762,24 +765,24 @@ def model_multiple_pcollections_partition(contents, output_path):
   def get_percentile(i):
     """Assume i in [0,100)."""
     return i
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
-  p = df.Pipeline(options=PipelineOptions())
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
+  p = beam.Pipeline(options=PipelineOptions())
 
-  students = p | df.Create(contents)
+  students = p | beam.Create(contents)
   # [START model_multiple_pcollections_partition]
   def partition_fn(student, num_partitions):
     return int(get_percentile(student) * num_partitions / 100)
 
-  by_decile = students | df.Partition(partition_fn, 10)
+  by_decile = students | beam.Partition(partition_fn, 10)
   # [END model_multiple_pcollections_partition]
   # [START model_multiple_pcollections_partition_40th]
   fortieth_percentile = by_decile[4]
   # [END model_multiple_pcollections_partition_40th]
 
   ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
-   | df.Flatten()
-   | df.io.Write(df.io.TextFileSink(output_path)))
+   | beam.Flatten()
+   | beam.io.Write(beam.io.TextFileSink(output_path)))
 
   p.run()
 
@@ -791,25 +794,25 @@ def model_group_by_key(contents, output_path):
   """
   import re
 
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
-  p = df.Pipeline(options=PipelineOptions())
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
+  p = beam.Pipeline(options=PipelineOptions())
   words_and_counts = (
       p
-      | df.Create(contents)
-      | df.FlatMap(lambda x: re.findall(r'\w+', x))
-      | df.Map('one word', lambda w: (w, 1)))
+      | beam.Create(contents)
+      | beam.FlatMap(lambda x: re.findall(r'\w+', x))
+      | beam.Map('one word', lambda w: (w, 1)))
   # GroupByKey accepts a PCollection of (w, 1) and
   # outputs a PCollection of (w, (1, 1, ...)).
   # (A key/value pair is just a tuple in Python.)
   # This is a somewhat forced example, since one could
-  # simply use df.combiners.Count.PerElement here.
+  # simply use beam.combiners.Count.PerElement here.
   # [START model_group_by_key_transform]
-  grouped_words = words_and_counts | df.GroupByKey()
+  grouped_words = words_and_counts | beam.GroupByKey()
   # [END model_group_by_key_transform]
   (grouped_words
-   | df.Map('count words', lambda (word, counts): (word, len(counts)))
-   | df.io.Write(df.io.TextFileSink(output_path)))
+   | beam.Map('count words', lambda (word, counts): (word, len(counts)))
+   | beam.io.Write(beam.io.TextFileSink(output_path)))
   p.run()
 
 
@@ -818,9 +821,9 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
 
   URL: https://cloud.google.com/dataflow/model/group-by-key
   """
-  import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils.options import PipelineOptions
-  p = df.Pipeline(options=PipelineOptions())
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
+  p = beam.Pipeline(options=PipelineOptions())
   # [START model_group_by_key_cogroupbykey_tuple]
   # Each data set is represented by key-value pairs in separate PCollections.
   # Both data sets share a common key type (in this example str).
@@ -828,8 +831,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   # multiple possible values for each key.
   # The phone_list contains values such as: ('mary': '111-222-3333') with
   # multiple possible values for each key.
-  emails = p | df.Create('email', email_list)
-  phones = p | df.Create('phone', phone_list)
+  emails = p | beam.Create('email', email_list)
+  phones = p | beam.Create('phone', phone_list)
   # The result PCollection contains one key-value element for each key in the
   # input PCollections. The key of the pair will be the key from the input and
   # the value will be a dictionary with two entries: 'emails' - an iterable of
@@ -838,35 +841,35 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   # For instance, if 'emails' contained ('joe', 'joe@example.com') and
   # ('joe', 'joe@gmail.com'), then 'result' will contain the element
   # ('joe', {'emails': ['joe@example.com', 'joe@gmail.com'], 'phones': ...})
-  result = {'emails': emails, 'phones': phones} | df.CoGroupByKey()
+  result = {'emails': emails, 'phones': phones} | beam.CoGroupByKey()
 
   def join_info((name, info)):
     return '; '.join(['%s' % name,
                       '%s' % ','.join(info['emails']),
                       '%s' % ','.join(info['phones'])])
 
-  contact_lines = result | df.Map(join_info)
+  contact_lines = result | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
-  contact_lines | df.io.Write(df.io.TextFileSink(output_path))
+  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
   p.run()
 
 
 # [START model_library_transforms_keys]
-class Keys(df.PTransform):
+class Keys(beam.PTransform):
 
   def apply(self, pcoll):
-    return pcoll | df.Map('Keys', lambda (k, v): k)
+    return pcoll | beam.Map('Keys', lambda (k, v): k)
 # [END model_library_transforms_keys]
 # pylint: enable=invalid-name
 
 
 # [START model_library_transforms_count]
-class Count(df.PTransform):
+class Count(beam.PTransform):
 
   def apply(self, pcoll):
     return (
         pcoll
-        | df.Map('Init', lambda v: (v, 1))
-        | df.CombinePerKey(sum))
+        | beam.Map('Init', lambda v: (v, 1))
+        | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]
 # pylint: enable=g-wrong-blank-lines

@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Merge phone, email, and mailing address information.
 
@@ -32,7 +35,7 @@ import argparse
 import logging
 import re
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
 def run(argv=None, assert_results=None):
@@ -58,33 +61,33 @@ def run(argv=None, assert_results=None):
                       help='Output file for statistics about the input.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   # Helper: read a tab-separated key-value mapping from a text file, escape all
   # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
   def read_kv_textfile(label, textfile):
     return (p
-            | df.io.Read('read_%s' % label, textfile)
-            | df.Map('backslash_%s' % label,
+            | beam.io.Read('read_%s' % label, textfile)
+            | beam.Map('backslash_%s' % label,
                      lambda x: re.sub(r'\\', r'\\\\', x))
-            | df.Map('escape_quotes_%s' % label,
+            | beam.Map('escape_quotes_%s' % label,
                      lambda x: re.sub(r'"', r'\"', x))
-            | df.Map('split_%s' % label, lambda x: re.split(r'\t+', x, 1)))
+            | beam.Map('split_%s' % label, lambda x: re.split(r'\t+', x, 1)))
 
   # Read input databases.
   email = read_kv_textfile('email',
-                           df.io.TextFileSource(known_args.input_email))
+                           beam.io.TextFileSource(known_args.input_email))
   phone = read_kv_textfile('phone',
-                           df.io.TextFileSource(known_args.input_phone))
+                           beam.io.TextFileSource(known_args.input_phone))
   snailmail = read_kv_textfile('snailmail',
-                               df.io.TextFileSource(known_args.input_snailmail))
+                               beam.io.TextFileSource(known_args.input_snailmail))
 
   # Group together all entries under the same name.
-  grouped = (email, phone, snailmail) | df.CoGroupByKey('group_by_name')
+  grouped = (email, phone, snailmail) | beam.CoGroupByKey('group_by_name')
 
   # Prepare tab-delimited output; something like this:
   # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
-  tsv_lines = grouped | df.Map(
+  tsv_lines = grouped | beam.Map(
       lambda (name, (email, phone, snailmail)): '\t'.join(
           ['"%s"' % name,
            '"%s"' % ','.join(email),
@@ -92,30 +95,30 @@ def run(argv=None, assert_results=None):
            '"%s"' % next(iter(snailmail), '')]))
 
   # Compute some stats about our database of people.
-  luddites = grouped | df.Filter(  # People without email.
+  luddites = grouped | beam.Filter(  # People without email.
       lambda (name, (email, phone, snailmail)): not next(iter(email), None))
-  writers = grouped | df.Filter(   # People without phones.
+  writers = grouped | beam.Filter(   # People without phones.
       lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
-  nomads = grouped | df.Filter(    # People without addresses.
+  nomads = grouped | beam.Filter(    # People without addresses.
       lambda (name, (email, phone, snailmail)): not next(iter(snailmail), None))
 
-  num_luddites = luddites | df.combiners.Count.Globally('luddites')
-  num_writers = writers | df.combiners.Count.Globally('writers')
-  num_nomads = nomads | df.combiners.Count.Globally('nomads')
+  num_luddites = luddites | beam.combiners.Count.Globally('luddites')
+  num_writers = writers | beam.combiners.Count.Globally('writers')
+  num_nomads = nomads | beam.combiners.Count.Globally('nomads')
 
   # Write tab-delimited output.
   # pylint: disable=expression-not-assigned
-  tsv_lines | df.io.Write('write_tsv',
-                          df.io.TextFileSink(known_args.output_tsv))
+  tsv_lines | beam.io.Write('write_tsv',
+                          beam.io.TextFileSink(known_args.output_tsv))
 
   # TODO(silviuc): Move the assert_results logic to the unit test.
   if assert_results is not None:
     expected_luddites, expected_writers, expected_nomads = assert_results
-    df.assert_that(num_luddites, df.equal_to([expected_luddites]),
+    beam.assert_that(num_luddites, beam.equal_to([expected_luddites]),
                    label='assert:luddites')
-    df.assert_that(num_writers, df.equal_to([expected_writers]),
+    beam.assert_that(num_writers, beam.equal_to([expected_writers]),
                    label='assert:writers')
-    df.assert_that(num_nomads, df.equal_to([expected_nomads]),
+    beam.assert_that(num_nomads, beam.equal_to([expected_nomads]),
                    label='assert:nomads')
   # Execute pipeline.
   p.run()

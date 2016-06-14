@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """An example that reads Wikipedia edit data and computes strings of edits.
 
@@ -41,15 +44,15 @@ import json
 import logging
 import sys
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow import combiners
-from google.cloud.dataflow import window
+import apache_beam as beam
+from apache_beam import combiners
+from apache_beam import window
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
 
 
-class ExtractUserAndTimestampDoFn(df.DoFn):
+class ExtractUserAndTimestampDoFn(beam.DoFn):
   """Extracts user and timestamp representing a Wikipedia edit."""
 
   def process(self, context):
@@ -60,7 +63,7 @@ class ExtractUserAndTimestampDoFn(df.DoFn):
       yield window.TimestampedValue(user_name, timestamp)
 
 
-class ComputeSessions(df.PTransform):
+class ComputeSessions(beam.PTransform):
   """Computes the number of edits in each user session.
 
   A session is defined as a string of edits where each is separated from the
@@ -72,12 +75,12 @@ class ComputeSessions(df.PTransform):
 
   def apply(self, pcoll):
     return (pcoll
-            | df.WindowInto('ComputeSessionsWindow',
+            | beam.WindowInto('ComputeSessionsWindow',
                             window.Sessions(gap_size=ONE_HOUR_IN_SECONDS))
             | combiners.Count.PerElement())
 
 
-class TopPerMonth(df.PTransform):
+class TopPerMonth(beam.PTransform):
   """Computes the longest session ending in each month."""
 
   def __init__(self):
@@ -85,7 +88,7 @@ class TopPerMonth(df.PTransform):
 
   def apply(self, pcoll):
     return (pcoll
-            | df.WindowInto('TopPerMonthWindow',
+            | beam.WindowInto('TopPerMonthWindow',
                             window.FixedWindows(
                                 size=THIRTY_DAYS_IN_SECONDS))
             | combiners.core.CombineGlobally(
@@ -95,7 +98,7 @@ class TopPerMonth(df.PTransform):
             .without_defaults())
 
 
-class SessionsToStringsDoFn(df.DoFn):
+class SessionsToStringsDoFn(beam.DoFn):
   """Adds the session information to be part of the key."""
 
   def process(self, context):
@@ -103,7 +106,7 @@ class SessionsToStringsDoFn(df.DoFn):
            ', '.join([str(w) for w in context.windows]), context.element[1])
 
 
-class FormatOutputDoFn(df.DoFn):
+class FormatOutputDoFn(beam.DoFn):
   """Formats a string containing the user, count, and session."""
 
   def process(self, context):
@@ -114,7 +117,7 @@ class FormatOutputDoFn(df.DoFn):
              + ', '.join([str(w) for w in context.windows]))
 
 
-class ComputeTopSessions(df.PTransform):
+class ComputeTopSessions(beam.PTransform):
   """Computes the top user sessions for each month."""
 
   def __init__(self, sampling_threshold):
@@ -123,13 +126,13 @@ class ComputeTopSessions(df.PTransform):
 
   def apply(self, pcoll):
     return (pcoll
-            | df.ParDo('ExtractUserAndTimestamp', ExtractUserAndTimestampDoFn())
-            | df.Filter(
+            | beam.ParDo('ExtractUserAndTimestamp', ExtractUserAndTimestampDoFn())
+            | beam.Filter(
                 lambda x: abs(hash(x)) <= sys.maxint * self.sampling_threshold)
             | ComputeSessions()
-            | df.ParDo('SessionsToStrings', SessionsToStringsDoFn())
+            | beam.ParDo('SessionsToStrings', SessionsToStringsDoFn())
             | TopPerMonth()
-            | df.ParDo('FormatOutput', FormatOutputDoFn()))
+            | beam.ParDo('FormatOutput', FormatOutputDoFn()))
 
 
 def run(argv=None):
@@ -155,12 +158,12 @@ def run(argv=None):
                       help='Fraction of entries used for session tracking')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   (p  # pylint: disable=expression-not-assigned
-   | df.Read('read', df.io.TextFileSource(known_args.input))
+   | beam.Read('read', beam.io.TextFileSource(known_args.input))
    | ComputeTopSessions(known_args.sampling_threshold)
-   | df.io.Write('write', df.io.TextFileSink(known_args.output)))
+   | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
 
   p.run()
 

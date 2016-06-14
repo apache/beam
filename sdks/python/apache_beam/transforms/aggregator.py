@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Support for user-defined Aggregators.
 
@@ -19,11 +22,11 @@ of statistics about the data processed.  To update an aggregator's value,
 call aggregate_to() on the context passed to a DoFn.
 
 Example:
-import google.cloud.dataflow as df
+import apache_beam as beam
 
-simple_counter = df.Aggregator('example-counter')
+simple_counter = beam.Aggregator('example-counter')
 
-class ExampleDoFn(df.DoFn):
+class ExampleDoFn(beam.DoFn):
   def process(self, context):
     context.aggregate_to(simple_counter, 1)
     ...
@@ -38,7 +41,7 @@ pipeline.
 
 from __future__ import absolute_import
 
-from google.cloud.dataflow.transforms import core
+from apache_beam.transforms import core
 
 
 class Aggregator(object):
@@ -49,7 +52,7 @@ class Aggregator(object):
       It must be one of these arithmetic functions:
 
        - Python's built-in sum, min, max, any, and all.
-       - df.combiners.MeanCombineFn()
+       - beam.combiners.MeanCombineFn()
 
       The default is sum of 64-bit ints.
 
@@ -59,9 +62,9 @@ class Aggregator(object):
 
   Example uses::
 
-    import google.cloud.dataflow as df
-    simple_counter = df.Aggregator('example-counter')
-    complex_counter = df.Aggregator('other-counter', df.Mean(), float)
+    import apache_beam as beam
+    simple_counter = beam.Aggregator('example-counter')
+    complex_counter = beam.Aggregator('other-counter', beam.Mean(), float)
   """
 
   def __init__(self, name, combine_fn=sum, input_type=int):
@@ -101,5 +104,5 @@ class Aggregator(object):
 
 def _is_supported_kind(combine_fn):
   # pylint: disable=g-import-not-at-top
-  from google.cloud.dataflow.internal.apiclient import metric_translations
+  from apache_beam.internal.apiclient import metric_translations
   return combine_fn.__class__ in metric_translations

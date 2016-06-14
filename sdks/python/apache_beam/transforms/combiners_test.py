@@ -1,30 +1,33 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Unit tests for our libraries of combine PTransforms."""
 
 import unittest
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow.pipeline import Pipeline
-from google.cloud.dataflow.transforms import combiners
-import google.cloud.dataflow.transforms.combiners as combine
-from google.cloud.dataflow.transforms.core import CombineGlobally
-from google.cloud.dataflow.transforms.core import Create
-from google.cloud.dataflow.transforms.core import Map
-from google.cloud.dataflow.transforms.ptransform import PTransform
-from google.cloud.dataflow.transforms.util import assert_that, equal_to
+import apache_beam as beam
+from apache_beam.pipeline import Pipeline
+from apache_beam.transforms import combiners
+import apache_beam.transforms.combiners as combine
+from apache_beam.transforms.core import CombineGlobally
+from apache_beam.transforms.core import Create
+from apache_beam.transforms.core import Map
+from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.util import assert_that, equal_to
 
 
 class CombineTest(unittest.TestCase):
@@ -98,15 +101,15 @@ class CombineTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
 
     pcoll = pipeline | Create('start', [6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-    result_top = pcoll | df.CombineGlobally('top', combiners.Largest(5))
-    result_bot = pcoll | df.CombineGlobally('bot', combiners.Smallest(4))
+    result_top = pcoll | beam.CombineGlobally('top', combiners.Largest(5))
+    result_bot = pcoll | beam.CombineGlobally('bot', combiners.Smallest(4))
     assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
     assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
 
     pcoll = pipeline | Create(
         'start-perkey', [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-    result_ktop = pcoll | df.CombinePerKey('top-perkey', combiners.Largest(5))
-    result_kbot = pcoll | df.CombinePerKey('bot-perkey', combiners.Smallest(4))
+    result_ktop = pcoll | beam.CombinePerKey('top-perkey', combiners.Largest(5))
+    result_kbot = pcoll | beam.CombinePerKey('bot-perkey', combiners.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
     pipeline.run()
@@ -154,7 +157,7 @@ class CombineTest(unittest.TestCase):
     result = (
         p
         | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
-        | df.CombineGlobally(combine.TupleCombineFn(max,
+        | beam.CombineGlobally(combine.TupleCombineFn(max,
                                                     combine.MeanCombineFn(),
                                                     sum)).without_defaults())
     assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
@@ -165,7 +168,7 @@ class CombineTest(unittest.TestCase):
     result = (
         p
         | Create([1, 1, 2, 3])
-        | df.CombineGlobally(
+        | beam.CombineGlobally(
             combine.TupleCombineFn(min, combine.MeanCombineFn(), max)
             .with_common_input()).without_defaults())
     assert_that(result, equal_to([(1, 7.0 / 4, 3)]))

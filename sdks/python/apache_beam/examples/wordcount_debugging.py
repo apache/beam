@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """An example that verifies the counts and includes Dataflow best practices.
 
@@ -42,10 +45,10 @@ import argparse
 import logging
 import re
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
-class FilterTextFn(df.DoFn):
+class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
 
   # A custom aggregator can track values in your pipeline as it runs. Those
@@ -54,8 +57,8 @@ class FilterTextFn(df.DoFn):
   # matched and unmatched words. Learn more at
   # https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf about
   # the Dataflow Monitoring UI.
-  matched_words = df.Aggregator('matched_words')
-  umatched_words = df.Aggregator('umatched_words')
+  matched_words = beam.Aggregator('matched_words')
+  umatched_words = beam.Aggregator('umatched_words')
 
   def __init__(self, pattern):
     super(FilterTextFn, self).__init__()
@@ -80,7 +83,7 @@ class FilterTextFn(df.DoFn):
       context.aggregate_to(self.umatched_words, 1)
 
 
-class CountWords(df.PTransform):
+class CountWords(beam.PTransform):
   """A transform to count the occurrences of each word.
 
   A PTransform that converts a PCollection containing lines of text into a
@@ -92,11 +95,11 @@ class CountWords(df.PTransform):
 
   def apply(self, pcoll):
     return (pcoll
-            | (df.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
+            | (beam.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
                .with_output_types(unicode))
-            | df.Map('pair_with_one', lambda x: (x, 1))
-            | df.GroupByKey('group')
-            | df.Map('count', lambda (word, ones): (word, sum(ones))))
+            | beam.Map('pair_with_one', lambda x: (x, 1))
+            | beam.GroupByKey('group')
+            | beam.Map('count', lambda (word, ones): (word, sum(ones))))
 
 
 def run(argv=None):
@@ -113,13 +116,13 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection, count the occurrences of
   # each word and filter by a list of words.
   filtered_words = (
-      p | df.io.Read('read', df.io.TextFileSource(known_args.input))
-      | CountWords() | df.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
+      p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+      | CountWords() | beam.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
 
   # assert_that is a convenient PTransform that checks a PCollection has an
   # expected value. Asserts are best used in unit tests with small data sets but
@@ -129,14 +132,14 @@ def run(argv=None):
   # of the Pipeline implies that the expectations were  met. Learn more at
   # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
   # test your pipeline.
-  df.assert_that(filtered_words, df.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.assert_that(filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
 
   # Format the counts into a PCollection of strings and write the output using a
   # "Write" transform that has side effects.
   # pylint: disable=unused-variable
   output = (filtered_words
-            | df.Map('format', lambda (word, c): '%s: %s' % (word, c))
-            | df.io.Write('write', df.io.TextFileSink(known_args.output)))
+            | beam.Map('format', lambda (word, c): '%s: %s' % (word, c))
+            | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()

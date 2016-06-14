@@ -1,38 +1,41 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Unit tests for the windowing classes."""
 
 import unittest
 
-from google.cloud.dataflow.pipeline import Pipeline
-from google.cloud.dataflow.transforms import CombinePerKey
-from google.cloud.dataflow.transforms import combiners
-from google.cloud.dataflow.transforms import core
-from google.cloud.dataflow.transforms import Create
-from google.cloud.dataflow.transforms import GroupByKey
-from google.cloud.dataflow.transforms import Map
-from google.cloud.dataflow.transforms import window
-from google.cloud.dataflow.transforms import WindowInto
-from google.cloud.dataflow.transforms.util import assert_that, equal_to
-from google.cloud.dataflow.transforms.window import FixedWindows
-from google.cloud.dataflow.transforms.window import IntervalWindow
-from google.cloud.dataflow.transforms.window import Sessions
-from google.cloud.dataflow.transforms.window import SlidingWindows
-from google.cloud.dataflow.transforms.window import TimestampedValue
-from google.cloud.dataflow.transforms.window import WindowedValue
-from google.cloud.dataflow.transforms.window import WindowFn
+from apache_beam.pipeline import Pipeline
+from apache_beam.transforms import CombinePerKey
+from apache_beam.transforms import combiners
+from apache_beam.transforms import core
+from apache_beam.transforms import Create
+from apache_beam.transforms import GroupByKey
+from apache_beam.transforms import Map
+from apache_beam.transforms import window
+from apache_beam.transforms import WindowInto
+from apache_beam.transforms.util import assert_that, equal_to
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import Sessions
+from apache_beam.transforms.window import SlidingWindows
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.window import WindowFn
 
 
 def context(element, timestamp, windows):

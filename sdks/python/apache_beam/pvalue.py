@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """PValue, PCollection: one node of a dataflow graph.
 
@@ -345,7 +348,7 @@ def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pyli
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsSingleton(has_default, default_value,
                                              label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
@@ -377,7 +380,7 @@ def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsIterable(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view
@@ -408,7 +411,7 @@ def AsList(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsList(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view
@@ -440,7 +443,7 @@ def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsDict(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view

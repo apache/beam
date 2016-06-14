@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A workflow using BigQuery sources and sinks.
 
@@ -33,7 +36,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
 def count_tornadoes(input_data):
@@ -50,11 +53,11 @@ def count_tornadoes(input_data):
   """
 
   return (input_data
-          | df.FlatMap(
+          | beam.FlatMap(
               'months with tornadoes',
               lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
-          | df.CombinePerKey('monthly count', sum)
-          | df.Map('format', lambda (k, v): {'month': k, 'tornado_count': v}))
+          | beam.CombinePerKey('monthly count', sum)
+          | beam.Map('format', lambda (k, v): {'month': k, 'tornado_count': v}))
 
 
 def run(argv=None):
@@ -71,21 +74,21 @@ def run(argv=None):
        'or DATASET.TABLE.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   # Read the table rows into a PCollection.
-  rows = p | df.io.Read('read', df.io.BigQuerySource(known_args.input))
+  rows = p | beam.io.Read('read', beam.io.BigQuerySource(known_args.input))
   counts = count_tornadoes(rows)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  counts | df.io.Write(
+  counts | beam.io.Write(
       'write',
-      df.io.BigQuerySink(
+      beam.io.BigQuerySink(
           known_args.output,
           schema='month:INTEGER, tornado_count:INTEGER',
-          create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED,
-          write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE))
+          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
 
   # Run the pipeline (all operations are deferred until run() is called).
   p.run()

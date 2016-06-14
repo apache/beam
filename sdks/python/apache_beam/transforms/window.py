@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Windowing concepts.
 
@@ -46,12 +49,12 @@ WindowFn.
 
 from __future__ import absolute_import
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow.transforms import timeutil
-from google.cloud.dataflow.transforms.timeutil import Duration
-from google.cloud.dataflow.transforms.timeutil import MAX_TIMESTAMP
-from google.cloud.dataflow.transforms.timeutil import MIN_TIMESTAMP
-from google.cloud.dataflow.transforms.timeutil import Timestamp
+from apache_beam import coders
+from apache_beam.transforms import timeutil
+from apache_beam.transforms.timeutil import Duration
+from apache_beam.transforms.timeutil import MAX_TIMESTAMP
+from apache_beam.transforms.timeutil import MIN_TIMESTAMP
+from apache_beam.transforms.timeutil import Timestamp
 
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their

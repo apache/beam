@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """BigQuery sources and sinks.
 
@@ -42,11 +45,11 @@ Map transform will get on each call *one* row of the main table and *all* rows
 of the side table. The execution framework may use some caching techniques to
 share the side inputs between calls in order to avoid excessive reading::
 
-  main_table = pipeline | df.io.Read(df.io.BigQuerySource('very_big_table')
-  side_table = pipeline | df.io.Read(df.io.BigQuerySource('not_so_big_table')
+  main_table = pipeline | beam.io.Read(beam.io.BigQuerySource('very_big_table')
+  side_table = pipeline | beam.io.Read(beam.io.BigQuerySource('not_so_big_table')
   results = (
       main_table
-      | df.Map('process data',
+      | beam.Map('process data',
                lambda element, side_input: ...,
                AsList(side_table)))
 
@@ -69,7 +72,7 @@ Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.
 
-  query_results = pipeline | df.io.Read(df.io.BigQuerySource(
+  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
       query='SELECT year, mean_temp FROM samples.weather_stations'))
 
 When creating a BigQuery input transform, users should provide either a query
@@ -107,20 +110,20 @@ import re
 import time
 import uuid
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow.internal import auth
-from google.cloud.dataflow.internal.json_value import from_json_value
-from google.cloud.dataflow.internal.json_value import to_json_value
-from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.utils import retry
-from google.cloud.dataflow.utils.options import GoogleCloudOptions
+from apache_beam import coders
+from apache_beam.internal import auth
+from apache_beam.internal.json_value import from_json_value
+from apache_beam.internal.json_value import to_json_value
+from apache_beam.io import iobase
+from apache_beam.utils import retry
+from apache_beam.utils.options import GoogleCloudOptions
 
 from apitools.base.py.exceptions import HttpError
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=g-import-not-at-top
 try:
-  from google.cloud.dataflow.internal.clients import bigquery
+  from apache_beam.internal.clients import bigquery
 except ImportError:
   pass
 # pylint: enable=g-import-not-at-top

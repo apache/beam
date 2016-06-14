@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A workflow emitting the top k most common words for each prefix."""
 
@@ -20,7 +23,7 @@ import argparse
 import logging
 import re
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
 def run(argv=None):
@@ -34,19 +37,19 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   (p  # pylint: disable=expression-not-assigned
-   | df.io.Read('read', df.io.TextFileSource(known_args.input))
-   | df.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
+   | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+   | beam.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
    | TopPerPrefix('TopPerPrefix', 5)
-   | df.Map('format',
+   | beam.Map('format',
             lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
-   | df.io.Write('write', df.io.TextFileSink(known_args.output)))
+   | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
   p.run()
 
 
-class TopPerPrefix(df.PTransform):
+class TopPerPrefix(beam.PTransform):
 
   def __init__(self, label, count):
     super(TopPerPrefix, self).__init__(label)
@@ -63,9 +66,9 @@ class TopPerPrefix(df.PTransform):
           (prefix, [(count, word), (count, word), ...])
     """
     return (words
-            | df.combiners.Count.PerElement()
-            | df.FlatMap(extract_prefixes)
-            | df.combiners.Top.LargestPerKey(self._count))
+            | beam.combiners.Count.PerElement()
+            | beam.FlatMap(extract_prefixes)
+            | beam.combiners.Top.LargestPerKey(self._count))
 
 
 def extract_prefixes((word, count)):

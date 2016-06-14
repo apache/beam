@@ -21,8 +21,8 @@ import pprint
 import sys
 import types
 
-from google.cloud.dataflow.typehints import Any
-from google.cloud.dataflow.typehints import typehints
+from apache_beam.typehints import Any
+from apache_beam.typehints import typehints
 
 
 class TypeInferenceError(ValueError):

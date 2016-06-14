@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Unit tests for the sources framework."""
 
@@ -18,11 +21,11 @@ import logging
 import tempfile
 import unittest
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
-from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.transforms.util import assert_that
-from google.cloud.dataflow.transforms.util import equal_to
+from apache_beam.io import iobase
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 
 
 class LineSource(iobase.BoundedSource):
@@ -54,8 +57,8 @@ class SourcesTest(unittest.TestCase):
 
   def test_run_direct(self):
     file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
-    pipeline = df.Pipeline('DirectPipelineRunner')
-    pcoll = pipeline | df.Read(LineSource(file_name))
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.Read(LineSource(file_name))
     assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
 
     pipeline.run()

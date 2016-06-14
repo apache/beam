@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A runner implementation that submits a job for remote execution.
 
@@ -24,21 +27,21 @@ import threading
 import time
 
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow import pvalue
-from google.cloud.dataflow.internal import pickler
-from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.pvalue import PCollectionView
-from google.cloud.dataflow.runners.runner import PipelineResult
-from google.cloud.dataflow.runners.runner import PipelineRunner
-from google.cloud.dataflow.runners.runner import PipelineState
-from google.cloud.dataflow.runners.runner import PValueCache
-from google.cloud.dataflow.typehints import typehints
-from google.cloud.dataflow.utils import names
-from google.cloud.dataflow.utils.names import PropertyNames
-from google.cloud.dataflow.utils.names import TransformNames
-from google.cloud.dataflow.utils.options import StandardOptions
-from google.cloud.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam import coders
+from apache_beam import pvalue
+from apache_beam.internal import pickler
+from apache_beam.io import iobase
+from apache_beam.pvalue import PCollectionView
+from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.runner import PipelineRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.runner import PValueCache
+from apache_beam.typehints import typehints
+from apache_beam.utils import names
+from apache_beam.utils.names import PropertyNames
+from apache_beam.utils.names import TransformNames
+from apache_beam.utils.options import StandardOptions
+from apache_beam.internal.clients import dataflow as dataflow_api
 
 
 class DataflowPipelineRunner(PipelineRunner):
@@ -149,7 +152,7 @@ class DataflowPipelineRunner(PipelineRunner):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.internal import apiclient
+    from apache_beam.internal import apiclient
     self.job = apiclient.Job(pipeline.options)
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowPipelineRunner, self).run(pipeline)
@@ -242,7 +245,7 @@ class DataflowPipelineRunner(PipelineRunner):
     """Creates a Step object and adds it to the cache."""
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.internal import apiclient
+    from apache_beam.internal import apiclient
     step = apiclient.Step(step_kind, self._get_unique_step_name())
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)

@@ -18,12 +18,12 @@
 
 import sys
 
-from google.cloud.dataflow.internal import util
-from google.cloud.dataflow.pvalue import SideOutputValue
-from google.cloud.dataflow.transforms import core
-from google.cloud.dataflow.transforms.window import TimestampedValue
-from google.cloud.dataflow.transforms.window import WindowedValue
-from google.cloud.dataflow.transforms.window import WindowFn
+from apache_beam.internal import util
+from apache_beam.pvalue import SideOutputValue
+from apache_beam.transforms import core
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.window import WindowFn
 
 
 class FakeLogger(object):

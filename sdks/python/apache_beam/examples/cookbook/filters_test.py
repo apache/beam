@@ -1,24 +1,27 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Test for the filters example."""
 
 import logging
 import unittest
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow.examples.cookbook import filters
+import apache_beam as beam
+from apache_beam.examples.cookbook import filters
 
 
 class FiltersTest(unittest.TestCase):
@@ -32,8 +35,8 @@ class FiltersTest(unittest.TestCase):
       ]
 
   def _get_result_for_month(self, month):
-    p = df.Pipeline('DirectPipelineRunner')
-    rows = (p | df.Create('create', self.input_data))
+    p = beam.Pipeline('DirectPipelineRunner')
+    rows = (p | beam.Create('create', self.input_data))
 
     results = filters.filter_cold_days(rows, month)
     return results
@@ -41,22 +44,22 @@ class FiltersTest(unittest.TestCase):
   def test_basic(self):
     """Test that the correct result is returned for a simple dataset."""
     results = self._get_result_for_month(1)
-    df.assert_that(
+    beam.assert_that(
         results,
-        df.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
+        beam.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
                      {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
     results.pipeline.run()
 
   def test_basic_empty(self):
     """Test that the correct empty result is returned for a simple dataset."""
     results = self._get_result_for_month(3)
-    df.assert_that(results, df.equal_to([]))
+    beam.assert_that(results, beam.equal_to([]))
     results.pipeline.run()
 
   def test_basic_empty_missing(self):
     """Test that the correct empty result is returned for a missing month."""
     results = self._get_result_for_month(4)
-    df.assert_that(results, df.equal_to([]))
+    beam.assert_that(results, beam.equal_to([]))
     results.pipeline.run()
 
 

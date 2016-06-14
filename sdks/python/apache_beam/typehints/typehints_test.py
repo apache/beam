@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Unit tests for the type-hint objects and decorators."""
 import functools
@@ -18,19 +21,19 @@ import inspect
 import unittest
 
 
-import google.cloud.dataflow.typehints as typehints
-from google.cloud.dataflow.typehints import Any
-from google.cloud.dataflow.typehints import is_consistent_with
-from google.cloud.dataflow.typehints import Tuple
-from google.cloud.dataflow.typehints import TypeCheckError
-from google.cloud.dataflow.typehints import Union
-from google.cloud.dataflow.typehints import with_input_types
-from google.cloud.dataflow.typehints import with_output_types
-from google.cloud.dataflow.typehints.decorators import _check_instance_type
-from google.cloud.dataflow.typehints.decorators import _interleave_type_check
-from google.cloud.dataflow.typehints.decorators import _positional_arg_hints
-from google.cloud.dataflow.typehints.decorators import get_type_hints
-from google.cloud.dataflow.typehints.decorators import getcallargs_forhints
+import apache_beam.typehints as typehints
+from apache_beam.typehints import Any
+from apache_beam.typehints import is_consistent_with
+from apache_beam.typehints import Tuple
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import Union
+from apache_beam.typehints import with_input_types
+from apache_beam.typehints import with_output_types
+from apache_beam.typehints.decorators import _check_instance_type
+from apache_beam.typehints.decorators import _interleave_type_check
+from apache_beam.typehints.decorators import _positional_arg_hints
+from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import getcallargs_forhints
 
 
 def check_or_interleave(hint, value, var):

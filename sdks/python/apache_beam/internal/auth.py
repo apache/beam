@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Dataflow credentials and authentication."""
 
@@ -24,10 +27,10 @@ import urllib2
 
 from oauth2client.client import OAuth2Credentials
 
-from google.cloud.dataflow.utils import processes
-from google.cloud.dataflow.utils import retry
-from google.cloud.dataflow.utils.options import GoogleCloudOptions
-from google.cloud.dataflow.utils.options import PipelineOptions
+from apache_beam.utils import processes
+from apache_beam.utils import retry
+from apache_beam.utils.options import GoogleCloudOptions
+from apache_beam.utils.options import PipelineOptions
 
 
 # When we are running in GCE, we can authenticate with VM credentials.

@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Tests for all code snippets used in public docs."""
 
@@ -19,13 +22,13 @@ import sys
 import tempfile
 import unittest
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow import io
-from google.cloud.dataflow import pvalue
-from google.cloud.dataflow import typehints
-from google.cloud.dataflow.examples.snippets import snippets
-from google.cloud.dataflow.io import fileio
-from google.cloud.dataflow.utils.options import TypeOptions
+import apache_beam as beam
+from apache_beam import io
+from apache_beam import pvalue
+from apache_beam import typehints
+from apache_beam.examples.snippets import snippets
+from apache_beam.io import fileio
+from apache_beam.utils.options import TypeOptions
 
 
 # Monky-patch to use native sink for file path re-writing.
@@ -41,32 +44,32 @@ class ParDoTest(unittest.TestCase):
 
     words = ['aa', 'bbb', 'c']
     # [START model_pardo_pardo]
-    class ComputeWordLengthFn(df.DoFn):
+    class ComputeWordLengthFn(beam.DoFn):
       def process(self, context):
         return [len(context.element)]
     # [END model_pardo_pardo]
 
     # [START model_pardo_apply]
     # Apply a ParDo to the PCollection "words" to compute lengths for each word.
-    word_lengths = words | df.ParDo(ComputeWordLengthFn())
+    word_lengths = words | beam.ParDo(ComputeWordLengthFn())
     # [END model_pardo_apply]
     self.assertEqual({2, 3, 1}, set(word_lengths))
 
   def test_pardo_yield(self):
     words = ['aa', 'bbb', 'c']
     # [START model_pardo_yield]
-    class ComputeWordLengthFn(df.DoFn):
+    class ComputeWordLengthFn(beam.DoFn):
       def process(self, context):
         yield len(context.element)
     # [END model_pardo_yield]
 
-    word_lengths = words | df.ParDo(ComputeWordLengthFn())
+    word_lengths = words | beam.ParDo(ComputeWordLengthFn())
     self.assertEqual({2, 3, 1}, set(word_lengths))
 
   def test_pardo_using_map(self):
     words = ['aa', 'bbb', 'c']
     # [START model_pardo_using_map]
-    word_lengths = words | df.Map(len)
+    word_lengths = words | beam.Map(len)
     # [END model_pardo_using_map]
 
     self.assertEqual({2, 3, 1}, set(word_lengths))
@@ -74,7 +77,7 @@ class ParDoTest(unittest.TestCase):
   def test_pardo_using_flatmap(self):
     words = ['aa', 'bbb', 'c']
     # [START model_pardo_using_flatmap]
-    word_lengths = words | df.FlatMap(lambda word: [len(word)])
+    word_lengths = words | beam.FlatMap(lambda word: [len(word)])
     # [END model_pardo_using_flatmap]
 
     self.assertEqual({2, 3, 1}, set(word_lengths))
@@ -86,7 +89,7 @@ class ParDoTest(unittest.TestCase):
       for letter in word:
         if 'A' <= letter <= 'Z':
             yield letter
-    all_capitals = words | df.FlatMap(capitals)
+    all_capitals = words | beam.FlatMap(capitals)
     # [END model_pardo_using_flatmap_yield]
 
     self.assertEqual({'A', 'C'}, set(all_capitals))
@@ -94,14 +97,14 @@ class ParDoTest(unittest.TestCase):
   def test_pardo_with_label(self):
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
-    result = words | df.Map('CountUniqueLetters', lambda word: len(set(word)))
+    result = words | beam.Map('CountUniqueLetters', lambda word: len(set(word)))
     # [END model_pardo_with_label]
 
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
-    p = df.Pipeline('DirectPipelineRunner')
-    words = p | df.Create('start', ['a', 'bb', 'ccc', 'dddd'])
+    p = beam.Pipeline('DirectPipelineRunner')
+    words = p | beam.Create('start', ['a', 'bb', 'ccc', 'dddd'])
 
     # [START model_pardo_side_input]
     # Callable takes additional arguments.
@@ -110,26 +113,26 @@ class ParDoTest(unittest.TestCase):
         yield word
 
     # Construct a deferred side input.
-    avg_word_len = words | df.Map(len) | df.CombineGlobally(df.combiners.MeanCombineFn())
+    avg_word_len = words | beam.Map(len) | beam.CombineGlobally(beam.combiners.MeanCombineFn())
 
     # Call with explicit side inputs.
-    small_words = words | df.FlatMap('small', filter_using_length, 0, 3)
+    small_words = words | beam.FlatMap('small', filter_using_length, 0, 3)
 
     # A single deferred side input.
-    larger_than_average = words | df.FlatMap('large',
+    larger_than_average = words | beam.FlatMap('large',
                                              filter_using_length,
                                              lower_bound=pvalue.AsSingleton(avg_word_len))
 
     # Mix and match.
-    small_but_nontrivial = words | df.FlatMap(filter_using_length,
+    small_but_nontrivial = words | beam.FlatMap(filter_using_length,
                                               lower_bound=2,
                                               upper_bound=pvalue.AsSingleton(avg_word_len))
     # [END model_pardo_side_input]
 
-    df.assert_that(small_words, df.equal_to(['a', 'bb', 'ccc']))
-    df.assert_that(larger_than_average, df.equal_to(['ccc', 'dddd']),
+    beam.assert_that(small_words, beam.equal_to(['a', 'bb', 'ccc']))
+    beam.assert_that(larger_than_average, beam.equal_to(['ccc', 'dddd']),
                    label='larger_than_average')
-    df.assert_that(small_but_nontrivial, df.equal_to(['bb']),
+    beam.assert_that(small_but_nontrivial, beam.equal_to(['bb']),
                    label='small_but_not_trivial')
     p.run()
 
@@ -137,18 +140,18 @@ class ParDoTest(unittest.TestCase):
     words = ['a', 'bb', 'ccc', 'dddd']
 
     # [START model_pardo_side_input_dofn]
-    class FilterUsingLength(df.DoFn):
+    class FilterUsingLength(beam.DoFn):
       def process(self, context, lower_bound, upper_bound=float('inf')):
         if lower_bound <= len(context.element) <= upper_bound:
           yield context.element
 
-    small_words = words | df.ParDo(FilterUsingLength(), 0, 3)
+    small_words = words | beam.ParDo(FilterUsingLength(), 0, 3)
     # [END model_pardo_side_input_dofn]
     self.assertEqual({'a', 'bb', 'ccc'}, set(small_words))
 
   def test_pardo_with_side_outputs(self):
     # [START model_pardo_emitting_values_on_side_outputs]
-    class ProcessWords(df.DoFn):
+    class ProcessWords(beam.DoFn):
 
       def process(self, context, cutoff_length, marker):
         if len(context.element) <= cutoff_length:
@@ -166,7 +169,7 @@ class ParDoTest(unittest.TestCase):
     words = ['a', 'an', 'the', 'music', 'xyz']
 
     # [START model_pardo_with_side_outputs]
-    results = (words | df.ParDo(ProcessWords(), cutoff_length=2, marker='x')
+    results = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
                          .with_outputs('above_cutoff_lengths',
                                        'marked strings',
                                        main='below_cutoff_strings'))
@@ -180,7 +183,7 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'xyz'}, set(marked))
 
     # [START model_pardo_with_side_outputs_iter]
-    below, above, marked = (words | df.ParDo(ProcessWords(), cutoff_length=2, marker='x')
+    below, above, marked = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
                                       .with_outputs('above_cutoff_lengths',
                                                     'marked strings',
                                                     main='below_cutoff_strings'))
@@ -198,7 +201,7 @@ class ParDoTest(unittest.TestCase):
       if x % 10 == 0:
         yield x
 
-    results = numbers | df.FlatMap(even_odd).with_outputs()
+    results = numbers | beam.FlatMap(even_odd).with_outputs()
 
     evens = results.even
     odds = results.odd
@@ -213,15 +216,15 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
 
     # [START type_hints_missing_define_numbers]
-    numbers = p | df.Create(['1', '2', '3'])
+    numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
 
     # Consider the following code.
     # [START type_hints_missing_apply]
-    evens = numbers | df.Filter(lambda x: x % 2 == 0)
+    evens = numbers | beam.Filter(lambda x: x % 2 == 0)
     # [END type_hints_missing_apply]
 
     # Now suppose numers was defined as [snippet above].
@@ -235,57 +238,57 @@ class TypeHintsTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_takes]
       p.options.view_as(TypeOptions).pipeline_type_check = True
-      evens = numbers | df.Filter(lambda x: x % 2 == 0).with_input_types(int)
+      evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
       # [END type_hints_takes]
 
     # Type hints can be declared on DoFns and callables as well, rather
     # than where they're used, to be more self contained.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_do_fn]
-      @df.typehints.with_input_types(int)
-      class FilterEvensDoFn(df.DoFn):
+      @beam.typehints.with_input_types(int)
+      class FilterEvensDoFn(beam.DoFn):
         def process(self, context):
           if context.element % 2 == 0:
             yield context.element
-      evens = numbers | df.ParDo(FilterEvensDoFn())
+      evens = numbers | beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn]
 
-    words = p | df.Create('words', ['a', 'bb', 'c'])
+    words = p | beam.Create('words', ['a', 'bb', 'c'])
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
-    T = df.typehints.TypeVariable('T')
-    @df.typehints.with_input_types(T)
-    @df.typehints.with_output_types(df.typehints.Tuple[int, T])
-    class MyTransform(df.PTransform):
+    T = beam.typehints.TypeVariable('T')
+    @beam.typehints.with_input_types(T)
+    @beam.typehints.with_output_types(beam.typehints.Tuple[int, T])
+    class MyTransform(beam.PTransform):
       def apply(self, pcoll):
-        return pcoll | df.Map(lambda x: (len(x), x))
+        return pcoll | beam.Map(lambda x: (len(x), x))
 
     words_with_lens = words | MyTransform()
     # [END type_hints_transform]
 
     with self.assertRaises(typehints.TypeCheckError):
-      words_with_lens | df.Map(lambda x: x).with_input_types(
-          df.typehints.Tuple[int, int])
+      words_with_lens | beam.Map(lambda x: x).with_input_types(
+          beam.typehints.Tuple[int, int])
 
   def test_runtime_checks_off(self):
-    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     # [START type_hints_runtime_off]
-    p | df.Create(['a']) | df.Map(lambda x: 3).with_output_types(str)
+    p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     p.run()
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
-    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
       p.options.view_as(TypeOptions).runtime_type_check = True
-      p | df.Create(['a']) | df.Map(lambda x: 3).with_output_types(str)
+      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       p.run()
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     lines = ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']
 
     # [START type_hints_deterministic_key]
@@ -294,7 +297,7 @@ class TypeHintsTest(unittest.TestCase):
         self.team = team
         self.name = name
 
-    class PlayerCoder(df.coders.Coder):
+    class PlayerCoder(beam.coders.Coder):
       def encode(self, player):
         return '%s:%s' % (player.team, player.name)
 
@@ -304,7 +307,7 @@ class TypeHintsTest(unittest.TestCase):
       def is_deterministic(self):
         return True
 
-    df.coders.registry.register_coder(Player, PlayerCoder)
+    beam.coders.registry.register_coder(Player, PlayerCoder)
 
     def parse_player_and_score(csv):
       name, team, score = csv.split(',')
@@ -312,13 +315,13 @@ class TypeHintsTest(unittest.TestCase):
 
     totals = (
         lines
-        | df.Map(parse_player_and_score)
-        | df.CombinePerKey(sum).with_input_types(df.typehints.Tuple[Player, int]))
+        | beam.Map(parse_player_and_score)
+        | beam.CombinePerKey(sum).with_input_types(beam.typehints.Tuple[Player, int]))
     # [END type_hints_deterministic_key]
 
     self.assertEquals(
         {('banana', 3), ('kiwi', 4), ('zucchini', 3)},
-        set(totals | df.Map(lambda (k, v): (k.name, v))))
+        set(totals | beam.Map(lambda (k, v): (k.name, v))))
 
 
 class SnippetsTest(unittest.TestCase):
@@ -472,14 +475,14 @@ class CombineTest(unittest.TestCase):
   def test_global_sum(self):
     pc = [1, 2, 3]
     # [START global_sum]
-    result = pc | df.CombineGlobally(sum)
+    result = pc | beam.CombineGlobally(sum)
     # [END global_sum]
     self.assertEqual([6], result)
 
   def test_combine_values(self):
     occurences = [('cat', 1), ('cat', 5), ('cat', 9), ('dog', 5), ('dog', 2)]
     # [START combine_values]
-    first_occurences = occurences | df.GroupByKey() | df.CombineValues(min)
+    first_occurences = occurences | beam.GroupByKey() | beam.CombineValues(min)
     # [END combine_values]
     self.assertEqual({('cat', 1), ('dog', 2)}, set(first_occurences))
 
@@ -488,7 +491,7 @@ class CombineTest(unittest.TestCase):
         ('cat', 1), ('cat', 5), ('cat', 9), ('cat', 1),
         ('dog', 5), ('dog', 2)]
     # [START combine_per_key]
-    avg_accuracy_per_player = player_accuracies | df.CombinePerKey(df.combiners.MeanCombineFn())
+    avg_accuracy_per_player = player_accuracies | beam.CombinePerKey(beam.combiners.MeanCombineFn())
     # [END combine_per_key]
     self.assertEqual({('cat', 4.0), ('dog', 3.5)}, set(avg_accuracy_per_player))
 
@@ -497,8 +500,8 @@ class CombineTest(unittest.TestCase):
     # [START combine_concat]
     def concat(values, separator=', '):
       return separator.join(values)
-    with_commas = pc | df.CombineGlobally(concat)
-    with_dashes = pc | df.CombineGlobally(concat, separator='-')
+    with_commas = pc | beam.CombineGlobally(concat)
+    with_dashes = pc | beam.CombineGlobally(concat, separator='-')
     # [END combine_concat]
     self.assertEqual(1, len(with_commas))
     self.assertTrue(with_commas[0] in {'a, b', 'b, a'})
@@ -510,8 +513,8 @@ class CombineTest(unittest.TestCase):
     pc = [1, 10, 100, 1000]
     def bounded_sum(values, bound=500):
       return min(sum(values), bound)
-    small_sum = pc | df.CombineGlobally(bounded_sum)              # [500]
-    large_sum = pc | df.CombineGlobally(bounded_sum, bound=5000)  # [1111]
+    small_sum = pc | beam.CombineGlobally(bounded_sum)              # [500]
+    large_sum = pc | beam.CombineGlobally(bounded_sum, bound=5000)  # [1111]
     # [END combine_bounded_sum]
     self.assertEqual([500], small_sum)
     self.assertEqual([1111], large_sum)
@@ -521,7 +524,7 @@ class CombineTest(unittest.TestCase):
     # [START combine_reduce]
     import functools
     import operator
-    product = factors | df.CombineGlobally(functools.partial(reduce, operator.mul), 1)
+    product = factors | beam.CombineGlobally(functools.partial(reduce, operator.mul), 1)
     # [END combine_reduce]
     self.assertEqual([210], product)
 
@@ -530,7 +533,7 @@ class CombineTest(unittest.TestCase):
 
 
     # [START combine_custom_average]
-    class AverageFn(df.CombineFn):
+    class AverageFn(beam.CombineFn):
       def create_accumulator(self):
         return (0.0, 0)
       def add_input(self, (sum, count), input):
@@ -540,7 +543,7 @@ class CombineTest(unittest.TestCase):
         return sum(sums), sum(counts)
       def extract_output(self, (sum, count)):
         return sum / count if count else float('NaN')
-    average = pc | df.CombineGlobally(AverageFn())
+    average = pc | beam.CombineGlobally(AverageFn())
     # [END combine_custom_average]
     self.assertEqual([4.25], average)
 

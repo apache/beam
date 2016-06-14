@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A workflow that uses a simple Monte Carlo method to estimate π.
 
@@ -29,14 +32,14 @@ import logging
 import random
 
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow.typehints import Any
-from google.cloud.dataflow.typehints import Iterable
-from google.cloud.dataflow.typehints import Tuple
+import apache_beam as beam
+from apache_beam.typehints import Any
+from apache_beam.typehints import Iterable
+from apache_beam.typehints import Tuple
 
 
-@df.typehints.with_output_types(Tuple[int, int, int])
-@df.typehints.with_input_types(int)
+@beam.typehints.with_output_types(Tuple[int, int, int])
+@beam.typehints.with_input_types(int)
 def run_trials(runs):
   """Run trials and return a 3-tuple representing the results.
 
@@ -57,8 +60,8 @@ def run_trials(runs):
   return runs, inside_runs, 0
 
 
-@df.typehints.with_output_types(Tuple[int, int, float])
-@df.typehints.with_input_types(Iterable[Tuple[int, int, Any]])
+@beam.typehints.with_output_types(Tuple[int, int, float])
+@beam.typehints.with_input_types(Iterable[Tuple[int, int, Any]])
 def combine_results(results):
   """Combiner function to sum up trials and compute the estimate.
 
@@ -90,14 +93,14 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
   # A thousand work items of a million tries each.
   (p  # pylint: disable=expression-not-assigned
-   | df.Create('Initialize', [100000] * 100).with_output_types(int)
-   | df.Map('Run trials', run_trials)
-   | df.CombineGlobally('Sum', combine_results).without_defaults()
-   | df.io.Write('Write',
-                 df.io.TextFileSink(known_args.output,
+   | beam.Create('Initialize', [100000] * 100).with_output_types(int)
+   | beam.Map('Run trials', run_trials)
+   | beam.CombineGlobally('Sum', combine_results).without_defaults()
+   | beam.io.Write('Write',
+                 beam.io.TextFileSink(known_args.output,
                                     coder=JsonCoder())))
 
   # Actually run the pipeline (all operations above are deferred).

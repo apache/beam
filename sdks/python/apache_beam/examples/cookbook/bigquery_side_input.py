@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A Dataflow job that uses BigQuery sources as a side inputs.
 
@@ -28,11 +31,11 @@ import argparse
 import logging
 from random import randrange
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
-from google.cloud.dataflow.pvalue import AsIter
-from google.cloud.dataflow.pvalue import AsList
-from google.cloud.dataflow.pvalue import AsSingleton
+from apache_beam.pvalue import AsIter
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
@@ -59,12 +62,12 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
     yield group + (selected,)
 
   return (group_ids
-          | df.FlatMap(
+          | beam.FlatMap(
               'attach corpus',
               attach_corpus_fn,
               AsList(corpus),
               AsSingleton(ignore_corpus))
-          | df.FlatMap(
+          | beam.FlatMap(
               'attach word',
               attach_word_fn,
               AsIter(word),
@@ -81,7 +84,7 @@ def run(argv=None):
   parser.add_argument('--num_groups')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   group_ids = []
   for i in xrange(0, int(known_args.num_groups)):
@@ -92,20 +95,20 @@ def run(argv=None):
   ignore_corpus = known_args.ignore_corpus
   ignore_word = known_args.ignore_word
 
-  pcoll_corpus = p | df.Read('read corpus',
-                             df.io.BigQuerySource(query=query_corpus))
-  pcoll_word = p | df.Read('read words',
-                           df.io.BigQuerySource(query=query_word))
-  pcoll_ignore_corpus = p | df.Create('create_ignore_corpus', [ignore_corpus])
-  pcoll_ignore_word = p | df.Create('create_ignore_word', [ignore_word])
-  pcoll_group_ids = p | df.Create('create groups', group_ids)
+  pcoll_corpus = p | beam.Read('read corpus',
+                             beam.io.BigQuerySource(query=query_corpus))
+  pcoll_word = p | beam.Read('read words',
+                           beam.io.BigQuerySource(query=query_word))
+  pcoll_ignore_corpus = p | beam.Create('create_ignore_corpus', [ignore_corpus])
+  pcoll_ignore_word = p | beam.Create('create_ignore_word', [ignore_word])
+  pcoll_group_ids = p | beam.Create('create groups', group_ids)
 
   pcoll_groups = create_groups(pcoll_group_ids, pcoll_corpus, pcoll_word,
                                pcoll_ignore_corpus, pcoll_ignore_word)
 
   # pylint:disable=expression-not-assigned
-  pcoll_groups | df.io.Write('WriteToText',
-                             df.io.TextFileSink(known_args.output))
+  pcoll_groups | beam.io.Write('WriteToText',
+                             beam.io.TextFileSink(known_args.output))
   p.run()
 
 

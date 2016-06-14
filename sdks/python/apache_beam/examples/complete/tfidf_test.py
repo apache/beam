@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Test for the TF-IDF example."""
 
@@ -20,8 +23,8 @@ import re
 import tempfile
 import unittest
 
-import google.cloud.dataflow as df
-from google.cloud.dataflow.examples.complete import tfidf
+import apache_beam as beam
+from apache_beam.examples.complete import tfidf
 
 
 EXPECTED_RESULTS = set([
@@ -44,8 +47,8 @@ class TfIdfTest(unittest.TestCase):
       f.write(contents)
 
   def test_tfidf_transform(self):
-    p = df.Pipeline('DirectPipelineRunner')
-    uri_to_line = p | df.Create(
+    p = beam.Pipeline('DirectPipelineRunner')
+    uri_to_line = p | beam.Create(
         'create sample',
         [('1.txt', 'abc def ghi'),
          ('2.txt', 'abc def'),
@@ -53,8 +56,8 @@ class TfIdfTest(unittest.TestCase):
     result = (
         uri_to_line
         | tfidf.TfIdf()
-        | df.Map('flatten', lambda (word, (uri, tfidf)): (word, uri, tfidf)))
-    df.assert_that(result, df.equal_to(EXPECTED_RESULTS))
+        | beam.Map('flatten', lambda (word, (uri, tfidf)): (word, uri, tfidf)))
+    beam.assert_that(result, beam.equal_to(EXPECTED_RESULTS))
     # Run the pipeline. Note that the assert_that above adds to the pipeline
     # a check that the result PCollection contains expected values. To actually
     # trigger the check the pipeline must be run.

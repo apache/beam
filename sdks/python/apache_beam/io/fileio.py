@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """File-based sources and sinks."""
 
@@ -26,11 +29,11 @@ import shutil
 import tempfile
 import time
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.io import range_trackers
-from google.cloud.dataflow.utils import processes
-from google.cloud.dataflow.utils import retry
+from apache_beam import coders
+from apache_beam.io import iobase
+from apache_beam.io import range_trackers
+from apache_beam.utils import processes
+from apache_beam.utils import retry
 
 
 __all__ = ['TextFileSource', 'TextFileSink']
@@ -170,7 +173,7 @@ class ChannelFactory(object):
   def open(path, mode, mime_type):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       return gcsio.GcsIO().open(path, mode, mime_type=mime_type)
     else:
       return open(path, mode)
@@ -180,7 +183,7 @@ class ChannelFactory(object):
     if src.startswith('gs://'):
       assert dst.startswith('gs://'), dst
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       gcsio.GcsIO().rename(src, dst)
     else:
       try:
@@ -195,7 +198,7 @@ class ChannelFactory(object):
       assert src.endswith('/'), src
       assert dst.endswith('/'), dst
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       gcsio.GcsIO().copytree(src, dst)
     else:
       try:
@@ -209,7 +212,7 @@ class ChannelFactory(object):
   def exists(path):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       return gcsio.GcsIO().exists()
     else:
       return os.path.exists(path)
@@ -218,7 +221,7 @@ class ChannelFactory(object):
   def rmdir(path):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       gcs = gcsio.GcsIO()
       if not path.endswith('/'):
         path += '/'
@@ -235,7 +238,7 @@ class ChannelFactory(object):
   def rm(path):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       gcsio.GcsIO().delete(path)
     else:
       try:
@@ -247,7 +250,7 @@ class ChannelFactory(object):
   def glob(path):
     if path.startswith('gs://'):
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       return gcsio.GcsIO().glob(path)
     else:
       return glob.glob(path)
@@ -606,7 +609,7 @@ class TextFileReader(iobase.NativeSourceReader):
   def __enter__(self):
     if self.source.is_gcs_source:
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
+      from apache_beam.io import gcsio
       self._file = gcsio.GcsIO().open(self.source.file_path, 'rb')
     else:
       self._file = open(self.source.file_path, 'rb')

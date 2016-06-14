@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """A word-counting workflow."""
 
@@ -20,16 +23,16 @@ import argparse
 import logging
 import re
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
 
-empty_line_aggregator = df.Aggregator('emptyLines')
-average_word_size_aggregator = df.Aggregator('averageWordLength',
-                                             df.combiners.MeanCombineFn(),
+empty_line_aggregator = beam.Aggregator('emptyLines')
+average_word_size_aggregator = beam.Aggregator('averageWordLength',
+                                             beam.combiners.MeanCombineFn(),
                                              float)
 
 
-class WordExtractingDoFn(df.DoFn):
+class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def process(self, context):
@@ -66,25 +69,25 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = df.Pipeline(argv=pipeline_args)
+  p = beam.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | df.io.Read('read', df.io.TextFileSource(known_args.input))
+  lines = p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
 
   # Count the occurrences of each word.
   counts = (lines
-            | (df.ParDo('split', WordExtractingDoFn())
+            | (beam.ParDo('split', WordExtractingDoFn())
                .with_output_types(unicode))
-            | df.Map('pair_with_one', lambda x: (x, 1))
-            | df.GroupByKey('group')
-            | df.Map('count', lambda (word, ones): (word, sum(ones))))
+            | beam.Map('pair_with_one', lambda x: (x, 1))
+            | beam.GroupByKey('group')
+            | beam.Map('count', lambda (word, ones): (word, sum(ones))))
 
   # Format the counts into a PCollection of strings.
-  output = counts | df.Map('format', lambda (word, c): '%s: %s' % (word, c))
+  output = counts | beam.Map('format', lambda (word, c): '%s: %s' % (word, c))
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | df.io.Write('write', df.io.TextFileSink(known_args.output))
+  output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()

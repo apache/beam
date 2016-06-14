@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Google Cloud Dataflow SDK for Python.
 
@@ -44,14 +47,14 @@ Typical usage
 -------------
 At the top of your source file::
 
-    import google.cloud.dataflow as df
+    import apache_beam as beam
 
 After this import statement
 
-* transform classes are available as df.FlatMap, df.GroupByKey, etc.
-* Pipeline class is available as df.Pipeline
-* text source/sink classes are available as df.io.TextFileSource,
-  df.io.TextFileSink
+* transform classes are available as beam.FlatMap, beam.GroupByKey, etc.
+* Pipeline class is available as beam.Pipeline
+* text source/sink classes are available as beam.io.TextFileSource,
+  beam.io.TextFileSink
 
 Examples
 --------
@@ -69,10 +72,10 @@ if sys.version_info.major != 2:
       'It is not supported on Python [%s].' % sys.version)
 
 
-import google.cloud.dataflow.internal.pickler
+import apache_beam.internal.pickler
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow import io
-from google.cloud.dataflow import typehints
-from google.cloud.dataflow.pipeline import Pipeline
-from google.cloud.dataflow.transforms import *
+from apache_beam import coders
+from apache_beam import io
+from apache_beam import typehints
+from apache_beam.pipeline import Pipeline
+from apache_beam.transforms import *

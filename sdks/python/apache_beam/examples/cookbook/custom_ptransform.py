@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Various implementations of a Count custom PTransform.
 
@@ -22,9 +25,9 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import google.cloud.dataflow as df
+import apache_beam as beam
 
-from google.cloud.dataflow.utils.options import PipelineOptions
+from apache_beam.utils.options import PipelineOptions
 
 
 # pylint doesn't understand our pipeline syntax:
@@ -34,45 +37,45 @@ from google.cloud.dataflow.utils.options import PipelineOptions
 def run_count1(known_args, options):
   """Runs the first example pipeline."""
 
-  class Count(df.PTransform):
+  class Count(beam.PTransform):
     """Count as a subclass of PTransform, with an apply method."""
 
     def apply(self, pcoll):
       return (
           pcoll
-          | df.Map('Init', lambda v: (v, 1))
-          | df.CombinePerKey(sum))
+          | beam.Map('Init', lambda v: (v, 1))
+          | beam.CombinePerKey(sum))
 
   logging.info('Running first pipeline')
-  p = df.Pipeline(options=options)
-  (p | df.io.Read(df.io.TextFileSource(known_args.input)) | Count()
-   | df.io.Write(df.io.TextFileSink(known_args.output)))
+  p = beam.Pipeline(options=options)
+  (p | beam.io.Read(beam.io.TextFileSource(known_args.input)) | Count()
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 
 def run_count2(known_args, options):
   """Runs the second example pipeline."""
 
-  @df.ptransform_fn
+  @beam.ptransform_fn
   def Count(label, pcoll):      # pylint: disable=invalid-name,unused-argument
     """Count as a decorated function."""
     return (
         pcoll
-        | df.Map('Init', lambda v: (v, 1))
-        | df.CombinePerKey(sum))
+        | beam.Map('Init', lambda v: (v, 1))
+        | beam.CombinePerKey(sum))
 
   logging.info('Running second pipeline')
-  p = df.Pipeline(options=options)
-  (p | df.io.Read(df.io.TextFileSource(known_args.input))
+  p = beam.Pipeline(options=options)
+  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
    | Count()  # pylint: disable=no-value-for-parameter
-   | df.io.Write(df.io.TextFileSink(known_args.output)))
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 
 def run_count3(known_args, options):
   """Runs the third example pipeline."""
 
-  @df.ptransform_fn
+  @beam.ptransform_fn
   # pylint: disable=invalid-name,unused-argument
   def Count(label, pcoll, factor=1):
     """Count as a decorated function with a side input.
@@ -87,14 +90,14 @@ def run_count3(known_args, options):
     """
     return (
         pcoll
-        | df.Map('Init', lambda v: (v, factor))
-        | df.CombinePerKey(sum))
+        | beam.Map('Init', lambda v: (v, factor))
+        | beam.CombinePerKey(sum))
 
   logging.info('Running third pipeline')
-  p = df.Pipeline(options=options)
-  (p | df.io.Read(df.io.TextFileSource(known_args.input))
+  p = beam.Pipeline(options=options)
+  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
    | Count(2)  # pylint: disable=no-value-for-parameter
-   | df.io.Write(df.io.TextFileSink(known_args.output)))
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 

@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """DirectPipelineRunner, executing on the local machine.
 
@@ -25,29 +28,29 @@ import collections
 import itertools
 import logging
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow import error
-from google.cloud.dataflow.io import fileio
-from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.pvalue import DictPCollectionView
-from google.cloud.dataflow.pvalue import EmptySideInput
-from google.cloud.dataflow.pvalue import IterablePCollectionView
-from google.cloud.dataflow.pvalue import ListPCollectionView
-from google.cloud.dataflow.pvalue import SingletonPCollectionView
-from google.cloud.dataflow.runners.common import DoFnRunner
-from google.cloud.dataflow.runners.common import DoFnState
-from google.cloud.dataflow.runners.runner import PipelineResult
-from google.cloud.dataflow.runners.runner import PipelineRunner
-from google.cloud.dataflow.runners.runner import PipelineState
-from google.cloud.dataflow.runners.runner import PValueCache
-from google.cloud.dataflow.transforms import DoFnProcessContext
-from google.cloud.dataflow.transforms.window import GlobalWindows
-from google.cloud.dataflow.transforms.window import WindowedValue
-from google.cloud.dataflow.typehints.typecheck import OutputCheckWrapperDoFn
-from google.cloud.dataflow.typehints.typecheck import TypeCheckError
-from google.cloud.dataflow.typehints.typecheck import TypeCheckWrapperDoFn
-from google.cloud.dataflow.utils import counters
-from google.cloud.dataflow.utils.options import TypeOptions
+from apache_beam import coders
+from apache_beam import error
+from apache_beam.io import fileio
+from apache_beam.io import iobase
+from apache_beam.pvalue import DictPCollectionView
+from apache_beam.pvalue import EmptySideInput
+from apache_beam.pvalue import IterablePCollectionView
+from apache_beam.pvalue import ListPCollectionView
+from apache_beam.pvalue import SingletonPCollectionView
+from apache_beam.runners.common import DoFnRunner
+from apache_beam.runners.common import DoFnState
+from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.runner import PipelineRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms import DoFnProcessContext
+from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import WindowedValue
+from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
+from apache_beam.typehints.typecheck import TypeCheckError
+from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
+from apache_beam.utils import counters
+from apache_beam.utils.options import TypeOptions
 
 
 class DirectPipelineRunner(PipelineRunner):

@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Pipeline, the top-level Dataflow object.
 
@@ -45,19 +48,19 @@ import os
 import shutil
 import tempfile
 
-from google.cloud.dataflow import pvalue
-from google.cloud.dataflow import typehints
-from google.cloud.dataflow.internal import pickler
-from google.cloud.dataflow.runners import create_runner
-from google.cloud.dataflow.runners import PipelineRunner
-from google.cloud.dataflow.transforms import format_full_label
-from google.cloud.dataflow.transforms import ptransform
-from google.cloud.dataflow.typehints import TypeCheckError
-from google.cloud.dataflow.utils.options import PipelineOptions
-from google.cloud.dataflow.utils.options import SetupOptions
-from google.cloud.dataflow.utils.options import StandardOptions
-from google.cloud.dataflow.utils.options import TypeOptions
-from google.cloud.dataflow.utils.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam import pvalue
+from apache_beam import typehints
+from apache_beam.internal import pickler
+from apache_beam.runners import create_runner
+from apache_beam.runners import PipelineRunner
+from apache_beam.transforms import format_full_label
+from apache_beam.transforms import ptransform
+from apache_beam.typehints import TypeCheckError
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.options import StandardOptions
+from apache_beam.utils.options import TypeOptions
+from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
 
 
 class Pipeline(object):

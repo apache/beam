@@ -18,7 +18,7 @@
 """Counters collect the progress of the Worker for reporting to the service."""
 
 import threading
-from google.cloud.dataflow.transforms import cy_combiners
+from apache_beam.transforms import cy_combiners
 
 
 class Counter(object):

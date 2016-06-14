@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """PTransform and descendants.
 
@@ -39,17 +42,17 @@ import operator
 import os
 import sys
 
-from google.cloud.dataflow import coders
-from google.cloud.dataflow import error
-from google.cloud.dataflow import pvalue
-from google.cloud.dataflow import typehints
-from google.cloud.dataflow.internal import pickler
-from google.cloud.dataflow.internal import util
-from google.cloud.dataflow.typehints import getcallargs_forhints
-from google.cloud.dataflow.typehints import TypeCheckError
-from google.cloud.dataflow.typehints import validate_composite_type_param
-from google.cloud.dataflow.typehints import WithTypeHints
-from google.cloud.dataflow.typehints.trivial_inference import instance_to_type
+from apache_beam import coders
+from apache_beam import error
+from apache_beam import pvalue
+from apache_beam import typehints
+from apache_beam.internal import pickler
+from apache_beam.internal import util
+from apache_beam.typehints import getcallargs_forhints
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import validate_composite_type_param
+from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints.trivial_inference import instance_to_type
 
 
 class _PValueishTransform(object):
@@ -381,8 +384,8 @@ class PTransform(WithTypeHints):
     if pvalues and not pipelines:
       deferred = False
       # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow import pipeline
-      from google.cloud.dataflow.utils.options import PipelineOptions
+      from apache_beam import pipeline
+      from apache_beam.utils.options import PipelineOptions
       # pylint: enable=g-import-not-at-top
       p = pipeline.Pipeline(
           'DirectPipelineRunner', PipelineOptions(sys.argv))
@@ -401,7 +404,7 @@ class PTransform(WithTypeHints):
                 'Mixing value from different pipelines not allowed.')
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.transforms.core import Create
+    from apache_beam.transforms.core import Create
     # pylint: enable=g-import-not-at-top
     replacements = {id(v): p | Create('CreatePInput%s' % ix, v)
                     for ix, v in enumerate(pvalues)
@@ -429,7 +432,7 @@ class PTransform(WithTypeHints):
     Generally only needs to be overriden for multi-input PTransforms.
     """
     # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow import pipeline
+    from apache_beam import pipeline
     # pylint: enable=g-import-not-at-top
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)

@@ -1,16 +1,19 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 """Unit tests for BigQuery sources and sinks."""
 
@@ -20,14 +23,14 @@ import time
 import unittest
 
 import mock
-import google.cloud.dataflow as df
-from google.cloud.dataflow.internal.json_value import to_json_value
-from google.cloud.dataflow.io.bigquery import RowAsDictJsonCoder
-from google.cloud.dataflow.io.bigquery import TableRowJsonCoder
-from google.cloud.dataflow.utils.options import PipelineOptions
+import apache_beam as beam
+from apache_beam.internal.json_value import to_json_value
+from apache_beam.io.bigquery import RowAsDictJsonCoder
+from apache_beam.io.bigquery import TableRowJsonCoder
+from apache_beam.utils.options import PipelineOptions
 
 from apitools.base.py.exceptions import HttpError
-from google.cloud.dataflow.internal.clients import bigquery
+from apache_beam.internal.clients import bigquery
 
 
 class TestRowAsDictJsonCoder(unittest.TestCase):
@@ -72,22 +75,22 @@ class TestTableRowJsonCoder(unittest.TestCase):
 class TestBigQuerySource(unittest.TestCase):
 
   def test_parse_table_reference(self):
-    source = df.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource('dataset.table')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = df.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource('project:dataset.table')
     self.assertEqual(source.table_reference.projectId, 'project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = df.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
     self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
   def test_specify_query_without_table(self):
-    source = df.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(query='my_query')
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
 
@@ -95,7 +98,7 @@ class TestBigQuerySource(unittest.TestCase):
 class TestBigQuerySink(unittest.TestCase):
 
   def test_parse_schema_descriptor(self):
-    sink = df.io.BigQuerySink(
+    sink = beam.io.BigQuerySink(
         'dataset.table', schema='s:STRING, n:INTEGER')
     self.assertEqual(sink.table_reference.datasetId, 'dataset')
     self.assertEqual(sink.table_reference.tableId, 'table')
@@ -104,7 +107,7 @@ class TestBigQuerySink(unittest.TestCase):
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
   def test_simple_schema_as_json(self):
-    sink = df.io.BigQuerySink(
+    sink = beam.io.BigQuerySink(
         'dataset.table', schema='s:STRING, n:INTEGER')
     self.assertEqual(
         json.dumps({'fields': [
@@ -121,7 +124,7 @@ class TestBigQuerySink(unittest.TestCase):
         name='r', type='RECORD', mode='REQUIRED', description='r description',
         fields=[string_field, number_field])
     schema = bigquery.TableSchema(fields=[record_field])
-    sink = df.io.BigQuerySink('dataset.table', schema=schema)
+    sink = beam.io.BigQuerySink('dataset.table', schema=schema)
     self.assertEqual(
         {'fields': [
             {'name': 'r', 'type': 'RECORD', 'mode': 'REQUIRED',
@@ -178,7 +181,7 @@ class TestBigQueryReader(unittest.TestCase):
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with df.io.BigQuerySource('dataset.table').reader(client) as reader:
+    with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -193,7 +196,7 @@ class TestBigQueryReader(unittest.TestCase):
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with df.io.BigQuerySource(query='query').reader(client) as reader:
+    with beam.io.BigQuerySource(query='query').reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -201,14 +204,14 @@ class TestBigQueryReader(unittest.TestCase):
 
   def test_using_both_query_and_table_fails(self):
     with self.assertRaises(ValueError) as exn:
-      df.io.BigQuerySource(table='dataset.table', query='query')
+      beam.io.BigQuerySource(table='dataset.table', query='query')
       self.assertEqual(exn.exception.message, 'Both a BigQuery table and a'
                        ' query were specified. Please specify only one of '
                        'these.')
 
   def test_using_neither_query_nor_table_fails(self):
     with self.assertRaises(ValueError) as exn:
-      df.io.BigQuerySource()
+      beam.io.BigQuerySource()
       self.assertEqual(exn.exception.message, 'A BigQuery table or a query'
                        ' must be specified')
 
@@ -223,7 +226,7 @@ class TestBigQueryReader(unittest.TestCase):
     actual_rows = []
     # We set the coder to TableRowJsonCoder, which is a signal that
     # the caller wants to see the rows as TableRows.
-    with df.io.BigQuerySource(
+    with beam.io.BigQuerySource(
         'dataset.table', coder=TableRowJsonCoder).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
@@ -244,7 +247,7 @@ class TestBigQueryReader(unittest.TestCase):
         bigquery.GetQueryResultsResponse(
             jobComplete=True, rows=table_rows, schema=schema)]
     actual_rows = []
-    with df.io.BigQuerySource('dataset.table').reader(client) as reader:
+    with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -264,7 +267,7 @@ class TestBigQueryReader(unittest.TestCase):
         bigquery.GetQueryResultsResponse(
             jobComplete=True, rows=table_rows, schema=schema)]
     actual_rows = []
-    with df.io.BigQuerySource('dataset.table').reader(client) as reader:
+    with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     # We return expected rows for each of the two pages of results so we
@@ -273,7 +276,7 @@ class TestBigQueryReader(unittest.TestCase):
 
   def test_table_schema_without_project(self):
     # Reader should pick executing project by default.
-    source = df.io.BigQuerySource(table='mydataset.mytable')
+    source = beam.io.BigQuerySource(table='mydataset.mytable')
     options = PipelineOptions(flags=['--project', 'myproject'])
     source.pipeline_options = options
     reader = source.reader()
@@ -287,9 +290,9 @@ class TestBigQueryWriter(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
-    create_disposition = df.io.BigQueryDisposition.CREATE_NEVER
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     with self.assertRaises(RuntimeError) as exn:
-      with df.io.BigQuerySink(
+      with beam.io.BigQuerySink(
           'project:dataset.table',
           create_disposition=create_disposition).writer(client):
         pass
@@ -307,8 +310,8 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
     client.tables.Insert.return_value = table
-    create_disposition = df.io.BigQueryDisposition.CREATE_IF_NEEDED
-    with df.io.BigQuerySink(
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+    with beam.io.BigQuerySink(
         'project:dataset.table',
         schema='somefield:INTEGER',
         create_disposition=create_disposition).writer(client):
@@ -320,9 +323,9 @@ class TestBigQueryWriter(unittest.TestCase):
     client = mock.Mock()
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
-    create_disposition = df.io.BigQueryDisposition.CREATE_IF_NEEDED
+    create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     with self.assertRaises(RuntimeError) as exn:
-      with df.io.BigQuerySink(
+      with beam.io.BigQuerySink(
           'project:dataset.table',
           create_disposition=create_disposition).writer(client):
         pass
@@ -338,9 +341,9 @@ class TestBigQueryWriter(unittest.TestCase):
             projectId='project', datasetId='dataset', tableId='table'),
         schema=bigquery.TableSchema())
     client.tabledata.List.return_value = bigquery.TableDataList(totalRows=1)
-    write_disposition = df.io.BigQueryDisposition.WRITE_EMPTY
+    write_disposition = beam.io.BigQueryDisposition.WRITE_EMPTY
     with self.assertRaises(RuntimeError) as exn:
-      with df.io.BigQuerySink(
+      with beam.io.BigQuerySink(
           'project:dataset.table',
           write_disposition=write_disposition).writer(client):
         pass
@@ -358,8 +361,8 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tables.Get.return_value = table
     client.tabledata.List.return_value = bigquery.TableDataList(totalRows=0)
     client.tables.Insert.return_value = table
-    write_disposition = df.io.BigQueryDisposition.WRITE_EMPTY
-    with df.io.BigQuerySink(
+    write_disposition = beam.io.BigQueryDisposition.WRITE_EMPTY
+    with beam.io.BigQuerySink(
         'project:dataset.table',
         write_disposition=write_disposition).writer(client):
       pass
@@ -376,8 +379,8 @@ class TestBigQueryWriter(unittest.TestCase):
         schema=bigquery.TableSchema())
     client.tables.Get.return_value = table
     client.tables.Insert.return_value = table
-    write_disposition = df.io.BigQueryDisposition.WRITE_TRUNCATE
-    with df.io.BigQuerySink(
+    write_disposition = beam.io.BigQueryDisposition.WRITE_TRUNCATE
+    with beam.io.BigQuerySink(
         'project:dataset.table',
         write_disposition=write_disposition).writer(client):
       pass
@@ -393,8 +396,8 @@ class TestBigQueryWriter(unittest.TestCase):
         schema=bigquery.TableSchema())
     client.tables.Get.return_value = table
     client.tables.Insert.return_value = table
-    write_disposition = df.io.BigQueryDisposition.WRITE_APPEND
-    with df.io.BigQuerySink(
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    with beam.io.BigQuerySink(
         'project:dataset.table',
         write_disposition=write_disposition).writer(client):
       pass
@@ -409,13 +412,13 @@ class TestBigQueryWriter(unittest.TestCase):
             projectId='project', datasetId='dataset', tableId='table'),
         schema=bigquery.TableSchema())
     client.tables.Get.return_value = table
-    write_disposition = df.io.BigQueryDisposition.WRITE_APPEND
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
 
     insert_response = mock.Mock()
     insert_response.insertErrors = []
     client.tabledata.InsertAll.return_value = insert_response
 
-    with df.io.BigQuerySink(
+    with beam.io.BigQuerySink(
         'project:dataset.table',
         write_disposition=write_disposition).writer(client) as writer:
       writer.Write({'i': 1, 'b': True, 's': 'abc', 'f': 3.14})
@@ -439,7 +442,7 @@ class TestBigQueryWriter(unittest.TestCase):
 
   def test_table_schema_without_project(self):
     # Writer should pick executing project by default.
-    sink = df.io.BigQuerySink(table='mydataset.mytable')
+    sink = beam.io.BigQuerySink(table='mydataset.mytable')
     options = PipelineOptions(flags=['--project', 'myproject'])
     sink.pipeline_options = options
     writer = sink.writer()
