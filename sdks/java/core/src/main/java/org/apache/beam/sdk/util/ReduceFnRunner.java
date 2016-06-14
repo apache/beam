@@ -936,16 +936,17 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Return when {@code window} should be garbage collected. If the window is the GlobalWindow,
-   * that will be the end of the window. Otherwise, add the allowed lateness to the end of
-   * the window.
+   * Return when {@code window} should be garbage collected. If the window's expiration time is on
+   * or after the end of the global window, it will be truncated to the end of the global window.
    */
   private Instant garbageCollectionTime(W window) {
-    Instant maxTimestamp = window.maxTimestamp();
-    if (maxTimestamp.isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
-      return maxTimestamp.plus(windowingStrategy.getAllowedLateness());
+    if (window
+        .maxTimestamp()
+        .isAfter(
+            GlobalWindow.INSTANCE.maxTimestamp().minus(windowingStrategy.getAllowedLateness()))) {
+      return GlobalWindow.INSTANCE.maxTimestamp();
     } else {
-      return maxTimestamp;
+      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
     }
   }
 
