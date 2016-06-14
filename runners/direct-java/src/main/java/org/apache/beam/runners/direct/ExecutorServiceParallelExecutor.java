@@ -415,7 +415,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
               if (delivery.isEmpty()) {
                 continue;
               }
-              KeyedWorkItem<Object, Object> work =
+              KeyedWorkItem<?, Object> work =
                   KeyedWorkItems.timersWorkItem(keyTimers.getKey().getKey(), delivery);
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
