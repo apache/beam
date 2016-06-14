@@ -122,13 +122,18 @@ public class WindowedWordCount {
    * 2-hour period.
    */
   static class AddTimestampFn extends DoFn<String, String> {
-    private static final long RAND_RANGE = 7200000; // 2 hours in ms
+    private static final Duration RAND_RANGE = Duration.standardHours(2);
+    private final Instant minTimestamp;
+
+    AddTimestampFn() {
+      this.minTimestamp = new Instant(System.currentTimeMillis());
+    }
 
     @Override
     public void processElement(ProcessContext c) {
       // Generate a timestamp that falls somewhere in the past two hours.
-      long randomTimestamp = System.currentTimeMillis()
-        - (int) (Math.random() * RAND_RANGE);
+      long randMillis = (long) (Math.random() * RAND_RANGE.getMillis());
+      Instant randomTimestamp = minTimestamp.plus(randMillis);
       /**
        * Concept #2: Set the data element with that timestamp.
        */
