@@ -967,6 +967,8 @@ public class KafkaIO {
             }
           }, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
+      // Wait for longer than normal when fetching a batch to improve chances a record is available
+      // when start() returns.
       nextBatch(START_NEW_RECORDS_POLL_TIMEOUT);
       return advance();
     }
