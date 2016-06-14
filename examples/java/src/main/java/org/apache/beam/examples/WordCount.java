@@ -39,6 +39,8 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Strings;
 
+import java.io.IOException;
+
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
  *
@@ -181,8 +183,13 @@ public class WordCount {
       public String create(PipelineOptions options) {
         String tempLocation = options.getTempLocation();
         if (!Strings.isNullOrEmpty(tempLocation)) {
-          OChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-          return factory.resolve("counts.txt");
+          try {
+            IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+            return factory.resolve(tempLocation, "counts.txt");
+          } catch (IOException e) {
+            throw new RuntimeException(
+                String.format("Failed to resolve temp location: %s", tempLocation));
+          }
         } else {
           throw new IllegalArgumentException("Must specify --output or --tempLocation");
         }
