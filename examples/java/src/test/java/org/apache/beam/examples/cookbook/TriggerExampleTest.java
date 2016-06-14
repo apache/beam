@@ -101,12 +101,12 @@ public class TriggerExampleTest {
     DoFnTester<String, KV<String, Integer>> extractFlowInfow = DoFnTester
         .of(new ExtractFlowInfo());
 
-    List<KV<String, Integer>> results = extractFlowInfow.processBatch(INPUT);
+    List<KV<String, Integer>> results = extractFlowInfow.processBundle(INPUT);
     Assert.assertEquals(results.size(), 1);
     Assert.assertEquals(results.get(0).getKey(), "94");
     Assert.assertEquals(results.get(0).getValue(), new Integer(29));
 
-    List<KV<String, Integer>> output = extractFlowInfow.processBatch("");
+    List<KV<String, Integer>> output = extractFlowInfow.processBundle("");
     Assert.assertEquals(output.size(), 0);
   }
 

@@ -89,7 +89,7 @@ public class UserScoreTest implements Serializable {
     DoFnTester<String, GameActionInfo> parseEventFn =
         DoFnTester.of(new ParseEventFn());
 
-    List<GameActionInfo> results = parseEventFn.processBatch(GAME_EVENTS_ARRAY);
+    List<GameActionInfo> results = parseEventFn.processBundle(GAME_EVENTS_ARRAY);
     Assert.assertEquals(results.size(), 8);
     Assert.assertEquals(results.get(0).getUser(), "user0_MagentaKangaroo");
     Assert.assertEquals(results.get(0).getTeam(), "MagentaKangaroo");
