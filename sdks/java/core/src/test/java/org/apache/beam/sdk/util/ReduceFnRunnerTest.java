@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
@@ -224,6 +225,33 @@ public class ReduceFnRunnerTest {
             isSingleWindowedValue(equalTo(4), 4, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
+  }
+
+  /**
+   * Tests that the garbage collection time for a fixed window does not overflow
+   * the end of time.
+   */
+  @Test
+  public void testFixedWindowEndOfTimeGarbageCollection() throws Exception {
+    // Test basic execution of a trigger using a non-combining window set and accumulating mode.
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(
+            FixedWindows.of(Duration.millis(10)),
+            Never.ever(),
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            new Sum.SumIntegerFn().<String>asKeyedFn(),
+            VarIntCoder.of(),
+            Duration.standardDays(365));
+
+    // Insert one element where the window it is in ends prior to the end of the global windo, but
+    // the GC time is past the end of the global window
+    tester.injectElements(
+        TimestampedValue.of(
+            0, new Instant(GlobalWindow.INSTANCE.maxTimestamp().minus(Duration.millis(15)))));
+
+    // Should fire ON_TIME pane and there will be a checkState that the cleanup time
+    // is prior to timestamp max value
+    tester.advanceInputWatermark(GlobalWindow.INSTANCE.maxTimestamp());
   }
 
   @Test
