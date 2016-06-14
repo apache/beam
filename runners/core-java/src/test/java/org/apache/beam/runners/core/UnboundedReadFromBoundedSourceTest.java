@@ -18,13 +18,20 @@
 package org.apache.beam.runners.core;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.CheckpointCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.CompressedSource;
+import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,23 +45,55 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 
-import com.google.api.client.util.Lists;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.util.List;
-import java.util.Set;
+import java.util.NoSuchElementException;
+import java.util.Random;
 
 /**
  * Unit tests for {@link UnboundedReadFromBoundedSource}.
  */
 @RunWith(JUnit4.class)
 public class UnboundedReadFromBoundedSourceTest {
+
+  @Rule
+  public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @Rule
+  public transient ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testCheckpointCoderNulls() throws Exception {
+    CheckpointCoder<String> coder = new CheckpointCoder<>(StringUtf8Coder.of());
+    Checkpoint<String> emptyCheckpoint = new Checkpoint<>(null, null);
+    Checkpoint<String> decodedEmptyCheckpoint = CoderUtils.decodeFromByteArray(
+        coder,
+        CoderUtils.encodeToByteArray(coder, emptyCheckpoint));
+    assertNull(decodedEmptyCheckpoint.getResidualElements());
+    assertNull(decodedEmptyCheckpoint.getResidualSource());
+  }
 
   @Test
   @Category(RunnableOnService.class)
@@ -90,35 +129,106 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
-  public void testBoundedToUnboundedSourceAdapterCheckpoint() throws Exception {
+  public void testCountingSourceToUnboundedCheckpoint() throws Exception {
     long numElements = 100;
-    BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
-    BoundedToUnboundedSourceAdapter<Long> unboundedSource =
-        new BoundedToUnboundedSourceAdapter<>(boundedSource);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    BoundedToUnboundedSourceAdapter<Long>.Reader reader =
-        unboundedSource.createReader(options, null);
-
-    Set<Long> expected = Sets.newHashSet();
+    BoundedSource<Long> countingSource = CountingSource.upTo(numElements);
+    List<Long> expected = Lists.newArrayList();
     for (long i = 0; i < numElements; ++i) {
       expected.add(i);
     }
+    testBoundedToUnboundedSourceAdapterCheckpoint(countingSource, expected);
+  }
 
-    List<Long> actual = Lists.newArrayList();
+  @Test
+  public void testCompressedSourceToUnboundedCheckpoint() throws Exception {
+    String baseName = "test-input";
+    File compressedFile = tmpFolder.newFile(baseName + ".gz");
+    byte[] input = generateInput(100);
+    writeFile(compressedFile, input, CompressionMode.GZIP);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    List<Byte> expected = Lists.newArrayList();
+    for (byte i : input) {
+      expected.add(i);
+    }
+    testBoundedToUnboundedSourceAdapterCheckpoint(source, expected);
+  }
+
+  private <T> void testBoundedToUnboundedSourceAdapterCheckpoint(
+      BoundedSource<T> boundedSource,
+      List<T> expectedElements) throws Exception {
+    BoundedToUnboundedSourceAdapter<T> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BoundedToUnboundedSourceAdapter<T>.Reader reader =
+        unboundedSource.createReader(options, null);
+
+    List<T> actual = Lists.newArrayList();
+    for (boolean hasNext = reader.start(); hasNext; hasNext = reader.advance()) {
+      actual.add(reader.getCurrent());
+      // checkpoint every 9 elements
+      if (actual.size() % 9 == 0) {
+        Checkpoint<T> checkpoint = reader.getCheckpointMark();
+        checkpoint.finalizeCheckpoint();
+      }
+    }
+    assertEquals(expectedElements.size(), actual.size());
+    assertEquals(Sets.newHashSet(expectedElements), Sets.newHashSet(actual));
+  }
+
+  @Test
+  public void testCountingSourceToUnboundedCheckpointRestart() throws Exception {
+    long numElements = 100;
+    BoundedSource<Long> countingSource = CountingSource.upTo(numElements);
+    List<Long> expected = Lists.newArrayList();
+    for (long i = 0; i < numElements; ++i) {
+      expected.add(i);
+    }
+    testBoundedToUnboundedSourceAdapterCheckpointRestart(countingSource, expected);
+  }
+
+  @Test
+  public void testCompressedSourceToUnboundedCheckpointRestart() throws Exception {
+    String baseName = "test-input";
+    File compressedFile = tmpFolder.newFile(baseName + ".gz");
+    byte[] input = generateInput(100);
+    writeFile(compressedFile, input, CompressionMode.GZIP);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    List<Byte> expected = Lists.newArrayList();
+    for (byte i : input) {
+      expected.add(i);
+    }
+    testBoundedToUnboundedSourceAdapterCheckpointRestart(source, expected);
+  }
+
+  private <T> void testBoundedToUnboundedSourceAdapterCheckpointRestart(
+      BoundedSource<T> boundedSource,
+      List<T> expectedElements) throws Exception {
+    BoundedToUnboundedSourceAdapter<T> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(boundedSource);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BoundedToUnboundedSourceAdapter<T>.Reader reader =
+        unboundedSource.createReader(options, null);
+
+    List<T> actual = Lists.newArrayList();
     for (boolean hasNext = reader.start(); hasNext;) {
       actual.add(reader.getCurrent());
       // checkpoint every 9 elements
       if (actual.size() % 9 == 0) {
-        Checkpoint<Long> checkpoint = reader.getCheckpointMark();
-        Coder<Checkpoint<Long>> checkpointCoder = unboundedSource.getCheckpointMarkCoder();
-        Checkpoint<Long> decodedCheckpoint = CoderUtils.decodeFromByteArray(
+        Checkpoint<T> checkpoint = reader.getCheckpointMark();
+        Coder<Checkpoint<T>> checkpointCoder = unboundedSource.getCheckpointMarkCoder();
+        Checkpoint<T> decodedCheckpoint = CoderUtils.decodeFromByteArray(
             checkpointCoder,
             CoderUtils.encodeToByteArray(checkpointCoder, checkpoint));
         reader.close();
         checkpoint.finalizeCheckpoint();
 
-        BoundedToUnboundedSourceAdapter<Long>.Reader restarted =
+        BoundedToUnboundedSourceAdapter<T>.Reader restarted =
             unboundedSource.createReader(options, decodedCheckpoint);
         reader = restarted;
         hasNext = reader.start();
@@ -126,7 +236,146 @@ public class UnboundedReadFromBoundedSourceTest {
         hasNext = reader.advance();
       }
     }
-    assertEquals(numElements, actual.size());
-    assertEquals(expected, Sets.newHashSet(actual));
+    assertEquals(expectedElements.size(), actual.size());
+    assertEquals(Sets.newHashSet(expectedElements), Sets.newHashSet(actual));
+  }
+
+  @Test
+  public void testReadBeforeStart() throws Exception {
+    thrown.expect(NoSuchElementException.class);
+
+    BoundedSource<Long> countingSource = CountingSource.upTo(100);
+    BoundedToUnboundedSourceAdapter<Long> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(countingSource);
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    unboundedSource.createReader(options, null).getCurrent();
+  }
+
+  @Test
+  public void testReadFromCheckpointBeforeStart() throws Exception {
+    thrown.expect(NoSuchElementException.class);
+
+    BoundedSource<Long> countingSource = CountingSource.upTo(100);
+    BoundedToUnboundedSourceAdapter<Long> unboundedSource =
+        new BoundedToUnboundedSourceAdapter<>(countingSource);
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    List<TimestampedValue<Long>> elements =
+        ImmutableList.of(TimestampedValue.of(1L, new Instant(1L)));
+    Checkpoint<Long> checkpoint = new Checkpoint<>(elements, countingSource);
+    unboundedSource.createReader(options, checkpoint).getCurrent();
+  }
+
+  /**
+   * Generate byte array of given size.
+   */
+  private static byte[] generateInput(int size) {
+    // Arbitrary but fixed seed
+    Random random = new Random(285930);
+    byte[] buff = new byte[size];
+    for (int i = 0; i < size; i++) {
+      buff[i] = (byte) (random.nextInt() % Byte.MAX_VALUE);
+    }
+    return buff;
+  }
+
+  /**
+   * Get a compressing stream for a given compression mode.
+   */
+  private static OutputStream getOutputStreamForMode(CompressionMode mode, OutputStream stream)
+      throws IOException {
+    switch (mode) {
+      case GZIP:
+        return new GzipCompressorOutputStream(stream);
+      case BZIP2:
+        return new BZip2CompressorOutputStream(stream);
+      default:
+        throw new RuntimeException("Unexpected compression mode");
+    }
+  }
+
+  /**
+   * Writes a single output file.
+   */
+  private static void writeFile(File file, byte[] input, CompressionMode mode) throws IOException {
+    try (OutputStream os = getOutputStreamForMode(mode, new FileOutputStream(file))) {
+      os.write(input);
+    }
+  }
+
+  /**
+   * Dummy source for use in tests.
+   */
+  private static class ByteSource extends FileBasedSource<Byte> {
+    public ByteSource(String fileOrPatternSpec, long minBundleSize) {
+      super(fileOrPatternSpec, minBundleSize);
+    }
+
+    public ByteSource(String fileName, long minBundleSize, long startOffset, long endOffset) {
+      super(fileName, minBundleSize, startOffset, endOffset);
+    }
+
+    @Override
+    protected FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
+      return new ByteSource(fileName, getMinBundleSize(), start, end);
+    }
+
+    @Override
+    protected FileBasedReader<Byte> createSingleFileReader(PipelineOptions options) {
+      return new ByteReader(this);
+    }
+
+    @Override
+    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+      return false;
+    }
+
+    @Override
+    public Coder<Byte> getDefaultOutputCoder() {
+      return SerializableCoder.of(Byte.class);
+    }
+
+    private static class ByteReader extends FileBasedReader<Byte> {
+      ByteBuffer buff = ByteBuffer.allocate(1);
+      Byte current;
+      long offset = -1;
+      ReadableByteChannel channel;
+
+      public ByteReader(ByteSource source) {
+        super(source);
+      }
+
+      @Override
+      public Byte getCurrent() throws NoSuchElementException {
+        return current;
+      }
+
+      @Override
+      protected boolean isAtSplitPoint() {
+        return true;
+      }
+
+      @Override
+      protected void startReading(ReadableByteChannel channel) throws IOException {
+        this.channel = channel;
+      }
+
+      @Override
+      protected boolean readNextRecord() throws IOException {
+        buff.clear();
+        if (channel.read(buff) != 1) {
+          return false;
+        }
+        current = new Byte(buff.get(0));
+        offset += 1;
+        return true;
+      }
+
+      @Override
+      protected long getCurrentOffset() {
+        return offset;
+      }
+    }
   }
 }
