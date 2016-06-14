@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -284,6 +285,30 @@ public class DoFnTester<InputT, OutputT> {
             return TimestampedValue.of(input.getValue(), input.getTimestamp());
           }
         });
+  }
+
+  /**
+   * Returns the elements output so far to the main output in the provided window with associated
+   * timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
+    return peekOutputElementsInWindow(mainOutputTag, window);
+  }
+
+  /**
+   * Returns the elements output so far to the specified output in the provided window with
+   * associated timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(
+      TupleTag<OutputT> tag,
+      BoundedWindow window) {
+    ImmutableList.Builder<TimestampedValue<OutputT>> valuesBuilder = ImmutableList.builder();
+    for (WindowedValue<OutputT> value : getOutput(tag)) {
+      if (value.getWindows().contains(window)) {
+        valuesBuilder.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
+      }
+    }
+    return valuesBuilder.build();
   }
 
   /**
