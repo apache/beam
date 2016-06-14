@@ -639,12 +639,13 @@ public class TextIO {
               "need to set the filename prefix of a TextIO.Write transform");
         }
 
-        // Note that custom sinks currently do not expose sharding controls.
-        // Thus pipeline runner writers need to individually add support internally to
-        // apply user requested sharding limits.
-        return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
-            new TextSink<>(
-                filenamePrefix, filenameSuffix, shardTemplate, coder)));
+        com.google.cloud.dataflow.sdk.io.Write.Bound<T> write =
+            com.google.cloud.dataflow.sdk.io.Write.to(
+                new TextSink<>(filenamePrefix, filenameSuffix, shardTemplate, coder));
+        if (getNumShards() > 0) {
+          write = write.withNumShards(getNumShards());
+        }
+        return input.apply("Write", write);
       }
 
       @Override
