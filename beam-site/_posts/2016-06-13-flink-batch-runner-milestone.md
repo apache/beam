@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "How We Added Windowing to the Apache Flink Batch Runner"
-date:   2016-06-15 09:00:00 -0700
+date:   2016-06-13 09:00:00 -0700
 excerpt_separator: <!--more-->
 categories: blog
 authors:
