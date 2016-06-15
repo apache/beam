@@ -20,15 +20,11 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * {@code Flatten<T>} takes multiple {@code PCollection<T>}s bundled
@@ -188,33 +184,5 @@ public class Flatten {
           }))
           .setCoder(elemCoder);
     }
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  static {
-    DirectPipelineRunner.registerDefaultTransformEvaluator(
-        FlattenPCollectionList.class,
-        new DirectPipelineRunner.TransformEvaluator<FlattenPCollectionList>() {
-          @Override
-          public void evaluate(
-              FlattenPCollectionList transform,
-              DirectPipelineRunner.EvaluationContext context) {
-            evaluateHelper(transform, context);
-          }
-        });
-  }
-
-  private static <T> void evaluateHelper(
-      FlattenPCollectionList<T> transform,
-      DirectPipelineRunner.EvaluationContext context) {
-    List<DirectPipelineRunner.ValueWithMetadata<T>> outputElems = new ArrayList<>();
-    PCollectionList<T> inputs = context.getInput(transform);
-
-    for (PCollection<T> input : inputs.getAll()) {
-      outputElems.addAll(context.getPCollectionValuesWithMetadata(input));
-    }
-
-    context.setPCollectionValuesWithMetadata(context.getOutput(transform), outputElems);
   }
 }

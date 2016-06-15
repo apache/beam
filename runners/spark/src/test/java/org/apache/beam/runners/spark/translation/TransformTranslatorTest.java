@@ -21,12 +21,12 @@ package org.apache.beam.runners.spark.translation;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.direct.InProcessPipelineRunner;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -58,7 +58,7 @@ public class TransformTranslatorTest {
    */
   @Test
   public void testTextIOReadAndWriteTransforms() throws IOException {
-    String directOut = runPipeline(DirectPipelineRunner.class);
+    String directOut = runPipeline(InProcessPipelineRunner.class);
     String sparkOut = runPipeline(SparkPipelineRunner.class);
 
     List<String> directOutput =

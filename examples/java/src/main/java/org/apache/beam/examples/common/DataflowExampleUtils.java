@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.common;
 
+import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -25,7 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.IntraBundleParallelization;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
@@ -315,11 +316,13 @@ public class DataflowExampleUtils {
 
   /**
    * Do some runner setup: check that the DirectPipelineRunner is not used in conjunction with
-   * streaming, and if streaming is specified, use the DataflowPipelineRunner. Return the streaming
-   * flag value.
+   * streaming, and if streaming is specified, use the DataflowPipelineRunner.
    */
   public void setupRunner() {
-    if (options.isStreaming() && options.getRunner() != DirectPipelineRunner.class) {
+    Class<? extends PipelineRunner<?>> runner = options.getRunner();
+    if (options.isStreaming()
+        && (runner.equals(DataflowPipelineRunner.class)
+            || runner.equals(BlockingDataflowPipelineRunner.class))) {
       // In order to cancel the pipelines automatically,
       // {@literal DataflowPipelineRunner} is forced to be used.
       options.setRunner(DataflowPipelineRunner.class);
