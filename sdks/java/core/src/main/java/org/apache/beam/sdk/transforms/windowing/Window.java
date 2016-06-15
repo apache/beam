@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -139,23 +140,38 @@ import javax.annotation.Nullable;
  * <p>See {@link Trigger} for details on the available triggers.
  */
 public class Window {
-
   /**
-   * Specifies the conditions under which a final pane will be created when a window is permanently
-   * closed.
+   * Specifies whether a pane should be emitted for a window (either at the end of the window
+   * or when the window is finally closed) even though no new elements had been
+   * assigned to the window since the previous pane was emitted.
    */
-  public enum ClosingBehavior {
+  public enum EmptyPaneBehavior {
     /**
-     * Always fire the last pane. Even if there is no new data since the previous firing, an element
-     * with {@link PaneInfo#isLast()} {@code true} will be produced.
+     * Always emit a pane even if there are no new elements since the previous
+     * pane was emitted for the window. Note that a window which received no elements will
+     * not emit a pane even with {@link #FIRE_ALWAYS}.
      */
     FIRE_ALWAYS,
     /**
-     * Only fire the last pane if there is new data since the previous firing.
-     *
-     * <p>This is the default behavior.
+     * Only emit a pane if there are new elements since the previous
+     * pane was emitted, or there are elements in the window and no pane has yet been emitted.
      */
     FIRE_IF_NON_EMPTY;
+  }
+
+  /**
+   * Specifies whether {@link PaneInfo#getIndex()} is calculated sequentially for each
+   * emitted pane of a window.
+   */
+  public enum PaneIndexBehavior {
+    /**
+     * Calculate a sequential index.
+     */
+    SEQUENTIAL,
+    /**
+     * Leave the index as zero in all panes.
+     */
+    ZERO;
   }
 
   /**
@@ -224,18 +240,36 @@ public class Window {
   }
 
   /**
-   * Override the amount of lateness allowed for data elements in the pipeline. Like
-   * the other properties on this {@link Window} operation, this will be applied at
-   * the next {@link GroupByKey}. Any elements that are later than this as decided by
-   * the system-maintained watermark will be dropped.
-   *
-   * <p>This value also determines how long state will be kept around for old windows.
-   * Once no elements will be added to a window (because this duration has passed) any state
-   * associated with the window will be cleaned up.
+   * TODO: Copy doc.
+   */
+  @Experimental(Kind.TRIGGER)
+  public <T> Bound<T> withPaneIndexBehavior(PaneIndexBehavior paneIndexBehavior) {
+    return new Unbound().withPaneIndexBehavior(paneIndexBehavior);
+  }
+
+  /**
+   * TODO: Copy doc.
+   */
+  @Experimental(Kind.TRIGGER)
+  public <T> Bound<T> withOnTimeBehavior(EmptyPaneBehavior onTimeBehavior) {
+    return new Unbound().withOnTimeBehavior(onTimeBehavior);
+  }
+
+  /**
+   * TODO: Copy doc.
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
     return new Unbound().withAllowedLateness(allowedLateness);
+  }
+
+  /**
+   * TODO: Copy doc.
+   */
+  @Experimental(Kind.TRIGGER)
+  public static <T> Bound<T> withAllowedLateness(Duration allowedLateness,
+                                                 EmptyPaneBehavior closingBehavior) {
+    return new Unbound().withAllowedLateness(allowedLateness, closingBehavior);
   }
 
   /**
@@ -319,17 +353,64 @@ public class Window {
     }
 
     /**
-     * Override the amount of lateness allowed for data elements in the pipeline. Like
-     * the other properties on this {@link Window} operation, this will be applied at
-     * the next {@link GroupByKey}. Any elements that are later than this as decided by
-     * the system-maintained watermark will be dropped.
+     * Set how {@link PaneInfo#getIndex} is calculated for each pane of a window.
+     * <ul>
+     * <li>If {@code paneIndexBehavior} is {@link PaneIndexBehavior#SEQUENTIAL} (the default),
+     * each pane will have a sequentially increasing pane index.
+     * <li>If {@code paneIndexBehavior} is {@link PaneIndexBehavior#ZERO}, each pane index
+     * will have an index of zero. This is appropriate if you are windowing into {@code
+     * GlobalWindows} and have an unbounded key space. The system will then not need to maintain
+     * an index per key in its underlying state.
+     * </ul>
+     */
+    @Experimental(Kind.TRIGGER)
+    public <T> Bound<T> withPaneIndexBehavior(PaneIndexBehavior paneIndexBehavior) {
+      return new Bound<T>(name).withPaneIndexBehavior(paneIndexBehavior);
+    }
+
+    /**
+     * Set the conditions under which an 'on-time' pane will be emitted for a window.
+     * Like the other properties on this {@link Window} operation, this will be applied at
+     * the next {@link GroupByKey}. An on-time pane has its {@link PaneInfo#getTiming} value
+     * equal to {@link PaneInfo.Timing#ON_TIME}.
+     * <ul>
+     * <li>If {@code onTimeBehavior} is {@link EmptyPaneBehavior#FIRE_ALWAYS} (the default)
+     * then always emit an on-time pane, even if there are no new elements since the previous
+     * {@link PaneInfo.Timing#EARLY} pane was emitted for the window. Note that a window
+     * which received no elements will not emit an on-time pane even with
+     * {@link EmptyPaneBehavior#FIRE_ALWAYS}.
+     * <li>If {@code onTimeBehavior} is {@link EmptyPaneBehavior#FIRE_IF_NON_EMPTY}
+     * then only emit an on-time pane if there are new elements since the previous
+     * {@link PaneInfo.Timing#EARLY} pane was emitted, or there are elements in the window
+     * and no pane has yet been emitted.
+     * </ul>
      *
-     * <p>This value also determines how long state will be kept around for old windows.
-     * Once no elements will be added to a window (because this duration has passed) any state
-     * associated with the window will be cleaned up.
+     * <p>Generally the default of {@link EmptyPaneBehavior#FIRE_ALWAYS} is most appropriate.
+     * Some examples where {@link EmptyPaneBehavior#FIRE_IF_NON_EMPTY} makes sense:
+     * <ul>
+     * <li>You are using speculative triggers with {@link #discardingFiredPanes()}, and each pane
+     * is then persisted to files, BigQuery, or so on. There's nothing which needs to be done
+     * for the on-time pane if it has no elements.
+     * <li>You are windowing into {@code GlobalWindows} and don't need to emit a final
+     * {@link Combine} value when the pipeline is drained. The system can avoid maintaining
+     * extra state per key if {@link EmptyPaneBehavior#FIRE_IF_NON_EMPTY}, which is an
+     * important optimization if your key space is unbounded.
+     * </ul>
+     */
+    @Experimental(Kind.TRIGGER)
+    public <T> Bound<T> withOnTimeBehavior(EmptyPaneBehavior onTimeBehavior) {
+      return new Bound<T>(name).withOnTimeBehavior(onTimeBehavior);
+    }
+
+    /**
+     * Set the amount of lateness allowed for data elements in the pipeline (the default is zero).
+     * Like the other properties on this {@link Window} operation, this will be applied at the next
+     * {@link GroupByKey}. Any elements that are later than this as decided by the system-maintained
+     * watermark will be dropped.
      *
-     * <p>Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
-     * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
+     * <p>This value also determines how long state will be kept around for old windows. Once no
+     * elements will be added to a window (because this duration has passed) any state associated
+     * with the window will be cleaned up and the window will be considered permanently closed.
      */
     @Experimental(Kind.TRIGGER)
     public <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
@@ -337,18 +418,33 @@ public class Window {
     }
 
     /**
-     * Override the amount of lateness allowed for data elements in the pipeline. Like
-     * the other properties on this {@link Window} operation, this will be applied at
-     * the next {@link GroupByKey}. Any elements that are later than this as decided by
-     * the system-maintained watermark will be dropped.
+     * Set the amount of lateness allowed for data elements in the pipeline
+     * (the default is zero). Like the other properties on this {@link Window} operation,
+     * this will be applied at the next {@link GroupByKey}. Any elements that are later
+     * than this as decided by the system-maintained watermark will be dropped.
      *
      * <p>This value also determines how long state will be kept around for old windows.
      * Once no elements will be added to a window (because this duration has passed) any state
-     * associated with the window will be cleaned up.
+     * associated with the window will be cleaned up and the window will be considered
+     * permanently closed.
+     *
+     * <p>The {@code closingBehavior} specifies the conditions under which a 'last' pane will be
+     * emitted for a window when it is closed. A last pane has its {@link PaneInfo#isLast} value
+     * equal to {@literal true}.
+     * <ul>
+     * <li>If {@code closingBehavior} is {@link EmptyPaneBehavior#FIRE_ALWAYS} then
+     * always emit a last pane, even if there are no new elements since the previous pane was
+     * emitted for the window. Note that a window which received no elements will not emit a last
+     * pane even with {@link EmptyPaneBehavior#FIRE_ALWAYS}.
+     * <li>If {@code closingBehavior} is {@link EmptyPaneBehavior#FIRE_IF_NON_EMPTY} (the default)
+     * then only emit a last pane if there is new data since the previous pane was emitted, or there
+     * are elements in the window and so pane has yet been emitted.
+     * </ul>
      */
     @Experimental(Kind.TRIGGER)
-    public <T> Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
-      return new Bound<T>(name).withAllowedLateness(allowedLateness, behavior);
+    public <T> Bound<T> withAllowedLateness(Duration allowedLateness,
+                                            EmptyPaneBehavior closingBehavior) {
+      return new Bound<T>(name).withAllowedLateness(allowedLateness, closingBehavior);
     }
   }
 
@@ -364,8 +460,10 @@ public class Window {
     @Nullable private final WindowFn<? super T, ?> windowFn;
     @Nullable private final Trigger trigger;
     @Nullable private final AccumulationMode mode;
+    @Nullable private final PaneIndexBehavior paneIndexBehavior;
+    @Nullable private final EmptyPaneBehavior onTimeBehavior;
     @Nullable private final Duration allowedLateness;
-    @Nullable private final ClosingBehavior closingBehavior;
+    @Nullable private final EmptyPaneBehavior closingBehavior;
     @Nullable private final OutputTimeFn<?> outputTimeFn;
 
     private Bound(
@@ -373,20 +471,24 @@ public class Window {
         @Nullable WindowFn<? super T, ?> windowFn,
         @Nullable Trigger trigger,
         @Nullable AccumulationMode mode,
+        @Nullable PaneIndexBehavior paneIndexBehavior,
+        @Nullable EmptyPaneBehavior onTimeBehavior,
         @Nullable Duration allowedLateness,
-        ClosingBehavior behavior,
+        @Nullable EmptyPaneBehavior closingBehavior,
         @Nullable OutputTimeFn<?> outputTimeFn) {
       super(name);
       this.windowFn = windowFn;
       this.trigger = trigger;
       this.mode = mode;
+      this.paneIndexBehavior = paneIndexBehavior;
+      this.onTimeBehavior = onTimeBehavior;
       this.allowedLateness = allowedLateness;
-      this.closingBehavior = behavior;
+      this.closingBehavior = closingBehavior;
       this.outputTimeFn = outputTimeFn;
     }
 
     private Bound(String name) {
-      this(name, null, null, null, null, null, null);
+      this(name, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -404,7 +506,15 @@ public class Window {
       }
 
       return new Bound<>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
     }
 
     /**
@@ -418,7 +528,15 @@ public class Window {
      */
     public Bound<T> named(String name) {
       return new Bound<>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
     }
 
     /**
@@ -439,6 +557,8 @@ public class Window {
           windowFn,
           trigger.buildTrigger(),
           mode,
+          paneIndexBehavior,
+          onTimeBehavior,
           allowedLateness,
           closingBehavior,
           outputTimeFn);
@@ -458,6 +578,8 @@ public class Window {
          windowFn,
          trigger,
          AccumulationMode.DISCARDING_FIRED_PANES,
+         paneIndexBehavior,
+         onTimeBehavior,
          allowedLateness,
          closingBehavior,
          outputTimeFn);
@@ -477,29 +599,12 @@ public class Window {
          windowFn,
          trigger,
          AccumulationMode.ACCUMULATING_FIRED_PANES,
+         paneIndexBehavior,
+         onTimeBehavior,
          allowedLateness,
          closingBehavior,
          outputTimeFn);
    }
-
-    /**
-     * Override the amount of lateness allowed for data elements in the pipeline. Like
-     * the other properties on this {@link Window} operation, this will be applied at
-     * the next {@link GroupByKey}. Any elements that are later than this as decided by
-     * the system-maintained watermark will be dropped.
-     *
-     * <p>This value also determines how long state will be kept around for old windows.
-     * Once no elements will be added to a window (because this duration has passed) any state
-     * associated with the window will be cleaned up.
-     *
-     * <p>Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
-     * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
-     */
-    @Experimental(Kind.TRIGGER)
-    public Bound<T> withAllowedLateness(Duration allowedLateness) {
-      return new Bound<T>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
-    }
 
     /**
      * <b><i>(Experimental)</i></b> Override the default {@link OutputTimeFn}, to control
@@ -508,22 +613,85 @@ public class Window {
     @Experimental(Kind.OUTPUT_TIME)
     public Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
       return new Bound<T>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
     }
 
     /**
-     * Override the amount of lateness allowed for data elements in the pipeline. Like
-     * the other properties on this {@link Window} operation, this will be applied at
-     * the next {@link GroupByKey}. Any elements that are later than this as decided by
-     * the system-maintained watermark will be dropped.
-     *
-     * <p>This value also determines how long state will be kept around for old windows.
-     * Once no elements will be added to a window (because this duration has passed) any state
-     * associated with the window will be cleaned up.
+     * TODO: Copy doc.
      */
     @Experimental(Kind.TRIGGER)
-    public Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
+    public Bound<T> withPaneIndexBehavior(PaneIndexBehavior paneIndexBehavior) {
+      return new Bound<T>(
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
+    }
+
+    /**
+     * TODO: Copy doc.
+     */
+    @Experimental(Kind.TRIGGER)
+    public Bound<T> withOnTimeBehavior(EmptyPaneBehavior onTimeBehavior) {
+      return new Bound<T>(
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
+    }
+
+    /**
+     * TODO: Copy doc.
+     */
+    @Experimental(Kind.TRIGGER)
+    public Bound<T> withAllowedLateness(Duration allowedLateness) {
+      return new Bound<T>(
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
+    }
+
+
+    /**
+     * TODO: Copy doc.
+     */
+    @Experimental(Kind.TRIGGER)
+    public Bound<T> withAllowedLateness(Duration allowedLateness, EmptyPaneBehavior
+        closingBehavior) {
+      return new Bound<T>(
+          name,
+          windowFn,
+          trigger,
+          mode,
+          paneIndexBehavior,
+          onTimeBehavior,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
     }
 
     /**
@@ -543,6 +711,12 @@ public class Window {
       }
       if (mode != null) {
         result = result.withMode(mode);
+      }
+      if (paneIndexBehavior != null) {
+        result = result.withPaneIndexBehavior(paneIndexBehavior);
+      }
+      if (onTimeBehavior != null) {
+        result = result.withOnTimeBehavior(onTimeBehavior);
       }
       if (allowedLateness != null) {
         result = result.withAllowedLateness(allowedLateness);
@@ -621,6 +795,14 @@ public class Window {
       if (mode != null) {
         builder.add(DisplayData.item("accumulationMode", mode.toString())
           .withLabel("Accumulation Mode"));
+      }
+
+      if (paneIndexBehavior != null) {
+        builder.add(DisplayData.item("paneIndexBehavior", paneIndexBehavior.toString()));
+      }
+
+      if (onTimeBehavior != null) {
+        builder.add(DisplayData.item("onTimeBehavior", onTimeBehavior.toString()));
       }
 
       if (closingBehavior != null) {

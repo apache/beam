@@ -340,6 +340,11 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     return mergeResult;
   }
 
+  @Override
+  public boolean hasState() {
+    return !activeWindowToStateAddressWindows.isEmpty();
+  }
+
   @VisibleForTesting
   public void checkInvariants() {
     Set<W> knownStateAddressWindows = new HashSet<>();

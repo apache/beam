@@ -246,7 +246,7 @@ public class WindowTest implements Serializable {
     FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
     AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
     Duration allowedLateness = Duration.standardMinutes(10);
-    Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
+    Window.EmptyPaneBehavior closingBehavior = Window.EmptyPaneBehavior.FIRE_IF_NON_EMPTY;
     OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
 
     Window.Bound<?> window = Window

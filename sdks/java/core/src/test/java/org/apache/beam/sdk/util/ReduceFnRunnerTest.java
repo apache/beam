@@ -58,7 +58,8 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
+import org.apache.beam.sdk.transforms.windowing.Window.EmptyPaneBehavior;
+import org.apache.beam.sdk.transforms.windowing.Window.PaneIndexBehavior;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -142,8 +143,9 @@ public class ReduceFnRunnerTest {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // Pane of {1, 2}
     injectElement(tester, 1);
@@ -172,8 +174,9 @@ public class ReduceFnRunnerTest {
     // Test basic execution of a trigger using a non-combining window set and accumulating mode.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.ACCUMULATING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     injectElement(tester, 1);
 
@@ -308,8 +311,9 @@ public class ReduceFnRunnerTest {
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.ACCUMULATING_FIRED_PANES,
+            Duration.millis(10),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // Input watermark -> null
     assertEquals(null, tester.getWatermarkHold());
@@ -427,8 +431,9 @@ public class ReduceFnRunnerTest {
     // Make sure holds are only set if they are accompanied by an end-of-window timer.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10),
-            ClosingBehavior.FIRE_ALWAYS);
+            AccumulationMode.ACCUMULATING_FIRED_PANES,
+            Duration.millis(10),
+            EmptyPaneBehavior.FIRE_ALWAYS);
     tester.setAutoAdvanceOutputWatermark(false);
 
     // Case: Unobservably late
@@ -465,8 +470,9 @@ public class ReduceFnRunnerTest {
   public void testPaneInfoAllStates() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(0));
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -510,7 +516,7 @@ public class ReduceFnRunnerTest {
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+            .withClosingBehavior(EmptyPaneBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
@@ -561,9 +567,10 @@ public class ReduceFnRunnerTest {
                 AfterPane.elementCountAtLeast(2),
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withOnTimeBehavior(EmptyPaneBehavior.FIRE_ALWAYS)
             .withAllowedLateness(Duration.millis(100))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY));
+            .withClosingBehavior(EmptyPaneBehavior.FIRE_IF_NON_EMPTY));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
@@ -590,7 +597,7 @@ public class ReduceFnRunnerTest {
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+            .withClosingBehavior(EmptyPaneBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
@@ -619,7 +626,7 @@ public class ReduceFnRunnerTest {
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+            .withClosingBehavior(EmptyPaneBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
@@ -671,7 +678,7 @@ public class ReduceFnRunnerTest {
                     .orFinally(AfterWatermark.pastEndOfWindow()))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
-            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+            .withClosingBehavior(EmptyPaneBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
 
@@ -693,8 +700,9 @@ public class ReduceFnRunnerTest {
   public void testPaneInfoSkipToFinish() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(0));
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -708,8 +716,9 @@ public class ReduceFnRunnerTest {
   public void testPaneInfoSkipToNonSpeculativeAndFinish() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(15));
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -725,8 +734,9 @@ public class ReduceFnRunnerTest {
     // unmerged windows.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(0),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(0),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // All on time data, verify watermark hold.
     // These two windows should pre-merge immediately to [1, 20)
@@ -758,8 +768,9 @@ public class ReduceFnRunnerTest {
   public void testMergingWithCloseBeforeGC() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(50),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // Two elements in two overlapping session windows.
     tester.injectElements(
@@ -793,8 +804,9 @@ public class ReduceFnRunnerTest {
   public void testMergingWithCloseTrigger() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-                                    AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
-                                    ClosingBehavior.FIRE_IF_NON_EMPTY);
+                                    AccumulationMode.DISCARDING_FIRED_PANES,
+                                    Duration.millis(50),
+                                    EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // Create a new merged session window.
     tester.injectElements(TimestampedValue.of(1, new Instant(1)),
@@ -826,8 +838,9 @@ public class ReduceFnRunnerTest {
   public void testMergingWithReusedWindow() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-                                    AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
-                                    ClosingBehavior.FIRE_IF_NON_EMPTY);
+                                    AccumulationMode.DISCARDING_FIRED_PANES,
+                                    Duration.millis(50),
+                                    EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // One elements in one session window.
     tester.injectElements(TimestampedValue.of(1, new Instant(1))); // in [1, 11), gc at 21.
@@ -867,8 +880,9 @@ public class ReduceFnRunnerTest {
   public void testMergingWithClosedRepresentative() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-                                    AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
-                                    ClosingBehavior.FIRE_IF_NON_EMPTY);
+                                    AccumulationMode.DISCARDING_FIRED_PANES,
+                                    Duration.millis(50),
+                                    EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // 2 elements into merged session window.
     // Close the trigger, but the garbage collection timer is still pending.
@@ -908,8 +922,9 @@ public class ReduceFnRunnerTest {
   public void testMergingWithClosedDoesNotPoison() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(50),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // 1 element, force its trigger to close.
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -987,8 +1002,9 @@ public class ReduceFnRunnerTest {
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1);
@@ -1032,8 +1048,9 @@ public class ReduceFnRunnerTest {
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            AccumulationMode.ACCUMULATING_FIRED_PANES,
+            Duration.millis(100),
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1);
@@ -1215,6 +1232,7 @@ public class ReduceFnRunnerTest {
             WindowingStrategy.of(new GlobalWindows())
                              .withTrigger(Repeatedly.<GlobalWindow>forever(
                                  AfterPane.elementCountAtLeast(3)))
+                             .withOnTimeBehavior(EmptyPaneBehavior.FIRE_IF_NON_EMPTY)
                              .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -1239,11 +1257,14 @@ public class ReduceFnRunnerTest {
     assertEquals(Timing.ON_TIME, output.get(0).getPane().getTiming());
     assertEquals(n / 3, output.get(0).getPane().getIndex());
     assertEquals(n - ((n / 3) * 3), Iterables.size(output.get(0).getValue()));
+
+    tester.assertEmptyState();
+    tester.assertNoTimers();
   }
 
   /**
    * We should fire an empty ON_TIME pane in the GlobalWindow when the watermark moves to
-   * end-of-time.
+   * end-of-time if we asked for it.
    */
   @Test
   public void fireEmptyOnDrainInGlobalWindowIfRequested() throws Exception {
@@ -1253,6 +1274,7 @@ public class ReduceFnRunnerTest {
                              .withTrigger(Repeatedly.<GlobalWindow>forever(
                                  AfterProcessingTime.pastFirstElementInPane().plusDelayOf(
                                      new Duration(3))))
+                             .withOnTimeBehavior(EmptyPaneBehavior.FIRE_ALWAYS)
                              .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
 
     final int n = 20;
@@ -1276,6 +1298,109 @@ public class ReduceFnRunnerTest {
     assertEquals(Timing.ON_TIME, output.get(0).getPane().getTiming());
     assertEquals((n + 3) / 4, output.get(0).getPane().getIndex());
     assertEquals(0, Iterables.size(output.get(0).getValue()));
+
+    tester.assertEmptyState();
+    tester.assertNoTimers();
+  }
+
+  /**
+   * We should not fire an empty ON_TIME pane in the GlobalWindow when the watermark moves to
+   * end-of-time if we did not ask for it.
+   */
+  @Test
+  public void dontFireEmptyOnDrainInGlobalWindowIfNotRequested() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
+        ReduceFnTester.nonCombining(
+            WindowingStrategy.of(new GlobalWindows())
+                             .withTrigger(
+                                 Repeatedly.<GlobalWindow>forever(
+                                     AfterProcessingTime.pastFirstElementInPane()
+                                                        .plusDelayOf(new Duration(3))))
+                             .withOnTimeBehavior(EmptyPaneBehavior.FIRE_IF_NON_EMPTY)
+                             .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
+
+    final int n = 20;
+    for (int i = 0; i < n; i++) {
+      tester.advanceProcessingTime(new Instant(i));
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+    }
+    tester.advanceProcessingTime(new Instant(n + 4));
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals((n + 3) / 4, output.size());
+    for (int i = 0; i < output.size(); i++) {
+      assertEquals(Timing.EARLY, output.get(i).getPane().getTiming());
+      assertEquals(i, output.get(i).getPane().getIndex());
+      assertEquals(4, Iterables.size(output.get(i).getValue()));
+    }
+
+    tester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    output = tester.extractOutput();
+    assertEquals(0, output.size());
+
+    tester.assertEmptyState();
+    tester.assertNoTimers();
+  }
+
+  /**
+   * Pane index should be a constant zero if we requested it.
+   */
+  @Test
+  public void zeroIndexIfRequested() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
+        ReduceFnTester.nonCombining(
+            WindowingStrategy.of(new GlobalWindows())
+                             .withTrigger(Repeatedly.<GlobalWindow>forever(
+                                 AfterPane.elementCountAtLeast(3)))
+                             .withOnTimeBehavior(EmptyPaneBehavior.FIRE_IF_NON_EMPTY)
+                             .withPaneIndexBehavior(PaneIndexBehavior.ZERO)
+                             .withMode(AccumulationMode.DISCARDING_FIRED_PANES));
+
+    final int n = 20;
+    for (int i = 0; i < n; i++) {
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+    }
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals(n / 3, output.size());
+    for (int i = 0; i < output.size(); i++) {
+      assertEquals(Timing.EARLY, output.get(i).getPane().getTiming());
+      assertEquals(0, output.get(i).getPane().getIndex());
+    }
+  }
+
+  /**
+   * We should not accumulate state in the Global window if there's no pending data.
+   */
+  @Test
+  public void dontLeakStateInGlobalWindow() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, GlobalWindow> tester =
+        ReduceFnTester.nonCombining(
+            WindowingStrategy.of(new GlobalWindows())
+                             .withTrigger(
+                                 Repeatedly.<GlobalWindow>forever(
+                                     AfterProcessingTime
+                                         .<GlobalWindow>pastFirstElementInPane()
+                                         .plusDelayOf(new Duration(5))))
+                             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+                             .withPaneIndexBehavior(PaneIndexBehavior.ZERO)
+                             .withOnTimeBehavior(EmptyPaneBehavior.FIRE_IF_NON_EMPTY));
+
+    tester.advanceInputWatermark(new Instant(0));
+
+    final int n = 20;
+    for (int i = 0; i < n; i++) {
+      tester.advanceProcessingTime(new Instant(i));
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
+    }
+
+    tester.advanceProcessingTime(new Instant(n + 6));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertEquals(n / 5, output.size());
+
+    tester.assertEmptyState();
+    tester.assertNoTimers();
   }
 
   /**
@@ -1290,7 +1415,7 @@ public class ReduceFnRunnerTest {
             AfterWatermark.pastEndOfWindow().withLateFirings(AfterPane.elementCountAtLeast(2)),
             AccumulationMode.DISCARDING_FIRED_PANES,
             Duration.millis(100),
-            ClosingBehavior.FIRE_IF_NON_EMPTY);
+            EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceOutputWatermark(new Instant(0));
@@ -1312,6 +1437,9 @@ public class ReduceFnRunnerTest {
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertEquals(2, output.size());
+
+    tester.assertEmptyState();
+    tester.assertNoTimers();
   }
 
   private static class SumAndVerifyContextFn extends CombineFnWithContext<Integer, int[], Integer> {

@@ -172,4 +172,9 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    * ACTIVE windows {@code toBeMerged} have been merged into {@code mergeResult}.
    */
   W mergedWriteStateAddress(Collection<W> toBeMerged, W mergeResult);
+
+  /**
+   * Return {@literal true} if active window set has any non-empty state.
+   */
+  boolean hasState();
 }

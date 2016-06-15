@@ -55,7 +55,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
+import org.apache.beam.sdk.transforms.windowing.Window.EmptyPaneBehavior;
 import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -595,7 +595,7 @@ public class CombineTest implements Serializable {
         .apply(Window.<Integer>into(new GlobalWindows())
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
             .accumulatingFiredPanes()
-            .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+            .withAllowedLateness(new Duration(0), EmptyPaneBehavior.FIRE_ALWAYS))
         .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
         .apply(ParDo.of(new GetLast()));
 

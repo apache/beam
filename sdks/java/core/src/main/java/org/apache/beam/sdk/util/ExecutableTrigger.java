@@ -21,6 +21,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 
+
 import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
@@ -140,7 +141,7 @@ public class ExecutableTrigger implements Serializable {
   }
 
   /**
-   * Invoke clear for the current this trigger.
+   * Invoke {@link Trigger#clear} for the current trigger.
    */
   public void invokeClear(Trigger.TriggerContext c) throws Exception {
     trigger.clear(c.forTrigger(this));
