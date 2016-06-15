@@ -38,6 +38,7 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -133,6 +134,38 @@ public class UnboundedReadEvaluatorFactoryTest {
         secondOutput.commit(Instant.now()).getElements(),
         containsInAnyOrder(tgw(11L), tgw(12L), tgw(14L), tgw(18L), tgw(19L), tgw(17L), tgw(16L),
             tgw(15L), tgw(13L), tgw(10L)));
+  }
+
+  @Test
+  public void unboundedSourceWithDuplicatesMultipleCalls() throws Exception {
+    Long[] outputs = new Long[20];
+    for (long i = 0L; i < 20L; i++) {
+      outputs[(int) i] = i % 5L;
+    }
+    TestUnboundedSource<Long> source =
+        new TestUnboundedSource<>(BigEndianLongCoder.of(), outputs);
+    source.dedupes = true;
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<Long> pcollection = p.apply(Read.from(source));
+    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
+    when(context.createRootBundle(pcollection)).thenReturn(output);
+    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+
+    evaluator.finishBundle();
+    assertThat(
+        output.commit(Instant.now()).getElements(),
+        containsInAnyOrder(tgw(1L), tgw(2L), tgw(4L), tgw(3L), tgw(0L)));
+
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(secondOutput);
+    TransformEvaluator<?> secondEvaluator = factory.forApplication(sourceTransform, null, context);
+    secondEvaluator.finishBundle();
+    assertThat(
+        secondOutput.commit(Instant.now()).getElements(),
+        Matchers.<WindowedValue<Long>>emptyIterable());
   }
 
   @Test
@@ -249,6 +282,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     static int readerAdvancedCount;
     private final Coder<T> coder;
     private final List<T> elems;
+    private boolean dedupes = false;
 
     public TestUnboundedSource(Coder<T> coder, T... elems) {
       readerAdvancedCount = 0;
@@ -273,6 +307,11 @@ public class UnboundedReadEvaluatorFactoryTest {
     @Nullable
     public Coder<TestCheckpointMark> getCheckpointMarkCoder() {
       return new TestCheckpointMark.Coder();
+    }
+
+    @Override
+    public boolean requiresDeduping() {
+      return dedupes;
     }
 
     @Override
@@ -330,7 +369,16 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return Instant.now();
+        return new Instant(index);
+      }
+
+      @Override
+      public byte[] getCurrentRecordId() {
+        try {
+          return CoderUtils.encodeToByteArray(coder, getCurrent());
+        } catch (CoderException e) {
+          throw new RuntimeException(e);
+        }
       }
 
       @Override
