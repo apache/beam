@@ -6,26 +6,97 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-<<<<<<< 23feafc0bb80d835bfd9a05a1d98b0c997aafc84
-    <pubDate>Fri, 27 May 2016 09:58:31 -0700</pubDate>
-    <lastBuildDate>Fri, 27 May 2016 09:58:31 -0700</lastBuildDate>
-=======
-    <pubDate>Fri, 27 May 2016 09:51:00 -0700</pubDate>
-    <lastBuildDate>Fri, 27 May 2016 09:51:00 -0700</lastBuildDate>
->>>>>>> Update date for blog post
-    <generator>Jekyll v3.1.3</generator>
+    <pubDate>Tue, 14 Jun 2016 18:36:16 -0700</pubDate>
+    <lastBuildDate>Tue, 14 Jun 2016 18:36:16 -0700</lastBuildDate>
+    <generator>Jekyll v2.5.0</generator>
     
       <item>
-        <title>Where&#39;s my PCollection.map()?</title>
+        <title>The first release of Apache Beam!</title>
+        <description>&lt;p&gt;I’m happy to announce that Apache Beam has officially released its first
+version – 0.1.0-incubating. This is an exciting milestone for the project,
+which joined the Apache Software Foundation and the Apache Incubator earlier
+this year.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;This release publishes the first set of Apache Beam binaries and source code,
+making them readily available for our users. The initial release includes the
+SDK for Java, along with three runners: Apache Flink, Apache Spark and Google
+Cloud Dataflow, a fully-managed cloud service. The release is available both
+in the &lt;a href=&quot;http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22&quot;&gt;Maven Central Repository&lt;/a&gt;,
+as well as a download from the &lt;a href=&quot;/releases/&quot;&gt;project’s website&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The goal of this release was process-oriented. In particular, the Beam
+community wanted to release existing functionality to our users, build and
+validate the release processes, and obtain validation from the Apache Software
+Foundation and the Apache Incubator.&lt;/p&gt;
+
+&lt;p&gt;I’d like to encourage everyone to try out this release. Please keep in mind
+that this is the first incubating release – significant changes are to be
+expected. As we march toward stability, a rapid cadence of future releases is
+anticipated, perhaps one every 1-2 months.&lt;/p&gt;
+
+&lt;p&gt;As always, the Beam community welcomes feedback. Stabilization, usability and
+the developer experience will be our focus for the next several months. If you
+have any comments or discover any issues, I’d like to invite you to reach out
+to us via &lt;a href=&quot;/mailing_lists/&quot;&gt;user’s mailing list&lt;/a&gt; or the
+&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM/&quot;&gt;Apache JIRA issue tracker&lt;/a&gt;.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 15 Jun 2016 00:00:01 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/beam/release/2016/06/15/first-release.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/release/2016/06/15/first-release.html</guid>
+        
+        
+        <category>beam</category>
+        
+        <category>release</category>
+        
+      </item>
+    
+      <item>
+        <title>How We Added Windowing to the Apache Flink Batch Runner</title>
+        <description>&lt;p&gt;We recently achieved a major milestone by adding support for windowing to the &lt;a href=&quot;http://flink.apache.org&quot;&gt;Apache Flink&lt;/a&gt; Batch runner. In this post we would like to explain what this means for users of Apache Beam and highlight some of the implementation details.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;Before we start, though, let’s quickly talk about the execution of Beam programs and how this is relevant to today’s post. A Beam pipeline can contain bounded and unbounded sources. If the pipeline only contains bounded sources it can be executed in a batch fashion, if it contains some unbounded sources it must be executed in a streaming fashion. When executing a Beam pipeline on Flink, you don’t have to choose the execution mode. Internally, the Flink runner either translates the pipeline to a Flink &lt;code&gt;DataSet&lt;/code&gt; program or a &lt;code&gt;DataStream&lt;/code&gt; program, depending on whether unbounded sources are used in the pipeline. In the following, when we say “Batch runner” what we are really talking about is the Flink runner being in batch execution mode.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-does-this-mean-for-users&quot;&gt;What does this mean for users?&lt;/h2&gt;
+
+&lt;p&gt;Support for windowing was the last missing puzzle piece for making the Flink Batch runner compatible with the Beam model. With the latest change to the Batch runner users can now run any pipeline that only contains bounded sources and be certain that the results match those of the original reference-implementation runners that were provided by Google as part of the initial code drop coming from the Google Dataflow SDK.&lt;/p&gt;
+
+&lt;p&gt;The most obvious part of the change is that windows can now be assigned to elements and that the runner respects these windows for the &lt;code&gt;GroupByKey&lt;/code&gt; and &lt;code&gt;Combine&lt;/code&gt; operations. A not-so-obvious change concerns side-inputs. In the Beam model, side inputs respect windows; when a value of the main input is being processed only the side input that corresponds to the correct window is available to the processing function, the &lt;code&gt;DoFn&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Getting side-input semantics right is an important milestone in it’s own because it allows to use a big suite of unit tests for verifying the correctness of a runner implementation. These tests exercise every obscure detail of the Beam programming model and verify that the results produced by a runner match what you would expect from a correct implementation. In the suite, side inputs are used to compare the expected result to the actual result. With these tests being executed regularly we can now be more confident that the implementation produces correct results for user-specified pipelines.&lt;/p&gt;
+
+&lt;h2 id=&quot;under-the-hood&quot;&gt;Under the Hood&lt;/h2&gt;
+&lt;p&gt;The basis for the changes is the introduction of &lt;code&gt;WindowedValue&lt;/code&gt; in the generated Flink transformations. Before, a Beam &lt;code&gt;PCollection&amp;lt;T&amp;gt;&lt;/code&gt; would be transformed to a &lt;code&gt;DataSet&amp;lt;T&amp;gt;&lt;/code&gt;. Now, we instead create a &lt;code&gt;DataSet&amp;lt;WindowedValue&amp;lt;T&amp;gt;&amp;gt;&lt;/code&gt;. The &lt;code&gt;WindowedValue&amp;lt;T&amp;gt;&lt;/code&gt; stores meta data about the value, such as the timestamp and the windows to which it was assigned.&lt;/p&gt;
+
+&lt;p&gt;With this basic change out of the way we just had to make sure that windows were respected for side inputs and that &lt;code&gt;Combine&lt;/code&gt; and &lt;code&gt;GroupByKey&lt;/code&gt; correctly handled windows. The tricky part there is the handling of merging windows such as session windows. For these we essentially emulate the behavior of a merging &lt;code&gt;WindowFn&lt;/code&gt; in our own code.&lt;/p&gt;
+
+&lt;p&gt;After we got side inputs working we could enable the aforementioned suite of tests to check how well the runner behaves with respect to the Beam model. As can be expected there were quite some discrepancies but we managed to resolve them all. In the process, we also slimmed down the runner implementation. For example, we removed all custom translations for sources and sinks and are now relying only on Beam code for these, thereby greatly reducing the maintenance overhead.&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+&lt;p&gt;We reached a major milestone in adding windowing support to the Flink Batch runner, thereby making it compatible with the Beam model. Because of the large suite of tests that can now be executed on the runner we are also confident about the correctness of the implementation and about it staying that way in the future.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 13 Jun 2016 09:00:00 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>Where's my PCollection.map()?</title>
         <description>&lt;p&gt;Have you ever wondered why Beam has PTransforms for everything instead of having methods on PCollection? Take a look at the history that led to this (and other) design decisions.&lt;/p&gt;
 
 &lt;!--more--&gt;
 
 &lt;p&gt;Though Beam is relatively new, its design draws heavily on many years of experience with real-world pipelines. One of the primary inspirations is &lt;a href=&quot;http://research.google.com/pubs/pub35650.html&quot;&gt;FlumeJava&lt;/a&gt;, which is Google’s internal successor to MapReduce first introduced in 2009.&lt;/p&gt;
 
-&lt;p&gt;The original FlumeJava API has methods like &lt;code class=&quot;highlighter-rouge&quot;&gt;count&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;parallelDo&lt;/code&gt; on the PCollections. Though slightly more succinct, this approach has many disadvantages to extensibility. Every new user to FlumeJava wanted to add transforms, and adding them as methods to PCollection simply doesn’t scale well. In contrast, a PCollection in Beam has a single &lt;code class=&quot;highlighter-rouge&quot;&gt;apply&lt;/code&gt; method which takes any PTransform as an argument.&lt;/p&gt;
-
-&lt;p&gt;Have you ever wondered why Beam has PTransforms for everything instead of having methods on PCollection? Take a look at the history that led to this (and other) design decisions.&lt;/p&gt;
+&lt;p&gt;The original FlumeJava API has methods like &lt;code&gt;count&lt;/code&gt; and &lt;code&gt;parallelDo&lt;/code&gt; on the PCollections. Though slightly more succinct, this approach has many disadvantages to extensibility. Every new user to FlumeJava wanted to add transforms, and adding them as methods to PCollection simply doesn’t scale well. In contrast, a PCollection in Beam has a single &lt;code&gt;apply&lt;/code&gt; method which takes any PTransform as an argument.&lt;/p&gt;
 
 &lt;table class=&quot;table&quot;&gt;
   &lt;tr&gt;
@@ -49,7 +120,7 @@ PCollection&amp;lt;O&amp;gt; output = input.apply(Count.perElement())
 &lt;p&gt;This is a more scalable approach for several reasons.&lt;/p&gt;
 
 &lt;h2 id=&quot;where-to-draw-the-line&quot;&gt;Where to draw the line?&lt;/h2&gt;
-&lt;p&gt;Adding methods to PCollection forces a line to be drawn between operations that are “useful” enough to merit this special treatment and those that are not. It is easy to make the case for flat map, group by key, and combine per key. But what about filter? Count? Approximate count? Approximate quantiles? Most frequent? WriteToMyFavoriteSource? Going too far down this path leads to a single enormous class that contains nearly everything one could want to do. (FlumeJava’s PCollection class is over 5000 lines long with around 70 distinct operations, and it could have been &lt;em&gt;much&lt;/em&gt; larger had we accepted every proposal.) Furthermore, since Java doesn’t allow adding methods to a class, there is a sharp syntactic divide between those operations that are added to PCollection and those that aren’t. A traditional way to share code is with a library of functions, but functions (in traditional languages like Java at least) are written prefix-style, which doesn’t mix well with the fluent builder style (e.g. &lt;code class=&quot;highlighter-rouge&quot;&gt;input.operation1().operation2().operation3()&lt;/code&gt; vs. &lt;code class=&quot;highlighter-rouge&quot;&gt;operation3(operation1(input).operation2())&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;Adding methods to PCollection forces a line to be drawn between operations that are “useful” enough to merit this special treatment and those that are not. It is easy to make the case for flat map, group by key, and combine per key. But what about filter? Count? Approximate count? Approximate quantiles? Most frequent? WriteToMyFavoriteSource? Going too far down this path leads to a single enormous class that contains nearly everything one could want to do. (FlumeJava’s PCollection class is over 5000 lines long with around 70 distinct operations, and it could have been &lt;em&gt;much&lt;/em&gt; larger had we accepted every proposal.) Furthermore, since Java doesn’t allow adding methods to a class, there is a sharp syntactic divide between those operations that are added to PCollection and those that aren’t. A traditional way to share code is with a library of functions, but functions (in traditional languages like Java at least) are written prefix-style, which doesn’t mix well with the fluent builder style (e.g. &lt;code&gt;input.operation1().operation2().operation3()&lt;/code&gt; vs. &lt;code&gt;operation3(operation1(input).operation2())&lt;/code&gt;).&lt;/p&gt;
 
 &lt;p&gt;Instead in Beam we’ve chosen a style that places all transforms–whether they be primitive operations, composite operations bundled in the SDK, or part of an external library–on equal footing. This also facilitates alternative implementations (which may even take different options) that are easily interchangeable.&lt;/p&gt;
 
@@ -77,14 +148,14 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;/table&gt;
 
 &lt;h2 id=&quot;configurability&quot;&gt;Configurability&lt;/h2&gt;
-&lt;p&gt;It makes for a fluent style to let values (PCollections) be the objects passed around and manipulated (i.e. the handles to the deferred execution graph), but it is the operations themselves that need to be composable, configurable, and extendable. Using PCollection methods for the operations doesn’t scale well here, especially in a language without default or keyword arguments. For example, a ParDo operation can have any number of side inputs and side outputs, or a write operation may have configurations dealing with encoding and compression. One option is to separate these out into multiple overloads or even methods, but that exacerbates the problems above. (FlumeJava evolved over a dozen overloads of the &lt;code class=&quot;highlighter-rouge&quot;&gt;parallelDo&lt;/code&gt; method!) Another option is to pass each method a configuration object that can be built up using more fluent idioms like the builder pattern, but at that point one might as well make the configuration object the operation itself, which is what Beam does.&lt;/p&gt;
+&lt;p&gt;It makes for a fluent style to let values (PCollections) be the objects passed around and manipulated (i.e. the handles to the deferred execution graph), but it is the operations themselves that need to be composable, configurable, and extendable. Using PCollection methods for the operations doesn’t scale well here, especially in a language without default or keyword arguments. For example, a ParDo operation can have any number of side inputs and side outputs, or a write operation may have configurations dealing with encoding and compression. One option is to separate these out into multiple overloads or even methods, but that exacerbates the problems above. (FlumeJava evolved over a dozen overloads of the &lt;code&gt;parallelDo&lt;/code&gt; method!) Another option is to pass each method a configuration object that can be built up using more fluent idioms like the builder pattern, but at that point one might as well make the configuration object the operation itself, which is what Beam does.&lt;/p&gt;
 
 &lt;h2 id=&quot;type-safety&quot;&gt;Type Safety&lt;/h2&gt;
-&lt;p&gt;Many operations can only be applied to collections whose elements are of a specific type. For example, the GroupByKey operation should only be applied to &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&lt;/code&gt;s. In Java at least, it’s not possible to restrict methods based on the element type parameter alone. In FlumeJava, this led us to add a &lt;code class=&quot;highlighter-rouge&quot;&gt;PTable&amp;lt;K, V&amp;gt;&lt;/code&gt; subclassing &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&lt;/code&gt; to contain all the operations specific to PCollections of key-value pairs. This leads to the same question of which element types are special enough to merit being captured by PCollection subclasses. It is not very extensible for third parties and often requires manual downcasts/conversions (which can’t be safely chained in Java) and special operations that produce these PCollection specializations.&lt;/p&gt;
+&lt;p&gt;Many operations can only be applied to collections whose elements are of a specific type. For example, the GroupByKey operation should only be applied to &lt;code&gt;PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&lt;/code&gt;s. In Java at least, it’s not possible to restrict methods based on the element type parameter alone. In FlumeJava, this led us to add a &lt;code&gt;PTable&amp;lt;K, V&amp;gt;&lt;/code&gt; subclassing &lt;code&gt;PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&lt;/code&gt; to contain all the operations specific to PCollections of key-value pairs. This leads to the same question of which element types are special enough to merit being captured by PCollection subclasses. It is not very extensible for third parties and often requires manual downcasts/conversions (which can’t be safely chained in Java) and special operations that produce these PCollection specializations.&lt;/p&gt;
 
 &lt;p&gt;This is particularly inconvenient for transforms that produce outputs whose element types are the same as (or related to) their input’s element types, requiring extra support to generate the right subclasses (e.g. a filter on a PTable should produce another PTable rather than just a raw PCollection of key-value pairs).&lt;/p&gt;
 
-&lt;p&gt;Using PTransforms allows us to sidestep this entire issue. We can place arbitrary constraints on the context in which a transform may be used based on the type of its inputs; for instance GroupByKey is statically typed to only apply to a &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&lt;/code&gt;. The way this happens is generalizable to arbitrary shapes, without needing to introduce specialized types like PTable.&lt;/p&gt;
+&lt;p&gt;Using PTransforms allows us to sidestep this entire issue. We can place arbitrary constraints on the context in which a transform may be used based on the type of its inputs; for instance GroupByKey is statically typed to only apply to a &lt;code&gt;PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&lt;/code&gt;. The way this happens is generalizable to arbitrary shapes, without needing to introduce specialized types like PTable.&lt;/p&gt;
 
 &lt;h2 id=&quot;reusability-and-structure&quot;&gt;Reusability and Structure&lt;/h2&gt;
 &lt;p&gt;Though PTransforms are generally constructed at the site at which they’re used, by pulling them out as separate objects one is able to store them and pass them around.&lt;/p&gt;
@@ -94,7 +165,7 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/simple-wordcount-pipeline.png&quot; alt=&quot;Three different visualizations of a simple WordCount pipeline&quot; width=&quot;500&quot; /&gt;&lt;/p&gt;
 
 &lt;div class=&quot;text-center&quot;&gt;
-&lt;i&gt;Three different visualizations of a simple WordCount pipeline which computes the number of occurrences of every word in a set of text files. The flag view gives the full DAG of all operations performed. The execution view groups operations according to how they&#39;re executed, e.g. after performing runner-specific optimizations like function composition. The structured view nests operations according to their grouping in PTransforms.&lt;/i&gt;
+&lt;i&gt;Three different visualizations of a simple WordCount pipeline which computes the number of occurrences of every word in a set of text files. The flat view gives the full DAG of all operations performed. The execution view groups operations according to how they're executed, e.g. after performing runner-specific optimizations like function composition. The structured view nests operations according to their grouping in PTransforms.&lt;/i&gt;
 &lt;/div&gt;
 
 &lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
@@ -117,7 +188,7 @@ PCollection&amp;lt;O&amp;gt; output = input
 
 &lt;p&gt;In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.&lt;/p&gt;
 
-&lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
+&lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
 </description>
         <pubDate>Wed, 18 May 2016 11:00:00 -0700</pubDate>
         <link>http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
@@ -150,7 +221,7 @@ PCollection&amp;lt;O&amp;gt; output = input
   &lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;&amp;#109;&amp;#097;&amp;#105;&amp;#108;&amp;#116;&amp;#111;:&amp;#117;&amp;#115;&amp;#101;&amp;#114;&amp;#064;&amp;#098;&amp;#101;&amp;#097;&amp;#109;&amp;#046;&amp;#105;&amp;#110;&amp;#099;&amp;#117;&amp;#098;&amp;#097;&amp;#116;&amp;#111;&amp;#114;&amp;#046;&amp;#097;&amp;#112;&amp;#097;&amp;#099;&amp;#104;&amp;#101;&amp;#046;&amp;#111;&amp;#114;&amp;#103;&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
+&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;&amp;#109;&amp;#097;&amp;#105;&amp;#108;&amp;#116;&amp;#111;:&amp;#117;&amp;#115;&amp;#101;&amp;#114;&amp;#064;&amp;#098;&amp;#101;&amp;#097;&amp;#109;&amp;#046;&amp;#105;&amp;#110;&amp;#099;&amp;#117;&amp;#098;&amp;#097;&amp;#116;&amp;#111;&amp;#114;&amp;#046;&amp;#097;&amp;#112;&amp;#097;&amp;#099;&amp;#104;&amp;#101;&amp;#046;&amp;#111;&amp;#114;&amp;#103;&quot;&gt;&lt;code&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
 </description>
         <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
         <link>http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
@@ -211,23 +282,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -236,23 +303,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -261,23 +324,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -286,23 +345,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -311,23 +366,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -336,23 +387,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -361,23 +408,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -386,23 +429,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -411,23 +450,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -456,23 +491,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -481,23 +512,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8cf;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8cf;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -506,23 +533,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -531,23 +554,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -556,23 +575,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -581,23 +596,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -606,23 +617,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -651,23 +658,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -676,23 +679,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -701,23 +700,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -726,23 +721,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -751,23 +742,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -776,23 +763,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -801,23 +784,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -826,23 +805,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -871,23 +846,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -896,23 +867,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -921,23 +888,19 @@ PCollection&amp;lt;O&amp;gt; output = input
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;/td&gt;
     
     
 
-    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
-&lt;/td&gt;
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;/td&gt;
     
   &lt;/tr&gt;
   
@@ -1006,7 +969,7 @@ now has a logo.&lt;/p&gt;
 unification of bath and streaming, as beams of light, within the ‘B’. We will base
 our future website and documentation design around this logo and its coloring. We
 will also make various permutations and resolutions of this logo available in the
-coming weeks. For any questions or comments, send an email to the &lt;code class=&quot;highlighter-rouge&quot;&gt;dev@&lt;/code&gt; email list
+coming weeks. For any questions or comments, send an email to the &lt;code&gt;dev@&lt;/code&gt; email list
 for Apache Beam.&lt;/p&gt;
 </description>
         <pubDate>Mon, 22 Feb 2016 10:21:48 -0800</pubDate>

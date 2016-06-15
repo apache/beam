@@ -1,3 +1,15 @@
+aljoscha:
+    name: Aljoscha Krettek
+    email: aljoscha@apache.org
+    twitter: aljoscha
+davor:
+    name: Davor Bonaci
+    email: davor@apache.org
+    twitter: BonaciDavor
+dhalperi:
+    name: Dan Halperin
+    email: dhalperi@apache.org
+    twitter:
 fjp:
     name: Frances Perry
     email: frances@apache.org
@@ -6,19 +18,11 @@ jamesmalone:
     name: James Malone
     email: jamesmalone@apache.org
     twitter: chimerasaurus
-takidau:
-    name: Tyler Akidau
-    email: takidau@apache.org
-    twitter: takidau
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
     twitter:
-dhalperi:
-    name: Dan Halperin
-    email: dhalperi@apache.org
-    twitter:
-aljoscha:
-    name: Aljoscha Krettek
-    email: aljoscha@apache.org
-    twitter: aljoscha
+takidau:
+    name: Tyler Akidau
+    email: takidau@apache.org
+    twitter: takidau
