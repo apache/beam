@@ -31,6 +31,8 @@ import org.joda.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 /**
  * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
  * lower-bound, sometimes heuristically established, on event times that have been fully processed
@@ -106,6 +108,7 @@ public class AfterWatermark {
     private static final int LATE_INDEX = 1;
 
     private final OnceTrigger earlyTrigger;
+    @Nullable
     private final OnceTrigger lateTrigger;
 
     @SuppressWarnings("unchecked")
@@ -226,7 +229,6 @@ public class AfterWatermark {
     public String toString() {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
-      Trigger earlyTrigger = subTriggers.get(EARLY_INDEX);
       if (!(earlyTrigger instanceof Never.NeverTrigger)) {
         builder
             .append(".withEarlyFirings(")
@@ -234,10 +236,12 @@ public class AfterWatermark {
             .append(")");
       }
 
-      builder
-          .append(".withLateFirings(")
-          .append(subTriggers.get(LATE_INDEX))
-          .append(")");
+      if (lateTrigger != null && !(lateTrigger instanceof Never.NeverTrigger)) {
+        builder
+            .append(".withLateFirings(")
+            .append(lateTrigger)
+            .append(")");
+      }
 
       return builder.toString();
     }
