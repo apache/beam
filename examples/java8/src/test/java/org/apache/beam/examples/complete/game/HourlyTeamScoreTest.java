@@ -96,7 +96,7 @@ public class HourlyTeamScoreTest implements Serializable {
     PCollection<KV<String, Integer>> output = input
       .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
 
-      .apply("FilterStartTime", Filter.byPredicate(
+      .apply("FilterStartTime", Filter.by(
           (GameActionInfo gInfo)
               -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
       // run a map to access the fields in the result.

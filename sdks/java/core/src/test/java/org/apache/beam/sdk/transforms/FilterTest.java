@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,48 +60,6 @@ public class FilterTest implements Serializable {
     }
   }
 
-  @Deprecated
-  @Test
-  @Category(RunnableOnService.class)
-  public void testIdentityFilterBy() {
-    TestPipeline p = TestPipeline.create();
-
-    PCollection<Integer> output = p
-        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
-        .apply(Filter.by(new TrivialFn(true)));
-
-    PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
-    p.run();
-  }
-
-  @Deprecated
-  @Test
-  @Category(NeedsRunner.class)
-  public void testNoFilter() {
-    TestPipeline p = TestPipeline.create();
-
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 4, 5))
-        .apply(Filter.by(new TrivialFn(false)));
-
-    PAssert.that(output).empty();
-    p.run();
-  }
-
-  @Deprecated
-  @Test
-  @Category(RunnableOnService.class)
-  public void testFilterBy() {
-    TestPipeline p = TestPipeline.create();
-
-    PCollection<Integer> output = p
-        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.by(new EvenFn()));
-
-    PAssert.that(output).containsInAnyOrder(2, 4, 6);
-    p.run();
-  }
-
   @Test
   @Category(RunnableOnService.class)
   public void testIdentityFilterByPredicate() {
@@ -110,7 +67,7 @@ public class FilterTest implements Serializable {
 
     PCollection<Integer> output = p
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
-        .apply(Filter.byPredicate(new TrivialFn(true)));
+        .apply(Filter.by(new TrivialFn(true)));
 
     PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
     p.run();
@@ -123,7 +80,7 @@ public class FilterTest implements Serializable {
 
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 4, 5))
-        .apply(Filter.byPredicate(new TrivialFn(false)));
+        .apply(Filter.by(new TrivialFn(false)));
 
     PAssert.that(output).empty();
     p.run();
@@ -136,7 +93,7 @@ public class FilterTest implements Serializable {
 
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.byPredicate(new EvenFn()));
+        .apply(Filter.by(new EvenFn()));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();
@@ -169,17 +126,39 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
+  public void testFilterLessThanEq() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.lessThanEq(4));
+
+    PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFilterGreaterThanEq() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.greaterThanEq(4));
+
+    PAssert.that(output).containsInAnyOrder(4, 5, 6, 7);
+    p.run();
+  }
+
+  @Test
   public void testDisplayData() {
-    ParDo.Bound<Integer, Integer> lessThan = Filter.lessThan(123);
-    assertThat(DisplayData.from(lessThan), hasDisplayItem("predicate", "x < 123"));
+    assertThat(DisplayData.from(Filter.lessThan(123)), hasDisplayItem("predicate", "x < 123"));
 
-    ParDo.Bound<Integer, Integer> lessThanOrEqual = Filter.lessThanEq(234);
-    assertThat(DisplayData.from(lessThanOrEqual), hasDisplayItem("predicate", "x ≤ 234"));
+    assertThat(DisplayData.from(Filter.lessThanEq(234)), hasDisplayItem("predicate", "x ≤ 234"));
 
-    ParDo.Bound<Integer, Integer> greaterThan = Filter.greaterThan(345);
-    assertThat(DisplayData.from(greaterThan), hasDisplayItem("predicate", "x > 345"));
+    assertThat(DisplayData.from(Filter.greaterThan(345)), hasDisplayItem("predicate", "x > 345"));
 
-    ParDo.Bound<Integer, Integer> greaterThanOrEqual = Filter.greaterThanEq(456);
-    assertThat(DisplayData.from(greaterThanOrEqual), hasDisplayItem("predicate", "x ≥ 456"));
+    assertThat(DisplayData.from(Filter.greaterThanEq(456)), hasDisplayItem("predicate", "x ≥ 456"));
   }
 }

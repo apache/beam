@@ -235,7 +235,7 @@ public class AutoComplete {
             .of(larger.get(1).apply(ParDo.of(new FlattenTops())))
             // ...together with those (previously excluded) candidates of length
             // exactly minPrefix...
-            .and(input.apply(Filter.byPredicate(
+            .and(input.apply(Filter.by(
                 new SerializableFunction<CompletionCandidate, Boolean>() {
                   @Override
                   public Boolean apply(CompletionCandidate c) {
