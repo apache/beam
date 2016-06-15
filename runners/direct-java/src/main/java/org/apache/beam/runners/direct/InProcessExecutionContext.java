@@ -25,7 +25,7 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 /**
- * Execution Context for the {@link InProcessPipelineRunner}.
+ * Execution Context for the {@link DirectRunner}.
  *
  * This implementation is not thread safe. A new {@link InProcessExecutionContext} must be created
  * for each thread that requires it.
@@ -51,7 +51,7 @@ class InProcessExecutionContext
   }
 
   /**
-   * Step Context for the {@link InProcessPipelineRunner}.
+   * Step Context for the {@link DirectRunner}.
    */
   public class InProcessStepContext
       extends org.apache.beam.sdk.util.BaseExecutionContext.StepContext {

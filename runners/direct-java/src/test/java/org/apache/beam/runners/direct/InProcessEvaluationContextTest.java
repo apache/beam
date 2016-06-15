@@ -28,9 +28,9 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.InProcessExecutionContext.InProcessStepContext;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.PCollectionViewWriter;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -99,8 +99,8 @@ public class InProcessEvaluationContextTest {
 
   @Before
   public void setup() {
-    InProcessPipelineRunner runner =
-        InProcessPipelineRunner.fromOptions(PipelineOptionsFactory.create());
+    DirectRunner runner =
+        DirectRunner.fromOptions(PipelineOptionsFactory.create());
 
     p = TestPipeline.create();
 
