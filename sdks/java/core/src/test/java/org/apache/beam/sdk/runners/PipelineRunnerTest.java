@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.TestCredential;
 
@@ -53,10 +54,10 @@ public class PipelineRunnerTest {
     options.setAppName("test");
     options.setProject("test");
     options.setGcsUtil(mockGcsUtil);
-    options.setRunner(DirectPipelineRunner.class);
+    options.setRunner(CrashingRunner.class);
     options.setGcpCredential(new TestCredential());
     PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
-    assertTrue(runner instanceof DirectPipelineRunner);
+    assertTrue(runner instanceof CrashingRunner);
   }
 
   @Test
@@ -66,10 +67,10 @@ public class PipelineRunnerTest {
     options.setAppName("test");
     options.setProject("test");
     options.setGcsUtil(mockGcsUtil);
-    options.setRunner(DirectPipelineRunner.class);
+    options.setRunner(CrashingRunner.class);
     options.setGcpCredential(new TestCredential());
     PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
-    assertTrue(runner instanceof DirectPipelineRunner);
+    assertTrue(runner instanceof CrashingRunner);
   }
 
   @Test

@@ -30,9 +30,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.DirectPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -244,15 +241,9 @@ public class GroupByKeyTest {
                     Duration.standardMinutes(1)))));
   }
 
-  private Pipeline createTestDirectRunner() {
-    DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
-    options.setRunner(DirectPipelineRunner.class);
-    return Pipeline.create(options);
-  }
-
   @Test
   public void testInvalidWindowsDirect() {
-    Pipeline p = createTestDirectRunner();
+    Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -297,7 +288,7 @@ public class GroupByKeyTest {
 
   @Test
   public void testGroupByKeyDirectUnbounded() {
-    Pipeline p = createTestDirectRunner();
+    Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
         p.apply(

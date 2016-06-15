@@ -18,14 +18,12 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -123,10 +121,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
   private void test(boolean dedup, boolean timeBound) throws Exception {
     Pipeline p = TestPipeline.create();
 
-    if (p.getOptions().getRunner() == DirectPipelineRunner.class) {
-      finalizeTracker = new ArrayList<>();
-      TestCountingSource.setFinalizeTracker(finalizeTracker);
-    }
     TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE).withoutSplitting();
     if (dedup) {
       source = source.withDedup();

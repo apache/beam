@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.options;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
