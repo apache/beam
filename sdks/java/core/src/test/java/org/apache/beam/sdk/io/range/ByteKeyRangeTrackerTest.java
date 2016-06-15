@@ -90,9 +90,13 @@ public class ByteKeyRangeTrackerTest {
 
     tracker.tryReturnRecordAt(true, BEFORE_END_KEY);
     assertEquals(1 - 1 / INITIAL_RANGE_SIZE, tracker.getFractionConsumed(), delta);
+  }
 
-    // Should be accurate for updated start key
-    tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+  /** Tests for {@link ByteKeyRangeTracker#getFractionConsumed()} with updated start key. */
+  @Test
+  public void testGetFractionConsumedUpdateStartKey() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    double delta = 0.00001;
 
     tracker.tryReturnRecordAt(true, NEW_START_KEY);
     assertEquals(0.0, tracker.getFractionConsumed(), delta);
