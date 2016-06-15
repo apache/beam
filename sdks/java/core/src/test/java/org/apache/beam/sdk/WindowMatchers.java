@@ -47,6 +47,11 @@ public class WindowMatchers {
     return new WindowedValueMatcher<>(valueMatcher, timestampMatcher, Matchers.anything());
   }
 
+  public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
+      Matcher<? super T> valueMatcher) {
+    return new WindowedValueMatcher<>(valueMatcher, Matchers.anything(), Matchers.anything());
+  }
+
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
       T value, long timestamp, long windowStart, long windowEnd) {
     return WindowMatchers.<T>isSingleWindowedValue(
