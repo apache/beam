@@ -52,24 +52,24 @@ import javax.annotation.Nullable;
  * constructing {@link SideInputReader SideInputReaders} which block until a side input is
  * available and writing to a {@link PCollectionView}.
  */
-class InProcessSideInputContainer {
+class SideInputContainer {
   private final Collection<PCollectionView<?>> containedViews;
   private final LoadingCache<
           PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
       viewByWindows;
 
   /**
-   * Create a new {@link InProcessSideInputContainer} with the provided views and the provided
+   * Create a new {@link SideInputContainer} with the provided views and the provided
    * context.
    */
-  public static InProcessSideInputContainer create(
-      final InProcessEvaluationContext context, Collection<PCollectionView<?>> containedViews) {
+  public static SideInputContainer create(
+      final EvaluationContext context, Collection<PCollectionView<?>> containedViews) {
     LoadingCache<PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
         viewByWindows = CacheBuilder.newBuilder().build(new CallbackSchedulingLoader(context));
-    return new InProcessSideInputContainer(containedViews, viewByWindows);
+    return new SideInputContainer(containedViews, viewByWindows);
   }
 
-  private InProcessSideInputContainer(
+  private SideInputContainer(
       Collection<PCollectionView<?>> containedViews,
       LoadingCache<PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
           viewByWindows) {
@@ -78,9 +78,9 @@ class InProcessSideInputContainer {
   }
 
   /**
-   * Return a view of this {@link InProcessSideInputContainer} that contains only the views in the
-   * provided argument. The returned {@link InProcessSideInputContainer} is unmodifiable without
-   * casting, but will change as this {@link InProcessSideInputContainer} is modified.
+   * Return a view of this {@link SideInputContainer} that contains only the views in the
+   * provided argument. The returned {@link SideInputContainer} is unmodifiable without
+   * casting, but will change as this {@link SideInputContainer} is modified.
    */
   public ReadyCheckingSideInputReader createReaderForViews(
       Collection<PCollectionView<?>> newContainedViews) {
@@ -160,10 +160,10 @@ class InProcessSideInputContainer {
 
   private static class CallbackSchedulingLoader extends
       CacheLoader<PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>> {
-    private final InProcessEvaluationContext context;
+    private final EvaluationContext context;
 
     public CallbackSchedulingLoader(
-        InProcessEvaluationContext context) {
+        EvaluationContext context) {
       this.context = context;
     }
 

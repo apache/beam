@@ -27,7 +27,7 @@ interface CompletionCallback {
    * Handle a successful result, returning the committed outputs of the result.
    */
   CommittedResult handleResult(
-      CommittedBundle<?> inputBundle, InProcessTransformResult result);
+      CommittedBundle<?> inputBundle, TransformResult result);
 
   /**
    * Handle a result that terminated abnormally due to the provided {@link Throwable}.

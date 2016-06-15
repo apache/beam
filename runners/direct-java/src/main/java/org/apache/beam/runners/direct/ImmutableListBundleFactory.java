@@ -33,46 +33,48 @@ import org.joda.time.Instant;
 /**
  * A factory that produces bundles that perform no additional validation.
  */
-class InProcessBundleFactory implements BundleFactory {
-  public static InProcessBundleFactory create() {
-    return new InProcessBundleFactory();
+class ImmutableListBundleFactory implements BundleFactory {
+  public static ImmutableListBundleFactory create() {
+    return new ImmutableListBundleFactory();
   }
 
-  private InProcessBundleFactory() {}
+  private ImmutableListBundleFactory() {}
 
   @Override
   public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return InProcessBundle.create(output, StructuralKey.of(null, VoidCoder.of()));
+    return UncommittedImmutableListBundle.create(output, StructuralKey.of(null, VoidCoder.of()));
   }
 
   @Override
   public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return InProcessBundle.create(output, input.getKey());
+    return UncommittedImmutableListBundle.create(output, input.getKey());
   }
 
   @Override
   public <K, T> UncommittedBundle<T> createKeyedBundle(
       CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
-    return InProcessBundle.create(output, key);
+    return UncommittedImmutableListBundle.create(output, key);
   }
 
   /**
    * A {@link UncommittedBundle} that buffers elements in memory.
    */
-  private static final class InProcessBundle<T> implements UncommittedBundle<T> {
+  private static final class UncommittedImmutableListBundle<T> implements UncommittedBundle<T> {
     private final PCollection<T> pcollection;
     private final StructuralKey<?> key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
 
     /**
-     * Create a new {@link InProcessBundle} for the specified {@link PCollection}.
+     * Create a new {@link UncommittedImmutableListBundle} for the specified {@link PCollection}.
      */
-    public static <T> InProcessBundle<T> create(PCollection<T> pcollection, StructuralKey<?> key) {
-      return new InProcessBundle<>(pcollection, key);
+    public static <T> UncommittedImmutableListBundle<T> create(
+        PCollection<T> pcollection,
+        StructuralKey<?> key) {
+      return new UncommittedImmutableListBundle<>(pcollection, key);
     }
 
-    private InProcessBundle(PCollection<T> pcollection, StructuralKey<?> key) {
+    private UncommittedImmutableListBundle(PCollection<T> pcollection, StructuralKey<?> key) {
       this.pcollection = pcollection;
       this.key = key;
       this.elements = ImmutableList.builder();
@@ -84,7 +86,7 @@ class InProcessBundleFactory implements BundleFactory {
     }
 
     @Override
-    public InProcessBundle<T> add(WindowedValue<T> element) {
+    public UncommittedImmutableListBundle<T> add(WindowedValue<T> element) {
       checkState(
           !committed,
           "Can't add element %s to committed bundle in PCollection %s",
@@ -99,13 +101,13 @@ class InProcessBundleFactory implements BundleFactory {
       checkState(!committed, "Can't commit already committed bundle %s", this);
       committed = true;
       final Iterable<WindowedValue<T>> committedElements = elements.build();
-      return new CommittedInProcessBundle<>(
+      return new CommittedImmutableListBundle<>(
           pcollection, key, committedElements, synchronizedCompletionTime);
     }
   }
 
-  private static class CommittedInProcessBundle<T> implements CommittedBundle<T> {
-    public CommittedInProcessBundle(
+  private static class CommittedImmutableListBundle<T> implements CommittedBundle<T> {
+    public CommittedImmutableListBundle(
         PCollection<T> pcollection,
         StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
@@ -154,7 +156,7 @@ class InProcessBundleFactory implements BundleFactory {
 
     @Override
     public CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements) {
-      return new CommittedInProcessBundle<>(
+      return new CommittedImmutableListBundle<>(
           pcollection, key, ImmutableList.copyOf(elements), synchronizedCompletionTime);
     }
   }

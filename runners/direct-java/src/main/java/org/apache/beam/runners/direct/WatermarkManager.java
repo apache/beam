@@ -66,17 +66,17 @@ import javax.annotation.Nullable;
 /**
  * Manages watermarks of {@link PCollection PCollections} and input and output watermarks of
  * {@link AppliedPTransform AppliedPTransforms} to provide event-time and completion tracking for
- * in-memory execution. {@link InMemoryWatermarkManager} is designed to update and return a
+ * in-memory execution. {@link WatermarkManager} is designed to update and return a
  * consistent view of watermarks in the presence of concurrent updates.
  *
- * <p>An {@link InMemoryWatermarkManager} is provided with the collection of root
+ * <p>An {@link WatermarkManager} is provided with the collection of root
  * {@link AppliedPTransform AppliedPTransforms} and a map of {@link PCollection PCollections} to
  * all the {@link AppliedPTransform AppliedPTransforms} that consume them at construction time.
  *
  * <p>Whenever a root {@link AppliedPTransform transform} produces elements, the
- * {@link InMemoryWatermarkManager} is provided with the produced elements and the output watermark
+ * {@link WatermarkManager} is provided with the produced elements and the output watermark
  * of the producing {@link AppliedPTransform transform}. The
- * {@link InMemoryWatermarkManager watermark manager} is responsible for computing the watermarks
+ * {@link WatermarkManager watermark manager} is responsible for computing the watermarks
  * of all {@link AppliedPTransform transforms} that consume one or more
  * {@link PCollection PCollections}.
  *
@@ -125,7 +125,7 @@ import javax.annotation.Nullable;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-public class InMemoryWatermarkManager {
+public class WatermarkManager {
   /**
    * The watermark of some {@link Pipeline} element, usually a {@link PTransform} or a
    * {@link PCollection}.
@@ -134,7 +134,7 @@ public class InMemoryWatermarkManager {
    * system believes it has received all of the data. Data that arrives with a timestamp that is
    * before the watermark is considered late. {@link BoundedWindow#TIMESTAMP_MAX_VALUE} is a special
    * timestamp which indicates we have received all of the data and there will be no more on-time or
-   * late data. This value is represented by {@link InMemoryWatermarkManager#THE_END_OF_TIME}.
+   * late data. This value is represented by {@link WatermarkManager#THE_END_OF_TIME}.
    */
   private static interface Watermark {
     /**
@@ -690,7 +690,7 @@ public class InMemoryWatermarkManager {
   private final Map<AppliedPTransform<?, ?, ?>, TransformWatermarks> transformToWatermarks;
 
   /**
-   * A queue of pending updates to the state of this {@link InMemoryWatermarkManager}.
+   * A queue of pending updates to the state of this {@link WatermarkManager}.
    */
   private final ConcurrentLinkedQueue<PendingWatermarkUpdate> pendingUpdates;
 
@@ -701,22 +701,22 @@ public class InMemoryWatermarkManager {
   private final ConcurrentLinkedQueue<AppliedPTransform<?, ?, ?>> pendingRefreshes;
 
   /**
-   * Creates a new {@link InMemoryWatermarkManager}. All watermarks within the newly created
-   * {@link InMemoryWatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the
+   * Creates a new {@link WatermarkManager}. All watermarks within the newly created
+   * {@link WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the
    * minimum watermark, with no watermark holds or pending elements.
    *
    * @param rootTransforms the root-level transforms of the {@link Pipeline}
    * @param consumers a mapping between each {@link PCollection} in the {@link Pipeline} to the
    *                  transforms that consume it as a part of their input
    */
-  public static InMemoryWatermarkManager create(
+  public static WatermarkManager create(
       Clock clock,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
-    return new InMemoryWatermarkManager(clock, rootTransforms, consumers);
+    return new WatermarkManager(clock, rootTransforms, consumers);
   }
 
-  private InMemoryWatermarkManager(
+  private WatermarkManager(
       Clock clock,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
@@ -835,7 +835,7 @@ public class InMemoryWatermarkManager {
   }
 
   /**
-   * Applies all pending updates to this {@link InMemoryWatermarkManager}, causing the pending state
+   * Applies all pending updates to this {@link WatermarkManager}, causing the pending state
    * of all {@link TransformWatermarks} to be advanced as far as possible.
    */
   private void applyPendingUpdates() {
@@ -899,7 +899,7 @@ public class InMemoryWatermarkManager {
   }
 
   /**
-   * Refresh the watermarks contained within this {@link InMemoryWatermarkManager}, causing all
+   * Refresh the watermarks contained within this {@link WatermarkManager}, causing all
    * watermarks to be advanced as far as possible.
    */
   synchronized void refreshAll() {
@@ -923,7 +923,7 @@ public class InMemoryWatermarkManager {
 
   /**
    * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
-   * pending timers will be removed from this {@link InMemoryWatermarkManager}.
+   * pending timers will be removed from this {@link WatermarkManager}.
    */
   public Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> extractFiredTimers() {
     Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> allTimers = new HashMap<>();
@@ -1343,7 +1343,7 @@ public class InMemoryWatermarkManager {
    * A pair of {@link TimerData} and key which can be delivered to the appropriate
    * {@link AppliedPTransform}. A timer fires at the transform that set it with a specific key when
    * the time domain in which it lives progresses past a specified time, as determined by the
-   * {@link InMemoryWatermarkManager}.
+   * {@link WatermarkManager}.
    */
   public static class FiredTimers {
     private final Map<TimeDomain, ? extends Collection<TimerData>> timers;
@@ -1411,7 +1411,7 @@ public class InMemoryWatermarkManager {
         CommittedBundle<?> inputBundle,
         TimerUpdate timerUpdate,
         CommittedResult result, Instant earliestHold) {
-      return new AutoValue_InMemoryWatermarkManager_PendingWatermarkUpdate(inputBundle,
+      return new AutoValue_WatermarkManager_PendingWatermarkUpdate(inputBundle,
           timerUpdate,
           result,
           earliestHold);

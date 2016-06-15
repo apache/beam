@@ -23,10 +23,10 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InProcessExecutionContext.InProcessStepContext;
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -68,11 +68,11 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Tests for {@link ParDoInProcessEvaluator}.
+ * Tests for {@link ParDoEvaluator}.
  */
 @RunWith(JUnit4.class)
-public class ParDoInProcessEvaluatorTest {
-  @Mock private InProcessEvaluationContext evaluationContext;
+public class ParDoEvaluatorTest {
+  @Mock private EvaluationContext evaluationContext;
   private PCollection<Integer> inputPc;
   private TupleTag<Integer> mainOutputTag;
   private List<TupleTag<?>> sideOutputTags;
@@ -86,7 +86,7 @@ public class ParDoInProcessEvaluatorTest {
     mainOutputTag = new TupleTag<Integer>() {};
     sideOutputTags = TupleTagList.empty().getAll();
 
-    bundleFactory = InProcessBundleFactory.create();
+    bundleFactory = ImmutableListBundleFactory.create();
   }
 
   @Test
@@ -104,7 +104,7 @@ public class ParDoInProcessEvaluatorTest {
     when(evaluationContext.createBundle(inputBundle, output))
         .thenReturn(outputBundle);
 
-    ParDoInProcessEvaluator<Integer> evaluator =
+    ParDoEvaluator<Integer> evaluator =
         createEvaluator(singletonView, fn, inputBundle, output);
 
     IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
@@ -121,7 +121,7 @@ public class ParDoInProcessEvaluatorTest {
     evaluator.processElement(first);
     evaluator.processElement(second);
     evaluator.processElement(third);
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
 
     assertThat(
         result.getUnprocessedElements(),
@@ -136,7 +136,7 @@ public class ParDoInProcessEvaluatorTest {
             WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
 
-  private ParDoInProcessEvaluator<Integer> createEvaluator(
+  private ParDoEvaluator<Integer> createEvaluator(
       PCollectionView<Integer> singletonView,
       RecorderFn fn,
       DirectRunner.CommittedBundle<Integer> inputBundle,
@@ -145,8 +145,8 @@ public class ParDoInProcessEvaluatorTest {
             evaluationContext.createSideInputReader(
                 ImmutableList.<PCollectionView<?>>of(singletonView)))
         .thenReturn(new ReadyInGlobalWindowReader());
-    InProcessExecutionContext executionContext = mock(InProcessExecutionContext.class);
-    InProcessStepContext stepContext = mock(InProcessStepContext.class);
+    DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
+    DirectStepContext stepContext = mock(DirectStepContext.class);
     when(
             executionContext.getOrCreateStepContext(
                 Mockito.any(String.class), Mockito.any(String.class)))
@@ -158,7 +158,7 @@ public class ParDoInProcessEvaluatorTest {
         .thenReturn(executionContext);
     when(evaluationContext.createCounterSet()).thenReturn(new CounterSet());
 
-    return ParDoInProcessEvaluator.create(
+    return ParDoEvaluator.create(
         evaluationContext,
         inputBundle,
         (AppliedPTransform<PCollection<Integer>, ?, ?>) output.getProducingTransformInternal(),

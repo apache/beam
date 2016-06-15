@@ -27,29 +27,31 @@ import com.google.common.collect.ImmutableList;
 
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link DirectRunner}.
+ * {@link org.apache.beam.runners.direct.DirectRunner}.
  */
 public class DirectRegistrar {
   private DirectRegistrar() {}
   /**
-   * Registers the {@link DirectRunner}.
+   * Registers the {@link org.apache.beam.runners.direct.DirectRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
-  public static class InProcessRunner implements PipelineRunnerRegistrar {
+  public static class DirectRunner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(DirectRunner.class);
+      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
+          org.apache.beam.runners.direct.DirectRunner.class);
     }
   }
 
   /**
-   * Registers the {@link DirectOptions}.
+   * Registers the {@link org.apache.beam.runners.direct.DirectOptions}.
    */
   @AutoService(PipelineOptionsRegistrar.class)
-  public static class InProcessOptions implements PipelineOptionsRegistrar {
+  public static class DirectOptions implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(DirectOptions.class);
+      return ImmutableList.<Class<? extends PipelineOptions>>of(
+          org.apache.beam.runners.direct.DirectOptions.class);
     }
   }
 }

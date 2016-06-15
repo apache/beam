@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 /**
  * The result of evaluating an {@link AppliedPTransform} with a {@link TransformEvaluator}.
  */
-public interface InProcessTransformResult {
+public interface TransformResult {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.
    */

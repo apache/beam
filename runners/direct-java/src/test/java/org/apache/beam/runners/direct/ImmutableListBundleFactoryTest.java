@@ -54,13 +54,13 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Tests for {@link InProcessBundleFactory}.
+ * Tests for {@link ImmutableListBundleFactory}.
  */
 @RunWith(JUnit4.class)
-public class InProcessBundleFactoryTest {
+public class ImmutableListBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private InProcessBundleFactory bundleFactory = InProcessBundleFactory.create();
+  private ImmutableListBundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   private PCollection<Integer> created;
   private PCollection<KV<String, Integer>> downstream;

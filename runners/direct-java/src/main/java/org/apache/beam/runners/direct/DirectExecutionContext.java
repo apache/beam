@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.util.BaseExecutionContext;
 import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -27,17 +28,17 @@ import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 /**
  * Execution Context for the {@link DirectRunner}.
  *
- * This implementation is not thread safe. A new {@link InProcessExecutionContext} must be created
+ * This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
-class InProcessExecutionContext
-    extends BaseExecutionContext<InProcessExecutionContext.InProcessStepContext> {
+class DirectExecutionContext
+    extends BaseExecutionContext<DirectStepContext> {
   private final Clock clock;
   private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals<Object> existingState;
   private final TransformWatermarks watermarks;
 
-  public InProcessExecutionContext(Clock clock, StructuralKey<?> key,
+  public DirectExecutionContext(Clock clock, StructuralKey<?> key,
       CopyOnAccessInMemoryStateInternals<Object> existingState, TransformWatermarks watermarks) {
     this.clock = clock;
     this.key = key;
@@ -46,19 +47,19 @@ class InProcessExecutionContext
   }
 
   @Override
-  protected InProcessStepContext createStepContext(String stepName, String transformName) {
-    return new InProcessStepContext(this, stepName, transformName);
+  protected DirectStepContext createStepContext(String stepName, String transformName) {
+    return new DirectStepContext(this, stepName, transformName);
   }
 
   /**
    * Step Context for the {@link DirectRunner}.
    */
-  public class InProcessStepContext
+  public class DirectStepContext
       extends org.apache.beam.sdk.util.BaseExecutionContext.StepContext {
     private CopyOnAccessInMemoryStateInternals<Object> stateInternals;
-    private InProcessTimerInternals timerInternals;
+    private DirectTimerInternals timerInternals;
 
-    public InProcessStepContext(
+    public DirectStepContext(
         ExecutionContext executionContext, String stepName, String transformName) {
       super(executionContext, stepName, transformName);
     }
@@ -72,10 +73,10 @@ class InProcessExecutionContext
     }
 
     @Override
-    public InProcessTimerInternals timerInternals() {
+    public DirectTimerInternals timerInternals() {
       if (timerInternals == null) {
         timerInternals =
-            InProcessTimerInternals.create(clock, watermarks, TimerUpdate.builder(key));
+            DirectTimerInternals.create(clock, watermarks, TimerUpdate.builder(key));
       }
       return timerInternals;
     }
@@ -92,7 +93,7 @@ class InProcessExecutionContext
     }
 
     /**
-     * Gets the timer update of the {@link TimerInternals} of this {@link InProcessStepContext},
+     * Gets the timer update of the {@link TimerInternals} of this {@link DirectStepContext},
      * which is empty if the {@link TimerInternals} were never accessed.
      */
     public TimerUpdate getTimerUpdate() {

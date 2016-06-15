@@ -25,12 +25,12 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InProcessExecutionContext.InProcessStepContext;
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -81,12 +81,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tests for {@link InProcessEvaluationContext}.
+ * Tests for {@link EvaluationContext}.
  */
 @RunWith(JUnit4.class)
-public class InProcessEvaluationContextTest {
+public class EvaluationContextTest {
   private TestPipeline p;
-  private InProcessEvaluationContext context;
+  private EvaluationContext context;
 
   private PCollection<Integer> created;
   private PCollection<KV<String, Integer>> downstream;
@@ -114,12 +114,12 @@ public class InProcessEvaluationContextTest {
     rootTransforms = cVis.getRootTransforms();
     valueToConsumers = cVis.getValueToConsumers();
 
-    bundleFactory = InProcessBundleFactory.create();
+    bundleFactory = ImmutableListBundleFactory.create();
 
     context =
-        InProcessEvaluationContext.create(
+        EvaluationContext.create(
             runner.getPipelineOptions(),
-            InProcessBundleFactory.create(),
+            ImmutableListBundleFactory.create(),
             rootTransforms,
             valueToConsumers,
             cVis.getStepNames(),
@@ -160,16 +160,16 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void getExecutionContextSameStepSameKeyState() {
-    InProcessExecutionContext fooContext =
+    DirectExecutionContext fooContext =
         context.getExecutionContext(created.getProducingTransformInternal(),
             StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    InProcessStepContext stepContext = fooContext.getOrCreateStepContext("s1", "s1");
+    DirectStepContext stepContext = fooContext.getOrCreateStepContext("s1", "s1");
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
-    context.handleResult(InProcessBundleFactory.create()
+    context.handleResult(ImmutableListBundleFactory.create()
             .createKeyedBundle(null, StructuralKey.of("foo", StringUtf8Coder.of()), created)
             .commit(Instant.now()),
         ImmutableList.<TimerData>of(),
@@ -177,7 +177,7 @@ public class InProcessEvaluationContextTest {
             .withState(stepContext.commitState())
             .build());
 
-    InProcessExecutionContext secondFooContext =
+    DirectExecutionContext secondFooContext =
         context.getExecutionContext(created.getProducingTransformInternal(),
             StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
@@ -192,7 +192,7 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void getExecutionContextDifferentKeysIndependentState() {
-    InProcessExecutionContext fooContext =
+    DirectExecutionContext fooContext =
         context.getExecutionContext(created.getProducingTransformInternal(),
             StructuralKey.of("foo", StringUtf8Coder.of()));
 
@@ -204,7 +204,7 @@ public class InProcessEvaluationContextTest {
         .state(StateNamespaces.global(), intBag)
         .add(1);
 
-    InProcessExecutionContext barContext =
+    DirectExecutionContext barContext =
         context.getExecutionContext(created.getProducingTransformInternal(),
             StructuralKey.of("bar", StringUtf8Coder.of()));
     assertThat(barContext, not(equalTo(fooContext)));
@@ -220,7 +220,7 @@ public class InProcessEvaluationContextTest {
   @Test
   public void getExecutionContextDifferentStepsIndependentState() {
     StructuralKey<?> myKey = StructuralKey.of("foo", StringUtf8Coder.of());
-    InProcessExecutionContext fooContext =
+    DirectExecutionContext fooContext =
         context.getExecutionContext(created.getProducingTransformInternal(), myKey);
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
@@ -231,7 +231,7 @@ public class InProcessEvaluationContextTest {
         .state(StateNamespaces.global(), intBag)
         .add(1);
 
-    InProcessExecutionContext barContext =
+    DirectExecutionContext barContext =
         context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
     assertThat(
         barContext
@@ -249,7 +249,7 @@ public class InProcessEvaluationContextTest {
     counters.addCounter(myCounter);
 
     myCounter.addValue(4L);
-    InProcessTransformResult result =
+    TransformResult result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
             .withCounters(counters)
             .build();
@@ -261,7 +261,7 @@ public class InProcessEvaluationContextTest {
     againCounters.add(myLongCounterAgain);
     myLongCounterAgain.addValue(8L);
 
-    InProcessTransformResult secondResult =
+    TransformResult secondResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withCounters(againCounters)
             .build();
@@ -275,7 +275,7 @@ public class InProcessEvaluationContextTest {
   @Test
   public void handleResultStoresState() {
     StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
-    InProcessExecutionContext fooContext =
+    DirectExecutionContext fooContext =
         context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
@@ -287,7 +287,7 @@ public class InProcessEvaluationContextTest {
     bag.add(2);
     bag.add(4);
 
-    InProcessTransformResult stateResult =
+    TransformResult stateResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withState(state)
             .build();
@@ -297,7 +297,7 @@ public class InProcessEvaluationContextTest {
         ImmutableList.<TimerData>of(),
         stateResult);
 
-    InProcessExecutionContext afterResultContext =
+    DirectExecutionContext afterResultContext =
         context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
 
     CopyOnAccessInMemoryStateInternals<Object> afterResultState =
@@ -320,7 +320,7 @@ public class InProcessEvaluationContextTest {
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
 
-    InProcessTransformResult result =
+    TransformResult result =
         StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
             .build();
 
@@ -329,7 +329,7 @@ public class InProcessEvaluationContextTest {
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
-    InProcessTransformResult finishedResult =
+    TransformResult finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
     context.forceRefresh();
@@ -339,7 +339,7 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void callAfterOutputMustHaveBeenProducedAlreadyAfterCallsImmediately() throws Exception {
-    InProcessTransformResult finishedResult =
+    TransformResult finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
 
@@ -359,7 +359,7 @@ public class InProcessEvaluationContextTest {
 
   @Test
   public void extractFiredTimersExtractsTimers() {
-    InProcessTransformResult holdResult =
+    TransformResult holdResult =
         StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), holdResult);
@@ -367,7 +367,7 @@ public class InProcessEvaluationContextTest {
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(StateNamespaces.global(), new Instant(100L), TimeDomain.EVENT_TIME);
-    InProcessTransformResult timerResult =
+    TransformResult timerResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))
             .withTimerUpdate(TimerUpdate.builder(key).setTimer(toFire).build())
@@ -383,7 +383,7 @@ public class InProcessEvaluationContextTest {
     // timer hasn't fired
     assertThat(context.extractFiredTimers().entrySet(), emptyIterable());
 
-    InProcessTransformResult advanceResult =
+    TransformResult advanceResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);

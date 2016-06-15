@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.runners.direct.InProcessGroupByKey.InProcessGroupByKeyOnly;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
@@ -48,12 +48,12 @@ import java.util.Map;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link GroupByKeyOnly} {@link PTransform}.
  */
-class InProcessGroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
+class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
         createEvaluator(
@@ -63,12 +63,13 @@ class InProcessGroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFacto
 
   private <K, V> TransformEvaluator<KV<K, WindowedValue<V>>> createEvaluator(
       final AppliedPTransform<
-              PCollection<KV<K, WindowedValue<V>>>, PCollection<KeyedWorkItem<K, V>>,
-              InProcessGroupByKeyOnly<K, V>>
+          PCollection<KV<K, WindowedValue<V>>>,
+          PCollection<KeyedWorkItem<K, V>>,
+          DirectGroupByKeyOnly<K, V>>
           application,
       final CommittedBundle<KV<K, WindowedValue<V>>> inputBundle,
-      final InProcessEvaluationContext evaluationContext) {
-    return new InProcessGroupByKeyOnlyEvaluator<K, V>(evaluationContext, inputBundle, application);
+      final EvaluationContext evaluationContext) {
+    return new GroupByKeyOnlyEvaluator<>(evaluationContext, inputBundle, application);
   }
 
   /**
@@ -77,25 +78,25 @@ class InProcessGroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFacto
    *
    * @see GroupByKeyViaGroupByKeyOnly
    */
-  private static class InProcessGroupByKeyOnlyEvaluator<K, V>
+  private static class GroupByKeyOnlyEvaluator<K, V>
       implements TransformEvaluator<KV<K, WindowedValue<V>>> {
-    private final InProcessEvaluationContext evaluationContext;
+    private final EvaluationContext evaluationContext;
 
     private final CommittedBundle<KV<K, WindowedValue<V>>> inputBundle;
     private final AppliedPTransform<
-            PCollection<KV<K, WindowedValue<V>>>, PCollection<KeyedWorkItem<K, V>>,
-            InProcessGroupByKeyOnly<K, V>>
-        application;
+            PCollection<KV<K, WindowedValue<V>>>,
+            PCollection<KeyedWorkItem<K, V>>,
+            DirectGroupByKeyOnly<K, V>> application;
     private final Coder<K> keyCoder;
     private Map<GroupingKey<K>, List<WindowedValue<V>>> groupingMap;
 
-    public InProcessGroupByKeyOnlyEvaluator(
-        InProcessEvaluationContext evaluationContext,
+    public GroupByKeyOnlyEvaluator(
+        EvaluationContext evaluationContext,
         CommittedBundle<KV<K, WindowedValue<V>>> inputBundle,
         AppliedPTransform<
-                PCollection<KV<K, WindowedValue<V>>>, PCollection<KeyedWorkItem<K, V>>,
-                InProcessGroupByKeyOnly<K, V>>
-            application) {
+                PCollection<KV<K, WindowedValue<V>>>,
+                PCollection<KeyedWorkItem<K, V>>,
+            DirectGroupByKeyOnly<K, V>> application) {
       this.evaluationContext = evaluationContext;
       this.inputBundle = inputBundle;
       this.application = application;
@@ -140,7 +141,7 @@ class InProcessGroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFacto
     }
 
     @Override
-    public InProcessTransformResult finishBundle() {
+    public TransformResult finishBundle() {
       Builder resultBuilder = StepTransformResult.withoutHold(application);
       for (Map.Entry<GroupingKey<K>, List<WindowedValue<V>>> groupedEntry :
           groupingMap.entrySet()) {

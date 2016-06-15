@@ -31,9 +31,9 @@ import java.util.Objects;
  */
 final class EvaluatorKey {
   private final AppliedPTransform<?, ?, ?> transform;
-  private final InProcessEvaluationContext context;
+  private final EvaluationContext context;
 
-  public EvaluatorKey(AppliedPTransform<?, ?, ?> transform, InProcessEvaluationContext context) {
+  public EvaluatorKey(AppliedPTransform<?, ?, ?> transform, EvaluationContext context) {
     this.transform = transform;
     this.context = context;
   }

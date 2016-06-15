@@ -29,15 +29,15 @@ import java.util.Map;
  * An {@link OutputManager} that outputs to {@link CommittedBundle Bundles} used by the
  * {@link DirectRunner}.
  */
-public class InProcessBundleOutputManager implements OutputManager {
+public class UncommittedBundleOutputManager implements OutputManager {
   private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
 
-  public static InProcessBundleOutputManager create(
+  public static UncommittedBundleOutputManager create(
       Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
-    return new InProcessBundleOutputManager(outputBundles);
+    return new UncommittedBundleOutputManager(outputBundles);
   }
 
-  public InProcessBundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
+  public UncommittedBundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
     this.bundles = bundles;
   }
 

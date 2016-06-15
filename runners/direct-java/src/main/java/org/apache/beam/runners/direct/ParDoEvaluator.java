@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessExecutionContext.InProcessStepContext;
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -43,9 +43,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
-  public static <InputT, OutputT> ParDoInProcessEvaluator<InputT> create(
-      InProcessEvaluationContext evaluationContext,
+class ParDoEvaluator<T> implements TransformEvaluator<T> {
+  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
+      EvaluationContext evaluationContext,
       CommittedBundle<InputT> inputBundle,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
       DoFn<InputT, OutputT> fn,
@@ -53,10 +53,10 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs) {
-    InProcessExecutionContext executionContext =
+    DirectExecutionContext executionContext =
         evaluationContext.getExecutionContext(application, inputBundle.getKey());
     String stepName = evaluationContext.getStepName(application);
-    InProcessStepContext stepContext =
+    DirectStepContext stepContext =
         executionContext.getOrCreateStepContext(stepName, stepName);
 
     CounterSet counters = evaluationContext.createCounterSet();
@@ -90,7 +90,7 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
       throw UserCodeException.wrap(e);
     }
 
-    return new ParDoInProcessEvaluator<>(
+    return new ParDoEvaluator<>(
         runner, application, counters, outputBundles.values(), stepContext);
   }
 
@@ -100,16 +100,16 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
   private final AppliedPTransform<PCollection<T>, ?, ?> transform;
   private final CounterSet counters;
   private final Collection<UncommittedBundle<?>> outputBundles;
-  private final InProcessStepContext stepContext;
+  private final DirectStepContext stepContext;
 
   private final ImmutableList.Builder<WindowedValue<T>> unprocessedElements;
 
-  private ParDoInProcessEvaluator(
+  private ParDoEvaluator(
       PushbackSideInputDoFnRunner<T, ?> fnRunner,
       AppliedPTransform<PCollection<T>, ?, ?> transform,
       CounterSet counters,
       Collection<UncommittedBundle<?>> outputBundles,
-      InProcessStepContext stepContext) {
+      DirectStepContext stepContext) {
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.counters = counters;
@@ -130,7 +130,7 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
   }
 
   @Override
-  public InProcessTransformResult finishBundle() {
+  public TransformResult finishBundle() {
     try {
       fnRunner.finishBundle();
     } catch (Exception e) {
