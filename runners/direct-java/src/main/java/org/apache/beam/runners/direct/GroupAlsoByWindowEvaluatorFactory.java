@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
-import org.apache.beam.runners.direct.InProcessGroupByKey.InProcessGroupAlsoByWindow;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -44,12 +44,12 @@ import java.util.Collections;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link GroupByKeyOnly} {@link PTransform}.
  */
-class InProcessGroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
+class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
         createEvaluator(
@@ -59,12 +59,12 @@ class InProcessGroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFa
 
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
-              InProcessGroupAlsoByWindow<K, V>>
-          application,
+              PCollection<KeyedWorkItem<K, V>>,
+              PCollection<KV<K, Iterable<V>>>,
+              DirectGroupAlsoByWindow<K, V>> application,
       CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
-    return new InProcessGroupAlsoByWindowEvaluator<K, V>(
+      EvaluationContext evaluationContext) {
+    return new GroupAlsoByWindowEvaluator<>(
         evaluationContext, inputBundle, application);
   }
 
@@ -74,18 +74,18 @@ class InProcessGroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFa
    *
    * @see GroupByKeyViaGroupByKeyOnly
    */
-  private static class InProcessGroupAlsoByWindowEvaluator<K, V>
+  private static class GroupAlsoByWindowEvaluator<K, V>
       implements TransformEvaluator<KeyedWorkItem<K, V>> {
 
     private final TransformEvaluator<KeyedWorkItem<K, V>> gabwParDoEvaluator;
 
-    public InProcessGroupAlsoByWindowEvaluator(
-        final InProcessEvaluationContext evaluationContext,
+    public GroupAlsoByWindowEvaluator(
+        final EvaluationContext evaluationContext,
         CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
         final AppliedPTransform<
-                PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>,
-                InProcessGroupAlsoByWindow<K, V>>
-            application) {
+                PCollection<KeyedWorkItem<K, V>>,
+                PCollection<KV<K, Iterable<V>>>,
+                DirectGroupAlsoByWindow<K, V>> application) {
 
       Coder<V> valueCoder =
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
@@ -103,7 +103,7 @@ class InProcessGroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFa
 
       // Not technically legit, as the application is not a ParDo
       this.gabwParDoEvaluator =
-          ParDoInProcessEvaluator.create(
+          ParDoEvaluator.create(
               evaluationContext,
               inputBundle,
               application,
@@ -120,7 +120,7 @@ class InProcessGroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFa
     }
 
     @Override
-    public InProcessTransformResult finishBundle() throws Exception {
+    public TransformResult finishBundle() throws Exception {
       return gabwParDoEvaluator.finishBundle();
     }
   }

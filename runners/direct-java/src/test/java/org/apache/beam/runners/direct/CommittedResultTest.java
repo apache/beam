@@ -53,7 +53,7 @@ public class CommittedResultTest implements Serializable {
   private transient AppliedPTransform<?, ?, ?> transform =
       AppliedPTransform.of("foo", p.begin(), PDone.in(p), new PTransform<PBegin, PDone>() {
       });
-  private transient BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private transient BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test
   public void getTransformExtractsFromResult() {

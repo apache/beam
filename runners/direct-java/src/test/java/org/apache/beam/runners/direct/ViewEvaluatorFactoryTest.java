@@ -51,7 +51,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ViewEvaluatorFactoryTest {
-  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test
   public void testInMemoryEvaluator() throws Exception {
@@ -69,7 +69,7 @@ public class ViewEvaluatorFactoryTest {
     PCollectionView<Iterable<String>> view =
         concat.apply(new ViewEvaluatorFactory.WriteView<>(createView));
 
-    InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
+    EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();
     when(context.createPCollectionViewWriter(concat, view)).thenReturn(viewWriter);
 

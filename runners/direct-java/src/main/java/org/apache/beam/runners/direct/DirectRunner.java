@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
-import org.apache.beam.runners.direct.InProcessGroupByKey.InProcessGroupByKeyOnly;
-import org.apache.beam.runners.direct.ViewEvaluatorFactory.InProcessViewOverrideFactory;
+import org.apache.beam.runners.direct.ViewEvaluatorFactory.ViewOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
@@ -78,8 +78,8 @@ public class DirectRunner
   private static Map<Class<? extends PTransform>, PTransformOverrideFactory>
       defaultTransformOverrides =
           ImmutableMap.<Class<? extends PTransform>, PTransformOverrideFactory>builder()
-              .put(GroupByKey.class, new InProcessGroupByKeyOverrideFactory())
-              .put(CreatePCollectionView.class, new InProcessViewOverrideFactory())
+              .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
+              .put(CreatePCollectionView.class, new ViewOverrideFactory())
               .put(AvroIO.Write.Bound.class, new AvroIOShardedWriteFactory())
               .put(TextIO.Write.Bound.class, new TextIOShardedWriteFactory())
               .build();
@@ -96,6 +96,7 @@ public class DirectRunner
      * Returns the PCollection that the elements of this {@link UncommittedBundle} belong to.
      */
     PCollection<T> getPCollection();
+
 
     /**
      * Outputs an element to this bundle.
@@ -217,13 +218,13 @@ public class DirectRunner
     KeyedPValueTrackingVisitor keyedPValueVisitor =
         KeyedPValueTrackingVisitor.create(
             ImmutableSet.<Class<? extends PTransform>>of(
-                GroupByKey.class, InProcessGroupByKeyOnly.class));
+                GroupByKey.class, DirectGroupByKeyOnly.class));
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
 
-    InProcessEvaluationContext context =
-        InProcessEvaluationContext.create(
+    EvaluationContext context =
+        EvaluationContext.create(
             getPipelineOptions(),
             createBundleFactory(getPipelineOptions()),
             consumerTrackingVisitor.getRootTransforms(),
@@ -234,7 +235,7 @@ public class DirectRunner
     // independent executor service for each run
     ExecutorService executorService =
         context.getPipelineOptions().getExecutorServiceFactory().create();
-    InProcessExecutor executor =
+    PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,
             consumerTrackingVisitor.getValueToConsumers(),
@@ -283,7 +284,7 @@ public class DirectRunner
   }
 
   private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
-    BundleFactory bundleFactory = InProcessBundleFactory.create();
+    BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     if (pipelineOptions.isTestImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
     }
@@ -296,14 +297,14 @@ public class DirectRunner
    * Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class DirectPipelineResult implements PipelineResult {
-    private final InProcessExecutor executor;
-    private final InProcessEvaluationContext evaluationContext;
+    private final PipelineExecutor executor;
+    private final EvaluationContext evaluationContext;
     private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;
     private State state;
 
     private DirectPipelineResult(
-        InProcessExecutor executor,
-        InProcessEvaluationContext evaluationContext,
+        PipelineExecutor executor,
+        EvaluationContext evaluationContext,
         Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps) {
       this.executor = executor;
       this.evaluationContext = evaluationContext;
@@ -350,7 +351,7 @@ public class DirectRunner
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * See also {@link InProcessExecutor#awaitCompletion()}.
+     * See also {@link PipelineExecutor#awaitCompletion()}.
      */
     public State awaitCompletion() throws Throwable {
       if (!state.isTerminal()) {

@@ -47,7 +47,7 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   public <T> TransformEvaluator<T> forApplication(
       final AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         createSingleEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
@@ -57,13 +57,13 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT, OutputT> TransformEvaluator<InputT> createSingleEvaluator(
       @SuppressWarnings("rawtypes") AppliedPTransform<PCollection<InputT>, PCollection<OutputT>,
           Bound<InputT, OutputT>> application,
-      CommittedBundle<InputT> inputBundle, InProcessEvaluationContext evaluationContext) {
+      CommittedBundle<InputT> inputBundle, EvaluationContext evaluationContext) {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
 
     @SuppressWarnings({"unchecked", "rawtypes"}) ThreadLocal<DoFn<InputT, OutputT>> fnLocal =
         (ThreadLocal) fnClones.getUnchecked(application.getTransform().getFn());
     try {
-      ParDoInProcessEvaluator<InputT> parDoEvaluator = ParDoInProcessEvaluator.create(
+      ParDoEvaluator<InputT> parDoEvaluator = ParDoEvaluator.create(
           evaluationContext,
           inputBundle,
           application,

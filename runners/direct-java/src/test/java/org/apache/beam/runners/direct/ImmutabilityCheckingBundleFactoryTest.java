@@ -57,7 +57,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     TestPipeline p = TestPipeline.create();
     created = p.apply(Create.<byte[]>of().withCoder(ByteArrayCoder.of()));
     transformed = created.apply(ParDo.of(new IdentityDoFn<byte[]>()));
-    factory = ImmutabilityCheckingBundleFactory.create(InProcessBundleFactory.create());
+    factory = ImmutabilityCheckingBundleFactory.create(ImmutableListBundleFactory.create());
   }
 
   @Test

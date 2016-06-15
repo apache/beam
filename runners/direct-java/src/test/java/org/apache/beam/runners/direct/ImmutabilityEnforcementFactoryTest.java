@@ -53,7 +53,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   @Before
   public void setup() {
     factory = new ImmutabilityEnforcementFactory();
-    bundleFactory = InProcessBundleFactory.create();
+    bundleFactory = ImmutableListBundleFactory.create();
     TestPipeline p = TestPipeline.create();
     pcollection =
         p.apply(Create.of("foo".getBytes(), "spamhameggs".getBytes()))

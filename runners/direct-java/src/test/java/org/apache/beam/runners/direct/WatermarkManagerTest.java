@@ -25,12 +25,12 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -77,10 +77,10 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * Tests for {@link InMemoryWatermarkManager}.
+ * Tests for {@link WatermarkManager}.
  */
 @RunWith(JUnit4.class)
-public class InMemoryWatermarkManagerTest implements Serializable {
+public class WatermarkManagerTest implements Serializable {
   private transient MockClock clock;
 
   private transient PCollection<Integer> createdInts;
@@ -92,7 +92,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
   private transient PCollection<Integer> intsToFlatten;
   private transient PCollection<Integer> flattened;
 
-  private transient InMemoryWatermarkManager manager;
+  private transient WatermarkManager manager;
   private transient BundleFactory bundleFactory;
 
   @Before
@@ -140,8 +140,8 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     clock = MockClock.fromInstant(new Instant(1000));
 
-    manager = InMemoryWatermarkManager.create(clock, rootTransforms, consumers);
-    bundleFactory = InProcessBundleFactory.create();
+    manager = WatermarkManager.create(clock, rootTransforms, consumers);
+    bundleFactory = ImmutableListBundleFactory.create();
   }
 
   /**

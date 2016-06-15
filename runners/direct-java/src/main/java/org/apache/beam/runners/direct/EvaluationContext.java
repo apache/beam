@@ -19,12 +19,12 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.FiredTimers;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
-import org.apache.beam.runners.direct.InProcessGroupByKey.InProcessGroupByKeyOnly;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -61,7 +61,7 @@ import javax.annotation.Nullable;
  * {@link DirectRunner}. Contains state shared within the execution across all
  * transforms.
  *
- * <p>{@link InProcessEvaluationContext} contains shared state for an execution of the
+ * <p>{@link EvaluationContext} contains shared state for an execution of the
  * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
  * consists of views into underlying state and watermark implementations, access to read and write
  * {@link PCollectionView PCollectionViews}, and constructing {@link CounterSet CounterSets} and
@@ -69,12 +69,12 @@ import javax.annotation.Nullable;
  * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
  * known to be empty).
  *
- * <p>{@link InProcessEvaluationContext} also handles results by committing finalizing bundles based
+ * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based
  * on the current global state and updating the global state appropriately. This includes updating
  * the per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that
  * can be executed.
  */
-class InProcessEvaluationContext {
+class EvaluationContext {
   /** The step name for each {@link AppliedPTransform} in the {@link Pipeline}. */
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
@@ -83,7 +83,7 @@ class InProcessEvaluationContext {
 
   private final BundleFactory bundleFactory;
   /** The current processing time and event time watermarks and timers. */
-  private final InMemoryWatermarkManager watermarkManager;
+  private final WatermarkManager watermarkManager;
 
   /** Executes callbacks based on the progression of the watermark. */
   private final WatermarkCallbackExecutor callbackExecutor;
@@ -92,22 +92,22 @@ class InProcessEvaluationContext {
   private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals<?>>
       applicationStateInternals;
 
-  private final InProcessSideInputContainer sideInputContainer;
+  private final SideInputContainer sideInputContainer;
 
   private final CounterSet mergedCounters;
 
-  public static InProcessEvaluationContext create(
+  public static EvaluationContext create(
       DirectOptions options,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
-    return new InProcessEvaluationContext(
+    return new EvaluationContext(
         options, bundleFactory, rootTransforms, valueToConsumers, stepNames, views);
   }
 
-  private InProcessEvaluationContext(
+  private EvaluationContext(
       DirectOptions options,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
@@ -123,9 +123,9 @@ class InProcessEvaluationContext {
     this.stepNames = stepNames;
 
     this.watermarkManager =
-        InMemoryWatermarkManager.create(
+        WatermarkManager.create(
             NanosOffsetClock.create(), rootTransforms, valueToConsumers);
-    this.sideInputContainer = InProcessSideInputContainer.create(this, views);
+    this.sideInputContainer = SideInputContainer.create(this, views);
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedCounters = new CounterSet();
@@ -135,11 +135,11 @@ class InProcessEvaluationContext {
   }
 
   /**
-   * Handle the provided {@link InProcessTransformResult}, produced after evaluating the provided
+   * Handle the provided {@link TransformResult}, produced after evaluating the provided
    * {@link CommittedBundle} (potentially null, if the result of a root {@link PTransform}).
    *
    * <p>The result is the output of running the transform contained in the
-   * {@link InProcessTransformResult} on the contents of the provided bundle.
+   * {@link TransformResult} on the contents of the provided bundle.
    *
    * @param completedBundle the bundle that was processed to produce the result. Potentially
    *                        {@code null} if the transform that produced the result is a root
@@ -152,7 +152,7 @@ class InProcessEvaluationContext {
   public CommittedResult handleResult(
       @Nullable CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
-      InProcessTransformResult result) {
+      TransformResult result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
@@ -232,7 +232,7 @@ class InProcessEvaluationContext {
 
   /**
    * Create a {@link UncommittedBundle} with the specified keys at the specified step. For use by
-   * {@link InProcessGroupByKeyOnly} {@link PTransform PTransforms}.
+   * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}.
    */
   public <K, T> UncommittedBundle<T> createKeyedBundle(
       CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
@@ -302,10 +302,10 @@ class InProcessEvaluationContext {
   /**
    * Get an {@link ExecutionContext} for the provided {@link AppliedPTransform} and key.
    */
-  public InProcessExecutionContext getExecutionContext(
+  public DirectExecutionContext getExecutionContext(
       AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
-    return new InProcessExecutionContext(
+    return new DirectExecutionContext(
         options.getClock(),
         key,
         (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
@@ -345,7 +345,7 @@ class InProcessEvaluationContext {
    * Create a {@link CounterSet} for this {@link Pipeline}. The {@link CounterSet} is independent
    * of all other {@link CounterSet CounterSets} created by this call.
    *
-   * The {@link InProcessEvaluationContext} is responsible for unifying the counters present in
+   * The {@link EvaluationContext} is responsible for unifying the counters present in
    * all created {@link CounterSet CounterSets} when the transforms that call this method
    * complete.
    */

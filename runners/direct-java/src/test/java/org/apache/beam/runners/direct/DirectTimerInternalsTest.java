@@ -22,9 +22,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
@@ -40,16 +40,16 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /**
- * Tests for {@link InProcessTimerInternals}.
+ * Tests for {@link DirectTimerInternals}.
  */
 @RunWith(JUnit4.class)
-public class InProcessTimerInternalsTest {
+public class DirectTimerInternalsTest {
   private MockClock clock;
   @Mock private TransformWatermarks watermarks;
 
   private TimerUpdateBuilder timerUpdateBuilder;
 
-  private InProcessTimerInternals internals;
+  private DirectTimerInternals internals;
 
   @Before
   public void setup() {
@@ -58,7 +58,7 @@ public class InProcessTimerInternalsTest {
 
     timerUpdateBuilder = TimerUpdate.builder(StructuralKey.of(1234, VarIntCoder.of()));
 
-    internals = InProcessTimerInternals.create(clock, watermarks, timerUpdateBuilder);
+    internals = DirectTimerInternals.create(clock, watermarks, timerUpdateBuilder);
   }
 
   @Test

@@ -42,7 +42,7 @@ class PassthroughTransformEvaluator<InputT> implements TransformEvaluator<InputT
   }
 
   @Override
-  public InProcessTransformResult finishBundle() throws Exception {
+  public TransformResult finishBundle() throws Exception {
     return StepTransformResult.withoutHold(transform).addOutput(output).build();
   }
 

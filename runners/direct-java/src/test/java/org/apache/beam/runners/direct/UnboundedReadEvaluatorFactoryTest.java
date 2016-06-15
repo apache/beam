@@ -72,10 +72,10 @@ import javax.annotation.Nullable;
 public class UnboundedReadEvaluatorFactoryTest {
   private PCollection<Long> longs;
   private TransformEvaluatorFactory factory;
-  private InProcessEvaluationContext context;
+  private EvaluationContext context;
   private UncommittedBundle<Long> output;
 
-  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Before
   public void setup() {
@@ -85,7 +85,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     longs = p.apply(Read.from(source));
 
     factory = new UnboundedReadEvaluatorFactory();
-    context = mock(InProcessEvaluationContext.class);
+    context = mock(EvaluationContext.class);
     output = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
   }
@@ -95,7 +95,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
@@ -114,7 +114,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
@@ -127,7 +127,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
-    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
+    TransformResult secondResult = secondEvaluator.finishBundle();
     assertThat(
         secondResult.getWatermarkHold(),
         Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
@@ -220,7 +220,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
     assertThat(secondEvaluator, nullValue());
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
 
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));

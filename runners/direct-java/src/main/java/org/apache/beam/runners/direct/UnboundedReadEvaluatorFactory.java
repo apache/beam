@@ -69,13 +69,13 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   @Nullable
   public <InputT> TransformEvaluator<InputT> forApplication(AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle, InProcessEvaluationContext evaluationContext) {
+      @Nullable CommittedBundle<?> inputBundle, EvaluationContext evaluationContext) {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
+      final EvaluationContext evaluationContext) {
     return getTransformEvaluatorQueue(transform, evaluationContext).poll();
   }
 
@@ -90,7 +90,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private <OutputT, CheckpointMarkT extends CheckpointMark>
   Queue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> getTransformEvaluatorQueue(
       final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
+      final EvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
     EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
@@ -134,7 +134,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private static final int ARBITRARY_MAX_ELEMENTS = 10;
 
     private final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform;
-    private final InProcessEvaluationContext evaluationContext;
+    private final EvaluationContext evaluationContext;
     private final ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>
         evaluatorQueue;
     /**
@@ -153,7 +153,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     public UnboundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-        InProcessEvaluationContext evaluationContext,
+        EvaluationContext evaluationContext,
         UnboundedSource<OutputT, CheckpointMarkT> source,
         ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue) {
       this.transform = transform;
@@ -168,7 +168,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     public void processElement(WindowedValue<Object> element) {}
 
     @Override
-    public InProcessTransformResult finishBundle() throws IOException {
+    public TransformResult finishBundle() throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
       try {
         boolean elementAvailable = startReader();

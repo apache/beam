@@ -27,7 +27,7 @@ import java.util.Collection;
  * An executor that schedules and executes {@link AppliedPTransform AppliedPTransforms} for both
  * source and intermediate {@link PTransform PTransforms}.
  */
-interface InProcessExecutor {
+interface PipelineExecutor {
   /**
    * Starts this executor. The provided collection is the collection of root transforms to
    * initially schedule.
