@@ -28,12 +28,13 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -256,10 +257,10 @@ public class DoFnTester<InputT, OutputT> {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(
         peekOutputElementsWithTimestamp(),
-        new Function<OutputElementWithTimestamp<OutputT>, OutputT>() {
+        new Function<TimestampedValue<OutputT>, OutputT>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputT apply(OutputElementWithTimestamp<OutputT> input) {
+          public OutputT apply(TimestampedValue<OutputT> input) {
             return input.getValue();
           }
         });
@@ -274,18 +275,40 @@ public class DoFnTester<InputT, OutputT> {
    * @see #clearOutputElements
    */
   @Experimental
-  public List<OutputElementWithTimestamp<OutputT>> peekOutputElementsWithTimestamp() {
+  public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getOutput(mainOutputTag),
-        new Function<Object, OutputElementWithTimestamp<OutputT>>() {
+        new Function<WindowedValue<OutputT>, TimestampedValue<OutputT>>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputElementWithTimestamp<OutputT> apply(Object input) {
-            return new OutputElementWithTimestamp<OutputT>(
-                ((WindowedValue<OutputT>) input).getValue(),
-                ((WindowedValue<OutputT>) input).getTimestamp());
+          public TimestampedValue<OutputT> apply(WindowedValue<OutputT> input) {
+            return TimestampedValue.of(input.getValue(), input.getTimestamp());
           }
         });
+  }
+
+  /**
+   * Returns the elements output so far to the main output in the provided window with associated
+   * timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
+    return peekOutputElementsInWindow(mainOutputTag, window);
+  }
+
+  /**
+   * Returns the elements output so far to the specified output in the provided window with
+   * associated timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(
+      TupleTag<OutputT> tag,
+      BoundedWindow window) {
+    ImmutableList.Builder<TimestampedValue<OutputT>> valuesBuilder = ImmutableList.builder();
+    for (WindowedValue<OutputT> value : getOutput(tag)) {
+      if (value.getWindows().contains(window)) {
+        valuesBuilder.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
+      }
+    }
+    return valuesBuilder.build();
   }
 
   /**
@@ -318,8 +341,8 @@ public class DoFnTester<InputT, OutputT> {
    * @see #clearOutputElements
    */
   @Experimental
-  public List<OutputElementWithTimestamp<OutputT>> takeOutputElementsWithTimestamp() {
-    List<OutputElementWithTimestamp<OutputT>> resultElems =
+  public List<TimestampedValue<OutputT>> takeOutputElementsWithTimestamp() {
+    List<TimestampedValue<OutputT>> resultElems =
         new ArrayList<>(peekOutputElementsWithTimestamp());
     clearOutputElements();
     return resultElems;
@@ -381,42 +404,6 @@ public class DoFnTester<InputT, OutputT> {
       accumulator = combiner.createAccumulator();
     }
     return combiner.extractOutput(accumulator);
-  }
-
-  /**
-   * Holder for an OutputElement along with its associated timestamp.
-   */
-  @Experimental
-  public static class OutputElementWithTimestamp<OutputT> {
-    private final OutputT value;
-    private final Instant timestamp;
-
-    OutputElementWithTimestamp(OutputT value, Instant timestamp) {
-      this.value = value;
-      this.timestamp = timestamp;
-    }
-
-    OutputT getValue() {
-      return value;
-    }
-
-    Instant getTimestamp() {
-      return timestamp;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof OutputElementWithTimestamp)) {
-        return false;
-      }
-      OutputElementWithTimestamp<?> other = (OutputElementWithTimestamp<?>) obj;
-      return Objects.equal(other.value, value) && Objects.equal(other.timestamp, timestamp);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(value, timestamp);
-    }
   }
 
   private <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
