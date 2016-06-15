@@ -171,10 +171,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     public InProcessTransformResult finishBundle() throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
       try {
-        if (checkpointMark != null) {
-          checkpointMark.finalizeCheckpoint();
-        }
-
         boolean elementAvailable = startReader();
 
         Instant watermark = currentReader.getWatermark();
@@ -203,7 +199,11 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     private boolean startReader() throws IOException {
       if (currentReader == null) {
+        if (checkpointMark != null) {
+          checkpointMark.finalizeCheckpoint();
+        }
         currentReader = source.createReader(evaluationContext.getPipelineOptions(), checkpointMark);
+        checkpointMark = null;
         return currentReader.start();
       } else {
         return currentReader.advance();
@@ -211,12 +211,17 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     /**
-     * Checkpoint the current reader, updating the state of this evaluator.
+     * Checkpoint the current reader, finalize the previous checkpoint, and update the state of this
+     * evaluator.
      */
     private void finishRead() throws IOException {
+      final CheckpointMark oldMark = checkpointMark;
       @SuppressWarnings("unchecked")
       final CheckpointMarkT mark = (CheckpointMarkT) currentReader.getCheckpointMark();
       checkpointMark = mark;
+      if (oldMark != null) {
+        oldMark.finalizeCheckpoint();
+      }
 
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
