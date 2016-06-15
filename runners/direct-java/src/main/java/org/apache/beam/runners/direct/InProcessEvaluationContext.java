@@ -22,9 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.direct.InProcessGroupByKey.InProcessGroupByKeyOnly;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.PCollectionViewWriter;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -58,11 +58,11 @@ import javax.annotation.Nullable;
 
 /**
  * The evaluation context for a specific pipeline being executed by the
- * {@link InProcessPipelineRunner}. Contains state shared within the execution across all
+ * {@link DirectRunner}. Contains state shared within the execution across all
  * transforms.
  *
  * <p>{@link InProcessEvaluationContext} contains shared state for an execution of the
- * {@link InProcessPipelineRunner} that can be used while evaluating a {@link PTransform}. This
+ * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
  * consists of views into underlying state and watermark implementations, access to read and write
  * {@link PCollectionView PCollectionViews}, and constructing {@link CounterSet CounterSets} and
  * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
@@ -79,7 +79,7 @@ class InProcessEvaluationContext {
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
   /** The options that were used to create this {@link Pipeline}. */
-  private final InProcessPipelineOptions options;
+  private final DirectOptions options;
 
   private final BundleFactory bundleFactory;
   /** The current processing time and event time watermarks and timers. */
@@ -97,7 +97,7 @@ class InProcessEvaluationContext {
   private final CounterSet mergedCounters;
 
   public static InProcessEvaluationContext create(
-      InProcessPipelineOptions options,
+      DirectOptions options,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
@@ -108,7 +108,7 @@ class InProcessEvaluationContext {
   }
 
   private InProcessEvaluationContext(
-      InProcessPipelineOptions options,
+      DirectOptions options,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
@@ -295,7 +295,7 @@ class InProcessEvaluationContext {
   /**
    * Get the options used by this {@link Pipeline}.
    */
-  public InProcessPipelineOptions getPipelineOptions() {
+  public DirectOptions getPipelineOptions() {
     return options;
   }
 
@@ -389,7 +389,7 @@ class InProcessEvaluationContext {
    *
    * <p>If the provided transform produces any {@link IsBounded#UNBOUNDED}
    * {@link PCollection PCollections}, returns the value of
-   * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
+   * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
    */
   public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
     // if the PTransform's watermark isn't at the max value, it isn't done

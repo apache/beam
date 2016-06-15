@@ -102,7 +102,7 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=org.apache.beam.runners.direct.InProcessPipelineRunner"
+                    "--runner=DirectRunner"
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>

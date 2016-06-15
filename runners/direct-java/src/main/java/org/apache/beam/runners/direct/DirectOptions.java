@@ -32,9 +32,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Options that can be used to configure the {@link InProcessPipelineRunner}.
+ * Options that can be used to configure the {@link org.apache.beam.runners.direct.DirectRunner}.
  */
-public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNameOptions {
+public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   /**
    * Gets the {@link ExecutorServiceFactory} to use to create instances of {@link ExecutorService}
    * to execute {@link PTransform PTransforms}.
@@ -85,7 +85,7 @@ public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNa
       "If the pipeline should block awaiting completion of the pipeline. If set to true, "
           + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
           + "the Pipeline will execute asynchronously. If set to false, the completion of the "
-          + "pipeline can be awaited on by use of InProcessPipelineResult#awaitCompletion().")
+          + "pipeline can be awaited on by use of DirectPipelineResult#awaitCompletion().")
   boolean isBlockOnRun();
 
   void setBlockOnRun(boolean b);

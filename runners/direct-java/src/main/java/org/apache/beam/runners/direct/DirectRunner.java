@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.InProcessGroupByKey.InProcessGroupByKeyOnly;
 import org.apache.beam.runners.direct.ViewEvaluatorFactory.InProcessViewOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -65,10 +66,10 @@ import java.util.concurrent.ExecutorService;
  * {@link PCollection PCollections}.
  */
 @Experimental
-public class InProcessPipelineRunner
-    extends PipelineRunner<InProcessPipelineRunner.InProcessPipelineResult> {
+public class DirectRunner
+    extends PipelineRunner<DirectPipelineResult> {
   /**
-   * The default set of transform overrides to use in the {@link InProcessPipelineRunner}.
+   * The default set of transform overrides to use in the {@link DirectRunner}.
    *
    * <p>A transform override must have a single-argument constructor that takes an instance of the
    * type of transform it is overriding.
@@ -175,20 +176,20 @@ public class InProcessPipelineRunner
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
-  private final InProcessPipelineOptions options;
+  private final DirectOptions options;
 
-  public static InProcessPipelineRunner fromOptions(PipelineOptions options) {
-    return new InProcessPipelineRunner(options.as(InProcessPipelineOptions.class));
+  public static DirectRunner fromOptions(PipelineOptions options) {
+    return new DirectRunner(options.as(DirectOptions.class));
   }
 
-  private InProcessPipelineRunner(InProcessPipelineOptions options) {
+  private DirectRunner(DirectOptions options) {
     this.options = options;
   }
 
   /**
-   * Returns the {@link PipelineOptions} used to create this {@link InProcessPipelineRunner}.
+   * Returns the {@link PipelineOptions} used to create this {@link DirectRunner}.
    */
-  public InProcessPipelineOptions getPipelineOptions() {
+  public DirectOptions getPipelineOptions() {
     return options;
   }
 
@@ -206,7 +207,7 @@ public class InProcessPipelineRunner
   }
 
   @Override
-  public InProcessPipelineResult run(Pipeline pipeline) {
+  public DirectPipelineResult run(Pipeline pipeline) {
     ConsumerTrackingPipelineVisitor consumerTrackingVisitor = new ConsumerTrackingPipelineVisitor();
     pipeline.traverseTopologically(consumerTrackingVisitor);
     for (PValue unfinalized : consumerTrackingVisitor.getUnfinalizedPValues()) {
@@ -245,8 +246,8 @@ public class InProcessPipelineRunner
 
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         new AggregatorPipelineExtractor(pipeline).getAggregatorSteps();
-    InProcessPipelineResult result =
-        new InProcessPipelineResult(executor, context, aggregatorSteps);
+    DirectPipelineResult result =
+        new DirectPipelineResult(executor, context, aggregatorSteps);
     if (options.isBlockOnRun()) {
       try {
         result.awaitCompletion();
@@ -263,7 +264,7 @@ public class InProcessPipelineRunner
   }
 
   private Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
-      defaultModelEnforcements(InProcessPipelineOptions options) {
+      defaultModelEnforcements(DirectOptions options) {
     ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
         enforcements = ImmutableMap.builder();
     Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
@@ -273,7 +274,7 @@ public class InProcessPipelineRunner
   }
 
   private Collection<ModelEnforcementFactory> createParDoEnforcements(
-      InProcessPipelineOptions options) {
+      DirectOptions options) {
     ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
     if (options.isTestImmutability()) {
       enforcements.add(ImmutabilityEnforcementFactory.create());
@@ -281,7 +282,7 @@ public class InProcessPipelineRunner
     return enforcements.build();
   }
 
-  private BundleFactory createBundleFactory(InProcessPipelineOptions pipelineOptions) {
+  private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
     BundleFactory bundleFactory = InProcessBundleFactory.create();
     if (pipelineOptions.isTestImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
@@ -290,17 +291,17 @@ public class InProcessPipelineRunner
   }
 
   /**
-   * The result of running a {@link Pipeline} with the {@link InProcessPipelineRunner}.
+   * The result of running a {@link Pipeline} with the {@link DirectRunner}.
    *
    * Throws {@link UnsupportedOperationException} for all methods.
    */
-  public static class InProcessPipelineResult implements PipelineResult {
+  public static class DirectPipelineResult implements PipelineResult {
     private final InProcessExecutor executor;
     private final InProcessEvaluationContext evaluationContext;
     private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;
     private State state;
 
-    private InProcessPipelineResult(
+    private DirectPipelineResult(
         InProcessExecutor executor,
         InProcessEvaluationContext evaluationContext,
         Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps) {
@@ -338,7 +339,7 @@ public class InProcessPipelineRunner
 
     /**
      * Blocks until the {@link Pipeline} execution represented by this
-     * {@link InProcessPipelineResult} is complete, returning the terminal state.
+     * {@link DirectPipelineResult} is complete, returning the terminal state.
      *
      * <p>If the pipeline terminates abnormally by throwing an exception, this will rethrow the
      * exception. Future calls to {@link #getState()} will return
@@ -346,7 +347,7 @@ public class InProcessPipelineRunner
      *
      * <p>NOTE: if the {@link Pipeline} contains an {@link IsBounded#UNBOUNDED unbounded}
      * {@link PCollection}, and the {@link PipelineRunner} was created with
-     * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
+     * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
      * See also {@link InProcessExecutor#awaitCompletion()}.
