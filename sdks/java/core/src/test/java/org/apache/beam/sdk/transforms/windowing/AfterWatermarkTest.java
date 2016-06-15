@@ -372,4 +372,14 @@ public class AfterWatermarkTest {
     assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
         trigger.toString());
   }
+
+  @Test
+  public void testToStringExcludesNeverTrigger() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withEarlyFirings(Never.ever())
+        .withLateFirings(Never.ever())
+        .buildTrigger();
+
+    assertEquals("AfterWatermark.pastEndOfWindow()", trigger.toString());
+  }
 }

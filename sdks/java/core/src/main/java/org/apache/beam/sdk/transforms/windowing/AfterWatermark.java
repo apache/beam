@@ -236,7 +236,7 @@ public class AfterWatermark {
             .append(")");
       }
 
-      if (lateTrigger != null) {
+      if (lateTrigger != null && !(lateTrigger instanceof Never.NeverTrigger)) {
         builder
             .append(".withLateFirings(")
             .append(lateTrigger)
