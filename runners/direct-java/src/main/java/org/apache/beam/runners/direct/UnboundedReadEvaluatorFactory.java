@@ -105,9 +105,15 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         // factory for this transform
         UnboundedSource<OutputT, CheckpointMarkT> source =
             (UnboundedSource<OutputT, CheckpointMarkT>) transform.getTransform().getSource();
+        UnboundedReadDeduplicator deduplicator;
+        if (source.requiresDeduping()) {
+          deduplicator = UnboundedReadDeduplicator.CachedIdDeduplicator.create();
+        } else {
+          deduplicator = UnboundedReadDeduplicator.NeverDeduplicator.create();
+        }
         UnboundedReadEvaluator<OutputT, CheckpointMarkT> evaluator =
             new UnboundedReadEvaluator<>(
-                transform, evaluationContext, source, evaluatorQueue);
+                transform, evaluationContext, source, deduplicator, evaluatorQueue);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
@@ -142,6 +148,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
      * source as derived from {@link #transform} due to splitting.
      */
     private final UnboundedSource<OutputT, CheckpointMarkT> source;
+    private final UnboundedReadDeduplicator deduplicator;
     private UnboundedReader<OutputT> currentReader;
     private CheckpointMarkT checkpointMark;
 
@@ -155,12 +162,14 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
         EvaluationContext evaluationContext,
         UnboundedSource<OutputT, CheckpointMarkT> source,
+        UnboundedReadDeduplicator deduplicator,
         ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
       this.evaluatorQueue = evaluatorQueue;
       this.source = source;
       this.currentReader = null;
+      this.deduplicator = deduplicator;
       this.checkpointMark = null;
     }
 
@@ -177,8 +186,10 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         if (elementAvailable) {
           int numElements = 0;
           do {
-            output.add(WindowedValue.timestampedValueInGlobalWindow(currentReader.getCurrent(),
-                currentReader.getCurrentTimestamp()));
+            if (deduplicator.shouldOutput(currentReader.getCurrentRecordId())) {
+              output.add(WindowedValue.timestampedValueInGlobalWindow(currentReader.getCurrent(),
+                  currentReader.getCurrentTimestamp()));
+            }
             numElements++;
           } while (numElements < ARBITRARY_MAX_ELEMENTS && currentReader.advance());
           watermark = currentReader.getWatermark();
