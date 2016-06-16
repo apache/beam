@@ -77,7 +77,7 @@ public class DataflowTransport {
         chainHttpRequestInitializer(
             options.getGcpCredential(),
             // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+            new RetryHttpRequestInitializer(ImmutableList.of(404, 500))))
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
@@ -89,17 +89,6 @@ public class DataflowTransport {
         getJsonFactory(),
         chainHttpRequestInitializer(options.getGcpCredential(), new RetryHttpRequestInitializer()))
         .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  /**
-   * Returns a Dataflow client that does not automatically retry failed
-   * requests.
-   */
-  public static Dataflow.Builder
-      newRawDataflowClient(DataflowPipelineOptions options) {
-    return newDataflowClient(options)
-        .setHttpRequestInitializer(options.getGcpCredential())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
