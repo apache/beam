@@ -30,8 +30,9 @@ import com.google.bigtable.v1.SampleRowKeysRequest;
 import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
+import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
-import com.google.cloud.bigtable.grpc.async.HeapSizeManager;
+import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
@@ -65,7 +66,7 @@ class BigtableServiceImpl implements BigtableService {
   @Override
   public BigtableWriterImpl openForWriting(String tableId) throws IOException {
     BigtableSession session = new BigtableSession(options);
-    String tableName = options.getClusterName().toTableNameStr(tableId);
+    BigtableTableName tableName = options.getClusterName().toTableName(tableId);
     return new BigtableWriterImpl(session, tableName);
   }
 
@@ -170,24 +171,23 @@ class BigtableServiceImpl implements BigtableService {
   private static class BigtableWriterImpl implements Writer {
     private BigtableSession session;
     private AsyncExecutor executor;
+    private BulkMutation bulkMutation;
     private final MutateRowRequest.Builder partialBuilder;
 
-    public BigtableWriterImpl(BigtableSession session, String tableName) {
+    public BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
       this.session = session;
-      this.executor =
-          new AsyncExecutor(
-              session.getDataClient(),
-              new HeapSizeManager(
-                  AsyncExecutor.ASYNC_MUTATOR_MAX_MEMORY_DEFAULT,
-                  AsyncExecutor.MAX_INFLIGHT_RPCS_DEFAULT));
+      executor = session.createAsyncExecutor();
+      bulkMutation = session.createBulkMutation(tableName, executor);
 
-      partialBuilder = MutateRowRequest.newBuilder().setTableName(tableName);
+      partialBuilder = MutateRowRequest.newBuilder().setTableName(tableName.toString());
     }
 
     @Override
     public void close() throws IOException {
       try {
-        if (executor != null) {
+        if (bulkMutation != null) {
+          bulkMutation.flush();
+          bulkMutation = null;
           executor.flush();
           executor = null;
         }
@@ -208,12 +208,7 @@ class BigtableServiceImpl implements BigtableService {
               .setRowKey(record.getKey())
               .addAllMutations(record.getValue())
               .build();
-      try {
-        return executor.mutateRowAsync(r);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException("Write interrupted", e);
-      }
+      return bulkMutation.add(r);
     }
   }
 

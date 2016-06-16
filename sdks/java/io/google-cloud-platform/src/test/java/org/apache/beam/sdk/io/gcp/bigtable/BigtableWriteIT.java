@@ -35,7 +35,9 @@ import com.google.bigtable.admin.table.v1.Table;
 import com.google.bigtable.v1.Mutation;
 import com.google.bigtable.v1.ReadRowsRequest;
 import com.google.bigtable.v1.Row;
+import com.google.bigtable.v1.RowRange;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
@@ -78,11 +80,17 @@ public class BigtableWriteIT implements Serializable {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
 
+    // RetryOptions streamingBatchSize must be explicitly set for getTableData()
+    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
+    retryOptionsBuilder.setStreamingBatchSize(
+        retryOptionsBuilder.build().getStreamingBufferSize() / 2);
+
     BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
         .setProjectId(options.getProjectId())
         .setClusterId(options.getClusterId())
         .setZoneId(options.getZoneId())
-        .setUserAgent("apache-beam-test");
+        .setUserAgent("apache-beam-test")
+        .setRetryOptions(retryOptionsBuilder.build());
     bigtableOptions = bigtableOptionsBuilder.build();
 
     session = new BigtableSession(bigtableOptions);
@@ -172,9 +180,15 @@ public class BigtableWriteIT implements Serializable {
 
   /** Helper function to get a table's data. */
   private List<KV<ByteString, ByteString>> getTableData(String tableName) throws IOException {
+    // Add empty range to avoid TARGET_NOT_SET error
+    RowRange range = RowRange.newBuilder()
+        .setStartKey(ByteString.EMPTY)
+        .setEndKey(ByteString.EMPTY)
+        .build();
     List<KV<ByteString, ByteString>> tableData = new ArrayList<>();
     ReadRowsRequest.Builder readRowsRequestBuilder = ReadRowsRequest.newBuilder()
-        .setTableName(tableName);
+        .setTableName(tableName)
+        .setRowRange(range);
     ResultScanner<Row> scanner = session.getDataClient().readRows(readRowsRequestBuilder.build());
 
     Row currentRow;

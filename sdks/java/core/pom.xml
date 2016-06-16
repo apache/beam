@@ -311,7 +311,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
-      <version>4.1.0.Beta8</version>
+      <version>4.1.0.CR1</version>
     </dependency>
 
     <dependency>
