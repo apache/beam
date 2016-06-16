@@ -168,7 +168,7 @@ public class WindowingTest {
 
   @Test
   public void testAttachedWindowing_ContinuousOutput() {
-    final long READ_DELAY_MS = 1000L;
+    final long READ_DELAY_MS = 100L;
     Flow flow = Flow.create("Test", settings);
 
     // ~ one partition; supplying every READ_DELAYS_MS a new element
@@ -245,8 +245,8 @@ public class WindowingTest {
     // output element approx. every 3*READ_DELAY_MS (READ_DELAY_MS for every read
     // element from the input source times window-of-3-items) except for the very
     // last item which is triggered earlier due to "end-of-stream"
-    assertSmaller(ordered.get(0).getFirst() + READ_DELAY_MS, ordered.get(1).getFirst());
-    assertSmaller(ordered.get(1).getFirst() + READ_DELAY_MS, ordered.get(2).getFirst());
+    assertSmaller(ordered.get(0).getFirst() + READ_DELAY_MS - 1, ordered.get(1).getFirst());
+    assertSmaller(ordered.get(1).getFirst() + READ_DELAY_MS - 1, ordered.get(2).getFirst());
     assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
                  ordered.get(0).getSecond().getSecond());
     assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
