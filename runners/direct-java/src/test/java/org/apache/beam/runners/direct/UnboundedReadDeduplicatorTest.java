@@ -63,6 +63,7 @@ public class UnboundedReadDeduplicatorTest {
     UnboundedReadDeduplicator dedupper = CachedIdDeduplicator.create();
     final CountDownLatch startSignal = new CountDownLatch(1);
     int numThreads = 1000;
+    final CountDownLatch readyLatch = new CountDownLatch(numThreads);
     final CountDownLatch finishLine = new CountDownLatch(numThreads);
 
     ExecutorService executor = Executors.newCachedThreadPool();
@@ -73,9 +74,12 @@ public class UnboundedReadDeduplicatorTest {
           id,
           successCount,
           failureCount,
+          readyLatch,
+          startSignal,
           finishLine));
     }
 
+    readyLatch.await();
     startSignal.countDown();
     finishLine.await(10L, TimeUnit.SECONDS);
     executor.shutdownNow();
@@ -89,6 +93,8 @@ public class UnboundedReadDeduplicatorTest {
     private final byte[] id;
     private final AtomicInteger successCount;
     private final AtomicInteger failureCount;
+    private final CountDownLatch readyLatch;
+    private final CountDownLatch startSignal;
     private final CountDownLatch finishLine;
 
     public TryOutputIdRunnable(
@@ -96,16 +102,27 @@ public class UnboundedReadDeduplicatorTest {
         byte[] id,
         AtomicInteger successCount,
         AtomicInteger failureCount,
+        CountDownLatch readyLatch,
+        CountDownLatch startSignal,
         CountDownLatch finishLine) {
       this.deduplicator = dedupper;
       this.id = id;
       this.successCount = successCount;
       this.failureCount = failureCount;
+      this.readyLatch = readyLatch;
+      this.startSignal = startSignal;
       this.finishLine = finishLine;
     }
 
     @Override
     public void run() {
+      readyLatch.countDown();
+      try {
+        startSignal.await();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
       if (deduplicator.shouldOutput(id)) {
         successCount.incrementAndGet();
       } else {

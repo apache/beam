@@ -36,7 +36,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 interface UnboundedReadDeduplicator {
   /**
-   * Returns true if the record with the provided ID should be output.
+   * Returns true if the record with the provided ID should be output, and false if it should not
+   * be because it is a duplicate.
    */
   boolean shouldOutput(byte[] recordId);
 
@@ -71,7 +72,7 @@ interface UnboundedReadDeduplicator {
     private final LoadingCache<StructuralKey<byte[]>, AtomicBoolean> ids;
 
     /**
-     * Create a new {@link NeverDeduplicator}.
+     * Create a new {@link CachedIdDeduplicator}.
      */
     public static UnboundedReadDeduplicator create() {
       return new CachedIdDeduplicator();
@@ -80,6 +81,7 @@ interface UnboundedReadDeduplicator {
     private  CachedIdDeduplicator() {
       ids = CacheBuilder.newBuilder()
           .expireAfterAccess(MAX_RETENTION_SINCE_ACCESS, TimeUnit.MILLISECONDS)
+          .maximumSize(100_000L)
           .build(new TrueBooleanLoader());
     }
 
