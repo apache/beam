@@ -689,8 +689,6 @@ public final class TransformTranslator {
     rdd.saveAsNewAPIHadoopFile(outputDir, keyClass, valueClass, formatClass, conf);
   }
 
-  private static final FieldGetter WINDOW_FG = new FieldGetter(Window.Bound.class);
-
   private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
     return new TransformEvaluator<Window.Bound<T>>() {
       @Override
@@ -698,14 +696,19 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDDLike<WindowedValue<T>, ?> inRDD =
             (JavaRDDLike<WindowedValue<T>, ?>) context.getInputRDD(transform);
-        WindowFn<? super T, W> windowFn = WINDOW_FG.get("windowFn", transform);
+
+        @SuppressWarnings("unchecked")
+        WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
+
         // Avoid running assign windows if both source and destination are global window
-        if (context.getInput(transform).getWindowingStrategy().getWindowFn()
-                instanceof GlobalWindows
-            && windowFn instanceof GlobalWindows) {
+        // or if the user has not specified the WindowFn (meaning they are just messing
+        // with triggering or allowed lateness)
+        if (windowFn == null
+            || (context.getInput(transform).getWindowingStrategy().getWindowFn()
+                    instanceof GlobalWindows
+                && windowFn instanceof GlobalWindows)) {
           context.setOutputRDD(transform, inRDD);
         } else {
-          @SuppressWarnings("unchecked")
           DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           DoFnFunction<T, T> dofn =
               new DoFnFunction<>(addWindowsDoFn, context.getRuntimeContext(), null);
