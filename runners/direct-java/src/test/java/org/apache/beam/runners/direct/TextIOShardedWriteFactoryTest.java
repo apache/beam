@@ -114,7 +114,7 @@ public class TextIOShardedWriteFactoryTest {
 
   private Pipeline getPipeline() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.setRunner(InProcessPipelineRunner.class);
+    options.setRunner(DirectRunner.class);
     return TestPipeline.fromOptions(options);
   }
 }

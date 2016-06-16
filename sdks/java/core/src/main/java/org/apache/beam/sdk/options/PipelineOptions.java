@@ -277,7 +277,7 @@ public interface PipelineOptions extends HasDisplayData {
       try {
         @SuppressWarnings({"unchecked", "rawtypes"})
         Class<? extends PipelineRunner> direct = (Class<? extends PipelineRunner>) Class.forName(
-            "org.apache.beam.runners.direct.InProcessPipelineRunner");
+            "org.apache.beam.runners.direct.DirectRunner");
         return direct;
       } catch (ClassNotFoundException e) {
         throw new IllegalArgumentException(String.format(

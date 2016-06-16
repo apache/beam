@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -27,17 +27,17 @@ import java.util.Map;
 
 /**
  * An {@link OutputManager} that outputs to {@link CommittedBundle Bundles} used by the
- * {@link InProcessPipelineRunner}.
+ * {@link DirectRunner}.
  */
-public class InProcessBundleOutputManager implements OutputManager {
+public class UncommittedBundleOutputManager implements OutputManager {
   private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
 
-  public static InProcessBundleOutputManager create(
+  public static UncommittedBundleOutputManager create(
       Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
-    return new InProcessBundleOutputManager(outputBundles);
+    return new UncommittedBundleOutputManager(outputBundles);
   }
 
-  public InProcessBundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
+  public UncommittedBundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
     this.bundles = bundles;
   }
 

@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 
 import com.google.auto.value.AutoValue;
@@ -26,7 +26,7 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 
 /**
- * A {@link InProcessTransformResult} that has been committed.
+ * A {@link TransformResult} that has been committed.
  */
 @AutoValue
 abstract class CommittedResult {
@@ -50,7 +50,7 @@ abstract class CommittedResult {
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
   public static CommittedResult create(
-      InProcessTransformResult original,
+      TransformResult original,
       CommittedBundle<?> unprocessedElements,
       Iterable<? extends CommittedBundle<?>> outputs) {
     return new AutoValue_CommittedResult(original.getTransform(),

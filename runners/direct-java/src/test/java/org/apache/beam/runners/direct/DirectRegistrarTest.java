@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.direct.InProcessRegistrar.InProcessRunner;
+import org.apache.beam.runners.direct.DirectRegistrar.DirectRunner;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
@@ -33,42 +33,42 @@ import org.junit.runners.JUnit4;
 
 import java.util.ServiceLoader;
 
-/** Tests for {@link InProcessRunner}. */
+/** Tests for {@link DirectRunner}. */
 @RunWith(JUnit4.class)
-public class InProcessPipelineRegistrarTest {
+public class DirectRegistrarTest {
   @Test
   public void testCorrectOptionsAreReturned() {
     assertEquals(
-        ImmutableList.of(InProcessPipelineOptions.class),
-        new InProcessRegistrar.InProcessOptions().getPipelineOptions());
+        ImmutableList.of(DirectOptions.class),
+        new DirectRegistrar.DirectOptions().getPipelineOptions());
   }
 
   @Test
   public void testCorrectRunnersAreReturned() {
     assertEquals(
-        ImmutableList.of(InProcessPipelineRunner.class),
-        new InProcessRegistrar.InProcessRunner().getPipelineRunners());
+        ImmutableList.of(org.apache.beam.runners.direct.DirectRunner.class),
+        new DirectRunner().getPipelineRunners());
   }
 
   @Test
   public void testServiceLoaderForOptions() {
     for (PipelineOptionsRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class).iterator())) {
-      if (registrar instanceof InProcessRegistrar.InProcessOptions) {
+      if (registrar instanceof DirectRegistrar.DirectOptions) {
         return;
       }
     }
-    fail("Expected to find " + InProcessRegistrar.InProcessOptions.class);
+    fail("Expected to find " + DirectRegistrar.DirectOptions.class);
   }
 
   @Test
   public void testServiceLoaderForRunner() {
     for (PipelineRunnerRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class).iterator())) {
-      if (registrar instanceof InProcessRegistrar.InProcessRunner) {
+      if (registrar instanceof DirectRunner) {
         return;
       }
     }
-    fail("Expected to find " + InProcessRegistrar.InProcessRunner.class);
+    fail("Expected to find " + DirectRunner.class);
   }
 }

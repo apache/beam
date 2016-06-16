@@ -115,7 +115,7 @@ public class ThreadLocalInvalidatingTransformEvaluatorTest {
     }
 
     @Override
-    public InProcessTransformResult finishBundle() throws Exception {
+    public TransformResult finishBundle() throws Exception {
       finishBundleCalled = true;
       return null;
     }
@@ -128,7 +128,7 @@ public class ThreadLocalInvalidatingTransformEvaluatorTest {
     }
 
     @Override
-    public InProcessTransformResult finishBundle() throws Exception {
+    public TransformResult finishBundle() throws Exception {
       throw new Exception();
     }
   }

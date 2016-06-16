@@ -33,11 +33,11 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-class InProcessGroupByKey<K, V>
+class DirectGroupByKey<K, V>
     extends ForwardingPTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
   private final GroupByKey<K, V> original;
 
-  InProcessGroupByKey(GroupByKey<K, V> from) {
+  DirectGroupByKey(GroupByKey<K, V> from) {
     this.original = from;
   }
 
@@ -62,7 +62,7 @@ class InProcessGroupByKey<K, V>
         // Make each input element's timestamp and assigned windows
         // explicit, in the value part.
         .apply(new ReifyTimestampsAndWindows<K, V>())
-        .apply(new InProcessGroupByKeyOnly<K, V>())
+        .apply(new DirectGroupByKeyOnly<K, V>())
         .setCoder(
             KeyedWorkItemCoder.of(
                 inputCoder.getKeyCoder(),
@@ -70,7 +70,7 @@ class InProcessGroupByKey<K, V>
                 input.getWindowingStrategy().getWindowFn().windowCoder()))
 
         // Group each key's values by window, merging windows as needed.
-        .apply("GroupAlsoByWindow", new InProcessGroupAlsoByWindow<K, V>(windowingStrategy))
+        .apply("GroupAlsoByWindow", new DirectGroupAlsoByWindow<K, V>(windowingStrategy))
 
         // And update the windowing strategy as appropriate.
         .setWindowingStrategyInternal(original.updateWindowingStrategy(windowingStrategy))
@@ -78,7 +78,7 @@ class InProcessGroupByKey<K, V>
             KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())));
   }
 
-  static final class InProcessGroupByKeyOnly<K, V>
+  static final class DirectGroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, WindowedValue<V>>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
     public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, WindowedValue<V>>> input) {
@@ -86,15 +86,15 @@ class InProcessGroupByKey<K, V>
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
     }
 
-    InProcessGroupByKeyOnly() {}
+    DirectGroupByKeyOnly() {}
   }
 
-  static final class InProcessGroupAlsoByWindow<K, V>
+  static final class DirectGroupAlsoByWindow<K, V>
       extends PTransform<PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
     private final WindowingStrategy<?, ?> windowingStrategy;
 
-    public InProcessGroupAlsoByWindow(WindowingStrategy<?, ?> windowingStrategy) {
+    public DirectGroupAlsoByWindow(WindowingStrategy<?, ?> windowingStrategy) {
       this.windowingStrategy = windowingStrategy;
     }
 

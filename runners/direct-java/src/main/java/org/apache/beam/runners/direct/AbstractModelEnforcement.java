@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -33,6 +33,6 @@ abstract class AbstractModelEnforcement<T> implements ModelEnforcement<T> {
   @Override
   public void afterFinish(
       CommittedBundle<T> input,
-      InProcessTransformResult result,
+      TransformResult result,
       Iterable<? extends CommittedBundle<?>> outputs) {}
 }

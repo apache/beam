@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
  * {@link ModelEnforcement} is provided with the input bundle as part of
  * {@link ModelEnforcementFactory#forBundle(CommittedBundle, AppliedPTransform)}, each element
  * before and after that element is provided to an underlying {@link TransformEvaluator}, and the
- * output {@link InProcessTransformResult} and committed output bundles after the
+ * output {@link TransformResult} and committed output bundles after the
  * {@link TransformEvaluator} has completed.
  *
  * <p>Typically, {@link ModelEnforcement} will obtain required metadata (such as the {@link Coder}
@@ -53,11 +53,11 @@ public interface ModelEnforcement<T> {
 
   /**
    * Called after a bundle has been completed and {@link TransformEvaluator#finishBundle()} has been
-   * called, producing the provided {@link InProcessTransformResult} and
+   * called, producing the provided {@link TransformResult} and
    * {@link CommittedBundle output bundles}.
    */
   void afterFinish(
       CommittedBundle<T> input,
-      InProcessTransformResult result,
+      TransformResult result,
       Iterable<? extends CommittedBundle<?>> outputs);
 }

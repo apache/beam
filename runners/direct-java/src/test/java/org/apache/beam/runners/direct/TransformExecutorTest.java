@@ -27,7 +27,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -75,14 +75,14 @@ public class TransformExecutorTest {
   private RegisteringCompletionCallback completionCallback;
   private TransformExecutorService transformEvaluationState;
   private BundleFactory bundleFactory;
-  @Mock private InProcessEvaluationContext evaluationContext;
+  @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
 
-    bundleFactory = InProcessBundleFactory.create();
+    bundleFactory = ImmutableListBundleFactory.create();
 
     transformEvaluationState =
         TransformExecutorServices.parallel(MoreExecutors.newDirectExecutorService());
@@ -97,7 +97,7 @@ public class TransformExecutorTest {
 
   @Test
   public void callWithNullInputBundleFinishesBundleAndCompletes() throws Exception {
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     final AtomicBoolean finishCalled = new AtomicBoolean(false);
     TransformEvaluator<Object> evaluator =
@@ -108,7 +108,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             finishCalled.set(true);
             return result;
           }
@@ -135,7 +135,7 @@ public class TransformExecutorTest {
 
   @Test
   public void inputBundleProcessesEachElementFinishesAndCompletes() throws Exception {
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
     final Collection<WindowedValue<String>> elementsProcessed = new ArrayList<>();
     TransformEvaluator<String> evaluator =
@@ -147,7 +147,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             return result;
           }
         };
@@ -183,7 +183,7 @@ public class TransformExecutorTest {
 
   @Test
   public void processElementThrowsExceptionCallsback() throws Exception {
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
     final Exception exception = new Exception();
     TransformEvaluator<String> evaluator =
@@ -194,7 +194,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             return result;
           }
         };
@@ -233,7 +233,7 @@ public class TransformExecutorTest {
           public void processElement(WindowedValue<String> element) throws Exception {}
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             throw exception;
           }
         };
@@ -264,7 +264,7 @@ public class TransformExecutorTest {
 
   @Test
   public void duringCallGetThreadIsNonNull() throws Exception {
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
     final CountDownLatch testLatch = new CountDownLatch(1);
     final CountDownLatch evaluatorLatch = new CountDownLatch(1);
@@ -276,7 +276,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             testLatch.countDown();
             evaluatorLatch.await();
             return result;
@@ -306,7 +306,7 @@ public class TransformExecutorTest {
 
   @Test
   public void callWithEnforcementAppliesEnforcement() throws Exception {
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
 
     TransformEvaluator<Object> evaluator =
@@ -316,7 +316,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             return result;
           }
         };
@@ -365,7 +365,7 @@ public class TransformExecutorTest {
               }
             });
 
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(pcBytes.getProducingTransformInternal()).build();
     final CountDownLatch testLatch = new CountDownLatch(1);
     final CountDownLatch evaluatorLatch = new CountDownLatch(1);
@@ -376,7 +376,7 @@ public class TransformExecutorTest {
           public void processElement(WindowedValue<Object> element) throws Exception {}
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             testLatch.countDown();
             evaluatorLatch.await();
             return result;
@@ -423,7 +423,7 @@ public class TransformExecutorTest {
               }
             });
 
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(pcBytes.getProducingTransformInternal()).build();
     final CountDownLatch testLatch = new CountDownLatch(1);
     final CountDownLatch evaluatorLatch = new CountDownLatch(1);
@@ -437,7 +437,7 @@ public class TransformExecutorTest {
           }
 
           @Override
-          public InProcessTransformResult finishBundle() throws Exception {
+          public TransformResult finishBundle() throws Exception {
             return result;
           }
         };
@@ -470,7 +470,7 @@ public class TransformExecutorTest {
   }
 
   private static class RegisteringCompletionCallback implements CompletionCallback {
-    private InProcessTransformResult handledResult = null;
+    private TransformResult handledResult = null;
     private Throwable handledThrowable = null;
     private final CountDownLatch onMethod;
 
@@ -480,7 +480,7 @@ public class TransformExecutorTest {
 
     @Override
     public CommittedResult handleResult(
-        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+        CommittedBundle<?> inputBundle, TransformResult result) {
       handledResult = result;
       onMethod.countDown();
       @SuppressWarnings("rawtypes") Iterable unprocessedElements =
@@ -516,7 +516,7 @@ public class TransformExecutorTest {
   private static class TestEnforcement<T> implements ModelEnforcement<T> {
     private final List<WindowedValue<T>> beforeElements = new ArrayList<>();
     private final List<WindowedValue<T>> afterElements = new ArrayList<>();
-    private final List<InProcessTransformResult> finishedBundles = new ArrayList<>();
+    private final List<TransformResult> finishedBundles = new ArrayList<>();
 
     @Override
     public void beforeElement(WindowedValue<T> element) {
@@ -531,7 +531,7 @@ public class TransformExecutorTest {
     @Override
     public void afterFinish(
         CommittedBundle<T> input,
-        InProcessTransformResult result,
+        TransformResult result,
         Iterable<? extends CommittedBundle<?>> outputs) {
       finishedBundles.add(result);
     }

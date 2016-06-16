@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.InProcessPipelineResult;
+import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -64,15 +64,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tests for basic {@link InProcessPipelineRunner} functionality.
+ * Tests for basic {@link DirectRunner} functionality.
  */
 @RunWith(JUnit4.class)
-public class InProcessPipelineRunnerTest implements Serializable {
+public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private Pipeline getPipeline() {
     PipelineOptions opts = PipelineOptionsFactory.create();
-    opts.setRunner(InProcessPipelineRunner.class);
+    opts.setRunner(DirectRunner.class);
 
     Pipeline p = Pipeline.create(opts);
     return p;
@@ -80,7 +80,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
   @Test
   public void defaultRunnerLoaded() {
-    assertThat(InProcessPipelineRunner.class,
+    assertThat(DirectRunner.class,
         Matchers.<Class<? extends PipelineRunner>>equalTo(PipelineOptionsFactory.create()
             .getRunner()));
   }
@@ -109,7 +109,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
-    InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
+    DirectPipelineResult result = ((DirectPipelineResult) p.run());
     result.awaitCompletion();
   }
 
@@ -216,7 +216,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
   /**
    * Tests that a {@link DoFn} that mutates an output with a good equals() fails in the
-   * {@link InProcessPipelineRunner}.
+   * {@link DirectRunner}.
    */
   @Test
   public void testMutatingOutputThenOutputDoFnError() throws Exception {
@@ -241,7 +241,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
   /**
    * Tests that a {@link DoFn} that mutates an output with a good equals() fails in the
-   * {@link InProcessPipelineRunner}.
+   * {@link DirectRunner}.
    */
   @Test
   public void testMutatingOutputThenTerminateDoFnError() throws Exception {
@@ -265,7 +265,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
   /**
    * Tests that a {@link DoFn} that mutates an output with a bad equals() still fails
-   * in the {@link InProcessPipelineRunner}.
+   * in the {@link DirectRunner}.
    */
   @Test
   public void testMutatingOutputCoderDoFnError() throws Exception {
@@ -290,7 +290,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
   /**
    * Tests that a {@link DoFn} that mutates its input with a good equals() fails in the
-   * {@link InProcessPipelineRunner}.
+   * {@link DirectRunner}.
    */
   @Test
   public void testMutatingInputDoFnError() throws Exception {
@@ -315,7 +315,7 @@ public class InProcessPipelineRunnerTest implements Serializable {
 
   /**
    * Tests that a {@link DoFn} that mutates an input with a bad equals() still fails
-   * in the {@link InProcessPipelineRunner}.
+   * in the {@link DirectRunner}.
    */
   @Test
   public void testMutatingInputCoderDoFnError() throws Exception {

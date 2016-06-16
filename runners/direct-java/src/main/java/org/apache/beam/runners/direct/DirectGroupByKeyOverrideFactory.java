@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.POutput;
 /**
  * A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms.
  */
-final class InProcessGroupByKeyOverrideFactory
+final class DirectGroupByKeyOverrideFactory
     implements PTransformOverrideFactory {
   @Override
   public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
@@ -33,7 +33,7 @@ final class InProcessGroupByKeyOverrideFactory
     if (transform instanceof GroupByKey) {
       @SuppressWarnings({"rawtypes", "unchecked"})
       PTransform<InputT, OutputT> override =
-          (PTransform) new InProcessGroupByKey((GroupByKey) transform);
+          (PTransform) new DirectGroupByKey((GroupByKey) transform);
       return override;
     }
     return transform;

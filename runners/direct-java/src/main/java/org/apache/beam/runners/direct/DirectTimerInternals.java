@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.util.TimerInternals;
 
 import org.joda.time.Instant;
@@ -29,17 +29,17 @@ import javax.annotation.Nullable;
 /**
  * An implementation of {@link TimerInternals} where all relevant data exists in memory.
  */
-public class InProcessTimerInternals implements TimerInternals {
+public class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;
   private final TimerUpdateBuilder timerUpdateBuilder;
 
-  public static InProcessTimerInternals create(
+  public static DirectTimerInternals create(
       Clock clock, TransformWatermarks watermarks, TimerUpdateBuilder timerUpdateBuilder) {
-    return new InProcessTimerInternals(clock, watermarks, timerUpdateBuilder);
+    return new DirectTimerInternals(clock, watermarks, timerUpdateBuilder);
   }
 
-  private InProcessTimerInternals(
+  private DirectTimerInternals(
       Clock clock, TransformWatermarks watermarks, TimerUpdateBuilder timerUpdateBuilder) {
     this.processingTimeClock = clock;
     this.watermarks = watermarks;

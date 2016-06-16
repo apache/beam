@@ -68,10 +68,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tests for {@link InProcessSideInputContainer}.
+ * Tests for {@link SideInputContainer}.
  */
 @RunWith(JUnit4.class)
-public class InProcessSideInputContainerTest {
+public class SideInputContainerTest {
   private static final BoundedWindow FIRST_WINDOW =
       new BoundedWindow() {
         @Override
@@ -102,11 +102,11 @@ public class InProcessSideInputContainerTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Mock
-  private InProcessEvaluationContext context;
+  private EvaluationContext context;
 
   private TestPipeline pipeline;
 
-  private InProcessSideInputContainer container;
+  private SideInputContainer container;
 
   private PCollectionView<Map<String, Integer>> mapView;
   private PCollectionView<Double> singletonView;
@@ -129,7 +129,7 @@ public class InProcessSideInputContainerTest {
     singletonView = create.apply("forCombinedTypes", Mean.<Integer>globally().asSingletonView());
     iterableView = create.apply("asIterableView", View.<Integer>asIterable());
 
-    container = InProcessSideInputContainer.create(
+    container = SideInputContainer.create(
         context, ImmutableList.of(iterableView, mapView, singletonView));
   }
 

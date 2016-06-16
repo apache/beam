@@ -27,29 +27,31 @@ import com.google.common.collect.ImmutableList;
 
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link InProcessPipelineRunner}.
+ * {@link org.apache.beam.runners.direct.DirectRunner}.
  */
-public class InProcessRegistrar {
-  private InProcessRegistrar() {}
+public class DirectRegistrar {
+  private DirectRegistrar() {}
   /**
-   * Registers the {@link InProcessPipelineRunner}.
+   * Registers the {@link org.apache.beam.runners.direct.DirectRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
-  public static class InProcessRunner implements PipelineRunnerRegistrar {
+  public static class DirectRunner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(InProcessPipelineRunner.class);
+      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
+          org.apache.beam.runners.direct.DirectRunner.class);
     }
   }
 
   /**
-   * Registers the {@link InProcessPipelineOptions}.
+   * Registers the {@link org.apache.beam.runners.direct.DirectOptions}.
    */
   @AutoService(PipelineOptionsRegistrar.class)
-  public static class InProcessOptions implements PipelineOptionsRegistrar {
+  public static class DirectOptions implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(InProcessPipelineOptions.class);
+      return ImmutableList.<Class<? extends PipelineOptions>>of(
+          org.apache.beam.runners.direct.DirectOptions.class);
     }
   }
 }

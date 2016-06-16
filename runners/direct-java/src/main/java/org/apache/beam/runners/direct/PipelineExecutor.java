@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -27,7 +27,7 @@ import java.util.Collection;
  * An executor that schedules and executes {@link AppliedPTransform AppliedPTransforms} for both
  * source and intermediate {@link PTransform PTransforms}.
  */
-interface InProcessExecutor {
+interface PipelineExecutor {
   /**
    * Starts this executor. The provided collection is the collection of root transforms to
    * initially schedule.

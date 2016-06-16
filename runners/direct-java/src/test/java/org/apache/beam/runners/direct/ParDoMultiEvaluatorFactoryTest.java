@@ -25,9 +25,9 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -69,7 +69,7 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class ParDoMultiEvaluatorFactoryTest implements Serializable {
-  private transient BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private transient BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test
   public void testParDoMultiInMemoryTransformEvaluator() throws Exception {
@@ -101,7 +101,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollection<String> elementOutput = outputTuple.get(elementTag);
     PCollection<Integer> lengthOutput = outputTuple.get(lengthTag);
 
-    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
         bundleFactory.createRootBundle(mainOutput);
     UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
@@ -112,8 +112,8 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         .thenReturn(elementOutputBundle);
     when(evaluationContext.createBundle(inputBundle, lengthOutput)).thenReturn(lengthOutputBundle);
 
-    InProcessExecutionContext executionContext =
-        new InProcessExecutionContext(null, null, null, null);
+    DirectExecutionContext executionContext =
+        new DirectExecutionContext(null, null, null, null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
         inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
@@ -130,7 +130,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     evaluator.processElement(
         WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(
@@ -188,7 +188,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
-    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
         bundleFactory.createRootBundle(mainOutput);
     UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
@@ -197,8 +197,8 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, elementOutput))
         .thenReturn(elementOutputBundle);
 
-    InProcessExecutionContext executionContext =
-        new InProcessExecutionContext(null, null, null, null);
+    DirectExecutionContext executionContext =
+        new DirectExecutionContext(null, null, null, null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
         inputBundle.getKey())).thenReturn(executionContext);
     CounterSet counters = new CounterSet();
@@ -215,7 +215,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     evaluator.processElement(
         WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(mainOutputBundle, elementOutputBundle));
@@ -278,7 +278,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
-    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
         bundleFactory.createRootBundle(mainOutput);
     UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
@@ -287,7 +287,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, elementOutput))
         .thenReturn(elementOutputBundle);
 
-    InProcessExecutionContext executionContext = new InProcessExecutionContext(null,
+    DirectExecutionContext executionContext = new DirectExecutionContext(null,
         StructuralKey.of("myKey", StringUtf8Coder.of()),
         null,
         null);
@@ -307,7 +307,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     evaluator.processElement(
         WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(mainOutputBundle, elementOutputBundle));
@@ -390,7 +390,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
-    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
         bundleFactory.createRootBundle(mainOutput);
     UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
@@ -399,7 +399,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createBundle(inputBundle, elementOutput))
         .thenReturn(elementOutputBundle);
 
-    InProcessExecutionContext executionContext = new InProcessExecutionContext(null,
+    DirectExecutionContext executionContext = new DirectExecutionContext(null,
         StructuralKey.of("myKey", StringUtf8Coder.of()),
         null, null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
@@ -418,7 +418,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     evaluator.processElement(
         WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getTimerUpdate(),
         equalTo(
