@@ -940,10 +940,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * or after the end of the global window, it will be truncated to the end of the global window.
    */
   private Instant garbageCollectionTime(W window) {
-    if (window
+
+    // If the end of the window + allowed lateness is beyond the "end of time" aka the end of the
+    // global window, then we truncate it. The conditional is phrased like it is because the
+    // addition of EOW + allowed lateness might even overflow the maximum allowed Instant
+    if (GlobalWindow.INSTANCE
         .maxTimestamp()
-        .isAfter(
-            GlobalWindow.INSTANCE.maxTimestamp().minus(windowingStrategy.getAllowedLateness()))) {
+        .minus(windowingStrategy.getAllowedLateness())
+        .isBefore(window.maxTimestamp())) {
       return GlobalWindow.INSTANCE.maxTimestamp();
     } else {
       return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
