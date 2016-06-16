@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 
-import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
@@ -152,9 +151,9 @@ public class ProtobufUtilTest {
   }
 
   @Test
-  public void testEntityIsDeterministic() throws NonDeterministicException {
-    // Cloud Datastore's Entities can be encoded deterministically.
-    verifyDeterministic(ProtoCoder.of(Entity.class));
+  public void testDurationIsDeterministic() throws NonDeterministicException {
+    // Duration can be encoded deterministically.
+    verifyDeterministic(ProtoCoder.of(Duration.class));
   }
 
   @Test
