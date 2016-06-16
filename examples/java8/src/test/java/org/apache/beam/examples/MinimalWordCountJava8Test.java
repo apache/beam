@@ -66,7 +66,7 @@ public class MinimalWordCountJava8Test implements Serializable {
     p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
          .withOutputType(TypeDescriptors.strings()))
-     .apply(Filter.byPredicate((String word) -> !word.isEmpty()))
+     .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
