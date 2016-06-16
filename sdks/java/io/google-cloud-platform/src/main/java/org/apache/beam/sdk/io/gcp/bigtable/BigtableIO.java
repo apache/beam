@@ -47,12 +47,16 @@ import com.google.bigtable.v1.Row;
 import com.google.bigtable.v1.RowFilter;
 import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.BulkOptions;
+import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+
+import io.grpc.Status;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -204,6 +208,8 @@ public class BigtableIO {
       checkNotNull(optionsBuilder, "optionsBuilder");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions.Builder clonedBuilder = optionsBuilder.build().toBuilder();
+      clonedBuilder.setDataChannelCount(1);
+      clonedBuilder = addRetryOptions(clonedBuilder);
       BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
       return new Read(optionsWithAgent, tableId, filter, bigtableService);
     }
@@ -388,6 +394,8 @@ public class BigtableIO {
       checkNotNull(optionsBuilder, "optionsBuilder");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions.Builder clonedBuilder = optionsBuilder.build().toBuilder();
+      clonedBuilder = addBulkOptions(clonedBuilder);
+      clonedBuilder = addRetryOptions(clonedBuilder);
       BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
       return new Write(optionsWithAgent, tableId, bigtableService);
     }
@@ -1024,6 +1032,56 @@ public class BigtableIO {
         info.getName(),
         info.getVersion(),
         javaVersion,
-        "0.2.3" /* TODO get Bigtable client version directly from jar. */);
+        "0.3.0" /* TODO get Bigtable client version directly from jar. */);
+  }
+
+  /**
+   * A helper function to add appropriate bulk options. See
+   * <a href="https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/899">RetryOptions
+   * toBuilder</a> for issue.
+   */
+  static BigtableOptions.Builder addBulkOptions(BigtableOptions.Builder builder) {
+    BulkOptions bulkOptions = builder.build().getBulkOptions();
+
+    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder()
+        .setAsyncMutatorWorkerCount(bulkOptions.getAsyncMutatorCount())
+        .setUseBulkApi(true)
+        .setBulkMaxRowKeyCount(bulkOptions.getBulkMaxRowKeyCount())
+        .setBulkMaxRequestSize(bulkOptions.getBulkMaxRequestSize())
+        .setMaxInflightRpcs(bulkOptions.getMaxInflightRpcs())
+        .setMaxMemory(bulkOptions.getMaxMemory());
+
+    builder.setBulkOptions(bulkOptionsBuilder.build());
+    return builder;
+  }
+
+  /**
+   * A helper function to add appropriate retry options. See
+   * <a href="https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/899">RetryOptions
+   * toBuilder</a> for issue.
+   */
+  static BigtableOptions.Builder addRetryOptions(BigtableOptions.Builder builder) {
+    RetryOptions retryOptions = builder.build().getRetryOptions();
+
+    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder()
+        .setEnableRetries(retryOptions.enableRetries())
+        .setInitialBackoffMillis(retryOptions.getInitialBackoffMillis())
+        .setBackoffMultiplier(retryOptions.getBackoffMultiplier())
+        .setMaxElapsedBackoffMillis(retryOptions.getMaxElaspedBackoffMillis())
+        .setStreamingBufferSize(retryOptions.getStreamingBufferSize())
+        .setStreamingBatchSize(Math.min(retryOptions.getStreamingBatchSize(),
+            retryOptions.getStreamingBufferSize() / 2))
+        .setReadPartialRowTimeoutMillis(retryOptions.getReadPartialRowTimeoutMillis())
+        .setMaxScanTimeoutRetries(retryOptions.getMaxScanTimeoutRetries())
+        .setAllowRetriesWithoutTimestamp(retryOptions.allowRetriesWithoutTimestamp());
+
+    for (Status.Code code : Status.Code.values()) {
+      if (retryOptions.isRetryable(code)) {
+        retryOptionsBuilder.addStatusToRetryOn(code);
+      }
+    }
+
+    builder.setRetryOptions(retryOptionsBuilder.build());
+    return builder;
   }
 }

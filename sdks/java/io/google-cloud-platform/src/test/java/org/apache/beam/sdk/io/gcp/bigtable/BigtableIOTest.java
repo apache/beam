@@ -27,6 +27,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -54,6 +55,8 @@ import com.google.bigtable.v1.Row;
 import com.google.bigtable.v1.RowFilter;
 import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.BulkOptions;
+import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
@@ -62,6 +65,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+
+import io.grpc.Status;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -76,10 +81,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -518,6 +525,58 @@ public class BigtableIOTest {
     assertEquals("splitPointsConsumed done", numRows, reader.getSplitPointsConsumed());
 
     reader.close();
+  }
+
+  @Test
+  public void testAddBulkOptions() {
+    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
+    optionsBuilder = BigtableIO.addBulkOptions(optionsBuilder);
+
+    BulkOptions bulkOptions = optionsBuilder.build().getBulkOptions();
+    assertEquals(BulkOptions.BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT,
+        bulkOptions.getAsyncMutatorCount());
+    assertEquals(true, bulkOptions.useBulkApi());
+    assertEquals(BulkOptions.BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT,
+        bulkOptions.getBulkMaxRowKeyCount());
+    assertEquals(BulkOptions.BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT,
+        bulkOptions.getBulkMaxRequestSize());
+    assertEquals(BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT
+        * optionsBuilder.getDataChannelCount(), bulkOptions.getMaxInflightRpcs());
+    assertEquals(BulkOptions.BIGTABLE_MAX_MEMORY_DEFAULT, bulkOptions.getMaxMemory());
+  }
+
+  @Test
+  public void testAddRetryOptions() {
+    final double delta = 0.0000001;
+    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
+    optionsBuilder = BigtableIO.addRetryOptions(optionsBuilder);
+
+    RetryOptions retryOptions = optionsBuilder.build().getRetryOptions();
+    assertEquals(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES, retryOptions.enableRetries());
+    assertEquals(RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS,
+        retryOptions.getInitialBackoffMillis());
+    assertEquals(RetryOptions.DEFAULT_BACKOFF_MULTIPLIER, retryOptions.getBackoffMultiplier(),
+        delta);
+    assertEquals(RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS,
+        retryOptions.getMaxElaspedBackoffMillis());
+    assertEquals(RetryOptions.DEFAULT_STREAMING_BUFFER_SIZE, retryOptions.getStreamingBufferSize());
+    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE, retryOptions.getStreamingBatchSize());
+    assertEquals(RetryOptions.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS,
+        retryOptions.getReadPartialRowTimeoutMillis());
+    assertEquals(RetryOptions.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES,
+        retryOptions.getMaxScanTimeoutRetries());
+    assertFalse(retryOptions.allowRetriesWithoutTimestamp());
+
+    Set<Status.Code> statusToRetryOn = new HashSet<>();
+    for (Status.Code code : Status.Code.values()) {
+      if (retryOptions.isRetryable(code)) {
+        statusToRetryOn.add(code);
+      }
+    }
+
+    Set<Status.Code> defaultStatusToRetryOn =
+        new HashSet<>(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES_SET);
+    assertThat(statusToRetryOn, Matchers.containsInAnyOrder(defaultStatusToRetryOn.toArray()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
