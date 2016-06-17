@@ -37,11 +37,11 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsList;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsMap;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsMultimap;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsSingleton;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner.TransformedMap;
+import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsList;
+import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMap;
+import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMultimap;
+import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsSingleton;
+import org.apache.beam.runners.dataflow.DataflowRunner.TransformedMap;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
@@ -127,10 +127,10 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Tests for the {@link DataflowPipelineRunner}.
+ * Tests for the {@link DataflowRunner}.
  */
 @RunWith(JUnit4.class)
-public class DataflowPipelineRunnerTest {
+public class DataflowRunnerTest {
 
   private static final String PROJECT_ID = "some-project";
 
@@ -148,7 +148,7 @@ public class DataflowPipelineRunnerTest {
 
   private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
     options.setStableUniqueNames(CheckEnabled.ERROR);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
     p.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/object"))
@@ -219,7 +219,7 @@ public class DataflowPipelineRunnerTest {
   private DataflowPipelineOptions buildPipelineOptions(
       ArgumentCaptor<Job> jobCaptor) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject(PROJECT_ID);
     options.setTempLocation("gs://somebucket/some/path");
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
@@ -237,7 +237,7 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setJobName(mixedCase);
 
-    DataflowPipelineRunner runner = DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
     assertThat(options.getJobName(), equalTo(mixedCase.toLowerCase()));
   }
 
@@ -338,7 +338,7 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testRunWithFiles() throws IOException {
-    // Test that the function DataflowPipelineRunner.stageFiles works as
+    // Test that the function DataflowRunner.stageFiles works as
     // expected.
     GcsUtil mockGcsUtil = buildMockGcsUtil(true /* bucket exists */);
     final String gcsStaging = "gs://somebucket/some/path";
@@ -346,9 +346,9 @@ public class DataflowPipelineRunnerTest {
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
-    File temp1 = File.createTempFile("DataflowPipelineRunnerTest", "txt");
+    File temp1 = File.createTempFile("DataflowRunnerTest", "txt");
     temp1.deleteOnExit();
-    File temp2 = File.createTempFile("DataflowPipelineRunnerTest2", "txt");
+    File temp2 = File.createTempFile("DataflowRunnerTest2", "txt");
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
@@ -403,7 +403,7 @@ public class DataflowPipelineRunnerTest {
   public void runWithDefaultFilesToStage() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setFilesToStage(null);
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
     assertTrue(!options.getFilesToStage().isEmpty());
   }
 
@@ -417,7 +417,7 @@ public class DataflowPipelineRunnerTest {
     });
 
     assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        DataflowPipelineRunner.detectClassPathResourcesToStage(classLoader));
+        DataflowRunner.detectClassPathResourcesToStage(classLoader));
   }
 
   @Test
@@ -426,7 +426,7 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
 
-    DataflowPipelineRunner.detectClassPathResourcesToStage(mockClassLoader);
+    DataflowRunner.detectClassPathResourcesToStage(mockClassLoader);
   }
 
   @Test
@@ -438,7 +438,7 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to convert url (" + url + ") to file.");
 
-    DataflowPipelineRunner.detectClassPathResourcesToStage(classLoader);
+    DataflowRunner.detectClassPathResourcesToStage(classLoader);
   }
 
   @Test
@@ -452,9 +452,9 @@ public class DataflowPipelineRunnerTest {
     options.setProject(PROJECT_ID);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
 
     assertNotNull(options.getStagingLocation());
   }
@@ -518,7 +518,7 @@ public class DataflowPipelineRunnerTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -527,14 +527,14 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setStagingLocation("file://my/staging/location");
     try {
-      DataflowPipelineRunner.fromOptions(options);
+      DataflowRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
       assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
     }
     options.setStagingLocation("my/staging/location");
     try {
-      DataflowPipelineRunner.fromOptions(options);
+      DataflowRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
       assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
@@ -553,7 +553,7 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString(
         "Output path does not exist or is not writeable: gs://non-existent-bucket/location"));
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -569,7 +569,7 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString(
         "Output path does not exist or is not writeable: gs://non-existent-bucket/location"));
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -577,7 +577,7 @@ public class DataflowPipelineRunnerTest {
   public void testNoProjectFails() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     // Explicitly set to null to prevent the default instance factory from reading credentials
     // from a user's environment, causing this test to fail.
     options.setProject(null);
@@ -586,39 +586,39 @@ public class DataflowPipelineRunnerTest {
     thrown.expectMessage("Project id");
     thrown.expectMessage("when running a Dataflow in the cloud");
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectId() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
     options.setStagingLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectPrefix() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("google.com:some-project-12345");
 
     options.setStagingLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectNumber() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("12345");
 
     options.setStagingLocation("gs://spam/ham/eggs");
@@ -628,13 +628,13 @@ public class DataflowPipelineRunnerTest {
     thrown.expectMessage("Project ID");
     thrown.expectMessage("project number");
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectDescription() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("some project");
 
     options.setStagingLocation("gs://spam/ham/eggs");
@@ -644,13 +644,13 @@ public class DataflowPipelineRunnerTest {
     thrown.expectMessage("Project ID");
     thrown.expectMessage("project description");
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testInvalidNumberOfWorkerHarnessThreads() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
     options.setStagingLocation("gs://spam/ham/eggs");
@@ -662,44 +662,44 @@ public class DataflowPipelineRunnerTest {
     thrown.expectMessage("Number of worker harness threads");
     thrown.expectMessage("Please make sure the value is non-negative.");
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testNoStagingLocationAndNoTempLocationFails() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Missing required value: at least one of tempLocation or stagingLocation must be set.");
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testStagingLocationAndNoTempLocationSucceeds() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
     options.setStagingLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testTempLocationAndNoStagingLocationSucceeds() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
     options.setTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
-    DataflowPipelineRunner.fromOptions(options);
+    DataflowRunner.fromOptions(options);
   }
 
   @Test
@@ -718,7 +718,7 @@ public class DataflowPipelineRunnerTest {
       options.setJobName(invalidNames.get(i));
 
       try {
-        DataflowPipelineRunner.fromOptions(options);
+        DataflowRunner.fromOptions(options);
         fail("Expected IllegalArgumentException for jobName "
             + options.getJobName());
       } catch (IllegalArgumentException e) {
@@ -737,7 +737,7 @@ public class DataflowPipelineRunnerTest {
       DataflowPipelineOptions options = buildPipelineOptions();
       options.setJobName(name);
 
-      DataflowPipelineRunner runner = DataflowPipelineRunner
+      DataflowRunner runner = DataflowRunner
           .fromOptions(options);
       assertNotNull(runner);
     }
@@ -779,7 +779,7 @@ public class DataflowPipelineRunnerTest {
     thrown.expectMessage(Matchers.containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
         .translate(
-            p, (DataflowPipelineRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
+            p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -793,7 +793,7 @@ public class DataflowPipelineRunnerTest {
     p.apply(Create.of(Arrays.asList(1, 2, 3)).withCoder(BigEndianIntegerCoder.of()))
         .apply(transform);
 
-    DataflowPipelineTranslator translator = DataflowPipelineRunner
+    DataflowPipelineTranslator translator = DataflowRunner
         .fromOptions(options).getTranslator();
 
     DataflowPipelineTranslator.registerTransformTranslator(
@@ -814,7 +814,7 @@ public class DataflowPipelineRunnerTest {
         });
 
     translator.translate(
-        p, (DataflowPipelineRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
+        p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
     assertTrue(transform.translated);
   }
 
@@ -867,15 +867,15 @@ public class DataflowPipelineRunnerTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     assertEquals(
-        "DataflowPipelineRunner#testjobname",
-        DataflowPipelineRunner.fromOptions(options).toString());
+        "DataflowRunner#testjobname",
+        DataflowRunner.fromOptions(options).toString());
   }
 
   private static PipelineOptions makeOptions(boolean streaming) {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setStreaming(streaming);
     options.setJobName("TestJobName");
     options.setProject("test-project");
@@ -890,7 +890,7 @@ public class DataflowPipelineRunnerTest {
     String mode = streaming ? "streaming" : "batch";
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(
-        "The DataflowPipelineRunner in " + mode + " mode does not support " + name);
+        "The DataflowRunner in " + mode + " mode does not support " + name);
 
     Pipeline p = Pipeline.create(makeOptions(streaming));
     p.apply(source);
@@ -935,7 +935,7 @@ public class DataflowPipelineRunnerTest {
           throws Exception {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(
-        "The DataflowPipelineRunner in streaming mode does not support " + name);
+        "The DataflowRunner in streaming mode does not support " + name);
 
     Pipeline p = Pipeline.create(makeOptions(streaming));
     p.apply(Create.of("foo")).apply(sink);

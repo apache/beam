@@ -17,7 +17,7 @@
  */
 package ${package};
 
-import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -63,7 +63,7 @@ public class MinimalWordCount {
     // in Google Cloud Storage to stage files.
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
       .as(DataflowPipelineOptions.class);
-    options.setRunner(BlockingDataflowPipelineRunner.class);
+    options.setRunner(BlockingDataflowRunner.class);
     // CHANGE 1/3: Your project ID is required in order to run your pipeline on the Google Cloud.
     options.setProject("SET_YOUR_PROJECT_ID_HERE");
     // CHANGE 2/3: Your Google Cloud Storage path is required for staging local files.

@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableList;
 
 /**
  * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the
- * {@link DataflowPipelineRunner}.
+ * {@link DataflowRunner}.
  */
 public class DataflowPipelineRegistrar {
   private DataflowPipelineRegistrar() { }
@@ -48,15 +48,15 @@ public class DataflowPipelineRegistrar {
   }
 
   /**
-   * Register the {@link DataflowPipelineRunner} and {@link BlockingDataflowPipelineRunner}.
+   * Register the {@link DataflowRunner} and {@link BlockingDataflowRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
       return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
-          DataflowPipelineRunner.class,
-          BlockingDataflowPipelineRunner.class);
+          DataflowRunner.class,
+          BlockingDataflowRunner.class);
     }
   }
 }
