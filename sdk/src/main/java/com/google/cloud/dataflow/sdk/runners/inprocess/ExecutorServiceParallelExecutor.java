@@ -343,6 +343,8 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
         evaluationContext.getPipelineOptions().getAppName(),
         ExecutorServiceParallelExecutor.class.getSimpleName());
 
+    private boolean exceptionThrown = false;
+
     @Override
     public void run() {
       String oldName = Thread.currentThread().getName();
@@ -358,6 +360,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
             scheduleConsumers(update);
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
+            exceptionThrown = true;
           }
           if (System.nanoTime() - updatesStart > maxTimeProcessingUpdatesNanos) {
             break;
@@ -426,15 +429,17 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     private boolean shouldShutdown() {
-      if (evaluationContext.isDone()) {
-        LOG.debug("Pipeline is finished. Shutting down. {}");
-        while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
-          visibleUpdates.poll();
+      boolean shouldShutdown = exceptionThrown || evaluationContext.isDone();
+      if (shouldShutdown) {
+        if (evaluationContext.isDone()) {
+          LOG.debug("Pipeline is finished. Shutting down. {}");
+          while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
+            visibleUpdates.poll();
+          }
+          executorService.shutdown();
         }
-        executorService.shutdown();
-        return true;
       }
-      return false;
+      return shouldShutdown;
     }
 
     /**
