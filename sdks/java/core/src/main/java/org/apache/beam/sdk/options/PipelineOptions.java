@@ -70,10 +70,9 @@ import javax.annotation.concurrent.ThreadSafe;
  *   p.run();
  * }
  *
- * // To create options for the DirectPipeline:
- * DirectPipelineOptions directPipelineOptions =
- *     PipelineOptionsFactory.as(DirectPipelineOptions.class);
- * directPipelineOptions.setStreaming(true);
+ * // To create options for the DirectRunner:
+ * DirectOptions directRunnerOptions =
+ *     PipelineOptionsFactory.as(DirectOptions.class);
  *
  * // To cast from one type to another using the as(Class) method:
  * DataflowPipelineOptions dataflowPipelineOptions =

@@ -322,7 +322,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
 
       if (convertedValue == null) {
         // BigQuery does not include null values when the export operation (to JSON) is used.
-        // To match that behavior, BigQueryTableRowiterator, and the DirectPipelineRunner,
+        // To match that behavior, BigQueryTableRowiterator, and the DirectRunner,
         // intentionally omits columns with null values.
         continue;
       }

@@ -315,7 +315,7 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * Do some runner setup: check that the DirectPipelineRunner is not used in conjunction with
+   * Do some runner setup: check that the DirectRunner is not used in conjunction with
    * streaming, and if streaming is specified, use the DataflowPipelineRunner.
    */
   public void setupRunner() {
@@ -413,7 +413,7 @@ public class DataflowExampleUtils {
       }
     } else {
       // Do nothing if the given PipelineResult doesn't support waitToFinish(),
-      // such as EvaluationResults returned by DirectPipelineRunner.
+      // such as EvaluationResults returned by DirectRunner.
       tearDown();
       printPendingMessages();
     }
