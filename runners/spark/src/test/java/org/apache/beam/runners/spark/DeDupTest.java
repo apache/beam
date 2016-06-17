@@ -49,14 +49,14 @@ public class DeDupTest {
   @Test
   public void testRun() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
+    options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<String> input = p.apply(Create.of(LINES).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = input.apply(RemoveDuplicates.<String>create());
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_SET);
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     res.close();
   }
 }

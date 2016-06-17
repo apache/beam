@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.runners.TransformTreeNode;
@@ -35,9 +35,9 @@ import org.apache.spark.streaming.Durations;
 
 
 /**
- * Pipeline {@link SparkPipelineRunner.Evaluator} to detect windowing.
+ * Pipeline {@link SparkRunner.Evaluator} to detect windowing.
  */
-public final class StreamingWindowPipelineDetector extends SparkPipelineRunner.Evaluator {
+public final class StreamingWindowPipelineDetector extends SparkRunner.Evaluator {
 
   // Currently, Spark streaming recommends batches no smaller then 500 msec
   private static final Duration SPARK_MIN_WINDOW = Durations.milliseconds(500);
