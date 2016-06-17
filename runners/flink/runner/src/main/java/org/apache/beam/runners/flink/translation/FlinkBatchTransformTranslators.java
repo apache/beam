@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -102,6 +103,7 @@ class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+    TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch());
 
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
@@ -278,6 +280,23 @@ class FlinkBatchTransformTranslators {
               intermediateGrouping, partialReduceTypeInfo, reduceFunction, transform.getName());
 
       context.setOutputDataSet(context.getOutput(transform), outputDataSet);
+
+    }
+
+  }
+
+  private static class ReshuffleTranslatorBatch<K, InputT>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Reshuffle<K, InputT>> {
+
+    @Override
+    public void translateNode(
+        Reshuffle<K, InputT> transform,
+        FlinkBatchTranslationContext context) {
+
+      DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataSet(context.getInput(transform));
+
+      context.setOutputDataSet(context.getOutput(transform), inputDataSet.rebalance());
 
     }
 
