@@ -123,8 +123,8 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   Args:
     extra_packages: Ordered list of local paths to extra packages to be staged.
     staging_location: Staging location for the packages.
-    temp_dir: Temporary folder where the resource building can happen. Caller is
-      responsible for cleaning up this folder after this function returns.
+    temp_dir: Temporary folder where the resource building can happen. Caller
+      is responsible for cleaning up this folder after this function returns.
     file_copy: Callable for copying files. The default version will copy from
       a local file to a GCS location using the gsutil tool available in the
       Google Cloud SDK package.
