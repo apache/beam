@@ -62,8 +62,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.servlet.http.HttpServletResponse;
-
 /**
  * The utility class that sets up and tears down external resources, starts the Google Cloud Pub/Sub
  * injector, and cancels the streaming and the injector pipelines once the program terminates.
@@ -71,6 +69,8 @@ import javax.servlet.http.HttpServletResponse;
  * <p>It is used to run Dataflow examples, such as TrafficMaxLaneFlow and TrafficRoutes.
  */
 public class DataflowExampleUtils {
+
+  private static final int SC_NOT_FOUND = 404;
 
   private final DataflowPipelineOptions options;
   private Bigquery bigQueryClient = null;
@@ -481,7 +481,7 @@ public class DataflowExampleUtils {
     try {
       return request.execute();
     } catch (GoogleJsonResponseException e) {
-      if (e.getStatusCode() == HttpServletResponse.SC_NOT_FOUND) {
+      if (e.getStatusCode() == SC_NOT_FOUND) {
         return null;
       } else {
         throw e;
