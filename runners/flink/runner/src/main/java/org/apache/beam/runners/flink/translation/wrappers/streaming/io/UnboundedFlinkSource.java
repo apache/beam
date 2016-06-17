@@ -51,18 +51,18 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
 
   @Override
   public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkRunner.");
   }
 
   @Override
   public UnboundedReader<T> createReader(PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkRunner.");
   }
 
   @Nullable
   @Override
   public Coder<UnboundedSource.CheckpointMark> getCheckpointMarkCoder() {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkRunner.");
   }
 
 

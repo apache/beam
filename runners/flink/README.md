@@ -107,14 +107,14 @@ Flink-Runner is now installed in your local maven repository.
 
 Next, let's run the classic WordCount example. It's semantically identically to
 the example provided with Apache Beam. Only this time, we chose the
-`FlinkPipelineRunner` to execute the WordCount on top of Flink.
+`FlinkRunner` to execute the WordCount on top of Flink.
 
 Here's an excerpt from the WordCount class file:
 
 ```java
 Options options = PipelineOptionsFactory.fromArgs(args).as(Options.class);
 // yes, we want to run WordCount with Flink
-options.setRunner(FlinkPipelineRunner.class);
+options.setRunner(FlinkRunner.class);
 
 Pipeline p = Pipeline.create(options);
 
