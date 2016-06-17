@@ -357,7 +357,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       builder.put(Read.Unbounded.class, StreamingUnboundedRead.class);
       builder.put(Read.Bounded.class, StreamingBoundedRead.class);
       builder.put(AvroIO.Write.Bound.class, UnsupportedIO.class);
-      builder.put(BigQueryIO.Read.Bound.class, UnsupportedIO.class);
       builder.put(TextIO.Write.Bound.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
@@ -2634,8 +2633,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     /**
       * Builds an instance of this class from the overridden transform.
       */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingBoundedRead(DataflowPipelineRunner runner, Read.Bounded<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingBoundedRead(DataflowRunner runner, Read.Bounded<T> transform) {
       this.source = transform.getSource();
     }
 

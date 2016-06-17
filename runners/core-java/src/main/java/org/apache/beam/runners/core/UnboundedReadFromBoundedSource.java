@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
-
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.Pipeline;
@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -58,6 +57,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -65,9 +65,20 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * {@link PTransform} that performs a unbounded read from an {@link BoundedSource}.
+ * {@link PTransform} that converts a {@link BoundedSource} as an {@link UnboundedSource}.
  *
- * <p>Created by {@link Read}.
+ * <p>{@link BoundedSource} is read directly without calling {@link BoundedSource#splitIntoBundles},
+ * and element timestamps are propagated. While any elements remain, the watermark is the beginning
+ * of time {@code BoundedWindow.TIMESTAMP_MIN_VALUE}, and after all elements have been produced
+ * the watermark goes to the end of time {@code BoundedWindow.TIMESTAMP_MAX_VALUE}.
+ *
+ * <p>Checkpoints are created by calling {@link BoundedReader#splitAtFraction} on inner
+ * {@link BoundedSource}.
+ * Sources that cannot be split are read entirely into memory, so this transform does not work well
+ * with large, unsplittable sources.
+ *
+ * <p>This transform is intended to be used by a runner during pipeline translation to convert
+ * a Read.Bounded into a Read.Unbounded.
  */
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
 
@@ -130,13 +141,14 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       try {
         long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
         if (desiredBundleSize <= 0) {
-          LOG.warn("BoundedSource cannot estimate its size, skips the initial splits.");
+          LOG.warn("BoundedSource {} cannot estimate its size, skips the initial splits.",
+              boundedSource);
           return ImmutableList.of(this);
         }
         List<? extends BoundedSource<T>> splits
             = boundedSource.splitIntoBundles(desiredBundleSize, options);
         if (splits == null) {
-          LOG.warn("BoundedSource cannot split, skips the initial splits.");
+          LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
           return ImmutableList.of(this);
         }
         return Lists.transform(
@@ -147,7 +159,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
                 return new BoundedToUnboundedSourceAdapter<>(input);
               }});
       } catch (Exception e) {
-        LOG.warn("Exception while splitting, skips the initial splits.", e);
+        LOG.warn("Exception while splitting {}, skips the initial splits.", boundedSource, e);
         return ImmutableList.of(this);
       }
     }
@@ -156,7 +168,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     public Reader createReader(PipelineOptions options, Checkpoint<T> checkpoint)
         throws IOException {
       if (checkpoint == null) {
-        return new Reader(null /* residualElements */, boundedSource, options);
+        return new Reader(
+            Collections.<TimestampedValue<T>>emptyList() /* residualElements */,
+            boundedSource,
+            options);
       } else {
         return new Reader(checkpoint.residualElements, checkpoint.residualSource, options);
       }
@@ -175,11 +190,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
     @VisibleForTesting
     static class Checkpoint<T> implements UnboundedSource.CheckpointMark {
-      private final @Nullable List<TimestampedValue<T>> residualElements;
+      private final List<TimestampedValue<T>> residualElements;
       private final @Nullable BoundedSource<T> residualSource;
 
       public Checkpoint(
-          @Nullable List<TimestampedValue<T>> residualElements,
+          List<TimestampedValue<T>> residualElements,
           @Nullable BoundedSource<T> residualSource) {
         this.residualElements = residualElements;
         this.residualSource = residualSource;
@@ -189,7 +204,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       public void finalizeCheckpoint() {}
 
       @VisibleForTesting
-      @Nullable List<TimestampedValue<T>> getResidualElements() {
+      List<TimestampedValue<T>> getResidualElements() {
         return residualElements;
       }
 
@@ -206,21 +221,24 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       public static CheckpointCoder<?> of(
           @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
           List<Coder<?>> components) {
-        Preconditions.checkArgument(components.size() == 1,
-            "Expecting 1 components, got " + components.size());
+        checkArgument(components.size() == 1,
+            "Expecting 1 components, got %s", components.size());
         return new CheckpointCoder<>(components.get(0));
       }
 
+      // The coder for a list of residual elements and their timestamps
       private final Coder<List<TimestampedValue<T>>> elemsCoder;
+      // The coder from the BoundedReader for coding each element
       private final Coder<T> elemCoder;
+      // The nullable and serializable coder for the BoundedSource.
       @SuppressWarnings("rawtypes")
-      private final Coder<BoundedSource> sourceCoder =
-          NullableCoder.of(SerializableCoder.of(BoundedSource.class));
+      private final Coder<BoundedSource> sourceCoder;
 
       CheckpointCoder(Coder<T> elemCoder) {
         this.elemsCoder = NullableCoder.of(
             ListCoder.of(TimestampedValue.TimestampedValueCoder.of(elemCoder)));
         this.elemCoder = elemCoder;
+        this.sourceCoder = NullableCoder.of(SerializableCoder.of(BoundedSource.class));
       }
 
       @Override
@@ -248,8 +266,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       @Override
       public void verifyDeterministic() throws NonDeterministicException {
-        sourceCoder.verifyDeterministic();
-        elemsCoder.verifyDeterministic();
+        throw new NonDeterministicException(this,
+            "CheckpointCoder uses Java Serialization, which may be non-deterministic.");
       }
     }
 
@@ -263,13 +281,13 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
      */
     @VisibleForTesting
     class Reader extends UnboundedReader<T> {
-      private @Nullable ResidualElements residualElements;
+      private ResidualElements residualElements;
       private @Nullable ResidualSource residualSource;
       private final PipelineOptions options;
       private boolean done;
 
       Reader(
-          @Nullable List<TimestampedValue<T>> residualElementsList,
+          List<TimestampedValue<T>> residualElementsList,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
         init(residualElementsList, residualSource, options);
@@ -278,11 +296,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       }
 
       private void init(
-          @Nullable List<TimestampedValue<T>> residualElementsList,
+          List<TimestampedValue<T>> residualElementsList,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
-        this.residualElements =
-            residualElementsList == null ? null : new ResidualElements(residualElementsList);
+        this.residualElements = new ResidualElements(residualElementsList);
         this.residualSource =
             residualSource == null ? null : new ResidualSource(residualSource, options);
       }
@@ -294,7 +311,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       @Override
       public boolean advance() throws IOException {
-        if (residualElements != null && residualElements.advance()) {
+        if (residualElements.advance()) {
           return true;
         } else if (residualSource != null && residualSource.advance()) {
           return true;
@@ -313,7 +330,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       @Override
       public T getCurrent() throws NoSuchElementException {
-        if (residualElements != null && residualElements.hasCurrent()) {
+        if (residualElements.hasCurrent()) {
           return residualElements.getCurrent();
         } else if (residualSource != null) {
           return residualSource.getCurrent();
@@ -324,7 +341,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        if (residualElements != null && residualElements.hasCurrent()) {
+        if (residualElements.hasCurrent()) {
           return residualElements.getCurrentTimestamp();
         } else if (residualSource != null) {
           return residualSource.getCurrentTimestamp();
@@ -356,7 +373,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       @Override
       public Checkpoint<T> getCheckpointMark() {
         Checkpoint<T> newCheckpoint;
-        if (residualElements != null && !residualElements.done()) {
+        if (!residualElements.done()) {
           // Part of residualElements are consumed.
           // Checkpoints the remaining elements and residualSource.
           newCheckpoint = new Checkpoint<>(
@@ -404,6 +421,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
           return true;
         } else {
           done = true;
+          hasCurrent = false;
           return false;
         }
       }
@@ -448,15 +466,17 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       private BoundedSource<T> residualSource;
       private PipelineOptions options;
       private @Nullable BoundedReader<T> reader;
+      private boolean closed;
 
       public ResidualSource(BoundedSource<T> residualSource, PipelineOptions options) {
         this.residualSource = checkNotNull(residualSource, "residualSource");
         this.options = checkNotNull(options, "options");
         this.reader = null;
+        this.closed = false;
       }
 
       private boolean advance() throws IOException {
-        if (reader == null) {
+        if (reader == null && !closed) {
           reader = residualSource.createReader(options);
           return reader.start();
         } else {
@@ -481,7 +501,9 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       void close() throws IOException {
         if (reader != null) {
           reader.close();
+          reader = null;
         }
+        closed = true;
       }
 
       BoundedSource<T> getSource() {
@@ -497,8 +519,13 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
           // Splits the residualSource and tracks the new residualElements in current source.
           BoundedSource<T> residualSplit = null;
           Double fractionConsumed = reader.getFractionConsumed();
-          if (fractionConsumed != null) {
-            residualSplit = reader.splitAtFraction(fractionConsumed);
+          if (fractionConsumed != null && 0 <= fractionConsumed && fractionConsumed <= 1) {
+            double fractionRest = 1 - fractionConsumed;
+            int splitAttampts = 8;
+            for (int i = 0; i < 8 && residualSplit == null; ++i) {
+              double fractionToSplit = fractionConsumed + fractionRest * i / splitAttampts;
+              residualSplit = reader.splitAtFraction(fractionToSplit);
+            }
           }
           List<TimestampedValue<T>> newResidualElements = Lists.newArrayList();
           try {

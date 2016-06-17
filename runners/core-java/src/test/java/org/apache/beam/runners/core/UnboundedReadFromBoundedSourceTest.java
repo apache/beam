@@ -28,16 +28,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.CompressedSource;
-import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Max;
@@ -51,8 +49,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -96,7 +92,7 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBoundedToUnboundedSourceAdapter() throws Exception {
     long numElements = 100;
     BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
@@ -140,14 +136,13 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
-  public void testCompressedSourceToUnboundedCheckpoint() throws Exception {
+  public void testUnsplittableSourceToUnboundedCheckpoint() throws Exception {
     String baseName = "test-input";
     File compressedFile = tmpFolder.newFile(baseName + ".gz");
     byte[] input = generateInput(100);
-    writeFile(compressedFile, input, CompressionMode.GZIP);
+    writeFile(compressedFile, input);
 
-    CompressedSource<Byte> source =
-        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    BoundedSource<Byte> source = new UnsplittableSource(compressedFile.getPath(), 1);
     List<Byte> expected = Lists.newArrayList();
     for (byte i : input) {
       expected.add(i);
@@ -190,14 +185,13 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
-  public void testCompressedSourceToUnboundedCheckpointRestart() throws Exception {
+  public void testUnsplittableSourceToUnboundedCheckpointRestart() throws Exception {
     String baseName = "test-input";
     File compressedFile = tmpFolder.newFile(baseName + ".gz");
-    byte[] input = generateInput(100);
-    writeFile(compressedFile, input, CompressionMode.GZIP);
+    byte[] input = generateInput(1000);
+    writeFile(compressedFile, input);
 
-    CompressedSource<Byte> source =
-        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    BoundedSource<Byte> source = new UnsplittableSource(compressedFile.getPath(), 1);
     List<Byte> expected = Lists.newArrayList();
     for (byte i : input) {
       expected.add(i);
@@ -274,56 +268,40 @@ public class UnboundedReadFromBoundedSourceTest {
     // Arbitrary but fixed seed
     Random random = new Random(285930);
     byte[] buff = new byte[size];
-    for (int i = 0; i < size; i++) {
-      buff[i] = (byte) (random.nextInt() % Byte.MAX_VALUE);
-    }
+    random.nextBytes(buff);
     return buff;
-  }
-
-  /**
-   * Get a compressing stream for a given compression mode.
-   */
-  private static OutputStream getOutputStreamForMode(CompressionMode mode, OutputStream stream)
-      throws IOException {
-    switch (mode) {
-      case GZIP:
-        return new GzipCompressorOutputStream(stream);
-      case BZIP2:
-        return new BZip2CompressorOutputStream(stream);
-      default:
-        throw new RuntimeException("Unexpected compression mode");
-    }
   }
 
   /**
    * Writes a single output file.
    */
-  private static void writeFile(File file, byte[] input, CompressionMode mode) throws IOException {
-    try (OutputStream os = getOutputStreamForMode(mode, new FileOutputStream(file))) {
+  private static void writeFile(File file, byte[] input) throws IOException {
+    try (OutputStream os = new FileOutputStream(file)) {
       os.write(input);
     }
   }
 
   /**
-   * Dummy source for use in tests.
+   * Unsplittable source for use in tests.
    */
-  private static class ByteSource extends FileBasedSource<Byte> {
-    public ByteSource(String fileOrPatternSpec, long minBundleSize) {
+  private static class UnsplittableSource extends FileBasedSource<Byte> {
+    public UnsplittableSource(String fileOrPatternSpec, long minBundleSize) {
       super(fileOrPatternSpec, minBundleSize);
     }
 
-    public ByteSource(String fileName, long minBundleSize, long startOffset, long endOffset) {
+    public UnsplittableSource(
+        String fileName, long minBundleSize, long startOffset, long endOffset) {
       super(fileName, minBundleSize, startOffset, endOffset);
     }
 
     @Override
     protected FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
-      return new ByteSource(fileName, getMinBundleSize(), start, end);
+      return new UnsplittableSource(fileName, getMinBundleSize(), start, end);
     }
 
     @Override
     protected FileBasedReader<Byte> createSingleFileReader(PipelineOptions options) {
-      return new ByteReader(this);
+      return new UnsplittableReader(this);
     }
 
     @Override
@@ -336,19 +314,25 @@ public class UnboundedReadFromBoundedSourceTest {
       return SerializableCoder.of(Byte.class);
     }
 
-    private static class ByteReader extends FileBasedReader<Byte> {
+    private static class UnsplittableReader extends FileBasedReader<Byte> {
       ByteBuffer buff = ByteBuffer.allocate(1);
       Byte current;
-      long offset = -1;
+      long offset;
       ReadableByteChannel channel;
 
-      public ByteReader(ByteSource source) {
+      public UnsplittableReader(UnsplittableSource source) {
         super(source);
+        offset = source.getStartOffset() - 1;
       }
 
       @Override
       public Byte getCurrent() throws NoSuchElementException {
         return current;
+      }
+
+      @Override
+      public boolean allowsDynamicSplitting() {
+        return false;
       }
 
       @Override
