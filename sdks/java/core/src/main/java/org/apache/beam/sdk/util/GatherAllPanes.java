@@ -57,15 +57,17 @@ public class GatherAllPanes<T>
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input
-        .apply(WithKeys.<Void, T>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
-        .apply(new ReifyTimestampsAndWindows<Void, T>())
+        .apply(WithKeys.<Integer, T>of(0).withKeyType(new TypeDescriptor<Integer>() {}))
+        .apply(new ReifyTimestampsAndWindows<Integer, T>())
         .apply(
             Window.into(
-                    new IdentityWindowFn<KV<Void, WindowedValue<T>>>(
+                    new IdentityWindowFn<KV<Integer, WindowedValue<T>>>(
                         originalWindowFn.windowCoder()))
-                .triggering(Never.ever()))
+                .triggering(Never.ever())
+                .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
+                .discardingFiredPanes())
         // all values have the same key so they all appear as a single output element
-        .apply(GroupByKey.<Void, WindowedValue<T>>create())
+        .apply(GroupByKey.<Integer, WindowedValue<T>>create())
         .apply(Values.<Iterable<WindowedValue<T>>>create())
         .setWindowingStrategyInternal(input.getWindowingStrategy());
   }
