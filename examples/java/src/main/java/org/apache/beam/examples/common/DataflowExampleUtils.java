@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples.common;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -316,16 +316,16 @@ public class DataflowExampleUtils {
 
   /**
    * Do some runner setup: check that the DirectRunner is not used in conjunction with
-   * streaming, and if streaming is specified, use the DataflowPipelineRunner.
+   * streaming, and if streaming is specified, use the DataflowRunner.
    */
   public void setupRunner() {
     Class<? extends PipelineRunner<?>> runner = options.getRunner();
     if (options.isStreaming()
-        && (runner.equals(DataflowPipelineRunner.class)
-            || runner.equals(BlockingDataflowPipelineRunner.class))) {
+        && (runner.equals(DataflowRunner.class)
+            || runner.equals(BlockingDataflowRunner.class))) {
       // In order to cancel the pipelines automatically,
-      // {@literal DataflowPipelineRunner} is forced to be used.
-      options.setRunner(DataflowPipelineRunner.class);
+      // {@literal DataflowRunner} is forced to be used.
+      options.setRunner(DataflowRunner.class);
     }
   }
 
@@ -363,7 +363,7 @@ public class DataflowExampleUtils {
     }
     copiedOptions.setStreaming(false);
     copiedOptions.setWorkerHarnessContainerImage(
-        DataflowPipelineRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
+        DataflowRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
     copiedOptions.setNumWorkers(options.as(DataflowExampleOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
@@ -396,7 +396,7 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * If {@literal DataflowPipelineRunner} or {@literal BlockingDataflowPipelineRunner} is used,
+   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
    * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
    */
   public void waitToFinish(PipelineResult result) {

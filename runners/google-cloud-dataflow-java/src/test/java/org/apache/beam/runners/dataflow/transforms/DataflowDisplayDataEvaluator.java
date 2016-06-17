@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.transforms;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.GcpOptions;
@@ -30,7 +30,7 @@ import com.google.common.collect.Lists;
 
 /**
  * Factory methods for creating {@link DisplayDataEvaluator} instances against the
- * {@link DataflowPipelineRunner}.
+ * {@link DataflowRunner}.
  */
 public final class DataflowDisplayDataEvaluator {
   /** Do not instantiate. */
@@ -43,7 +43,7 @@ public final class DataflowDisplayDataEvaluator {
   public static DataflowPipelineOptions getDefaultOptions() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("foobar");
     options.setTempLocation("gs://bucket/tmpLocation");
     options.setFilesToStage(Lists.<String>newArrayList());
@@ -56,7 +56,7 @@ public final class DataflowDisplayDataEvaluator {
 
   /**
    * Create a {@link DisplayDataEvaluator} instance to evaluate pipeline display data against
-   * the {@link DataflowPipelineRunner}.
+   * the {@link DataflowRunner}.
    */
   public static DisplayDataEvaluator create() {
     return create(getDefaultOptions());
@@ -64,7 +64,7 @@ public final class DataflowDisplayDataEvaluator {
 
   /**
    * Create a {@link DisplayDataEvaluator} instance to evaluate pipeline display data against
-   * the {@link DataflowPipelineRunner} with the specified {@code options}.
+   * the {@link DataflowRunner} with the specified {@code options}.
    */
   public static DisplayDataEvaluator create(DataflowPipelineOptions options) {
     return DisplayDataEvaluator.create(options);

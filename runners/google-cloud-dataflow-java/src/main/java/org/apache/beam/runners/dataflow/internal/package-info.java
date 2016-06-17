@@ -16,6 +16,6 @@
  * limitations under the License.
  */
 /**
- * Implementation of the {@link org.apache.beam.runners.dataflow.DataflowPipelineRunner}.
+ * Implementation of the {@link org.apache.beam.runners.dataflow.DataflowRunner}.
  */
 package org.apache.beam.runners.dataflow.internal;

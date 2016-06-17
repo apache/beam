@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
 import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 import java.util.Set;
 
 /**
- * {@link DataflowPipelineRunner} specific tests for {@link PubsubIO} transforms.
+ * {@link DataflowRunner} specific tests for {@link PubsubIO} transforms.
  */
 @RunWith(JUnit4.class)
 public class DataflowPubsubIOTest {
