@@ -17,10 +17,9 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -63,13 +62,22 @@ public class MinimalWordCount {
     // Create a PipelineOptions object. This object lets us set various execution
     // options for our pipeline, such as the associated Cloud Platform project and the location
     // in Google Cloud Storage to stage files.
-    DataflowPipelineOptions options = PipelineOptionsFactory.create()
-        .as(DataflowPipelineOptions.class);
-    options.setRunner(BlockingDataflowRunner.class);
-    // CHANGE 1/3: Your project ID is required in order to run your pipeline on the Google Cloud.
-    options.setProject("SET_YOUR_PROJECT_ID_HERE");
-    // CHANGE 2/3: Your Google Cloud Storage path is required for staging local files.
-    options.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    // In order to run your pipeline, you need to make following runner specific changes:
+    //
+    // CHANGE 1/3: Select a Beam runner, such as BlockingDataflowRunner
+    // or FlinkPipelineRunner.
+    // CHANGE 2/3: Specify runner-required options.
+    // For BlockingDataflowRunner, set project and temp location as follows:
+    //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    //   dataflowOptions.setRunner(BlockingDataflowRunner.class);
+    //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
+    //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    // For FlinkPipelineRunner, set the runner as follows. See {@code FlinkPipelineOptions}
+    // for more details.
+    //   options.as(FlinkPipelineOptions.class)
+    //      .setRunner(FlinkPipelineRunner.class);
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);
