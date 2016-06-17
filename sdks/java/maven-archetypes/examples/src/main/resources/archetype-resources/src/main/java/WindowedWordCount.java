@@ -82,7 +82,7 @@ import java.util.List;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  * }
  * </pre>
  *

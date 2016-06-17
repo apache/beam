@@ -71,7 +71,7 @@ import javax.annotation.Nullable;
  * <p>To run this example using Dataflow service, you must additionally
  * provide either {@literal --tempLocation} or {@literal --tempLocation}, and
  * select one of the Dataflow pipeline runners, eg
- * {@literal --runner=BlockingDataflowPipelineRunner}.
+ * {@literal --runner=BlockingDataflowRunner}.
  *
  * <p><b>Note:</b> this example creates entities with <i>Ancestor keys</i> to ensure that all
  * entities created are in the same entity group. Similarly, the query used to read from the Cloud
@@ -248,7 +248,7 @@ public class DatastoreWordCount {
   /**
    * An example to demo how to use {@link DatastoreIO}.  The runner here is
    * customizable, which means users could pass either {@code DirectRunner}
-   * or {@code DataflowPipelineRunner} in the pipeline options.
+   * or {@code DataflowRunner} in the pipeline options.
    */
   public static void main(String args[]) {
     // The options are used in two places, for Dataflow service, and

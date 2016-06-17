@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
  * <p>Aggregators are visible in the monitoring UI, when the pipeline is run
- * using DataflowPipelineRunner or BlockingDataflowPipelineRunner, along with
+ * using DataflowRunner or BlockingDataflowRunner, along with
  * their current value. Aggregators may not become visible until the system
  * begins executing the ParDo transform that created them and/or their initial
  * value is changed.

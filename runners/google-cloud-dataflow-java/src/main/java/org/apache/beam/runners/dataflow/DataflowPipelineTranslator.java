@@ -30,7 +30,7 @@ import static org.apache.beam.sdk.util.Structs.getString;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner.GroupByKeyAndSortValuesOnly;
+import org.apache.beam.runners.dataflow.DataflowRunner.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
@@ -139,7 +139,7 @@ public class DataflowPipelineTranslator {
    */
   public JobSpecification translate(
       Pipeline pipeline,
-      DataflowPipelineRunner runner,
+      DataflowRunner runner,
       List<DataflowPackage> packages) {
 
     Translator translator = new Translator(pipeline, runner);
@@ -224,7 +224,7 @@ public class DataflowPipelineTranslator {
 
   /**
    * The interface provided to registered callbacks for interacting
-   * with the {@link DataflowPipelineRunner}, including reading and writing the
+   * with the {@link DataflowRunner}, including reading and writing the
    * values of {@link PCollection}s and side inputs ({@link PCollectionView}s).
    */
   public interface TranslationContext {
@@ -350,7 +350,7 @@ public class DataflowPipelineTranslator {
     private final Pipeline pipeline;
 
     /** The runner which will execute the pipeline. */
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
 
     /** The Cloud Dataflow Job representation. */
     private final Job job = new Job();
@@ -385,7 +385,7 @@ public class DataflowPipelineTranslator {
      * Constructs a Translator that will translate the specified
      * Pipeline into Dataflow objects.
      */
-    public Translator(Pipeline pipeline, DataflowPipelineRunner runner) {
+    public Translator(Pipeline pipeline, DataflowRunner runner) {
       this.pipeline = pipeline;
       this.runner = runner;
     }

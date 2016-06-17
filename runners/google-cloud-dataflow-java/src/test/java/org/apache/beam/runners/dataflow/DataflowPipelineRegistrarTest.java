@@ -46,8 +46,8 @@ public class DataflowPipelineRegistrarTest {
 
   @Test
   public void testCorrectRunnersAreReturned() {
-    assertEquals(ImmutableList.of(DataflowPipelineRunner.class,
-                                  BlockingDataflowPipelineRunner.class),
+    assertEquals(ImmutableList.of(DataflowRunner.class,
+                                  BlockingDataflowRunner.class),
         new DataflowPipelineRegistrar.Runner().getPipelineRunners());
   }
 

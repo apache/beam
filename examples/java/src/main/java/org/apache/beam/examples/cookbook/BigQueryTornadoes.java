@@ -61,7 +61,7 @@ import java.util.List;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  * }
  * </pre>
  * and the BigQuery table for the output:

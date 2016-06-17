@@ -32,7 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
@@ -87,7 +87,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Tests for {@link TestDataflowPipelineRunner}. */
 @RunWith(JUnit4.class)
-public class TestDataflowPipelineRunnerTest {
+public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
@@ -132,7 +132,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -153,7 +153,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -192,7 +192,7 @@ public class TestDataflowPipelineRunnerTest {
           }
         });
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(
@@ -223,7 +223,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(
@@ -245,7 +245,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(
@@ -368,7 +368,7 @@ public class TestDataflowPipelineRunnerTest {
           }
         });
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(
@@ -398,7 +398,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -423,7 +423,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -450,7 +450,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -475,7 +475,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -502,7 +502,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
@@ -534,7 +534,7 @@ public class TestDataflowPipelineRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
-    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();

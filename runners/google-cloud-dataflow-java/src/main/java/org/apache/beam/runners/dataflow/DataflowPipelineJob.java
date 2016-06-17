@@ -55,7 +55,7 @@ import javax.annotation.Nullable;
 
 /**
  * A DataflowPipelineJob represents a job submitted to Dataflow using
- * {@link DataflowPipelineRunner}.
+ * {@link DataflowRunner}.
  */
 public class DataflowPipelineJob implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);

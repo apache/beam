@@ -80,7 +80,7 @@ import java.util.TimeZone;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  *   --dataset=YOUR-DATASET
  *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
  * }
