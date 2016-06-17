@@ -441,6 +441,33 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineRunner.detectClassPathResourcesToStage(classLoader);
   }
 
+
+  /**
+   * DataflowPipelineOptions mandates that either getTempLocation() or getStagingLocation() are set.
+   * This test verifies that if one is set, and the other is accessed, its value defaults to the one
+   * that is set.
+   */
+  @Test
+  public void testStagingLocationOrTempLocation() throws Exception {
+    // Test that the staging location is initialized correctly.
+    String gcsTemp = "gs://somebucket/some/temp/path";
+
+    // Set temp location (required), and check that staging location is set.
+    DataflowPipelineOptions optionsTemp = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    optionsTemp.setTempLocation(gcsTemp);
+
+    assertNotNull(optionsTemp.getTempLocation());
+    assertNotNull(optionsTemp.getStagingLocation());
+    assertEquals(gcsTemp, optionsTemp.getStagingLocation());
+
+    DataflowPipelineOptions optionsStage = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    optionsStage.setStagingLocation(gcsTemp);
+
+    assertNotNull(optionsTemp.getStagingLocation());
+    assertNotNull(optionsStage.getTempLocation());
+    assertEquals(gcsTemp, optionsStage.getTempLocation());
+  }
+  
   @Test
   public void testGcsStagingLocationInitialization() throws Exception {
     // Test that the staging location is initialized correctly.
