@@ -25,24 +25,22 @@ This behavior is triggered by specifying the --setup_file command line option
 when running the workflow for remote execution.
 """
 
+from distutils.command.build import build as _build
 import subprocess
 
 import setuptools
-from setuptools.command.bdist_egg import bdist_egg as _bdist_egg
 
 
-class bdist_egg(_bdist_egg):  # pylint: disable=invalid-name
-  """A bdist_egg command class that will be invoked during package install.
+# This class handles the pip install mechanism.
+class build(_build):  # pylint: disable=invalid-name
+  """A build command class that will be invoked during package install.
 
   The package built using the current setup.py will be staged and later
-  installed in the worker using `easy_install package'. This class will be
+  installed in the worker using `pip install package'. This class will be
   instantiated during install for this specific scenario and will trigger
   running the custom commands specified.
   """
-
-  def run(self):
-    self.run_command('CustomCommands')
-    _bdist_egg.run(self)
+  sub_commands = _build.sub_commands + [('CustomCommands', None)]
 
 
 # Some custom command to run during setup. The command is not essential for this
@@ -111,8 +109,8 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     packages=setuptools.find_packages(),
     cmdclass={
-        # Command class instantiated and run during easy_install scenarios.
-        'bdist_egg': bdist_egg,
+        # Command class instantiated and run during pip install scenarios.
+        'build': build,
         'CustomCommands': CustomCommands,
         }
     )
