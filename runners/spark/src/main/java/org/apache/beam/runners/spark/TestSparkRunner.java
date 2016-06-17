@@ -27,14 +27,14 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
 /**
- * The SparkPipelineRunner translate operations defined on a pipeline to a representation executable
+ * The SparkRunner translate operations defined on a pipeline to a representation executable
  * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a dataflow
  * pipeline with the default options of a single threaded spark instance in local mode, we would do
  * the following:
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = SparkPipelineRunner.create().run(p);
+ * EvaluationResult result = SparkRunner.create().run(p);
  * }
  *
  * To create a pipeline runner to run against a different spark cluster, with a custom master url we
@@ -44,24 +44,24 @@ import org.apache.beam.sdk.values.POutput;
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = SparkPipelineRunner.create(options).run(p);
+ * EvaluationResult result = SparkRunner.create(options).run(p);
  * }
  *
  * To create a Spark streaming pipeline runner use {@link SparkStreamingPipelineOptions}
  */
-public final class TestSparkPipelineRunner extends PipelineRunner<EvaluationResult> {
+public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
 
-  private SparkPipelineRunner delegate;
+  private SparkRunner delegate;
 
-  private TestSparkPipelineRunner(SparkPipelineOptions options) {
-    this.delegate = SparkPipelineRunner.fromOptions(options);
+  private TestSparkRunner(SparkPipelineOptions options) {
+    this.delegate = SparkRunner.fromOptions(options);
   }
 
-  public static TestSparkPipelineRunner fromOptions(PipelineOptions options) {
+  public static TestSparkRunner fromOptions(PipelineOptions options) {
     // Default options suffice to set it up as a test runner
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
-    return new TestSparkPipelineRunner(sparkOptions);
+    return new TestSparkRunner(sparkOptions);
   }
 
   @Override

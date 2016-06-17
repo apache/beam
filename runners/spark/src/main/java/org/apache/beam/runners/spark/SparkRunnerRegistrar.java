@@ -28,7 +28,7 @@ import com.google.common.collect.ImmutableList;
 
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link SparkPipelineRunner}.
+ * {@link SparkRunner}.
  *
  * {@link AutoService} will register Spark's implementations of the {@link PipelineRunner}
  * and {@link PipelineOptions} as available pipeline runner services.
@@ -37,14 +37,14 @@ public final class SparkRunnerRegistrar {
   private SparkRunnerRegistrar() {}
 
   /**
-   * Registers the {@link SparkPipelineRunner}.
+   * Registers the {@link SparkRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
-          SparkPipelineRunner.class, TestSparkPipelineRunner.class);
+      return ImmutableList
+          .<Class<? extends PipelineRunner<?>>>of(SparkRunner.class, TestSparkRunner.class);
     }
   }
 
