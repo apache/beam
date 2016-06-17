@@ -49,13 +49,13 @@ import org.junit.runners.JUnit4;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tests for BlockingDataflowPipelineRunner.
+ * Tests for BlockingDataflowRunner.
  */
 @RunWith(JUnit4.class)
-public class BlockingDataflowPipelineRunnerTest {
+public class BlockingDataflowRunnerTest {
 
   @Rule
-  public ExpectedLogs expectedLogs = ExpectedLogs.none(BlockingDataflowPipelineRunner.class);
+  public ExpectedLogs expectedLogs = ExpectedLogs.none(BlockingDataflowRunner.class);
 
   @Rule
   public ExpectedException expectedThrown = ExpectedException.none();
@@ -188,24 +188,24 @@ public class BlockingDataflowPipelineRunnerTest {
   }
 
   /**
-   * Returns a {@link BlockingDataflowPipelineRunner} that will return the provided a job to return.
+   * Returns a {@link BlockingDataflowRunner} that will return the provided a job to return.
    * Some {@link PipelineOptions} will be extracted from the job, such as the project ID.
    */
-  private BlockingDataflowPipelineRunner createMockRunner(DataflowPipelineJob job)
+  private BlockingDataflowRunner createMockRunner(DataflowPipelineJob job)
       throws Exception {
-    DataflowPipelineRunner mockRunner = mock(DataflowPipelineRunner.class);
+    DataflowRunner mockRunner = mock(DataflowRunner.class);
     TestDataflowPipelineOptions options =
         PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
-    options.setRunner(BlockingDataflowPipelineRunner.class);
+    options.setRunner(BlockingDataflowRunner.class);
     options.setProject(job.getProjectId());
 
     when(mockRunner.run(isA(Pipeline.class))).thenReturn(job);
 
-    return new BlockingDataflowPipelineRunner(mockRunner, options);
+    return new BlockingDataflowRunner(mockRunner, options);
   }
 
   /**
-   * Tests that the {@link BlockingDataflowPipelineRunner} returns normally when a job terminates in
+   * Tests that the {@link BlockingDataflowRunner} returns normally when a job terminates in
    * the {@link State#DONE DONE} state.
    */
   @Test
@@ -216,7 +216,7 @@ public class BlockingDataflowPipelineRunnerTest {
   }
 
   /**
-   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * Tests that the {@link BlockingDataflowRunner} throws the appropriate exception
    * when a job terminates in the {@link State#FAILED FAILED} state.
    */
   @Test
@@ -229,7 +229,7 @@ public class BlockingDataflowPipelineRunnerTest {
   }
 
   /**
-   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * Tests that the {@link BlockingDataflowRunner} throws the appropriate exception
    * when a job terminates in the {@link State#CANCELLED CANCELLED} state.
    */
   @Test
@@ -243,7 +243,7 @@ public class BlockingDataflowPipelineRunnerTest {
   }
 
   /**
-   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * Tests that the {@link BlockingDataflowRunner} throws the appropriate exception
    * when a job terminates in the {@link State#UPDATED UPDATED} state.
    */
   @Test
@@ -262,7 +262,7 @@ public class BlockingDataflowPipelineRunnerTest {
   }
 
   /**
-   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * Tests that the {@link BlockingDataflowRunner} throws the appropriate exception
    * when a job terminates in the {@link State#UNKNOWN UNKNOWN} state, indicating that the
    * Dataflow service returned a state that the SDK is unfamiliar with (possibly because it
    * is an old SDK relative the service).
@@ -276,7 +276,7 @@ public class BlockingDataflowPipelineRunnerTest {
   }
 
   /**
-   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * Tests that the {@link BlockingDataflowRunner} throws the appropriate exception
    * when a job returns a {@code null} state, indicating that it failed to contact the service,
    * including all of its built-in resilience logic.
    */
@@ -297,8 +297,8 @@ public class BlockingDataflowPipelineRunnerTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setRunner(BlockingDataflowPipelineRunner.class);
-    assertEquals("BlockingDataflowPipelineRunner#testjobname",
-        BlockingDataflowPipelineRunner.fromOptions(options).toString());
+    options.setRunner(BlockingDataflowRunner.class);
+    assertEquals("BlockingDataflowRunner#testjobname",
+        BlockingDataflowRunner.fromOptions(options).toString());
   }
 }

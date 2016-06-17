@@ -43,7 +43,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  * and an output prefix on GCS:
  *   --output=gs://YOUR_OUTPUT_PREFIX
  *

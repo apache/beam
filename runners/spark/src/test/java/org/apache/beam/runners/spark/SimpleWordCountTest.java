@@ -113,7 +113,7 @@ public class SimpleWordCountTest {
       String[] words = WORD_BOUNDARY.split(c.element());
 
       // Keep track of the number of lines without any words encountered while tokenizing.
-      // This aggregator is visible in the monitoring UI when run using DataflowPipelineRunner.
+      // This aggregator is visible in the monitoring UI when run using DataflowRunner.
       if (words.length == 0) {
         emptyLines.addValue(1L);
       }
