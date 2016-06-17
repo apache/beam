@@ -85,7 +85,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-/** Tests for {@link TestDataflowPipelineRunner}. */
+/** Tests for {@link TestDataflowRunner}. */
 @RunWith(JUnit4.class)
 public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -110,14 +110,14 @@ public class TestDataflowRunnerTest {
     options.setTempRoot("gs://test");
     options.setGcpCredential(new TestCredential());
     options.setDataflowClient(service);
-    options.setRunner(TestDataflowPipelineRunner.class);
+    options.setRunner(TestDataflowRunner.class);
     options.setPathValidatorClass(NoopPathValidator.class);
   }
 
   @Test
   public void testToString() {
-    assertEquals("TestDataflowPipelineRunner#TestAppName",
-        new TestDataflowPipelineRunner(options).toString());
+    assertEquals("TestDataflowRunner#TestAppName",
+        new TestDataflowRunner(options).toString());
   }
 
   @Test
@@ -135,7 +135,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, true /* tentative */));
     assertEquals(mockJob, runner.run(p, mockRunner));
@@ -156,7 +156,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -197,7 +197,7 @@ public class TestDataflowRunnerTest {
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -228,7 +228,7 @@ public class TestDataflowRunnerTest {
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, true /* tentative */));
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     runner.run(p, mockRunner);
   }
 
@@ -250,7 +250,7 @@ public class TestDataflowRunnerTest {
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -269,7 +269,7 @@ public class TestDataflowRunnerTest {
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, true /* tentative */));
     doReturn(State.DONE).when(job).getState();
@@ -284,7 +284,7 @@ public class TestDataflowRunnerTest {
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
     doReturn(State.DONE).when(job).getState();
@@ -299,7 +299,7 @@ public class TestDataflowRunnerTest {
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, false /* tentative */));
     doReturn(State.RUNNING).when(job).getState();
@@ -335,7 +335,7 @@ public class TestDataflowRunnerTest {
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(
         generateMockMetricResponse(true /* success */, false /* tentative */));
     doReturn(State.FAILED).when(job).getState();
@@ -373,7 +373,7 @@ public class TestDataflowRunnerTest {
 
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -401,7 +401,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
         .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
@@ -426,7 +426,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
         .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
@@ -453,7 +453,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
@@ -478,7 +478,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
@@ -505,7 +505,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestFailureMatcher());
 
@@ -537,7 +537,7 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestFailureMatcher());
 
