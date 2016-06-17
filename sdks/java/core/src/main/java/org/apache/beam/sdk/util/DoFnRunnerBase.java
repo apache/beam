@@ -91,7 +91,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
 
   /**
    * An implementation of {@code OutputManager} using simple lists, for testing and in-memory
-   * contexts such as the {@link DirectPipelineRunner}.
+   * contexts such as the {@link DirectRunner}.
    */
   public static class ListOutputManager implements OutputManager {
 

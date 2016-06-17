@@ -53,7 +53,7 @@ public class TransformTranslatorTest {
 
   /**
    * Builds a simple pipeline with TextIO.Read and TextIO.Write, runs the pipeline
-   * in DirectPipelineRunner and on SparkPipelineRunner, with the mapped dataflow-to-spark
+   * in DirectRunner and on SparkPipelineRunner, with the mapped dataflow-to-spark
    * transforms. Finally it makes sure that the results are the same for both runs.
    */
   @Test
