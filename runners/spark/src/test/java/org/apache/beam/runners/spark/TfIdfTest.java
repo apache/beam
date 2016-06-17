@@ -42,7 +42,7 @@ public class TfIdfTest {
   @Test
   public void testTfIdf() throws Exception {
     SparkPipelineOptions opts = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    opts.setRunner(SparkPipelineRunner.class);
+    opts.setRunner(SparkRunner.class);
     Pipeline pipeline = Pipeline.create(opts);
 
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
@@ -60,7 +60,7 @@ public class TfIdfTest {
 
     PAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
 
-    EvaluationResult res = SparkPipelineRunner.create().run(pipeline);
+    EvaluationResult res = SparkRunner.create().run(pipeline);
     res.close();
   }
 

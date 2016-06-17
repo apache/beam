@@ -21,7 +21,7 @@ package org.apache.beam.runners.spark.io;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -78,7 +78,7 @@ public class AvroPipelineTest {
     PCollection<GenericRecord> input = p.apply(
         AvroIO.Read.from(inputFile.getAbsolutePath()).withSchema(schema));
     input.apply(AvroIO.Write.to(outputDir.getAbsolutePath()).withSchema(schema));
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     res.close();
 
     List<GenericRecord> records = readGenericFile();

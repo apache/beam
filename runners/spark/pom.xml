@@ -77,7 +77,7 @@
                     <systemPropertyVariables>
                       <beamTestPipelineOptions>
                         [
-                          "--runner=org.apache.beam.runners.spark.TestSparkPipelineRunner",
+                          "--runner=TestSparkRunner",
                           "--streaming=false"
                         ]
                       </beamTestPipelineOptions>

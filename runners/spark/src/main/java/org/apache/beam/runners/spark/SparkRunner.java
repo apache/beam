@@ -50,14 +50,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkPipelineRunner translate operations defined on a pipeline to a representation
+ * The SparkRunner translate operations defined on a pipeline to a representation
  * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
  * a dataflow pipeline with the default options of a single threaded spark instance in local mode,
  * we would do the following:
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = SparkPipelineRunner.create().run(p);
+ * EvaluationResult result = SparkRunner.create().run(p);
  * }
  *
  * To create a pipeline runner to run against a different spark cluster, with a custom master url
@@ -67,51 +67,51 @@ import org.slf4j.LoggerFactory;
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = SparkPipelineRunner.create(options).run(p);
+ * EvaluationResult result = SparkRunner.create(options).run(p);
  * }
  *
  * To create a Spark streaming pipeline runner use {@link SparkStreamingPipelineOptions}
  */
-public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
+public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
   /**
    * Options used in this pipeline runner.
    */
   private final SparkPipelineOptions mOptions;
 
   /**
-   * Creates and returns a new SparkPipelineRunner with default options. In particular, against a
+   * Creates and returns a new SparkRunner with default options. In particular, against a
    * spark instance running in local mode.
    *
    * @return A pipeline runner with default options.
    */
-  public static SparkPipelineRunner create() {
+  public static SparkRunner create() {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
-    return new SparkPipelineRunner(options);
+    options.setRunner(SparkRunner.class);
+    return new SparkRunner(options);
   }
 
   /**
-   * Creates and returns a new SparkPipelineRunner with specified options.
+   * Creates and returns a new SparkRunner with specified options.
    *
    * @param options The SparkPipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
-  public static SparkPipelineRunner create(SparkPipelineOptions options) {
-    return new SparkPipelineRunner(options);
+  public static SparkRunner create(SparkPipelineOptions options) {
+    return new SparkRunner(options);
   }
 
   /**
-   * Creates and returns a new SparkPipelineRunner with specified options.
+   * Creates and returns a new SparkRunner with specified options.
    *
    * @param options The PipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
-  public static SparkPipelineRunner fromOptions(PipelineOptions options) {
+  public static SparkRunner fromOptions(PipelineOptions options) {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
-    return new SparkPipelineRunner(sparkOptions);
+    return new SparkRunner(sparkOptions);
   }
 
   /**
@@ -138,7 +138,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
    * thread.
    */
-  private SparkPipelineRunner(SparkPipelineOptions options) {
+  private SparkRunner(SparkPipelineOptions options) {
     mOptions = options;
   }
 
@@ -152,7 +152,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
             + SparkStreamingPipelineOptions.class.getSimpleName() + ", found "
             + mOptions.getClass().getSimpleName());
       }
-      LOG.info("Executing pipeline using the SparkPipelineRunner.");
+      LOG.info("Executing pipeline using the SparkRunner.");
       JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
               .getSparkMaster(), mOptions.getAppName());
 

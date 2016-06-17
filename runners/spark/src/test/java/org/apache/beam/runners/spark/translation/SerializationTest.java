@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -132,7 +132,7 @@ public class SerializationTest {
   @Test
   public void testRun() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
+    options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<StringHolder> inputWords =
         p.apply(Create.of(WORDS).withCoder(StringHolderUtf8Coder.of()));
@@ -140,7 +140,7 @@ public class SerializationTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     res.close();
   }
 

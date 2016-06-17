@@ -64,7 +64,7 @@ public class SimpleWordCountTest {
   @Test
   public void testInMem() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
+    options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
         .of()));
@@ -72,7 +72,7 @@ public class SimpleWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     res.close();
   }
 
@@ -82,7 +82,7 @@ public class SimpleWordCountTest {
   @Test
   public void testOutputFile() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
+    options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
         .of()));
@@ -92,7 +92,7 @@ public class SimpleWordCountTest {
     output.apply(
         TextIO.Write.named("WriteCounts").to(outputFile.getAbsolutePath()).withoutSharding());
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     res.close();
 
     assertThat(Sets.newHashSet(FileUtils.readLines(outputFile)),

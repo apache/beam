@@ -19,7 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -81,7 +81,7 @@ public class MultiOutputWordCountTest {
     PCollection<Long> unique = luc.get(lowerCnts).apply(
         ApproximateUnique.<KV<String, Long>>globally(16));
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     PAssert.that(luc.get(lowerCnts).apply(ParDo.of(new FormatCountsFn())))
         .containsInAnyOrder(EXPECTED_LOWER_COUNTS);
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));

@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -40,7 +40,7 @@ public class DoFnOutputTest implements Serializable {
   @Test
   public void test() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
+    options.setRunner(SparkRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> strings = pipeline.apply(Create.of("a"));
@@ -63,7 +63,7 @@ public class DoFnOutputTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("start", "a", "finish");
 
-    EvaluationResult res = SparkPipelineRunner.create().run(pipeline);
+    EvaluationResult res = SparkRunner.create().run(pipeline);
     res.close();
   }
 }
