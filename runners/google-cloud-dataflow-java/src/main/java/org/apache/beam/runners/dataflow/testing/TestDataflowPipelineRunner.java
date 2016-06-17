@@ -21,7 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.runners.dataflow.DataflowJobExecutionException;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * {@link TestDataflowPipelineRunner} is a pipeline runner that wraps a
- * {@link DataflowPipelineRunner} when running tests against the {@link TestPipeline}.
+ * {@link DataflowRunner} when running tests against the {@link TestPipeline}.
  *
  * @see TestPipeline
  */
@@ -63,12 +63,12 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
 
   private final TestDataflowPipelineOptions options;
-  private final DataflowPipelineRunner runner;
+  private final DataflowRunner runner;
   private int expectedNumberOfAssertions = 0;
 
   TestDataflowPipelineRunner(TestDataflowPipelineOptions options) {
     this.options = options;
-    this.runner = DataflowPipelineRunner.fromOptions(options);
+    this.runner = DataflowRunner.fromOptions(options);
   }
 
   /**
@@ -89,7 +89,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     return run(pipeline, runner);
   }
 
-  DataflowPipelineJob run(Pipeline pipeline, DataflowPipelineRunner runner) {
+  DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
 
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     final DataflowPipelineJob job;
