@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -128,6 +130,7 @@ public class SerializableCoderTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testDefaultCoder() throws Exception {
     Pipeline p = TestPipeline.create();
 
@@ -141,6 +144,8 @@ public class SerializableCoderTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder("Hello", "World");
+
+    p.run();
   }
 
   @Test

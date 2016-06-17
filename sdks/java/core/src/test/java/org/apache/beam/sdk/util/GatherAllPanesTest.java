@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -39,6 +40,7 @@ import com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -50,6 +52,7 @@ import java.io.Serializable;
 @RunWith(JUnit4.class)
 public class GatherAllPanesTest implements Serializable {
   @Test
+  @Category(NeedsRunner.class)
   public void singlePaneSingleReifiedPane() {
     TestPipeline p = TestPipeline.create();
     PCollection<Iterable<WindowedValue<Iterable<Long>>>> accumulatedPanes =
@@ -86,9 +89,12 @@ public class GatherAllPanesTest implements Serializable {
                 return null;
               }
             });
+
+    p.run();
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void multiplePanesMultipleReifiedPane() {
     TestPipeline p = TestPipeline.create();
 
@@ -128,5 +134,7 @@ public class GatherAllPanesTest implements Serializable {
                 return null;
               }
             });
+
+    p.run();
   }
 }

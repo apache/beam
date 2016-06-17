@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -151,6 +152,7 @@ public class CreateTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testCreateParameterizedType() throws Exception {
     Pipeline p = TestPipeline.create();
 
@@ -163,6 +165,8 @@ public class CreateTest {
         .containsInAnyOrder(
             TimestampedValue.of("a", new Instant(0)),
             TimestampedValue.of("b", new Instant(0)));
+
+    p.run();
   }
   /**
    * An unserializable class to demonstrate encoding of elements.
