@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * <p>The example takes two strings, converts them to their upper-case
  * representation and logs them.
  *
- * <p>To run this starter example locally using DirectPipelineRunner, just
+ * <p>To run this starter example locally using DirectRunner, just
  * execute it without any additional parameters from your favorite development
  * environment.
  *
