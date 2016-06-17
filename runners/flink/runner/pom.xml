@@ -184,7 +184,7 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=org.apache.beam.runners.flink.TestFlinkPipelineRunner",
+                    "--runner=TestFlinkRunner",
                     "--streaming=false"
                   ]
                 </beamTestPipelineOptions>
@@ -208,7 +208,7 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=org.apache.beam.runners.flink.TestFlinkPipelineRunner",
+                    "--runner=TestFlinkRunner",
                     "--streaming=true"
                   ]
                 </beamTestPipelineOptions>

@@ -24,7 +24,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
  * {@link org.apache.beam.sdk.Pipeline} for testing Dataflow programs on the
- * {@link org.apache.beam.runners.flink.FlinkPipelineRunner}.
+ * {@link FlinkRunner}.
  */
 public class FlinkTestPipeline extends Pipeline {
 
@@ -60,7 +60,7 @@ public class FlinkTestPipeline extends Pipeline {
    * @return The Test Pipeline.
    */
   private static FlinkTestPipeline create(boolean streaming) {
-    TestFlinkPipelineRunner flinkRunner = TestFlinkPipelineRunner.create(streaming);
+    TestFlinkRunner flinkRunner = TestFlinkRunner.create(streaming);
     return new FlinkTestPipeline(flinkRunner, flinkRunner.getPipelineOptions());
   }
 
