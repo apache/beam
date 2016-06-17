@@ -193,7 +193,7 @@ public class DatastoreWordCount {
 
   /**
    * An example that creates a pipeline to populate DatastoreIO from a
-   * text input.  Forces use of DirectPipelineRunner for local execution mode.
+   * text input.  Forces use of DirectRunner for local execution mode.
    */
   public static void writeDataToDatastore(Options options) {
       Pipeline p = Pipeline.create(options);
@@ -247,7 +247,7 @@ public class DatastoreWordCount {
 
   /**
    * An example to demo how to use {@link DatastoreIO}.  The runner here is
-   * customizable, which means users could pass either {@code DirectPipelineRunner}
+   * customizable, which means users could pass either {@code DirectRunner}
    * or {@code DataflowPipelineRunner} in the pipeline options.
    */
   public static void main(String args[]) {
