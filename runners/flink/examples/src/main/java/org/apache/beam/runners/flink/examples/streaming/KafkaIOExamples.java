@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.examples.streaming;
 
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.FlinkPipelineRunner;
+import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSink;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSource;
 import org.apache.beam.sdk.Pipeline;
@@ -289,7 +289,7 @@ public class KafkaIOExamples {
         PipelineOptionsFactory.fromArgs(args).as(KafkaOptions.class);
 
     options.setStreaming(true);
-    options.setRunner(FlinkPipelineRunner.class);
+    options.setRunner(FlinkRunner.class);
 
     options.setCheckpointingInterval(1000L);
     options.setNumberOfExecutionRetries(5);
