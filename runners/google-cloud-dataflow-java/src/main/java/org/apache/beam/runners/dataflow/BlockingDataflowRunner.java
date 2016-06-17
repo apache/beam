@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * A {@link PipelineRunner} that's like {@link DataflowPipelineRunner}
+ * A {@link PipelineRunner} that's like {@link DataflowRunner}
  * but that waits for the launched job to finish.
  *
  * <p>Prints out job status updates and console messages while it waits.
@@ -48,42 +48,42 @@ import javax.annotation.Nullable;
  *
  * <p><h3>Permissions</h3>
  * When reading from a Dataflow source or writing to a Dataflow sink using
- * {@code BlockingDataflowPipelineRunner}, the Google cloud services account and the Google compute
+ * {@code BlockingDataflowRunner}, the Google cloud services account and the Google compute
  * engine service account of the GCP project running the Dataflow Job will need access to the
  * corresponding source/sink.
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
-public class BlockingDataflowPipelineRunner extends
+public class BlockingDataflowRunner extends
     PipelineRunner<DataflowPipelineJob> {
-  private static final Logger LOG = LoggerFactory.getLogger(BlockingDataflowPipelineRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BlockingDataflowRunner.class);
 
   // Defaults to an infinite wait period.
   // TODO: make this configurable after removal of option map.
   private static final long BUILTIN_JOB_TIMEOUT_SEC = -1L;
 
-  private final DataflowPipelineRunner dataflowPipelineRunner;
+  private final DataflowRunner dataflowRunner;
   private final BlockingDataflowPipelineOptions options;
 
-  protected BlockingDataflowPipelineRunner(
-      DataflowPipelineRunner internalRunner,
+  protected BlockingDataflowRunner(
+      DataflowRunner internalRunner,
       BlockingDataflowPipelineOptions options) {
-    this.dataflowPipelineRunner = internalRunner;
+    this.dataflowRunner = internalRunner;
     this.options = options;
   }
 
   /**
    * Constructs a runner from the provided options.
    */
-  public static BlockingDataflowPipelineRunner fromOptions(
+  public static BlockingDataflowRunner fromOptions(
       PipelineOptions options) {
     BlockingDataflowPipelineOptions dataflowOptions =
         PipelineOptionsValidator.validate(BlockingDataflowPipelineOptions.class, options);
-    DataflowPipelineRunner dataflowPipelineRunner =
-        DataflowPipelineRunner.fromOptions(dataflowOptions);
+    DataflowRunner dataflowRunner =
+        DataflowRunner.fromOptions(dataflowOptions);
 
-    return new BlockingDataflowPipelineRunner(dataflowPipelineRunner, dataflowOptions);
+    return new BlockingDataflowRunner(dataflowRunner, dataflowOptions);
   }
 
   /**
@@ -94,7 +94,7 @@ public class BlockingDataflowPipelineRunner extends
    */
   @Override
   public DataflowPipelineJob run(Pipeline p) {
-    final DataflowPipelineJob job = dataflowPipelineRunner.run(p);
+    final DataflowPipelineJob job = dataflowRunner.run(p);
 
     // We ignore the potential race condition here (Ctrl-C after job submission but before the
     // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
@@ -168,19 +168,19 @@ public class BlockingDataflowPipelineRunner extends
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-    return dataflowPipelineRunner.apply(transform, input);
+    return dataflowRunner.apply(transform, input);
   }
 
   /**
-   * Sets callbacks to invoke during execution. See {@link DataflowPipelineRunnerHooks}.
+   * Sets callbacks to invoke during execution. See {@link DataflowRunnerHooks}.
    */
   @Experimental
-  public void setHooks(DataflowPipelineRunnerHooks hooks) {
-    this.dataflowPipelineRunner.setHooks(hooks);
+  public void setHooks(DataflowRunnerHooks hooks) {
+    this.dataflowRunner.setHooks(hooks);
   }
 
   @Override
   public String toString() {
-    return "BlockingDataflowPipelineRunner#" + options.getJobName();
+    return "BlockingDataflowRunner#" + options.getJobName();
   }
 }

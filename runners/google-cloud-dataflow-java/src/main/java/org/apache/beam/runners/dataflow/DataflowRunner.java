@@ -189,15 +189,15 @@ import javax.annotation.Nullable;
  *
  * <p><h3>Permissions</h3>
  * When reading from a Dataflow source or writing to a Dataflow sink using
- * {@code DataflowPipelineRunner}, the Google cloudservices account and the Google compute engine
+ * {@code DataflowRunner}, the Google cloudservices account and the Google compute engine
  * service account of the GCP project running the Dataflow Job will need access to the corresponding
  * source/sink.
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
-public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
-  private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineRunner.class);
+public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
+  private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
 
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
@@ -205,14 +205,14 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   /** Client for the Dataflow service. This is used to actually submit jobs. */
   private final Dataflow dataflowClient;
 
-  /** Translator for this DataflowPipelineRunner, based on options. */
+  /** Translator for this DataflowRunner, based on options. */
   private final DataflowPipelineTranslator translator;
 
   /** Custom transforms implementations. */
   private final Map<Class<?>, Class<?>> overrides;
 
   /** A set of user defined functions to invoke at different points in execution. */
-  private DataflowPipelineRunnerHooks hooks;
+  private DataflowRunnerHooks hooks;
 
   // Environment version information.
   private static final String ENVIRONMENT_MAJOR_VERSION = "5";
@@ -243,7 +243,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * @param options Properties that configure the runner.
    * @return The newly created runner.
    */
-  public static DataflowPipelineRunner fromOptions(PipelineOptions options) {
+  public static DataflowRunner fromOptions(PipelineOptions options) {
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerStandardIOFactories(options);
 
@@ -284,7 +284,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
-          DataflowPipelineRunner.class.getClassLoader()));
+          DataflowRunner.class.getClassLoader()));
       LOG.info("PipelineOptions.filesToStage was not specified. "
           + "Defaulting to files from the classpath: will stage {} files. "
           + "Enable logging at DEBUG level to see which files will be staged.",
@@ -331,10 +331,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           + "' invalid. Please make sure the value is non-negative.");
     }
 
-    return new DataflowPipelineRunner(dataflowOptions);
+    return new DataflowRunner(dataflowOptions);
   }
 
-  @VisibleForTesting protected DataflowPipelineRunner(DataflowPipelineOptions options) {
+  @VisibleForTesting protected DataflowRunner(DataflowPipelineOptions options) {
     this.options = options;
     this.dataflowClient = options.getDataflowClient();
     this.translator = DataflowPipelineTranslator.fromOptions(options);
@@ -442,7 +442,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
       PTransform<InputT, OutputT> customTransform =
           InstanceBuilder.ofType(customTransformClass)
-          .withArg(DataflowPipelineRunner.class, this)
+          .withArg(DataflowRunner.class, this)
           .withArg(transformClass, transform)
           .build();
 
@@ -674,10 +674,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   }
 
   /**
-   * Sets callbacks to invoke during execution see {@code DataflowPipelineRunnerHooks}.
+   * Sets callbacks to invoke during execution see {@code DataflowRunnerHooks}.
    */
   @Experimental
-  public void setHooks(DataflowPipelineRunnerHooks hooks) {
+  public void setHooks(DataflowRunnerHooks hooks) {
     this.hooks = hooks;
   }
 
@@ -750,7 +750,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   }
 
   /**
-   * A {@link GroupByKey} transform for the {@link DataflowPipelineRunner} which sorts
+   * A {@link GroupByKey} transform for the {@link DataflowRunner} which sorts
    * values using the secondary key {@code K2}.
    *
    * <p>The {@link PCollection} created created by this {@link PTransform} will have values in
@@ -898,13 +898,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       }
     }
 
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
     private final View.AsSingleton<T> transform;
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchViewAsSingleton(DataflowPipelineRunner runner, View.AsSingleton<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchViewAsSingleton(DataflowRunner runner, View.AsSingleton<T> transform) {
       this.runner = runner;
       this.transform = transform;
     }
@@ -926,7 +926,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     static <T, FinalT, ViewT, W extends BoundedWindow> PCollectionView<ViewT>
         applyForSingleton(
-            DataflowPipelineRunner runner,
+            DataflowRunner runner,
             PCollection<T> input,
             DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
                  IsmRecord<WindowedValue<FinalT>>> doFn,
@@ -991,12 +991,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   static class BatchViewAsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
 
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchViewAsIterable(DataflowPipelineRunner runner, View.AsIterable<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchViewAsIterable(DataflowRunner runner, View.AsIterable<T> transform) {
       this.runner = runner;
     }
 
@@ -1095,12 +1095,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       }
     }
 
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchViewAsList(DataflowPipelineRunner runner, View.AsList<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchViewAsList(DataflowRunner runner, View.AsList<T> transform) {
       this.runner = runner;
     }
 
@@ -1112,7 +1112,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     static <T, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForIterableLike(
-        DataflowPipelineRunner runner,
+        DataflowRunner runner,
         PCollection<T> input,
         PCollectionView<ViewT> view) {
 
@@ -1263,12 +1263,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       }
     }
 
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchViewAsMap(DataflowPipelineRunner runner, View.AsMap<K, V> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchViewAsMap(DataflowRunner runner, View.AsMap<K, V> transform) {
       this.runner = runner;
     }
 
@@ -1753,12 +1753,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       }
     }
 
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchViewAsMultimap(DataflowPipelineRunner runner, View.AsMultimap<K, V> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchViewAsMultimap(DataflowRunner runner, View.AsMultimap<K, V> transform) {
       this.runner = runner;
     }
 
@@ -1825,7 +1825,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     private static <K, V, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForMapLike(
-        DataflowPipelineRunner runner,
+        DataflowRunner runner,
         PCollection<KV<K, V>> input,
         PCollectionView<ViewT> view,
         boolean uniqueKeysExpected) throws NonDeterministicException {
@@ -2099,13 +2099,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
    */
   private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
     private final Write.Bound<T> transform;
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchWrite(DataflowPipelineRunner runner, Write.Bound<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchWrite(DataflowRunner runner, Write.Bound<T> transform) {
       this.runner = runner;
       this.transform = transform;
     }
@@ -2132,8 +2132,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchTextIOWrite(DataflowPipelineRunner runner, TextIO.Write.Bound<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchTextIOWrite(DataflowRunner runner, TextIO.Write.Bound<T> transform) {
       this.transform = transform;
     }
 
@@ -2237,8 +2237,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public BatchAvroIOWrite(DataflowPipelineRunner runner, AvroIO.Write.Bound<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public BatchAvroIOWrite(DataflowRunner runner, AvroIO.Write.Bound<T> transform) {
       this.transform = transform;
     }
 
@@ -2337,8 +2337,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingWrite(DataflowPipelineRunner runner, Write.Bound<T> transform) { }
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingWrite(DataflowRunner runner, Write.Bound<T> transform) { }
 
     @Override
     public PDone apply(PCollection<T> input) {
@@ -2367,7 +2367,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      * Builds an instance of this class from the overridden transform.
      */
     public StreamingPubsubIORead(
-        DataflowPipelineRunner runner, PubsubUnboundedSource<T> transform) {
+        DataflowRunner runner, PubsubUnboundedSource<T> transform) {
       this.transform = transform;
     }
 
@@ -2445,7 +2445,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      * Builds an instance of this class from the overridden transform.
      */
     public StreamingPubsubIOWrite(
-        DataflowPipelineRunner runner, PubsubUnboundedSink<T> transform) {
+        DataflowRunner runner, PubsubUnboundedSink<T> transform) {
       this.transform = transform;
     }
 
@@ -2521,8 +2521,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingUnboundedRead(DataflowPipelineRunner runner, Read.Unbounded<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingUnboundedRead(DataflowRunner runner, Read.Unbounded<T> transform) {
       this.source = transform.getSource();
     }
 
@@ -2634,8 +2634,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingCreate(DataflowPipelineRunner runner, Create.Values<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingCreate(DataflowRunner runner, Create.Values<T> transform) {
       this.transform = transform;
     }
 
@@ -2748,10 +2748,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingViewAsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
 
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingViewAsMap(DataflowPipelineRunner runner, View.AsMap<K, V> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingViewAsMap(DataflowRunner runner, View.AsMap<K, V> transform) {
       this.runner = runner;
     }
 
@@ -2790,13 +2790,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingViewAsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
-    private final DataflowPipelineRunner runner;
+    private final DataflowRunner runner;
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingViewAsMultimap(DataflowPipelineRunner runner, View.AsMultimap<K, V> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingViewAsMultimap(DataflowRunner runner, View.AsMultimap<K, V> transform) {
       this.runner = runner;
     }
 
@@ -2838,8 +2838,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingViewAsList(DataflowPipelineRunner runner, View.AsList<T> transform) {}
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingViewAsList(DataflowRunner runner, View.AsList<T> transform) {}
 
     @Override
     public PCollectionView<List<T>> apply(PCollection<T> input) {
@@ -2870,8 +2870,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingViewAsIterable(DataflowPipelineRunner runner, View.AsIterable<T> transform) { }
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingViewAsIterable(DataflowRunner runner, View.AsIterable<T> transform) { }
 
     @Override
     public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
@@ -2911,8 +2911,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public StreamingViewAsSingleton(DataflowPipelineRunner runner, View.AsSingleton<T> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingViewAsSingleton(DataflowRunner runner, View.AsSingleton<T> transform) {
       this.transform = transform;
     }
 
@@ -2967,9 +2967,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public StreamingCombineGloballyAsSingletonView(
-        DataflowPipelineRunner runner,
+        DataflowRunner runner,
         Combine.GloballyAsSingletonView<InputT, OutputT> transform) {
       this.transform = transform;
     }
@@ -3060,64 +3060,64 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, AvroIO.Read.Bound<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, AvroIO.Read.Bound<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, BigQueryIO.Read.Bound transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, BigQueryIO.Read.Bound transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, TextIO.Read.Bound<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, TextIO.Read.Bound<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, Read.Bounded<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, Read.Bounded<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, Read.Unbounded<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, Read.Unbounded<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, AvroIO.Write.Bound<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, AvroIO.Write.Bound<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, TextIO.Write.Bound<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, TextIO.Write.Bound<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden doFn.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner,
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner,
                          PubsubIO.Read.Bound<?>.PubsubBoundedReader doFn) {
       this.doFn = doFn;
     }
@@ -3125,8 +3125,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden doFn.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner,
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner,
                          PubsubIO.Write.Bound<?>.PubsubBoundedWriter doFn) {
       this.doFn = doFn;
     }
@@ -3134,16 +3134,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, PubsubUnboundedSource<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, PubsubUnboundedSource<?> transform) {
       this.transform = transform;
     }
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
-    public UnsupportedIO(DataflowPipelineRunner runner, PubsubUnboundedSink<?> transform) {
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public UnsupportedIO(DataflowRunner runner, PubsubUnboundedSink<?> transform) {
       this.transform = transform;
     }
 
@@ -3157,13 +3157,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
               ? approximateSimpleName(doFn.getClass())
               : approximatePTransformName(transform.getClass());
       throw new UnsupportedOperationException(
-          String.format("The DataflowPipelineRunner in %s mode does not support %s.", mode, name));
+          String.format("The DataflowRunner in %s mode does not support %s.", mode, name));
     }
   }
 
   @Override
   public String toString() {
-    return "DataflowPipelineRunner#" + options.getJobName();
+    return "DataflowRunner#" + options.getJobName();
   }
 
   /**

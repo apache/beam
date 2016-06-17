@@ -60,7 +60,7 @@ import javax.annotation.Nullable;
  *   <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
  *   options. For example:
  *   <pre>{@code [
- *     "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowPipelineRunner",
+ *     "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
  *     ]}</pre>
