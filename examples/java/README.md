@@ -64,7 +64,7 @@ the same pipeline on fully managed resources in Google Cloud Platform:
     -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT ID> \
     --tempLocation=<YOUR CLOUD STORAGE LOCATION> \
-    --runner=BlockingDataflowPipelineRunner"
+    --runner=BlockingDataflowRunner"
 
 Make sure to use your project id, not the project number or the descriptive name.
 The Cloud Storage location should be entered in the form of
@@ -86,7 +86,7 @@ Platform:
     org.apache.beam.examples.WordCount \
     --project=<YOUR CLOUD PLATFORM PROJECT ID> \
     --tempLocation=<YOUR CLOUD STORAGE LOCATION> \
-    --runner=BlockingDataflowPipelineRunner
+    --runner=BlockingDataflowRunner
 
 Other examples can be run similarly by replacing the `WordCount` class path with the example classpath, e.g.
 `org.apache.beam.examples.cookbook.BigQueryTornadoes`,
