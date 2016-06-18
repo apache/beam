@@ -396,6 +396,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     }
 
     @Override
+    public boolean allowsDynamicSplitting() {
+      return splittable;
+    }
+
+    @Override
     public final long getSplitPointsConsumed() {
       if (splittable) {
         return readerDelegate.getSplitPointsConsumed();
