@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
+import org.apache.beam.runners.spark.translation.BatchEvaluationContext;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineEvaluator;
@@ -179,7 +180,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
         return ctxt;
       } else {
-        EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+        EvaluationContext ctxt = new BatchEvaluationContext(jsc, pipeline);
         SparkPipelineTranslator translator = new TransformTranslator.Translator();
         pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
         ctxt.computeOutputs();

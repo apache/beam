@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 
-import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.BatchEvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -48,7 +48,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * Streaming evaluation context helps to handle streaming.
  */
-public class StreamingEvaluationContext extends EvaluationContext {
+public class StreamingEvaluationContext extends BatchEvaluationContext {
 
   private final JavaStreamingContext jssc;
   private final long timeout;
@@ -184,11 +184,11 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   //---------------- override in order to expose in package
   @Override
-  protected <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
+  public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
     return super.getInput(transform);
   }
   @Override
-  protected <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
+  public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
     return super.getOutput(transform);
   }
 
@@ -203,12 +203,12 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   @Override
-  protected void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
     super.setCurrentTransform(transform);
   }
 
   @Override
-  protected AppliedPTransform<?, ?, ?> getCurrentTransform() {
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
     return super.getCurrentTransform();
   }
 
