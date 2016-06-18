@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import org.apache.beam.runners.spark.coders.ImmutablesRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
@@ -32,8 +33,7 @@ public final class SparkContextFactory {
    * {@code true} then the Spark context will be reused for dataflow pipelines.
    * This property should only be enabled for tests.
    */
-  static final String TEST_REUSE_SPARK_CONTEXT =
-      "dataflow.spark.test.reuseSparkContext";
+  static final String TEST_REUSE_SPARK_CONTEXT = "dataflow.spark.test.reuseSparkContext";
   private static JavaSparkContext sparkContext;
   private static String sparkMaster;
 
@@ -47,7 +47,7 @@ public final class SparkContextFactory {
         sparkMaster = master;
       } else if (!master.equals(sparkMaster)) {
         throw new IllegalArgumentException(String.format("Cannot reuse spark context "
-                + "with different spark master URL. Existing: %s, requested: %s.",
+            + "with different spark master URL. Existing: %s, requested: %s.",
             sparkMaster, master));
       }
       return sparkContext;
@@ -67,6 +67,9 @@ public final class SparkContextFactory {
     conf.setMaster(master);
     conf.setAppName(appName);
     conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
+    // register immutable collections serializers because the SDK uses them and they will be
+    // used by Dataset Encoders
+    conf.set("spark.kryo.registrator", ImmutablesRegistrator.class.getCanonicalName());
     return new JavaSparkContext(conf);
   }
 }

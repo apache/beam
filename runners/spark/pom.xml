@@ -146,6 +146,23 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>de.javakaffee</groupId>
+      <artifactId>kryo-serializers</artifactId>
+      <version>0.38</version>
+      <exclusions>
+        <!-- Use Spark's Kryo -->
+        <exclusion>
+          <groupId>com.esotericsoftware</groupId>
+          <artifactId>kryo</artifactId>
+        </exclusion>
+        <!-- We only really need the serializer implementations -->
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
