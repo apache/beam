@@ -60,6 +60,9 @@
               <goals>
                 <goal>integration-test</goal>
               </goals>
+              <configuration>
+                <ignoreEOLStyle>true</ignoreEOLStyle> <!-- for win -->
+              </configuration>
             </execution>
           </executions>
         </plugin>

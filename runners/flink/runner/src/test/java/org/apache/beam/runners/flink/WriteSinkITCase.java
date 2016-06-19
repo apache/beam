@@ -35,6 +35,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
 
@@ -73,6 +74,18 @@ public class WriteSinkITCase extends JavaProgramTestBase {
       .apply("CustomSink", Write.to(new MyCustomSink(resultPath)));
 
     p.run();
+  }
+
+
+  @Override
+  public void stopCluster() throws Exception {
+    try {
+      super.stopCluster();
+    } catch (final IOException ioe) {
+      if (ioe.getMessage().startsWith("Unable to delete file")) {
+        // that's ok for the test itself, just the OS playing with us on cleanup phase
+      }
+    }
   }
 
   /**

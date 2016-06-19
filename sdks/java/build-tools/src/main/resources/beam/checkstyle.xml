@@ -29,7 +29,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <!-- Checks that there are no tab characters in the file. -->
   </module>
 
-  <module name="NewlineAtEndOfFile"/>
+  <module name="NewlineAtEndOfFile">
+    <property name="lineSeparator" value="lf" />
+  </module>
 
   <module name="RegexpSingleline">
     <!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
