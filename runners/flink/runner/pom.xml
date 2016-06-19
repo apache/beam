@@ -50,6 +50,16 @@
       <version>${flink.version}</version>
     </dependency>
 
+    <!-- For testing -->
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-core</artifactId>
+      <version>${flink.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+
     <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>

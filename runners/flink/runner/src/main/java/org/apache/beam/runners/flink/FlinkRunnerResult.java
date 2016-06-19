@@ -65,4 +65,12 @@ public class FlinkRunnerResult implements PipelineResult {
           new RuntimeException("Accumulator does not exist."));
     }
   }
+
+  @Override
+  public String toString() {
+    return "FlinkRunnerResult{" +
+        "aggregators=" + aggregators +
+        ", runtime=" + runtime +
+        '}';
+  }
 }
