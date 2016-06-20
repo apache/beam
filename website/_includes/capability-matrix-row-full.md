@@ -1,1 +1,1 @@
-<b><center>{{ val.l1 }}{% if val.l2 != '' %}: {{ val.l2 }}{% endif %}{% if val.jira %}<br>(<a href='https://issues.apache.org/jira/browse/{{ val.jira }}'>{{ val.jira }}</a>){% endif %}</center></b><br>{{ val.l3 }}
+<center><b>{{ val.l1 }}{% if val.l2 != '' %}: {{ val.l2 }}{% endif %}{% if val.jira %}<br>(<a href='https://issues.apache.org/jira/browse/{{ val.jira }}'>{{ val.jira }}</a>){% endif %}</b></center><br>{{ val.l3 }}
