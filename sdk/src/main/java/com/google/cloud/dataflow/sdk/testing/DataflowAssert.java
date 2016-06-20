@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -37,9 +36,11 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.Values;
 import com.google.cloud.dataflow.sdk.transforms.View;
@@ -62,16 +63,15 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -145,10 +145,49 @@ public class DataflowAssert {
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window.
      *
+     * <p>The assertion will concatenate all panes present in the provided window if the
+     * {@link Trigger} produces multiple panes. If the windowing strategy accumulates fired panes
+     * and triggers fire multple times, consider using instead {@link #inFinalPane(BoundedWindow)}
+     * or {@link #inOnTimePane(BoundedWindow)}.
+     *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
      * specified window.
      */
     IterableAssert<T> inWindow(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on the provided window, running the checker only on the final pane for each key.
+     *
+     * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
+     * may be executed over an empty input even if the trigger has fired previously. To ensure that
+     * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
+     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     * specified window.
+     */
+    IterableAssert<T> inFinalPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on the provided window.
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     * specified window.
+     */
+    IterableAssert<T> inOnTimePane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on the provided window across all panes that were not produced by the arrival of late
+     * data.
+     *
+     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
+     * specified window.
+     */
+    IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
 
     /**
      * Asserts that the iterable in question contains the provided elements.
@@ -207,10 +246,38 @@ public class DataflowAssert {
      * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
      * only run on the provided window.
      *
+     * <p>The assertion will expect outputs to be produced to the provided window exactly once. If
+     * the upstream {@link Trigger} may produce output multiple times, consider instead using
+     * {@link #inFinalPane(BoundedWindow)} or {@link #inOnTimePane(BoundedWindow)}.
+     *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
      * the specified window.
      */
-    SingletonAssert<T> inWindow(BoundedWindow window);
+    SingletonAssert<T> inOnlyPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
+     * only run on the provided window, running the checker only on the final pane for each key.
+     *
+     * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
+     * may be executed over an empty input even if the trigger has fired previously. To ensure that
+     * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
+     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
+     *
+     * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
+     * the specified window.
+     */
+    SingletonAssert<T> inFinalPane(BoundedWindow window);
+
+    /**
+     * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
+     * only run on the provided window, running the checker only on the on-time pane for each key.
+     *
+     * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
+     * the specified window.
+     */
+    SingletonAssert<T> inOnTimePane(BoundedWindow window);
 
     /**
      * Asserts that the value in question is equal to the provided value, according to
@@ -331,22 +398,49 @@ public class DataflowAssert {
   private static class PCollectionContentsAssert<T> implements IterableAssert<T> {
     private final PCollection<T> actual;
     private final AssertionWindows rewindowingStrategy;
+    private final SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor;
 
     public PCollectionContentsAssert(PCollection<T> actual) {
-      this(actual, IntoGlobalWindow.<T>of());
+      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>onlyPane());
     }
 
-    public PCollectionContentsAssert(PCollection<T> actual, AssertionWindows rewindowingStrategy) {
+    public PCollectionContentsAssert(
+        PCollection<T> actual,
+        AssertionWindows rewindowingStrategy,
+        SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor) {
       this.actual = actual;
       this.rewindowingStrategy = rewindowingStrategy;
+      this.paneExtractor = paneExtractor;
     }
 
     @Override
     public PCollectionContentsAssert<T> inWindow(BoundedWindow window) {
+      return withPane(window, PaneExtractors.<T>allPanes());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> inFinalPane(BoundedWindow window) {
+      return withPane(window, PaneExtractors.<T>finalPane());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> inOnTimePane(BoundedWindow window) {
+      return withPane(window, PaneExtractors.<T>onTimePane());
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
+      return withPane(window, PaneExtractors.<T>nonLatePanes());
+    }
+
+    private PCollectionContentsAssert<T> withPane(
+        BoundedWindow window,
+        SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor) {
       @SuppressWarnings({"unchecked", "rawtypes"})
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
-      return new PCollectionContentsAssert<>(actual, IntoStaticWindows.<T>of(windowCoder, window));
+      return new PCollectionContentsAssert<>(
+          actual, IntoStaticWindows.<T>of(windowCoder, window), paneExtractor);
     }
 
     @Override
@@ -392,7 +486,9 @@ public class DataflowAssert {
     @Override
     public PCollectionContentsAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
-      actual.apply(nextAssertionName(), new GroupThenAssert<>(checkerFn, rewindowingStrategy));
+      actual.apply(
+          nextAssertionName(),
+          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor));
       return this;
     }
 
@@ -432,8 +528,9 @@ public class DataflowAssert {
       @SuppressWarnings({"rawtypes", "unchecked"})
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
-      actual.apply("DataflowAssert$" + (assertCount++),
-          new GroupThenAssert<>(checkerFn, rewindowingStrategy));
+      actual.apply(
+          "DataflowAssert$" + (assertCount++),
+          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor));
       return this;
     }
 
@@ -484,13 +581,17 @@ public class DataflowAssert {
     private final PCollection<Iterable<T>> actual;
     private final Coder<T> elementCoder;
     private final AssertionWindows rewindowingStrategy;
+    private final SimpleFunction<Iterable<WindowedValue<Iterable<T>>>, Iterable<Iterable<T>>>
+        paneExtractor;
 
     public PCollectionSingletonIterableAssert(PCollection<Iterable<T>> actual) {
-      this(actual, IntoGlobalWindow.<Iterable<T>>of());
+      this(actual, IntoGlobalWindow.<Iterable<T>>of(), PaneExtractors.<Iterable<T>>onlyPane());
     }
 
     public PCollectionSingletonIterableAssert(
-        PCollection<Iterable<T>> actual, AssertionWindows rewindowingStrategy) {
+        PCollection<Iterable<T>> actual,
+        AssertionWindows rewindowingStrategy,
+        SimpleFunction<Iterable<WindowedValue<Iterable<T>>>, Iterable<Iterable<T>>> paneExtractor) {
       this.actual = actual;
 
       @SuppressWarnings("unchecked")
@@ -498,15 +599,37 @@ public class DataflowAssert {
       this.elementCoder = typedCoder;
 
       this.rewindowingStrategy = rewindowingStrategy;
+      this.paneExtractor = paneExtractor;
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inWindow(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.<Iterable<T>>allPanes());
+    }
+
+    @Override
+    public PCollectionSingletonIterableAssert<T> inFinalPane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.<Iterable<T>>finalPane());
+    }
+
+    @Override
+    public PCollectionSingletonIterableAssert<T> inOnTimePane(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.<Iterable<T>>onTimePane());
+    }
+
+    @Override
+    public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
+      return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
+    }
+
+    private PCollectionSingletonIterableAssert<T> withPanes(
+        BoundedWindow window,
+        SimpleFunction<Iterable<WindowedValue<Iterable<T>>>, Iterable<Iterable<T>>> paneExtractor) {
       @SuppressWarnings({"unchecked", "rawtypes"})
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionSingletonIterableAssert<>(
-          actual, IntoStaticWindows.<Iterable<T>>of(windowCoder, window));
+          actual, IntoStaticWindows.<Iterable<T>>of(windowCoder, window), paneExtractor);
     }
 
     @Override
@@ -540,7 +663,7 @@ public class DataflowAssert {
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
           "DataflowAssert$" + (assertCount++),
-          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy));
+          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor));
       return this;
     }
 
@@ -560,23 +683,26 @@ public class DataflowAssert {
     private final PCollection<ElemT> actual;
     private final PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view;
     private final AssertionWindows rewindowActuals;
+    private final SimpleFunction<Iterable<WindowedValue<ElemT>>, Iterable<ElemT>> paneExtractor;
     private final Coder<ViewT> coder;
 
     protected PCollectionViewAssert(
         PCollection<ElemT> actual,
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
         Coder<ViewT> coder) {
-      this(actual, view, IntoGlobalWindow.<ElemT>of(), coder);
+      this(actual, view, IntoGlobalWindow.<ElemT>of(), PaneExtractors.<ElemT>onlyPane(), coder);
     }
 
     private PCollectionViewAssert(
         PCollection<ElemT> actual,
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
         AssertionWindows rewindowActuals,
+        SimpleFunction<Iterable<WindowedValue<ElemT>>, Iterable<ElemT>> paneExtractor,
         Coder<ViewT> coder) {
       this.actual = actual;
       this.view = view;
       this.rewindowActuals = rewindowActuals;
+      this.paneExtractor = paneExtractor;
       this.coder = coder;
     }
 
@@ -590,12 +716,29 @@ public class DataflowAssert {
       return coder;
     }
 
-    public PCollectionViewAssert<ElemT, ViewT> inWindow(BoundedWindow window) {
+    public PCollectionViewAssert<ElemT, ViewT> inOnlyPane(BoundedWindow window) {
+      return inPane(window, PaneExtractors.<ElemT>onlyPane());
+    }
+
+    @Override
+    public PCollectionViewAssert<ElemT, ViewT> inFinalPane(BoundedWindow window) {
+      return inPane(window, PaneExtractors.<ElemT>finalPane());
+    }
+
+    @Override
+    public PCollectionViewAssert<ElemT, ViewT> inOnTimePane(BoundedWindow window) {
+      return inPane(window, PaneExtractors.<ElemT>onTimePane());
+    }
+
+    private PCollectionViewAssert<ElemT, ViewT> inPane(
+        BoundedWindow window,
+        SimpleFunction<Iterable<WindowedValue<ElemT>>, Iterable<ElemT>> paneExtractor) {
       return new PCollectionViewAssert<>(
           actual,
           view,
           IntoStaticWindows.of(
               (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder(), window),
+          paneExtractor,
           coder);
     }
 
@@ -622,7 +765,7 @@ public class DataflowAssert {
           .apply(
               "DataflowAssert$" + (assertCount++),
               new OneSideInputAssert<ViewT>(
-                  CreateActual.from(actual, rewindowActuals, view),
+                  CreateActual.from(actual, rewindowActuals, paneExtractor, view),
                   rewindowActuals.<Integer>windowDummy(),
                   checkerFn));
       return this;
@@ -672,21 +815,25 @@ public class DataflowAssert {
 
     private final transient PCollection<T> actual;
     private final transient AssertionWindows rewindowActuals;
+    private final transient SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> extractPane;
     private final transient PTransform<PCollection<T>, PCollectionView<ActualT>> actualView;
 
     public static <T, ActualT> CreateActual<T, ActualT> from(
         PCollection<T> actual,
         AssertionWindows rewindowActuals,
+        SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> extractPane,
         PTransform<PCollection<T>, PCollectionView<ActualT>> actualView) {
-      return new CreateActual<>(actual, rewindowActuals, actualView);
+      return new CreateActual<>(actual, rewindowActuals, extractPane, actualView);
     }
 
     private CreateActual(
         PCollection<T> actual,
         AssertionWindows rewindowActuals,
+        SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> extractPane,
         PTransform<PCollection<T>, PCollectionView<ActualT>> actualView) {
       this.actual = actual;
       this.rewindowActuals = rewindowActuals;
+      this.extractPane = extractPane;
       this.actualView = actualView;
     }
 
@@ -695,6 +842,10 @@ public class DataflowAssert {
       final Coder<T> coder = actual.getCoder();
       return actual
           .apply("FilterActuals", rewindowActuals.<T>prepareActuals())
+          .apply("GatherPanes", GatherAllPanes.<T>globally())
+          .apply("ExtractPane", MapElements.via(extractPane))
+          .setCoder(IterableCoder.of(actual.getCoder()))
+          .apply(Flatten.<T>iterables())
           .apply("RewindowActuals", rewindowActuals.<T>windowActuals())
           .apply(
               ParDo.of(
@@ -835,18 +986,22 @@ public class DataflowAssert {
       implements Serializable {
     private final SerializableFunction<Iterable<T>, Void> checkerFn;
     private final AssertionWindows rewindowingStrategy;
+    private final SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor;
 
     private GroupThenAssert(
-        SerializableFunction<Iterable<T>, Void> checkerFn, AssertionWindows rewindowingStrategy) {
+        SerializableFunction<Iterable<T>, Void> checkerFn,
+        AssertionWindows rewindowingStrategy,
+        SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor) {
       this.checkerFn = checkerFn;
       this.rewindowingStrategy = rewindowingStrategy;
+      this.paneExtractor = paneExtractor;
     }
 
     @Override
     public PDone apply(PCollection<T> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
-          .apply("GetOnlyPane", ParDo.of(new ExtractOnlyPane<T>()))
+          .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn)));
 
@@ -862,18 +1017,23 @@ public class DataflowAssert {
       extends PTransform<PCollection<Iterable<T>>, PDone> implements Serializable {
     private final SerializableFunction<Iterable<T>, Void> checkerFn;
     private final AssertionWindows rewindowingStrategy;
+    private final SimpleFunction<Iterable<WindowedValue<Iterable<T>>>, Iterable<Iterable<T>>>
+        paneExtractor;
 
     private GroupThenAssertForSingleton(
-        SerializableFunction<Iterable<T>, Void> checkerFn, AssertionWindows rewindowingStrategy) {
+        SerializableFunction<Iterable<T>, Void> checkerFn,
+        AssertionWindows rewindowingStrategy,
+        SimpleFunction<Iterable<WindowedValue<Iterable<T>>>, Iterable<Iterable<T>>> paneExtractor) {
       this.checkerFn = checkerFn;
       this.rewindowingStrategy = rewindowingStrategy;
+      this.paneExtractor = paneExtractor;
     }
 
     @Override
     public PDone apply(PCollection<Iterable<T>> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
-          .apply("GetOnlyPane", ParDo.of(new ExtractOnlyPane<Iterable<T>>()))
+          .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn)));
 
@@ -953,23 +1113,6 @@ public class DataflowAssert {
           throw t;
         }
       }
-    }
-  }
-
-  private static class ExtractOnlyPane<T> extends DoFn<Iterable<WindowedValue<T>>, Iterable<T>> {
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      List<T> outputs = new ArrayList<>();
-      for (WindowedValue<T> value : c.element()) {
-        checkState(
-            value.getPane().isFirst() && value.getPane().isLast(),
-            "Expected elements to be produced by a trigger that fires at most once, but got"
-                + "a value in a pane that is %s. Actual Pane Info: %s",
-            value.getPane().isFirst() ? "not the last pane" : "not the first pane",
-            value.getPane());
-        outputs.add(value.getValue());
-      }
-      c.output(outputs);
     }
   }
 
