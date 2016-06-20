@@ -1,13 +1,11 @@
 ---
 layout: default
 ---
-<p>
-  <div class="alert alert-info alert-dismissible" role="alert">
-  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
-  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
-  </div>
-</p>
+<div class="alert alert-info alert-dismissible" role="alert">
+<span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
+<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
+</div>
 
 # Apache Beam (incubating)
 
@@ -95,4 +93,3 @@ Interested in working with Apache Beam? Great! Here's how to get started:
 ## Apache Project
 Apache Beam is an [Apache Software Foundation project](http://www.apache.org),
 available under the Apache v2 license.
-

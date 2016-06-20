@@ -24,7 +24,7 @@ for the project.
 {% endcapture %}
 {% if excerpt_words != content_words %}
 <p>
-<a class="btn btn-default btn-sm" href="{{ post.url }}#read-more" role="button">
+<a class="btn btn-default btn-sm" href="{{ post.url }}" role="button">
 Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
 </a>
 </p>
