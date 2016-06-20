@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkAbstractParDoWrapper;
 import org.apache.beam.sdk.options.Default;
@@ -30,6 +34,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.TupleTag;
+
 import org.apache.commons.lang.SerializationUtils;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
@@ -38,16 +43,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 /**
  * Tests the serialization and deserialization of PipelineOptions.
  */
 public class PipelineOptionsTest {
 
-  private interface MyOptions extends FlinkPipelineOptions {
+  public interface MyOptions extends FlinkPipelineOptions {
     @Description("Bla bla bla")
     @Default.String("Hello")
     String getTestOption();

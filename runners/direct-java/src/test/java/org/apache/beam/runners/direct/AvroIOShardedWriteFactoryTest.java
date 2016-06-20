@@ -21,8 +21,10 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.AvroIOTest;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -82,7 +84,7 @@ public class AvroIOShardedWriteFactoryTest {
 
     assertThat(overridden, not(Matchers.<PTransform<PCollection<String>, PDone>>equalTo(original)));
 
-    TestPipeline p = TestPipeline.create();
+    Pipeline p = getPipeline();
     String[] elems = new String[] {"foo", "bar", "baz"};
     p.apply(Create.<String>of(elems)).apply(overridden);
 
@@ -101,12 +103,18 @@ public class AvroIOShardedWriteFactoryTest {
 
     assertThat(overridden, not(Matchers.<PTransform<PCollection<String>, PDone>>equalTo(original)));
 
-    TestPipeline p = TestPipeline.create();
+    Pipeline p = getPipeline();
     String[] elems = new String[] {"foo", "bar", "baz", "spam", "ham", "eggs"};
     p.apply(Create.<String>of(elems)).apply(overridden);
 
     file.delete();
     p.run();
     AvroIOTest.assertTestOutputs(elems, 3, file.getAbsolutePath(), original.getShardNameTemplate());
+  }
+
+  private Pipeline getPipeline() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(DirectRunner.class);
+    return TestPipeline.fromOptions(options);
   }
 }

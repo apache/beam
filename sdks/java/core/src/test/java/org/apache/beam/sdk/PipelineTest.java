@@ -28,8 +28,8 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -157,7 +157,7 @@ public class PipelineTest {
   @Test
   public void testToString() {
     PipelineOptions options = PipelineOptionsFactory.as(PipelineOptions.class);
-    options.setRunner(DirectPipelineRunner.class);
+    options.setRunner(CrashingRunner.class);
     Pipeline pipeline = Pipeline.create(options);
     assertEquals("Pipeline#" + pipeline.hashCode(), pipeline.toString());
   }

@@ -70,7 +70,7 @@ function run_via_mvn {
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='mvn exec:java -f pom.xml -pl examples/java \
     -Dexec.mainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--runner=DirectPipelineRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
+    -Dexec.args="--runner=DirectRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
   echo "$name: Running $cmd" >&2
   sh -c "$cmd"
   check_result_hash "$name" "$outfile_prefix" "$expected_hash"
@@ -84,7 +84,7 @@ function run_bundled {
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='java -cp '"$JAR_FILE"' \
     org.apache.beam.examples.WordCount \
-    --runner=DirectPipelineRunner \
+    --runner=DirectRunner \
     --inputFile='"'$input'"' \
     --output='"$outfile_prefix"
   echo "$name: Running $cmd" >&2

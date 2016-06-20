@@ -45,7 +45,7 @@ public class BigQueryTornadoesTest {
           .set("tornado", true);
     DoFnTester<TableRow, Integer> extractWordsFn =
         DoFnTester.of(new ExtractTornadoesFn());
-    Assert.assertThat(extractWordsFn.processBatch(row),
+    Assert.assertThat(extractWordsFn.processBundle(row),
                       CoreMatchers.hasItems(6));
   }
 
@@ -56,7 +56,7 @@ public class BigQueryTornadoesTest {
           .set("tornado", false);
     DoFnTester<TableRow, Integer> extractWordsFn =
         DoFnTester.of(new ExtractTornadoesFn());
-    Assert.assertTrue(extractWordsFn.processBatch(row).isEmpty());
+    Assert.assertTrue(extractWordsFn.processBundle(row).isEmpty());
   }
 
   @Test
@@ -65,12 +65,12 @@ public class BigQueryTornadoesTest {
     DoFnTester<KV<Integer, Long>, TableRow> formatCountsFn =
         DoFnTester.of(new FormatCountsFn());
     KV empty[] = {};
-    List<TableRow> results = formatCountsFn.processBatch(empty);
+    List<TableRow> results = formatCountsFn.processBundle(empty);
     Assert.assertTrue(results.size() == 0);
     KV input[] = { KV.of(3, 0L),
                    KV.of(4, Long.MAX_VALUE),
                    KV.of(5, Long.MIN_VALUE) };
-    results = formatCountsFn.processBatch(input);
+    results = formatCountsFn.processBundle(input);
     Assert.assertEquals(results.size(), 3);
     Assert.assertEquals(results.get(0).get("month"), 3);
     Assert.assertEquals(results.get(0).get("tornado_count"), 0L);

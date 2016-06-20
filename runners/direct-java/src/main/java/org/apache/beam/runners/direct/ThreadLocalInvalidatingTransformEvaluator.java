@@ -52,7 +52,7 @@ class ThreadLocalInvalidatingTransformEvaluator<InputT>
   }
 
   @Override
-  public InProcessTransformResult finishBundle() throws Exception {
+  public TransformResult finishBundle() throws Exception {
     try {
       return underlying.finishBundle();
     } catch (Exception e) {

@@ -39,7 +39,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -56,7 +55,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
@@ -87,7 +85,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 
 /**
@@ -514,24 +511,6 @@ public class CombineTest implements Serializable {
     assertThat(max.getName(), Matchers.startsWith("Max"));
     assertThat(mean.getName(), Matchers.startsWith("Mean"));
     assertThat(sum.getName(), Matchers.startsWith("Sum"));
-  }
-
-  @Test
-  public void testAddInputsRandomly() {
-    TestCounter counter = new TestCounter();
-    Combine.KeyedCombineFn<
-        String, Integer, TestCounter.Counter, Iterable<Long>> fn =
-        counter.asKeyedFn();
-
-    List<TestCounter.Counter> accums = DirectPipelineRunner.TestCombineDoFn.addInputsRandomly(
-        PerKeyCombineFnRunners.create(fn), "bob", Arrays.asList(NUMBERS), new Random(42),
-        processContext);
-
-    assertThat(accums, Matchers.contains(
-        counter.new Counter(3, 2, 0, 0),
-        counter.new Counter(131, 5, 0, 0),
-        counter.new Counter(8, 2, 0, 0),
-        counter.new Counter(1, 1, 0, 0)));
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =

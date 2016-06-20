@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -32,7 +32,7 @@ import com.google.common.cache.LoadingCache;
 import java.util.Map;
 
 /**
- * The {@link InProcessPipelineRunner} {@link TransformEvaluatorFactory} for the
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link BoundMulti} primitive {@link PTransform}.
  */
 class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
@@ -47,7 +47,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         createMultiEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
@@ -57,14 +57,14 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
   private <InT, OuT> TransformEvaluator<InT> createMultiEvaluator(
       AppliedPTransform<PCollection<InT>, PCollectionTuple, BoundMulti<InT, OuT>> application,
       CommittedBundle<InT> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) {
     Map<TupleTag<?>, PCollection<?>> outputs = application.getOutput().getAll();
     DoFn<InT, OuT> fn = application.getTransform().getFn();
 
     @SuppressWarnings({"unchecked", "rawtypes"}) ThreadLocal<DoFn<InT, OuT>> fnLocal =
         (ThreadLocal) fnClones.getUnchecked(application.getTransform().getFn());
     try {
-      TransformEvaluator<InT> parDoEvaluator = ParDoInProcessEvaluator.create(evaluationContext,
+      TransformEvaluator<InT> parDoEvaluator = ParDoEvaluator.create(evaluationContext,
           inputBundle,
           application,
           fnLocal.get(),

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 
 /**
  * A callback for completing a bundle of input.
@@ -27,7 +27,7 @@ interface CompletionCallback {
    * Handle a successful result, returning the committed outputs of the result.
    */
   CommittedResult handleResult(
-      CommittedBundle<?> inputBundle, InProcessTransformResult result);
+      CommittedBundle<?> inputBundle, TransformResult result);
 
   /**
    * Handle a result that terminated abnormally due to the provided {@link Throwable}.

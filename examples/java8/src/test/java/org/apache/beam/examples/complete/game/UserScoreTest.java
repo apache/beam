@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -89,7 +89,7 @@ public class UserScoreTest implements Serializable {
     DoFnTester<String, GameActionInfo> parseEventFn =
         DoFnTester.of(new ParseEventFn());
 
-    List<GameActionInfo> results = parseEventFn.processBatch(GAME_EVENTS_ARRAY);
+    List<GameActionInfo> results = parseEventFn.processBundle(GAME_EVENTS_ARRAY);
     Assert.assertEquals(results.size(), 8);
     Assert.assertEquals(results.get(0).getUser(), "user0_MagentaKangaroo");
     Assert.assertEquals(results.get(0).getTeam(), "MagentaKangaroo");
@@ -146,7 +146,8 @@ public class UserScoreTest implements Serializable {
       .apply(ParDo.of(new ParseEventFn()))
       .apply(
           MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-          .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}));
+          .withOutputType(
+              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
 
     PAssert.that(extract).empty();
 

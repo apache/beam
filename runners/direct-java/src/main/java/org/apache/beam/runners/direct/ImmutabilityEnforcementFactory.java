@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -77,7 +77,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     @Override
     public void afterFinish(
         CommittedBundle<T> input,
-        InProcessTransformResult result,
+        TransformResult result,
         Iterable<? extends CommittedBundle<?>> outputs) {
       for (MutationDetector detector : mutationElements.values()) {
         verifyUnmodified(detector);

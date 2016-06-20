@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.transforms.DoFnTester.OutputElementWithTimestamp;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.values.TimestampedValue;
 
+import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -123,8 +127,8 @@ public class DoFnTesterTest {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
-    // processBatch() returns all the output like takeOutputElements().
-    List<String> take = tester.processBatch(1L, 2L, 3L, 4L);
+    // processBundle() returns all the output like takeOutputElements().
+    List<String> take = tester.processBundle(1L, 2L, 3L, 4L);
 
     assertThat(take, hasItems("1", "2", "3", "4"));
 
@@ -145,23 +149,23 @@ public class DoFnTesterTest {
     tester.processElement(1L);
     tester.processElement(2L);
 
-    List<OutputElementWithTimestamp<String>> peek = tester.peekOutputElementsWithTimestamp();
-    OutputElementWithTimestamp<String> one =
-        new OutputElementWithTimestamp<>("1", new Instant(1000L));
-    OutputElementWithTimestamp<String> two =
-        new OutputElementWithTimestamp<>("2", new Instant(2000L));
+    List<TimestampedValue<String>> peek = tester.peekOutputElementsWithTimestamp();
+    TimestampedValue<String> one =
+        TimestampedValue.of("1", new Instant(1000L));
+    TimestampedValue<String> two =
+        TimestampedValue.of("2", new Instant(2000L));
     assertThat(peek, hasItems(one, two));
 
     tester.processElement(3L);
     tester.processElement(4L);
 
-    OutputElementWithTimestamp<String> three =
-        new OutputElementWithTimestamp<>("3", new Instant(3000L));
-    OutputElementWithTimestamp<String> four =
-        new OutputElementWithTimestamp<>("4", new Instant(4000L));
+    TimestampedValue<String> three =
+        TimestampedValue.of("3", new Instant(3000L));
+    TimestampedValue<String> four =
+        TimestampedValue.of("4", new Instant(4000L));
     peek = tester.peekOutputElementsWithTimestamp();
     assertThat(peek, hasItems(one, two, three, four));
-    List<OutputElementWithTimestamp<String>> take = tester.takeOutputElementsWithTimestamp();
+    List<TimestampedValue<String>> take = tester.takeOutputElementsWithTimestamp();
     assertThat(take, hasItems(one, two, three, four));
 
     // Following takeOutputElementsWithTimestamp(), neither takeOutputElementsWithTimestamp()
@@ -178,7 +182,7 @@ public class DoFnTesterTest {
   public void getAggregatorValuesShouldGetValueOfCounter() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
-    tester.processBatch(1L, 2L, 4L, 8L);
+    tester.processBundle(1L, 2L, 4L, 8L);
 
     Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
 
@@ -189,7 +193,7 @@ public class DoFnTesterTest {
   public void getAggregatorValuesWithEmptyCounterShouldSucceed() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
-    tester.processBatch();
+    tester.processBundle();
     Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
     // empty bundle
     assertThat(aggregatorVal, equalTo(0L));
@@ -199,10 +203,28 @@ public class DoFnTesterTest {
   public void getAggregatorValuesInStartFinishBundleShouldGetValues() throws Exception {
     CounterDoFn fn = new CounterDoFn(1L, 2L);
     DoFnTester<Long, String> tester = DoFnTester.of(fn);
-    tester.processBatch(0L, 0L);
+    tester.processBundle(0L, 0L);
 
     Long aggValue = tester.getAggregatorValue(fn.agg);
     assertThat(aggValue, equalTo(1L + 2L));
+  }
+
+  @Test
+  public void peekValuesInWindow() throws Exception {
+    CounterDoFn fn = new CounterDoFn(1L, 2L);
+    DoFnTester<Long, String> tester = DoFnTester.of(fn);
+
+    tester.startBundle();
+    tester.processElement(1L);
+    tester.processElement(2L);
+    tester.finishBundle();
+
+    assertThat(tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
+        containsInAnyOrder(TimestampedValue.of("1", new Instant(1000L)),
+            TimestampedValue.of("2", new Instant(2000L))));
+    assertThat(tester.peekOutputElementsInWindow(
+        new IntervalWindow(new Instant(0L), new Instant(10L))),
+        Matchers.<TimestampedValue<String>>emptyIterable());
   }
 
   /**

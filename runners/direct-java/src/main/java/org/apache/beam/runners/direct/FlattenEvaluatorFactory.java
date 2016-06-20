@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
 /**
- * The {@link InProcessPipelineRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
  * {@link PTransform}.
  */
 class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
@@ -36,7 +36,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      EvaluationContext evaluationContext) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator = (TransformEvaluator<InputT>) createInMemoryEvaluator(
             (AppliedPTransform) application, inputBundle, evaluationContext);
@@ -48,7 +48,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
               PCollectionList<InputT>, PCollection<InputT>, FlattenPCollectionList<InputT>>
           application,
       final CommittedBundle<InputT> inputBundle,
-      final InProcessEvaluationContext evaluationContext) {
+      final EvaluationContext evaluationContext) {
     if (inputBundle == null) {
       // it is impossible to call processElement on a flatten with no input bundle. A Flatten with
       // no input bundle occurs as an output of Flatten.pcollections(PCollectionList.empty())
@@ -57,17 +57,17 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
     }
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(inputBundle, application.getOutput());
-    final InProcessTransformResult result =
+    final TransformResult result =
         StepTransformResult.withoutHold(application).addOutput(outputBundle).build();
     return new FlattenEvaluator<>(outputBundle, result);
   }
 
   private static class FlattenEvaluator<InputT> implements TransformEvaluator<InputT> {
     private final UncommittedBundle<InputT> outputBundle;
-    private final InProcessTransformResult result;
+    private final TransformResult result;
 
     public FlattenEvaluator(
-        UncommittedBundle<InputT> outputBundle, InProcessTransformResult result) {
+        UncommittedBundle<InputT> outputBundle, TransformResult result) {
       this.outputBundle = outputBundle;
       this.result = result;
     }
@@ -78,7 +78,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public InProcessTransformResult finishBundle() {
+    public TransformResult finishBundle() {
       return result;
     }
   }

@@ -17,14 +17,11 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -83,11 +80,6 @@ public class PipelineOptionsTest {
   public void testDynamicAs() {
     BaseTestOptions options = PipelineOptionsFactory.create().as(BaseTestOptions.class);
     assertNotNull(options);
-  }
-
-  @Test
-  public void testDefaultRunnerIsSet() {
-    assertEquals(DirectPipelineRunner.class, PipelineOptionsFactory.create().getRunner());
   }
 
   @Test

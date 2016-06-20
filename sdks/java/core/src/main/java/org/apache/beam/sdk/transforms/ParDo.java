@@ -21,27 +21,12 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.DirectModeExecutionContext;
-import org.apache.beam.sdk.util.DirectSideInputReader;
-import org.apache.beam.sdk.util.DoFnRunner;
-import org.apache.beam.sdk.util.DoFnRunnerBase;
-import org.apache.beam.sdk.util.DoFnRunners;
-import org.apache.beam.sdk.util.IllegalMutationException;
-import org.apache.beam.sdk.util.MutationDetector;
-import org.apache.beam.sdk.util.MutationDetectors;
-import org.apache.beam.sdk.util.PTuple;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -50,16 +35,10 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypedPValue;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
-
-import javax.annotation.Nullable;
 
 /**
  * {@link ParDo} is the core element-wise transform in Google Cloud
@@ -84,7 +63,7 @@ import javax.annotation.Nullable;
  * <p>Conceptually, when a {@link ParDo} transform is executed, the
  * elements of the input {@link PCollection} are first divided up
  * into some number of "bundles". These are farmed off to distributed
- * worker machines (or run locally, if using the {@link DirectPipelineRunner}).
+ * worker machines (or run locally, if using the {@code DirectRunner}).
  * For each bundle of input elements processing proceeds as follows:
  *
  * <ol>
@@ -1072,288 +1051,11 @@ public class ParDo {
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-
-  static {
-    DirectPipelineRunner.registerDefaultTransformEvaluator(
-        Bound.class,
-        new DirectPipelineRunner.TransformEvaluator<Bound>() {
-          @Override
-          public void evaluate(
-              Bound transform,
-              DirectPipelineRunner.EvaluationContext context) {
-            evaluateSingleHelper(transform, context);
-          }
-        });
-  }
-
-  private static <InputT, OutputT> void evaluateSingleHelper(
-      Bound<InputT, OutputT> transform,
-      DirectPipelineRunner.EvaluationContext context) {
-    TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
-
-    DirectModeExecutionContext executionContext = DirectModeExecutionContext.create();
-
-    PCollectionTuple outputs = PCollectionTuple.of(mainOutputTag, context.getOutput(transform));
-
-    evaluateHelper(
-        transform.fn,
-        context.getStepName(transform),
-        context.getInput(transform),
-        transform.sideInputs,
-        mainOutputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        outputs,
-        context,
-        executionContext);
-
-    context.setPCollectionValuesWithMetadata(
-        context.getOutput(transform),
-        executionContext.getOutput(mainOutputTag));
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  static {
-    DirectPipelineRunner.registerDefaultTransformEvaluator(
-        BoundMulti.class,
-        new DirectPipelineRunner.TransformEvaluator<BoundMulti>() {
-          @Override
-          public void evaluate(
-              BoundMulti transform,
-              DirectPipelineRunner.EvaluationContext context) {
-            evaluateMultiHelper(transform, context);
-          }
-        });
-  }
-
-  private static <InputT, OutputT> void evaluateMultiHelper(
-      BoundMulti<InputT, OutputT> transform,
-      DirectPipelineRunner.EvaluationContext context) {
-
-    DirectModeExecutionContext executionContext = DirectModeExecutionContext.create();
-
-    evaluateHelper(
-        transform.fn,
-        context.getStepName(transform),
-        context.getInput(transform),
-        transform.sideInputs,
-        transform.mainOutputTag,
-        transform.sideOutputTags.getAll(),
-        context.getOutput(transform),
-        context,
-        executionContext);
-
-    for (Map.Entry<TupleTag<?>, PCollection<?>> entry
-        : context.getOutput(transform).getAll().entrySet()) {
-      @SuppressWarnings("unchecked")
-      TupleTag<Object> tag = (TupleTag<Object>) entry.getKey();
-      @SuppressWarnings("unchecked")
-      PCollection<Object> pc = (PCollection<Object>) entry.getValue();
-
-      context.setPCollectionValuesWithMetadata(
-          pc,
-          (tag == transform.mainOutputTag
-              ? executionContext.getOutput(tag)
-              : executionContext.getSideOutput(tag)));
-    }
-  }
-
-  /**
-   * Evaluates a single-output or multi-output {@link ParDo} directly.
-   *
-   * <p>This evaluation method is intended for use in testing scenarios; it is designed for clarity
-   * and correctness-checking, not speed.
-   *
-   * <p>Of particular note, this performs best-effort checking that inputs and outputs are not
-   * mutated in violation of the requirements upon a {@link DoFn}.
-   */
-  private static <InputT, OutputT, ActualInputT extends InputT> void evaluateHelper(
-      DoFn<InputT, OutputT> doFn,
-      String stepName,
-      PCollection<ActualInputT> input,
-      List<PCollectionView<?>> sideInputs,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      PCollectionTuple outputs,
-      DirectPipelineRunner.EvaluationContext context,
-      DirectModeExecutionContext executionContext) {
-    // TODO: Run multiple shards?
-    DoFn<InputT, OutputT> fn = context.ensureSerializable(doFn);
-
-    SideInputReader sideInputReader = makeSideInputReader(context, sideInputs);
-
-    // When evaluating via the DirectPipelineRunner, this output manager checks each output for
-    // illegal mutations when the next output comes along. We then verify again after finishBundle()
-    // The common case we expect this to catch is a user mutating an input in order to repeatedly
-    // emit "variations".
-    ImmutabilityCheckingOutputManager<ActualInputT> outputManager =
-        new ImmutabilityCheckingOutputManager<>(
-            fn.getClass().getSimpleName(),
-            new DoFnRunnerBase.ListOutputManager(),
-            outputs);
-
-    DoFnRunner<InputT, OutputT> fnRunner =
-        DoFnRunners.createDefault(
-            context.getPipelineOptions(),
-            fn,
-            sideInputReader,
-            outputManager,
-            mainOutputTag,
-            sideOutputTags,
-            executionContext.getOrCreateStepContext(stepName, stepName),
-            context.getAddCounterMutator(),
-            input.getWindowingStrategy());
-
-    fnRunner.startBundle();
-
-    for (DirectPipelineRunner.ValueWithMetadata<ActualInputT> elem
-             : context.getPCollectionValuesWithMetadata(input)) {
-      if (elem.getValue() instanceof KV) {
-        // In case the DoFn needs keyed state, set the implicit keys to the keys
-        // in the input elements.
-        @SuppressWarnings("unchecked")
-        KV<?, ?> kvElem = (KV<?, ?>) elem.getValue();
-        executionContext.setKey(kvElem.getKey());
-      } else {
-        executionContext.setKey(elem.getKey());
-      }
-
-      // We check the input for mutations only through the call span of processElement.
-      // This will miss some cases, but the check is ad hoc and best effort. The common case
-      // is that the input is mutated to be used for output.
-      try {
-        MutationDetector inputMutationDetector = MutationDetectors.forValueWithCoder(
-            elem.getWindowedValue().getValue(), input.getCoder());
-        @SuppressWarnings("unchecked")
-        WindowedValue<InputT> windowedElem = ((WindowedValue<InputT>) elem.getWindowedValue());
-        fnRunner.processElement(windowedElem);
-        inputMutationDetector.verifyUnmodified();
-      } catch (CoderException e) {
-        throw UserCodeException.wrap(e);
-      } catch (IllegalMutationException exn) {
-        throw new IllegalMutationException(
-            String.format("DoFn %s mutated input value %s of class %s (new value was %s)."
-                + " Input values must not be mutated in any way.",
-                fn.getClass().getSimpleName(),
-                exn.getSavedValue(), exn.getSavedValue().getClass(), exn.getNewValue()),
-            exn.getSavedValue(),
-            exn.getNewValue(),
-            exn);
-      }
-    }
-
-    // Note that the input could have been retained and mutated prior to this final output,
-    // but for now it degrades readability too much to be worth trying to catch that particular
-    // corner case.
-    fnRunner.finishBundle();
-    outputManager.verifyLatestOutputsUnmodified();
-  }
-
-  private static SideInputReader makeSideInputReader(
-      DirectPipelineRunner.EvaluationContext context, List<PCollectionView<?>> sideInputs) {
-    PTuple sideInputValues = PTuple.empty();
-    for (PCollectionView<?> view : sideInputs) {
-      sideInputValues = sideInputValues.and(
-          view.getTagInternal(),
-          context.getPCollectionView(view));
-    }
-    return DirectSideInputReader.of(sideInputValues);
-  }
-
   private static void populateDisplayData(
       DisplayData.Builder builder, DoFn<?, ?> fn, Class<?> fnClass) {
     builder
         .include(fn)
         .add(DisplayData.item("fn", fnClass)
-          .withLabel("Transform Function"));
-  }
-
-  /**
-   * A {@code DoFnRunner.OutputManager} that provides facilities for checking output values for
-   * illegal mutations.
-   *
-   * <p>When used via the try-with-resources pattern, it is guaranteed that every value passed
-   * to {@link #output} will have been checked for illegal mutation.
-   */
-  private static class ImmutabilityCheckingOutputManager<InputT>
-      implements DoFnRunners.OutputManager, AutoCloseable {
-
-    private final DoFnRunners.OutputManager underlyingOutputManager;
-    private final ConcurrentMap<TupleTag<?>, MutationDetector> mutationDetectorForTag;
-    private final PCollectionTuple outputs;
-    private String doFnName;
-
-    public ImmutabilityCheckingOutputManager(
-        String doFnName,
-        DoFnRunners.OutputManager underlyingOutputManager,
-        PCollectionTuple outputs) {
-      this.doFnName = doFnName;
-      this.underlyingOutputManager = underlyingOutputManager;
-      this.outputs = outputs;
-      this.mutationDetectorForTag = Maps.newConcurrentMap();
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-
-      // Skip verifying undeclared outputs, since we don't have coders for them.
-      if (outputs.has(tag)) {
-        try {
-          MutationDetector newDetector =
-              MutationDetectors.forValueWithCoder(
-                  output.getValue(), outputs.get(tag).getCoder());
-          MutationDetector priorDetector = mutationDetectorForTag.put(tag, newDetector);
-          verifyOutputUnmodified(priorDetector);
-        } catch (CoderException e) {
-          throw UserCodeException.wrap(e);
-        }
-      }
-
-      // Actually perform the output.
-      underlyingOutputManager.output(tag, output);
-    }
-
-    /**
-     * Throws {@link IllegalMutationException} if the prior output for any tag has been mutated
-     * since being output.
-     */
-    public void verifyLatestOutputsUnmodified() {
-      for (MutationDetector detector : mutationDetectorForTag.values()) {
-        verifyOutputUnmodified(detector);
-      }
-    }
-
-    /**
-     * Adapts the error message from the provided {@code detector}.
-     *
-     * <p>The {@code detector} may be null, in which case no check is performed. This is merely
-     * to consolidate null checking to this method.
-     */
-    private <T> void verifyOutputUnmodified(@Nullable MutationDetector detector) {
-      if (detector == null) {
-        return;
-      }
-
-      try {
-        detector.verifyUnmodified();
-      } catch (IllegalMutationException exn) {
-        throw new IllegalMutationException(String.format(
-            "DoFn %s mutated value %s after it was output (new value was %s)."
-                + " Values must not be mutated in any way after being output.",
-                doFnName, exn.getSavedValue(), exn.getNewValue()),
-            exn.getSavedValue(), exn.getNewValue(),
-            exn);
-      }
-    }
-
-    /**
-     * When used in a {@code try}-with-resources block, verifies all of the latest outputs upon
-     * {@link #close()}.
-     */
-    @Override
-    public void close() {
-      verifyLatestOutputsUnmodified();
-    }
+            .withLabel("Transform Function"));
   }
 }

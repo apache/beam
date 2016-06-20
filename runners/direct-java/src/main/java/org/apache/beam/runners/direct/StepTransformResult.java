@@ -19,8 +19,8 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.runners.direct.InMemoryWatermarkManager.TimerUpdate;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -37,9 +37,9 @@ import java.util.Collection;
 import javax.annotation.Nullable;
 
 /**
- * An immutable {@link InProcessTransformResult}.
+ * An immutable {@link TransformResult}.
  */
-public class StepTransformResult implements InProcessTransformResult {
+public class StepTransformResult implements TransformResult {
   private final AppliedPTransform<?, ?, ?> transform;
   private final Iterable<? extends UncommittedBundle<?>> bundles;
   private final Iterable<? extends WindowedValue<?>> unprocessedElements;

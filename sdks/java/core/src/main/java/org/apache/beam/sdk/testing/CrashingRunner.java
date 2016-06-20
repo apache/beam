@@ -21,17 +21,15 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.Aggregator;
 
 /**
  * A {@link PipelineRunner} that applies no overrides and throws an exception on calls to
  * {@link Pipeline#run()}. For use in {@link TestPipeline} to construct but not execute pipelines.
  */
-public class CrashingRunner extends PipelineRunner<PipelineResult>{
+public final class CrashingRunner extends PipelineRunner<PipelineResult>{
 
+  @SuppressWarnings("unused") // used by reflection
   public static CrashingRunner fromOptions(PipelineOptions opts) {
     return new CrashingRunner();
   }
@@ -41,32 +39,11 @@ public class CrashingRunner extends PipelineRunner<PipelineResult>{
     throw new IllegalArgumentException(String.format("Cannot call #run(Pipeline) on an instance "
             + "of %s. %s should only be used as the default to construct a Pipeline "
             + "using %s, and cannot execute Pipelines. Instead, specify a %s "
-            + "by providing PipelineOptions in the environment variable '%s'.",
-        getClass().getSimpleName(),
-        getClass().getSimpleName(),
+            + "by providing PipelineOptions in the system property '%s'.",
+        CrashingRunner.class.getSimpleName(),
+        CrashingRunner.class.getSimpleName(),
         TestPipeline.class.getSimpleName(),
         PipelineRunner.class.getSimpleName(),
         TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS));
-  }
-
-  private static class TestPipelineResult implements PipelineResult {
-    private TestPipelineResult() {
-      // Should never be instantiated by the enclosing class
-      throw new UnsupportedOperationException(String.format("Forbidden to instantiate %s",
-          getClass().getSimpleName()));
-    }
-
-    @Override
-    public State getState() {
-      throw new UnsupportedOperationException(String.format("Forbidden to instantiate %s",
-          getClass().getSimpleName()));
-    }
-
-    @Override
-    public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-        throws AggregatorRetrievalException {
-      throw new AssertionError(String.format("Forbidden to instantiate %s",
-          getClass().getSimpleName()));
-    }
   }
 }

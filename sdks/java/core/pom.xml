@@ -129,6 +129,9 @@
           <excludedGroups>
             org.apache.beam.sdk.testing.NeedsRunner
           </excludedGroups>
+          <systemPropertyVariables>
+            <beamUseDummyRunner>true</beamUseDummyRunner>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
 

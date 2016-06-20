@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.examples.streaming;
 
-import org.apache.beam.runners.flink.FlinkPipelineRunner;
+import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSocketSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -215,13 +215,13 @@ public class AutoComplete {
             // ...together with those (previously excluded) candidates of length
             // exactly minPrefix...
             .and(input.apply(Filter.by(new SerializableFunction<CompletionCandidate, Boolean>() {
-                    private static final long serialVersionUID = 0;
+              private static final long serialVersionUID = 0;
 
-                    @Override
-                    public Boolean apply(CompletionCandidate c) {
-                      return c.getValue().length() == minPrefix;
-                    }
-                  })))
+              @Override
+              public Boolean apply(CompletionCandidate c) {
+                return c.getValue().length() == minPrefix;
+              }
+            })))
             .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
             // ...set the key to be the minPrefix-length prefix...
             .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
@@ -378,7 +378,7 @@ public class AutoComplete {
     options.setCheckpointingInterval(1000L);
     options.setNumberOfExecutionRetries(5);
     options.setExecutionRetryDelay(3000L);
-    options.setRunner(FlinkPipelineRunner.class);
+    options.setRunner(FlinkRunner.class);
 
     PTransform<? super PBegin, PCollection<String>> readSource =
             Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)).named("WordStream");

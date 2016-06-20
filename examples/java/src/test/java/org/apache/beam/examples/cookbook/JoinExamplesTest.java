@@ -87,7 +87,7 @@ public class JoinExamplesTest {
   public void testExtractEventDataFn() throws Exception {
     DoFnTester<TableRow, KV<String, String>> extractEventDataFn =
         DoFnTester.of(new ExtractEventDataFn());
-    List<KV<String, String>> results = extractEventDataFn.processBatch(EVENTS);
+    List<KV<String, String>> results = extractEventDataFn.processBundle(EVENTS);
     Assert.assertThat(results, CoreMatchers.hasItem(kv1));
     Assert.assertThat(results, CoreMatchers.hasItem(kv2));
   }
@@ -96,7 +96,7 @@ public class JoinExamplesTest {
   public void testExtractCountryInfoFn() throws Exception {
     DoFnTester<TableRow, KV<String, String>> extractCountryInfoFn =
         DoFnTester.of(new ExtractCountryInfoFn());
-    List<KV<String, String>> results = extractCountryInfoFn.processBatch(CCS);
+    List<KV<String, String>> results = extractCountryInfoFn.processBundle(CCS);
     Assert.assertThat(results, CoreMatchers.hasItem(kv3));
     Assert.assertThat(results, CoreMatchers.hasItem(kv4));
   }

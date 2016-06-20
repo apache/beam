@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -35,9 +34,9 @@ import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -190,9 +189,9 @@ public class WriteTest {
   private static void runWrite(
       List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform) {
     // Flag to validate that the pipeline options are passed to the Sink
-    String[] args = {"--testFlag=test_value"};
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(WriteOptions.class);
-    Pipeline p = Pipeline.create(options);
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
 
     // Clear the sink's contents.
     sinkContents.clear();

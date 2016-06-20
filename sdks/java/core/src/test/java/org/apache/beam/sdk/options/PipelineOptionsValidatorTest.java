@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import org.apache.beam.sdk.testing.CrashingRunner;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,6 +42,7 @@ public class PipelineOptionsValidatorTest {
   @Test
   public void testWhenRequiredOptionIsSet() {
     Required required = PipelineOptionsFactory.as(Required.class);
+    required.setRunner(CrashingRunner.class);
     required.setObject("blah");
     PipelineOptionsValidator.validate(Required.class, required);
   }
@@ -114,6 +117,7 @@ public class PipelineOptionsValidatorTest {
     GroupRequired groupRequired = PipelineOptionsFactory.as(GroupRequired.class);
     groupRequired.setFoo("foo");
     groupRequired.setBar(null);
+    groupRequired.setRunner(CrashingRunner.class);
 
     PipelineOptionsValidator.validate(GroupRequired.class, groupRequired);
 
@@ -126,6 +130,7 @@ public class PipelineOptionsValidatorTest {
   @Test
   public void testWhenNoneOfRequiredGroupIsSetThrowsException() {
     GroupRequired groupRequired = PipelineOptionsFactory.as(GroupRequired.class);
+    groupRequired.setRunner(CrashingRunner.class);
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for group [ham]");
@@ -155,6 +160,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenOneOfMultipleRequiredGroupsIsSetIsValid() {
     MultiGroupRequired multiGroupRequired = PipelineOptionsFactory.as(MultiGroupRequired.class);
 
+    multiGroupRequired.setRunner(CrashingRunner.class);
     multiGroupRequired.setFoo("eggs");
 
     PipelineOptionsValidator.validate(MultiGroupRequired.class, multiGroupRequired);
@@ -194,6 +200,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenOptionIsDefinedInMultipleSuperInterfacesAndIsNotPresentFailsRequirement() {
     RightOptions rightOptions = PipelineOptionsFactory.as(RightOptions.class);
     rightOptions.setBoth("foo");
+    rightOptions.setRunner(CrashingRunner.class);
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for group");
@@ -212,6 +219,8 @@ public class PipelineOptionsValidatorTest {
     leftOpts.setFoo("Untrue");
     leftOpts.setBoth("Raise the");
 
+    rightOpts.setRunner(CrashingRunner.class);
+    leftOpts.setRunner(CrashingRunner.class);
     PipelineOptionsValidator.validate(JoinedOptions.class, rightOpts);
     PipelineOptionsValidator.validate(JoinedOptions.class, leftOpts);
   }
@@ -226,6 +235,8 @@ public class PipelineOptionsValidatorTest {
     leftOpts.setFoo("Untrue");
     leftOpts.setBoth("Raise the");
 
+    rightOpts.setRunner(CrashingRunner.class);
+    leftOpts.setRunner(CrashingRunner.class);
     PipelineOptionsValidator.validate(RightOptions.class, leftOpts);
     PipelineOptionsValidator.validate(LeftOptions.class, rightOpts);
   }
@@ -234,6 +245,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenOptionIsDefinedOnMultipleInterfacesOnlyListedOnceWhenNotPresent() {
     JoinedOptions options = PipelineOptionsFactory.as(JoinedOptions.class);
     options.setFoo("Hello");
+    options.setRunner(CrashingRunner.class);
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("required value for group [both]");
@@ -273,6 +285,7 @@ public class PipelineOptionsValidatorTest {
   public void testSuperInterfaceRequiredOptionsAlsoRequiredInSubInterface() {
     SubOptions subOpts = PipelineOptionsFactory.as(SubOptions.class);
     subOpts.setFoo("Bar");
+    subOpts.setRunner(CrashingRunner.class);
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("otherSuper");
@@ -288,6 +301,7 @@ public class PipelineOptionsValidatorTest {
     SubOptions opts = PipelineOptionsFactory.as(SubOptions.class);
     opts.setFoo("Foo");
     opts.setSuperclassObj("Hello world");
+    opts.setRunner(CrashingRunner.class);
 
     // Valid SubOptions, but invalid SuperOptions
     PipelineOptionsValidator.validate(SubOptions.class, opts);
@@ -304,6 +318,7 @@ public class PipelineOptionsValidatorTest {
     subOpts.setFoo("bar");
     subOpts.setBar("bar");
     subOpts.setSuperclassObj("SuperDuper");
+    subOpts.setRunner(CrashingRunner.class);
 
     PipelineOptionsValidator.validate(SubOptions.class, subOpts);
     PipelineOptionsValidator.validate(SuperOptions.class, subOpts);

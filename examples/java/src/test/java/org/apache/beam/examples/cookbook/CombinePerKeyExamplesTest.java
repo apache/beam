@@ -75,7 +75,7 @@ public class CombinePerKeyExamplesTest {
   public void testExtractLargeWordsFn() throws Exception {
     DoFnTester<TableRow, KV<String, String>> extractLargeWordsFn =
         DoFnTester.of(new ExtractLargeWordsFn());
-    List<KV<String, String>> results = extractLargeWordsFn.processBatch(ROWS_ARRAY);
+    List<KV<String, String>> results = extractLargeWordsFn.processBundle(ROWS_ARRAY);
     Assert.assertThat(results, CoreMatchers.hasItem(tuple1));
     Assert.assertThat(results, CoreMatchers.hasItem(tuple2));
     Assert.assertThat(results, CoreMatchers.hasItem(tuple3));
@@ -85,7 +85,7 @@ public class CombinePerKeyExamplesTest {
   public void testFormatShakespeareOutputFn() throws Exception {
     DoFnTester<KV<String, String>, TableRow> formatShakespeareOutputFn =
         DoFnTester.of(new FormatShakespeareOutputFn());
-    List<TableRow> results = formatShakespeareOutputFn.processBatch(COMBINED_TUPLES_ARRAY);
+    List<TableRow> results = formatShakespeareOutputFn.processBundle(COMBINED_TUPLES_ARRAY);
     Assert.assertThat(results, CoreMatchers.hasItem(resultRow1));
     Assert.assertThat(results, CoreMatchers.hasItem(resultRow2));
   }

@@ -28,66 +28,100 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ByteKeyRangeTracker}. */
 @RunWith(JUnit4.class)
 public class ByteKeyRangeTrackerTest {
-  private static final ByteKey START_KEY = ByteKey.of(0x12);
-  private static final ByteKey MIDDLE_KEY = ByteKey.of(0x23);
+  private static final ByteKey INITIAL_START_KEY = ByteKey.of(0x12);
+  private static final ByteKey INITIAL_MIDDLE_KEY = ByteKey.of(0x23);
+  private static final ByteKey NEW_START_KEY = ByteKey.of(0x14);
+  private static final ByteKey NEW_MIDDLE_KEY = ByteKey.of(0x24);
   private static final ByteKey BEFORE_END_KEY = ByteKey.of(0x33);
   private static final ByteKey END_KEY = ByteKey.of(0x34);
-  private static final double RANGE_SIZE = 0x34 - 0x12;
-  private static final ByteKeyRange RANGE = ByteKeyRange.of(START_KEY, END_KEY);
+  private static final double INITIAL_RANGE_SIZE = 0x34 - 0x12;
+  private static final ByteKeyRange INITIAL_RANGE = ByteKeyRange.of(INITIAL_START_KEY, END_KEY);
+  private static final double NEW_RANGE_SIZE = 0x34 - 0x14;
+  private static final ByteKeyRange NEW_RANGE = ByteKeyRange.of(NEW_START_KEY, END_KEY);
 
   /** Tests for {@link ByteKeyRangeTracker#toString}. */
   @Test
   public void testToString() {
-    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(RANGE);
-    String expected = String.format("ByteKeyRangeTracker{range=%s, position=null}", RANGE);
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    String expected = String.format("ByteKeyRangeTracker{range=%s, position=null}", INITIAL_RANGE);
     assertEquals(expected, tracker.toString());
 
-    tracker.tryReturnRecordAt(true, MIDDLE_KEY);
-    expected = String.format("ByteKeyRangeTracker{range=%s, position=%s}", RANGE, MIDDLE_KEY);
+    tracker.tryReturnRecordAt(true, INITIAL_START_KEY);
+    tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY);
+    expected =
+        String.format("ByteKeyRangeTracker{range=%s, position=%s}", INITIAL_RANGE,
+            INITIAL_MIDDLE_KEY);
+    assertEquals(expected, tracker.toString());
+  }
+
+  /** Tests for updating the start key to the first record returned. */
+  @Test
+  public void testUpdateStartKey() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+
+    tracker.tryReturnRecordAt(true, NEW_START_KEY);
+    String expected =
+        String.format("ByteKeyRangeTracker{range=%s, position=%s}", NEW_RANGE, NEW_START_KEY);
     assertEquals(expected, tracker.toString());
   }
 
   /** Tests for {@link ByteKeyRangeTracker#of}. */
   @Test
   public void testBuilding() {
-    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(RANGE);
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
 
-    assertEquals(START_KEY, tracker.getStartPosition());
+    assertEquals(INITIAL_START_KEY, tracker.getStartPosition());
     assertEquals(END_KEY, tracker.getStopPosition());
   }
 
   /** Tests for {@link ByteKeyRangeTracker#getFractionConsumed()}. */
   @Test
   public void testGetFractionConsumed() {
-    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(RANGE);
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
     double delta = 0.00001;
 
     assertEquals(0.0, tracker.getFractionConsumed(), delta);
 
-    tracker.tryReturnRecordAt(true, START_KEY);
+    tracker.tryReturnRecordAt(true, INITIAL_START_KEY);
     assertEquals(0.0, tracker.getFractionConsumed(), delta);
 
-    tracker.tryReturnRecordAt(true, MIDDLE_KEY);
+    tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY);
     assertEquals(0.5, tracker.getFractionConsumed(), delta);
 
     tracker.tryReturnRecordAt(true, BEFORE_END_KEY);
-    assertEquals(1 - 1 / RANGE_SIZE, tracker.getFractionConsumed(), delta);
+    assertEquals(1 - 1 / INITIAL_RANGE_SIZE, tracker.getFractionConsumed(), delta);
+  }
+
+  /** Tests for {@link ByteKeyRangeTracker#getFractionConsumed()} with updated start key. */
+  @Test
+  public void testGetFractionConsumedUpdateStartKey() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    double delta = 0.00001;
+
+    tracker.tryReturnRecordAt(true, NEW_START_KEY);
+    assertEquals(0.0, tracker.getFractionConsumed(), delta);
+
+    tracker.tryReturnRecordAt(true, NEW_MIDDLE_KEY);
+    assertEquals(0.5, tracker.getFractionConsumed(), delta);
+
+    tracker.tryReturnRecordAt(true, BEFORE_END_KEY);
+    assertEquals(1 - 1 / NEW_RANGE_SIZE, tracker.getFractionConsumed(), delta);
   }
 
   /** Tests for {@link ByteKeyRangeTracker#tryReturnRecordAt}. */
   @Test
   public void testTryReturnRecordAt() {
-    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(RANGE);
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
 
     // Should be able to emit at the same key twice, should that happen.
     // Should be able to emit within range (in order, but system guarantees won't try out of order).
     // Should not be able to emit past end of range.
 
-    assertTrue(tracker.tryReturnRecordAt(true, START_KEY));
-    assertTrue(tracker.tryReturnRecordAt(true, START_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
 
-    assertTrue(tracker.tryReturnRecordAt(true, MIDDLE_KEY));
-    assertTrue(tracker.tryReturnRecordAt(true, MIDDLE_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
 
     assertTrue(tracker.tryReturnRecordAt(true, BEFORE_END_KEY));
 
@@ -99,13 +133,13 @@ public class ByteKeyRangeTrackerTest {
   /** Tests for {@link ByteKeyRangeTracker#trySplitAtPosition}. */
   @Test
   public void testSplitAtPosition() {
-    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(RANGE);
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
 
     // Unstarted, should not split.
-    assertFalse(tracker.trySplitAtPosition(MIDDLE_KEY));
+    assertFalse(tracker.trySplitAtPosition(INITIAL_MIDDLE_KEY));
 
     // Start it, split it before the end.
-    assertTrue(tracker.tryReturnRecordAt(true, START_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
     assertTrue(tracker.trySplitAtPosition(BEFORE_END_KEY));
     assertEquals(BEFORE_END_KEY, tracker.getStopPosition());
 
@@ -113,8 +147,8 @@ public class ByteKeyRangeTrackerTest {
     assertFalse(tracker.trySplitAtPosition(END_KEY));
 
     // Should not be able to split after emitting.
-    assertTrue(tracker.tryReturnRecordAt(true, MIDDLE_KEY));
-    assertFalse(tracker.trySplitAtPosition(MIDDLE_KEY));
-    assertTrue(tracker.tryReturnRecordAt(true, MIDDLE_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
+    assertFalse(tracker.trySplitAtPosition(INITIAL_MIDDLE_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
   }
 }

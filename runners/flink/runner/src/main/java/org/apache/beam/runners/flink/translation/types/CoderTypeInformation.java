@@ -18,8 +18,6 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.util.WindowedValue;
 
 import com.google.common.base.Preconditions;
 
@@ -107,19 +105,13 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   @Override
   public String toString() {
-    return "CoderTypeInformation{" +
-        "coder=" + coder +
-        '}';
+    return "CoderTypeInformation{coder=" + coder + '}';
   }
 
   @Override
   public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
       executionConfig) {
-    WindowedValue.WindowedValueCoder windowCoder = (WindowedValue.WindowedValueCoder) coder;
-    if (windowCoder.getValueCoder() instanceof KvCoder) {
-      return new KvCoderComperator(windowCoder);
-    } else {
-      return new CoderComparator<>(coder);
-    }
+    throw new UnsupportedOperationException(
+        "Non-encoded values cannot be compared directly.");
   }
 }

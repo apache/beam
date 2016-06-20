@@ -384,7 +384,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Before
   public void setUp() throws IOException {
-    bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
@@ -755,7 +755,7 @@ public class BigQueryIOTest implements Serializable {
     options.setProject("someproject");
     options.setStreaming(streaming);
 
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = TestPipeline.create(options);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId("somedataset");

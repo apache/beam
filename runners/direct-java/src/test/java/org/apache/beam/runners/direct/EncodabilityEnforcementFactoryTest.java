@@ -19,7 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.isA;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -51,7 +51,7 @@ import java.util.Collections;
 public class EncodabilityEnforcementFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private EncodabilityEnforcementFactory factory = EncodabilityEnforcementFactory.create();
-  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test
   public void encodeFailsThrows() {

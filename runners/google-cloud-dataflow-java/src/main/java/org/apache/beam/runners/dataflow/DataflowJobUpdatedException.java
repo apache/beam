@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 /**
- * Signals that a job run by a {@link BlockingDataflowPipelineRunner} was updated during execution.
+ * Signals that a job run by a {@link BlockingDataflowRunner} was updated during execution.
  */
 public class DataflowJobUpdatedException extends DataflowJobException {
   private DataflowPipelineJob replacedByJob;

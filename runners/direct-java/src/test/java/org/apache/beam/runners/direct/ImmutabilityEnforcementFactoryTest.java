@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
@@ -53,7 +53,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   @Before
   public void setup() {
     factory = new ImmutabilityEnforcementFactory();
-    bundleFactory = InProcessBundleFactory.create();
+    bundleFactory = ImmutableListBundleFactory.create();
     TestPipeline p = TestPipeline.create();
     pcollection =
         p.apply(Create.of("foo".getBytes(), "spamhameggs".getBytes()))

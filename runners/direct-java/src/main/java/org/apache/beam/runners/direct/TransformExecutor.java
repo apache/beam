@@ -19,7 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -42,7 +42,7 @@ class TransformExecutor<T> implements Runnable {
   public static <T> TransformExecutor<T> create(
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
-      InProcessEvaluationContext evaluationContext,
+      EvaluationContext evaluationContext,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
@@ -60,7 +60,7 @@ class TransformExecutor<T> implements Runnable {
   private final TransformEvaluatorFactory evaluatorFactory;
   private final Iterable<? extends ModelEnforcementFactory> modelEnforcements;
 
-  private final InProcessEvaluationContext evaluationContext;
+  private final EvaluationContext evaluationContext;
 
   /** The transform that will be evaluated. */
   private final AppliedPTransform<?, ?, ?> transform;
@@ -75,7 +75,7 @@ class TransformExecutor<T> implements Runnable {
   private TransformExecutor(
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
-      InProcessEvaluationContext evaluationContext,
+      EvaluationContext evaluationContext,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
@@ -117,7 +117,7 @@ class TransformExecutor<T> implements Runnable {
 
       processElements(evaluator, enforcements);
 
-      InProcessTransformResult result = finishBundle(evaluator, enforcements);
+      TransformResult result = finishBundle(evaluator, enforcements);
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
       if (t instanceof RuntimeException) {
@@ -155,13 +155,13 @@ class TransformExecutor<T> implements Runnable {
    * Finishes processing the input bundle and commit the result using the
    * {@link CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
    *
-   * @return the {@link InProcessTransformResult} produced by
+   * @return the {@link TransformResult} produced by
    *         {@link TransformEvaluator#finishBundle()}
    */
-  private InProcessTransformResult finishBundle(
+  private TransformResult finishBundle(
       TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     CommittedResult outputs = onComplete.handleResult(inputBundle, result);
     for (ModelEnforcement<T> enforcement : enforcements) {
       enforcement.afterFinish(inputBundle, result, outputs.getOutputs());

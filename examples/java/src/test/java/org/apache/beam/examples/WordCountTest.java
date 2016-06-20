@@ -52,11 +52,11 @@ public class WordCountTest {
     DoFnTester<String, String> extractWordsFn =
         DoFnTester.of(new ExtractWordsFn());
 
-    Assert.assertThat(extractWordsFn.processBatch(" some  input  words "),
+    Assert.assertThat(extractWordsFn.processBundle(" some  input  words "),
                       CoreMatchers.hasItems("some", "input", "words"));
-    Assert.assertThat(extractWordsFn.processBatch(" "),
+    Assert.assertThat(extractWordsFn.processBundle(" "),
                       CoreMatchers.<String>hasItems());
-    Assert.assertThat(extractWordsFn.processBatch(" some ", " input", " words"),
+    Assert.assertThat(extractWordsFn.processBundle(" some ", " input", " words"),
                       CoreMatchers.hasItems("some", "input", "words"));
   }
 

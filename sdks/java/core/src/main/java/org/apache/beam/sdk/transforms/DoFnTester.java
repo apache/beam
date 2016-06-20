@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -25,22 +26,28 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.PTuple;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -56,18 +63,18 @@ import java.util.Map;
  *
  * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
  *
- * // Set arguments shared across all batches:
+ * // Set arguments shared across all bundles:
  * fnTester.setSideInputs(...);      // If fn takes side inputs.
  * fnTester.setSideOutputTags(...);  // If fn writes to side outputs.
  *
- * // Process a batch containing a single input element:
+ * // Process a bundle containing a single input element:
  * Input testInput = ...;
- * List<OutputT> testOutputs = fnTester.processBatch(testInput);
+ * List<OutputT> testOutputs = fnTester.processBundle(testInput);
  * Assert.assertThat(testOutputs,
  *                   JUnitMatchers.hasItems(...));
  *
- * // Process a bigger batch:
- * Assert.assertThat(fnTester.processBatch(i1, i2, ...),
+ * // Process a bigger bundle:
+ * Assert.assertThat(fnTester.processBundle(i1, i2, ...),
  *                   JUnitMatchers.hasItems(...));
  * } </pre>
  *
@@ -163,7 +170,7 @@ public class DoFnTester<InputT, OutputT> {
    * calls {@link #finishBundle}, then returns the result of
    * {@link #takeOutputElements}.
    */
-  public List<OutputT> processBatch(Iterable <? extends InputT> inputElements) throws Exception {
+  public List<OutputT> processBundle(Iterable <? extends InputT> inputElements) throws Exception {
     startBundle();
     for (InputT inputElement : inputElements) {
       processElement(inputElement);
@@ -184,8 +191,8 @@ public class DoFnTester<InputT, OutputT> {
    * </ol>
    */
   @SafeVarargs
-  public final List<OutputT> processBatch(InputT... inputElements) throws Exception {
-    return processBatch(Arrays.asList(inputElements));
+  public final List<OutputT> processBundle(InputT... inputElements) throws Exception {
+    return processBundle(Arrays.asList(inputElements));
   }
 
   /**
@@ -256,10 +263,10 @@ public class DoFnTester<InputT, OutputT> {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(
         peekOutputElementsWithTimestamp(),
-        new Function<OutputElementWithTimestamp<OutputT>, OutputT>() {
+        new Function<TimestampedValue<OutputT>, OutputT>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputT apply(OutputElementWithTimestamp<OutputT> input) {
+          public OutputT apply(TimestampedValue<OutputT> input) {
             return input.getValue();
           }
         });
@@ -274,18 +281,40 @@ public class DoFnTester<InputT, OutputT> {
    * @see #clearOutputElements
    */
   @Experimental
-  public List<OutputElementWithTimestamp<OutputT>> peekOutputElementsWithTimestamp() {
+  public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getOutput(mainOutputTag),
-        new Function<Object, OutputElementWithTimestamp<OutputT>>() {
+        new Function<WindowedValue<OutputT>, TimestampedValue<OutputT>>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputElementWithTimestamp<OutputT> apply(Object input) {
-            return new OutputElementWithTimestamp<OutputT>(
-                ((WindowedValue<OutputT>) input).getValue(),
-                ((WindowedValue<OutputT>) input).getTimestamp());
+          public TimestampedValue<OutputT> apply(WindowedValue<OutputT> input) {
+            return TimestampedValue.of(input.getValue(), input.getTimestamp());
           }
         });
+  }
+
+  /**
+   * Returns the elements output so far to the main output in the provided window with associated
+   * timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
+    return peekOutputElementsInWindow(mainOutputTag, window);
+  }
+
+  /**
+   * Returns the elements output so far to the specified output in the provided window with
+   * associated timestamps.
+   */
+  public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(
+      TupleTag<OutputT> tag,
+      BoundedWindow window) {
+    ImmutableList.Builder<TimestampedValue<OutputT>> valuesBuilder = ImmutableList.builder();
+    for (WindowedValue<OutputT> value : getOutput(tag)) {
+      if (value.getWindows().contains(window)) {
+        valuesBuilder.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
+      }
+    }
+    return valuesBuilder.build();
   }
 
   /**
@@ -318,8 +347,8 @@ public class DoFnTester<InputT, OutputT> {
    * @see #clearOutputElements
    */
   @Experimental
-  public List<OutputElementWithTimestamp<OutputT>> takeOutputElementsWithTimestamp() {
-    List<OutputElementWithTimestamp<OutputT>> resultElems =
+  public List<TimestampedValue<OutputT>> takeOutputElementsWithTimestamp() {
+    List<TimestampedValue<OutputT>> resultElems =
         new ArrayList<>(peekOutputElementsWithTimestamp());
     clearOutputElements();
     return resultElems;
@@ -381,42 +410,6 @@ public class DoFnTester<InputT, OutputT> {
       accumulator = combiner.createAccumulator();
     }
     return combiner.extractOutput(accumulator);
-  }
-
-  /**
-   * Holder for an OutputElement along with its associated timestamp.
-   */
-  @Experimental
-  public static class OutputElementWithTimestamp<OutputT> {
-    private final OutputT value;
-    private final Instant timestamp;
-
-    OutputElementWithTimestamp(OutputT value, Instant timestamp) {
-      this.value = value;
-      this.timestamp = timestamp;
-    }
-
-    OutputT getValue() {
-      return value;
-    }
-
-    Instant getTimestamp() {
-      return timestamp;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof OutputElementWithTimestamp)) {
-        return false;
-      }
-      OutputElementWithTimestamp<?> other = (OutputElementWithTimestamp<?>) obj;
-      return Objects.equal(other.value, value) && Objects.equal(other.timestamp, timestamp);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(value, timestamp);
-    }
   }
 
   private <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
@@ -577,9 +570,54 @@ public class DoFnTester<InputT, OutputT> {
 
     @Override
     public WindowingInternals<InT, OutT> windowingInternals() {
-      throw new UnsupportedOperationException(
-          "WindowingInternals is an internal implementation detail of the Beam SDK, "
-              + "and should not be used by user code");
+      return new WindowingInternals<InT, OutT>() {
+        StateInternals<?> stateInternals = InMemoryStateInternals.forKey(new Object());
+
+        @Override
+        public StateInternals<?> stateInternals() {
+          return stateInternals;
+        }
+
+        @Override
+        public void outputWindowedValue(
+            OutT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
+          context.noteOutput(mainOutputTag, WindowedValue.of(output, timestamp, windows, pane));
+        }
+
+        @Override
+        public TimerInternals timerInternals() {
+          throw
+              new UnsupportedOperationException("Timer Internals are not supported in DoFnTester");
+        }
+
+        @Override
+        public Collection<? extends BoundedWindow> windows() {
+          return element.getWindows();
+        }
+
+        @Override
+        public PaneInfo pane() {
+          return element.getPane();
+        }
+
+        @Override
+        public <T> void writePCollectionViewData(
+            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
+            throws IOException {
+          throw new UnsupportedOperationException(
+              "WritePCollectionViewData is not supported in in the context of DoFnTester");
+        }
+
+        @Override
+        public <T> T sideInput(
+            PCollectionView<T> view, BoundedWindow mainInputWindow) {
+          throw new UnsupportedOperationException(
+              "SideInput from WindowingInternals is not supported in in the context of DoFnTester");
+        }
+      };
     }
 
     @Override
@@ -626,11 +664,6 @@ public class DoFnTester<InputT, OutputT> {
     STARTED,
     FINISHED
   }
-
-  /** The name of the step of a DoFnTester. */
-  static final String STEP_NAME = "stepName";
-  /** The name of the enclosing DoFn PTransform for a DoFnTester. */
-  static final String TRANSFORM_NAME = "transformName";
 
   final PipelineOptions options = PipelineOptionsFactory.create();
 

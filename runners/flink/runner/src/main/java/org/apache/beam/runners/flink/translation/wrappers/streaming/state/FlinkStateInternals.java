@@ -86,7 +86,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
   /**
    * This is the interface state has to implement in order for it to be fault tolerant when
-   * executed by the FlinkPipelineRunner.
+   * executed by the FlinkRunner.
    */
   private interface CheckpointableIF {
 

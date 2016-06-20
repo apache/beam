@@ -69,7 +69,7 @@ public class MaxPerKeyExamplesTest {
   public void testExtractTempFn() throws Exception {
     DoFnTester<TableRow, KV<Integer, Double>> extractTempFn =
         DoFnTester.of(new ExtractTempFn());
-    List<KV<Integer, Double>> results = extractTempFn.processBatch(TEST_ROWS);
+    List<KV<Integer, Double>> results = extractTempFn.processBundle(TEST_ROWS);
     Assert.assertThat(results, CoreMatchers.hasItem(kv1));
     Assert.assertThat(results, CoreMatchers.hasItem(kv2));
     Assert.assertThat(results, CoreMatchers.hasItem(kv3));
@@ -79,7 +79,7 @@ public class MaxPerKeyExamplesTest {
   public void testFormatMaxesFn() throws Exception {
     DoFnTester<KV<Integer, Double>, TableRow> formatMaxesFnFn =
         DoFnTester.of(new FormatMaxesFn());
-    List<TableRow> results = formatMaxesFnFn.processBatch(TEST_KVS);
+    List<TableRow> results = formatMaxesFnFn.processBundle(TEST_KVS);
     Assert.assertThat(results, CoreMatchers.hasItem(resultRow1));
     Assert.assertThat(results, CoreMatchers.hasItem(resultRow2));
   }

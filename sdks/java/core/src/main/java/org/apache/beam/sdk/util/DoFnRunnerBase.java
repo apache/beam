@@ -20,7 +20,6 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -92,7 +91,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
 
   /**
    * An implementation of {@code OutputManager} using simple lists, for testing and in-memory
-   * contexts such as the {@link DirectPipelineRunner}.
+   * contexts such as the {@link DirectRunner}.
    */
   public static class ListOutputManager implements OutputManager {
 

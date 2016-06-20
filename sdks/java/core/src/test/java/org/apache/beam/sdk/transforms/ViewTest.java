@@ -33,9 +33,6 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.options.DirectPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -1335,12 +1332,6 @@ public class ViewTest implements Serializable {
     assertEquals("View.AsMultimap", View.<String, Integer>asMultimap().getName());
   }
 
-  private Pipeline createTestDirectRunner() {
-    DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
-    options.setRunner(DirectPipelineRunner.class);
-    return Pipeline.create(options);
-  }
-
   private void testViewUnbounded(
       Pipeline pipeline,
       PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
@@ -1378,51 +1369,51 @@ public class ViewTest implements Serializable {
 
   @Test
   public void testViewUnboundedAsSingletonDirect() {
-    testViewUnbounded(createTestDirectRunner(), View.<KV<String, Integer>>asSingleton());
+    testViewUnbounded(TestPipeline.create(), View.<KV<String, Integer>>asSingleton());
   }
 
   @Test
   public void testViewUnboundedAsIterableDirect() {
-    testViewUnbounded(createTestDirectRunner(), View.<KV<String, Integer>>asIterable());
+    testViewUnbounded(TestPipeline.create(), View.<KV<String, Integer>>asIterable());
   }
 
   @Test
   public void testViewUnboundedAsListDirect() {
-    testViewUnbounded(createTestDirectRunner(), View.<KV<String, Integer>>asList());
+    testViewUnbounded(TestPipeline.create(), View.<KV<String, Integer>>asList());
   }
 
   @Test
   public void testViewUnboundedAsMapDirect() {
-    testViewUnbounded(createTestDirectRunner(), View.<String, Integer>asMap());
+    testViewUnbounded(TestPipeline.create(), View.<String, Integer>asMap());
   }
 
   @Test
   public void testViewUnboundedAsMultimapDirect() {
-    testViewUnbounded(createTestDirectRunner(), View.<String, Integer>asMultimap());
+    testViewUnbounded(TestPipeline.create(), View.<String, Integer>asMultimap());
   }
 
   @Test
   public void testViewNonmergingAsSingletonDirect() {
-    testViewNonmerging(createTestDirectRunner(), View.<KV<String, Integer>>asSingleton());
+    testViewNonmerging(TestPipeline.create(), View.<KV<String, Integer>>asSingleton());
   }
 
   @Test
   public void testViewNonmergingAsIterableDirect() {
-    testViewNonmerging(createTestDirectRunner(), View.<KV<String, Integer>>asIterable());
+    testViewNonmerging(TestPipeline.create(), View.<KV<String, Integer>>asIterable());
   }
 
   @Test
   public void testViewNonmergingAsListDirect() {
-    testViewNonmerging(createTestDirectRunner(), View.<KV<String, Integer>>asList());
+    testViewNonmerging(TestPipeline.create(), View.<KV<String, Integer>>asList());
   }
 
   @Test
   public void testViewNonmergingAsMapDirect() {
-    testViewNonmerging(createTestDirectRunner(), View.<String, Integer>asMap());
+    testViewNonmerging(TestPipeline.create(), View.<String, Integer>asMap());
   }
 
   @Test
   public void testViewNonmergingAsMultimapDirect() {
-    testViewNonmerging(createTestDirectRunner(), View.<String, Integer>asMultimap());
+    testViewNonmerging(TestPipeline.create(), View.<String, Integer>asMultimap());
   }
 }

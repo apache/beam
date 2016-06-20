@@ -71,7 +71,7 @@ public class FilterExamplesTest {
   public void testProjectionFn() throws Exception {
     DoFnTester<TableRow, TableRow> projectionFn =
         DoFnTester.of(new ProjectionFn());
-    List<TableRow> results = projectionFn.processBatch(ROWS_ARRAY);
+    List<TableRow> results = projectionFn.processBundle(ROWS_ARRAY);
     Assert.assertThat(results, CoreMatchers.hasItem(outRow1));
     Assert.assertThat(results, CoreMatchers.hasItem(outRow2));
     Assert.assertThat(results, CoreMatchers.hasItem(outRow3));
@@ -81,7 +81,7 @@ public class FilterExamplesTest {
   public void testFilterSingleMonthDataFn() throws Exception {
     DoFnTester<TableRow, TableRow> filterSingleMonthDataFn =
         DoFnTester.of(new FilterSingleMonthDataFn(7));
-    List<TableRow> results = filterSingleMonthDataFn.processBatch(PROJROWS_ARRAY);
+    List<TableRow> results = filterSingleMonthDataFn.processBundle(PROJROWS_ARRAY);
     Assert.assertThat(results, CoreMatchers.hasItem(outRow2));
   }
 }

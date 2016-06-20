@@ -25,7 +25,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -112,7 +111,7 @@ import javax.annotation.Nullable;
  * }</pre>
  *
  * <h3>Permissions</h3>
- * <p>When run using the {@link DirectPipelineRunner}, your pipeline can read and write text files
+ * <p>When run using the {@link DirectRunner}, your pipeline can read and write text files
  * on your local drive and remote text files on Google Cloud Storage that you have access to using
  * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
  * read and write files from GCS. For more information about permissions, see the Cloud Dataflow

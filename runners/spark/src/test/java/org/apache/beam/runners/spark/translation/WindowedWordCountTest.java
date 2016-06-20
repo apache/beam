@@ -23,6 +23,7 @@ import org.apache.beam.runners.spark.SimpleWordCountTest;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -55,7 +56,9 @@ public class WindowedWordCountTest {
 
   @Test
   public void testFixed() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.setRunner(SparkPipelineRunner.class);
+    Pipeline p = Pipeline.create(opts);
     PCollection<String> inputWords =
         p.apply(Create.timestamped(WORDS, TIMESTAMPS)).setCoder(StringUtf8Coder.of());
     PCollection<String> windowedWords =
@@ -65,7 +68,7 @@ public class WindowedWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SEPARATE_COUNT_SET);
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 
@@ -74,7 +77,9 @@ public class WindowedWordCountTest {
 
   @Test
   public void testFixed2() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.setRunner(SparkPipelineRunner.class);
+    Pipeline p = Pipeline.create(opts);
     PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS)
         .withCoder(StringUtf8Coder.of()));
     PCollection<String> windowedWords = inputWords
@@ -84,7 +89,7 @@ public class WindowedWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SAME_COUNT_SET);
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 
@@ -94,7 +99,9 @@ public class WindowedWordCountTest {
 
   @Test
   public void testSliding() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.setRunner(SparkPipelineRunner.class);
+    Pipeline p = Pipeline.create(opts);
     PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS)
         .withCoder(StringUtf8Coder.of()));
     PCollection<String> windowedWords = inputWords
@@ -105,7 +112,7 @@ public class WindowedWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_SLIDING_COUNT_SET);
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 

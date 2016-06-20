@@ -21,12 +21,12 @@ package org.apache.beam.runners.spark.translation;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -53,12 +53,12 @@ public class TransformTranslatorTest {
 
   /**
    * Builds a simple pipeline with TextIO.Read and TextIO.Write, runs the pipeline
-   * in DirectPipelineRunner and on SparkPipelineRunner, with the mapped dataflow-to-spark
+   * in DirectRunner and on SparkPipelineRunner, with the mapped dataflow-to-spark
    * transforms. Finally it makes sure that the results are the same for both runs.
    */
   @Test
   public void testTextIOReadAndWriteTransforms() throws IOException {
-    String directOut = runPipeline(DirectPipelineRunner.class);
+    String directOut = runPipeline(DirectRunner.class);
     String sparkOut = runPipeline(SparkPipelineRunner.class);
 
     List<String> directOutput =

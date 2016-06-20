@@ -23,6 +23,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
@@ -119,11 +120,17 @@ public class FlinkBatchTranslationContext {
 
   @SuppressWarnings("unchecked")
   public <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
-    Coder<T> valueCoder = collection.getCoder();
+    return getTypeInfo(collection.getCoder(), collection.getWindowingStrategy());
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> TypeInformation<WindowedValue<T>> getTypeInfo(
+      Coder<T> coder,
+      WindowingStrategy<?, ?> windowingStrategy) {
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
         WindowedValue.getFullCoder(
-            valueCoder,
-            collection.getWindowingStrategy().getWindowFn().windowCoder());
+            coder,
+            windowingStrategy.getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder);
   }

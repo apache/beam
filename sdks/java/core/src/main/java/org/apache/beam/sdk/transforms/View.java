@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.PCollectionViews;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -444,28 +442,6 @@ public class View {
     @Override
     public PCollectionView<ViewT> apply(PCollection<ElemT> input) {
       return view;
-    }
-
-    static {
-      DirectPipelineRunner.registerDefaultTransformEvaluator(
-          CreatePCollectionView.class,
-          new DirectPipelineRunner.TransformEvaluator<CreatePCollectionView>() {
-            @SuppressWarnings("rawtypes")
-            @Override
-            public void evaluate(
-                CreatePCollectionView transform,
-                DirectPipelineRunner.EvaluationContext context) {
-              evaluateTyped(transform, context);
-            }
-
-            private <ElemT, ViewT> void evaluateTyped(
-                CreatePCollectionView<ElemT, ViewT> transform,
-                DirectPipelineRunner.EvaluationContext context) {
-              List<WindowedValue<ElemT>> elems =
-                  context.getPCollectionWindowedValues(context.getInput(transform));
-              context.setPCollectionView(context.getOutput(transform), elems);
-            }
-          });
     }
   }
 }

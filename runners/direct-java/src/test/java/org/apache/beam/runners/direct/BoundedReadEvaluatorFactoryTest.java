@@ -25,8 +25,8 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -64,7 +64,7 @@ public class BoundedReadEvaluatorFactoryTest {
   private BoundedSource<Long> source;
   private PCollection<Long> longs;
   private TransformEvaluatorFactory factory;
-  @Mock private InProcessEvaluationContext context;
+  @Mock private EvaluationContext context;
   private BundleFactory bundleFactory;
 
   @Before
@@ -75,7 +75,7 @@ public class BoundedReadEvaluatorFactoryTest {
     longs = p.apply(Read.from(source));
 
     factory = new BoundedReadEvaluatorFactory();
-    bundleFactory = InProcessBundleFactory.create();
+    bundleFactory = ImmutableListBundleFactory.create();
   }
 
   @Test
@@ -85,7 +85,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(
         output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(),
@@ -105,7 +105,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     Iterable<? extends WindowedValue<Long>> outputElements =
         output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
@@ -138,7 +138,7 @@ public class BoundedReadEvaluatorFactoryTest {
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     assertThat(secondEvaluator, nullValue());
 
-    InProcessTransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle();
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     Iterable<? extends WindowedValue<Long>> outputElements =
         output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();

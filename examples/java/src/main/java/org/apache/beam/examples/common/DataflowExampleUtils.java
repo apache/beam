@@ -17,15 +17,16 @@
  */
 package org.apache.beam.examples.common;
 
+import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.IntraBundleParallelization;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
@@ -61,8 +62,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.servlet.http.HttpServletResponse;
-
 /**
  * The utility class that sets up and tears down external resources, starts the Google Cloud Pub/Sub
  * injector, and cancels the streaming and the injector pipelines once the program terminates.
@@ -70,6 +69,8 @@ import javax.servlet.http.HttpServletResponse;
  * <p>It is used to run Dataflow examples, such as TrafficMaxLaneFlow and TrafficRoutes.
  */
 public class DataflowExampleUtils {
+
+  private static final int SC_NOT_FOUND = 404;
 
   private final DataflowPipelineOptions options;
   private Bigquery bigQueryClient = null;
@@ -314,15 +315,17 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * Do some runner setup: check that the DirectPipelineRunner is not used in conjunction with
-   * streaming, and if streaming is specified, use the DataflowPipelineRunner. Return the streaming
-   * flag value.
+   * Do some runner setup: check that the DirectRunner is not used in conjunction with
+   * streaming, and if streaming is specified, use the DataflowRunner.
    */
   public void setupRunner() {
-    if (options.isStreaming() && options.getRunner() != DirectPipelineRunner.class) {
+    Class<? extends PipelineRunner<?>> runner = options.getRunner();
+    if (options.isStreaming()
+        && (runner.equals(DataflowRunner.class)
+            || runner.equals(BlockingDataflowRunner.class))) {
       // In order to cancel the pipelines automatically,
-      // {@literal DataflowPipelineRunner} is forced to be used.
-      options.setRunner(DataflowPipelineRunner.class);
+      // {@literal DataflowRunner} is forced to be used.
+      options.setRunner(DataflowRunner.class);
     }
   }
 
@@ -360,7 +363,7 @@ public class DataflowExampleUtils {
     }
     copiedOptions.setStreaming(false);
     copiedOptions.setWorkerHarnessContainerImage(
-        DataflowPipelineRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
+        DataflowRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
     copiedOptions.setNumWorkers(options.as(DataflowExampleOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
@@ -393,7 +396,7 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * If {@literal DataflowPipelineRunner} or {@literal BlockingDataflowPipelineRunner} is used,
+   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
    * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
    */
   public void waitToFinish(PipelineResult result) {
@@ -410,7 +413,7 @@ public class DataflowExampleUtils {
       }
     } else {
       // Do nothing if the given PipelineResult doesn't support waitToFinish(),
-      // such as EvaluationResults returned by DirectPipelineRunner.
+      // such as EvaluationResults returned by DirectRunner.
       tearDown();
       printPendingMessages();
     }
@@ -478,7 +481,7 @@ public class DataflowExampleUtils {
     try {
       return request.execute();
     } catch (GoogleJsonResponseException e) {
-      if (e.getStatusCode() == HttpServletResponse.SC_NOT_FOUND) {
+      if (e.getStatusCode() == SC_NOT_FOUND) {
         return null;
       } else {
         throw e;

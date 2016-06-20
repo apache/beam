@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.Read.Bounded;
@@ -55,14 +55,14 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       @Nullable CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext)
+      EvaluationContext evaluationContext)
       throws IOException {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
+      final EvaluationContext evaluationContext) {
     return getTransformEvaluatorQueue(transform, evaluationContext).poll();
   }
 
@@ -76,7 +76,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   @SuppressWarnings("unchecked")
   private <OutputT> Queue<BoundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
+      final EvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
     EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
@@ -110,7 +110,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
-    private final InProcessEvaluationContext evaluationContext;
+    private final EvaluationContext evaluationContext;
     /**
      * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same
      * as the source derived from {@link #transform} due to splitting.
@@ -119,7 +119,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     public BoundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-        InProcessEvaluationContext evaluationContext,
+        EvaluationContext evaluationContext,
         BoundedSource<OutputT> source) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
@@ -130,7 +130,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     public void processElement(WindowedValue<Object> element) {}
 
     @Override
-    public InProcessTransformResult finishBundle() throws IOException {
+    public TransformResult finishBundle() throws IOException {
       try (final BoundedReader<OutputT> reader =
               source.createReader(evaluationContext.getPipelineOptions());) {
         boolean contentsRemaining = reader.start();

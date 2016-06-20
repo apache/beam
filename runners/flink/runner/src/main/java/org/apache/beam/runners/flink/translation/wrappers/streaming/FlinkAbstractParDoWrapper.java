@@ -70,18 +70,21 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    this.doFn.startBundle(context);
   }
 
   @Override
   public void close() throws Exception {
-    this.doFn.finishBundle(context);
+    if (this.context != null) {
+      // we have initialized the context
+      this.doFn.finishBundle(this.context);
+    }
   }
 
   @Override
   public void flatMap(WindowedValue<IN> value, Collector<WindowedValue<OUTFL>> out) throws Exception {
     if (this.context == null) {
       this.context = new DoFnProcessContext(doFn, out);
+      this.doFn.startBundle(this.context);
     }
 
     // for each window the element belongs to, create a new copy here.
@@ -98,7 +101,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
   private void processElement(WindowedValue<IN> value) throws Exception {
     this.context.setElement(value);
-    doFn.processElement(context);
+    doFn.processElement(this.context);
   }
 
   private class DoFnProcessContext extends DoFn<IN, OUTDF>.ProcessContext {

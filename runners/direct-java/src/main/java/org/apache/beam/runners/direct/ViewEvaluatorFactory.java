@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.PCollectionViewWriter;
+import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -36,12 +36,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The {@link InProcessPipelineRunner} {@link TransformEvaluatorFactory} for the
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link CreatePCollectionView} primitive {@link PTransform}.
  *
  * <p>The {@link ViewEvaluatorFactory} produces {@link TransformEvaluator TransformEvaluators} for
  * the {@link WriteView} {@link PTransform}, which is part of the
- * {@link InProcessCreatePCollectionView} composite transform. This transform is an override for the
+ * {@link DirectCreatePCollectionView} composite transform. This transform is an override for the
  * {@link CreatePCollectionView} transform that applies windowing and triggers before the view is
  * written.
  */
@@ -49,8 +49,8 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      InProcessPipelineRunner.CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      DirectRunner.CommittedBundle<?> inputBundle,
+      EvaluationContext evaluationContext) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator = createEvaluator(
             (AppliedPTransform) application, evaluationContext);
@@ -60,7 +60,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(
       final AppliedPTransform<PCollection<Iterable<InT>>, PCollectionView<OuT>, WriteView<InT, OuT>>
           application,
-      InProcessEvaluationContext context) {
+      EvaluationContext context) {
     PCollection<Iterable<InT>> input = application.getInput();
     final PCollectionViewWriter<InT, OuT> writer =
         context.createPCollectionViewWriter(input, application.getOutput());
@@ -75,14 +75,14 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       }
 
       @Override
-      public InProcessTransformResult finishBundle() {
+      public TransformResult finishBundle() {
         writer.add(elements);
         return StepTransformResult.withoutHold(application).build();
       }
     };
   }
 
-  public static class InProcessViewOverrideFactory implements PTransformOverrideFactory {
+  public static class ViewOverrideFactory implements PTransformOverrideFactory {
     @Override
     public <InputT extends PInput, OutputT extends POutput>
         PTransform<InputT, OutputT> override(PTransform<InputT, OutputT> transform) {
@@ -92,7 +92,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       @SuppressWarnings({"rawtypes", "unchecked"})
       PTransform<InputT, OutputT> createView =
           (PTransform<InputT, OutputT>)
-              new InProcessCreatePCollectionView<>((CreatePCollectionView) transform);
+              new DirectCreatePCollectionView<>((CreatePCollectionView) transform);
       return createView;
     }
   }
@@ -100,11 +100,11 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * An in-process override for {@link CreatePCollectionView}.
    */
-  private static class InProcessCreatePCollectionView<ElemT, ViewT>
+  private static class DirectCreatePCollectionView<ElemT, ViewT>
       extends ForwardingPTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
     private final CreatePCollectionView<ElemT, ViewT> og;
 
-    private InProcessCreatePCollectionView(CreatePCollectionView<ElemT, ViewT> og) {
+    private DirectCreatePCollectionView(CreatePCollectionView<ElemT, ViewT> og) {
       this.og = og;
     }
 

@@ -85,13 +85,13 @@ public class AutoCompleteTest implements Serializable {
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
       input.apply(new ComputeTopCompletions(2, recursive))
-           .apply(Filter.byPredicate(
-                        new SerializableFunction<KV<String, List<CompletionCandidate>>, Boolean>() {
-                          @Override
-                          public Boolean apply(KV<String, List<CompletionCandidate>> element) {
-                            return element.getKey().length() <= 2;
-                          }
-                      }));
+           .apply(Filter.by(
+               new SerializableFunction<KV<String, List<CompletionCandidate>>, Boolean>() {
+                 @Override
+                 public Boolean apply(KV<String, List<CompletionCandidate>> element) {
+                   return element.getKey().length() <= 2;
+                 }
+               }));
 
     PAssert.that(output).containsInAnyOrder(
         KV.of("a", parseList("apple:2", "apricot:1")),
