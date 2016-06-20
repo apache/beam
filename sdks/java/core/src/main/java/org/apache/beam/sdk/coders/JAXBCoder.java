@@ -70,6 +70,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
       throws CoderException, IOException {
     try {
       JAXBContext jaxbContext = getContext();
+      // TODO: Consider caching in a ThreadLocal if this impacts performance
       Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
       if (!context.isWholeStream) {
         try {
@@ -93,6 +94,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     try {
       JAXBContext jaxbContext = getContext();
+      // TODO: Consider caching in a ThreadLocal if this impacts performance
       Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
 
       InputStream stream = inStream;
