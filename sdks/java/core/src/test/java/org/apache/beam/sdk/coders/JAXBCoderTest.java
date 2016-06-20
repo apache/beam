@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.SerializableUtils;
 
 import com.google.common.collect.ImmutableList;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,6 +34,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
@@ -91,7 +99,15 @@ public class JAXBCoderTest {
     JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
 
     byte[] encoded = CoderUtils.encodeToByteArray(coder, new TestType("abc", 9999));
-    Assert.assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(coder, encoded));
+    assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(coder, encoded));
+  }
+
+  @Test
+  public void testEncodeDecodeAfterClone() throws Exception {
+    JAXBCoder<TestType> coder = SerializableUtils.clone(JAXBCoder.of(TestType.class));
+
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, new TestType("abc", 9999));
+    assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(coder, encoded));
   }
 
   @Test
@@ -100,8 +116,55 @@ public class JAXBCoderTest {
     TestCoder nesting = new TestCoder(jaxbCoder);
 
     byte[] encoded = CoderUtils.encodeToByteArray(nesting, new TestType("abc", 9999));
-    Assert.assertEquals(
+    assertEquals(
         new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
+  }
+
+  @Test
+  public void testEncodeDecodeMultithreaded() throws Throwable {
+    final JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
+    int numThreads = 1000;
+
+    final CountDownLatch ready = new CountDownLatch(numThreads);
+    final CountDownLatch start = new CountDownLatch(1);
+    final CountDownLatch done = new CountDownLatch(numThreads);
+
+    final AtomicReference<Throwable> thrown = new AtomicReference<>();
+
+    Executor executor = Executors.newCachedThreadPool();
+    for (int i = 0; i < numThreads; i++) {
+      final TestType elem = new TestType("abc", i);
+      final int index = i;
+      executor.execute(
+          new Runnable() {
+            @Override
+            public void run() {
+              ready.countDown();
+              try {
+                start.await();
+              } catch (InterruptedException e) {
+              }
+
+              try {
+                byte[] encoded = CoderUtils.encodeToByteArray(coder, elem);
+                assertEquals(
+                    new TestType("abc", index), CoderUtils.decodeFromByteArray(coder, encoded));
+              } catch (Throwable e) {
+                thrown.compareAndSet(null, e);
+              }
+              done.countDown();
+            }
+          });
+    }
+    ready.await();
+    start.countDown();
+
+    if (!done.await(10L, TimeUnit.SECONDS)) {
+      fail("Should be able to clone " + numThreads + " elements in 10 seconds");
+    }
+    if (thrown.get() != null) {
+      throw thrown.get();
+    }
   }
 
   /**
