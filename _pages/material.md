@@ -23,7 +23,7 @@ download it.
 {% for type in site.data.logos.types %}
 <div class="col-md-2">
 <div class="row">
-<a href="{{ site.baseurl }}{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg" role="button"><img style="height: 60px" src="{{ site.baseurl }}{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg"></a>
+<a href="{{ site.baseurl }}{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg" role="button"><img style="height: 60px" src="{{ site.baseurl }}{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg" alt="beam-logo-{{ color[0] }}-{{ type }}.svg"></a>
 </div><br>
 </div>
 {% endfor %}
@@ -43,7 +43,7 @@ available in a number of fixed sizes and are optimized for web use.
 {% for type in site.data.logos.types %}
 <div class="col-md-2">
 <div class="row">
-<img style="height: 60px" src="{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg">
+<img style="height: 60px" src="{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg" alt="beam-logo-{{ color[0] }}-{{ type }}">
 </div><br>
 <div class="row">
 {% for size in site.data.logos.sizes %}
