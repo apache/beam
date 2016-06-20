@@ -38,7 +38,7 @@ collections:
 - beam_team
 
 # Things to ignore in the build
-exclude: ['README.md', 'Gemfile.lock', 'Gemfile']
+exclude: ['README.md', 'Gemfile.lock', 'Gemfile', 'Rakefile']
 
 # Downloads directory
 downloads: downloads

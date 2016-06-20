@@ -1,1 +1,1 @@
-<b><center>{% if val.l1 == 'Yes' %}&#x2713;{% elsif val.l1 == 'Partially' %}~{% else %}&#x2715;{% endif %}{% if val.jira %} (<a href='https://issues.apache.org/jira/browse/{{ val.jira }}'>{{ val.jira }}</a>){% endif %}</center></b>
+<center><b>{% if val.l1 == 'Yes' %}&#x2713;{% elsif val.l1 == 'Partially' %}~{% else %}&#x2715;{% endif %}{% if val.jira %} (<a href='https://issues.apache.org/jira/browse/{{ val.jira }}'>{{ val.jira }}</a>){% endif %}</b></center>
