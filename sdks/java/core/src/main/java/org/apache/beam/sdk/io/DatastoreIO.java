@@ -502,8 +502,8 @@ public class DatastoreIO {
 
   /**
    * Returns a new {@link DatastoreIO.Sink} builder.
-   * You need to further configure it using {@link DatastoreIO.Sink#withProject},
-   * before using it in a {@link Write} transform.
+   * You need to further configure it using {@link DatastoreIO.Sink#withProject}, before using it
+   * in a {@link Write} transform.
    *
    * <p>For example: {@code p.apply(Write.to(DatastoreIO.sink().withProject(projectId)));}
    */

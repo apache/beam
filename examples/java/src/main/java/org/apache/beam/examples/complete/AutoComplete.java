@@ -444,7 +444,7 @@ public class AutoComplete {
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
-    @Description("Datastore output dataset ID, defaults to project ID")
+    @Description("Datastore output project ID, defaults to project ID")
     String getOutputProject();
     void setOutputProject(String value);
   }
