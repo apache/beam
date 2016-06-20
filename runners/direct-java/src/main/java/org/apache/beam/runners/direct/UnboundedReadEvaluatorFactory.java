@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -201,6 +202,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (currentReader == null) {
         if (checkpointMark != null) {
           checkpointMark.finalizeCheckpoint();
+          checkpointMark = CoderUtils.clone(source.getCheckpointMarkCoder(), checkpointMark);
         }
         currentReader = source.createReader(evaluationContext.getPipelineOptions(), checkpointMark);
         checkpointMark = null;
