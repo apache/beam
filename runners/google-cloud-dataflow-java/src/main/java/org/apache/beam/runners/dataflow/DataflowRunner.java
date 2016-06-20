@@ -633,12 +633,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // regularly and need not be retried automatically.
     DataflowPipelineJob dataflowPipelineJob =
         new DataflowPipelineJob(options.getProject(), jobResult.getId(),
-            DataflowTransport.newRawDataflowClient(options).build(), aggregatorTransforms);
+            options.getDataflowClient(), aggregatorTransforms);
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same
     // (i.e., the returned job is not created by this request), throw
-    // DataflowJobAlreadyExistsException or DataflowJobAlreadyUpdatedExcetpion
+    // DataflowJobAlreadyExistsException or DataflowJobAlreadyUpdatedException
     // depending on whether this is a reload or not.
     if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
         && !jobResult.getClientRequestId().equals(requestId)) {
