@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -96,13 +96,14 @@ public class HourlyTeamScoreTest implements Serializable {
     PCollection<KV<String, Integer>> output = input
       .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
 
-      .apply("FilterStartTime", Filter.byPredicate(
+      .apply("FilterStartTime", Filter.by(
           (GameActionInfo gInfo)
               -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
       // run a map to access the fields in the result.
       .apply(MapElements
           .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-          .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}));
+          .withOutputType(
+              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
 
       PAssert.that(output).containsInAnyOrder(FILTERED_EVENTS);
 

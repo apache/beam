@@ -50,7 +50,7 @@ public class FilterJava8Test implements Serializable {
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
-        .apply(Filter.byPredicate(i -> true));
+        .apply(Filter.by(i -> true));
 
     PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
     pipeline.run();
@@ -62,7 +62,7 @@ public class FilterJava8Test implements Serializable {
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 4, 5))
-        .apply(Filter.byPredicate(i -> false));
+        .apply(Filter.by(i -> false));
 
     PAssert.that(output).empty();
     pipeline.run();
@@ -75,7 +75,7 @@ public class FilterJava8Test implements Serializable {
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.byPredicate(i -> i % 2 == 0));
+        .apply(Filter.by(i -> i % 2 == 0));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     pipeline.run();
@@ -105,7 +105,7 @@ public class FilterJava8Test implements Serializable {
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
-        .apply(Filter.byPredicate(new EvenFilter()::isEven));
+        .apply(Filter.by(new EvenFilter()::isEven));
 
     PAssert.that(output).containsInAnyOrder(2, 4, 6);
     pipeline.run();

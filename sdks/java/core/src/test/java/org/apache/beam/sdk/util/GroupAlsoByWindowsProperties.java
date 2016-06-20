@@ -20,12 +20,11 @@ package org.apache.beam.sdk.util;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.TestUtils.KvMatcher;
-import org.apache.beam.sdk.WindowMatchers;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -33,8 +32,8 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.collect.ImmutableList;
@@ -43,18 +42,16 @@ import com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 /**
  * Properties of {@link GroupAlsoByWindowsDoFn}.
  *
  * <p>Some properties may not hold of some implementations, due to restrictions on the context
- * in which the implementation is applicable. For example,
- * {@link GroupAlsoByWindowsViaIteratorsDoFn} does not support merging window functions.
+ * in which the implementation is applicable. For example, some {@code GroupAlsoByWindows} may not
+ * support merging windows.
  */
 public class GroupAlsoByWindowsProperties {
 
@@ -80,13 +77,13 @@ public class GroupAlsoByWindowsProperties {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
 
-    List<?> result = runGABW(
+    DoFnTester<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> result = runGABW(
         gabwFactory,
         windowingStrategy,
         (K) null, // key should never be used
         Collections.<WindowedValue<InputT>>emptyList());
 
-    assertThat(result.size(), equalTo(0));
+    assertThat(result.peekOutputElements(), hasSize(0));
   }
 
   /**
@@ -100,7 +97,7 @@ public class GroupAlsoByWindowsProperties {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "key",
             WindowedValue.of(
                 "v1",
@@ -118,18 +115,17 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(10, 20)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 10)));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
     assertThat(item0.getTimestamp(), equalTo(window(0, 10).maxTimestamp()));
-    assertThat(item0.getWindows(), contains(window(0, 10)));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(10, 20)));
     assertThat(item1.getValue().getValue(), contains("v3"));
     assertThat(item1.getTimestamp(), equalTo(window(10, 20).maxTimestamp()));
-    assertThat(item1.getWindows(),
-        contains(window(10, 20)));
   }
 
   /**
@@ -146,7 +142,7 @@ public class GroupAlsoByWindowsProperties {
         SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
         .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "key",
             WindowedValue.of(
                 "v1",
@@ -159,25 +155,22 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(0, 20), window(10, 30)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(3));
+    assertThat(result.peekOutputElements(), hasSize(3));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(-10, 10)));
     assertThat(item0.getValue().getValue(), contains("v1"));
     assertThat(item0.getTimestamp(), equalTo(new Instant(5)));
-    assertThat(item0.getWindows(),
-        contains(window(-10, 10)));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 20)));
     assertThat(item1.getValue().getValue(), containsInAnyOrder("v1", "v2"));
     assertThat(item1.getTimestamp(), equalTo(new Instant(10)));
-    assertThat(item1.getWindows(),
-        contains(window(0, 20)));
 
-    WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
+    TimestampedValue<KV<String, Iterable<String>>> item2 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(10, 30)));
     assertThat(item2.getValue().getValue(), contains("v2"));
     assertThat(item2.getTimestamp(), equalTo(new Instant(20)));
-    assertThat(item2.getWindows(),
-        contains(window(10, 30)));
   }
 
   /**
@@ -195,7 +188,7 @@ public class GroupAlsoByWindowsProperties {
         WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
 
-    List<WindowedValue<KV<String, Long>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
             WindowedValue.of(
                 1L,
@@ -213,30 +206,25 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(0, 20), window(10, 30)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(3));
+    assertThat(result.peekOutputElements(), hasSize(3));
 
-    assertThat(result, contains(
-        WindowMatchers.isSingleWindowedValue(
-            KvMatcher.isKv(
-                equalTo("k"),
-                equalTo(combineFn.apply(ImmutableList.of(1L)))),
-            5,   // aggregate timestamp
-            -10, // window start
-            10), // window end
-        WindowMatchers.isSingleWindowedValue(
-            KvMatcher.isKv(
-                equalTo("k"),
-                equalTo(combineFn.apply(ImmutableList.of(1L, 2L, 4L)))),
-            10,  // aggregate timestamp
-            0,   // window start
-            20), // window end
-        WindowMatchers.isSingleWindowedValue(
-            KvMatcher.isKv(
-                equalTo("k"),
-                equalTo(combineFn.apply(ImmutableList.of(2L, 4L)))),
-            20, // aggregate timestamp
-            10, // window start
-            30))); // window end
+    TimestampedValue<KV<String, Long>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(-10, 10)));
+    assertThat(item0.getValue().getKey(), equalTo("k"));
+    assertThat(item0.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L))));
+    assertThat(item0.getTimestamp(), equalTo(new Instant(5L)));
+
+    TimestampedValue<KV<String, Long>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 20)));
+    assertThat(item1.getValue().getKey(), equalTo("k"));
+    assertThat(item1.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L, 2L, 4L))));
+    assertThat(item1.getTimestamp(), equalTo(new Instant(5L)));
+
+    TimestampedValue<KV<String, Long>> item2 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(10, 30)));
+    assertThat(item2.getValue().getKey(), equalTo("k"));
+    assertThat(item2.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(2L, 4L))));
+    assertThat(item2.getTimestamp(), equalTo(new Instant(15L)));
   }
 
   /**
@@ -250,7 +238,7 @@ public class GroupAlsoByWindowsProperties {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "key",
             WindowedValue.of(
                 "v1",
@@ -268,19 +256,17 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(0, 5)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 5)));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v3"));
     assertThat(item0.getTimestamp(), equalTo(window(1, 5).maxTimestamp()));
-    assertThat(item0.getWindows(),
-        contains(window(0, 5)));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(1, 5)));
     assertThat(item1.getValue().getValue(), contains("v2"));
     assertThat(item1.getTimestamp(), equalTo(window(0, 5).maxTimestamp()));
-    assertThat(item1.getWindows(),
-        contains(window(1, 5)));
   }
 
   /**
@@ -293,7 +279,7 @@ public class GroupAlsoByWindowsProperties {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)));
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "key",
             WindowedValue.of(
                 "v1",
@@ -311,19 +297,17 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(15, 25)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 15)));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
     assertThat(item0.getTimestamp(), equalTo(window(0, 15).maxTimestamp()));
-    assertThat(item0.getWindows(),
-        contains(window(0, 15)));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(15, 25)));
     assertThat(item1.getValue().getValue(), contains("v3"));
     assertThat(item1.getTimestamp(), equalTo(window(15, 25).maxTimestamp()));
-    assertThat(item1.getWindows(),
-        contains(window(15, 25)));
   }
 
   /**
@@ -338,7 +322,7 @@ public class GroupAlsoByWindowsProperties {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)));
 
-    List<WindowedValue<KV<String, Long>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
             WindowedValue.of(
                 1L,
@@ -356,21 +340,19 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(15, 25)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result, contains(
-        WindowMatchers.isSingleWindowedValue(
-            KvMatcher.isKv(
-                equalTo("k"),
-                equalTo(combineFn.apply(ImmutableList.of(1L, 2L)))),
-            window(0, 15).maxTimestamp().getMillis(), // aggregate timestamp
-            0, // window start
-            15), // window end
-        WindowMatchers.isSingleWindowedValue(
-            KvMatcher.isKv(
-                equalTo("k"),
-                equalTo(combineFn.apply(ImmutableList.of(4L)))),
-            window(15, 25).maxTimestamp().getMillis(), // aggregate timestamp
-            15, // window start
-            25))); // window end
+    assertThat(result.peekOutputElements(), hasSize(2));
+
+    TimestampedValue<KV<String, Long>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 15)));
+    assertThat(item0.getValue().getKey(), equalTo("k"));
+    assertThat(item0.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L, 2L))));
+    assertThat(item0.getTimestamp(), equalTo(window(0, 15).maxTimestamp()));
+
+    TimestampedValue<KV<String, Long>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(15, 25)));
+    assertThat(item1.getValue().getKey(), equalTo("k"));
+    assertThat(item1.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(4L))));
+    assertThat(item1.getTimestamp(), equalTo(window(15, 25).maxTimestamp()));
   }
 
   /**
@@ -386,7 +368,7 @@ public class GroupAlsoByWindowsProperties {
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
         .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow());
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "key",
             WindowedValue.of(
                 "v1",
@@ -404,19 +386,17 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(10, 20)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 10)));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
     assertThat(item0.getTimestamp(), equalTo(window(0, 10).maxTimestamp()));
-    assertThat(item0.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item0.getWindows()).maxTimestamp()));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(10, 20)));
     assertThat(item1.getValue().getValue(), contains("v3"));
     assertThat(item1.getTimestamp(), equalTo(window(10, 20).maxTimestamp()));
-    assertThat(item1.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item1.getWindows()).maxTimestamp()));
   }
 
   /**
@@ -432,7 +412,7 @@ public class GroupAlsoByWindowsProperties {
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
         .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp());
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
             WindowedValue.of(
                 "v1",
@@ -450,16 +430,16 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(10, 20)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 10)));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 10)));
     assertThat(item0.getTimestamp(), equalTo(new Instant(2)));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(10, 20)));
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(10, 20)));
     assertThat(item1.getTimestamp(), equalTo(new Instant(13)));
   }
 
@@ -475,7 +455,7 @@ public class GroupAlsoByWindowsProperties {
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
             .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow());
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
             WindowedValue.of(
                 "v1",
@@ -493,19 +473,17 @@ public class GroupAlsoByWindowsProperties {
                 Arrays.asList(window(15, 25)),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(0, 15)));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 15)));
-    assertThat(item0.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item0.getWindows()).maxTimestamp()));
+    assertThat(item0.getTimestamp(), equalTo(window(0, 15).maxTimestamp()));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(window(15, 25)));
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(15, 25)));
-    assertThat(item1.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item1.getWindows()).maxTimestamp()));
+    assertThat(item1.getTimestamp(), equalTo(window(15, 25).maxTimestamp()));
   }
 
   /**
@@ -520,7 +498,8 @@ public class GroupAlsoByWindowsProperties {
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
             .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp());
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
+    BoundedWindow unmergedWindow = window(15, 25);
+    DoFnTester<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
             WindowedValue.of(
                 "v1",
@@ -535,19 +514,20 @@ public class GroupAlsoByWindowsProperties {
             WindowedValue.of(
                 "v3",
                 new Instant(15),
-                Arrays.asList(window(15, 25)),
+                Arrays.asList(unmergedWindow),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    BoundedWindow mergedWindow = window(0, 15);
+    TimestampedValue<KV<String, Iterable<String>>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(mergedWindow));
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 15)));
     assertThat(item0.getTimestamp(), equalTo(new Instant(5)));
 
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    TimestampedValue<KV<String, Iterable<String>>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(unmergedWindow));
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(15, 25)));
     assertThat(item1.getTimestamp(), equalTo(new Instant(15)));
   }
 
@@ -564,8 +544,8 @@ public class GroupAlsoByWindowsProperties {
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
         .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow());
 
-
-    List<WindowedValue<KV<String, Long>>> result =
+    BoundedWindow secondWindow = window(15, 25);
+    DoFnTester<?, KV<String, Long>> result =
         runGABW(gabwFactory, windowingStrategy, "k",
             WindowedValue.of(
                 1L,
@@ -580,91 +560,56 @@ public class GroupAlsoByWindowsProperties {
             WindowedValue.of(
                 4L,
                 new Instant(15),
-                Arrays.asList(window(15, 25)),
+                Arrays.asList(secondWindow),
                 PaneInfo.NO_FIRING));
 
-    assertThat(result.size(), equalTo(2));
+    assertThat(result.peekOutputElements(), hasSize(2));
 
-    WindowedValue<KV<String, Long>> item0 = result.get(0);
+    BoundedWindow firstResultWindow = window(0, 15);
+    TimestampedValue<KV<String, Long>> item0 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(firstResultWindow));
     assertThat(item0.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L, 2L))));
-    assertThat(item0.getWindows(), contains(window(0, 15)));
-    assertThat(item0.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item0.getWindows()).maxTimestamp()));
+    assertThat(item0.getTimestamp(), equalTo(firstResultWindow.maxTimestamp()));
 
-    WindowedValue<KV<String, Long>> item1 = result.get(1);
+    TimestampedValue<KV<String, Long>> item1 =
+        Iterables.getOnlyElement(result.peekOutputElementsInWindow(secondWindow));
     assertThat(item1.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(4L))));
-    assertThat(item1.getWindows(), contains(window(15, 25)));
     assertThat(item1.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item1.getWindows()).maxTimestamp()));
+        equalTo(secondWindow.maxTimestamp()));
   }
 
   @SafeVarargs
   private static <K, InputT, OutputT, W extends BoundedWindow>
-  List<WindowedValue<KV<K, OutputT>>> runGABW(
+  DoFnTester<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> runGABW(
       GroupAlsoByWindowsDoFnFactory<K, InputT, OutputT> gabwFactory,
       WindowingStrategy<?, W> windowingStrategy,
       K key,
-      WindowedValue<InputT>... values) {
+      WindowedValue<InputT>... values) throws Exception {
     return runGABW(gabwFactory, windowingStrategy, key, Arrays.asList(values));
   }
 
   private static <K, InputT, OutputT, W extends BoundedWindow>
-  List<WindowedValue<KV<K, OutputT>>> runGABW(
+  DoFnTester<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> runGABW(
       GroupAlsoByWindowsDoFnFactory<K, InputT, OutputT> gabwFactory,
       WindowingStrategy<?, W> windowingStrategy,
       K key,
-      Collection<WindowedValue<InputT>> values) {
+      Collection<WindowedValue<InputT>> values) throws Exception {
 
     TupleTag<KV<K, OutputT>> outputTag = new TupleTag<>();
     DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
 
-    DoFnRunner<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> runner =
-        makeRunner(
-            gabwFactory.forStrategy(windowingStrategy),
-            windowingStrategy,
-            outputTag,
-            outputManager);
-
-    runner.startBundle();
-
-    if (values.size() > 0) {
-      runner.processElement(WindowedValue.valueInEmptyWindows(
-          KV.of(key, (Iterable<WindowedValue<InputT>>) values)));
-    }
-
-    runner.finishBundle();
-
-    List<WindowedValue<KV<K, OutputT>>> result = outputManager.getOutput(outputTag);
+    DoFnTester<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> tester =
+        DoFnTester.of(gabwFactory.forStrategy(windowingStrategy));
+    tester.startBundle();
+    tester.processElement(KV.<K, Iterable<WindowedValue<InputT>>>of(key, values));
+    tester.finishBundle();
 
     // Sanity check for corruption
-    for (WindowedValue<KV<K, OutputT>> elem : result) {
-      assertThat(elem.getValue().getKey(), equalTo(key));
+    for (KV<K, OutputT> elem : tester.peekOutputElements()) {
+      assertThat(elem.getKey(), equalTo(key));
     }
 
-    return result;
-  }
-
-  private static <K, InputT, OutputT, W extends BoundedWindow>
-  DoFnRunner<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>>
-      makeRunner(
-          GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> fn,
-          WindowingStrategy<?, W> windowingStrategy,
-          TupleTag<KV<K, OutputT>> outputTag,
-          DoFnRunners.OutputManager outputManager) {
-
-    ExecutionContext executionContext = DirectModeExecutionContext.create();
-    CounterSet counters = new CounterSet();
-
-    return DoFnRunners.simpleRunner(
-        PipelineOptionsFactory.create(),
-        fn,
-        NullSideInputReader.empty(),
-        outputManager,
-        outputTag,
-        new ArrayList<TupleTag<?>>(),
-        executionContext.getOrCreateStepContext("GABWStep", "GABWTransform"),
-        counters.getAddCounterMutator(),
-        windowingStrategy);
+    return tester;
   }
 
   private static BoundedWindow window(long start, long end) {

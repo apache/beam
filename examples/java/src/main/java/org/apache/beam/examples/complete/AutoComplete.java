@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -81,7 +82,7 @@ import java.util.regex.Pattern;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowPipelineRunner
+ *   --runner=DataflowRunner
  *   --inputFile=gs://path/to/input*.txt
  * }</pre>
  *
@@ -90,7 +91,7 @@ import java.util.regex.Pattern;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowPipelineRunner
+ *   --runner=DataflowRunner
  *   --inputFile=gs://YOUR_INPUT_DIRECTORY/*.txt
  *   --streaming
  * }</pre>
@@ -234,7 +235,7 @@ public class AutoComplete {
             .of(larger.get(1).apply(ParDo.of(new FlattenTops())))
             // ...together with those (previously excluded) candidates of length
             // exactly minPrefix...
-            .and(input.apply(Filter.byPredicate(
+            .and(input.apply(Filter.by(
                 new SerializableFunction<CompletionCandidate, Boolean>() {
                   @Override
                   public Boolean apply(CompletionCandidate c) {
@@ -416,6 +417,7 @@ public class AutoComplete {
    */
   private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input text file")
+    @Validation.Required
     String getInputFile();
     void setInputFile(String value);
 
@@ -494,7 +496,9 @@ public class AutoComplete {
                .to(tableRef)
                .withSchema(FormatForBigquery.getSchema())
                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-               .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+               .withWriteDisposition(options.isStreaming()
+                   ? BigQueryIO.Write.WriteDisposition.WRITE_APPEND
+                   : BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     }
 
     // Run the pipeline.

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.transforms;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -44,7 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link View} for a {@link DataflowPipelineRunner}. */
+/** Tests for {@link View} for a {@link DataflowRunner}. */
 @RunWith(JUnit4.class)
 public class DataflowViewTest {
   @Rule
@@ -52,7 +52,7 @@ public class DataflowViewTest {
 
   private Pipeline createTestBatchRunner() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
     options.setStagingLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
@@ -62,7 +62,7 @@ public class DataflowViewTest {
 
   private Pipeline createTestStreamingRunner() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
+    options.setRunner(DataflowRunner.class);
     options.setStreaming(true);
     options.setProject("someproject");
     options.setStagingLocation("gs://staging");

@@ -77,7 +77,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  * }
  * </pre>
  * and an output prefix on GCS:

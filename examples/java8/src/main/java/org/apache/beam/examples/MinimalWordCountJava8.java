@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import java.util.Arrays;
 
@@ -42,7 +42,7 @@ public class MinimalWordCountJava8 {
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
         .as(DataflowPipelineOptions.class);
 
-    options.setRunner(BlockingDataflowPipelineRunner.class);
+    options.setRunner(BlockingDataflowRunner.class);
 
     // CHANGE 1 of 3: Your project ID is required in order to run your pipeline on the Google Cloud.
     options.setProject("SET_YOUR_PROJECT_ID_HERE");
@@ -54,12 +54,12 @@ public class MinimalWordCountJava8 {
 
     p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
-         .withOutputType(new TypeDescriptor<String>() {}))
-     .apply(Filter.byPredicate((String word) -> !word.isEmpty()))
+         .withOutputType(TypeDescriptors.strings()))
+     .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
-         .withOutputType(new TypeDescriptor<String>() {}))
+         .withOutputType(TypeDescriptors.strings()))
 
      // CHANGE 3 of 3: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));

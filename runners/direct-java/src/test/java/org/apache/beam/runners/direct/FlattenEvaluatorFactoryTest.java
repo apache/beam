@@ -23,8 +23,8 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -45,7 +45,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class FlattenEvaluatorFactoryTest {
-  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
   @Test
   public void testFlattenInMemoryEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -60,7 +60,7 @@ public class FlattenEvaluatorFactoryTest {
     CommittedBundle<Integer> rightBundle =
         bundleFactory.createRootBundle(right).commit(Instant.now());
 
-    InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
+    EvaluationContext context = mock(EvaluationContext.class);
 
     UncommittedBundle<Integer> flattenedLeftBundle = bundleFactory.createRootBundle(flattened);
     UncommittedBundle<Integer> flattenedRightBundle = bundleFactory.createRootBundle(flattened);
@@ -87,8 +87,8 @@ public class FlattenEvaluatorFactoryTest {
     rightSideEvaluator.processElement(
         WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
 
-    InProcessTransformResult rightSideResult = rightSideEvaluator.finishBundle();
-    InProcessTransformResult leftSideResult = leftSideEvaluator.finishBundle();
+    TransformResult rightSideResult = rightSideEvaluator.finishBundle();
+    TransformResult leftSideResult = leftSideEvaluator.finishBundle();
 
     assertThat(
         rightSideResult.getOutputBundles(),
@@ -124,13 +124,13 @@ public class FlattenEvaluatorFactoryTest {
 
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
-    InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
+    EvaluationContext context = mock(EvaluationContext.class);
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
     TransformEvaluator<Integer> emptyEvaluator =
         factory.forApplication(flattened.getProducingTransformInternal(), null, context);
 
-    InProcessTransformResult leftSideResult = emptyEvaluator.finishBundle();
+    TransformResult leftSideResult = emptyEvaluator.finishBundle();
 
     assertThat(leftSideResult.getOutputBundles(), emptyIterable());
     assertThat(

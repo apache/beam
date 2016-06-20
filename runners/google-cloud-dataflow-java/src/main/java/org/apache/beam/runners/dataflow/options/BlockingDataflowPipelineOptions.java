@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -29,9 +29,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.PrintStream;
 
 /**
- * Options that are used to configure the {@link BlockingDataflowPipelineRunner}.
+ * Options that are used to configure the {@link BlockingDataflowRunner}.
  */
-@Description("Configure options on the BlockingDataflowPipelineRunner.")
+@Description("Configure options on the BlockingDataflowRunner.")
 public interface BlockingDataflowPipelineOptions extends DataflowPipelineOptions {
   /**
    * Output stream for job status messages.

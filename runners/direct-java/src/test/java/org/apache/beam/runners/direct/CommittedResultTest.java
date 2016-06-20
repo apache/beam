@@ -53,31 +53,31 @@ public class CommittedResultTest implements Serializable {
   private transient AppliedPTransform<?, ?, ?> transform =
       AppliedPTransform.of("foo", p.begin(), PDone.in(p), new PTransform<PBegin, PDone>() {
       });
-  private transient BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private transient BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test
   public void getTransformExtractsFromResult() {
     CommittedResult result =
         CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createRootBundle(created).commit(Instant.now()),
-            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+            Collections.<DirectRunner.CommittedBundle<?>>emptyList());
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
   }
 
   @Test
   public void getUncommittedElementsEqualInput() {
-    InProcessPipelineRunner.CommittedBundle<Integer> bundle =
+    DirectRunner.CommittedBundle<Integer> bundle =
         bundleFactory.createRootBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult result =
         CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
             bundle,
-            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+            Collections.<DirectRunner.CommittedBundle<?>>emptyList());
 
     assertThat(result.getUnprocessedInputs(),
-        Matchers.<InProcessPipelineRunner.CommittedBundle<?>>equalTo(bundle));
+        Matchers.<DirectRunner.CommittedBundle<?>>equalTo(bundle));
   }
 
   @Test
@@ -85,14 +85,14 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
             null,
-            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+            Collections.<DirectRunner.CommittedBundle<?>>emptyList());
 
     assertThat(result.getUnprocessedInputs(), nullValue());
   }
 
   @Test
   public void getOutputsEqualInput() {
-    List<? extends InProcessPipelineRunner.CommittedBundle<?>> outputs =
+    List<? extends DirectRunner.CommittedBundle<?>> outputs =
         ImmutableList.of(bundleFactory.createRootBundle(PCollection.createPrimitiveOutputInternal(p,
             WindowingStrategy.globalDefault(),
             PCollection.IsBounded.BOUNDED)).commit(Instant.now()),

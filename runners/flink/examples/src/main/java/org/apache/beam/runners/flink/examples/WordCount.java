@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.examples;
 
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.FlinkPipelineRunner;
+import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -105,7 +105,7 @@ public class WordCount {
 
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation()
         .as(Options.class);
-    options.setRunner(FlinkPipelineRunner.class);
+    options.setRunner(FlinkRunner.class);
 
     Pipeline p = Pipeline.create(options);
 

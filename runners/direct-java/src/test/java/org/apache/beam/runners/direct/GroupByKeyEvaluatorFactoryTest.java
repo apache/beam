@@ -22,8 +22,9 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
-import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -52,7 +53,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class GroupByKeyEvaluatorFactoryTest {
-  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test
   public void testInMemoryEvaluator() throws Exception {
@@ -68,11 +69,11 @@ public class GroupByKeyEvaluatorFactoryTest {
     PCollection<KV<String, WindowedValue<Integer>>> kvs =
         values.apply(new ReifyTimestampsAndWindows<String, Integer>());
     PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        kvs.apply(new InProcessGroupByKey.InProcessGroupByKeyOnly<String, Integer>());
+        kvs.apply(new DirectGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
         bundleFactory.createRootBundle(kvs).commit(Instant.now());
-    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
     StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
         bundleFactory.createKeyedBundle(null, fooKey, groupedKvs);
@@ -100,7 +101,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     Coder<String> keyCoder =
         ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
-        new InProcessGroupByKeyOnlyEvaluatorFactory()
+        new GroupByKeyOnlyEvaluatorFactory()
             .forApplication(
                 groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
 

@@ -21,9 +21,11 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.TextIOTest;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -81,7 +83,7 @@ public class TextIOShardedWriteFactoryTest {
 
     assertThat(overridden, not(Matchers.<PTransform<PCollection<String>, PDone>>equalTo(original)));
 
-    TestPipeline p = TestPipeline.create();
+    Pipeline p = getPipeline();
     String[] elems = new String[] {"foo", "bar", "baz"};
     p.apply(Create.<String>of(elems)).apply(overridden);
 
@@ -100,7 +102,7 @@ public class TextIOShardedWriteFactoryTest {
 
     assertThat(overridden, not(Matchers.<PTransform<PCollection<String>, PDone>>equalTo(original)));
 
-    TestPipeline p = TestPipeline.create();
+    Pipeline p = getPipeline();
     String[] elems = new String[] {"foo", "bar", "baz", "spam", "ham", "eggs"};
     p.apply(Create.<String>of(elems)).apply(overridden);
 
@@ -108,5 +110,11 @@ public class TextIOShardedWriteFactoryTest {
     p.run();
     TextIOTest.assertOutputFiles(
         elems, StringUtf8Coder.of(), 3, tmp, "foo", original.getShardNameTemplate());
+  }
+
+  private Pipeline getPipeline() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(DirectRunner.class);
+    return TestPipeline.fromOptions(options);
   }
 }
