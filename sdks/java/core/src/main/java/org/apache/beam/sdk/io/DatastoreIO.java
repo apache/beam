@@ -146,15 +146,6 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>To optionally change the host that is used to write to the Datastore, use {@link
- * DatastoreIO#sink} to build a {@link DatastoreIO.Sink} and write to it using the {@link Write}
- * transform:
- *
- * <pre> {@code
- * PCollection<Entity> entities = ...;
- * entities.apply(Write.to(DatastoreIO.sink().withProject(project).withHost(host)));
- * } </pre>
- *
  * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
  * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than the
@@ -188,7 +179,7 @@ public class DatastoreIO {
   public static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
-   * Returns an empty {@link DatastoreIO.Source} builder with the default {@code host}.
+   * Returns an empty {@link DatastoreIO.Source} builder.
    * Configure the {@code project}, {@code query}, and {@code namespace} using
    * {@link DatastoreIO.Source#withProject}, {@link DatastoreIO.Source#withQuery},
    * and {@link DatastoreIO.Source#withNamespace}.
@@ -201,7 +192,7 @@ public class DatastoreIO {
   }
 
   /**
-   * Returns an empty {@link DatastoreIO.Source} builder with the default {@code host}.
+   * Returns an empty {@link DatastoreIO.Source} builder.
    * Configure the {@code project}, {@code query}, and {@code namespace} using
    * {@link DatastoreIO.Source#withProject}, {@link DatastoreIO.Source#withQuery},
    * and {@link DatastoreIO.Source#withNamespace}.
@@ -514,7 +505,7 @@ public class DatastoreIO {
   ///////////////////// Write Class /////////////////////////////////
 
   /**
-   * Returns a new {@link DatastoreIO.Sink} builder using the default host.
+   * Returns a new {@link DatastoreIO.Sink} builder.
    * You need to further configure it using {@link DatastoreIO.Sink#withProject},
    * before using it in a {@link Write} transform.
    *
@@ -550,14 +541,14 @@ public class DatastoreIO {
     }
 
     /**
-     * Constructs a Sink with given host and project.
+     * Constructs a Sink with the given project.
      */
     protected Sink(String projectId) {
       this.projectId = projectId;
     }
 
     /**
-     * Ensures the host and project are set.
+     * Ensures the project is set.
      */
     @Override
     public void validate(PipelineOptions options) {
@@ -751,7 +742,6 @@ public class DatastoreIO {
         // Batch upsert entities.
         try {
           CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          List<Mutation> mutations = null;
           for (Entity entity: entities) {
             commitRequest.addMutations(makeUpsert(entity));
           }

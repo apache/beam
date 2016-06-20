@@ -429,7 +429,7 @@ public class AutoComplete {
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("Dataset entity kind")
+    @Description("Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
@@ -443,10 +443,6 @@ public class AutoComplete {
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
-
-    @Description("Datastore output dataset ID, defaults to project ID")
-    String getOutputDataset();
-    void setOutputDataset(String value);
   }
 
   public static void main(String[] args) throws IOException {
@@ -482,8 +478,7 @@ public class AutoComplete {
     if (options.getOutputToDatastore()) {
       toWrite
       .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
-          options.getOutputDataset(), options.getProject())));
+      .apply(DatastoreIO.writeTo(options.getProject()));
     }
     if (options.getOutputToBigQuery()) {
       dataflowUtils.setupBigQueryTable();

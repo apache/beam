@@ -42,7 +42,6 @@ import com.google.datastore.v1beta3.PropertyFilter;
 import com.google.datastore.v1beta3.Query;
 import com.google.datastore.v1beta3.Value;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -138,9 +137,7 @@ public class DatastoreWordCount {
       }
 
       entityBuilder.setKey(keyBuilder.build());
-      Map<String, Value> properties = new HashMap<>();
-      properties.put("content", makeValue(content).build());
-      entityBuilder.putAllProperties(properties);
+      entityBuilder.getMutableProperties().put("content", makeValue(content).build());
       return entityBuilder.build();
     }
 
