@@ -52,7 +52,7 @@ import java.util.Set;
 /**
  * Evaluation context for batch using {@link Dataset}s.
  */
-public class DatasetsEvaluationContext implements EvaluationContext {
+public class DatasetEvaluationContext implements EvaluationContext {
   private final JavaSparkContext jsc;
   private final SQLContext sqc;
   private final Pipeline pipeline;
@@ -64,7 +64,7 @@ public class DatasetsEvaluationContext implements EvaluationContext {
   private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   protected AppliedPTransform<?, ?, ?> currentTransform;
 
-  public DatasetsEvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
+  public DatasetEvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.sqc = new SQLContext(jsc);
     this.pipeline = pipeline;
