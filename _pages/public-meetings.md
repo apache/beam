@@ -52,4 +52,4 @@ We are investigating methods, such as video conferencing and IRC chat, to allow 
 Public meetings include scheduled Apache Beam Dev/PPMC meetings, Meetup events, conference talks, and other events where the public meets to discuss Beam.
 
 ### How do I learn about new meetings?
-The Apache Beam community announces upcoming public meetings on the  [dev@beam.incubator.apache.org](mailto:dev@beam.incubator.apache.org) mailing list. If you want to learn about new events, we recommend you [subscribe](dev-subscribe@beam.incubator.apache.org) to that list.  If you are holding a public event, please send an email to the dev@ list.
+The Apache Beam community announces upcoming public meetings on the  [dev@beam.incubator.apache.org](mailto:dev@beam.incubator.apache.org) mailing list. If you want to learn about new events, we recommend you [subscribe](mailto:dev-subscribe@beam.incubator.apache.org) to that list.  If you are holding a public event, please send an email to the dev@ list.

@@ -174,9 +174,9 @@
 <h2 id="engage">Engage</h2>
 
 <h3 id="mailing-lists">Mailing list(s)</h3>
-<p>We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-dev/">here</a>. Join by emailing <a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#100;&#101;&#118;&#045;&#115;&#117;&#098;&#115;&#099;&#114;&#105;&#098;&#101;&#064;&#098;&#101;&#097;&#109;&#046;&#105;&#110;&#099;&#117;&#098;&#097;&#116;&#111;&#114;&#046;&#097;&#112;&#097;&#099;&#104;&#101;&#046;&#111;&#114;&#103;"><code>dev-subscribe@beam.incubator.apache.org</code></a>.</p>
+<p>We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-dev/">here</a>. Join by emailing <a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#100;&#101;&#118;&#045;&#115;&#117;&#098;&#115;&#099;&#114;&#105;&#098;&#101;&#064;&#098;&#101;&#097;&#109;&#046;&#105;&#110;&#099;&#117;&#098;&#097;&#116;&#111;&#114;&#046;&#097;&#112;&#097;&#099;&#104;&#101;&#046;&#111;&#114;&#103;"><code class="highlighter-rouge">dev-subscribe@beam.incubator.apache.org</code></a>.</p>
 
-<p>If interested, you can also join <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-user/"><code>user@beam.incubator.apache.org</code></a> and <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-commits/"><code>commits@beam.incubator.apache.org</code></a> too.</p>
+<p>If interested, you can also join <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-user/"><code class="highlighter-rouge">user@beam.incubator.apache.org</code></a> and <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-commits/"><code class="highlighter-rouge">commits@beam.incubator.apache.org</code></a> too.</p>
 
 <h3 id="apache-jira">Apache JIRA</h3>
 <p>We use <a href="https://issues.apache.org/jira/browse/BEAM">Apache JIRA</a> as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.</p>
@@ -223,9 +223,10 @@
 
 <p>Clone Beam’s read-only GitHub mirror.</p>
 
-<pre><code>$ git clone https://github.com/apache/incubator-beam.git
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git clone https://github.com/apache/incubator-beam.git
 $ cd incubator-beam
 </code></pre>
+</div>
 
 <p>Add your forked repository as an additional Git remote, where you’ll push your changes.</p>
 
@@ -234,7 +235,7 @@ $ cd incubator-beam
 <p>You are now ready to start developing!</p>
 
 <h3 id="create-a-branch-in-your-fork">Create a branch in your fork</h3>
-<p>You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including <code>master</code>, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the <code>master</code> branch.</p>
+<p>You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including <code class="highlighter-rouge">master</code>, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the <code class="highlighter-rouge">master</code> branch.</p>
 
 <pre><code>$ git fetch --all
 $ git checkout -b <b>&lt;my-branch&gt;</b> origin/master</code></pre>
@@ -244,10 +245,11 @@ $ git checkout -b <b>&lt;my-branch&gt;</b> origin/master</code></pre>
 <h3 id="syncing-and-pushing-your-branch">Syncing and pushing your branch</h3>
 <p>Periodically while you work, and certainly before submitting a pull request, you should update your branch with the most recent changes to the target branch.</p>
 
-<pre><code>$ git pull --rebase
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git pull --rebase
 </code></pre>
+</div>
 
-<p>Remember to always use <code>--rebase</code> parameter to avoid extraneous merge commits.</p>
+<p>Remember to always use <code class="highlighter-rouge">--rebase</code> parameter to avoid extraneous merge commits.</p>
 
 <p>To push your local, committed changes to your (forked) repository on GitHub, run:</p>
 
@@ -258,8 +260,9 @@ $ git checkout -b <b>&lt;my-branch&gt;</b> origin/master</code></pre>
 
 <p>For contributions to the Java code, run unit tests locally via Maven. Alternatively, you can use Travis-CI.</p>
 
-<pre><code>$ mvn clean verify
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn clean verify
 </code></pre>
+</div>
 
 <h2 id="review">Review</h2>
 <p>Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.</p>
@@ -267,8 +270,9 @@ $ git checkout -b <b>&lt;my-branch&gt;</b> origin/master</code></pre>
 <h3 id="create-a-pull-request">Create a pull request</h3>
 <p>Organize your commits to make your reviewer’s job easier. Use the following command to re-order, squash, edit, or change description of individual commits.</p>
 
-<pre><code>$ git rebase -i origin/master
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git rebase -i origin/master
 </code></pre>
+</div>
 
 <p>Navigate to the <a href="https://github.com/apache/incubator-beam">Beam GitHub mirror</a> to create a pull request. The title of the pull request should be strictly in the following format:</p>
 
@@ -315,19 +319,22 @@ $ git push <b>&lt;GitHub_user&gt;</b> --delete <b>&lt;my-branch&gt;</b></code></
 <h3 id="one-time-setup-1">One-time Setup</h3>
 <p>Add the Apache Git remote in your local clone, by running:</p>
 
-<pre><code>$ git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-beam.git
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-beam.git
 </code></pre>
+</div>
 
-<p>We recommend renaming the <code>origin</code> remote to <code>github</code>, to avoid confusion when dealing with this many remotes.</p>
+<p>We recommend renaming the <code class="highlighter-rouge">origin</code> remote to <code class="highlighter-rouge">github</code>, to avoid confusion when dealing with this many remotes.</p>
 
-<pre><code>$ git remote rename origin github
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git remote rename origin github
 </code></pre>
+</div>
 
-<p>For the <code>github</code> remote, add an additional fetch reference, which will cause every pull request to be made available as a remote branch in your workspace.</p>
+<p>For the <code class="highlighter-rouge">github</code> remote, add an additional fetch reference, which will cause every pull request to be made available as a remote branch in your workspace.</p>
 
-<pre><code>$ git config --local --add remote.github.fetch \
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git config --local --add remote.github.fetch \
     '+refs/pull/*/head:refs/remotes/github/pr/*'
 </code></pre>
+</div>
 
 <p>You can confirm your configuration by running the following command.</p>
 
@@ -364,10 +371,11 @@ $ git checkout -b finish-pr-<b>&lt;pull-request-#&gt;</b> github/pr/<b>&lt;pull-
   <li>Reorganize commits that are part of the pull request, such as squash them into fewer commits that make sense for a historical perspective.</li>
 </ul>
 
-<p>You will often need the following command, assuming you’ll be merging changes into the <code>master</code> branch:</p>
+<p>You will often need the following command, assuming you’ll be merging changes into the <code class="highlighter-rouge">master</code> branch:</p>
 
-<pre><code>$ git rebase -i apache/master
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git rebase -i apache/master
 </code></pre>
+</div>
 
 <p>Please make sure to retain authorship of original commits to give proper credit to the contributor. You are welcome to change their commits slightly (e.g., fix a typo) and squash them, but more substantive changes should be a separate commit and review.</p>
 
@@ -380,12 +388,13 @@ $ git merge --no-ff \
 &nbsp;&nbsp;&nbsp;&nbsp;-m $'[BEAM-<b>&lt;JIRA-issue-#&gt;</b>] <b>&lt;Title&gt;</b>\n\nThis closes #<b>&lt;pull-request-#&gt;</b>' \
 &nbsp;&nbsp;&nbsp;&nbsp;finish-pr-<b>&lt;pull-request-#&gt;</b></code></pre>
 
-<p>Always use <code>--no-ff</code> option and the specific commit message “This closes #<b>&lt;pull request #&gt;</b>”” – it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.</p>
+<p>Always use <code class="highlighter-rouge">--no-ff</code> option and the specific commit message “This closes #<b>&lt;pull request #&gt;</b>”” – it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.</p>
 
-<p>At this point, you want to ensure everything is right. Test it with <code>mvn verify</code>. Run <code>gitk</code> or <code>git log --graph,</code> etc. When you are happy with how it looks, push it. This is the point of no return – proceed with caution.</p>
+<p>At this point, you want to ensure everything is right. Test it with <code class="highlighter-rouge">mvn verify</code>. Run <code class="highlighter-rouge">gitk</code> or <code class="highlighter-rouge">git log --graph,</code> etc. When you are happy with how it looks, push it. This is the point of no return – proceed with caution.</p>
 
-<pre><code>$ git push apache HEAD:master
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git push apache HEAD:master
 </code></pre>
+</div>
 
 <p>Done. You can delete the local <code>finish-pr-<b>&lt;pull-request-#&gt;</b></code> branch if you like.</p>
 
