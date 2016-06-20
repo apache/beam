@@ -24,6 +24,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.MapPartitionsFunction;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -38,7 +39,7 @@ import java.util.Map;
  */
 public class DoFnFunction<InputT, OutputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>,
-    WindowedValue<OutputT>> {
+    WindowedValue<OutputT>>, MapPartitionsFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
   private final DoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
