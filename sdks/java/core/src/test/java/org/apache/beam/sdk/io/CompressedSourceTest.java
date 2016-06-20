@@ -97,6 +97,56 @@ public class CompressedSourceTest {
   }
 
   /**
+   * Test splittability of files in AUTO mode.
+   */
+  @Test
+  public void testAutoSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // GZip files are not splittable
+    source = CompressedSource.from(new ByteSource("input.gz", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.GZ", 1));
+    assertFalse(source.isSplittable());
+
+    // BZ2 files are not splittable
+    source = CompressedSource.from(new ByteSource("input.bz2", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.BZ2", 1));
+    assertFalse(source.isSplittable());
+
+    // Other extensions are assumed to be splittable.
+    source = CompressedSource.from(new ByteSource("input.txt", 1));
+    assertTrue(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.csv", 1));
+    assertTrue(source.isSplittable());
+  }
+
+  /**
+   * Test splittability of files in GZIP mode -- none should be splittable.
+   */
+  @Test
+  public void testGzipSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // GZip files are not splittable
+    source = CompressedSource.from(new ByteSource("input.gz", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.GZ", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+
+    // Other extensions are also not splittable.
+    source = CompressedSource.from(new ByteSource("input.txt", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.csv", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+  }
+
+  /**
    * Test reading nonempty input with bzip2.
    */
   @Test

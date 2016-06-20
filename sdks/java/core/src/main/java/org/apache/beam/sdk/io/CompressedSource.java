@@ -292,7 +292,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           (FileNameBasedDecompressingChannelFactory) channelFactory;
       return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec());
     }
-    return true;
+    return false;
   }
 
   /**
