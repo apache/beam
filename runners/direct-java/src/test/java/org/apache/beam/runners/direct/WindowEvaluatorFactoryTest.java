@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.apache.beam.sdk.WindowMatchers.isWindowedValue;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -73,21 +76,28 @@ public class WindowEvaluatorFactoryTest {
 
   private BundleFactory bundleFactory;
 
-  private WindowedValue<Long> first =
+  private WindowedValue<Long> valueInGlobalWindow =
       WindowedValue.timestampedValueInGlobalWindow(3L, new Instant(2L));
-  private WindowedValue<Long> second =
-      WindowedValue.of(Long.valueOf(1L),
-          EPOCH.plus(Duration.standardDays(3)),
-          ImmutableList.of(GlobalWindow.INSTANCE,
-              new IntervalWindow(EPOCH, BoundedWindow.TIMESTAMP_MAX_VALUE),
-              new IntervalWindow(EPOCH.plus(Duration.standardDays(3)),
-                  EPOCH.plus(Duration.standardDays(6)))),
-          PaneInfo.NO_FIRING);
-  private WindowedValue<Long> third =
+
+  private WindowedValue<Long> valueInIntervalWindow =
       WindowedValue.of(
           Long.valueOf(2L),
           new Instant(-10L),
           new IntervalWindow(new Instant(-100), EPOCH),
+          PaneInfo.NO_FIRING);
+
+  private IntervalWindow intervalWindow1 =
+      new IntervalWindow(EPOCH, BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+  private IntervalWindow intervalWindow2 =
+      new IntervalWindow(
+          EPOCH.plus(Duration.standardDays(3)), EPOCH.plus(Duration.standardDays(6)));
+
+  private WindowedValue<Long> valueInGlobalAndTwoIntervalWindows =
+      WindowedValue.of(
+          Long.valueOf(1L),
+          EPOCH.plus(Duration.standardDays(3)),
+          ImmutableList.of(GlobalWindow.INSTANCE, intervalWindow1, intervalWindow2),
           PaneInfo.NO_FIRING);
 
   @Before
@@ -118,7 +128,10 @@ public class WindowEvaluatorFactoryTest {
         Iterables.getOnlyElement(result.getOutputBundles()),
         Matchers.<UncommittedBundle<?>>equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
-    assertThat(committed.getElements(), containsInAnyOrder(third, first, second));
+    assertThat(
+        committed.getElements(),
+        containsInAnyOrder(
+            valueInIntervalWindow, valueInGlobalWindow, valueInGlobalAndTwoIntervalWindows));
   }
 
   @Test
@@ -141,16 +154,22 @@ public class WindowEvaluatorFactoryTest {
         Matchers.<UncommittedBundle<?>>equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
 
-    WindowedValue<Long> expectedNewFirst =
-        WindowedValue.of(3L, new Instant(2L), firstSecondWindow, PaneInfo.NO_FIRING);
-    WindowedValue<Long> expectedNewSecond =
-        WindowedValue.of(
-            1L, EPOCH.plus(Duration.standardDays(3)), firstSecondWindow, PaneInfo.NO_FIRING);
-    WindowedValue<Long> expectedNewThird =
-        WindowedValue.of(2L, new Instant(-10L), thirdWindow, PaneInfo.NO_FIRING);
     assertThat(
         committed.getElements(),
-        containsInAnyOrder(expectedNewFirst, expectedNewSecond, expectedNewThird));
+        containsInAnyOrder(
+            // value in global window
+            isSingleWindowedValue(3L, new Instant(2L), firstSecondWindow, PaneInfo.NO_FIRING),
+
+            // value in just interval window
+            isSingleWindowedValue(2L, new Instant(-10L), thirdWindow, PaneInfo.NO_FIRING),
+
+            // value in global window and two interval windows
+            isSingleWindowedValue(
+                1L, EPOCH.plus(Duration.standardDays(3)), firstSecondWindow, PaneInfo.NO_FIRING),
+            isSingleWindowedValue(
+                1L, EPOCH.plus(Duration.standardDays(3)), firstSecondWindow, PaneInfo.NO_FIRING),
+            isSingleWindowedValue(
+                1L, EPOCH.plus(Duration.standardDays(3)), firstSecondWindow, PaneInfo.NO_FIRING)));
   }
 
   @Test
@@ -177,24 +196,39 @@ public class WindowEvaluatorFactoryTest {
     BoundedWindow wMinusSlide =
         new IntervalWindow(EPOCH.minus(windowDuration).plus(slidingBy), EPOCH.plus(slidingBy));
 
-    WindowedValue<Long> expectedFirst =
-        WindowedValue.of(
-            first.getValue(),
-            first.getTimestamp(),
-            ImmutableSet.of(w1, wMinusSlide),
-            PaneInfo.NO_FIRING);
-    WindowedValue<Long> expectedSecond =
-        WindowedValue.of(
-            second.getValue(), second.getTimestamp(), ImmutableSet.of(w1, w2), PaneInfo.NO_FIRING);
-    WindowedValue<Long> expectedThird =
-        WindowedValue.of(
-            third.getValue(),
-            third.getTimestamp(),
-            ImmutableSet.of(wMinus1, wMinusSlide),
-            PaneInfo.NO_FIRING);
-
     assertThat(
-        committed.getElements(), containsInAnyOrder(expectedFirst, expectedSecond, expectedThird));
+        committed.getElements(),
+        containsInAnyOrder(
+            // Value in global window mapped to one windowed value in multiple windows
+            isWindowedValue(
+                valueInGlobalWindow.getValue(),
+                valueInGlobalWindow.getTimestamp(),
+                ImmutableSet.of(w1, wMinusSlide),
+                PaneInfo.NO_FIRING),
+
+            // Value in interval window mapped to one windowed value in multiple windows
+            isWindowedValue(
+                valueInIntervalWindow.getValue(),
+                valueInIntervalWindow.getTimestamp(),
+                ImmutableSet.of(wMinus1, wMinusSlide),
+                PaneInfo.NO_FIRING),
+
+            // Value in three windows mapped to three windowed values in the same multiple windows
+            isWindowedValue(
+                valueInGlobalAndTwoIntervalWindows.getValue(),
+                valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                ImmutableSet.of(w1, w2),
+                PaneInfo.NO_FIRING),
+            isWindowedValue(
+                valueInGlobalAndTwoIntervalWindows.getValue(),
+                valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                ImmutableSet.of(w1, w2),
+                PaneInfo.NO_FIRING),
+            isWindowedValue(
+                valueInGlobalAndTwoIntervalWindows.getValue(),
+                valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                ImmutableSet.of(w1, w2),
+                PaneInfo.NO_FIRING)));
   }
 
   @Test
@@ -212,34 +246,54 @@ public class WindowEvaluatorFactoryTest {
         Matchers.<UncommittedBundle<?>>equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
 
-    WindowedValue<Long> expectedFirst =
-        WindowedValue.of(
-            first.getValue(),
-            first.getTimestamp(),
-            new IntervalWindow(first.getTimestamp(), first.getTimestamp().plus(1L)),
-            PaneInfo.NO_FIRING);
-    WindowedValue<Long> expectedSecond = WindowedValue.of(second.getValue(),
-        second.getTimestamp(),
-        new IntervalWindow(second.getTimestamp(), second.getTimestamp().plus(1L)),
-        PaneInfo.NO_FIRING);
-    WindowedValue<Long> expectedThird =
-        WindowedValue.of(
-            third.getValue(),
-            third.getTimestamp(),
-            third.getWindows(),
-            PaneInfo.NO_FIRING);
-
     assertThat(
-        committed.getElements(), containsInAnyOrder(expectedFirst, expectedSecond, expectedThird));
+        committed.getElements(),
+        containsInAnyOrder(
+            // Value in global window mapped to [timestamp, timestamp+1)
+            isSingleWindowedValue(
+                valueInGlobalWindow.getValue(),
+                valueInGlobalWindow.getTimestamp(),
+                new IntervalWindow(
+                    valueInGlobalWindow.getTimestamp(),
+                    valueInGlobalWindow.getTimestamp().plus(1L)),
+                PaneInfo.NO_FIRING),
+
+            // Value in interval window mapped to the same window
+            isWindowedValue(
+                valueInIntervalWindow.getValue(),
+                valueInIntervalWindow.getTimestamp(),
+                valueInIntervalWindow.getWindows(),
+                PaneInfo.NO_FIRING),
+
+            // Value in global window and two interval windows exploded and mapped in both ways
+            isSingleWindowedValue(
+                valueInGlobalAndTwoIntervalWindows.getValue(),
+                valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                new IntervalWindow(
+                    valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                    valueInGlobalAndTwoIntervalWindows.getTimestamp().plus(1L)),
+                PaneInfo.NO_FIRING),
+
+            isSingleWindowedValue(
+                valueInGlobalAndTwoIntervalWindows.getValue(),
+                valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                intervalWindow1,
+                PaneInfo.NO_FIRING),
+
+            isSingleWindowedValue(
+                valueInGlobalAndTwoIntervalWindows.getValue(),
+                valueInGlobalAndTwoIntervalWindows.getTimestamp(),
+                intervalWindow2,
+                PaneInfo.NO_FIRING)));
   }
 
   private CommittedBundle<Long> createInputBundle() {
     CommittedBundle<Long> inputBundle =
         bundleFactory
             .createRootBundle(input)
-            .add(first)
-            .add(second)
-            .add(third)
+            .add(valueInGlobalWindow)
+            .add(valueInGlobalAndTwoIntervalWindows)
+            .add(valueInIntervalWindow)
             .commit(Instant.now());
     return inputBundle;
   }
@@ -262,9 +316,9 @@ public class WindowEvaluatorFactoryTest {
             inputBundle,
             evaluationContext);
 
-    evaluator.processElement(first);
-    evaluator.processElement(second);
-    evaluator.processElement(third);
+    evaluator.processElement(valueInGlobalWindow);
+    evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
+    evaluator.processElement(valueInIntervalWindow);
     TransformResult result = evaluator.finishBundle();
     return result;
   }
