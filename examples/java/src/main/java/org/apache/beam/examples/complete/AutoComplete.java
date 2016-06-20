@@ -57,7 +57,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Key;
