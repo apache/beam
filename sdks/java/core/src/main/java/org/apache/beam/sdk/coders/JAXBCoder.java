@@ -46,8 +46,7 @@ import javax.xml.bind.Unmarshaller;
 public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private final Class<T> jaxbClass;
-  private transient Marshaller jaxbMarshaller = null;
-  private transient Unmarshaller jaxbUnmarshaller = null;
+  private transient JAXBContext jaxbContext;
 
   public Class<T> getJAXBClass() {
     return jaxbClass;
@@ -70,10 +69,9 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     try {
-      if (jaxbMarshaller == null) {
-        JAXBContext jaxbContext = JAXBContext.newInstance(jaxbClass);
-        jaxbMarshaller = jaxbContext.createMarshaller();
-      }
+      JAXBContext jaxbContext = getContext();
+      // TODO: Consider caching in a ThreadLocal if this impacts performance
+      Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
       if (!context.isWholeStream) {
         try {
           long size = getEncodedElementByteSize(value, Context.OUTER);
@@ -95,10 +93,9 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     try {
-      if (jaxbUnmarshaller == null) {
-        JAXBContext jaxbContext = JAXBContext.newInstance(jaxbClass);
-        jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-      }
+      JAXBContext jaxbContext = getContext();
+      // TODO: Consider caching in a ThreadLocal if this impacts performance
+      Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
 
       InputStream stream = inStream;
       if (!context.isWholeStream) {
@@ -111,6 +108,17 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
+  }
+
+  private final JAXBContext getContext() throws JAXBException {
+    if (jaxbContext == null) {
+      synchronized (this) {
+        if (jaxbContext == null) {
+          jaxbContext = JAXBContext.newInstance(jaxbClass);
+        }
+      }
+    }
+    return jaxbContext;
   }
 
   @Override
