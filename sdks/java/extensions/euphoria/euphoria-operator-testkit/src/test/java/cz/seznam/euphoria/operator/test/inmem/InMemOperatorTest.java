@@ -8,8 +8,6 @@ import cz.seznam.euphoria.operator.test.AllOperatorTest;
  * InMemExecutor applied on operator test cases.
  */
 public class InMemOperatorTest extends AllOperatorTest {
-
-  InMemExecutor executor;
   
   public InMemOperatorTest() {
     super(s -> new InMemExecutor());
