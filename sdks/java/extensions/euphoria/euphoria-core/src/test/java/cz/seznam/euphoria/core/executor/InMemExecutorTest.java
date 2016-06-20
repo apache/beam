@@ -18,6 +18,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
+import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
@@ -491,9 +492,6 @@ public class InMemExecutorTest {
 
 
   @Test
-  // FIXME: fix this test as soon as we have window label in output
-  // from ReduceStateByKey!
-  @Ignore
   public void testReduceByKeyWithSortStateAndUnalignedWindow() {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
@@ -504,22 +502,22 @@ public class InMemExecutorTest {
         new UnalignedCountWindowing<>(i -> i % 10, i -> i + 1);
 
     // the key for sort will be the last digit
-    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
+    Dataset<WindowedPair<Integer, Integer, Integer>> output = ReduceStateByKey.of(ints)
         .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
         .combineStateBy(SortState::combine)
         .windowBy(windowing)
-        .output();
+        .outputWindowed();
 
     // collector of outputs
-    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
+    ListDataSink<WindowedPair<Integer, Integer, Integer>> outputSink = ListDataSink.get(2);
 
     output.persist(outputSink);
 
     executor.waitForCompletion(flow);
 
-    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
+    List<List<WindowedPair<Integer, Integer, Integer>>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
 
     // each partition should have 550 items in each window set
@@ -531,11 +529,7 @@ public class InMemExecutorTest {
         .collect(Collectors.toSet());
 
     outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
-
-    // each partition is now constructed so that there is exactly (N + 1)
-    // sorted elements in a row, N is the element key
-    // then key *might* get switched
-
+        
     outputs.forEach(this::checkKeyAlignedSortedList);
 
   }
@@ -561,65 +555,40 @@ public class InMemExecutorTest {
   }
 
 
-  private void checkKeyAlignedSortedList(List<Pair<Integer, Integer>> list) {
+  private void checkKeyAlignedSortedList(
+      List<WindowedPair<Integer, Integer, Integer>> list) {
 
-    Integer lastKey = null;
-    int lastValue = -1;
-    int sortedInRow = 0;
-    Map<Integer, List<Integer>> sortedSequences = new HashMap<>();
+    Map<Integer, Map<Integer, List<Integer>>> sortedSequencesInWindow = new HashMap<>();
 
-    for (Pair<Integer, Integer> p : list) {
-      if (lastKey != null) {
-        if (lastKey != (int) p.getFirst() || lastValue >= p.getValue()) {
-          List<Integer> sorted = sortedSequences.get(lastKey);
-          if (sorted == null) {
-            sortedSequences.put(lastKey, (sorted = new ArrayList<>()));
-          }
-          sorted.add(sortedInRow);
-          sortedInRow = 0;
-        }
+    for (WindowedPair<Integer, Integer, Integer> p : list) {
+      Map<Integer, List<Integer>> sortedSequences = sortedSequencesInWindow.get(
+          p.getWindowLabel());
+      if (sortedSequences == null) {
+        sortedSequencesInWindow.put(p.getWindowLabel(),
+            sortedSequences = new HashMap<>());
       }
-      lastKey = p.getFirst();
-      lastValue = p.getSecond();
-      sortedInRow++;
+      List<Integer> sorted = sortedSequences.get(p.getKey());
+      if (sorted == null) {
+        sortedSequences.put(p.getKey(), sorted = new ArrayList<>());
+      }
+      sorted.add(p.getValue());
     }
 
-    for (Map.Entry<Integer, List<Integer>> e : sortedSequences.entrySet()) {
-      // now, in correctly constructed sequence the following holds:
-      // a) all but the last two elements are either (N + 1) or 2 * (N + 1)
-      // b) the last two elements are equal to
-      // (110 - sum(all elements that are equal to (N + 1),
-      //  110 - sum(all elements that are equal to 2 * (N + 1))
-      // irrespective to ordering
-
-      int listSize = e.getValue().size();
-      assertTrue(listSize > 2);
-
-      Set<Integer> rest = new HashSet<>(Arrays.asList(
-          e.getValue().get(listSize - 1),
-          e.getValue().get(listSize - 2)));
-
-      List<Integer> core = e.getValue().subList(0, e.getValue().size() - 2);
-      int key = e.getKey();
-      int total = core.size();
-      int doubles = 0;
-      for (Integer i : core) {
-        if (i == 2 * (key + 1)) {
-          doubles ++;
-        } else {
-          assertEquals("The elements in core sequence must be either "
-              + (key + 1) + " or " + (2 * (key  + 1)) + " got " + i,
-              (int) i, (int) (key + 1));
+    assertFalse(sortedSequencesInWindow.isEmpty());
+    int totalCount = 0;
+    for (Map.Entry<Integer, Map<Integer, List<Integer>>> we : sortedSequencesInWindow.entrySet()) {
+      assertFalse(we.getValue().isEmpty());
+      for (Map.Entry<Integer, List<Integer>> e : we.getValue().entrySet()) {
+        // now, each list must be sorted
+        int last = -1;
+        for (int i : e.getValue()) {
+          assertTrue("Sequence " + e.getValue() + " is not sorted", last < i);
+          last = i;
+          totalCount++;
         }
       }
-      assertEquals("Key " + key + " should have " + 55 / (key + 1)
-          + " sequences of double size",
-          55 / (key + 1), doubles);
-      assertEquals("Key " + key + " should have " + 110 / (key + 1)
-          + " sequences of normal size",
-          110 / (key + 1), total - doubles);
     }
-
+    assertEquals(1100, totalCount);
   }
 
   // reverse given list

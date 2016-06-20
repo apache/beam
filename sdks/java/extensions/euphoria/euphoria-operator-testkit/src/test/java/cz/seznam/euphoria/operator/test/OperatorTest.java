@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.executor.Executor;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,13 +17,12 @@ import static org.junit.Assert.*;
  * Operator test base class.
  * All tests should extend this class.
  */
-public abstract class OperatorTest {
-
+public abstract class OperatorTest implements Serializable {
 
   /**
    * A single test case.
    */
-  protected interface TestCase<T> {
+  protected interface TestCase<T> extends Serializable {
 
     /** Retrieve number of output partitions to expect in output. */
     int getNumOutputPartitions();
