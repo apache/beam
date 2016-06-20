@@ -28,26 +28,26 @@ import org.apache.beam.sdk.values.POutput;
 
 import org.apache.flink.runtime.client.JobExecutionException;
 
-public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
+public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
-  private FlinkPipelineRunner delegate;
+  private FlinkRunner delegate;
 
-  private TestFlinkPipelineRunner(FlinkPipelineOptions options) {
+  private TestFlinkRunner(FlinkPipelineOptions options) {
     // We use [auto] for testing since this will make it pick up the Testing ExecutionEnvironment
     options.setFlinkMaster("[auto]");
-    this.delegate = FlinkPipelineRunner.fromOptions(options);
+    this.delegate = FlinkRunner.fromOptions(options);
   }
 
-  public static TestFlinkPipelineRunner fromOptions(PipelineOptions options) {
+  public static TestFlinkRunner fromOptions(PipelineOptions options) {
     FlinkPipelineOptions flinkOptions = PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
-    return new TestFlinkPipelineRunner(flinkOptions);
+    return new TestFlinkRunner(flinkOptions);
   }
 
-  public static TestFlinkPipelineRunner create(boolean streaming) {
+  public static TestFlinkRunner create(boolean streaming) {
     FlinkPipelineOptions flinkOptions = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-    flinkOptions.setRunner(TestFlinkPipelineRunner.class);
+    flinkOptions.setRunner(TestFlinkRunner.class);
     flinkOptions.setStreaming(streaming);
-    return TestFlinkPipelineRunner.fromOptions(flinkOptions);
+    return TestFlinkRunner.fromOptions(flinkOptions);
   }
 
   @Override
