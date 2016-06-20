@@ -53,20 +53,20 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@link TestDataflowPipelineRunner} is a pipeline runner that wraps a
+ * {@link TestDataflowRunner} is a pipeline runner that wraps a
  * {@link DataflowRunner} when running tests against the {@link TestPipeline}.
  *
  * @see TestPipeline
  */
-public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
+public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
-  private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
   private final TestDataflowPipelineOptions options;
   private final DataflowRunner runner;
   private int expectedNumberOfAssertions = 0;
 
-  TestDataflowPipelineRunner(TestDataflowPipelineOptions options) {
+  TestDataflowRunner(TestDataflowPipelineOptions options) {
     this.options = options;
     this.runner = DataflowRunner.fromOptions(options);
   }
@@ -74,14 +74,14 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   /**
    * Constructs a runner from the provided options.
    */
-  public static TestDataflowPipelineRunner fromOptions(
+  public static TestDataflowRunner fromOptions(
       PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
     dataflowOptions.setStagingLocation(Joiner.on("/").join(
         new String[]{dataflowOptions.getTempRoot(),
           dataflowOptions.getJobName(), "output", "results"}));
 
-    return new TestDataflowPipelineRunner(dataflowOptions);
+    return new TestDataflowRunner(dataflowOptions);
   }
 
   @Override
@@ -224,7 +224,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
   @Override
   public String toString() {
-    return "TestDataflowPipelineRunner#" + options.getAppName();
+    return "TestDataflowRunner#" + options.getAppName();
   }
 
   /**
@@ -258,7 +258,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
         try {
           job.cancel();
         } catch (Exception ignore) {
-          // The TestDataflowPipelineRunner will thrown an AssertionError with the job failure
+          // The TestDataflowRunner will thrown an AssertionError with the job failure
           // messages.
         }
       }
