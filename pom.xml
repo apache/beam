@@ -441,18 +441,12 @@
         <groupId>com.google.cloud.datastore</groupId>
         <artifactId>datastore-v1beta3-proto-client</artifactId>
         <version>${datastore.client.version}</version>
-        <exclusions>
-          <!-- TODO -->
-        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>com.google.cloud.datastore</groupId>
         <artifactId>datastore-v1beta3-protos</artifactId>
         <version>${datastore.proto.version}</version>
-        <exclusions>
-          <!-- TODO -->
-        </exclusions>
       </dependency>
 
       <dependency>

@@ -46,12 +46,10 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
-
 import com.google.datastore.v1beta3.CommitRequest;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
@@ -69,7 +67,6 @@ import com.google.datastore.v1beta3.client.DatastoreHelper;
 import com.google.datastore.v1beta3.client.DatastoreOptions;
 import com.google.datastore.v1beta3.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
-
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,13 +106,13 @@ import javax.annotation.Nullable;
  * // Read a query from Datastore
  * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
  * Query query = ...;
- * String project = "...";
+ * String projectId = "...";
  *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
  *     Read.from(DatastoreIO.source()
  *         .withProject(projectId)
- *         .withQuery(query)
+ *         .withQuery(query));
  * } </pre>
  *
  * <p>or:
@@ -124,7 +121,7 @@ import javax.annotation.Nullable;
  * // Read a query from Datastore using the default namespace
  * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
  * Query query = ...;
- * String project = "...";
+ * String projectId = "...";
  *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(DatastoreIO.readFrom(projectId, query));
@@ -141,7 +138,7 @@ import javax.annotation.Nullable;
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.writeTo(project));
+ * entities.apply(DatastoreIO.writeTo(projectId));
  * p.run();
  * } </pre>
  *

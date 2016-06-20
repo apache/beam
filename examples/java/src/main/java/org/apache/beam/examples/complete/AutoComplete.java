@@ -57,6 +57,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Key;
@@ -442,6 +443,10 @@ public class AutoComplete {
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
+
+    @Description("Datastore output dataset ID, defaults to project ID")
+    String getOutputProject();
+    void setOutputProject(String value);
   }
 
   public static void main(String[] args) throws IOException {
@@ -477,7 +482,8 @@ public class AutoComplete {
     if (options.getOutputToDatastore()) {
       toWrite
       .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.writeTo(options.getProject()));
+      .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
+          options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
       dataflowUtils.setupBigQueryTable();
