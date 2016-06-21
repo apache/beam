@@ -28,6 +28,11 @@ notifications:
     on_success: change
     on_failure: always
 
+addons:
+  apt:
+    packages:
+    - python2.7
+
 matrix:
   include:
     # On OSX, run with default JDK only.
@@ -40,15 +45,26 @@ matrix:
       env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DforkCount=0"
     - os: linux
       env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DforkCount=0"
+    # Python SDK environments.
+    - os: osx
+      env: TEST_PYTHON="1"
+    - os: linux
+      env: TEST_PYTHON="1"
 
 before_install:
   - echo "MAVEN_OPTS='-Xmx2048m -XX:MaxPermSize=512m'" > ~/.mavenrc
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export JAVA_HOME=$(/usr/libexec/java_home); fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
+  # Python SDK environment settings.
+  - export TOX_ENV=py27
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export TOX_HOME=$HOME/Library/Python/2.7/bin; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then export TOX_HOME=$HOME/.local/bin; fi
 
 install:
-  - travis_retry mvn -B install clean -U -DskipTests=true
+  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn -B install clean -U -DskipTests=true; fi
+  - if [ "$TEST_PYTHON" ]; then travis_retry pip install tox --user `whoami`; fi
 
 script:
-  - travis_retry mvn -B $MAVEN_OVERRIDE install -U
-  - travis_retry testing/travis/test_wordcount.sh
+  - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -e $TOX_ENV -c sdks/python/tox.ini; fi
+  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn -B $MAVEN_OVERRIDE install -U; fi
+  - if [ ! "$TEST_PYTHON" ]; then travis_retry testing/travis/test_wordcount.sh; fi
