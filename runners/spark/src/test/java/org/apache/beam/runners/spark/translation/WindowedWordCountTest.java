@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SimpleWordCountTest;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,7 +57,7 @@ public class WindowedWordCountTest {
   @Test
   public void testFixed() throws Exception {
     PipelineOptions opts = PipelineOptionsFactory.create();
-    opts.setRunner(SparkPipelineRunner.class);
+    opts.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(opts);
     PCollection<String> inputWords =
         p.apply(Create.timestamped(WORDS, TIMESTAMPS)).setCoder(StringUtf8Coder.of());
@@ -78,7 +78,7 @@ public class WindowedWordCountTest {
   @Test
   public void testFixed2() throws Exception {
     PipelineOptions opts = PipelineOptionsFactory.create();
-    opts.setRunner(SparkPipelineRunner.class);
+    opts.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(opts);
     PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS)
         .withCoder(StringUtf8Coder.of()));
@@ -100,7 +100,7 @@ public class WindowedWordCountTest {
   @Test
   public void testSliding() throws Exception {
     PipelineOptions opts = PipelineOptionsFactory.create();
-    opts.setRunner(SparkPipelineRunner.class);
+    opts.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(opts);
     PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS)
         .withCoder(StringUtf8Coder.of()));

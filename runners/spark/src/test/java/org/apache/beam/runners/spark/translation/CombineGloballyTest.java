@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -50,12 +50,12 @@ public class CombineGloballyTest {
   @Test
   public void test() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
+    options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = inputWords.apply(Combine.globally(new WordMerger()));
 
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkRunner.create().run(p);
     assertEquals("hi there,hi,hi sue bob,hi sue,,bob hi",
         Iterables.getOnlyElement(res.get(output)));
     res.close();
