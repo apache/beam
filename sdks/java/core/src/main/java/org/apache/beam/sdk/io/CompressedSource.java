@@ -30,6 +30,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -37,6 +38,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -164,10 +166,38 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
       public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
         throws IOException {
-        ZipInputStream zip = new ZipInputStream(Channels.newInputStream(channel));
+        FullZipInputStream zip = new FullZipInputStream(Channels.newInputStream(channel));
         return Channels.newChannel(zip);
       }
     };
+
+    /**
+     * Extend of {@link ZipInputStream} to automatically read all entries in the zip.
+     */
+    public class FullZipInputStream extends ZipInputStream {
+
+      private ZipEntry currentEntry;
+
+      public FullZipInputStream(InputStream is) throws IOException {
+        super(is);
+        currentEntry = getNextEntry();
+      }
+
+      public int read(byte[] b, int off, int len) throws IOException {
+        int result = super.read(b, off, len);
+        if (result == -1) {
+          currentEntry = getNextEntry();
+          if (currentEntry == null) {
+            return -1;
+          }
+          result = super.read(b, off, len);
+          return result;
+        } else {
+          return result;
+        }
+      }
+
+    }
 
     /**
      * Returns {@code true} if the given file name implies that the contents are compressed
