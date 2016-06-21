@@ -66,7 +66,7 @@ public class SimpleDoFnRunnerTest {
     // Pass in only necessary parameters for the test
     List<TupleTag<?>> sideOutputTags = Arrays.asList();
     StepContext context = mock(StepContext.class);
-    return DoFnRunners.simpleRunner(
+    return new SimpleDoFnRunner<>(
           null, fn, null, null, null, sideOutputTags, context, null, null);
   }
 
