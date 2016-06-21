@@ -248,7 +248,10 @@ class DirectPipelineRunner(PipelineRunner):
       self._cache.cache_output(transform_node, read_result)
 
     if isinstance(source, iobase.BoundedSource):
-      reader = source.read(None)
+      # Getting a RangeTracker for the default range of the source and reading
+      # the full source using that.
+      range_tracker = source.get_range_tracker(None, None)
+      reader = source.read(range_tracker)
       read_values(reader)
     else:
       with source.reader() as reader:

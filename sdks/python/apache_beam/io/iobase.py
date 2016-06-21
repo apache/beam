@@ -324,7 +324,7 @@ SourceBundle = namedtuple(
 
 
 class BoundedSource(object):
-  """A Dataflow source that reads a finite amount of input records.
+  """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
   efficiently.
@@ -334,12 +334,21 @@ class BoundedSource(object):
   * Splitting into bundles of a given size - method ``split()`` can be used to
     split the source into a set of sub-sources (bundles) based on a desired
     bundle size.
-  * Getting a RangeTracker - method ``get_range_tracker() should return a
+  * Getting a RangeTracker - method ``get_range_tracker()`` should return a
     ``RangeTracker`` object for a given position range for the position type
     of the records returned by the source.
   * Reading the data - method ``read()`` can be used to read data from the
     source while respecting the boundaries defined by a given
     ``RangeTracker``.
+
+  A runner will perform reading the source in two steps.
+  (1) Method ``get_range_tracker()`` will be invoked with start and end
+      positions to obtain a ``RangeTracker`` for the range of positions the
+      runner intends to read. Source must define a default initial start and end
+      position range. These positions must be used if the start and/or end
+      positions passed to the method ``get_range_tracker()`` are ``None``
+  (2) Method read() will be invoked with the ``RangeTracker`` obtained in the
+      previous step.
   """
 
   def estimate_size(self):
@@ -378,8 +387,10 @@ class BoundedSource(object):
     Framework may invoke ``read()`` method with the RangeTracker object returned
     here to read data from the source.
     Args:
-      start_position: starting position of the range.
-      stop_position:  ending position of the range.
+      start_position: starting position of the range. If 'None' default start
+                      position of the source must be used.
+      stop_position:  ending position of the range. If 'None' default stop
+                      position of the source must be used.
     Returns:
       a ``RangeTracker`` for the given position range.
     """
@@ -406,8 +417,9 @@ class BoundedSource(object):
 
     Args:
       range_tracker: a ``RangeTracker`` whose boundaries must be respected
-                     when reading data from the source. If 'None' all records
-                     represented by the current source should be read.
+                     when reading data from the source. A runner that reads this
+                     source muss pass a ``RangeTracker`` object that is not
+                     ``None``.
     Returns:
       an iterator of data read by the source.
     """
@@ -578,7 +590,7 @@ class RangeTracker(object):
     """Returns the position at the given fraction.
 
     Given a fraction within the range [0.0, 1.0) this method will return the
-    position at the given fraction compared the the position range
+    position at the given fraction compared to the position range
     [self.start_position, self.stop_position).
 
     ** Thread safety **
