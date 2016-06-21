@@ -20,14 +20,14 @@
   <repositories>
     <repository>
       <id>central</id>
-      <url>http://maven.dev:8081/artifactory/repo</url>
+      <url>https://maven.dev/content/groups/repo</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
     </repository>
     <repository>
       <id>snapshots</id>
-      <url>http://maven.dev:8081/artifactory/repo</url>
+      <url>https://maven.dev/content/groups/repo</url>
       <releases>
         <enabled>false</enabled>
       </releases>
@@ -37,14 +37,14 @@
   <pluginRepositories>
     <pluginRepository>
       <id>central</id>
-      <url>http://maven.dev:8081/artifactory/repo</url>
+      <url>https://maven.dev/content/groups/repo</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
     </pluginRepository>
     <pluginRepository>
       <id>snapshots</id>
-      <url>http://maven.dev:8081/artifactory/repo</url>
+      <url>https://maven.dev/content/groups/repo</url>
       <releases>
         <enabled>false</enabled>
       </releases>
@@ -55,12 +55,12 @@
     <repository>
       <id>maven-seznam</id>
       <name>szn-releases</name>
-      <url>http://maven.dev:8081/artifactory/releases-local</url>
+      <url>https://maven.dev/content/repositories/releases-local</url>
     </repository>
     <snapshotRepository>
       <id>maven-seznam</id>
       <name>szn-snapshots</name>
-      <url>http://maven.dev:8081/artifactory/snapshots-local</url>
+      <url>https://maven.dev/content/repositories/snapshots-local</url>
     </snapshotRepository>
   </distributionManagement>
 
