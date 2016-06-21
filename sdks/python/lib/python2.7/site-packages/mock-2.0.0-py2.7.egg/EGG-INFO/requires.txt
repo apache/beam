@@ -1,0 +1,14 @@
+funcsigs>=1
+pbr>=0.11
+six>=1.9
+
+[docs]
+sphinx
+
+[docs:(python_version<"3.3" and python_version>="3")]
+jinja2<2.7
+Pygments<2
+sphinx<1.3
+
+[test]
+unittest2>=1.1.0
