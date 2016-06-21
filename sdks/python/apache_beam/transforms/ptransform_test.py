@@ -510,14 +510,15 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_to_list(self):
-    self.assertEqual([1, 2, 3], [0, 1, 2] | beam.Map('add_one', lambda x: x + 1))
-    self.assertEqual([1], [0, 1, 2] | beam.Filter('odd', lambda x: x % 2))
-    self.assertEqual([1, 2, 3, 100],
-                     ([1, 2, 3], [100]) | beam.Flatten('flat'))
+    self.assertItemsEqual(
+        [1, 2, 3], [0, 1, 2] | beam.Map('add_one', lambda x: x + 1))
+    self.assertItemsEqual([1], [0, 1, 2] | beam.Filter('odd', lambda x: x % 2))
+    self.assertItemsEqual([1, 2, 100, 3],
+                          ([1, 2, 3], [100]) | beam.Flatten('flat'))
     join_input = ([('k', 'a')],
                   [('k', 'b'), ('k', 'c')])
-    self.assertEqual([('k', (['a'], ['b', 'c']))],
-                     join_input | beam.CoGroupByKey('join'))
+    self.assertItemsEqual([('k', (['a'], ['b', 'c']))],
+                          join_input | beam.CoGroupByKey('join'))
 
   def test_multi_input_ptransform(self):
     class DisjointUnion(PTransform):
