@@ -755,4 +755,30 @@ public class AvroCoderTest {
       return Objects.hash(getClass(), onlySomeTypesAllowed);
     }
   }
+
+  @Test
+  public void testAvroCoderForGenerics() throws Exception {
+    Schema fooSchema = AvroCoder.of(Foo.class).getSchema();
+    Schema schema = new Schema.Parser().parse("{"
+        + "\"type\":\"record\","
+        + "\"name\":\"SomeGeneric\","
+        + "\"namespace\":\"ns\","
+        + "\"fields\":["
+        + "  {\"name\":\"foo\", \"type\":" + fooSchema.toString() + "}"
+        + "]}");
+    @SuppressWarnings("rawtypes")
+    AvroCoder<SomeGeneric> coder = AvroCoder.of(SomeGeneric.class, schema);
+
+    assertNonDeterministic(coder,
+        reasonField(SomeGeneric.class, "foo", "erasure"));
+  }
+
+  private static class SomeGeneric<T> {
+    @SuppressWarnings("unused")
+    private T foo;
+  }
+  private static class Foo {
+    @SuppressWarnings("unused")
+    String id;
+  }
 }

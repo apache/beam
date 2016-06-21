@@ -475,6 +475,10 @@ public class AvroCoder<T> extends StandardCoder<T> {
           checkMap(context, type, schema);
           break;
         case RECORD:
+          if (!(type.getType() instanceof Class)) {
+            reportError(context, "Cannot determine type from generic %s due to erasure", type);
+            return;
+          }
           checkRecord(type, schema);
           break;
         case UNION:
@@ -695,7 +699,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
      * Extract a field from a class. We need to look at the declared fields so that we can
      * see private fields. We may need to walk up to the parent to get classes from the parent.
      */
-    private static Field getField(Class<?> clazz, String name) {
+    private static Field getField(Class<?> originalClazz, String name) {
+      Class<?> clazz = originalClazz;
       while (clazz != null) {
         for (Field field : clazz.getDeclaredFields()) {
           AvroName avroName = field.getAnnotation(AvroName.class);
@@ -708,8 +713,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
         clazz = clazz.getSuperclass();
       }
 
-      throw new IllegalArgumentException(
-          "Unable to get field " + name + " from class " + clazz);
+      throw new IllegalArgumentException("Unable to get field " + name + " from " + originalClazz);
     }
   }
 }
