@@ -22,7 +22,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
- * Properties needed when using Bigtable with the Dataflow SDK.
+ * Properties needed when using Bigtable with the Beam SDK.
  */
 public interface BigtableTestOptions extends TestPipelineOptions {
   @Description("Project ID for Bigtable")
@@ -31,7 +31,7 @@ public interface BigtableTestOptions extends TestPipelineOptions {
   void setProjectId(String value);
 
   @Description("Cluster ID for Bigtable")
-  @Default.String("dataflow-test")
+  @Default.String("beam-test")
   String getClusterId();
   void setClusterId(String value);
 

@@ -37,8 +37,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigtableReadIT {
 
-  private static final long NUM_ROWS = 1000L;
-
   @Test
   public void testE2EBigtableRead() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
@@ -50,13 +48,14 @@ public class BigtableReadIT {
         .setClusterId(options.getClusterId())
         .setZoneId(options.getZoneId());
 
-    String tableId = "BigtableReadTest";
+    final String tableId = "BigtableReadTest";
+    final long numRows = 1000L;
 
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count = p
         .apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
         .apply(Count.<Row>globally());
-    PAssert.thatSingleton(count).isEqualTo(NUM_ROWS);
+    PAssert.thatSingleton(count).isEqualTo(numRows);
     p.run();
   }
 }

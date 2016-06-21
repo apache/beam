@@ -43,113 +43,148 @@ import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 /**
  * End-to-end tests of BigtableWrite.
  */
 @RunWith(JUnit4.class)
 public class BigtableWriteIT implements Serializable {
+  /**
+   * These tests requires a static instances because the writers go through a serialization step
+   * when executing the test and would not affect passed-in objects otherwise.
+   */
+  private static final String COLUMN_FAMILY_NAME = "cf";
+  private static BigtableTestOptions options;
+  private BigtableOptions bigtableOptions;
+  private static BigtableSession session;
+  private static BigtableTableAdminClient tableAdminClient;
 
-  private final Random random = new Random();
-
-  @Test
-  public void testE2EBigtableWrite() throws Exception {
+  @Before
+  public void setup() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
-    BigtableTestOptions options = TestPipeline.testingPipelineOptions()
-        .as(BigtableTestOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
 
     BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
         .setProjectId(options.getProjectId())
         .setClusterId(options.getClusterId())
         .setZoneId(options.getZoneId())
         .setUserAgent("apache-beam-test");
-    BigtableOptions bigtableOptions = bigtableOptionsBuilder.build();
+    bigtableOptions = bigtableOptionsBuilder.build();
 
-    String tableId = String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
-    String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
+    session = new BigtableSession(bigtableOptions);
+    tableAdminClient = session.getTableAdminClient();
+  }
 
+  @Test
+  public void testE2EBigtableWrite() throws Exception {
+    final String tableId = String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+    final String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
+    final String clusterName = bigtableOptions.getClusterName().toString();
     final int numRows = 1000;
-    final int valueLength = 10;
-    final String[] values = new String[numRows];
+    final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
 
-    for (int i = 0; i < numRows; ++i) {
-      values[i] = createRandomString(valueLength);
-    }
-
-    BigtableSession bigtableSession = new BigtableSession(bigtableOptions);
-    BigtableTableAdminClient tableAdminClient = bigtableSession.getTableAdminClient();
-    Table.Builder tableBuilder = Table.newBuilder();
-    final String columnName = "cf";
-    Map<String, ColumnFamily> columnFamilies = tableBuilder.getMutableColumnFamilies();
-    columnFamilies.put(columnName, ColumnFamily.newBuilder().build());
-
-    CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder()
-        .setName(bigtableOptions.getClusterName().toString())
-        .setTableId(tableId)
-        .setTable(tableBuilder.build());
-    tableAdminClient.createTable(createTableRequestBuilder.build());
+    createEmptyTable(clusterName, tableId);
 
     Pipeline p = Pipeline.create(options);
     p.apply(CountingInput.upTo(numRows))
         .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
           @Override
           public void processElement(ProcessContext c) {
+            int index = c.element().intValue();
+
             Iterable<Mutation> mutations =
                 ImmutableList.of(Mutation.newBuilder()
                     .setSetCell(
                         Mutation.SetCell.newBuilder()
-                            .setValue(ByteString.copyFromUtf8(values[c.element().intValue()]))
-                            .setFamilyName(columnName))
+                            .setValue(testData.get(index).getValue())
+                            .setFamilyName(COLUMN_FAMILY_NAME))
                     .build());
-            c.output(KV.of(ByteString.copyFromUtf8(c.element().toString()), mutations));
+            c.output(KV.of(testData.get(index).getKey(), mutations));
           }
         }))
         .apply(BigtableIO.write()
-          .withBigtableOptions(bigtableOptionsBuilder)
+          .withBigtableOptions(bigtableOptions)
           .withTableId(tableId));
     p.run();
 
+    // Test number of column families and column family name equality
+    Table table = getTable(tableName);
+    assertEquals(table.getColumnFamilies().size(), 1);
+    assertTrue(table.getColumnFamilies().containsKey(COLUMN_FAMILY_NAME));
+
+    // Test table data equality
+    List<KV<ByteString, ByteString>> tableData = getTableData(tableName);
+    assertEquals(testData.size(), tableData.size());
+    assertTrue(testData.containsAll(tableData));
+
+    deleteTable(tableName);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////
+  /** Helper function to generate KV test data. */
+  private List<KV<ByteString, ByteString>> generateTableData(int numRows) {
+    List<KV<ByteString, ByteString>> testData = new ArrayList<>(numRows);
+    for (int i = 0; i < numRows; ++i) {
+      ByteString key = ByteString.copyFromUtf8(String.format("key%09d", i));
+      ByteString value = ByteString.copyFromUtf8(String.format("value%09d", i));
+      testData.add(KV.of(key, value));
+    }
+
+    return testData;
+  }
+
+  /** Helper function to create an empty table. */
+  private void createEmptyTable(String clusterName, String tableId) {
+    Table.Builder tableBuilder = Table.newBuilder();
+    Map<String, ColumnFamily> columnFamilies = tableBuilder.getMutableColumnFamilies();
+    columnFamilies.put(COLUMN_FAMILY_NAME, ColumnFamily.newBuilder().build());
+
+    CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder()
+        .setName(clusterName)
+        .setTableId(tableId)
+        .setTable(tableBuilder.build());
+    tableAdminClient.createTable(createTableRequestBuilder.build());
+  }
+
+  /** Helper function to get a table. */
+  private Table getTable(String tableName) {
     GetTableRequest.Builder getTableRequestBuilder = GetTableRequest.newBuilder()
         .setName(tableName);
-    Table table = tableAdminClient.getTable(getTableRequestBuilder.build());
-    assertEquals(table.getColumnFamilies().size(), 1);
-    assertTrue(table.getColumnFamilies().containsKey(columnName));
+    return tableAdminClient.getTable(getTableRequestBuilder.build());
+  }
 
+  /** Helper function to get a table's data. */
+  private List<KV<ByteString, ByteString>> getTableData(String tableName) throws IOException {
+    List<KV<ByteString, ByteString>> tableData = new ArrayList<>();
     ReadRowsRequest.Builder readRowsRequestBuilder = ReadRowsRequest.newBuilder()
         .setTableName(tableName);
-    ResultScanner<Row> scanner = bigtableSession.getDataClient()
-        .readRows(readRowsRequestBuilder.build());
+    ResultScanner<Row> scanner = session.getDataClient().readRows(readRowsRequestBuilder.build());
 
-    int readCount = 0;
     Row currentRow;
     while ((currentRow = scanner.next()) != null) {
-      int currentKey = Integer.parseInt(currentRow.getKey().toStringUtf8());
-      String currentValue =
-          currentRow.getFamilies(0).getColumns(0).getCells(0).getValue().toStringUtf8();
-      assertEquals(values[currentKey], currentValue);
-      ++readCount;
+      ByteString key = currentRow.getKey();
+      ByteString value = currentRow.getFamilies(0).getColumns(0).getCells(0).getValue();
+      tableData.add(KV.of(key, value));
     }
-    assertEquals(numRows, readCount);
 
+    return tableData;
+  }
+
+  /** Helper function to delete a table. */
+  private void deleteTable(String tableName) {
     DeleteTableRequest.Builder deleteTableRequestBuilder = DeleteTableRequest.newBuilder()
         .setName(tableName);
     tableAdminClient.deleteTable(deleteTableRequestBuilder.build());
-  }
-
-  private String createRandomString(int length) {
-    char[] chars = "abcdefghijklmnopqrstuvwxyz".toCharArray();
-    StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < length; i++) {
-      builder.append(chars[random.nextInt(chars.length)]);
-    }
-    return builder.toString();
   }
 }
