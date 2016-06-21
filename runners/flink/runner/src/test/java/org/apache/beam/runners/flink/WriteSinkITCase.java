@@ -54,7 +54,7 @@ public class WriteSinkITCase extends JavaProgramTestBase {
 
   @Override
   protected void preSubmit() throws Exception {
-    resultPath = getTempDirPath("result");
+    resultPath = getTempDirPath("result-" + System.nanoTime());
   }
 
   @Override

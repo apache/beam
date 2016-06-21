@@ -83,14 +83,5 @@
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <!-- see HDFSFileSourceTest commented block
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-compress</artifactId>
-      <version>1.9</version>
-      <scope>test</scope>
-    </dependency>
-    -->
   </dependencies>
 </project>
