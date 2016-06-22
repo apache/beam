@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.range;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,10 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
     return new ByteKeyRangeTracker(range);
   }
 
+  public synchronized boolean isDone() {
+    return done;
+  }
+
   @Override
   public synchronized ByteKey getStartPosition() {
     return range.getStartKey();
@@ -55,13 +60,23 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
 
   @Override
   public synchronized boolean tryReturnRecordAt(boolean isAtSplitPoint, ByteKey recordStart) {
+    if (position == null && !isAtSplitPoint) {
+      throw new IllegalStateException(
+          String.format("The first record [starting at %d] must be at a split point", recordStart));
+    }
     if (isAtSplitPoint && !range.containsKey(recordStart)) {
+      if (recordStart.compareTo(range.getEndKey()) >= 0) {
+        done = true;
+      }
       return false;
     }
     if (position == null) {
       range = range.withStartKey(recordStart);
     }
     position = recordStart;
+    if (isAtSplitPoint) {
+      ++splitPointsSeen;
+    }
     return true;
   }
 
@@ -107,13 +122,37 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
     return range.estimateFractionForKey(position);
   }
 
+  public synchronized long getSplitPointsConsumed() {
+    if (position == null) {
+      return 0;
+    } else if (isDone()) {
+      return splitPointsSeen;
+    } else {
+      // There is a current split point, and it has not finished processing.
+      checkState(
+          splitPointsSeen > 0,
+          "A started rangeTracker should have seen > 0 split points (is %s)",
+          splitPointsSeen);
+      return splitPointsSeen - 1;
+    }
+  }
+
   ///////////////////////////////////////////////////////////////////////////////
   private ByteKeyRange range;
   @Nullable private ByteKey position;
+  private long splitPointsSeen;
+  private boolean done;
 
   private ByteKeyRangeTracker(ByteKeyRange range) {
     this.range = range;
-    this.position = null;
+    position = null;
+    splitPointsSeen = 0L;
+    done = false;
+  }
+
+  public synchronized boolean markDone() {
+    done = true;
+    return false;
   }
 
   @Override
