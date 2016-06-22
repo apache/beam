@@ -2,22 +2,17 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.Triggering;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -182,12 +177,9 @@ public class JoinTest extends OperatorTest {
     }
 
     @Override
-    public TriggerState registerTrigger(
-        Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-      // no triggers
-      return TriggerState.INACTIVE;
+    public List<Trigger> createTriggers() {
+      return Collections.emptyList();
     }
-    
   }
 
   /**
@@ -208,7 +200,7 @@ public class JoinTest extends OperatorTest {
       return Collections.singleton(new JoinWindow(0, label));
     }
 
-  };
+  }
 
   TestCase windowJoin() {
     return new JoinTestCase<Integer, Long, Pair<Integer, String>>() {

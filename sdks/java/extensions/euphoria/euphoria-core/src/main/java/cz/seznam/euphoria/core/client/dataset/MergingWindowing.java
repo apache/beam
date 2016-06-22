@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.core.client.dataset;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;
@@ -27,8 +26,8 @@ public interface MergingWindowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL
    * Invoked by executors on merged windows to decide whether or not to evict them.
    * <p />
    *
-   * An alternative way to signal completeness is to invoke the eviction function
-   * specified to the window by {@link Window#registerTrigger(Triggering, UnaryFunction)}.
+   * An alternative way to signal completeness is to fire the trigger function
+   * specified by the window method {@link Window#createTriggers()}}.
    *
    * @return {@code true} if this window is complete and can be evicted
    */

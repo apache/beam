@@ -2,6 +2,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import cz.seznam.euphoria.core.client.dataset.After;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -26,7 +27,9 @@ import org.junit.Test;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -53,7 +56,7 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testWordCountStreamNonAggregating() throws Exception {
+  public void testWordCountStream() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
     inmemfs.reset()
@@ -103,7 +106,7 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testWordCountStreamNonAggregatingWithWindowLabel() throws Exception {
+  public void testWordCountStreamWithWindowLabel() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
     inmemfs.reset()
@@ -179,11 +182,11 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testWordCountStreamAggregating() throws Exception {
+  public void testWordCountStreamEarlyTriggered() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
     inmemfs.reset()
-        .setFile("/tmp/foo.txt", Duration.ofSeconds(2), asList(
+        .setFile("/tmp/foo.txt", Duration.ofSeconds(3), asList(
             "one two three four four two two",
             "one one one two two three"));
 
@@ -208,24 +211,29 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.seconds(1).aggregating())
+        .windowBy(Windowing.Time.seconds(10).earlyTriggering(After.seconds(1)))
         .output();
 
-    streamOutput.persist(URI.create("inmem:///tmp/output"));
+
+    ListDataSink<Pair<String, Long>> s = ListDataSink.get(1);
+    streamOutput.persist(s);
 
     executor.waitForCompletion(flow);
 
     @SuppressWarnings("unchecked")
-    List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
+    List<Pair<String, Long>> f = s.getOutput(0);
 
     // ~ assert the total amount of data produced
-    assertEquals(7, f.size());
+    assertTrue(f.size() >= 8); // at least one early triggered result + end of window
 
-    // ~ first window
-    assertEquals(asList("four-2", "one-1", "three-1", "two-3"), sublist(f, 0, 4));
+    // ~ take only unique results (window can be triggered arbitrary times)
+    Set<String> results = new HashSet<>(sublist(f, 0, -1, false));
 
-    //  ~ second window
-    assertEquals(asList("one-4", "three-2", "two-5"), sublist(f, 4, -1));
+    // ~ first window - early triggered
+    results.containsAll(asList("four-2", "one-1", "three-1", "two-3"));
+
+    //  ~ second (final) window
+    results.containsAll(asList("one-4", "three-2", "two-5"));
   }
 
   private List<String> sublist(List<? extends Pair<String, Long>> xs, int start, int len) {
@@ -245,7 +253,7 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testWordCountByCountNonAggregating() throws Exception {
+  public void testWordCountByCount() throws Exception {
     Flow flow = Flow.create("Test");
     Dataset<String> words = flow.createInput(ListDataSource.unbounded(
         asList("one",   "two",  "three", "four", "four", "two",
@@ -280,45 +288,6 @@ public class BasicOperatorTest {
     // ~ third 6 input elems
     assertEquals(
         asList("four-4", "three-2"),
-        sublist(output.getOutput(0), 6, -1));
-  }
-
-  @Test
-  public void testWordCountByCountAggregating() throws Exception {
-    Flow flow = Flow.create("Test");
-    Dataset<String> words = flow.createInput(ListDataSource.unbounded(
-        asList("one",   "two",  "three", "four", "four", "two",
-               "two",   "one",  "one",   "one",  "two",  "two",
-               "three", "three", "four", "four",  "four", "four")));
-
-    // reduce it to counts, use windowing, so the output is batch or stream
-    // depending on the type of input
-    final ListDataSink<Pair<String, Long>> output = ListDataSink.get(1);
-    ReduceByKey
-        .of(words)
-        .keyBy(w -> w)
-        .valueBy(w -> 1L)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Count.of(6).aggregating())
-        .output()
-        .persist(output);
-
-    executor.waitForCompletion(flow);
-
-    assertNotNull(output.getOutput(0));
-
-    assertEquals(8, output.getOutput(0).size());
-    // ~ first 6 input elements processed
-    assertEquals(
-        asList("four-2", "one-1", "three-1", "two-2"),
-        sublist(output.getOutput(0), 0, 4));
-    // ~ seconds 6 input elems
-    assertEquals(
-        asList("one-4", "two-5"),
-        sublist(output.getOutput(0), 4, 2));
-    // ~ third 6 input elems
-    assertEquals(
-        asList("four-6", "three-3"),
         sublist(output.getOutput(0), 6, -1));
   }
 
@@ -505,7 +474,7 @@ public class BasicOperatorTest {
         .keyBy(e -> e)
         .valueBy(e -> (Void) null)
         .combineBy(values -> null)
-        .windowBy(Windowing.Time.seconds(1).aggregating())
+        .windowBy(Windowing.Time.seconds(1))
         .output();
 
     // take distinct tuples
