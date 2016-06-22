@@ -37,8 +37,20 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   def __init__(self, start, end):
     super(OffsetRangeTracker, self).__init__()
+
+    if start is None:
+      raise ValueError('Start offset must not be \'None\'')
+    if end is None:
+      raise ValueError('End offset must not be \'None\'')
+    assert isinstance(start, int) or isinstance(start, long)
+    if end != self.OFFSET_INFINITY:
+      assert isinstance(end, int) or isinstance(end, long)
+
+    assert start <= end
+
     self._start_offset = start
     self._stop_offset = end
+
     self._last_record_start = -1
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
@@ -270,4 +282,4 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
     # service will estimate progress from positions for us.
     raise RuntimeError('GroupedShuffleRangeTracker does not measure fraction'
                        ' consumed due to positions being opaque strings'
-                       ' that are interpretted by the service')
+                       ' that are interpreted by the service')

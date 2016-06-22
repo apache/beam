@@ -44,6 +44,7 @@ def get_version():
 
 # Configure the required packages and scripts to install.
 REQUIRED_PACKAGES = [
+    'avro>=1.7.7',
     'dill>=0.2.5',
     'google-apitools>=0.5.2',
     # TODO(silviuc): Reenable api client package dependencies when we can
