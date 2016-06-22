@@ -78,7 +78,7 @@ interface UnboundedReadDeduplicator {
       return new CachedIdDeduplicator();
     }
 
-    private  CachedIdDeduplicator() {
+    private CachedIdDeduplicator() {
       ids = CacheBuilder.newBuilder()
           .expireAfterAccess(MAX_RETENTION_SINCE_ACCESS, TimeUnit.MILLISECONDS)
           .maximumSize(100_000L)

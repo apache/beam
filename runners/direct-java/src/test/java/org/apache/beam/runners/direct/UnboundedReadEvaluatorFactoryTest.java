@@ -374,6 +374,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         return new Instant(index);
       }
 
+      @Override
       public byte[] getCurrentRecordId() {
         try {
           return CoderUtils.encodeToByteArray(coder, getCurrent());
