@@ -1,10 +1,11 @@
 package cz.seznam.euphoria.core.client.dataset;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -47,10 +48,8 @@ public final class BatchWindowing<T>
     }
 
     @Override
-    public TriggerState registerTrigger(Triggering triggering,
-        UnaryFunction<Window<?, ?>, Void> evict) {
-      // the batch window will end at the end of input stream
-      return TriggerState.INACTIVE;
+    public List<Trigger> createTriggers() {
+      return Collections.emptyList();
     }
 
     private Object readResolve() throws ObjectStreamException {

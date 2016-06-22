@@ -1,8 +1,9 @@
 package cz.seznam.euphoria.core.client.dataset;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * A grouping of input elements for further processing. Within euphoria,
@@ -14,16 +15,6 @@ import java.io.Serializable;
  * @see Windowing
  */
 public interface Window<GROUP, LABEL> extends Serializable {
-
-  public static enum TriggerState {
-    /** The trigger has been actived. */
-    ACTIVATED,
-    /** No trigger is associated with this window. */
-    INACTIVE,
-    /** The actual time this trigger should have triggered already passed. */
-    PASSED
-  }
-
   /**
    * Retrieves the key of group this window belongs to. Grouped windows
    * are subject to merging. Windows in different groups will never be
@@ -42,13 +33,8 @@ public interface Window<GROUP, LABEL> extends Serializable {
   LABEL getLabel();
 
   /**
-   * Register a function to be called by the triggering when a window
-   * completion event occurs
-   * @param triggering the registering service
-   * @param evict the callback to be called when the trigger fires
-   * @returns state of the trigger
+   * Returns list of triggers used by this instance of {@link Window}
    */
-  TriggerState registerTrigger(
-      Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict);
+  List<Trigger> createTriggers();
 
 }

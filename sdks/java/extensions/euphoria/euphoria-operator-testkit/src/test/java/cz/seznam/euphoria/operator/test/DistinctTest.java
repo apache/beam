@@ -126,7 +126,7 @@ public class DistinctTest extends OperatorTest {
       protected Dataset<Integer> getOutput(Dataset<Integer> input) {
         return Distinct.of(input)
             .setNumPartitions(2)
-            .setPartitioner(e -> (int) e)
+            .setPartitioner(e -> e)
             .windowBy(Windowing.Count.of(8))
             .output();
       }
@@ -141,44 +141,4 @@ public class DistinctTest extends OperatorTest {
     };
 
   }
-
-  /**
-   * Test duplicates with single input partition and aggregating window.
-   */
-  TestCase testWithAggregatingWindow() {
-
-    return new AbstractTestCase<Integer, Integer>() {
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @Override
-      public void validate(List<List<Integer>> partitions) {
-        assertEquals(1, partitions.size());
-        List<Integer> first = partitions.get(0);
-        assertUnorderedEquals(Arrays.asList(1, 2, 3, 1, 2, 3, 4), first);
-      }
-
-      @Override
-      protected Dataset<Integer> getOutput(Dataset<Integer> input) {
-        return Distinct.of(input)
-            .setNumPartitions(1)
-            .windowBy(Windowing.Count.of(3).aggregating())
-            .output();
-      }
-
-      @Override
-      protected DataSource<Integer> getDataSource() {
-        return ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3, 3, 2, 4));
-      }
-
-    };
-
-  }
-
-
-
 }

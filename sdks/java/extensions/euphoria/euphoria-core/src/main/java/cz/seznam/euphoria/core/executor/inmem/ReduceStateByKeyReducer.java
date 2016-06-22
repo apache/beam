@@ -1,7 +1,9 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.Triggering;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.client.triggers.TriggerContext;
+import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -9,6 +11,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
+import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.QueueCollector;
@@ -125,23 +128,18 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     }
   } // ~ end of WindowRegistry
 
-  private static final class ProcessingState {
+  private final class ProcessingState implements TriggerContext {
 
     final WindowRegistry wRegistry = new WindowRegistry();
 
-    // ~ an index over (item) keys to their held aggregating state
-    final Map<Object, State> aggregatingStates = new HashMap<>();
-
     final Collector stateOutput;
     final BlockingQueue rawOutput;
-    final Triggering triggering;
-    final UnaryFunction<Window, Void> evictFn;
+    final TriggerScheduler triggering;
     final UnaryFunction stateFactory;
     final CombinableReduceFunction stateCombiner;
-    final boolean aggregating;
 
     // do we have bounded input?
-    // if so, do not register windows for trigerring, just trigger
+    // if so, do not register windows for triggering, just trigger
     // windows at the end of input
     private final boolean isBounded;
 
@@ -150,20 +148,16 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
     private ProcessingState(
         BlockingQueue output,
-        Triggering triggering,
-        UnaryFunction<Window, Void> evictFn,
+        TriggerScheduler triggering,
         UnaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
-        boolean aggregating,
         boolean isBounded)
     {
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
-      this.evictFn = requireNonNull(evictFn);
       this.stateFactory = requireNonNull(stateFactory);
       this.stateCombiner = requireNonNull(stateCombiner);
-      this.aggregating = aggregating;
       this.isBounded = isBounded;
     }
 
@@ -180,10 +174,14 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       return wRegistry.getWindow(w.getGroup(), w.getLabel());
     }
 
-    // ~ evicts the specified window returning states accumulated for it
-    public Collection<State> evictWindow(Window w) {
+    /**
+     * Flushes (emits result) the specified window
+     *  @return accumulated states for the specified window
+     */
+    private Collection<State> flushWindowStates(Window w) {
       WindowStorage wKeyStates =
-          wRegistry.removeWindow(w.getGroup(), w.getLabel());
+              wRegistry.getWindow(w.getGroup(), w.getLabel());
+
       if (wKeyStates == null) {
         return Collections.emptySet();
       }
@@ -192,26 +190,32 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         return Collections.emptySet();
       }
 
-      if (aggregating) {
-        for (Map.Entry<Object, State> e : keyStates.entrySet()) {
-          State committed = aggregatingStates.get(e.getKey());
-          State state = e.getValue();
-          if (committed != null) {
-            state = (State) stateCombiner.apply(newArrayList(committed, state));
-            e.setValue(state);
-          }
-          aggregatingStates.put(e.getKey(), state);
-        }
+      return keyStates.values();
+    }
+
+    /**
+     * Purges the specified window
+     * @return accumulated states for the specified window
+     */
+    private Collection<State> purgeWindowStates(Window w) {
+      WindowStorage wKeyStates =
+              wRegistry.removeWindow(w.getGroup(), w.getLabel());
+      if (wKeyStates == null) {
+        return Collections.emptySet();
+      }
+      Map<Object, State> keyStates = wKeyStates.getKeyStates();
+      if (keyStates == null) {
+        return Collections.emptySet();
       }
 
       return keyStates.values();
     }
 
-    public Collection<State> evictAllWindows() {
+    private Collection<State> purgeAllWindowStates() {
       List<Window> ws = wRegistry.getAllWindowsList();
       List<State> states = newArrayListWithCapacity(ws.size());
       for (Window w : ws) {
-        states.addAll(evictWindow(w));
+        states.addAll(purgeWindowStates(w));
       }
       return states;
     }
@@ -243,14 +247,27 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     private WindowStorage
     getOrCreateWindowStorage(Window w, boolean setWindowInstance) {
       WindowStorage wStore =
-          wRegistry.getWindow(w.getGroup(), w.getLabel());
+              wRegistry.getWindow(w.getGroup(), w.getLabel());
       if (wStore == null) {
-        Window.TriggerState triggerState = Window.TriggerState.INACTIVE;
+        Trigger.TriggerResult triggerState = Trigger.TriggerResult.CONTINUE;
         if (!isBounded) {
+          // ~ default policy is to CONTINUE with current window
+          triggerState = Trigger.TriggerResult.CONTINUE;
+
           // ~ give the window a chance to register triggers
-          triggerState = w.registerTrigger(triggering, evictFn);
+          List<Trigger> triggers = w.createTriggers();
+          if (triggers.size() > 0) {
+            // ~ default policy for time-triggered window
+            triggerState = Trigger.TriggerResult.PASSED;
+          }
+          for (Trigger t : triggers) {
+            Trigger.TriggerResult result = t.init(w, this);
+            if (result == Trigger.TriggerResult.CONTINUE) {
+              triggerState = result;
+            }
+          }
         }
-        if (triggerState == Window.TriggerState.PASSED) {
+        if (triggerState ==  Trigger.TriggerResult.PASSED) {
           // the window should have been already triggered
           // just discard the element, no other option for now
           return null;
@@ -323,6 +340,21 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         }
       }
     }
+
+    @Override
+    public boolean scheduleTriggerAt(long stamp, Window w, Trigger trigger) {
+      if (triggering.scheduleAt(stamp, w, ReduceStateByKeyReducer.this.createTriggerHandler(trigger)) != null) {
+        // successfully scheduled
+        return true;
+      }
+      return false;
+    }
+
+    @Override
+    public long getCurrentTimestamp() {
+      return triggering.getCurrentTimestamp();
+    }
+
   } // ~ end of ProcessingState
 
   private final BlockingQueue input;
@@ -335,7 +367,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   // from within a separate thread)
   private final ProcessingState processing;
 
-  private final Triggering triggering;
+  private final TriggerScheduler triggering;
 
   private final EndOfWindowBroadcast eowBroadcast;
 
@@ -349,7 +381,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
                           UnaryFunction valueExtractor,
                           UnaryFunction stateFactory,
                           CombinableReduceFunction stateCombiner,
-                          Triggering triggering,
+                          TriggerScheduler triggering,
                           boolean isBounded,
                           EndOfWindowBroadcast eowBroadcast) {
     this.name = name;
@@ -361,20 +393,33 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     this.eowBroadcast = requireNonNull(eowBroadcast);
     this.processing = new ProcessingState(
         output, triggering,
-        createEvictTrigger(),
-        stateFactory, stateCombiner, this.windowing.isAggregating(),
+        stateFactory, stateCombiner,
         isBounded);
     this.eowBroadcast.subscribe(this);
   }
 
-  private UnaryFunction<Window, Void> createEvictTrigger() {
-    return (UnaryFunction<Window, Void>) window -> {
-      fireEvictTrigger(window);
-      return null;
-    };
+  private Triggerable createTriggerHandler(Trigger t) {
+    return ((timestamp, w) -> {
+
+      // ~ let trigger know about the time event and process window state
+      // according to trigger result
+      Trigger.TriggerResult result = t.onTimeEvent(timestamp, w, processing);
+
+      if (result.isFlush()) {
+        flushWindow(w);
+      }
+      if (result.isPurge()) {
+        purgeWindow(w);
+      }
+    });
   }
 
-  private void fireEvictTrigger(Window window) {
+  /**
+   * Flush window (emmit the internal state to output)
+   * @param window window instance to processed
+   */
+  private void flushWindow(Window window) {
+    // ~ notify others we're about to evict the window
     EndOfWindow eow = new EndOfWindow<>(window);
 
     // ~ notify others we're about to evict the window
@@ -394,15 +439,28 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       if (!processing.active) {
         return;
       }
-      evicted = processing.evictWindow(window);
+      evicted = processing.flushWindowStates(window);
     }
-    evicted.stream().forEachOrdered(state -> {
-      state.flush();
-      if (!windowing.isAggregating()) {
-        state.close();
-      }
-    });
+    evicted.stream().forEachOrdered(State::flush);
     processing.stateOutput.collect(eow);
+  }
+
+  /**
+   * Purge given window (discard internal state and cancel all triggers)
+   * @param window window instance to be processed
+   */
+  private void purgeWindow(Window window) {
+    Collection<State> evicted;
+    synchronized (processing) {
+      if (!processing.active) {
+        return;
+      }
+      // ~ cancel all triggers related to this window and purge state
+      triggering.cancel(window);
+      evicted = processing.purgeWindowStates(window);
+    }
+
+    evicted.stream().forEachOrdered(State::close);
   }
 
   // ~ notified by peer partitions about the end-of-an-window; we'll
@@ -440,11 +498,13 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
         if (item instanceof EndOfWindow) {
           Window w = ((EndOfWindow) item).getWindow();
-          fireEvictTrigger(w);
+          flushWindow(w);
+          purgeWindow(w);
         } else {
           final List<Window> toEvict = processInput((Datum) item);
           for (Window w : toEvict) {
-            fireEvictTrigger(w);
+            flushWindow(w);
+            purgeWindow(w);
           }
         }
       } catch (InterruptedException ex) {
@@ -456,12 +516,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     // close all states
     synchronized (processing) {
       processing.active = false;
-      if (windowing.isAggregating()) {
-        processing.evictAllWindows().stream().forEachOrdered(State::flush);
-        processing.aggregatingStates.values().stream().forEachOrdered(State::close);
-      } else {
-        processing.evictAllWindows().stream().forEachOrdered(s -> {s.flush(); s.close(); });
-      }
+      processing.purgeAllWindowStates().stream().forEachOrdered(s -> {s.flush(); s.close(); });
       processing.closeOutput();
     }
   }
@@ -469,7 +524,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   Set<Object> seenGroups = new HashSet<>();
   List<Window> toEvict = new ArrayList<>();
 
-  // ~ returns a list of windows which are to be evicted (the list may be {@code null})
+  // ~ returns a list of windows which are to be evicted
   @SuppressWarnings("unchecked")
   private List<Window> processInput(Datum datum) {
 

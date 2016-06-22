@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.Triggering;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -25,7 +25,6 @@ import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggering;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -276,91 +275,6 @@ public class InMemExecutorTest {
 
   }
 
-  @Test
-  public void testReduceByKeyWithSortStateAndAggregatingWindow() {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(
-            reversed(sequenceInts(0, 100)),
-            reversed(sequenceInts(100, 1100))));
-
-    // the key for sort will be the last digit
-    Dataset<Pair<Integer, Integer>> output =
-        ReduceStateByKey.of(ints)
-        .keyBy(i -> i % 10)
-        .valueBy(e -> e)
-        .stateFactory(SortState::new)
-        .combineStateBy(SortState::combine)
-        .windowBy(Windowing.Count.of(100).aggregating())
-        .output();
-
-    // collector of outputs
-    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
-
-    output.persist(outputSink);
-
-    executor.waitForCompletion(flow);
-
-    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-
-    // each partition should have (100 + 200 + 300 + 400 + 500 + 550) = 2050 items
-    assertEquals(2050, outputs.get(0).size());
-    assertEquals(2050, outputs.get(1).size());
-
-    Set<Integer> firstKeys = outputs.get(0).stream()
-        .map(Pair::getFirst).distinct()
-        .collect(Collectors.toSet());
-
-    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
-
-    outputs.stream().forEach(
-        p -> checkSortedSublists(p, 100, 200, 300, 400, 500, 550));
-
-  }
-
-
-  @Test
-  public void testReduceByKeyWithSortStateAndNonAggregatingWindow() {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(
-            reversed(sequenceInts(0, 100)),
-            reversed(sequenceInts(100, 1100))));
-
-    // the key for sort will be the last digit
-    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
-        .keyBy(i -> i % 10)
-        .valueBy(e -> e)
-        .stateFactory(SortState::new)
-        .combineStateBy(SortState::combine)
-        .windowBy(Windowing.Count.of(100))
-        .output();
-
-    // collector of outputs
-    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
-
-    output.persist(outputSink);
-
-    executor.waitForCompletion(flow);
-
-    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-
-    // each partition should have (100 + 100 + 100 + 100 + 100 + 50) = 550 items
-    assertEquals(550, outputs.get(0).size());
-    assertEquals(550, outputs.get(1).size());
-
-    Set<Integer> firstKeys = outputs.get(0).stream()
-        .map(Pair::getFirst).distinct()
-        .collect(Collectors.toSet());
-
-    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
-
-    outputs.stream().forEach(
-        p -> checkSortedSublists(p, 100, 100, 100, 100, 100, 50));
-
-
-  }
-
   private void checkSortedSublists(
       List<Pair<Integer, Integer>> list, int... lengths) {
 
@@ -399,10 +313,8 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public TriggerState registerTrigger(
-        Triggering triggering,
-        UnaryFunction<Window<?, ?>, Void> evict) {
-      return TriggerState.INACTIVE;
+    public List<Trigger> createTriggers() {
+      return Collections.emptyList();
     }
 
     @Override

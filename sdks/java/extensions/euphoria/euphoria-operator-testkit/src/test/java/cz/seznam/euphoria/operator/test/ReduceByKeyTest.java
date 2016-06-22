@@ -4,16 +4,13 @@ package cz.seznam.euphoria.operator.test;
 import cz.seznam.euphoria.core.client.dataset.AlignedWindow;
 import cz.seznam.euphoria.core.client.dataset.AlignedWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Triggering;
-import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import static cz.seznam.euphoria.operator.test.OperatorTest.assertUnorderedEquals;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -106,11 +103,9 @@ public class ReduceByKeyTest extends OperatorTest {
     }
 
     @Override
-    public TriggerState registerTrigger(
-        Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-      return TriggerState.INACTIVE;
+    public List<Trigger> createTriggers() {
+      return Collections.emptyList();
     }
-  
   }
 
   static class TestWindowing

@@ -124,44 +124,44 @@ public class WindowingTest {
   public void testTimeBuilders() {
     assertTimeWindowing(
         Windowing.Time.seconds(100),
-        false,
         100 * 1000,
+        null,
         Windowing.Time.ProcessingTime.<String>get());
 
     assertTimeWindowing(
-        Windowing.Time.seconds(20).aggregating(),
-        true,
+        Windowing.Time.seconds(20).earlyTriggering(After.seconds(10)),
         20 * 1000,
+        Duration.ofSeconds(10),
         Windowing.Time.ProcessingTime.<Pair<Long, String>>get());
 
     UnaryFunction<Pair<Long, Long>, Long> evtf = event-> 0L;
 
     assertTimeWindowing(
-        Windowing.Time.seconds(4).aggregating().using(evtf),
-        true,
+        Windowing.Time.seconds(4).earlyTriggering(After.seconds(10)).using(evtf),
         4 * 1000,
+        Duration.ofSeconds(10),
         evtf);
 
     assertTimeWindowing(
-        Windowing.Time.seconds(3).using(evtf).aggregating(),
-        true,
+        Windowing.Time.seconds(3).using(evtf).earlyTriggering(After.hours(1)),
         3 * 1000,
+        Duration.ofHours(1),
         evtf);
 
     assertTimeWindowing(
         Windowing.Time.seconds(8).using(evtf),
-        false,
         8 * 1000,
+        null,
         evtf);
   }
 
   private <T> void assertTimeWindowing(Windowing.Time<T> w,
-                                       boolean expectAggregating,
                                        long expectDurationMillis,
+                                       Duration expectEarlyTriggeringPeriod,
                                        UnaryFunction<T, Long> expectedFn)
   {
     assertNotNull(w);
-    assertEquals(expectAggregating, w.aggregating);
+    assertEquals(expectEarlyTriggeringPeriod, w.earlyTriggeringPeriod);
     assertEquals(expectDurationMillis, w.durationMillis);
     assertSame(expectedFn, w.eventTimeFn);
   }
