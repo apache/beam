@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
@@ -43,6 +42,8 @@ import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
+import org.hamcrest.Matchers;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -69,6 +70,8 @@ public class BigtableWriteIT implements Serializable {
   private BigtableOptions bigtableOptions;
   private static BigtableSession session;
   private static BigtableTableAdminClient tableAdminClient;
+  private final String tableId =
+      String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
 
   @Before
   public void setup() throws Exception {
@@ -88,7 +91,6 @@ public class BigtableWriteIT implements Serializable {
 
   @Test
   public void testE2EBigtableWrite() throws Exception {
-    final String tableId = String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
     final String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
     final String clusterName = bigtableOptions.getClusterName().toString();
     final int numRows = 1000;
@@ -120,15 +122,12 @@ public class BigtableWriteIT implements Serializable {
 
     // Test number of column families and column family name equality
     Table table = getTable(tableName);
-    assertEquals(table.getColumnFamilies().size(), 1);
-    assertTrue(table.getColumnFamilies().containsKey(COLUMN_FAMILY_NAME));
+    assertThat(table.getColumnFamilies().keySet(), Matchers.hasSize(1));
+    assertThat(table.getColumnFamilies(), Matchers.hasKey(COLUMN_FAMILY_NAME));
 
     // Test table data equality
     List<KV<ByteString, ByteString>> tableData = getTableData(tableName);
-    assertEquals(testData.size(), tableData.size());
-    assertTrue(testData.containsAll(tableData));
-
-    deleteTable(tableName);
+    assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,6 +141,12 @@ public class BigtableWriteIT implements Serializable {
     }
 
     return testData;
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    final String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
+    deleteTable(tableName);
   }
 
   /** Helper function to create an empty table. */
@@ -177,6 +182,7 @@ public class BigtableWriteIT implements Serializable {
       ByteString value = currentRow.getFamilies(0).getColumns(0).getCells(0).getValue();
       tableData.add(KV.of(key, value));
     }
+    scanner.close();
 
     return tableData;
   }
