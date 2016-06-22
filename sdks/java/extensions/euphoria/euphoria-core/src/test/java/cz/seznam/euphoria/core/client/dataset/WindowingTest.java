@@ -1,13 +1,15 @@
 package cz.seznam.euphoria.core.client.dataset;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionWindow;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -25,6 +27,9 @@ import org.junit.Test;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -60,6 +65,14 @@ public class WindowingTest {
     Item(String word, long evtTs) {
       this.word = word;
       this.evtTs = evtTs;
+    }
+
+    @Override
+    public String toString() {
+      return "Item{" +
+          "word='" + word + '\'' +
+          ", evtTs=" + evtTs +
+          '}';
     }
   }
 
@@ -390,5 +403,106 @@ public class WindowingTest {
     assertEquals(
         Sets.newHashSet("0-seven"),
         out.getOutput(0).get(2));
+  }
+
+  @Test
+  public void testWindowing_SessionMergeWindows() {
+    Windowing.Session<Long, Void> windowing =
+        Windowing.Session.of(Duration.ofSeconds(10))
+            .using(e -> (Void) null, e -> e);
+
+    SessionWindow<Void> w1 = assertSessionWindow(
+        windowing.assignWindows(1_000L), null, 1_000L, 11_000L);
+    SessionWindow<Void> w2 = assertSessionWindow(
+        windowing.assignWindows(10_000L), null, 10_000L, 20_000L);
+    SessionWindow<Void> w3 = assertSessionWindow(
+        windowing.assignWindows(21_000L), null, 21_000L, 31_000L);
+
+    Collection<Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>>> merges
+        = windowing.mergeWindows(Arrays.asList(w3, w2, w1));
+    assertEquals(1L, merges.size());
+    Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>> m = merges.iterator().next();
+    assertEquals(2, m.getFirst().size());
+    assertTrue(m.getFirst().contains(w1));
+    assertTrue(m.getFirst().contains(w2));
+    assertSessionWindow(m.getSecond(), null, 1_000L, 20_000L);
+  }
+
+  private <G> SessionWindow<G> assertSessionWindow(
+      Set<SessionWindow<G>> window,
+      G expectedGroup, long expectedStartMillis, long expectedEndMillis)
+  {
+    SessionWindow<G> w = Iterables.getOnlyElement(window);
+    assertSessionWindow(w, expectedGroup, expectedStartMillis, expectedEndMillis);
+    return w;
+  }
+
+  private <G> void assertSessionWindow(
+      SessionWindow<G> window,
+      G expectedGroup, long expectedStartMillis, long expectedEndMillis)
+  {
+    assertNotNull(window);
+    assertEquals(expectedGroup, window.getGroup());
+    Windowing.Session.SessionInterval label = window.getLabel();
+    assertNotNull(label);
+    assertEquals(expectedStartMillis, label.getStartMillis());
+    assertEquals(expectedEndMillis, label.getEndMillis());
+  }
+
+  @Test
+  public void testWindowing_SessionWindowing0() throws Exception {
+    InMemFileSystem.get()
+        .reset()
+        .setFile("/tmp/foo.txt", Duration.ofMillis(900), asList(
+            new Item("1-one",   1),
+            new Item("2-one",   2),
+            new Item("1-two",   4),
+            new Item("1-three", 8),
+            new Item("1-four",  10),
+            new Item("2-two",   10),
+            new Item("1-five",  18),
+            new Item("2-three", 20),
+            new Item("1-six",   22)));
+
+    final long NOW = System.currentTimeMillis() + 15_000L;
+
+    Flow flow = Flow.create("Test", settings);
+    Dataset<Item> input = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    ReduceByKey.of(input)
+        .keyBy(e -> e.word.charAt(0) - '0')
+        .valueBy(e -> e.word)
+        .reduceBy(Sets::newHashSet)
+        .windowBy(Windowing.Session.of(Duration.ofSeconds(5))
+            .using((Item e) -> e.word.charAt(0), e -> NOW + e.evtTs * 1_000L))
+        .setNumPartitions(1)
+        .output()
+        .persist(URI.create("inmem:///tmp/output"));
+
+    executor.waitForCompletion(flow);
+
+    @SuppressWarnings("unchecked")
+    Collection<Pair<Integer, HashSet<String>>> output =
+        InMemFileSystem.get().getFile("/tmp/output/0");
+
+    // ~ prepare the output for comparison
+    List<String> flat = new ArrayList<>();
+    for (Pair<Integer, HashSet<String>> o : output) {
+      StringBuilder buf = new StringBuilder();
+      buf.append(o.getFirst()).append(": ");
+      ArrayList<String> xs = new ArrayList<>(o.getSecond());
+      xs.sort(Comparator.naturalOrder());
+      Joiner.on(", ").appendTo(buf, xs);
+
+      flat.add(buf.toString());
+    }
+    flat.sort(Comparator.naturalOrder());
+    assertEquals(
+        asList(
+            "1: 1-five, 1-six",
+            "1: 1-four, 1-one, 1-three, 1-two",
+            "2: 2-one",
+            "2: 2-three",
+            "2: 2-two"),
+        flat);
   }
 }
