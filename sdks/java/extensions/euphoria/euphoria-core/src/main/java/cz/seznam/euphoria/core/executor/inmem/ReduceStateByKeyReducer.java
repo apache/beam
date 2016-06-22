@@ -592,9 +592,12 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
             for (Pair<Collection<Window>, Window> merge : merges) {
               boolean merged = processing.mergeWindows(
                   merge.getFirst(), merge.getSecond());
-              if (merged && mwindowing.isComplete(merge.getSecond())) {
-                toEvict = new ArrayList<>();
-                toEvict.add(merge.getSecond());
+              if (merged) {
+                merge.getFirst().forEach(triggering::cancel);
+                if (mwindowing.isComplete(merge.getSecond())) {
+                  toEvict = new ArrayList<>();
+                  toEvict.add(merge.getSecond());
+                }
               }
             }
           }
