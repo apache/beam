@@ -137,6 +137,23 @@ public class OffsetRangeTrackerTest {
   }
 
   @Test
+  public void testGetPositionForFractionDenseUpdateStartOffset() throws Exception {
+    // Represents positions 3, 4, 5.
+    OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
+    // [3, 3) represents 0.0 of [3, 6)
+    assertEquals(3, tracker.getPositionForFractionConsumed(0.0));
+    // Update start offset to 4
+    assertTrue(tracker.tryReturnRecordAt(true, 4));
+    // [4, 4) represents 0.0 of [4, 6)
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.0));
+    // [4, 5) represents up to 1/2 of [4, 6)
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.333));
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.5));
+    // any fraction consumed over 1/2 means the whole [4, 6) has been consumed.
+    assertEquals(6, tracker.getPositionForFractionConsumed(0.51));
+  }
+
+  @Test
   public void testGetFractionConsumedDense() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
     assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
