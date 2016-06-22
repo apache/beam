@@ -174,7 +174,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     /**
      * Extend of {@link ZipInputStream} to automatically read all entries in the zip.
      */
-    public class FullZipInputStream extends ZipInputStream {
+    private static class FullZipInputStream extends ZipInputStream {
 
       private ZipEntry currentEntry;
 
