@@ -1,11 +1,12 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.Triggering;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 class DatumAttachedWindowing
@@ -32,8 +33,8 @@ class DatumAttachedWindowing
     }
 
     @Override
-    public TriggerState registerTrigger(Triggering triggering, UnaryFunction evict) {
-      return TriggerState.INACTIVE;
+    public List<Trigger> createTriggers() {
+      return Collections.emptyList();
     }
   }
 
@@ -45,7 +46,7 @@ class DatumAttachedWindowing
   }
 
   @Override
-  public void updateTriggering(Triggering triggering, Datum input) {
+  public void updateTriggering(TriggerScheduler triggering, Datum input) {
 
   }
 

@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Triggering;
+import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -241,7 +241,7 @@ public class InMemExecutor implements Executor {
         }
       });
 
-  private Triggering triggering = new ProcessingTimeTriggering();
+  private TriggerScheduler triggering = new ProcessingTimeTriggering();
 
   @Override
   public Future<Integer> submit(Flow flow) {
@@ -711,7 +711,7 @@ public class InMemExecutor implements Executor {
   }
 
 
-  public InMemExecutor setTriggering(Triggering triggering) {
+  public InMemExecutor setTriggering(TriggerScheduler triggering) {
     this.triggering = triggering;
     return this;
   }
