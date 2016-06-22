@@ -147,6 +147,7 @@ public class BigtableWriteIT implements Serializable {
   public void tearDown() throws Exception {
     final String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
     deleteTable(tableName);
+    session.close();
   }
 
   /** Helper function to create an empty table. */
