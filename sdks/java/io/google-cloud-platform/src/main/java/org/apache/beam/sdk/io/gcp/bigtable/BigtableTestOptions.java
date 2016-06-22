@@ -26,7 +26,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  */
 public interface BigtableTestOptions extends TestPipelineOptions {
   @Description("Project ID for Bigtable")
-  @Default.String("google.com:clouddfe")
+  @Default.String("apache-beam-testing")
   String getProjectId();
   void setProjectId(String value);
 
