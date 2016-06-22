@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 public class OffsetRangeTracker implements RangeTracker<Long> {
   private static final Logger LOG = LoggerFactory.getLogger(OffsetRangeTracker.class);
 
-  private final long startOffset;
+  private long startOffset;
   private long stopOffset;
   private long lastRecordStart = -1L;
   private long offsetOfLastSplitPoint = -1L;
@@ -101,6 +101,9 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
               lastRecordStart));
     }
 
+    if (lastRecordStart == -1) {
+      startOffset = recordStart;
+    }
     lastRecordStart = recordStart;
 
     if (isAtSplitPoint) {
@@ -165,7 +168,7 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
       throw new IllegalArgumentException(
           "getPositionForFractionConsumed is not applicable to an unbounded range: " + this);
     }
-    return (long) Math.ceil(startOffset + fraction * (stopOffset - startOffset));
+    return (long) Math.floor(startOffset + fraction * (stopOffset - startOffset));
   }
 
   @Override
@@ -179,11 +182,11 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
     } else if (lastRecordStart >= stopOffset) {
       return 1.0;
     } else {
-      // E.g., when reading [3, 6) and lastRecordStart is 4, that means we consumed 3,4 of 3,4,5
-      // which is (4 - 3 + 1) / (6 - 3) = 67%.
+      // E.g., when reading [3, 6) and lastRecordStart is 4, that means we consumed 3 of 3,4,5
+      // which is (4 - 3) / (6 - 3) = 33%.
       // Also, clamp to at most 1.0 because the last consumed position can extend past the
       // stop position.
-      return Math.min(1.0, 1.0 * (lastRecordStart - startOffset + 1) / (stopOffset - startOffset));
+      return Math.min(1.0, 1.0 * (lastRecordStart - startOffset) / (stopOffset - startOffset));
     }
   }
 
