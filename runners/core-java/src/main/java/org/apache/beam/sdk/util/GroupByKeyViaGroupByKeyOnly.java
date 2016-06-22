@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -27,7 +25,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -122,38 +119,6 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
     @Override
     public Coder<KV<K, Iterable<V>>> getDefaultOutputCoder(PCollection<KV<K, V>> input) {
       return GroupByKey.getOutputKvCoder(input.getCoder());
-    }
-  }
-
-  /**
-   * Helper transform that makes timestamps and window assignments explicit in the value part of
-   * each key/value pair.
-   */
-  public static class ReifyTimestampsAndWindows<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, WindowedValue<V>>>> {
-
-    @Override
-    public PCollection<KV<K, WindowedValue<V>>> apply(PCollection<KV<K, V>> input) {
-
-      // The requirement to use a KvCoder *is* actually a model-level requirement, not specific
-      // to this implementation of GBK. All runners need a way to get the key.
-      checkArgument(
-          input.getCoder() instanceof KvCoder,
-          "%s requires its input to use a %s",
-          GroupByKey.class.getSimpleName(),
-          KvCoder.class.getSimpleName());
-
-      @SuppressWarnings("unchecked")
-      KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) input.getCoder();
-      Coder<K> keyCoder = inputKvCoder.getKeyCoder();
-      Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
-      Coder<WindowedValue<V>> outputValueCoder =
-          FullWindowedValueCoder.of(
-              inputValueCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
-      Coder<KV<K, WindowedValue<V>>> outputKvCoder = KvCoder.of(keyCoder, outputValueCoder);
-      return input
-          .apply(ParDo.of(new ReifyTimestampAndWindowsDoFn<K, V>()))
-          .setCoder(outputKvCoder);
     }
   }
 
