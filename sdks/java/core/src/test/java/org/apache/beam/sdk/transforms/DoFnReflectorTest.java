@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessContext;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowingInternals;
 
 import org.junit.Before;
@@ -86,19 +87,19 @@ public class DoFnReflectorTest {
 
   private void checkInvokeProcessElementWorks(DoFnReflector r) throws Exception {
     assertFalse(wasProcessElementInvoked);
-    r.invokeProcessElement(fn, mockContext, extraContextFactory);
+    r.bindInvoker(fn).invokeProcessElement(mockContext, extraContextFactory);
     assertTrue(wasProcessElementInvoked);
   }
 
   private void checkInvokeStartBundleWorks(DoFnReflector r) throws Exception {
     assertFalse(wasStartBundleInvoked);
-    r.invokeStartBundle(fn, mockContext, extraContextFactory);
+    r.bindInvoker(fn).invokeStartBundle(mockContext, extraContextFactory);
     assertTrue(wasStartBundleInvoked);
   }
 
   private void checkInvokeFinishBundleWorks(DoFnReflector r) throws Exception {
     assertFalse(wasFinishBundleInvoked);
-    r.invokeFinishBundle(fn, mockContext, extraContextFactory);
+    r.bindInvoker(fn).invokeFinishBundle(mockContext, extraContextFactory);
     assertTrue(wasFinishBundleInvoked);
   }
 
@@ -201,7 +202,7 @@ public class DoFnReflectorTest {
   public void testDoFnWithStartBundle() throws Exception {
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
       @ProcessElement
-      public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
+      public void processElement(ProcessContext c) {}
 
       @StartBundle
       public void startBundle(Context c) {
@@ -321,7 +322,7 @@ public class DoFnReflectorTest {
     });
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void missingProcessContext() {}
 
   @Test
@@ -334,7 +335,7 @@ public class DoFnReflectorTest {
         getClass().getDeclaredMethod("missingProcessContext"));
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void badProcessContext(String s) {}
 
   @Test
@@ -347,7 +348,7 @@ public class DoFnReflectorTest {
         getClass().getDeclaredMethod("badProcessContext", String.class));
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void badExtraContext(DoFnWithContext<Integer, String>.Context c, int n) {}
 
   @Test
@@ -361,7 +362,7 @@ public class DoFnReflectorTest {
         getClass().getDeclaredMethod("badExtraContext", Context.class, int.class));
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void badExtraProcessContext(
       DoFnWithContext<Integer, String>.ProcessContext c, Integer n) {}
 
@@ -490,5 +491,55 @@ public class DoFnReflectorTest {
         + "WindowingInternals<InputT, OutputT>");
 
     DoFnReflector.verifyProcessMethodArguments(method);
+  }
+
+  @Test
+  public void testProcessElementException() throws Exception {
+    DoFnWithContext<Integer, Integer> fn = new DoFnWithContext<Integer, Integer>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        throw new IllegalArgumentException("bogus");
+      }
+    };
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnReflector.of(fn.getClass()).bindInvoker(fn).invokeProcessElement(null, null);
+  }
+
+  @Test
+  public void testStartBundleException() throws Exception {
+    DoFnWithContext<Integer, Integer> fn = new DoFnWithContext<Integer, Integer>() {
+      @StartBundle
+      public void startBundle(Context c) {
+        throw new IllegalArgumentException("bogus");
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+      }
+    };
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnReflector.of(fn.getClass()).bindInvoker(fn).invokeStartBundle(null, null);
+  }
+
+  @Test
+  public void testFinishBundleException() throws Exception {
+    DoFnWithContext<Integer, Integer> fn = new DoFnWithContext<Integer, Integer>() {
+      @FinishBundle
+      public void finishBundle(Context c) {
+        throw new IllegalArgumentException("bogus");
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+      }
+    };
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnReflector.of(fn.getClass()).bindInvoker(fn).invokeFinishBundle(null, null);
   }
 }

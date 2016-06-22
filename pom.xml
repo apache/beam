@@ -899,6 +899,22 @@
           </configuration>
         </plugin>
 
+        <!-- Ignore runtime-only dependencies in analysis -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>2.10</version>
+          <configuration>
+            <ignoreNonCompile>true</ignoreNonCompile>
+
+            <!-- This dependency is only used for an annotation which doesn't
+                 show up in bytecode, so doesn't show up as used. -->
+            <ignoredUnusedDeclaredDependencies>
+              <ignoredUnusedDeclaredDependency>com.google.code.findbugs:findbugs-annotations</ignoredUnusedDeclaredDependency>
+            </ignoredUnusedDeclaredDependencies>
+          </configuration>
+        </plugin>
+
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
