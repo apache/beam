@@ -292,6 +292,10 @@ public final class PaneInfo {
 
   @Override
   public String toString() {
+    if (this == PaneInfo.NO_FIRING) {
+      return "PaneInfo.NO_FIRING";
+    }
+
     return MoreObjects.toStringHelper(getClass())
         .omitNullValues()
         .add("isFirst", isFirst ? true : null)
