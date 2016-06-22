@@ -131,7 +131,11 @@ public abstract class WindowedValue<T> {
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and pane.
+   *
+   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
+   *     it at any point, and benign runner implementation details could cause silent data loss.
    */
+  @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
     return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
   }
@@ -139,7 +143,11 @@ public abstract class WindowedValue<T> {
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and the specified pane.
+   *
+   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
+   *     it at any point, and benign runner implementation details could cause silent data loss.
    */
+  @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
     return new ValueInEmptyWindows<T>(value, pane);
   }
@@ -296,11 +304,13 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * The representation of a WindowedValue where timestamp == MIN and
-   * windows == {}.
+   * The representation of a WindowedValue where timestamp == MIN and windows == {}.
+   *
+   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
+   *     it at any point, and benign runner implementation details could cause silent data loss.
    */
-  private static class ValueInEmptyWindows<T>
-      extends MinTimestampWindowedValue<T> {
+  @Deprecated
+  private static class ValueInEmptyWindows<T> extends MinTimestampWindowedValue<T> {
     public ValueInEmptyWindows(T value, PaneInfo pane) {
       super(value, pane);
     }
