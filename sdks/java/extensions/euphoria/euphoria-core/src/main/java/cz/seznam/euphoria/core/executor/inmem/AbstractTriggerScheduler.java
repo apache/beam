@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
@@ -91,8 +92,11 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   @Override
   public void cancel(Window w) {
     synchronized (activeTasks) {
-      activeTasks.get(w).stream().forEach(ScheduledTriggerTask::cancel);
-      activeTasks.removeAll(w);
+      Collection<ScheduledTriggerTask> tasks = activeTasks.get(w);
+      if (tasks != null && !tasks.isEmpty()) {
+        tasks.stream().forEach(ScheduledTriggerTask::cancel);
+        activeTasks.removeAll(w);
+      }
     }
   }
 
