@@ -434,6 +434,11 @@
     </dependency>
 
     <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
     </dependency>
