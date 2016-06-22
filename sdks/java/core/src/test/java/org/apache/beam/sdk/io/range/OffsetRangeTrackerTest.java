@@ -27,7 +27,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.internal.exceptions.ExceptionIncludingMockitoWarnings;
 
 /**
  * Tests for {@link OffsetRangeTracker}.
@@ -39,6 +38,7 @@ public class OffsetRangeTrackerTest {
   @Test
   public void testUpdateStartOffset() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
+    assertEquals(100, tracker.getStartPosition().longValue());
     // Update start offset to first record returned
     assertTrue(tracker.tryReturnRecordAt(true, 150));
     assertEquals(150, tracker.getStartPosition().longValue());
@@ -158,8 +158,9 @@ public class OffsetRangeTrackerTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
     assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 100));
+    assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 110));
-    // Consumed positions through 110 = total 10 positions of 100.
+    // Consumed positions through 109 = total 10 positions of 100.
     assertEquals(0.1, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 150));
     assertEquals(0.5, tracker.getFractionConsumed(), 1e-6);
