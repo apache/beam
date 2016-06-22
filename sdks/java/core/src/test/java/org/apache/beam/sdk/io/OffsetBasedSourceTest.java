@@ -218,13 +218,14 @@ public class OffsetBasedSourceTest {
 
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
       assertTrue(reader.start());
-      do {
+      items.add(reader.getCurrent());
+      while (reader.advance()) {
         Double fraction = reader.getFractionConsumed();
         assertNotNull(fraction);
         assertTrue(fraction.toString(), fraction > 0.0);
         assertTrue(fraction.toString(), fraction <= 1.0);
         items.add(reader.getCurrent());
-      } while (reader.advance());
+      }
       assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
 
       assertEquals(20, items.size());
