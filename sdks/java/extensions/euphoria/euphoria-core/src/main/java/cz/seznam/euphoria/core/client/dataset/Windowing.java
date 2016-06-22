@@ -2,12 +2,19 @@
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.io.Serializable;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,6 +35,9 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
   {
     public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
       private static final ProcessingTime INSTANCE = new ProcessingTime();
+
+      // singleton
+      private ProcessingTime() {}
 
       // ~ suppressing the warning is safe due to the returned
       // object not relying on the generic information in any way
@@ -86,12 +96,14 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     } // ~ end of TimeInterval
 
     public static class TimeWindow
-        implements AlignedWindow<TimeInterval> {
-
+        extends EarlyTriggeredWindow
+        implements AlignedWindow<TimeInterval>
+    {
       private final TimeInterval label;
       private final long fireStamp;
 
-      TimeWindow(long startMillis, long intervalMillis) {
+      TimeWindow(long startMillis, long intervalMillis, Duration earlyTriggering) {
+        super(earlyTriggering, startMillis + intervalMillis);
         this.label = new TimeInterval(startMillis, intervalMillis);
         this.fireStamp = startMillis + intervalMillis;
       }
@@ -102,28 +114,33 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       @Override
-      public TriggerState registerTrigger(
-          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-        
-        if (triggering.scheduleAt(this.fireStamp, () -> evict.apply(this))) {
-          return TriggerState.ACTIVATED;
+      public List<Trigger> createTriggers() {
+        List<Trigger> triggers = new ArrayList<>(1);
+        if (isEarlyTriggered()) {
+          triggers.add(getEarlyTrigger());
         }
-        return TriggerState.PASSED;
+
+        triggers.add(new TimeTrigger(fireStamp));
+
+        return triggers;
       }
     } // ~ end of TimeWindow
 
     // ~  an untyped variant of the Time windowing; does not dependent
     // on the input elements type
     public static class UTime<T> extends Time<T> {
-      UTime(long durationMillis, boolean aggregating) {
-        super(durationMillis, aggregating, ProcessingTime.get());
+      UTime(long durationMillis, Duration earlyTriggeringPeriod) {
+        super(durationMillis, earlyTriggeringPeriod, ProcessingTime.get());
       }
 
+      /**
+       * Early results will be triggered periodically until the window is finally closed.
+       */
       @SuppressWarnings("unchecked")
-      public <T> Time<T> aggregating() {
+      public <T> Time<T> earlyTriggering(After time) {
         // ~ the unchecked cast is ok: eventTimeFn is
         // ProcessingTime which is independent of <T>
-        return new Time<>(super.durationMillis, true, (UnaryFunction) super.eventTimeFn);
+        return new Time<>(super.durationMillis, time.period, (UnaryFunction) super.eventTimeFn);
       }
     }
 
@@ -131,40 +148,44 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     // input elements
     public static class TTime<T> extends Time<T> {
       TTime(long durationMillis,
-            boolean aggregating,
+            Duration earlyTriggeringPeriod,
             UnaryFunction<T, Long> eventTimeFn)
       {
-        super(durationMillis, aggregating, eventTimeFn);
+        super(durationMillis, earlyTriggeringPeriod, eventTimeFn);
       }
 
-      public TTime<T> aggregating() {
-        return new TTime<>(super.durationMillis, true, super.eventTimeFn);
+      /**
+       * Early results will be triggered periodically until the window is finally closed.
+       */
+      @SuppressWarnings("unchecked")
+      public Time<T> earlyTriggering(After time) {
+        return new TTime<>(super.durationMillis, time.period, (UnaryFunction) super.eventTimeFn);
       }
     } // ~ end of EventTimeBased
 
     final long durationMillis;
-    final boolean aggregating;
+    final Duration earlyTriggeringPeriod;
     final UnaryFunction<T, Long> eventTimeFn;
 
     public static <T> UTime<T> seconds(long seconds) {
-      return new UTime<>(seconds * 1000, false);
+      return new UTime<>(seconds * 1000, null);
     }
 
     public static <T> UTime<T> minutes(long minutes) {
-      return new UTime<>(minutes * 1000 * 60, false);
+      return new UTime<>(minutes * 1000 * 60, null);
     }
 
     public static <T> UTime<T> hours(long hours) {
-      return new UTime<>(hours * 1000 * 60 * 60, false);
+      return new UTime<>(hours * 1000 * 60 * 60, null);
     }
 
     public <T> TTime<T> using(UnaryFunction<T, Long> fn) {
-      return new TTime<>(this.durationMillis, this.aggregating, requireNonNull(fn));
+      return new TTime<>(this.durationMillis, earlyTriggeringPeriod, requireNonNull(fn));
     }
 
-    Time(long durationMillis, boolean aggregating, UnaryFunction<T, Long> eventTimeFn) {
+    public Time(long durationMillis, Duration earlyTriggeringPeriod, UnaryFunction<T, Long> eventTimeFn) {
       this.durationMillis = durationMillis;
-      this.aggregating = aggregating;
+      this.earlyTriggeringPeriod = earlyTriggeringPeriod;
       this.eventTimeFn = eventTimeFn;
     }
 
@@ -172,17 +193,12 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     public Set<TimeWindow> assignWindows(T input) {
       long ts = eventTimeFn.apply(input);
       return singleton(
-          new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis));
+          new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis, earlyTriggeringPeriod));
     }
 
     @Override
-    public void updateTriggering(Triggering triggering, T input) {
+    public void updateTriggering(TriggerScheduler triggering, T input) {
       triggering.updateProcessed(eventTimeFn.apply(input));
-    }
-
-    @Override
-    public boolean isAggregating() {
-      return aggregating;
     }
   } // ~ end of Time
 
@@ -191,7 +207,6 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
                  MergingWindowing<T, Void, Windowing.Count.Counted, Windowing.Count.CountWindow>
   {
     private final int size;
-    private boolean aggregating = false;
 
     private Count(int size) {
       this.size = size;
@@ -217,9 +232,8 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       @Override
-      public TriggerState registerTrigger(
-          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-        return TriggerState.INACTIVE;
+      public List<Trigger> createTriggers() {
+        return Collections.emptyList();
       }
 
       @Override
@@ -276,24 +290,13 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       return window.currentCount >= size;
     }
 
-    @Override
-    public boolean isAggregating() {
-      return aggregating;
-    }
-
     public static <T> Count<T> of(int count) {
       return new Count<>(count);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Count<T> aggregating() {
-      this.aggregating = true;
-      return (Count<T>) this;
     }
   } // ~ end of Count
 
 
-  public static final class TimeSliding<T>
+  final class TimeSliding<T>
       implements AlignedWindowing<T, Long, TimeSliding.SlidingWindow> {
 
     public static class SlidingWindow implements AlignedWindow<Long> {
@@ -312,13 +315,8 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       @Override
-      public TriggerState registerTrigger(
-          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-        long scheduleAt = startTime + duration;
-        if (triggering.scheduleAt(scheduleAt, () -> evict.apply(this))) {
-          return TriggerState.ACTIVATED;
-        }
-        return TriggerState.PASSED;
+      public List<Trigger> createTriggers() {
+        return Collections.singletonList(new TimeTrigger(startTime + duration));
       }
 
       @Override
@@ -394,12 +392,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
    * Update triggering by given input. This is needed to enable the windowing
    * to move triggering in watermarking processing schemes based on event time.
    */
-  default void updateTriggering(Triggering triggering, T input) {
+  default void updateTriggering(TriggerScheduler triggering, T input) {
     triggering.updateProcessed(System.currentTimeMillis());
   }
-
-  default boolean isAggregating() {
-    return false;
-  }
-  
 }

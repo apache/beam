@@ -97,20 +97,6 @@ public class JoinOperatorTest {
   }
 
   @Test
-  public void testInnerJoinOnStreamsAggregating() throws Exception {
-    testJoin(false,
-        Windowing.Time.seconds(1).aggregating(),
-        Duration.ofSeconds(2),
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
-        asList("one, 11",  "one, 34", "one, 67",
-               "one, 32", "one, 55", "one, 88", "one, 54",
-               "one, 77", "one, 110", "two, 21"));
-  }
-
-  // ~ the behaviour of this setup is actually supposed to produce the same output
-  // as an outer join over and aggregating windowing
-  @Test
   public void testInnerJoinOnBatch() throws Exception {
     testJoin(false,
         BatchWindowing.get(),
@@ -123,7 +109,7 @@ public class JoinOperatorTest {
   }
 
   @Test
-  public void testInnerJoinOnStreamsNonAggregating() throws Exception {
+  public void testInnerJoinOnStreams() throws Exception {
     testJoin(false,
         Windowing.Time.seconds(1),
         Duration.ofSeconds(2),
@@ -132,34 +118,6 @@ public class JoinOperatorTest {
         asList("one, 11",  "two, 21", "one, 55"));
   }
 
-  @Test
-  public void testOuterJoinOnStreamAggregating() throws Exception {
-    testJoin(true,
-        Windowing.Time.seconds(1).aggregating(),
-        Duration.ofSeconds(2),
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
-        asList(
-            "one, 11",  "one, 34", "one, 67",
-            "one, 32", "one, 55", "one, 88", "one, 54",
-            "one, 77", "one, 110", "two, 21", "three, 55"));
-  }
-
-  @Test
-  public void testOuterJoinOnStreamAggregating2() throws Exception {
-    testJoin(true,
-        Windowing.Time.seconds(1).aggregating(),
-        Duration.ofSeconds(2),
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("quux 99", "one 10", "two 20", "one 33", "three 55", "one 66"),
-        asList(
-            "one, 11",  "one, 34", "one, 67",
-            "one, 32", "one, 55", "one, 88", "one, 54",
-            "one, 77", "one, 110", "two, 21", "three, 55", "quux, 99"));
-  }
-
-  // ~ the behaviour of this setup is actually supposed to produce the same output
-  // as an outer join over and aggregating windowing
   @Test
   public void testOuterJoinOnBatch() throws Exception {
     testJoin(true,
@@ -174,7 +132,7 @@ public class JoinOperatorTest {
   }
 
   @Test
-  public void testOuterJoinOnStreamNonAggregating() throws Exception {
+  public void testOuterJoinOnStream() throws Exception {
     testJoin(true,
         Windowing.Time.seconds(1),
         Duration.ofSeconds(2),
