@@ -38,6 +38,7 @@ import com.google.common.collect.Ordering;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
@@ -648,7 +649,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     private void copyOne(String source, String destination) throws IOException {
       try {
         // Copy the source file, replacing the existing destination.
-        Files.copy(Paths.get(source), Paths.get(destination), StandardCopyOption.REPLACE_EXISTING);
+        // Paths.get(x) will not work on win cause of the ":" after the drive letter
+        Files.copy(
+                new File(source).toPath(),
+                new File(destination).toPath(),
+                StandardCopyOption.REPLACE_EXISTING);
       } catch (NoSuchFileException e) {
         LOG.debug("{} does not exist.", source);
         // Suppress exception if file does not exist.
