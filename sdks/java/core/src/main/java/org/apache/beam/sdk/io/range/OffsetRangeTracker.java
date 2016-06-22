@@ -168,7 +168,7 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
       throw new IllegalArgumentException(
           "getPositionForFractionConsumed is not applicable to an unbounded range: " + this);
     }
-    return (long) Math.ceil(startOffset + fraction * (stopOffset - startOffset));
+    return (long) Math.floor(startOffset + fraction * (stopOffset - startOffset));
   }
 
   @Override

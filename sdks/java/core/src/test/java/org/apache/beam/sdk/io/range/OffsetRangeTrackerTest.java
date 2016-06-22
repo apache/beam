@@ -124,33 +124,35 @@ public class OffsetRangeTrackerTest {
   public void testGetPositionForFractionDense() throws Exception {
     // Represents positions 3, 4, 5.
     OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
-    // [3, 3) represents 0.0 of [3, 6)
+    // [3, 3) represents up to 1/3 of [3, 6)
     assertEquals(3, tracker.getPositionForFractionConsumed(0.0));
-    // [3, 4) represents up to 1/3 of [3, 6)
-    assertEquals(4, tracker.getPositionForFractionConsumed(1.0 / 6));
-    assertEquals(4, tracker.getPositionForFractionConsumed(0.333));
-    // [3, 5) represents up to 2/3 of [3, 6)
-    assertEquals(5, tracker.getPositionForFractionConsumed(0.334));
-    assertEquals(5, tracker.getPositionForFractionConsumed(0.666));
-    // any fraction consumed over 2/3 means the whole [3, 6) has been consumed.
-    assertEquals(6, tracker.getPositionForFractionConsumed(0.667));
+    assertEquals(3, tracker.getPositionForFractionConsumed(1.0 / 6));
+    assertEquals(3, tracker.getPositionForFractionConsumed(0.333));
+    // [3, 4) represents up to 2/3 of [3, 6)
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.334));
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.666));
+    // [3, 5) represents [3, 6)
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.667));
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.999));
+    // The whole [3, 6) is consumed for fraction 1
+    assertEquals(6, tracker.getPositionForFractionConsumed(1.0));
   }
 
   @Test
   public void testGetPositionForFractionDenseUpdateStartOffset() throws Exception {
     // Represents positions 3, 4, 5.
     OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
-    // [3, 3) represents 0.0 of [3, 6)
-    assertEquals(3, tracker.getPositionForFractionConsumed(0.0));
+    // [3, 3) represents up to 1/3 of [3, 6)
+    assertEquals(3, tracker.getPositionForFractionConsumed(0.333));
     // Update start offset to 4
     assertTrue(tracker.tryReturnRecordAt(true, 4));
-    // [4, 4) represents 0.0 of [4, 6)
-    assertEquals(4, tracker.getPositionForFractionConsumed(0.0));
-    // [4, 5) represents up to 1/2 of [4, 6)
-    assertEquals(5, tracker.getPositionForFractionConsumed(0.333));
+    // [4, 4) represents up to 1/2 of [4, 6)
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.499));
+    // [4, 5) represents [4, 6)
     assertEquals(5, tracker.getPositionForFractionConsumed(0.5));
-    // any fraction consumed over 1/2 means the whole [4, 6) has been consumed.
-    assertEquals(6, tracker.getPositionForFractionConsumed(0.51));
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.999));
+    // The whole [4, 6) is consumed for fraction 1
+    assertEquals(6, tracker.getPositionForFractionConsumed(1.0));
   }
 
   @Test
