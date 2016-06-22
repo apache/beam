@@ -102,8 +102,8 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
 
   protected final String filepattern;
   protected final Class<? extends FileInputFormat<?, ?>> formatClass;
-  private final Class<K> keyClass;
-  private final Class<V> valueClass;
+  protected final Class<K> keyClass;
+  protected final Class<V> valueClass;
   protected final SerializableSplit serializableSplit;
 
   /**
@@ -133,9 +133,9 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
   /**
    * Create a {@code HDFSFileSource} based on a file or a file pattern specification.
    */
-  private HDFSFileSource(String filepattern,
-                         Class<? extends FileInputFormat<?, ?>> formatClass, Class<K> keyClass,
-                         Class<V> valueClass) {
+  protected HDFSFileSource(String filepattern,
+                           Class<? extends FileInputFormat<?, ?>> formatClass, Class<K> keyClass,
+                           Class<V> valueClass) {
     this(filepattern, formatClass, keyClass, valueClass, null);
   }
 
