@@ -249,7 +249,7 @@ class FlinkProcessContext<InputT, OutputT>
             view.getTagInternal().getId(), new SideInputInitializer<>(view));
     ViewT result = sideInputs.get(sideInputWindow);
     if (result == null) {
-      result = view.fromIterableInternal(Collections.<WindowedValue<?>>emptyList());
+      result = view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
     }
     return result;
   }
