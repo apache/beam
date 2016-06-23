@@ -69,8 +69,8 @@ import javax.annotation.Nullable;
  *
  * <p>{@link BoundedSource} is read directly without calling {@link BoundedSource#splitIntoBundles},
  * and element timestamps are propagated. While any elements remain, the watermark is the beginning
- * of time {@code BoundedWindow.TIMESTAMP_MIN_VALUE}, and after all elements have been produced
- * the watermark goes to the end of time {@code BoundedWindow.TIMESTAMP_MAX_VALUE}.
+ * of time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, and after all elements have been produced
+ * the watermark goes to the end of time {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
  *
  * <p>Checkpoints are created by calling {@link BoundedReader#splitAtFraction} on inner
  * {@link BoundedSource}.
@@ -95,7 +95,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
   @Override
   public PCollection<T> apply(PInput input) {
-    return Pipeline.applyTransform(input,
+    return input.getPipeline().apply(
         Read.from(new BoundedToUnboundedSourceAdapter<>(source)));
   }
 
@@ -521,9 +521,9 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
           Double fractionConsumed = reader.getFractionConsumed();
           if (fractionConsumed != null && 0 <= fractionConsumed && fractionConsumed <= 1) {
             double fractionRest = 1 - fractionConsumed;
-            int splitAttampts = 8;
+            int splitAttempts = 8;
             for (int i = 0; i < 8 && residualSplit == null; ++i) {
-              double fractionToSplit = fractionConsumed + fractionRest * i / splitAttampts;
+              double fractionToSplit = fractionConsumed + fractionRest * i / splitAttempts;
               residualSplit = reader.splitAtFraction(fractionToSplit);
             }
           }
