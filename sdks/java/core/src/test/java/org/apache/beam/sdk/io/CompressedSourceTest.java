@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -608,9 +609,8 @@ public class CompressedSourceTest {
       // checkpoint every 9 elements
       if (actual.size() % 9 == 0) {
         Double fractionConsumed = reader.getFractionConsumed();
-        if (fractionConsumed != null) {
-          assertNull(reader.splitAtFraction(fractionConsumed));
-        }
+        assertNotNull(fractionConsumed);
+        assertNull(reader.splitAtFraction(fractionConsumed));
       }
     }
     assertEquals(expected.size(), actual.size());
