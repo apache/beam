@@ -718,10 +718,8 @@ public class PAssert {
 
       input
           .apply(Create.of(0).withCoder(VarIntCoder.of()))
-          .apply(
-              ParDo.named("RunChecks")
-                  .withSideInputs(actual)
-                  .of(new SideInputCheckerDoFn<>(checkerFn, actual)));
+          .apply("RunChecks",
+              ParDo.withSideInputs(actual).of(new SideInputCheckerDoFn<>(checkerFn, actual)));
 
       return PDone.in(input.getPipeline());
     }

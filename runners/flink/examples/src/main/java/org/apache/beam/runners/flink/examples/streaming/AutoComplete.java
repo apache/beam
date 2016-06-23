@@ -92,7 +92,7 @@ public class AutoComplete {
         .apply(new Count.PerElement<String>())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
-        .apply(ParDo.named("CreateCompletionCandidates").of(
+        .apply("CreateCompletionCandidates", ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
               private static final long serialVersionUID = 0;
 
@@ -395,7 +395,7 @@ public class AutoComplete {
       .apply(ComputeTopCompletions.top(10, options.getRecursive()));
 
     toWrite
-      .apply(ParDo.named("FormatForPerTaskFile").of(new FormatForPerTaskLocalFile()))
+      .apply("FormatForPerTaskFile", ParDo.of(new FormatForPerTaskLocalFile()))
       .apply(TextIO.Write.to("./outputAutoComplete.txt"));
 
     p.run();

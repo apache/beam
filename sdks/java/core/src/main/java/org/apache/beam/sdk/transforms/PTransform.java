@@ -91,7 +91,7 @@ import java.io.Serializable;
  *
  * <pre> {@code
  * ...
- * .apply(ParDo.named("Step1").of(new MyDoFn3()))
+ * .apply("Step1", ParDo.of(new MyDoFn3()))
  * ...
  * } </pre>
  *
@@ -218,9 +218,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   // understand why all of its instance state is transient.
 
   /**
-   * The base name of this {@code PTransform}, e.g., from
-   * {@link ParDo#named(String)}, or from defaults, or {@code null} if not
-   * yet assigned.
+   * The base name of this {@code PTransform}, e.g., from defaults, or
+   * {@code null} if not yet assigned.
    */
   protected final transient String name;
 

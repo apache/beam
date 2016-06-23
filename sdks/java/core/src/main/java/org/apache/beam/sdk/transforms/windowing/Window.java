@@ -645,16 +645,6 @@ public class Window {
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-
-  private static <T> PTransform<PCollection<? extends T>, PCollection<T>> identity() {
-    return ParDo.named("Identity").of(new DoFn<T, T>() {
-      @Override public void processElement(ProcessContext c) {
-        c.output(c.element());
-      }
-    });
-  }
-
   /**
    * Creates a {@code Window} {@code PTransform} that does not change assigned
    * windows, but will cause windows to be merged again as part of the next
@@ -675,7 +665,16 @@ public class Window {
       WindowingStrategy<?, ?> outputWindowingStrategy = getOutputWindowing(
           input.getWindowingStrategy());
 
-      return input.apply(Window.<T>identity())
+      return input
+          // We first apply a (trivial) transform to the input PCollection to produce a new
+          // PCollection. This ensures that we don't modify the windowing strategy of the input
+          // which may be used elsewhere.
+          .apply("Identity", ParDo.of(new DoFn<T, T>() {
+            @Override public void processElement(ProcessContext c) {
+              c.output(c.element());
+            }
+          }))
+          // Then we modify the windowing strategy.
           .setWindowingStrategyInternal(outputWindowingStrategy);
     }
 

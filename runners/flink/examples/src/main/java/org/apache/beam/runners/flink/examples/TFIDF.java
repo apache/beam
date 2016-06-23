@@ -231,26 +231,25 @@ public class TFIDF {
       // Create a collection of pairs mapping a URI to each
       // of the words in the document associated with that that URI.
       PCollection<KV<URI, String>> uriToWords = uriToContent
-          .apply(ParDo.named("SplitWords").of(
-              new DoFn<KV<URI, String>, KV<URI, String>>() {
-                private static final long serialVersionUID = 0;
+          .apply("SplitWords", ParDo.of(new DoFn<KV<URI, String>, KV<URI, String>>() {
+            private static final long serialVersionUID = 0;
 
-                @Override
-                public void processElement(ProcessContext c) {
-                  URI uri = c.element().getKey();
-                  String line = c.element().getValue();
-                  for (String word : line.split("\\W+")) {
-                    // Log INFO messages when the word “love” is found.
-                    if (word.toLowerCase().equals("love")) {
-                      LOG.info("Found {}", word.toLowerCase());
-                    }
-
-                    if (!word.isEmpty()) {
-                      c.output(KV.of(uri, word.toLowerCase()));
-                    }
-                  }
+            @Override
+            public void processElement(ProcessContext c) {
+              URI uri = c.element().getKey();
+              String line = c.element().getValue();
+              for (String word : line.split("\\W+")) {
+                // Log INFO messages when the word “love” is found.
+                if (word.toLowerCase().equals("love")) {
+                  LOG.info("Found {}", word.toLowerCase());
                 }
-              }));
+
+                if (!word.isEmpty()) {
+                  c.output(KV.of(uri, word.toLowerCase()));
+                }
+              }
+            }
+          }));
 
       // Compute a mapping from each word to the total
       // number of documents in which it appears.
@@ -276,7 +275,7 @@ public class TFIDF {
       // from URI to (word, count) pairs, to prepare for a join
       // by the URI key.
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
-          .apply(ParDo.named("ShiftKeys").of(
+          .apply("ShiftKeys", ParDo.of(
               new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
                 private static final long serialVersionUID = 0;
 
@@ -317,7 +316,7 @@ public class TFIDF {
       // is simply the number of times that word occurs in the document
       // divided by the total number of words in the document.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
-          .apply(ParDo.named("ComputeTermFrequencies").of(
+          .apply("ComputeTermFrequencies", ParDo.of(
               new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 private static final long serialVersionUID = 0;
 
@@ -343,8 +342,7 @@ public class TFIDF {
       // documents is passed as a side input; the same value is
       // presented to each invocation of the DoFn.
       PCollection<KV<String, Double>> wordToDf = wordToDocCount
-          .apply(ParDo
-              .named("ComputeDocFrequencies")
+          .apply("ComputeDocFrequencies", ParDo
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
                 private static final long serialVersionUID = 0;
@@ -377,9 +375,9 @@ public class TFIDF {
       // divided by the log of the document frequency.
 
       return wordToUriAndTfAndDf
-          .apply(ParDo.named("ComputeTfIdf").of(
+          .apply("ComputeTfIdf", ParDo.of(
               new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                private static final long serialVersionUID1 = 0;
+                private static final long serialVersionUID = 0;
 
                 @Override
                 public void processElement(ProcessContext c) {
@@ -419,7 +417,7 @@ public class TFIDF {
     @Override
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
-          .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
+          .apply("Format", ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
             private static final long serialVersionUID = 0;
 
             @Override

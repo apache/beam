@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.joda.time.Duration;
 
 /**
@@ -68,7 +69,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // Set the windowing strategy directly, so that it doesn't get counted as the user having
         // set allowed lateness.
         .setWindowingStrategyInternal(originalStrategy)
-        .apply(ParDo.named("ExpandIterable").of(
+        .apply("ExpandIterable", ParDo.of(
             new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
               @Override
               public void processElement(ProcessContext c) {

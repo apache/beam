@@ -1296,8 +1296,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
-                .apply(ParDo.named("PubsubUnboundedSource.Stats")
-                            .of(new StatsFn<T>(pubsubFactory, subscription,
-                                               timestampLabel, idLabel)));
+                .apply("PubsubUnboundedSource.Stats",
+                    ParDo.of(new StatsFn<T>(pubsubFactory, subscription, timestampLabel, idLabel)));
   }
 }
