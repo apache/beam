@@ -328,6 +328,11 @@ public class TextIO {
                 CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.GZIP));
             break;
+          case ZIP:
+            read = org.apache.beam.sdk.io.Read.from(
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                                .withDecompression(CompressedSource.CompressionMode.ZIP));
+            break;
           default:
             throw new IllegalArgumentException("Unknown compression mode: " + compressionType);
         }
@@ -721,7 +726,11 @@ public class TextIO {
     /**
      * BZipped.
      */
-    BZIP2(".bz2");
+    BZIP2(".bz2"),
+    /**
+     * Zipped.
+     */
+    ZIP(".zip");
 
     private String filenameSuffix;
 

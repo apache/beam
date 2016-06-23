@@ -30,6 +30,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -37,6 +38,8 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -149,7 +152,68 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         return Channels.newChannel(
             new BZip2CompressorInputStream(Channels.newInputStream(channel)));
       }
+    },
+
+    /**
+     * Reads a byte channel assuming it is compressed with zip.
+     * If the zip file contains multiple entries, files in the zip are concatenated all together.
+     */
+    ZIP {
+      @Override
+      public boolean matches(String fileName) {
+        return fileName.toLowerCase().endsWith(".zip");
+      }
+
+      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+        throws IOException {
+        FullZipInputStream zip = new FullZipInputStream(Channels.newInputStream(channel));
+        return Channels.newChannel(zip);
+      }
     };
+
+    /**
+     * Extend of {@link ZipInputStream} to automatically read all entries in the zip.
+     */
+    private static class FullZipInputStream extends InputStream {
+
+      private ZipInputStream zipInputStream;
+      private ZipEntry currentEntry;
+
+      public FullZipInputStream(InputStream is) throws IOException {
+        super();
+        zipInputStream = new ZipInputStream(is);
+        currentEntry = zipInputStream.getNextEntry();
+      }
+
+      @Override
+      public int read() throws IOException {
+        int result = zipInputStream.read();
+        while (result == -1) {
+          currentEntry = zipInputStream.getNextEntry();
+          if (currentEntry == null) {
+            return -1;
+          } else {
+            result = zipInputStream.read();
+          }
+        }
+        return result;
+      }
+
+      @Override
+      public int read(byte[] b, int off, int len) throws IOException {
+        int result = zipInputStream.read(b, off, len);
+        while (result == -1) {
+          currentEntry = zipInputStream.getNextEntry();
+          if (currentEntry == null) {
+            return -1;
+          } else {
+            result = zipInputStream.read(b, off, len);
+          }
+        }
+        return result;
+      }
+
+    }
 
     /**
      * Returns {@code true} if the given file name implies that the contents are compressed
