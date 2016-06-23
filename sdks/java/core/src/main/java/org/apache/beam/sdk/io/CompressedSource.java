@@ -174,27 +174,43 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     /**
      * Extend of {@link ZipInputStream} to automatically read all entries in the zip.
      */
-    private static class FullZipInputStream extends ZipInputStream {
+    private static class FullZipInputStream extends InputStream {
 
+      private ZipInputStream zipInputStream;
       private ZipEntry currentEntry;
 
       public FullZipInputStream(InputStream is) throws IOException {
-        super(is);
-        currentEntry = getNextEntry();
+        super();
+        zipInputStream = new ZipInputStream(is);
+        currentEntry = zipInputStream.getNextEntry();
       }
 
-      public int read(byte[] b, int off, int len) throws IOException {
-        int result = super.read(b, off, len);
-        if (result == -1) {
-          currentEntry = getNextEntry();
+      @Override
+      public int read() throws IOException {
+        int result = zipInputStream.read();
+        while (result == -1) {
+          currentEntry = zipInputStream.getNextEntry();
           if (currentEntry == null) {
             return -1;
+          } else {
+            result = zipInputStream.read();
           }
-          result = super.read(b, off, len);
-          return result;
-        } else {
-          return result;
         }
+        return result;
+      }
+
+      @Override
+      public int read(byte[] b, int off, int len) throws IOException {
+        int result = zipInputStream.read(b, off, len);
+        while (result == -1) {
+          currentEntry = zipInputStream.getNextEntry();
+          if (currentEntry == null) {
+            return -1;
+          } else {
+            result = zipInputStream.read(b, off, len);
+          }
+        }
+        return result;
       }
 
     }

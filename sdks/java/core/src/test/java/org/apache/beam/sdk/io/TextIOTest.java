@@ -567,6 +567,31 @@ public class TextIOTest {
     p.run();
   }
 
+  /**
+   * Read a ZIP compressed file containing data, multiple empty entries, and then more data. We
+   * expect just the data back.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
+    String filename = createZipFile(
+        new ArrayList<String>(),
+        null,
+        new String[] {"cat"},
+        new String[] {},
+        new String[] {},
+        new String[] {"dog"});
+    List<String> expected = ImmutableList.of("cat", "dog");
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output =
+        p.apply(TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP));
+    PAssert.that(output).containsInAnyOrder(expected);
+
+    p.run();
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testGZIPReadWhenUncompressed() throws Exception {
