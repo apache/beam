@@ -62,8 +62,7 @@ public class GatherAllPanes<T>
         .apply(
             Window.into(
                     new IdentityWindowFn<KV<Void, WindowedValue<T>>>(
-                        originalWindowFn.windowCoder(),
-                        input.getWindowingStrategy().getWindowFn().assignsToSingleWindow()))
+                        originalWindowFn.windowCoder()))
                 .triggering(Never.ever()))
         // all values have the same key so they all appear as a single output element
         .apply(GroupByKey.<Void, WindowedValue<T>>create())

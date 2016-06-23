@@ -65,7 +65,7 @@ class FlinkNoElementAssignContext<InputT, W extends BoundedWindow>
   }
 
   @Override
-  public Collection<? extends BoundedWindow> windows() {
-    throw new UnsupportedOperationException("No windows available.");
+  public BoundedWindow window() {
+    throw new UnsupportedOperationException("No window available.");
   }
 }

@@ -401,21 +401,25 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       WindowTracing.trace("TriggerTester.injectElements: {}", value);
     }
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    runner.processElements(Iterables.transform(
-        Arrays.asList(values), new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
-          @Override
-          public WindowedValue<InputT> apply(TimestampedValue<InputT> input) {
-            try {
-              InputT value = input.getValue();
-              Instant timestamp = input.getTimestamp();
-              Collection<W> windows = windowFn.assignWindows(new TestAssignContext<W>(
-                  windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
-              return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
-            } catch (Exception e) {
-              throw new RuntimeException(e);
-            }
-          }
-        }));
+    runner.processElements(
+        Iterables.transform(
+            Arrays.asList(values),
+            new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
+              @Override
+              public WindowedValue<InputT> apply(TimestampedValue<InputT> input) {
+                try {
+                  InputT value = input.getValue();
+                  Instant timestamp = input.getTimestamp();
+                  Collection<W> windows =
+                      windowFn.assignWindows(
+                          new TestAssignContext<W>(
+                              windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                  return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }
+            }));
 
     // Persist after each bundle.
     runner.persist();
@@ -538,14 +542,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       extends WindowFn<Object, W>.AssignContext {
     private Object element;
     private Instant timestamp;
-    private Collection<? extends BoundedWindow> windows;
+    private BoundedWindow window;
 
-    public TestAssignContext(WindowFn<Object, W> windowFn, Object element, Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
+    public TestAssignContext(
+        WindowFn<Object, W> windowFn, Object element, Instant timestamp, BoundedWindow window) {
       windowFn.super();
       this.element = element;
       this.timestamp = timestamp;
-      this.windows = windows;
+      this.window = window;
     }
 
     @Override
@@ -559,8 +563,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return windows;
+    public BoundedWindow window() {
+      return window;
     }
   }
 
