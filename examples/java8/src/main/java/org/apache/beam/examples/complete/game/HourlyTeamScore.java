@@ -109,9 +109,11 @@ public class HourlyTeamScore extends UserScore {
     String getStopMin();
     void setStopMin(String value);
 
+    @Override
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("hourly_team_score")
     String getTableName();
+    @Override
     void setTableName(String value);
   }
 
@@ -155,7 +157,7 @@ public class HourlyTeamScore extends UserScore {
     // Read 'gaming' events from a text file.
     pipeline.apply(TextIO.Read.from(options.getInput()))
       // Parse the incoming data.
-      .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
+      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
       // Filter out data before and after the given times so that it is not included
       // in the calculations. As we collect data in batches (say, by day), the batch for the day

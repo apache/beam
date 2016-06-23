@@ -123,8 +123,7 @@ public class GameStats extends LeaderBoard {
 
       // Filter the user sums using the global mean.
       PCollection<KV<String, Integer>> filtered = sumScores
-          .apply(ParDo
-              .named("ProcessAndFilter")
+          .apply("ProcessAndFilter", ParDo
               // use the derived mean total score as a side input
               .withSideInputs(globalMeanScore)
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
@@ -249,7 +248,7 @@ public class GameStats extends LeaderBoard {
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents = pipeline
         .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
-        .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()));
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
     PCollection<KV<String, Integer>> userEvents =
@@ -284,7 +283,7 @@ public class GameStats extends LeaderBoard {
               Duration.standardMinutes(options.getFixedWindowDuration())))
           )
       // Filter out the detected spammer users, using the side input derived above.
-      .apply(ParDo.named("FilterOutSpammers")
+      .apply("FilterOutSpammers", ParDo
               .withSideInputs(spammersView)
               .of(new DoFn<GameActionInfo, GameActionInfo>() {
                 @Override
