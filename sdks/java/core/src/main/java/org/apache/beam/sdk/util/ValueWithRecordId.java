@@ -21,9 +21,6 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -142,15 +139,11 @@ public class ValueWithRecordId<ValueT> {
     ByteArrayCoder idCoder;
   }
 
-  public static <T>
-      PTransform<PCollection<? extends ValueWithRecordId<T>>, PCollection<T>> stripIds() {
-    return ParDo.named("StripIds")
-        .of(
-            new DoFn<ValueWithRecordId<T>, T>() {
-              @Override
-              public void processElement(ProcessContext c) {
-                c.output(c.element().getValue());
-              }
-            });
+  /** {@link DoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
+  public static class StripIdsDoFn<T> extends DoFn<ValueWithRecordId<T>, T> {
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getValue());
+    }
   }
 }

@@ -115,7 +115,7 @@ public class WriteToBigQuery<T>
   @Override
   public PDone apply(PCollection<T> teamAndScore) {
     return teamAndScore
-      .apply(ParDo.named("ConvertToRow").of(new BuildRowFn()))
+      .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.Write
                 .to(getTable(teamAndScore.getPipeline(),
                     tableName))

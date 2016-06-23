@@ -130,7 +130,7 @@ public class AutoComplete {
         .apply(new Count.PerElement<String>())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
-        .apply(ParDo.named("CreateCompletionCandidates").of(
+        .apply("CreateCompletionCandidates", ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -481,7 +481,7 @@ public class AutoComplete {
 
     if (options.getOutputToDatastore()) {
       toWrite
-      .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
+      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
       .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }

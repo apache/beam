@@ -82,7 +82,7 @@ public class MinimalWordCount {
      // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
      // The ParDo returns a PCollection<String>, where each element is an individual word in
      // Shakespeare's collected texts.
-     .apply(ParDo.named("ExtractWords").of(new DoFn<String, String>() {
+     .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
                        @Override
                        public void processElement(ProcessContext c) {
                          for (String word : c.element().split("[^a-zA-Z']+")) {
@@ -98,7 +98,7 @@ public class MinimalWordCount {
      .apply(Count.<String>perElement())
      // Apply another ParDo transform that formats our PCollection of word counts into a printable
      // string, suitable for writing to an output file.
-     .apply(ParDo.named("FormatResults").of(new DoFn<KV<String, Long>, String>() {
+     .apply("FormatResults", ParDo.of(new DoFn<KV<String, Long>, String>() {
                        @Override
                        public void processElement(ProcessContext c) {
                          c.output(c.element().getKey() + ": " + c.element().getValue());

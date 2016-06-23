@@ -179,6 +179,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
 import javax.annotation.Nullable;
 
 /**
@@ -2540,7 +2541,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .apply(new Deduplicate<T>());
       } else {
         return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
-            .apply(ValueWithRecordId.<T>stripIds());
+            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
       }
     }
 
@@ -2613,7 +2614,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
-          .apply(ParDo.named("StripIds").of(
+          .apply("StripIds", ParDo.of(
               new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
                 @Override
                 public void processElement(ProcessContext c) {

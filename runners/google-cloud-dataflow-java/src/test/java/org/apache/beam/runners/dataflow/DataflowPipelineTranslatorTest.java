@@ -513,9 +513,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
     String stepName = "DoFn1";
-    pipeline.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/in"))
-        .apply(ParDo.of(new NoOpFn()).named(stepName))
-        .apply(TextIO.Write.named("WriteMyFile").to("gs://bucket/out"));
+    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
+        .apply(stepName, ParDo.of(new NoOpFn()))
+        .apply("WriteMyFile", TextIO.Write.to("gs://bucket/out"));
     Job job =
         translator
             .translate(
