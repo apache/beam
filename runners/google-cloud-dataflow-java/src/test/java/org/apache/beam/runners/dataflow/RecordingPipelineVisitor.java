@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.runners;
+package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 
@@ -27,10 +28,8 @@ import java.util.List;
 /**
  * Provides a simple {@link org.apache.beam.sdk.Pipeline.PipelineVisitor}
  * that records the transformation tree.
- *
- * <p>Provided for internal unit tests.
  */
-public class RecordingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
+class RecordingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   public final List<PTransform<?, ?>> transforms = new ArrayList<>();
   public final List<PValue> values = new ArrayList<>();
