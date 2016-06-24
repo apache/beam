@@ -158,7 +158,7 @@ public class JmsIO {
     @Override
     public void validate(PBegin input) {
       checkNotNull(connectionFactory, "ConnectionFactory not specified");
-      checkArgument((queue == null && topic == null), "Either queue or topic not specified");
+      checkArgument((queue != null || topic != null), "Either queue or topic not specified");
     }
 
     @Override
@@ -172,13 +172,13 @@ public class JmsIO {
 
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    private ConnectionFactory connectionFactory;
+    protected ConnectionFactory connectionFactory;
     @Nullable
-    private String queue;
+    protected String queue;
     @Nullable
-    private String topic;
-    private long maxNumRecords;
-    private Duration maxReadTime;
+    protected String topic;
+    protected long maxNumRecords;
+    protected Duration maxReadTime;
 
     private Read() {}
 
@@ -248,7 +248,7 @@ public class JmsIO {
     @Override
     public void validate() {
       checkNotNull(connectionFactory, "ConnectionFactory is not defined");
-      checkArgument((queue == null && topic == null), "Either queue or topic is not defined");
+      checkArgument((queue != null || topic != null), "Either queue or topic is not defined");
     }
 
     @Override
@@ -447,12 +447,8 @@ public class JmsIO {
 
     @Override
     public void validate(PCollection<String> input) {
-      if (connectionFactory == null) {
-        throw new IllegalArgumentException("ConnectionFactory is required");
-      }
-      if (queue == null && topic == null) {
-        throw new IllegalArgumentException("Either queue or topic is required");
-      }
+      checkNotNull(connectionFactory, "ConnectionFactory is required");
+      checkArgument((queue != null || topic != null), "Either queue or topic is required");
     }
 
     private static class JmsWriter extends DoFn<String, Void> {
