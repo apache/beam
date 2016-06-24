@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -25,14 +24,10 @@ public class WatermarkTriggering extends AbstractTriggering {
   public void updateProcessed(long stamp) {
     long newWatermark = stamp - watermarkDuration;
     if (currentWatermark < newWatermark) {
-      final List<TriggerTask> activeTasks;
-      synchronized (this) {
-        // reschedule all active triggers
-        activeTasks = new ArrayList<>(getScheduledTriggers().values());
-        this.cancelAll();
-        currentWatermark = newWatermark;
-      }
-      for (TriggerTask t : activeTasks) {
+      // reschedule all active triggers
+      List<ScheduledTriggerTask> canceled = this.cancelAllImpl();
+      currentWatermark = newWatermark;
+      for (TriggerTask t : canceled) {
         if (t.getTimestamp() > currentWatermark) {
           scheduleAt(t.getTimestamp(), t.getWindow(), t.getTrigger());
         } else {
