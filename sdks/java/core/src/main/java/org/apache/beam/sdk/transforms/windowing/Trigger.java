@@ -93,7 +93,7 @@ import javax.annotation.Nullable;
  * state before the callback returns.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class Trigger implements Serializable, TriggerBuilder {
+public abstract class Trigger implements Serializable {
 
   /**
    * Interface for accessing information about the trigger being executed and other triggers in the
@@ -493,11 +493,6 @@ public abstract class Trigger implements Serializable, TriggerBuilder {
    */
   public Trigger orFinally(OnceTrigger until) {
     return new OrFinallyTrigger(this, until);
-  }
-
-  @Override
-  public Trigger buildTrigger() {
-    return this;
   }
 
   /**

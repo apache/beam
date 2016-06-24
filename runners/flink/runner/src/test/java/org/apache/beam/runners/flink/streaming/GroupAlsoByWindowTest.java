@@ -83,7 +83,7 @@ public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
   private final WindowingStrategy fixedWindowWithCompoundTriggerStrategy =
     fixedWindowingStrategy.withTrigger(
       AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(5))
-        .withLateFirings(AfterPane.elementCountAtLeast(5)).buildTrigger());
+        .withLateFirings(AfterPane.elementCountAtLeast(5)));
 
   /**
    * The default accumulation mode is

@@ -111,7 +111,6 @@ public class ReduceFnRunnerTest {
     MockitoAnnotations.initMocks(this);
 
     mockTrigger = mock(Trigger.class, withSettings().serializable());
-    when(mockTrigger.buildTrigger()).thenReturn(mockTrigger);
 
     @SuppressWarnings("unchecked")
     PCollectionView<Integer> mockViewUnchecked =
@@ -271,7 +270,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(
             windowFn,
-            AfterWatermark.pastEndOfWindow().withLateFirings(Never.ever()).buildTrigger(),
+            AfterWatermark.pastEndOfWindow().withLateFirings(Never.ever()),
             AccumulationMode.DISCARDING_FIRED_PANES,
             new Sum.SumIntegerFn().<String>asKeyedFn(),
             VarIntCoder.of(),
