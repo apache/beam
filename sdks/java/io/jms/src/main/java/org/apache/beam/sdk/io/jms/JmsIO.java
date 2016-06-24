@@ -216,7 +216,7 @@ public class JmsIO {
 
   private static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
 
-    private final transient ConnectionFactory connectionFactory;
+    private final ConnectionFactory connectionFactory;
     private final String queue;
     private final String topic;
 
@@ -447,7 +447,7 @@ public class JmsIO {
 
     @Override
     public void validate(PCollection<String> input) {
-      checkNotNull(connectionFactory, "ConnectionFactory is required");
+      checkNotNull(connectionFactory, "ConnectionFactory is not defined");
       checkArgument((queue != null || topic != null), "Either queue or topic is required");
     }
 
