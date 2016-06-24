@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.dataset;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.io.Serializable;

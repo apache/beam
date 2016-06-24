@@ -11,8 +11,8 @@ import java.io.Serializable;
 public interface Trigger extends Serializable {
 
   /**
-   * Gives trigger a chance to schedule time-based events in provided scheduler
-   * @return {@code CONTINUE} or {@code PASSED} if desired trigger time passed
+   * Gives trigger a chance to schedule time-based events in provided context
+   * @return {@code NOOP} or {@code PASSED} if desired trigger time passed
    */
   TriggerResult init(Window w, TriggerContext ctx);
 
@@ -24,13 +24,16 @@ public interface Trigger extends Serializable {
    */
   TriggerResult onTimeEvent(long time, Window w, TriggerContext ctx);
 
-
+  /**
+   * Represents result returned from trigger methods. This determines what happens
+   * with the window.
+   */
   enum TriggerResult {
 
     /**
      * No action is taken on the window.
      */
-    CONTINUE(false, false),
+    NOOP(false, false),
 
     /**
      * {@code FLUSH_AND_PURGE} evaluates the window function and emits the window

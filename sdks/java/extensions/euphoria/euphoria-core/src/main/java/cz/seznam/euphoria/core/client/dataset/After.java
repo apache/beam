@@ -3,6 +3,8 @@ package cz.seznam.euphoria.core.client.dataset;
 
 import java.time.Duration;
 
+// TODO Will be replaced by Duration
+@Deprecated
 public class After {
   Duration period;
 
