@@ -2686,7 +2686,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       try {
         Coder<T> coder = transform.getDefaultOutputCoder(input);
         return Pipeline.applyTransform(
-            input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
+            "StartingSignal", input, PubsubIO.Read.subscription("_starting_signal/"))
             .apply(ParDo.of(new OutputNullKv()))
             .apply("GlobalSingleton", Window.<KV<Void, Void>>into(new GlobalWindows())
                 .triggering(AfterPane.elementCountAtLeast(1))

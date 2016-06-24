@@ -119,11 +119,11 @@ public class WindowTest implements Serializable {
     FixedWindows fixed25 = FixedWindows.of(Duration.standardMinutes(25));
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
         .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-        .apply(Window.named("WindowInto10").<String>into(fixed10)
+        .apply("WindowInto10", Window.<String>into(fixed10)
             .withAllowedLateness(Duration.standardDays(1))
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
             .accumulatingFiredPanes())
-        .apply(Window.named("WindowInto25").<String>into(fixed25))
+        .apply("WindowInto25", Window.<String>into(fixed25))
         .getWindowingStrategy();
 
     assertEquals(Duration.standardDays(1), strategy.getAllowedLateness());
@@ -272,7 +272,7 @@ public class WindowTest implements Serializable {
 
   @Test
   public void testDisplayDataExcludesUnspecifiedProperties() {
-    Window.Bound<?> onlyHasAccumulationMode = Window.named("foobar").discardingFiredPanes();
+    Window.Bound<?> onlyHasAccumulationMode = Window.discardingFiredPanes();
     assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
         "windowFn",
         "trigger",

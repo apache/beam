@@ -190,9 +190,8 @@ public class LeaderBoard extends HourlyTeamScore {
     // [START DocInclude_WindowAndTrigger]
     // Extract team/score pairs from the event stream, using hour-long windows by default.
     gameEvents
-        .apply(Window.named("LeaderboardTeamFixedWindows")
-          .<GameActionInfo>into(FixedWindows.of(
-              Duration.standardMinutes(options.getTeamWindowDuration())))
+        .apply("LeaderboardTeamFixedWindows", Window.<GameActionInfo>into(
+            FixedWindows.of(Duration.standardMinutes(options.getTeamWindowDuration())))
           // We will get early (speculative) results as well as cumulative
           // processing of late data.
           .triggering(
@@ -215,8 +214,7 @@ public class LeaderBoard extends HourlyTeamScore {
     // Extract user/score pairs from the event stream using processing time, via global windowing.
     // Get periodic updates on all users' running scores.
     gameEvents
-        .apply(Window.named("LeaderboardUserGlobalWindow")
-          .<GameActionInfo>into(new GlobalWindows())
+        .apply("LeaderboardUserGlobalWindow", Window.<GameActionInfo>into(new GlobalWindows())
           // Get periodic results every ten minutes.
               .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
                   .plusDelayOf(TEN_MINUTES)))

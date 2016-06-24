@@ -119,7 +119,8 @@ public class WindowedWordCount {
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> words = pipeline
-        .apply(Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)).named("StreamingWordCount"))
+        .apply("StreamingWordCount",
+            Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)))
         .apply(ParDo.of(new ExtractWordsFn()))
         .apply(Window.<String>into(SlidingWindows.of(Duration.standardSeconds(options.getWindowSize()))
             .every(Duration.standardSeconds(options.getSlide())))

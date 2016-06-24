@@ -260,10 +260,8 @@ public class GameStats extends LeaderBoard {
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
     final PCollectionView<Map<String, Integer>> spammersView = userEvents
-      .apply(Window.named("FixedWindowsUser")
-          .<KV<String, Integer>>into(FixedWindows.of(
-              Duration.standardMinutes(options.getFixedWindowDuration())))
-          )
+      .apply("FixedWindowsUser", Window.<KV<String, Integer>>into(
+          FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
 
       // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
       // These might be robots/spammers.
@@ -278,10 +276,8 @@ public class GameStats extends LeaderBoard {
     // suspected robots-- to filter out scores from those users from the sum.
     // Write the results to BigQuery.
     rawEvents
-      .apply(Window.named("WindowIntoFixedWindows")
-          .<GameActionInfo>into(FixedWindows.of(
-              Duration.standardMinutes(options.getFixedWindowDuration())))
-          )
+      .apply("WindowIntoFixedWindows", Window.<GameActionInfo>into(
+          FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
       // Filter out the detected spammer users, using the side input derived above.
       .apply("FilterOutSpammers", ParDo
               .withSideInputs(spammersView)
@@ -299,8 +295,8 @@ public class GameStats extends LeaderBoard {
       // [END DocInclude_FilterAndCalc]
       // Write the result to BigQuery
       .apply("WriteTeamSums",
-             new WriteWindowedToBigQuery<KV<String, Integer>>(
-                options.getTablePrefix() + "_team", configureWindowedWrite()));
+          new WriteWindowedToBigQuery<KV<String, Integer>>(
+              options.getTablePrefix() + "_team", configureWindowedWrite()));
 
 
     // [START DocInclude_SessionCalc]
@@ -309,10 +305,9 @@ public class GameStats extends LeaderBoard {
     // This information could help the game designers track the changing user engagement
     // as their set of games changes.
     userEvents
-      .apply(Window.named("WindowIntoSessions")
-            .<KV<String, Integer>>into(
-                  Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
-        .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
+      .apply("WindowIntoSessions", Window.<KV<String, Integer>>into(
+          Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
+          .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
       // For this use, we care only about the existence of the session, not any particular
       // information aggregated over it, so the following is an efficient way to do that.
       .apply(Combine.perKey(x -> 0))
@@ -321,9 +316,8 @@ public class GameStats extends LeaderBoard {
       // [END DocInclude_SessionCalc]
       // [START DocInclude_Rewindow]
       // Re-window to process groups of session sums according to when the sessions complete.
-      .apply(Window.named("WindowToExtractSessionMean")
-            .<Integer>into(
-                FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
+      .apply("WindowToExtractSessionMean", Window.<Integer>into(
+          FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
       // Find the mean session duration in each window.
       .apply(Mean.<Integer>globally().withoutDefaults())
       // Write this info to a BigQuery table.

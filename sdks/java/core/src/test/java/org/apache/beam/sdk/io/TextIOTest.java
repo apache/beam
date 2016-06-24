@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,14 +45,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 
 import com.google.common.collect.ImmutableList;
 
@@ -167,15 +166,8 @@ public class TextIOTest {
     }
 
     {
-      PCollection<String> output2 =
-          p.apply(TextIO.Read.named("MyRead").from(file));
+      PCollection<String> output2 = p.apply("MyRead", TextIO.Read.from(file));
       assertEquals("MyRead/Read.out", output2.getName());
-    }
-
-    {
-      PCollection<String> output3 =
-          p.apply(TextIO.Read.from(file).named("HerRead"));
-      assertEquals("HerRead/Read.out", output3.getName());
     }
   }
 
@@ -296,27 +288,6 @@ public class TextIOTest {
   @Category(NeedsRunner.class)
   public void testWriteEmptyInts() throws Exception {
     runTestWrite(NO_INTS_ARRAY, TextualIntegerCoder.of());
-  }
-
-  @Test
-  public void testWriteNamed() {
-    {
-      PTransform<PCollection<String>, PDone> transform1 =
-        TextIO.Write.to("/tmp/file.txt");
-      assertEquals("TextIO.Write", transform1.getName());
-    }
-
-    {
-      PTransform<PCollection<String>, PDone> transform2 =
-          TextIO.Write.named("MyWrite").to("/tmp/file.txt");
-      assertEquals("MyWrite", transform2.getName());
-    }
-
-    {
-      PTransform<PCollection<String>, PDone> transform3 =
-          TextIO.Write.to("/tmp/file.txt").named("HerWrite");
-      assertEquals("HerWrite", transform3.getName());
-    }
   }
 
   @Test
@@ -620,12 +591,8 @@ public class TextIOTest {
   public void testTextIOGetName() {
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
     assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
-    assertEquals("ReadMyFile", TextIO.Read.named("ReadMyFile").from("somefile").getName());
-    assertEquals("WriteMyFile", TextIO.Write.named("WriteMyFile").to("somefile").getName());
 
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
-    assertEquals(
-        "ReadMyFile [TextIO.Read]", TextIO.Read.named("ReadMyFile").from("somefile").toString());
   }
 
   @Test
