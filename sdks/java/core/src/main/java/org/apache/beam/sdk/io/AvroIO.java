@@ -55,9 +55,7 @@ import javax.annotation.Nullable;
  * {@link AvroIO.Read}, specifying {@link AvroIO.Read#from} to specify
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
- * filename or filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}), and optionally
- * {@link AvroIO.Read#named} to specify the name of the pipeline step.
+ * filename or filename pattern of the form {@code "gs://<bucket>/<filepath>"}).
  *
  * <p>It is required to specify {@link AvroIO.Read#withSchema}. To
  * read specific records, such as Avro-generated classes, provide an
@@ -73,15 +71,15 @@ import javax.annotation.Nullable;
  * // A simple Read of a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records =
  *     p.apply(AvroIO.Read.from("/path/to/file.avro")
- *                        .withSchema(AvroAutoGenClass.class));
+ *                 .withSchema(AvroAutoGenClass.class));
  *
  * // A Read from a GCS file (runs locally and via the Google Cloud
  * // Dataflow service):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
- *     p.apply(AvroIO.Read.named("ReadFromAvro")
- *                        .from("gs://my_bucket/path/to/records-*.avro")
- *                        .withSchema(schema));
+ *     p.apply(AvroIO.Read
+ *                .from("gs://my_bucket/path/to/records-*.avro")
+ *                .withSchema(schema));
  * } </pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use
@@ -110,10 +108,10 @@ import javax.annotation.Nullable;
  * // Dataflow service):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
- * records.apply(AvroIO.Write.named("WriteToAvro")
- *                           .to("gs://my_bucket/path/to/numbers")
- *                           .withSchema(schema)
- *                           .withSuffix(".avro"));
+ * records.apply("WriteToAvro", AvroIO.Write
+ *     .to("gs://my_bucket/path/to/numbers")
+ *     .withSchema(schema)
+ *     .withSuffix(".avro"));
  * } </pre>
  *
  * <p><h3>Permissions</h3>
@@ -128,12 +126,6 @@ public class AvroIO {
    * the decoding of each record.
    */
   public static class Read {
-    /**
-     * Returns a {@link PTransform} with the given step name.
-     */
-    public static Bound<GenericRecord> named(String name) {
-      return new Bound<>(GenericRecord.class).named(name);
-    }
 
     /**
      * Returns a {@link PTransform} that reads from the file(s)
@@ -219,16 +211,6 @@ public class AvroIO {
         this.type = type;
         this.schema = schema;
         this.validate = validate;
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(name, filepattern, type, schema, validate);
       }
 
       /**
@@ -366,12 +348,6 @@ public class AvroIO {
    * multiple Avro files matching a sharding pattern).
    */
   public static class Write {
-    /**
-     * Returns a {@link PTransform} with the given step name.
-     */
-    public static Bound<GenericRecord> named(String name) {
-      return new Bound<>(GenericRecord.class).named(name);
-    }
 
     /**
      * Returns a {@link PTransform} that writes to the file(s)
@@ -518,17 +494,6 @@ public class AvroIO {
         this.type = type;
         this.schema = schema;
         this.validate = validate;
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
 
       /**
