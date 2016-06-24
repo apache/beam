@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
@@ -815,37 +816,22 @@ public class ParDoTest implements Serializable {
         .setName("MyInput");
 
     {
-      PCollection<String> output1 =
-          input
-          .apply(ParDo.of(new TestDoFn()));
+      PCollection<String> output1 = input.apply(ParDo.of(new TestDoFn()));
       assertEquals("ParDo(Test).out", output1.getName());
     }
 
     {
-      PCollection<String> output2 =
-          input
-          .apply(ParDo.named("MyParDo").of(new TestDoFn()));
+      PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestDoFn()));
       assertEquals("MyParDo.out", output2.getName());
     }
 
     {
-      PCollection<String> output3 =
-          input
-          .apply(ParDo.of(new TestDoFn()).named("HerParDo"));
-      assertEquals("HerParDo.out", output3.getName());
-    }
-
-    {
-      PCollection<String> output4 =
-          input
-              .apply(ParDo.of(new TestDoFn()).named("TestDoFn"));
+      PCollection<String> output4 = input.apply("TestDoFn", ParDo.of(new TestDoFn()));
       assertEquals("TestDoFn.out", output4.getName());
     }
 
     {
-      PCollection<String> output5 =
-          input
-              .apply(ParDo.of(new StrangelyNamedDoer()));
+      PCollection<String> output5 = input.apply(ParDo.of(new StrangelyNamedDoer()));
       assertEquals("ParDo(StrangelyNamedDoer).out",
           output5.getName());
     }
@@ -869,8 +855,7 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = p
         .apply(Create.of(Arrays.asList(3, -42, 666))).setName("MyInput")
-        .apply(ParDo
-               .named("MyParDo")
+        .apply("MyParDo", ParDo
                .of(new TestDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
                    Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))

@@ -168,7 +168,7 @@ public class TopWikipediaSessions {
       return input
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
 
-          .apply(ParDo.named("SampleUsers").of(
+          .apply("SampleUsers", ParDo.of(
               new DoFn<String, String>() {
                 @Override
                 public void processElement(ProcessContext c) {
@@ -179,10 +179,9 @@ public class TopWikipediaSessions {
               }))
 
           .apply(new ComputeSessions())
-
-          .apply(ParDo.named("SessionsToStrings").of(new SessionsToStringsDoFn()))
+          .apply("SessionsToStrings", ParDo.of(new SessionsToStringsDoFn()))
           .apply(new TopPerMonth())
-          .apply(ParDo.named("FormatOutput").of(new FormatOutputDoFn()));
+          .apply("FormatOutput", ParDo.of(new FormatOutputDoFn()));
     }
   }
 

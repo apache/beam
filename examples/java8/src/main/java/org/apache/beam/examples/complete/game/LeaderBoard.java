@@ -119,9 +119,11 @@ public class LeaderBoard extends HourlyTeamScore {
     Integer getAllowedLateness();
     void setAllowedLateness(Integer value);
 
+    @Override
     @Description("Prefix used for the BigQuery table names")
     @Default.String("leaderboard")
     String getTableName();
+    @Override
     void setTableName(String value);
   }
 
@@ -183,7 +185,7 @@ public class LeaderBoard extends HourlyTeamScore {
     // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents = pipeline
         .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
-        .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()));
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // [START DocInclude_WindowAndTrigger]
     // Extract team/score pairs from the event stream, using hour-long windows by default.

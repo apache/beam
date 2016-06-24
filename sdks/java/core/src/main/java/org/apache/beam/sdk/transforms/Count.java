@@ -107,7 +107,7 @@ public class Count {
     public PCollection<KV<T, Long>> apply(PCollection<T> input) {
       return
           input
-          .apply(ParDo.named("Init").of(new DoFn<T, KV<T, Void>>() {
+          .apply("Init", ParDo.of(new DoFn<T, KV<T, Void>>() {
             @Override
             public void processElement(ProcessContext c) {
               c.output(KV.of(c.element(), (Void) null));

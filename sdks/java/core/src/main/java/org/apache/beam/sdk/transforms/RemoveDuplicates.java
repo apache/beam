@@ -85,13 +85,12 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
   @Override
   public PCollection<T> apply(PCollection<T> in) {
     return in
-        .apply(ParDo.named("CreateIndex")
-            .of(new DoFn<T, KV<T, Void>>() {
-                  @Override
-                  public void processElement(ProcessContext c) {
-                    c.output(KV.of(c.element(), (Void) null));
-                  }
-                }))
+        .apply("CreateIndex", ParDo.of(new DoFn<T, KV<T, Void>>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(KV.of(c.element(), (Void) null));
+          }
+        }))
         .apply(Combine.<T, Void>perKey(
             new SerializableFunction<Iterable<Void>, Void>() {
               @Override

@@ -189,8 +189,7 @@ public class FilterExamples {
       // that is computed earlier in pipeline execution.
       // We'll only output readings with temperatures below this mean.
       PCollection<TableRow> filteredRows = monthFilteredRows
-          .apply(ParDo
-              .named("ParseAndFilter")
+          .apply("ParseAndFilter", ParDo
               .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
                 @Override

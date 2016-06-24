@@ -94,7 +94,7 @@ public class HourlyTeamScoreTest implements Serializable {
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
 
     PCollection<KV<String, Integer>> output = input
-      .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
+      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
       .apply("FilterStartTime", Filter.by(
           (GameActionInfo gInfo)

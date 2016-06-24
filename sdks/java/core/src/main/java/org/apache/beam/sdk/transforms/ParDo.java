@@ -123,16 +123,13 @@ import java.util.List;
  * a unique name - which may not be stable across pipeline revision -
  * will be generated, based on the transform name.
  *
- * <p>If a {@link ParDo} is applied exactly once inlined, then
- * it can be given a name via {@link #named}. For example:
+ * <p>For example:
  *
  * <pre> {@code
  * PCollection<String> words =
- *     lines.apply(ParDo.named("ExtractWords")
- *                      .of(new DoFn<String, String>() { ... }));
+ *     lines.apply("ExtractWords", ParDo.of(new DoFn<String, String>() { ... }));
  * PCollection<Integer> wordLengths =
- *     words.apply(ParDo.named("ComputeWordLengths")
- *                      .of(new DoFn<String, Integer>() { ... }));
+ *     words.apply("ComputeWordLengths", ParDo.of(new DoFn<String, Integer>() { ... }));
  * } </pre>
  *
  * <h2>Side Inputs</h2>
@@ -437,21 +434,6 @@ import java.util.List;
 public class ParDo {
 
   /**
-   * Creates a {@link ParDo} {@link PTransform} with the given name.
-   *
-   * <p>See the discussion of naming above for more explanation.
-   *
-   * <p>The resulting {@link PTransform} is incomplete, and its
-   * input/output types are not yet bound. Use
-   * {@link ParDo.Unbound#of} to specify the {@link DoFn} to
-   * invoke, which will also bind the input/output types of this
-   * {@link PTransform}.
-   */
-  public static Unbound named(String name) {
-    return new Unbound().named(name);
-  }
-
-  /**
    * Creates a {@link ParDo} {@link PTransform} with the given
    * side inputs.
    *
@@ -588,17 +570,6 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} transform that's like this
-     * transform but with the specified name. Does not modify this
-     * transform. The resulting transform is still incomplete.
-     *
-     * <p>See the discussion of naming above for more explanation.
-     */
-    public Unbound named(String name) {
-      return new Unbound(name, sideInputs);
-    }
-
-    /**
-     * Returns a new {@link ParDo} transform that's like this
      * transform but with the specified additional side inputs.
      * Does not modify this transform. The resulting transform is
      * still incomplete.
@@ -699,17 +670,6 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.fn = SerializableUtils.clone(fn);
       this.fnClass = fnClass;
-    }
-
-    /**
-     * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * {@link PTransform} but with the specified name. Does not
-     * modify this {@link PTransform}.
-     *
-     * <p>See the discussion of Naming above for more explanation.
-     */
-    public Bound<InputT, OutputT> named(String name) {
-      return new Bound<>(name, sideInputs, fn, fnClass);
     }
 
     /**
@@ -833,18 +793,6 @@ public class ParDo {
 
     /**
      * Returns a new multi-output {@link ParDo} transform that's like
-     * this transform but with the specified name. Does not modify
-     * this transform. The resulting transform is still incomplete.
-     *
-     * <p>See the discussion of Naming above for more explanation.
-     */
-    public UnboundMulti<OutputT> named(String name) {
-      return new UnboundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags);
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} transform that's like
      * this transform but with the specified side inputs. Does not
      * modify this transform. The resulting transform is still
      * incomplete.
@@ -938,18 +886,6 @@ public class ParDo {
       this.sideOutputTags = sideOutputTags;
       this.fn = SerializableUtils.clone(fn);
       this.fnClass = fnClass;
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this {@link PTransform} but with the specified
-     * name. Does not modify this {@link PTransform}.
-     *
-     * <p>See the discussion of Naming above for more explanation.
-     */
-    public BoundMulti<InputT, OutputT> named(String name) {
-      return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
     /**

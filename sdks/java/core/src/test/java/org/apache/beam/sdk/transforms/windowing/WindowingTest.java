@@ -52,7 +52,6 @@ import java.io.Serializable;
 
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("unchecked")
 public class WindowingTest implements Serializable {
   @Rule
   public transient TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -73,12 +72,11 @@ public class WindowingTest implements Serializable {
     }
     @Override
     public PCollection<String> apply(PCollection<String> in) {
-      return in.apply(
-              Window.named("Window")
-                  .<String>into(windowFn)
+      return in.apply("Window",
+              Window.<String>into(windowFn)
                   .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
           .apply(Count.<String>perElement())
-          .apply(ParDo.named("FormatCounts").of(new FormatCountsDoFn()))
+          .apply("FormatCounts", ParDo.of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());
     }
   }

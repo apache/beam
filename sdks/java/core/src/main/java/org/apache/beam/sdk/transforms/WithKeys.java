@@ -113,14 +113,13 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   @Override
   public PCollection<KV<K, V>> apply(PCollection<V> in) {
     PCollection<KV<K, V>> result =
-        in.apply(ParDo.named("AddKeys")
-                 .of(new DoFn<V, KV<K, V>>() {
-                     @Override
-                     public void processElement(ProcessContext c) {
-                       c.output(KV.of(fn.apply(c.element()),
-                                    c.element()));
-                     }
-                    }));
+        in.apply("AddKeys", ParDo.of(new DoFn<V, KV<K, V>>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(KV.of(fn.apply(c.element()),
+                c.element()));
+          }
+        }));
 
     try {
       Coder<K> keyCoder;
