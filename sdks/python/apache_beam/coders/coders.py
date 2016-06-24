@@ -152,7 +152,7 @@ class Coder(object):
   def __eq__(self, other):
     # pylint: disable=protected-access
     return (self.__class__ == other.__class__
-       and self._dict_without_impl() == other._dict_without_impl())
+            and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
 

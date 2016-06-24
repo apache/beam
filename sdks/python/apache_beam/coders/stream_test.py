@@ -83,7 +83,7 @@ class StreamTest(unittest.TestCase):
     base = -1.7
     self.run_read_write_var_int64(
         [int(base**pow)
-          for pow in range(1, int(63 * math.log(2) / math.log(-base)))])
+         for pow in range(1, int(63 * math.log(2) / math.log(-base)))])
 
   def test_large_var_int64(self):
     self.run_read_write_var_int64([0, 2**63 - 1, -2**63, 2**63 - 3])

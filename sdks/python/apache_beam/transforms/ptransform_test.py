@@ -286,7 +286,7 @@ class PTransformTest(unittest.TestCase):
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | beam.Create('start', ([('a', x) for x in vals_1] +
-                                           [('b', x) for x in vals_2]))
+                                             [('b', x) for x in vals_2]))
     result = pcoll | beam.CombinePerKey('mean', self._MeanCombineFn())
     assert_that(result, equal_to([('a', sum(vals_1) / len(vals_1)),
                                   ('b', sum(vals_2) / len(vals_2))]))
@@ -297,7 +297,7 @@ class PTransformTest(unittest.TestCase):
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | beam.Create('start', ([('a', x) for x in vals_1] +
-                                           [('b', x) for x in vals_2]))
+                                             [('b', x) for x in vals_2]))
     result = pcoll | beam.CombinePerKey(sum)
     assert_that(result, equal_to([('a', sum(vals_1)), ('b', sum(vals_2))]))
     pipeline.run()
@@ -307,7 +307,7 @@ class PTransformTest(unittest.TestCase):
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | beam.Create('start', ([('a', x) for x in vals_1] +
-                                           [('b', x) for x in vals_2]))
+                                             [('b', x) for x in vals_2]))
     divisor = pipeline | beam.Create('divisor', [2])
     result = pcoll | beam.CombinePerKey(
         lambda vals, d: max(v for v in vals if v % d == 0),
@@ -790,9 +790,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (self.p
          | beam.Create('s', ['t', 'e', 's', 't']).with_output_types(str)
          | beam.FlatMap('dup', lambda x: [x + x])
-            .with_input_types(str).with_output_types(str)
+         .with_input_types(str).with_output_types(str)
          | beam.FlatMap('upper', lambda x: [x.upper()])
-            .with_input_types(str).with_output_types(str))
+         .with_input_types(str).with_output_types(str))
 
     assert_that(d, equal_to(['TT', 'EE', 'SS', 'TT']))
     self.p.run()
@@ -803,7 +803,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       d = (self.p
            | beam.Create('s', [1, 2, 3, 4]).with_output_types(int)
-           | beam.Map('upper', lambda x: x.upper()).with_input_types(str).with_output_types(str))
+           | beam.Map('upper', lambda x: x.upper())
+           .with_input_types(str).with_output_types(str))
 
     self.assertEqual("Type hint violation for 'upper': "
                      "requires <type 'str'> but got <type 'int'> for x",
@@ -813,7 +814,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # No error should be raised if this type-checks properly.
     d = (self.p
          | beam.Create('s', [1, 2, 3, 4]).with_output_types(int)
-         | beam.Map('to_str', lambda x: str(x)).with_input_types(int).with_output_types(str))
+         | beam.Map('to_str', lambda x: str(x))
+         .with_input_types(int).with_output_types(str))
     assert_that(d, equal_to(['1', '2', '3', '4']))
     self.p.run()
 
@@ -853,7 +855,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | beam.Create('strs', ['1', '2', '3', '4', '5']).with_output_types(str)
-       | beam.Map('lower', lambda x: x.lower()).with_input_types(str).with_output_types(str)
+       | beam.Map('lower', lambda x: x.lower())
+       .with_input_types(str).with_output_types(str)
        | beam.Filter('below 3', lambda x: x < 3).with_input_types(int))
 
     self.assertEqual("Type hint violation for 'below 3': "
@@ -864,7 +867,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # No error should be raised if this type-checks properly.
     d = (self.p
          | beam.Create('strs', ['1', '2', '3', '4', '5']).with_output_types(str)
-         | beam.Map('to int', lambda x: int(x)).with_input_types(str).with_output_types(int)
+         | beam.Map('to int', lambda x: int(x))
+         .with_input_types(str).with_output_types(int)
          | beam.Filter('below 3', lambda x: x < 3).with_input_types(int))
     assert_that(d, equal_to([1, 2]))
     self.p.run()
@@ -894,7 +898,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     (self.p
      | beam.Create('str', range(5)).with_output_types(int)
      | beam.Filter('half', half)
-     | beam.Map('to bool', lambda x: bool(x)).with_input_types(int).with_output_types(bool))
+     | beam.Map('to bool', lambda x: bool(x))
+     .with_input_types(int).with_output_types(bool))
 
   def test_group_by_key_only_output_type_deduction(self):
     d = (self.p
@@ -982,7 +987,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # checking was disabled above.
     (self.p
      | beam.Create('t', [1, 2, 3]).with_output_types(int)
-     | beam.Map('lower', lambda x: x.lower()).with_input_types(str).with_output_types(str))
+     | beam.Map('lower', lambda x: x.lower())
+     .with_input_types(str).with_output_types(str))
 
   def test_run_time_type_checking_enabled_type_violation(self):
     self.p.options.view_as(TypeOptions).pipeline_type_check = False
@@ -1020,7 +1026,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # Pipeline checking is off, but the above function should satisfy types at
     # run-time.
     result = (self.p
-              | beam.Create('t', ['t', 'e', 's', 't', 'i', 'n', 'g']).with_output_types(str)
+              | beam.Create('t', ['t', 'e', 's', 't', 'i', 'n', 'g'])
+              .with_output_types(str)
               | beam.Map('gen keys', group_with_upper_ord)
               | beam.GroupByKey('O'))
 
@@ -1232,9 +1239,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertEqual(
         "All functions for a Combine PTransform must accept a "
-         "single argument compatible with: Iterable[Any]. "
-         "Instead a function with input type: <type 'int'> was received.",
-         e.exception.message)
+        "single argument compatible with: Iterable[Any]. "
+        "Instead a function with input type: <type 'int'> was received.",
+        e.exception.message)
 
   def test_combine_pipeline_type_propagation_using_decorators(self):
     @with_output_types(int)
@@ -1532,7 +1539,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     d = (self.p
          | beam.Create('c', ['t', 'e', 's', 't']).with_output_types(str)
-         | beam.Map('dup key', lambda x: (x, x)).with_output_types(typehints.KV[str, str])
+         | beam.Map('dup key', lambda x: (x, x))
+         .with_output_types(typehints.KV[str, str])
          | combine.Count.PerKey('count dups'))
 
     self.assertCompatible(typehints.KV[str, int], d.element_type)
@@ -1565,7 +1573,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
-         | beam.Create('w', [True, True, False, True, True]).with_output_types(bool)
+         | beam.Create('w', [True, True, False, True, True])
+         .with_output_types(bool)
          | combine.Count.PerElement('count elems'))
 
     self.assertCompatible(typehints.KV[bool, int], d.element_type)

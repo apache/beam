@@ -28,8 +28,8 @@ import apache_beam as beam
 
 empty_line_aggregator = beam.Aggregator('emptyLines')
 average_word_size_aggregator = beam.Aggregator('averageWordLength',
-                                             beam.combiners.MeanCombineFn(),
-                                             float)
+                                               beam.combiners.MeanCombineFn(),
+                                               float)
 
 
 class WordExtractingDoFn(beam.DoFn):

@@ -237,7 +237,8 @@ def infer_return_type(c, input_types, debug=False, depth=5):
       return infer_return_type_func(c.im_func, input_types, debug, depth)
     elif isinstance(c, BoundMethod):
       input_types = [c.unbound.im_class] + input_types
-      return infer_return_type_func(c.unbound.im_func, input_types, debug, depth)
+      return infer_return_type_func(
+          c.unbound.im_func, input_types, debug, depth)
     elif isinstance(c, (type, types.ClassType)):
       if c in typehints.DISALLOWED_PRIMITIVE_TYPES:
         return {

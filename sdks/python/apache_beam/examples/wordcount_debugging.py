@@ -122,7 +122,8 @@ def run(argv=None):
   # each word and filter by a list of words.
   filtered_words = (
       p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
-      | CountWords() | beam.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
+      | CountWords()
+      | beam.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
 
   # assert_that is a convenient PTransform that checks a PCollection has an
   # expected value. Asserts are best used in unit tests with small data sets but
@@ -132,7 +133,8 @@ def run(argv=None):
   # of the Pipeline implies that the expectations were  met. Learn more at
   # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
   # test your pipeline.
-  beam.assert_that(filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.assert_that(
+      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
 
   # Format the counts into a PCollection of strings and write the output using a
   # "Write" transform that has side effects.
