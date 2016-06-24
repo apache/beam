@@ -339,16 +339,18 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     public static <T> TimeSliding<T> of(long duration, long step) {
-      return new TimeSliding<>(duration, step);
+      return new TimeSliding<>(duration, step, Time.ProcessingTime.get());
     }
 
     private final long duration;
     private final long step;
     private final int stepsPerWindow;
+    private final UnaryFunction<T, Long> eventTimeFn;
 
-    private TimeSliding(long duration, long step) {
+    private TimeSliding(long duration, long step, UnaryFunction<T, Long> eventTimeFn) {
       this.duration = duration;
       this.step = step;
+      this.eventTimeFn = requireNonNull(eventTimeFn);
 
       if (duration % step != 0) {
         throw new IllegalArgumentException(
@@ -357,10 +359,16 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       stepsPerWindow = (int) (duration / step);
     }
 
+    /**
+     * Specify the event time extraction function.
+     */
+    public <T> TimeSliding<T> using(UnaryFunction<T, Long> eventTimeFn) {
+      return new TimeSliding<>(this.duration, this.step, eventTimeFn);
+    }
 
     @Override
     public Set<SlidingWindow> assignWindows(T input) {
-      long now = System.currentTimeMillis() - duration + step;
+      long now = eventTimeFn.apply(input) - duration + step;
       long boundary = now / step * step;
       Set<SlidingWindow> ret = new HashSet<>();
       for (int i = 0; i < stepsPerWindow; i++) {
