@@ -5,13 +5,15 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.Window;
-import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
+import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -23,10 +25,10 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class AbstractTriggering implements TriggerScheduler {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ProcessingTimeTriggering.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractTriggering.class);
 
   private transient ScheduledThreadPoolExecutor scheduler;
-  private Multimap<Window, ScheduledTriggerTask> activeTasks =
+  private final Multimap<Window, ScheduledTriggerTask> activeTasks =
           Multimaps.synchronizedMultimap(ArrayListMultimap.create());
 
   public AbstractTriggering() {
@@ -56,7 +58,6 @@ public abstract class AbstractTriggering implements TriggerScheduler {
             duration,
             TimeUnit.MILLISECONDS);
     activeTasks.put(w, new ScheduledTriggerTask(task, future));
-
     return future;
   }
 
@@ -68,20 +69,29 @@ public abstract class AbstractTriggering implements TriggerScheduler {
     }
   }
 
-  Multimap<Window, ScheduledTriggerTask> getScheduledTriggers() {
-    return activeTasks;
-  }
-
   @Override
   public void cancelAll() {
-    activeTasks.values().stream().forEach(ScheduledTriggerTask::cancel);
-    activeTasks.clear();
+    cancelAllImpl();
+  }
+
+  final List<ScheduledTriggerTask> cancelAllImpl() {
+    synchronized (activeTasks) {
+      List<ScheduledTriggerTask> canceled = new ArrayList<>();
+      for (ScheduledTriggerTask t : activeTasks.values()) {
+        canceled.add(t);
+        t.cancel();
+      }
+      activeTasks.clear();
+      return canceled;
+    }
   }
 
   @Override
   public void cancel(Window w) {
-    activeTasks.get(w).stream().forEach(ScheduledTriggerTask::cancel);
-    activeTasks.asMap().remove(w);
+    synchronized (activeTasks) {
+      activeTasks.get(w).stream().forEach(ScheduledTriggerTask::cancel);
+      activeTasks.asMap().remove(w);
+    }
   }
 
   /**
@@ -109,9 +119,8 @@ public abstract class AbstractTriggering implements TriggerScheduler {
         trigger.fire(timestamp, window);
         AbstractTriggering.this.activeTasks.remove(window, this);
       } catch (Exception e) {
-        LOG.error("Firing trigger " + trigger + " failed!", e);
+        LOG.warn("Firing trigger " + trigger + " failed!", e);
       }
-
       return null;
     }
 
