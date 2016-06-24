@@ -143,7 +143,7 @@ public class WindowingTest {
         evtf);
 
     assertTimeWindowing(
-        Windowing.Time.seconds(3).using(evtf).earlyTriggering(After.hours(1)),
+        Windowing.Time.seconds(3).earlyTriggering(After.hours(1)).using(evtf),
         3 * 1000,
         Duration.ofHours(1),
         evtf);

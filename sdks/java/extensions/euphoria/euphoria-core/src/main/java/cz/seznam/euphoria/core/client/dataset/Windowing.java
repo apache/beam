@@ -137,10 +137,17 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
        * Early results will be triggered periodically until the window is finally closed.
        */
       @SuppressWarnings("unchecked")
-      public <T> Time<T> earlyTriggering(After time) {
+      public <T> UTime<T> earlyTriggering(After time) {
         // ~ the unchecked cast is ok: eventTimeFn is
         // ProcessingTime which is independent of <T>
-        return new Time<>(super.durationMillis, time.period, (UnaryFunction) super.eventTimeFn);
+        return new UTime<>(super.durationMillis, time.period);
+      }
+
+      /**
+       * Function that will extract timestamp from data
+       */
+      public <T> TTime<T> using(UnaryFunction<T, Long> fn) {
+        return new TTime<>(this.durationMillis, earlyTriggeringPeriod, requireNonNull(fn));
       }
     }
 
@@ -152,14 +159,6 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
             UnaryFunction<T, Long> eventTimeFn)
       {
         super(durationMillis, earlyTriggeringPeriod, eventTimeFn);
-      }
-
-      /**
-       * Early results will be triggered periodically until the window is finally closed.
-       */
-      @SuppressWarnings("unchecked")
-      public Time<T> earlyTriggering(After time) {
-        return new TTime<>(super.durationMillis, time.period, (UnaryFunction) super.eventTimeFn);
       }
     } // ~ end of EventTimeBased
 
@@ -177,10 +176,6 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
     public static <T> UTime<T> hours(long hours) {
       return new UTime<>(hours * 1000 * 60 * 60, null);
-    }
-
-    public <T> TTime<T> using(UnaryFunction<T, Long> fn) {
-      return new TTime<>(this.durationMillis, earlyTriggeringPeriod, requireNonNull(fn));
     }
 
     public Time(long durationMillis, Duration earlyTriggeringPeriod, UnaryFunction<T, Long> eventTimeFn) {
