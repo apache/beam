@@ -3,9 +3,10 @@ package cz.seznam.euphoria.core.executor.inmem;
 import java.util.List;
 
 /**
- * Triggering based on watermarks.
+ * Trigger scheduler based on watermarks. Uses event-time instead of real
+ * wall-clock time.
  */
-public class WatermarkTriggering extends AbstractTriggering {
+public class WatermarkTriggerScheduler extends AbstractTriggerScheduler {
 
   private final long watermarkDuration;
   private long currentWatermark;
@@ -14,8 +15,7 @@ public class WatermarkTriggering extends AbstractTriggering {
    * Create the triggering with specified duration in ms.
    * @param duration duration of the watermark in ms.
    */
-  public WatermarkTriggering(long duration) {
-    super();
+  public WatermarkTriggerScheduler(long duration) {
     this.watermarkDuration = duration;
     this.currentWatermark = -duration;
   }

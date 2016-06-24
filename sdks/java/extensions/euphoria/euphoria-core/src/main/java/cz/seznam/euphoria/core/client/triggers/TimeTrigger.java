@@ -20,7 +20,7 @@ public class TimeTrigger implements Trigger {
   @Override
   public TriggerResult init(Window w, TriggerContext ctx) {
     if (ctx.scheduleTriggerAt(end, w, this)) {
-      return TriggerResult.CONTINUE;
+      return TriggerResult.NOOP;
     }
 
     return TriggerResult.PASSED;
