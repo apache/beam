@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -90,6 +91,34 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     }
   }
 
+  static final class AllPartitionsConsumer implements Partition<Pair<byte[], byte[]>> {
+    private final String brokerList;
+    private final String topicId;
+    private final Settings config; // ~ optional
+
+    AllPartitionsConsumer(String brokerList, String topicId, Settings config) {
+      this.brokerList = brokerList;
+      this.topicId = topicId;
+      this.config = config;
+    }
+
+    @Override
+    public Set<String> getLocations() {
+      return Collections.emptySet();
+    }
+
+    @Override
+    public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
+      Consumer<byte[], byte[]> c = KafkaUtils.newConsumer(brokerList, config);
+      c.assign(
+          c.partitionsFor(topicId)
+              .stream()
+              .map(p -> new TopicPartition(p.topic(), p.partition()))
+              .collect(Collectors.toList()));
+      return new ConsumerReader(c);
+    }
+  }
+
   public static final class Factory implements DataSourceFactory {
     @Override
     @SuppressWarnings("unchecked")
@@ -117,6 +146,10 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   @Override
   public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
+    if (config != null && config.getBoolean("single.reader.only")) {
+      return Collections.singletonList(
+          new AllPartitionsConsumer(brokerList, topicId, config));
+    }
     try (Consumer<?, ?> c = KafkaUtils.newConsumer(brokerList, config)) {
       List<PartitionInfo> ps = c.partitionsFor(topicId);
       return ps.stream().map(p ->
