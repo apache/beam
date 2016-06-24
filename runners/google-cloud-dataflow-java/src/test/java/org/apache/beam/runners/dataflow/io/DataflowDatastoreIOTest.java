@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Query;
@@ -44,21 +45,21 @@ public class DataflowDatastoreIOTest {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PInput, ?> read = DatastoreIO.readFrom(
-        "myProject", Query.newBuilder().build());
+    PTransform<PInput, ? extends POutput> read = DatastoreIO.read().withProjectId(
+        "myProject").withQuery(Query.newBuilder().build());
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
     assertThat("DatastoreIO read should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("project")));
+        displayData, hasItem(hasDisplayItem("projectId")));
   }
 
   @Test
   public void testSinkPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.writeTo("myProject");
+    PTransform<PCollection<Entity>, ?> write = DatastoreIO.write().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("project")));
+        displayData, hasItem(hasDisplayItem("projectId")));
   }
 }

@@ -37,15 +37,19 @@ import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
@@ -94,10 +98,10 @@ import javax.annotation.Nullable;
  * $ gcloud auth login
  * </pre>
  *
- * <p>To read a {@link PCollection} from a query to Datastore, use {@link DatastoreIO#source} and
- * its methods {@link DatastoreIO.Source#withProject} and {@link DatastoreIO.Source#withQuery} to
+ * <p>To read a {@link PCollection} from a query to Datastore, use {@link DatastoreIO#read} and
+ * its methods {@link DatastoreIO.Read#withProjectId} and {@link DatastoreIO.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
- * to query within using {@link DatastoreIO.Source#withNamespace}.
+ * to query within using {@link DatastoreIO.Read#withNamespace}.
  *
  * <p>For example:
  *
@@ -109,22 +113,9 @@ import javax.annotation.Nullable;
  *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
- *     Read.from(DatastoreIO.source()
- *         .withProject(projectId)
+ *     DatastoreIO.read()
+ *         .withProjectId(projectId)
  *         .withQuery(query));
- * } </pre>
- *
- * <p>or:
- *
- * <pre> {@code
- * // Read a query from Datastore using the default namespace
- * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
- * Query query = ...;
- * String projectId = "...";
- *
- * Pipeline p = Pipeline.create(options);
- * PCollection<Entity> entities = p.apply(DatastoreIO.readFrom(projectId, query));
- * p.run();
  * } </pre>
  *
  * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
@@ -132,19 +123,19 @@ import javax.annotation.Nullable;
  * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then
  * all returned results will be read by a single Dataflow worker in order to ensure correct data.
  *
- * <p>To write a {@link PCollection} to a Datastore, use {@link DatastoreIO#writeTo},
- * specifying the datastore to write to:
+ * <p>To write a {@link PCollection} to a Datastore, use {@link DatastoreIO#write},
+ * specifying the Cloud datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.writeTo(projectId));
+ * entities.apply(DatastoreIO.write().withProjectId(projectId));
  * p.run();
  * } </pre>
  *
  * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
- * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than the
- * project default may be written to by specifying it in the {@code Entity} {@code Keys}.
+ * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
+ * {@code projectId} default may be used to by specifying it in the {@code Entity} {@code Keys}.
  *
  * <pre>{@code
  * Key.Builder keyBuilder = DatastoreHelper.makeKey(...);
@@ -174,49 +165,79 @@ public class DatastoreIO {
   public static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
-   * Returns an empty {@link DatastoreIO.Source} builder.
-   * Configure the {@code project}, {@code query}, and {@code namespace} using
-   * {@link DatastoreIO.Source#withProject}, {@link DatastoreIO.Source#withQuery},
-   * and {@link DatastoreIO.Source#withNamespace}.
+   * Returns an empty {@link DatastoreIO.Read} builder. Configure the source {@code projectId},
+   * {@code query}, and optionally {@code namespace} using {@link DatastoreIO.Read#withProjectId},
+   * {@link DatastoreIO.Read#withQuery}, and {@link DatastoreIO.Read#withNamespace}.
+   */
+  public static Read read() {
+    return new Read(null, null, null);
+  }
+
+  /**
+   * A {@link PTransform} that reads the result rows of a Datastore query as {@code Entity}
+   * objects.
    *
-   * @deprecated the name and return type do not match. Use {@link #source()}.
+   * @see DatastoreIO
    */
-  @Deprecated
-  public static Source read() {
-    return source();
-  }
+  public static class Read extends PTransform<PInput, PCollection<Entity>> {
+    @Nullable
+    private final String projectId;
 
-  /**
-   * Returns an empty {@link DatastoreIO.Source} builder.
-   * Configure the {@code project}, {@code query}, and {@code namespace} using
-   * {@link DatastoreIO.Source#withProject}, {@link DatastoreIO.Source#withQuery},
-   * and {@link DatastoreIO.Source#withNamespace}.
-   *
-   * <p>The resulting {@link Source} object can be passed to {@link Read} to create a
-   * {@code PTransform} that will read from Datastore.
-   */
-  public static Source source() {
-    return new Source(null, null, null);
-  }
+    @Nullable
+    private final Query query;
 
-  /**
-   * Returns a {@code PTransform} that reads Datastore entities from the query
-   * against the given project.
-   */
-  public static Read.Bounded<Entity> readFrom(String projectId, Query query) {
-    return Read.from(new Source(projectId, query, null));
-  }
+    @Nullable
+    private final String namespace;
 
-  /**
-   * A {@link Source} that reads the result rows of a Datastore query as {@code Entity} objects.
-   */
-  public static class Source extends BoundedSource<Entity> {
-    public String getProjectId() {
-      return projectId;
+    /**
+     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
+     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
+     * an error will be thrown.
+     */
+    private Read(@Nullable String projectId, @Nullable Query query, @Nullable String namespace) {
+      this.projectId = projectId;
+      this.query = query;
+      this.namespace = namespace;
     }
 
+    /**
+     * Returns a new {@link Read} that reads from the Cloud Datastore for the specified project.
+     */
+    public Read withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new Read(projectId, query, namespace);
+    }
+
+    /**
+     * Returns a new {@link Read} that reads the results of the specified query.
+     *
+     * <p><b>Note:</b> Normally, {@code DatastoreIO} will read from Cloud Datastore in parallel
+     * across many workers. However, when the {@link Query} is configured with a limit using
+     * {@link Query.Builder#setLimit}, then all results will be read by a single worker in order
+     * to ensure correct results.
+     */
+    public Read withQuery(Query query) {
+      checkNotNull(query, "query");
+      checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
+          "Invalid query limit %s: must be positive", query.getLimit().getValue());
+      return new Read(projectId, query, namespace);
+    }
+
+    /**
+     * Returns a new {@link Read} that reads from the given namespace.
+     */
+    public Read withNamespace(String namespace) {
+      return new Read(projectId, query, namespace);
+    }
+
+    @Nullable
     public Query getQuery() {
       return query;
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
     }
 
     @Nullable
@@ -224,31 +245,46 @@ public class DatastoreIO {
       return namespace;
     }
 
-    public Source withProject(String projectId) {
+    @Override
+    public PCollection<Entity> apply(PInput input) {
+      return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(getSource()));
+    }
+
+    @Override
+    public void validate(PInput input) {
       checkNotNull(projectId, "projectId");
-      return new Source(projectId, query, namespace);
-    }
-
-    /**
-     * Returns a new {@link Source} that reads the results of the specified query.
-     *
-     * <p>Does not modify this object.
-     *
-     * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel
-     * across many workers. However, when the {@link Query} is configured with a limit using
-     * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then all
-     * returned results will be read by a single Dataflow worker in order to ensure correct data.
-     */
-    public Source withQuery(Query query) {
       checkNotNull(query, "query");
-      checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
-          "Invalid query limit %s: must be positive", query.getLimit().getValue());
-      return new Source(projectId, query, namespace);
     }
 
-    public Source withNamespace(@Nullable String namespace) {
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("ProjectId"))
+          .addIfNotNull(DisplayData.item("namespace", namespace)
+              .withLabel("Namespace"))
+          .addIfNotNull(DisplayData.item("query", query.toString())
+              .withLabel("Query"));
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .add("query", query)
+          .add("namespace", namespace)
+          .toString();
+    }
+
+    @VisibleForTesting
+    Source getSource() {
       return new Source(projectId, query, namespace);
     }
+  }
+
+  @VisibleForTesting
+  static class Source extends BoundedSource<Entity> {
 
     @Override
     public Coder<Entity> getDefaultOutputCoder() {
@@ -257,7 +293,6 @@ public class DatastoreIO {
 
     @Override
     public boolean producesSortedKeys(PipelineOptions options) {
-      // TODO: Perhaps this can be implemented by inspecting the query.
       return false;
     }
 
@@ -357,34 +392,25 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("project", projectId)
-            .withLabel("Input Project"))
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("ProjectId"))
           .addIfNotNull(DisplayData.item("namespace", namespace)
-            .withLabel("App Engine Namespace"));
-
-      if (query != null) {
-        builder.add(DisplayData.item("query", query.toString())
-          .withLabel("Query"));
-      }
+              .withLabel("Namespace"))
+          .addIfNotNull(DisplayData.item("query", query.toString())
+              .withLabel("Query"));
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("project", projectId)
+          .add("projectId", projectId)
           .add("query", query)
           .add("namespace", namespace)
           .toString();
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
-
     private static final Logger LOG = LoggerFactory.getLogger(Source.class);
-    /** Not really nullable, but it may be {@code null} for in-progress {@code Source}s. */
-    @Nullable
     private final String projectId;
-    /** Not really nullable, but it may be {@code null} for in-progress {@code Source}s. */
-    @Nullable
     private final Query query;
     @Nullable
     private final String namespace;
@@ -395,14 +421,7 @@ public class DatastoreIO {
     @Nullable
     private Long mockEstimateSizeBytes;
 
-    /**
-     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
-     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
-     * an error will be thrown.
-     */
-    private Source(
-        @Nullable String projectId, @Nullable Query query,
-        @Nullable String namespace) {
+    private Source(String projectId, Query query, @Nullable String namespace) {
       this.projectId = projectId;
       this.query = query;
       this.namespace = namespace;
@@ -495,61 +514,91 @@ public class DatastoreIO {
       res.mockEstimateSizeBytes = estimateSizeBytes;
       return res;
     }
+
+    @VisibleForTesting
+    Query getQuery() {
+      return query;
+    }
   }
 
   ///////////////////// Write Class /////////////////////////////////
 
   /**
-   * Returns a new {@link DatastoreIO.Sink} builder.
-   * You need to further configure it using {@link DatastoreIO.Sink#withProject}, before using it
-   * in a {@link Write} transform.
-   *
-   * <p>For example: {@code p.apply(Write.to(DatastoreIO.sink().withProject(projectId)));}
+   * Returns an empty {@link DatastoreIO.Write} builder. Configure the destination
+   * {@code projectId} using {@link DatastoreIO.Write#withProjectId}.
    */
-  public static Sink sink() {
-    return new Sink(null);
+  public static Write write() {
+    return new Write(null);
   }
 
   /**
-   * Returns a new {@link Write} transform that will write to a {@link Sink}.
+   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
    *
-   * <p>For example: {@code p.apply(DatastoreIO.writeTo(projectId));}
+   * @see DatastoreIO
    */
-  public static Write.Bound<Entity> writeTo(String projectId) {
-    return Write.to(sink().withProject(projectId));
-  }
-
-  /**
-   * A {@link Sink} that writes a {@link PCollection} containing
-   * {@link Entity Entities} to a Datastore kind.
-   *
-   */
-  public static class Sink extends org.apache.beam.sdk.io.Sink<Entity> {
-    final String projectId;
+  public static class Write extends PTransform<PCollection<Entity>, PDone> {
+    @Nullable
+    private final String projectId;
 
     /**
-     * Returns a {@link Sink} that is like this one, but will write to the specified project.
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
      */
-    public Sink withProject(String projectId) {
-      checkNotNull(projectId, "projectId");
-      return new Sink(projectId);
-    }
-
-    /**
-     * Constructs a Sink with the given project.
-     */
-    protected Sink(String projectId) {
+    public Write(@Nullable String projectId) {
       this.projectId = projectId;
     }
 
     /**
-     * Ensures the project is set.
+     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified project.
      */
+    public Write withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new Write(projectId);
+    }
+
+    @Override
+    public PDone apply(PCollection<Entity> input) {
+      return input.apply(
+          org.apache.beam.sdk.io.Write.to(new Sink(projectId)));
+    }
+
+    @Override
+    public void validate(PCollection<Entity> input) {
+      checkNotNull(projectId, "projectId");
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .toString();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("Output Project"));
+    }
+  }
+
+  @VisibleForTesting
+  static class Sink extends org.apache.beam.sdk.io.Sink<Entity> {
+    final String projectId;
+
+    public Sink(String projectId) {
+      this.projectId = projectId;
+    }
+
     @Override
     public void validate(PipelineOptions options) {
-      checkNotNull(
-          projectId,
-          "Project ID is a required parameter. Please use withProject to to set the projectId.");
+      checkNotNull(projectId, "projectId");
     }
 
     @Override
@@ -561,7 +610,7 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("project", projectId)
+          .addIfNotNull(DisplayData.item("projectId", projectId)
             .withLabel("Output Project"));
     }
   }

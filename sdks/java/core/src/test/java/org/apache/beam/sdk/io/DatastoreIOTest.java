@@ -85,7 +85,7 @@ import java.util.NoSuchElementException;
  */
 @RunWith(JUnit4.class)
 public class DatastoreIOTest {
-  private static final String PROJECT = "testProject";
+  private static final String PROJECT_ID = "testProject";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
@@ -94,7 +94,7 @@ public class DatastoreIOTest {
     q.addKindBuilder().setName(KIND);
     QUERY = q.build();
   }
-  private DatastoreIO.Source initialSource;
+  private DatastoreIO.Read initialRead;
 
   @Mock
   Datastore mockDatastore;
@@ -107,8 +107,9 @@ public class DatastoreIOTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    initialSource = DatastoreIO.source()
-        .withProject(PROJECT).withQuery(QUERY).withNamespace(NAMESPACE);
+
+    initialRead = DatastoreIO.read()
+        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
   }
 
   /**
@@ -121,113 +122,113 @@ public class DatastoreIOTest {
   }
 
   @Test
-  public void testBuildSource() throws Exception {
-    DatastoreIO.Source source = DatastoreIO.source()
-        .withProject(PROJECT).withQuery(QUERY).withNamespace(NAMESPACE);
-    assertEquals(QUERY, source.getQuery());
-    assertEquals(PROJECT, source.getProjectId());
-    assertEquals(NAMESPACE, source.getNamespace());
+  public void testBuildRead() throws Exception {
+    DatastoreIO.Read read = DatastoreIO.read()
+        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
+    assertEquals(QUERY, read.getQuery());
+    assertEquals(PROJECT_ID, read.getProjectId());
+    assertEquals(NAMESPACE, read.getNamespace());
   }
 
   /**
-   * {@link #testBuildSource} but constructed in a different order.
+   * {@link #testBuildRead} but constructed in a different order.
    */
   @Test
-  public void testBuildSourceAlt() throws Exception {
-    DatastoreIO.Source source = DatastoreIO.source()
-        .withProject(PROJECT).withNamespace(NAMESPACE).withQuery(QUERY);
-    assertEquals(QUERY, source.getQuery());
-    assertEquals(PROJECT, source.getProjectId());
-    assertEquals(NAMESPACE, source.getNamespace());
+  public void testBuildReadAlt() throws Exception {
+    DatastoreIO.Read read = DatastoreIO.read()
+        .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
+    assertEquals(QUERY, read.getQuery());
+    assertEquals(PROJECT_ID, read.getProjectId());
+    assertEquals(NAMESPACE, read.getNamespace());
   }
 
   @Test
-  public void testSourceValidationFailsProject() throws Exception {
-    DatastoreIO.Source source = DatastoreIO.source().withQuery(QUERY);
+  public void testReadValidationFailsProject() throws Exception {
+    DatastoreIO.Read read = DatastoreIO.read().withQuery(QUERY);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("project");
-    source.validate();
+    read.validate(null);
   }
 
   @Test
-  public void testSourceValidationFailsQuery() throws Exception {
-    DatastoreIO.Source source = DatastoreIO.source().withProject(PROJECT);
+  public void testReadValidationFailsQuery() throws Exception {
+    DatastoreIO.Read read = DatastoreIO.read().withProjectId(PROJECT_ID);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("query");
-    source.validate();
+    read.validate(null);
   }
 
   @Test
-  public void testSourceValidationFailsQueryLimitZero() throws Exception {
+  public void testReadValidationFailsQueryLimitZero() throws Exception {
     Query invalidLimit = Query.newBuilder().setLimit(Int32Value.newBuilder().setValue(0)).build();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid query limit 0: must be positive");
 
-    DatastoreIO.source().withQuery(invalidLimit);
+    DatastoreIO.read().withQuery(invalidLimit);
   }
 
   @Test
-  public void testSourceValidationFailsQueryLimitNegative() throws Exception {
+  public void testReadValidationFailsQueryLimitNegative() throws Exception {
     Query invalidLimit = Query.newBuilder().setLimit(Int32Value.newBuilder().setValue(-5)).build();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid query limit -5: must be positive");
 
-    DatastoreIO.source().withQuery(invalidLimit);
+    DatastoreIO.read().withQuery(invalidLimit);
   }
 
   @Test
-  public void testSourceValidationSucceedsNamespace() throws Exception {
-    DatastoreIO.Source source = DatastoreIO.source().withProject(PROJECT).withQuery(QUERY);
+  public void testReadValidationSucceedsNamespace() throws Exception {
+    DatastoreIO.Read read = DatastoreIO.read().withProjectId(PROJECT_ID).withQuery(QUERY);
     /* Should succeed, as a null namespace is fine. */
-    source.validate();
+    read.validate(null);
   }
 
   @Test
-  public void testSourceDisplayData() {
-  DatastoreIO.Source source = DatastoreIO.source()
-      .withProject(PROJECT)
+  public void testReadDisplayData() {
+  DatastoreIO.Read read = DatastoreIO.read()
+      .withProjectId(PROJECT_ID)
       .withQuery(QUERY)
       .withNamespace(NAMESPACE);
 
-    DisplayData displayData = DisplayData.from(source);
+    DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("project", PROJECT));
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
     assertThat(displayData, hasDisplayItem("query", QUERY.toString()));
     assertThat(displayData, hasDisplayItem("namespace", NAMESPACE));
   }
 
   @Test
-  public void testSinkDoesNotAllowNullProject() throws Exception {
+  public void testWriteDoesNotAllowNullProject() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
 
-    DatastoreIO.sink().withProject(null);
+    DatastoreIO.write().withProjectId(null);
   }
 
   @Test
-  public void testSinkValidationFailsWithNoProject() throws Exception {
-    DatastoreIO.Sink sink = DatastoreIO.sink();
+  public void testWriteValidationFailsWithNoProject() throws Exception {
+    DatastoreIO.Write write = DatastoreIO.write();
 
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage("Project");
+    thrown.expectMessage("projectId");
 
-    sink.validate(testPipelineOptions());
+    write.validate(null);
   }
 
   @Test
   public void testSinkValidationSucceedsWithProject() throws Exception {
-    DatastoreIO.Sink sink = DatastoreIO.sink().withProject(PROJECT);
-    sink.validate(testPipelineOptions());
+    DatastoreIO.Write write = DatastoreIO.write().withProjectId(PROJECT_ID);
+    write.validate(null);
   }
 
   @Test
-  public void testSinkDisplayData() {
-    DatastoreIO.Sink sink = DatastoreIO.sink()
-        .withProject(PROJECT);
+  public void testWriteDisplayData() {
+    DatastoreIO.Write write = DatastoreIO.write()
+        .withProjectId(PROJECT_ID);
 
-    DisplayData displayData = DisplayData.from(sink);
+    DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("project", PROJECT));
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
   }
 
   @Test
@@ -252,9 +253,10 @@ public class DatastoreIOTest {
     when(splitter.getSplits(any(Query.class), eq(partition), eq(8), any(Datastore.class)))
         .thenReturn(mockSplits);
 
-    DatastoreIO.Source io = initialSource
+    DatastoreIO.Source io = initialRead
         .withNamespace(null)
         .withQuery(query)
+        .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
@@ -274,7 +276,8 @@ public class DatastoreIOTest {
   @Test
   public void testSourceWithNamespace() throws Exception {
     QuerySplitter splitter = mock(QuerySplitter.class);
-    DatastoreIO.Source io = initialSource
+    DatastoreIO.Source io = initialRead
+        .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
@@ -299,8 +302,9 @@ public class DatastoreIOTest {
     when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class)))
         .thenReturn(mockSplits);
 
-    DatastoreIO.Source io = initialSource
+    DatastoreIO.Source io = initialRead
         .withQuery(query)
+        .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(0L);
 
@@ -329,8 +333,9 @@ public class DatastoreIOTest {
         .thenThrow(new AssertionError("Splitter should not be invoked"));
 
     List<DatastoreIO.Source> bundles =
-        initialSource
+        initialRead
             .withQuery(query)
+            .getSource()
             .withMockSplitter(splitter)
             .splitIntoBundles(1024, testPipelineOptions());
 
@@ -356,8 +361,9 @@ public class DatastoreIOTest {
 
     Query query = Query.newBuilder().addKind(KindExpression.newBuilder().setName("myKind")).build();
     List<DatastoreIO.Source> bundles =
-        initialSource
+        initialRead
             .withQuery(query)
+            .getSource()
             .withMockSplitter(splitter)
             .withMockEstimateSizeBytes(10240L)
             .splitIntoBundles(1024, testPipelineOptions());
@@ -381,8 +387,9 @@ public class DatastoreIOTest {
     when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(12), any(Datastore.class)))
         .thenReturn(mockSplits);
 
-    DatastoreIO.Source io = initialSource
+    DatastoreIO.Source io = initialRead
         .withQuery(query)
+        .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
@@ -401,30 +408,12 @@ public class DatastoreIOTest {
   }
 
   /**
-   * Test building a Sink using builder methods.
+   * Test building a Write using builder methods.
    */
   @Test
-  public void testBuildSink() throws Exception {
-    DatastoreIO.Sink sink = DatastoreIO.sink().withProject(PROJECT);
-    assertEquals(PROJECT, sink.projectId);
-
-    sink = DatastoreIO.sink().withProject(PROJECT);
-    assertEquals(PROJECT, sink.projectId);
-
-    sink = DatastoreIO.sink().withProject(PROJECT);
-    assertEquals(PROJECT, sink.projectId);
-  }
-
-  /**
-   * Test building a sink using the default host.
-   */
-  @Test
-  public void testBuildSinkDefaults() throws Exception {
-    DatastoreIO.Sink sink = DatastoreIO.sink().withProject(PROJECT);
-    assertEquals(PROJECT, sink.projectId);
-
-    sink = DatastoreIO.sink().withProject(PROJECT);
-    assertEquals(PROJECT, sink.projectId);
+  public void testBuildWrite() throws Exception {
+    DatastoreIO.Write write = DatastoreIO.write().withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, write.getProjectId());
   }
 
   /**
@@ -546,7 +535,7 @@ public class DatastoreIOTest {
     // An empty query to read entities.
     Query query = Query.newBuilder().setLimit(
         Int32Value.newBuilder().setValue(numEntities)).build();
-    DatastoreIO.Source source = DatastoreIO.source().withQuery(query).withProject("mockProject");
+    DatastoreIO.Read read = DatastoreIO.read().withQuery(query).withProjectId("mockProject");
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
@@ -560,7 +549,7 @@ public class DatastoreIOTest {
             });
 
     // Actually instantiate the reader.
-    DatastoreReader reader = new DatastoreReader(source, mockDatastore);
+    DatastoreReader reader = new DatastoreReader(read.getSource(), mockDatastore);
 
     // Simply count the number of results returned by the reader.
     assertTrue(reader.start());
