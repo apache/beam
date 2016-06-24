@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.jms;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -31,6 +32,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -74,6 +76,7 @@ public class JmsIOTest {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testReadMessages() throws Exception {
 
     // produce message
@@ -94,7 +97,7 @@ public class JmsIOTest {
     Pipeline pipeline = TestPipeline.create();
 
     // read from the queue
-    PCollection<JmsRecord> output =  pipeline.apply(
+    PCollection<JmsRecord> output = pipeline.apply(
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
             .withQueue("test")
@@ -108,6 +111,7 @@ public class JmsIOTest {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testWriteMessage() throws Exception {
 
     Pipeline pipeline = TestPipeline.create();

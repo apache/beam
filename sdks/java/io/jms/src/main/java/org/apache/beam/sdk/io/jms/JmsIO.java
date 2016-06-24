@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.jms;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -156,7 +157,7 @@ public class JmsIO {
 
     @Override
     public void validate(PBegin input) {
-      checkArgument(connectionFactory == null, "ConnectionFactory not specified");
+      checkNotNull(connectionFactory, "ConnectionFactory not specified");
       checkArgument((queue == null && topic == null), "Either queue or topic not specified");
     }
 
@@ -246,7 +247,7 @@ public class JmsIO {
 
     @Override
     public void validate() {
-      checkArgument((connectionFactory == null), "ConnectionFactory is not defined");
+      checkNotNull(connectionFactory, "ConnectionFactory is not defined");
       checkArgument((queue == null && topic == null), "Either queue or topic is not defined");
     }
 
@@ -377,8 +378,7 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return new JmsCheckpointMark(destination,
-          currentRecord.getJmsMessageID());
+      return new JmsCheckpointMark(currentRecord.getJmsMessageID());
     }
 
     @Override

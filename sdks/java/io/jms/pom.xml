@@ -31,10 +31,10 @@
   <artifactId>jms</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: JMS</name>
   <description>IO to read and write to JMS (Java Messaging Service)
-    destinations (queues and topics).</description>
+    destinations (queues and topics). </description>
 
   <properties>
-    <activemq.version>5.11.2</activemq.version>
+    <activemq.version>5.13.1</activemq.version>
     <geronimo-jms.version>1.1.1</geronimo-jms.version>
   </properties>
 
@@ -82,6 +82,12 @@
       <groupId>org.apache.activemq</groupId>
       <artifactId>activemq-kahadb-store</artifactId>
       <version>${activemq.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

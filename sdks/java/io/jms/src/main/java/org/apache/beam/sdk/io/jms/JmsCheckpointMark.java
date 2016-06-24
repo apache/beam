@@ -32,7 +32,7 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private final String messageId;
 
-  public JmsCheckpointMark(String destination, String messageId) {
+  public JmsCheckpointMark(String messageId) {
     this.messageId = checkNotNull(messageId, "messageId");
   }
 
