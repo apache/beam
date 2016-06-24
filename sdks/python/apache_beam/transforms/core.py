@@ -437,7 +437,7 @@ class CallableWrapperCombineFn(CombineFn):
             'All functions for a Combine PTransform must accept a '
             'single argument compatible with: Iterable[Any]. '
             'Instead a function with input type: %s was received.'
-             % input_args[0])
+            % input_args[0])
       input_args = (element_type(input_args[0]),) + input_args[1:]
       # TODO(robertwb): Assert output type is consistent with input type?
       hints = fn_hints.copy()
@@ -813,10 +813,12 @@ class CombineGlobally(PTransform):
         return transform
 
     combined = (pcoll
-            | add_input_types(Map('KeyWithVoid', lambda v: (None, v))
-               .with_output_types(KV[None, pcoll.element_type]))
-            | CombinePerKey('CombinePerKey', self.fn, *self.args, **self.kwargs)
-            | Map('UnKey', lambda (k, v): v))
+                | add_input_types(Map('KeyWithVoid', lambda v: (None, v))
+                                  .with_output_types(
+                                      KV[None, pcoll.element_type]))
+                | CombinePerKey(
+                    'CombinePerKey', self.fn, *self.args, **self.kwargs)
+                | Map('UnKey', lambda (k, v): v))
 
     if not self.has_defaults and not self.as_view:
       return combined
@@ -884,7 +886,7 @@ class CombineValues(PTransformWithSideInputs):
 
   def apply(self, pcoll):
     args, kwargs = util.insert_values_in_args(
-      self.args, self.kwargs, self.side_inputs)
+        self.args, self.kwargs, self.side_inputs)
 
     input_type = pcoll.element_type
     key_type = None

@@ -83,7 +83,7 @@ disable =
   arguments-differ,
   attribute-defined-outside-init,
   bad-builtin,
-  bad-continuation,
+#  bad-continuation,
   bad-option-value,
   bad-super-call,
   broad-except,

@@ -159,8 +159,8 @@ class CombineTest(unittest.TestCase):
         p
         | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
         | beam.CombineGlobally(combine.TupleCombineFn(max,
-                                                    combine.MeanCombineFn(),
-                                                    sum)).without_defaults())
+                                                      combine.MeanCombineFn(),
+                                                      sum)).without_defaults())
     assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
     p.run()
 
