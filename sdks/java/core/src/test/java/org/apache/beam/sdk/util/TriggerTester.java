@@ -160,7 +160,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     this.windowToMergeResult = new HashMap<>();
 
     this.contextFactory =
-        new TriggerContextFactory<>(windowingStrategy, stateInternals, activeWindows);
+        new TriggerContextFactory<>(windowingStrategy.getWindowFn(), stateInternals, activeWindows);
   }
 
   /**
