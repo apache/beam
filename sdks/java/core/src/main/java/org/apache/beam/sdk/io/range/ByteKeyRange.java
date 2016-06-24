@@ -362,7 +362,7 @@ public final class ByteKeyRange implements Serializable {
    * semantic change from {@code (key.compareTo(getEndKey()) < 0)} is that the empty end key is
    * treated as larger than all possible {@link ByteKey keys}.
    */
-  boolean endsAfterKey(ByteKey key) {
+  public boolean endsAfterKey(ByteKey key) {
     return endKey.isEmpty() || key.compareTo(endKey) < 0;
   }
 
