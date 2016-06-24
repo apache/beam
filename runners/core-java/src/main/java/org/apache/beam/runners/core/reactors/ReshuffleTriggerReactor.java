@@ -18,27 +18,31 @@
 package org.apache.beam.runners.core.reactors;
 
 /**
- * A mutable set which tracks whether any particular {@link ExecutableTriggerReactor} is
- * finished.
+ * The trigger used with {@link Reshuffle} which triggers on every element
+ * and never buffers state.
  */
-public interface FinishedTriggers {
-  /**
-   * Returns {@code true} if the trigger is finished.
-   */
-  public boolean isFinished(ExecutableTriggerReactor trigger);
+public class ReshuffleTriggerReactor extends TriggerReactor {
 
-  /**
-   * Sets the fact that the trigger is finished.
-   */
-  public void setFinished(ExecutableTriggerReactor trigger, boolean value);
+  public ReshuffleTriggerReactor() {
+    super(null);
+  }
 
-  /**
-   * Sets the trigger and all of its subtriggers to unfinished.
-   */
-  public void clearRecursively(ExecutableTriggerReactor trigger);
+  @Override
+  public void onElement(TriggerReactor.OnElementContext c) { }
 
-  /**
-   * Create an independent copy of this mutable {@link FinishedTriggers}.
-   */
-  public FinishedTriggers copy();
+  @Override
+  public void onMerge(TriggerReactor.OnMergeContext c) { }
+
+  @Override
+  public boolean shouldFire(TriggerReactor.TriggerContext context) throws Exception {
+    return true;
+  }
+
+  @Override
+  public void onFire(TriggerReactor.TriggerContext context) throws Exception { }
+
+  @Override
+  public String toString() {
+    return "ReshuffleTrigger()";
+  }
 }

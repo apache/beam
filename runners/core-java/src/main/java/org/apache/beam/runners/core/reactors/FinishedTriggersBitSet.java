@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 import java.util.BitSet;
 
@@ -46,17 +46,17 @@ public class FinishedTriggersBitSet implements FinishedTriggers {
   }
 
   @Override
-  public boolean isFinished(ExecutableTrigger trigger) {
+  public boolean isFinished(ExecutableTriggerReactor trigger) {
     return bitSet.get(trigger.getTriggerIndex());
   }
 
   @Override
-  public void setFinished(ExecutableTrigger trigger, boolean value) {
+  public void setFinished(ExecutableTriggerReactor trigger, boolean value) {
     bitSet.set(trigger.getTriggerIndex(), value);
   }
 
   @Override
-  public void clearRecursively(ExecutableTrigger trigger) {
+  public void clearRecursively(ExecutableTriggerReactor trigger) {
     bitSet.clear(trigger.getTriggerIndex(), trigger.getFirstIndexAfterSubtree());
   }
 

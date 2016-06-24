@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
@@ -37,7 +37,7 @@ public class FinishedTriggersSetTest {
   @Test
   public void testSetGet() {
     FinishedTriggersProperties.verifyGetAfterSet(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>()));
+        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerReactor>()));
   }
 
   /**
@@ -47,13 +47,13 @@ public class FinishedTriggersSetTest {
   @Test
   public void testClearRecursively() {
     FinishedTriggersProperties.verifyClearRecursively(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>()));
+        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerReactor>()));
   }
 
   @Test
   public void testCopy() throws Exception {
     FinishedTriggersSet finishedSet =
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>());
+        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerReactor>());
     assertThat(finishedSet.copy().getFinishedTriggers(),
         not(theInstance(finishedSet.getFinishedTriggers())));
   }

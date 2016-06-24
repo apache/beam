@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 import com.google.common.collect.Sets;
 import java.util.Set;
@@ -25,30 +25,30 @@ import java.util.Set;
  */
 public class FinishedTriggersSet implements FinishedTriggers {
 
-  private final Set<ExecutableTrigger> finishedTriggers;
+  private final Set<ExecutableTriggerReactor> finishedTriggers;
 
-  private FinishedTriggersSet(Set<ExecutableTrigger> finishedTriggers) {
+  private FinishedTriggersSet(Set<ExecutableTriggerReactor> finishedTriggers) {
     this.finishedTriggers = finishedTriggers;
   }
 
-  public static FinishedTriggersSet fromSet(Set<ExecutableTrigger> finishedTriggers) {
+  public static FinishedTriggersSet fromSet(Set<ExecutableTriggerReactor> finishedTriggers) {
     return new FinishedTriggersSet(finishedTriggers);
   }
 
   /**
    * Returns a mutable {@link Set} of the underlying triggers that are finished.
    */
-  public Set<ExecutableTrigger> getFinishedTriggers() {
+  public Set<ExecutableTriggerReactor> getFinishedTriggers() {
     return finishedTriggers;
   }
 
   @Override
-  public boolean isFinished(ExecutableTrigger trigger) {
+  public boolean isFinished(ExecutableTriggerReactor trigger) {
     return finishedTriggers.contains(trigger);
   }
 
   @Override
-  public void setFinished(ExecutableTrigger trigger, boolean value) {
+  public void setFinished(ExecutableTriggerReactor trigger, boolean value) {
     if (value) {
       finishedTriggers.add(trigger);
     } else {
@@ -57,9 +57,9 @@ public class FinishedTriggersSet implements FinishedTriggers {
   }
 
   @Override
-  public void clearRecursively(ExecutableTrigger trigger) {
+  public void clearRecursively(ExecutableTriggerReactor trigger) {
     finishedTriggers.remove(trigger);
-    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
+    for (ExecutableTriggerReactor subTrigger : trigger.subTriggers()) {
       clearRecursively(subTrigger);
     }
   }

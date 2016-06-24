@@ -15,16 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-
-import org.apache.beam.sdk.transforms.windowing.AfterAll;
-import org.apache.beam.sdk.transforms.windowing.AfterFirst;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 
 /**
  * Generalized tests for {@link FinishedTriggers} implementations.
@@ -34,7 +28,8 @@ public class FinishedTriggersProperties {
    * Tests that for the provided trigger and {@link FinishedTriggers}, when the trigger is set
    * finished, it is correctly reported as finished.
    */
-  public static void verifyGetAfterSet(FinishedTriggers finishedSet, ExecutableTrigger trigger) {
+  public static void verifyGetAfterSet(
+      FinishedTriggers finishedSet, ExecutableTriggerReactor trigger) {
     assertFalse(finishedSet.isFinished(trigger));
     finishedSet.setFinished(trigger, true);
     assertTrue(finishedSet.isFinished(trigger));
@@ -45,10 +40,15 @@ public class FinishedTriggersProperties {
    * reported as finished.
    */
   public static void verifyGetAfterSet(FinishedTriggers finishedSet) {
-    ExecutableTrigger trigger = ExecutableTrigger.create(AfterAll.of(
-        AfterFirst.of(AfterPane.elementCountAtLeast(3), AfterWatermark.pastEndOfWindow()),
-        AfterAll.of(
-            AfterPane.elementCountAtLeast(10), AfterProcessingTime.pastFirstElementInPane())));
+    ExecutableTriggerReactor trigger =
+        ExecutableTriggerReactor.create(
+            AfterAllReactor.of(
+                AfterFirstReactor.of(
+                    AfterPaneReactor.elementCountAtLeast(3),
+                    AfterWatermarkReactor.pastEndOfWindow()),
+                AfterAllReactor.of(
+                    AfterPaneReactor.elementCountAtLeast(10),
+                    AfterProcessingTimeReactor.pastFirstElementInPane())));
 
     verifyGetAfterSet(finishedSet, trigger);
     verifyGetAfterSet(finishedSet, trigger.subTriggers().get(0).subTriggers().get(1));
@@ -63,10 +63,15 @@ public class FinishedTriggersProperties {
    * others.
    */
   public static void verifyClearRecursively(FinishedTriggers finishedSet) {
-    ExecutableTrigger trigger = ExecutableTrigger.create(AfterAll.of(
-        AfterFirst.of(AfterPane.elementCountAtLeast(3), AfterWatermark.pastEndOfWindow()),
-        AfterAll.of(
-            AfterPane.elementCountAtLeast(10), AfterProcessingTime.pastFirstElementInPane())));
+    ExecutableTriggerReactor trigger =
+        ExecutableTriggerReactor.create(
+            AfterAllReactor.of(
+                AfterFirstReactor.of(
+                    AfterPaneReactor.elementCountAtLeast(3),
+                    AfterWatermarkReactor.pastEndOfWindow()),
+                AfterAllReactor.of(
+                    AfterPaneReactor.elementCountAtLeast(10),
+                    AfterProcessingTimeReactor.pastFirstElementInPane())));
 
     // Set them all finished. This method is not on a trigger as it makes no sense outside tests.
     setFinishedRecursively(finishedSet, trigger);
@@ -85,25 +90,25 @@ public class FinishedTriggersProperties {
   }
 
   private static void setFinishedRecursively(
-      FinishedTriggers finishedSet, ExecutableTrigger trigger) {
+      FinishedTriggers finishedSet, ExecutableTriggerReactor trigger) {
     finishedSet.setFinished(trigger, true);
-    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
+    for (ExecutableTriggerReactor subTrigger : trigger.subTriggers()) {
       setFinishedRecursively(finishedSet, subTrigger);
     }
   }
 
   private static void verifyFinishedRecursively(
-      FinishedTriggers finishedSet, ExecutableTrigger trigger) {
+      FinishedTriggers finishedSet, ExecutableTriggerReactor trigger) {
     assertTrue(finishedSet.isFinished(trigger));
-    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
+    for (ExecutableTriggerReactor subTrigger : trigger.subTriggers()) {
       verifyFinishedRecursively(finishedSet, subTrigger);
     }
   }
 
   private static void verifyUnfinishedRecursively(
-      FinishedTriggers finishedSet, ExecutableTrigger trigger) {
+      FinishedTriggers finishedSet, ExecutableTriggerReactor trigger) {
     assertFalse(finishedSet.isFinished(trigger));
-    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
+    for (ExecutableTriggerReactor subTrigger : trigger.subTriggers()) {
       verifyUnfinishedRecursively(finishedSet, subTrigger);
     }
   }
