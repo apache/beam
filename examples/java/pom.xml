@@ -34,10 +34,6 @@
 
   <packaging>jar</packaging>
 
-  <properties>
-    <skipITs>true</skipITs>
-  </properties>
-
   <build>
     <plugins>
       <plugin>
