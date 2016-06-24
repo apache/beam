@@ -1027,7 +1027,8 @@ class GroupByKey(PTransform):
           'GroupByKey operation "%s"' % self.label)
 
       reify_output_type = KV[key_type, typehints.WindowedValue[value_type]]
-      gbk_input_type = KV[key_type, Iterable[typehints.WindowedValue[value_type]]]
+      gbk_input_type = (
+          KV[key_type, Iterable[typehints.WindowedValue[value_type]]])
       gbk_output_type = KV[key_type, Iterable[value_type]]
 
       return (pcoll

@@ -109,7 +109,8 @@ class CombineTest(unittest.TestCase):
     pcoll = pipeline | Create(
         'start-perkey', [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
     result_ktop = pcoll | beam.CombinePerKey('top-perkey', combiners.Largest(5))
-    result_kbot = pcoll | beam.CombinePerKey('bot-perkey', combiners.Smallest(4))
+    result_kbot = pcoll | beam.CombinePerKey(
+        'bot-perkey', combiners.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
     pipeline.run()
