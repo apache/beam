@@ -28,9 +28,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.DatastoreIO;
 import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.datastore.DatastoreIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -482,7 +482,7 @@ public class AutoComplete {
     if (options.getOutputToDatastore()) {
       toWrite
       .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
+      .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {

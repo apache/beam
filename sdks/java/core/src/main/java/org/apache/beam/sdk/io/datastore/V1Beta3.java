@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+
+package org.apache.beam.sdk.io.datastore;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -33,19 +34,24 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
@@ -80,24 +86,20 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * <p>{@link DatastoreIO} provides an API to Read and Write {@link PCollection PCollections} of
- * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a>
+ * <p>{@link V1Beta3} provides an API to Read and Write {@link PCollection PCollections} of
+ * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1beta3
  * {@link Entity} objects.
  *
- * <p>Google Cloud Datastore is a fully managed NoSQL data storage service.
- * An {@code Entity} is an object in Datastore, analogous to a row in traditional
- * database table.
- *
- * <p>This API currently requires an authentication workaround. To use {@link DatastoreIO}, users
+ * <p>This API currently requires an authentication workaround. To use {@link V1Beta3}, users
  * must use the {@code gcloud} command line tool to get credentials for Datastore:
  * <pre>
  * $ gcloud auth login
  * </pre>
  *
- * <p>To read a {@link PCollection} from a query to Datastore, use {@link DatastoreIO#source} and
- * its methods {@link DatastoreIO.Source#withProject} and {@link DatastoreIO.Source#withQuery} to
+ * <p>To read a {@link PCollection} from a query to Datastore, use {@link V1Beta3#read} and
+ * its methods {@link V1Beta3.Read#withProjectId} and {@link V1Beta3.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
- * to query within using {@link DatastoreIO.Source#withNamespace}.
+ * to query within using {@link V1Beta3.Read#withNamespace}.
  *
  * <p>For example:
  *
@@ -109,22 +111,9 @@ import javax.annotation.Nullable;
  *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
- *     Read.from(DatastoreIO.source()
- *         .withProject(projectId)
+ *     DatastoreIO.v1beta3().read()
+ *         .withProjectId(projectId)
  *         .withQuery(query));
- * } </pre>
- *
- * <p>or:
- *
- * <pre> {@code
- * // Read a query from Datastore using the default namespace
- * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
- * Query query = ...;
- * String projectId = "...";
- *
- * Pipeline p = Pipeline.create(options);
- * PCollection<Entity> entities = p.apply(DatastoreIO.readFrom(projectId, query));
- * p.run();
  * } </pre>
  *
  * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
@@ -132,19 +121,19 @@ import javax.annotation.Nullable;
  * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then
  * all returned results will be read by a single Dataflow worker in order to ensure correct data.
  *
- * <p>To write a {@link PCollection} to a Datastore, use {@link DatastoreIO#writeTo},
- * specifying the datastore to write to:
+ * <p>To write a {@link PCollection} to a Datastore, use {@link V1Beta3#write},
+ * specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.writeTo(projectId));
+ * entities.apply(DatastoreIO.v1beta3().write().withProjectId(projectId));
  * p.run();
  * } </pre>
  *
  * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
- * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than the
- * project default may be written to by specifying it in the {@code Entity} {@code Keys}.
+ * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
+ * {@code projectId} default may be used by specifying it in the {@code Entity} {@code Keys}.
  *
  * <pre>{@code
  * Key.Builder keyBuilder = DatastoreHelper.makeKey(...);
@@ -166,57 +155,91 @@ import javax.annotation.Nullable;
  * @see org.apache.beam.sdk.runners.PipelineRunner
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class DatastoreIO {
+public class V1Beta3 {
+
+  // A package-private constructor to prevent direct instantiation from outside of this package
+  V1Beta3() {}
+
   /**
    * Datastore has a limit of 500 mutations per batch operation, so we flush
    * changes to Datastore every 500 entities.
    */
-  public static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+  private static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
-   * Returns an empty {@link DatastoreIO.Source} builder.
-   * Configure the {@code project}, {@code query}, and {@code namespace} using
-   * {@link DatastoreIO.Source#withProject}, {@link DatastoreIO.Source#withQuery},
-   * and {@link DatastoreIO.Source#withNamespace}.
+   * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
+   * {@code query}, and optionally {@code namespace} using {@link V1Beta3.Read#withProjectId},
+   * {@link V1Beta3.Read#withQuery}, and {@link V1Beta3.Read#withNamespace}.
+   */
+  public V1Beta3.Read read() {
+    return new V1Beta3.Read(null, null, null);
+  }
+
+  /**
+   * A {@link PTransform} that reads the result rows of a Datastore query as {@code Entity}
+   * objects.
    *
-   * @deprecated the name and return type do not match. Use {@link #source()}.
+   * @see DatastoreIO
    */
-  @Deprecated
-  public static Source read() {
-    return source();
-  }
+  public static class Read extends PTransform<PBegin, PCollection<Entity>> {
+    @Nullable
+    private final String projectId;
 
-  /**
-   * Returns an empty {@link DatastoreIO.Source} builder.
-   * Configure the {@code project}, {@code query}, and {@code namespace} using
-   * {@link DatastoreIO.Source#withProject}, {@link DatastoreIO.Source#withQuery},
-   * and {@link DatastoreIO.Source#withNamespace}.
-   *
-   * <p>The resulting {@link Source} object can be passed to {@link Read} to create a
-   * {@code PTransform} that will read from Datastore.
-   */
-  public static Source source() {
-    return new Source(null, null, null);
-  }
+    @Nullable
+    private final Query query;
 
-  /**
-   * Returns a {@code PTransform} that reads Datastore entities from the query
-   * against the given project.
-   */
-  public static Read.Bounded<Entity> readFrom(String projectId, Query query) {
-    return Read.from(new Source(projectId, query, null));
-  }
+    @Nullable
+    private final String namespace;
 
-  /**
-   * A {@link Source} that reads the result rows of a Datastore query as {@code Entity} objects.
-   */
-  public static class Source extends BoundedSource<Entity> {
-    public String getProjectId() {
-      return projectId;
+    /**
+     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
+     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
+     * an error will be thrown.
+     */
+    private Read(@Nullable String projectId, @Nullable Query query, @Nullable String namespace) {
+      this.projectId = projectId;
+      this.query = query;
+      this.namespace = namespace;
     }
 
+    /**
+     * Returns a new {@link V1Beta3.Read} that reads from the Datastore for the specified project.
+     */
+    public V1Beta3.Read withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new V1Beta3.Read(projectId, query, namespace);
+    }
+
+    /**
+     * Returns a new {@link V1Beta3.Read} that reads the results of the specified query.
+     *
+     * <p><b>Note:</b> Normally, {@code DatastoreIO} will read from Cloud Datastore in parallel
+     * across many workers. However, when the {@link Query} is configured with a limit using
+     * {@link Query.Builder#setLimit}, then all results will be read by a single worker in order
+     * to ensure correct results.
+     */
+    public V1Beta3.Read withQuery(Query query) {
+      checkNotNull(query, "query");
+      checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
+          "Invalid query limit %s: must be positive", query.getLimit().getValue());
+      return new V1Beta3.Read(projectId, query, namespace);
+    }
+
+    /**
+     * Returns a new {@link V1Beta3.Read} that reads from the given namespace.
+     */
+    public V1Beta3.Read withNamespace(String namespace) {
+      return new V1Beta3.Read(projectId, query, namespace);
+    }
+
+    @Nullable
     public Query getQuery() {
       return query;
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
     }
 
     @Nullable
@@ -224,31 +247,113 @@ public class DatastoreIO {
       return namespace;
     }
 
-    public Source withProject(String projectId) {
+    @Override
+    public PCollection<Entity> apply(PBegin input) {
+      return input.apply(org.apache.beam.sdk.io.Read.from(getSource()));
+    }
+
+    @Override
+    public void validate(PBegin input) {
       checkNotNull(projectId, "projectId");
-      return new Source(projectId, query, namespace);
+      checkNotNull(query, "query");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("ProjectId"))
+          .addIfNotNull(DisplayData.item("namespace", namespace)
+              .withLabel("Namespace"))
+          .addIfNotNull(DisplayData.item("query", query.toString())
+              .withLabel("Query"));
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .add("query", query)
+          .add("namespace", namespace)
+          .toString();
+    }
+
+    @VisibleForTesting
+    DatastoreSource getSource() {
+      return new DatastoreSource(projectId, query, namespace);
+    }
+  }
+
+  /**
+   * Returns an empty {@link V1Beta3.Write} builder. Configure the destination
+   * {@code projectId} using {@link V1Beta3.Write#withProjectId}.
+   */
+  public Write write() {
+    return new Write(null);
+  }
+
+  /**
+   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class Write extends PTransform<PCollection<Entity>, PDone> {
+    @Nullable
+    private final String projectId;
+
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    public Write(@Nullable String projectId) {
+      this.projectId = projectId;
     }
 
     /**
-     * Returns a new {@link Source} that reads the results of the specified query.
-     *
-     * <p>Does not modify this object.
-     *
-     * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel
-     * across many workers. However, when the {@link Query} is configured with a limit using
-     * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then all
-     * returned results will be read by a single Dataflow worker in order to ensure correct data.
+     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified project.
      */
-    public Source withQuery(Query query) {
-      checkNotNull(query, "query");
-      checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
-          "Invalid query limit %s: must be positive", query.getLimit().getValue());
-      return new Source(projectId, query, namespace);
+    public Write withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new Write(projectId);
     }
 
-    public Source withNamespace(@Nullable String namespace) {
-      return new Source(projectId, query, namespace);
+    @Override
+    public PDone apply(PCollection<Entity> input) {
+      return input.apply(
+          org.apache.beam.sdk.io.Write.to(new DatastoreSink(projectId)));
     }
+
+    @Override
+    public void validate(PCollection<Entity> input) {
+      checkNotNull(projectId, "projectId");
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .toString();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("Output Project"));
+    }
+  }
+
+  /**
+   * A {@link org.apache.beam.sdk.io.Source} that reads data from Datastore.
+   */
+  static class DatastoreSource extends BoundedSource<Entity> {
 
     @Override
     public Coder<Entity> getDefaultOutputCoder() {
@@ -257,13 +362,12 @@ public class DatastoreIO {
 
     @Override
     public boolean producesSortedKeys(PipelineOptions options) {
-      // TODO: Perhaps this can be implemented by inspecting the query.
       return false;
     }
 
     @Override
-    public List<Source> splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
-        throws Exception {
+    public List<DatastoreSource> splitIntoBundles(long desiredBundleSizeBytes,
+        PipelineOptions options) throws Exception {
       // Users may request a limit on the number of results. We can currently support this by
       // simply disabling parallel reads and using only a single split.
       if (query.hasLimit()) {
@@ -292,9 +396,9 @@ public class DatastoreIO {
         return ImmutableList.of(this);
       }
 
-      ImmutableList.Builder<Source> splits = ImmutableList.builder();
+      ImmutableList.Builder<DatastoreSource> splits = ImmutableList.builder();
       for (Query splitQuery : datastoreSplits) {
-        splits.add(new Source(projectId, splitQuery, namespace));
+        splits.add(new DatastoreSource(projectId, splitQuery, namespace));
       }
       return splits.build();
     }
@@ -357,34 +461,25 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("project", projectId)
-            .withLabel("Input Project"))
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("ProjectId"))
           .addIfNotNull(DisplayData.item("namespace", namespace)
-            .withLabel("App Engine Namespace"));
-
-      if (query != null) {
-        builder.add(DisplayData.item("query", query.toString())
-          .withLabel("Query"));
-      }
+              .withLabel("Namespace"))
+          .addIfNotNull(DisplayData.item("query", query.toString())
+              .withLabel("Query"));
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("project", projectId)
+          .add("projectId", projectId)
           .add("query", query)
           .add("namespace", namespace)
           .toString();
     }
 
-    ///////////////////////////////////////////////////////////////////////////////////////////
-
-    private static final Logger LOG = LoggerFactory.getLogger(Source.class);
-    /** Not really nullable, but it may be {@code null} for in-progress {@code Source}s. */
-    @Nullable
+    private static final Logger LOG = LoggerFactory.getLogger(DatastoreSource.class);
     private final String projectId;
-    /** Not really nullable, but it may be {@code null} for in-progress {@code Source}s. */
-    @Nullable
     private final Query query;
     @Nullable
     private final String namespace;
@@ -395,14 +490,7 @@ public class DatastoreIO {
     @Nullable
     private Long mockEstimateSizeBytes;
 
-    /**
-     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
-     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
-     * an error will be thrown.
-     */
-    private Source(
-        @Nullable String projectId, @Nullable Query query,
-        @Nullable String namespace) {
+    DatastoreSource(String projectId, Query query, @Nullable String namespace) {
       this.projectId = projectId;
       this.query = query;
       this.namespace = namespace;
@@ -431,7 +519,7 @@ public class DatastoreIO {
 
     /**
      * Builds a {@link RunQueryRequest} from the {@code query}, using the properties set on this
-     * {@code Source}. For example, sets the {@code namespace} for the request.
+     * {@code DatastoreSource}. For example, sets the {@code namespace} for the request.
      */
     private RunQueryRequest makeRequest(Query query) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
@@ -470,7 +558,7 @@ public class DatastoreIO {
           new DatastoreOptions.Builder()
               .projectId(projectId)
               .initializer(
-                new RetryHttpRequestInitializer()
+                  new RetryHttpRequestInitializer()
               );
 
       Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
@@ -481,75 +569,208 @@ public class DatastoreIO {
     }
 
     /** For testing only. */
-    Source withMockSplitter(QuerySplitter splitter) {
-      Source res = new Source(projectId, query, namespace);
+    DatastoreSource withMockSplitter(QuerySplitter splitter) {
+      DatastoreSource res = new DatastoreSource(projectId, query, namespace);
       res.mockSplitter = splitter;
       res.mockEstimateSizeBytes = mockEstimateSizeBytes;
       return res;
     }
 
     /** For testing only. */
-    Source withMockEstimateSizeBytes(Long estimateSizeBytes) {
-      Source res = new Source(projectId, query, namespace);
+    DatastoreSource withMockEstimateSizeBytes(Long estimateSizeBytes) {
+      DatastoreSource res = new DatastoreSource(projectId, query, namespace);
       res.mockSplitter = mockSplitter;
       res.mockEstimateSizeBytes = estimateSizeBytes;
       return res;
     }
-  }
 
-  ///////////////////// Write Class /////////////////////////////////
-
-  /**
-   * Returns a new {@link DatastoreIO.Sink} builder.
-   * You need to further configure it using {@link DatastoreIO.Sink#withProject}, before using it
-   * in a {@link Write} transform.
-   *
-   * <p>For example: {@code p.apply(Write.to(DatastoreIO.sink().withProject(projectId)));}
-   */
-  public static Sink sink() {
-    return new Sink(null);
+    @VisibleForTesting
+    Query getQuery() {
+      return query;
+    }
   }
 
   /**
-   * Returns a new {@link Write} transform that will write to a {@link Sink}.
+   * A {@link DatastoreSource.Reader} over the records from a query of the datastore.
    *
-   * <p>For example: {@code p.apply(DatastoreIO.writeTo(projectId));}
+   * <p>Timestamped records are currently not supported.
+   * All records implicitly have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    */
-  public static Write.Bound<Entity> writeTo(String projectId) {
-    return Write.to(sink().withProject(projectId));
-  }
-
-  /**
-   * A {@link Sink} that writes a {@link PCollection} containing
-   * {@link Entity Entities} to a Datastore kind.
-   *
-   */
-  public static class Sink extends org.apache.beam.sdk.io.Sink<Entity> {
-    final String projectId;
+  @VisibleForTesting
+  static class DatastoreReader extends BoundedSource.BoundedReader<Entity> {
+    private final DatastoreSource source;
 
     /**
-     * Returns a {@link Sink} that is like this one, but will write to the specified project.
+     * Datastore to read from.
      */
-    public Sink withProject(String projectId) {
-      checkNotNull(projectId, "projectId");
-      return new Sink(projectId);
+    private final Datastore datastore;
+
+    /**
+     * True if more results may be available.
+     */
+    private boolean moreResults;
+
+    /**
+     * Iterator over records.
+     */
+    private java.util.Iterator<EntityResult> entities;
+
+    /**
+     * Current batch of query results.
+     */
+    private QueryResultBatch currentBatch;
+
+    /**
+     * Maximum number of results to request per query.
+     *
+     * <p>Must be set, or it may result in an I/O error when querying
+     * Cloud Datastore.
+     */
+    private static final int QUERY_BATCH_LIMIT = 500;
+
+    /**
+     * Remaining user-requested limit on the number of sources to return. If the user did not set a
+     * limit, then this variable will always have the value {@link Integer#MAX_VALUE} and will never
+     * be decremented.
+     */
+    private int userLimit;
+
+    private volatile boolean done = false;
+
+    private Entity currentEntity;
+
+    /**
+     * Returns a DatastoreReader with DatastoreSource and Datastore object set.
+     *
+     * @param datastore a datastore connection to use.
+     */
+    public DatastoreReader(DatastoreSource source, Datastore datastore) {
+      this.source = source;
+      this.datastore = datastore;
+      // If the user set a limit on the query, remember it. Otherwise pin to MAX_VALUE.
+      userLimit = source.query.hasLimit()
+          ? source.query.getLimit().getValue() : Integer.MAX_VALUE;
+    }
+
+    @Override
+    public Entity getCurrent() {
+      return currentEntity;
+    }
+
+    @Override
+    public final long getSplitPointsConsumed() {
+      return done ? 1 : 0;
+    }
+
+    @Override
+    public final long getSplitPointsRemaining() {
+      return done ? 0 : 1;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      return advance();
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (entities == null || (!entities.hasNext() && moreResults)) {
+        try {
+          entities = getIteratorAndMoveCursor();
+        } catch (DatastoreException e) {
+          throw new IOException(e);
+        }
+      }
+
+      if (entities == null || !entities.hasNext()) {
+        currentEntity = null;
+        done = true;
+        return false;
+      }
+
+      currentEntity = entities.next().getEntity();
+      return true;
+    }
+
+    @Override
+    public void close() throws IOException {
+      // Nothing
+    }
+
+    @Override
+    public DatastoreSource getCurrentSource() {
+      return source;
+    }
+
+    @Override
+    public DatastoreSource splitAtFraction(double fraction) {
+      // Not supported.
+      return null;
+    }
+
+    @Override
+    public Double getFractionConsumed() {
+      // Not supported.
+      return null;
     }
 
     /**
-     * Constructs a Sink with the given project.
+     * Returns an iterator over the next batch of records for the query
+     * and updates the cursor to get the next batch as needed.
+     * Query has specified limit and offset from InputSplit.
      */
-    protected Sink(String projectId) {
+    private Iterator<EntityResult> getIteratorAndMoveCursor() throws DatastoreException {
+      Query.Builder query = source.query.toBuilder().clone();
+      query.setLimit(Int32Value.newBuilder().setValue(Math.min(userLimit, QUERY_BATCH_LIMIT)));
+      if (currentBatch != null && !currentBatch.getEndCursor().isEmpty()) {
+        query.setStartCursor(currentBatch.getEndCursor());
+      }
+
+      RunQueryRequest request = source.makeRequest(query.build());
+      RunQueryResponse response = datastore.runQuery(request);
+
+      currentBatch = response.getBatch();
+
+      // MORE_RESULTS_AFTER_LIMIT is not implemented yet:
+      // https://groups.google.com/forum/#!topic/gcd-discuss/iNs6M1jA2Vw, so
+      // use result count to determine if more results might exist.
+      int numFetch = currentBatch.getEntityResultsCount();
+      if (source.query.hasLimit()) {
+        verify(userLimit >= numFetch,
+            "Expected userLimit %s >= numFetch %s, because query limit %s should be <= userLimit",
+            userLimit, numFetch, query.getLimit());
+        userLimit -= numFetch;
+      }
+      moreResults =
+          // User-limit does not exist (so userLimit == MAX_VALUE) and/or has not been satisfied.
+          (userLimit > 0)
+              // All indications from the API are that there are/may be more results.
+              && ((numFetch == QUERY_BATCH_LIMIT)
+              || (currentBatch.getMoreResults() == NOT_FINISHED));
+
+      // May receive a batch of 0 results if the number of records is a multiple
+      // of the request limit.
+      if (numFetch == 0) {
+        return null;
+      }
+
+      return currentBatch.getEntityResultsList().iterator();
+    }
+  }
+
+  /**
+   * A {@link org.apache.beam.sdk.io.Sink} that writes data to Datastore.
+   */
+  static class DatastoreSink extends org.apache.beam.sdk.io.Sink<Entity> {
+    final String projectId;
+
+    public DatastoreSink(String projectId) {
       this.projectId = projectId;
     }
 
-    /**
-     * Ensures the project is set.
-     */
     @Override
     public void validate(PipelineOptions options) {
-      checkNotNull(
-          projectId,
-          "Project ID is a required parameter. Please use withProject to to set the projectId.");
+      checkNotNull(projectId, "projectId");
     }
 
     @Override
@@ -561,8 +782,8 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("project", projectId)
-            .withLabel("Output Project"));
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("Output Project"));
     }
   }
 
@@ -573,9 +794,9 @@ public class DatastoreIO {
       extends WriteOperation<Entity, DatastoreWriteResult> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriteOperation.class);
 
-    private final DatastoreIO.Sink sink;
+    private final DatastoreSink sink;
 
-    public DatastoreWriteOperation(DatastoreIO.Sink sink) {
+    public DatastoreWriteOperation(DatastoreSink sink) {
       this.sink = sink;
     }
 
@@ -616,14 +837,14 @@ public class DatastoreIO {
     }
 
     @Override
-    public DatastoreIO.Sink getSink() {
+    public DatastoreSink getSink() {
       return sink;
     }
   }
 
   /**
    * {@link Writer} that writes entities to a Datastore Sink.  Entities are written in batches,
-   * where the maximum batch size is {@link DatastoreIO#DATASTORE_BATCH_UPDATE_LIMIT}.  Entities
+   * where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.  Entities
    * are committed as upsert mutations (either update if the key already exists, or insert if it is
    * a new key).  If an entity does not have a complete key (i.e., it has no name or id), the bundle
    * will fail.
@@ -634,11 +855,12 @@ public class DatastoreIO {
    * mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link DatastoreIO#DATASTORE_BATCH_UPDATE_LIMIT}
+   * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
    * times).
    *
    * <p>Visible for testing purposes.
    */
+  @VisibleForTesting
   static class DatastoreWriter extends Writer<Entity, DatastoreWriteResult> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriter.class);
     private final DatastoreWriteOperation writeOp;
@@ -672,7 +894,6 @@ public class DatastoreIO {
       return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
     }
 
-    // Visible for testing
     DatastoreWriter(DatastoreWriteOperation writeOp, Datastore datastore) {
       this.writeOp = writeOp;
       this.datastore = datastore;
@@ -683,7 +904,7 @@ public class DatastoreIO {
 
     /**
      * Writes an entity to the Datastore.  Writes are batched, up to {@link
-     * DatastoreIO#DATASTORE_BATCH_UPDATE_LIMIT}. If an entity does not have a complete key, an
+     * V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}. If an entity does not have a complete key, an
      * {@link IllegalArgumentException} will be thrown.
      */
     @Override
@@ -696,7 +917,7 @@ public class DatastoreIO {
 
       entities.add(value);
 
-      if (entities.size() >= DatastoreIO.DATASTORE_BATCH_UPDATE_LIMIT) {
+      if (entities.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
         flushBatch();
       }
     }
@@ -766,172 +987,6 @@ public class DatastoreIO {
 
     public DatastoreWriteResult(long recordsWritten) {
       this.entitiesWritten = recordsWritten;
-    }
-  }
-
-  /**
-   * A {@link Source.Reader} over the records from a query of the datastore.
-   *
-   * <p>Timestamped records are currently not supported.
-   * All records implicitly have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
-   */
-  public static class DatastoreReader extends BoundedSource.BoundedReader<Entity> {
-    private final Source source;
-
-    /**
-     * Datastore to read from.
-     */
-    private final Datastore datastore;
-
-    /**
-     * True if more results may be available.
-     */
-    private boolean moreResults;
-
-    /**
-     * Iterator over records.
-     */
-    private java.util.Iterator<EntityResult> entities;
-
-    /**
-     * Current batch of query results.
-     */
-    private QueryResultBatch currentBatch;
-
-    /**
-     * Maximum number of results to request per query.
-     *
-     * <p>Must be set, or it may result in an I/O error when querying
-     * Cloud Datastore.
-     */
-    private static final int QUERY_BATCH_LIMIT = 500;
-
-    /**
-     * Remaining user-requested limit on the number of sources to return. If the user did not set a
-     * limit, then this variable will always have the value {@link Integer#MAX_VALUE} and will never
-     * be decremented.
-     */
-    private int userLimit;
-
-    private volatile boolean done = false;
-
-    private Entity currentEntity;
-
-    /**
-     * Returns a DatastoreReader with Source and Datastore object set.
-     *
-     * @param datastore a datastore connection to use.
-     */
-    public DatastoreReader(Source source, Datastore datastore) {
-      this.source = source;
-      this.datastore = datastore;
-      // If the user set a limit on the query, remember it. Otherwise pin to MAX_VALUE.
-      userLimit = source.query.hasLimit()
-          ? source.query.getLimit().getValue() : Integer.MAX_VALUE;
-    }
-
-    @Override
-    public Entity getCurrent() {
-      return currentEntity;
-    }
-
-    @Override
-    public final long getSplitPointsConsumed() {
-      return done ? 1 : 0;
-    }
-
-    @Override
-    public final long getSplitPointsRemaining() {
-      return done ? 0 : 1;
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      return advance();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      if (entities == null || (!entities.hasNext() && moreResults)) {
-        try {
-          entities = getIteratorAndMoveCursor();
-        } catch (DatastoreException e) {
-          throw new IOException(e);
-        }
-      }
-
-      if (entities == null || !entities.hasNext()) {
-        currentEntity = null;
-        done = true;
-        return false;
-      }
-
-      currentEntity = entities.next().getEntity();
-      return true;
-    }
-
-    @Override
-    public void close() throws IOException {
-      // Nothing
-    }
-
-    @Override
-    public DatastoreIO.Source getCurrentSource() {
-      return source;
-    }
-
-    @Override
-    public DatastoreIO.Source splitAtFraction(double fraction) {
-      // Not supported.
-      return null;
-    }
-
-    @Override
-    public Double getFractionConsumed() {
-      // Not supported.
-      return null;
-    }
-
-    /**
-     * Returns an iterator over the next batch of records for the query
-     * and updates the cursor to get the next batch as needed.
-     * Query has specified limit and offset from InputSplit.
-     */
-    private Iterator<EntityResult> getIteratorAndMoveCursor() throws DatastoreException {
-      Query.Builder query = source.query.toBuilder().clone();
-      query.setLimit(Int32Value.newBuilder().setValue(Math.min(userLimit, QUERY_BATCH_LIMIT)));
-      if (currentBatch != null && !currentBatch.getEndCursor().isEmpty()) {
-        query.setStartCursor(currentBatch.getEndCursor());
-      }
-
-      RunQueryRequest request = source.makeRequest(query.build());
-      RunQueryResponse response = datastore.runQuery(request);
-
-      currentBatch = response.getBatch();
-
-      // MORE_RESULTS_AFTER_LIMIT is not implemented yet:
-      // https://groups.google.com/forum/#!topic/gcd-discuss/iNs6M1jA2Vw, so
-      // use result count to determine if more results might exist.
-      int numFetch = currentBatch.getEntityResultsCount();
-      if (source.query.hasLimit()) {
-        verify(userLimit >= numFetch,
-            "Expected userLimit %s >= numFetch %s, because query limit %s should be <= userLimit",
-            userLimit, numFetch, query.getLimit());
-        userLimit -= numFetch;
-      }
-      moreResults =
-          // User-limit does not exist (so userLimit == MAX_VALUE) and/or has not been satisfied.
-          (userLimit > 0)
-          // All indications from the API are that there are/may be more results.
-          && ((numFetch == QUERY_BATCH_LIMIT) || (currentBatch.getMoreResults() == NOT_FINISHED));
-
-      // May receive a batch of 0 results if the number of records is a multiple
-      // of the request limit.
-      if (numFetch == 0) {
-        return null;
-      }
-
-      return currentBatch.getEntityResultsList().iterator();
     }
   }
 }
