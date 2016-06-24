@@ -232,7 +232,8 @@ public abstract class UnboundedSource<
      * later point on the returned {@link CheckpointMark} object. Checkpoint finalization is
      * best-effort, and checkpoints may not be finalized. If duplicate elements may be produced if
      * checkpoints are not finalized in a timely manner, {@link UnboundedSource#requiresDeduping()}
-     * should be overridden.
+     * should be overridden to return true, and {@link UnboundedReader#getCurrentRecordId()} should
+     * be overriden to return unique record IDs.
      *
      * <p>The returned object should not be modified.
      *
