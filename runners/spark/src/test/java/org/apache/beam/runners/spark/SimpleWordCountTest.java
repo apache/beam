@@ -89,8 +89,7 @@ public class SimpleWordCountTest {
     PCollection<String> output = inputWords.apply(new CountWords());
 
     File outputFile = testFolder.newFile();
-    output.apply(
-        TextIO.Write.named("WriteCounts").to(outputFile.getAbsolutePath()).withoutSharding());
+    output.apply("WriteCounts", TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
 
     EvaluationResult res = SparkRunner.create().run(p);
     res.close();

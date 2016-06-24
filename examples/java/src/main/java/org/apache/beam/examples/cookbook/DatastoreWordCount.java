@@ -193,7 +193,7 @@ public class DatastoreWordCount {
    */
   public static void writeDataToDatastore(Options options) {
       Pipeline p = Pipeline.create(options);
-      p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
+      p.apply("ReadLines", TextIO.Read.from(options.getInput()))
        .apply(ParDo.of(new CreateEntityFn(options.getNamespace(), options.getKind())))
        .apply(DatastoreIO.writeTo(options.getProject()));
 

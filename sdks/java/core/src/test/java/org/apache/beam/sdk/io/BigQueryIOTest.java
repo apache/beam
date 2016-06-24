@@ -340,8 +340,7 @@ public class BigQueryIOTest implements Serializable {
     checkReadTableObjectWithValidate(bound, project, dataset, table, true);
   }
 
-  private void checkReadQueryObject(
-      BigQueryIO.Read.Bound bound, String query) {
+  private void checkReadQueryObject(BigQueryIO.Read.Bound bound, String query) {
     checkReadQueryObjectWithValidate(bound, query, true);
   }
 
@@ -393,15 +392,13 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildTableBasedSource() {
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
-        .from("foo.com:project:somedataset.sometable");
+    BigQueryIO.Read.Bound bound = BigQueryIO.Read.from("foo.com:project:somedataset.sometable");
     checkReadTableObject(bound, "foo.com:project", "somedataset", "sometable");
   }
 
   @Test
   public void testBuildQueryBasedSource() {
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyQuery")
-        .fromQuery("foo_query");
+    BigQueryIO.Read.Bound bound = BigQueryIO.Read.fromQuery("foo_query");
     checkReadQueryObject(bound, "foo_query");
   }
 
@@ -409,8 +406,8 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildTableBasedSourceWithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
-        .from("foo.com:project:somedataset.sometable").withoutValidation();
+    BigQueryIO.Read.Bound bound =
+        BigQueryIO.Read.from("foo.com:project:somedataset.sometable").withoutValidation();
     checkReadTableObjectWithValidate(bound, "foo.com:project", "somedataset", "sometable", false);
   }
 
@@ -418,15 +415,15 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildQueryBasedSourceWithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
-        .fromQuery("some_query").withoutValidation();
+    BigQueryIO.Read.Bound bound =
+        BigQueryIO.Read.fromQuery("some_query").withoutValidation();
     checkReadQueryObjectWithValidate(bound, "some_query", false);
   }
 
   @Test
   public void testBuildTableBasedSourceWithDefaultProject() {
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
-        .from("somedataset.sometable");
+    BigQueryIO.Read.Bound bound =
+        BigQueryIO.Read.from("somedataset.sometable");
     checkReadTableObject(bound, null, "somedataset", "sometable");
   }
 
@@ -436,8 +433,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
-        .from(table);
+    BigQueryIO.Read.Bound bound = BigQueryIO.Read.from(table);
     checkReadTableObject(bound, "foo.com:project", "somedataset", "sometable");
   }
 
@@ -457,18 +453,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage(
         Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
             .or(Matchers.containsString("BigQuery dataset not found for table")));
-    p.apply(BigQueryIO.Read.named("ReadMyTable").from(tableRef));
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testBuildSourceWithoutTableOrQuery() {
-    Pipeline p = TestPipeline.create();
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(
-        "Invalid BigQuery read operation, either table reference or query has to be set");
-    p.apply(BigQueryIO.Read.named("ReadMyTable"));
-    p.run();
+    p.apply(BigQueryIO.Read.from(tableRef));
   }
 
   @Test
@@ -490,8 +475,8 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage(
         "Invalid BigQuery read operation. Specifies both a query and a table, only one of these"
         + " should be provided");
-    p.apply(
-        BigQueryIO.Read.named("ReadMyTable")
+    p.apply("ReadMyTable",
+        BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
             .fromQuery("query"));
     p.run();
@@ -505,8 +490,8 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage(
         "Invalid BigQuery read operation. Specifies a"
               + " table with a result flattening preference, which is not configurable");
-    p.apply(
-        BigQueryIO.Read.named("ReadMyTable")
+    p.apply("ReadMyTable",
+        BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
             .withoutResultFlattening());
     p.run();
@@ -521,7 +506,7 @@ public class BigQueryIOTest implements Serializable {
         "Invalid BigQuery read operation. Specifies a"
               + " table with a result flattening preference, which is not configurable");
     p.apply(
-        BigQueryIO.Read.named("ReadMyTable")
+        BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
             .withoutValidation()
             .withoutResultFlattening());
@@ -644,8 +629,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSink() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
-        .to("foo.com:project:somedataset.sometable");
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write.to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
@@ -655,8 +639,8 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildSinkwithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
-        .to("foo.com:project:somedataset.sometable").withoutValidation();
+    BigQueryIO.Write.Bound bound =
+        BigQueryIO.Write.to("foo.com:project:somedataset.sometable").withoutValidation();
     checkWriteObjectWithValidate(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, false);
@@ -664,8 +648,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSinkDefaultProject() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
-        .to("somedataset.sometable");
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write.to("somedataset.sometable");
     checkWriteObject(
         bound, null, "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
@@ -677,8 +660,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
-        .to(table);
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write.to(table);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
@@ -691,14 +673,14 @@ public class BigQueryIOTest implements Serializable {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("must set the table reference");
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.Write.named("WriteMyTable"));
+        .apply(BigQueryIO.Write.withoutValidation());
   }
 
   @Test
   public void testBuildSinkWithSchema() {
     TableSchema schema = new TableSchema();
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
-        .to("foo.com:project:somedataset.sometable").withSchema(schema);
+    BigQueryIO.Write.Bound bound =
+        BigQueryIO.Write.to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
         schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
@@ -706,7 +688,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSinkWithCreateDispositionNever() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
@@ -716,7 +698,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSinkWithCreateDispositionIfNeeded() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
@@ -726,7 +708,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSinkWithWriteDispositionTruncate() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
@@ -736,7 +718,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSinkWithWriteDispositionAppend() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
@@ -746,7 +728,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSinkWithWriteDispositionEmpty() {
-    BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
+    BigQueryIO.Write.Bound bound = BigQueryIO.Write
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
@@ -794,7 +776,7 @@ public class BigQueryIOTest implements Serializable {
         Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
             .or(Matchers.containsString("BigQuery dataset not found for table")));
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
-     .apply(BigQueryIO.Write.named("WriteMyTable")
+     .apply(BigQueryIO.Write
          .to(tableRef)
          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
          .withSchema(new TableSchema()));
@@ -878,8 +860,6 @@ public class BigQueryIOTest implements Serializable {
   public void testBigQueryIOGetName() {
     assertEquals("BigQueryIO.Read", BigQueryIO.Read.from("somedataset.sometable").getName());
     assertEquals("BigQueryIO.Write", BigQueryIO.Write.to("somedataset.sometable").getName());
-    assertEquals("ReadMyTable", BigQueryIO.Read.named("ReadMyTable").getName());
-    assertEquals("WriteMyTable", BigQueryIO.Write.named("WriteMyTable").getName());
   }
 
   @Test
@@ -915,7 +895,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage("must set the table reference of a BigQueryIO.Write transform");
     TestPipeline.create()
         .apply(Create.<TableRow>of())
-        .apply(BigQueryIO.Write.named("name"));
+        .apply("name", BigQueryIO.Write.withoutValidation());
   }
 
   @Test

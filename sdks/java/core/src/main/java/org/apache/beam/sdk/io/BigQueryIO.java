@@ -518,7 +518,6 @@ public class BigQueryIO {
               + " query without a result flattening preference");
         }
 
-        // Only verify existence/correctness if validation is enabled.
         if (validate) {
           // Check for source table/query presence for early failure notification.
           // Note that a presence check can fail if the table or dataset are created by earlier

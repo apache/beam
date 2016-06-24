@@ -132,7 +132,7 @@ public class KafkaWindowedWordCountExample {
         new SimpleStringSchema(), p);
 
     PCollection<String> words = pipeline
-        .apply(Read.named("StreamingWordCount").from(UnboundedFlinkSource.of(kafkaConsumer)))
+        .apply("StreamingWordCount", Read.from(UnboundedFlinkSource.of(kafkaConsumer)))
         .apply(ParDo.of(new ExtractWordsFn()))
         .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(options.getWindowSize())))
             .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
