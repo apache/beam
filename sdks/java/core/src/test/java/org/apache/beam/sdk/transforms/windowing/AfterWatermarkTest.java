@@ -346,28 +346,24 @@ public class AfterWatermarkTest {
 
   @Test
   public void testEarlyFiringsToString() {
-    Trigger trigger = AfterWatermark.pastEndOfWindow()
-        .withEarlyFirings(StubTrigger.named("t1"))
-        .buildTrigger();
+    Trigger trigger = AfterWatermark.pastEndOfWindow().withEarlyFirings(StubTrigger.named("t1"));
 
     assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1)", trigger.toString());
   }
 
   @Test
   public void testLateFiringsToString() {
-    Trigger trigger = AfterWatermark.pastEndOfWindow()
-        .withLateFirings(StubTrigger.named("t1"))
-        .buildTrigger();
+    Trigger trigger = AfterWatermark.pastEndOfWindow().withLateFirings(StubTrigger.named("t1"));
 
     assertEquals("AfterWatermark.pastEndOfWindow().withLateFirings(t1)", trigger.toString());
   }
 
   @Test
   public void testEarlyAndLateFiringsToString() {
-    Trigger trigger = AfterWatermark.pastEndOfWindow()
-        .withEarlyFirings(StubTrigger.named("t1"))
-        .withLateFirings(StubTrigger.named("t2"))
-        .buildTrigger();
+    Trigger trigger =
+        AfterWatermark.pastEndOfWindow()
+            .withEarlyFirings(StubTrigger.named("t1"))
+            .withLateFirings(StubTrigger.named("t2"));
 
     assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
         trigger.toString());
@@ -375,10 +371,10 @@ public class AfterWatermarkTest {
 
   @Test
   public void testToStringExcludesNeverTrigger() {
-    Trigger trigger = AfterWatermark.pastEndOfWindow()
-        .withEarlyFirings(Never.ever())
-        .withLateFirings(Never.ever())
-        .buildTrigger();
+    Trigger trigger =
+        AfterWatermark.pastEndOfWindow()
+            .withEarlyFirings(Never.ever())
+            .withLateFirings(Never.ever());
 
     assertEquals("AfterWatermark.pastEndOfWindow()", trigger.toString());
   }
