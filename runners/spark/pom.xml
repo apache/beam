@@ -203,7 +203,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
       <exclusions>
-        <!-- Use Hadoop/Spark's backend logger -->
+        <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
@@ -214,7 +214,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
       <exclusions>
-        <!-- Use Hadoop/Spark's backend logger -->
+        <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
@@ -225,7 +225,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-examples-java</artifactId>
       <exclusions>
-        <!-- Use Hadoop/Spark's backend logger -->
+        <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
