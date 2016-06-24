@@ -25,7 +25,7 @@ public class PeriodicTimeTrigger implements Trigger {
     long start = now - (now + interval) % interval;
 
     if (scheduleNext(start, w, ctx)) {
-      return TriggerResult.CONTINUE;
+      return TriggerResult.NOOP;
     }
 
     return TriggerResult.PASSED;

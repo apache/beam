@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
-import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggering;
+import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -592,7 +592,7 @@ public class InMemExecutorTest {
         .persist(outputs);
 
     // watermarking 100 ms
-    executor.setTriggering(new WatermarkTriggering(100));
+    executor.setTriggering(new WatermarkTriggerScheduler(100));
     
     // run the executor in separate thread in order to be able to watch
     // the partial results
@@ -653,7 +653,7 @@ public class InMemExecutorTest {
         .persist(outputs);
 
     // watermarking 100 ms
-    executor.setTriggering(new WatermarkTriggering(100));
+    executor.setTriggering(new WatermarkTriggerScheduler(100));
 
     executor.waitForCompletion(flow);
 

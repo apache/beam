@@ -1,9 +1,9 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 /**
- * A triggering in local JVM based on processing time.
+ * Trigger scheduler based on real wall-clock time (processing time).
  */
-public class ProcessingTimeTriggering extends AbstractTriggering {
+public class ProcessingTimeTriggerScheduler extends AbstractTriggerScheduler {
 
   @Override
   public long getCurrentTimestamp() {

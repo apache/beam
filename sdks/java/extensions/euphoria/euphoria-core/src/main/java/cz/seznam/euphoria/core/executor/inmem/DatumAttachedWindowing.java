@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 

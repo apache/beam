@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.executor.inmem;
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
-import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -249,20 +249,20 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       WindowStorage wStore =
               wRegistry.getWindow(w.getGroup(), w.getLabel());
       if (wStore == null) {
-        Trigger.TriggerResult triggerState = Trigger.TriggerResult.CONTINUE;
+        Trigger.TriggerResult triggerState = Trigger.TriggerResult.NOOP;
         if (!isBounded) {
-          // ~ default policy is to CONTINUE with current window
-          triggerState = Trigger.TriggerResult.CONTINUE;
+          // ~ default policy is to NOOP with current window
+          triggerState = Trigger.TriggerResult.NOOP;
 
           // ~ give the window a chance to register triggers
           List<Trigger> triggers = w.createTriggers();
-          if (triggers.size() > 0) {
+          if (!triggers.isEmpty()) {
             // ~ default policy for time-triggered window
             triggerState = Trigger.TriggerResult.PASSED;
           }
           for (Trigger t : triggers) {
             Trigger.TriggerResult result = t.init(w, this);
-            if (result == Trigger.TriggerResult.CONTINUE) {
+            if (result == Trigger.TriggerResult.NOOP) {
               triggerState = result;
             }
           }
@@ -434,14 +434,13 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     eowBroadcast.notifyEndOfWindow(eow, this,
         eowPeers == null ? Collections.emptyList() : eowPeers);
 
-    Collection<State> evicted;
     synchronized (processing) {
       if (!processing.active) {
         return;
       }
-      evicted = processing.flushWindowStates(window);
+      Collection<State> evicted = processing.flushWindowStates(window);
+      evicted.stream().forEachOrdered(State::flush);
     }
-    evicted.stream().forEachOrdered(State::flush);
     processing.stateOutput.collect(eow);
   }
 

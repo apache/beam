@@ -5,7 +5,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.Window;
-import cz.seznam.euphoria.core.client.triggers.TriggerScheduler;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,21 +23,23 @@ import java.util.concurrent.TimeUnit;
 /**
  * Base class for various time triggering strategies
  */
-public abstract class AbstractTriggering implements TriggerScheduler {
+public abstract class AbstractTriggerScheduler implements TriggerScheduler {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractTriggering.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractTriggerScheduler.class);
 
   private transient ScheduledThreadPoolExecutor scheduler;
   private final Multimap<Window, ScheduledTriggerTask> activeTasks =
           Multimaps.synchronizedMultimap(ArrayListMultimap.create());
 
-  public AbstractTriggering() {
+  public AbstractTriggerScheduler() {
     this.initializeScheduler();
   }
 
   private void initializeScheduler() {
     ThreadFactory namedThreadFactory = new ThreadFactoryBuilder()
-            .setNameFormat("trigger-%d").build();
+            .setNameFormat("trigger-%d")
+            .setDaemon(true)
+            .build();
 
     this.scheduler = new ScheduledThreadPoolExecutor(1, namedThreadFactory);
     scheduler.setRemoveOnCancelPolicy(true);
@@ -117,7 +119,7 @@ public abstract class AbstractTriggering implements TriggerScheduler {
     public Void call() {
       try {
         trigger.fire(timestamp, window);
-        AbstractTriggering.this.activeTasks.remove(window, this);
+        AbstractTriggerScheduler.this.activeTasks.remove(window, this);
       } catch (Exception e) {
         LOG.warn("Firing trigger " + trigger + " failed!", e);
       }

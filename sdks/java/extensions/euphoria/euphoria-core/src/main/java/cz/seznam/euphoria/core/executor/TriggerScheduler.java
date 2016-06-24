@@ -1,7 +1,8 @@
 
-package cz.seznam.euphoria.core.client.triggers;
+package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.triggers.Triggerable;
 
 import java.io.Serializable;
 import java.util.concurrent.ScheduledFuture;

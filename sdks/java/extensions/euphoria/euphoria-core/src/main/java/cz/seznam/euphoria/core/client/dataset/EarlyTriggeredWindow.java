@@ -5,7 +5,10 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.time.Duration;
 
-public abstract class EarlyTriggeredWindow {
+/**
+ * Decorates {@link Window} with early triggering ability.
+ */
+abstract class EarlyTriggeredWindow {
 
   private Trigger earlyTrigger;
 

@@ -16,5 +16,9 @@ public interface TriggerContext {
    */
   boolean scheduleTriggerAt(long stamp, Window w, Trigger trigger);
 
+  /**
+   * Return current timestamp from runtime (may be different from real
+   * clock time).
+   */
   long getCurrentTimestamp();
 }
