@@ -159,21 +159,6 @@ public class Window {
   }
 
   /**
-   * Creates a {@code Window} {@code PTransform} with the given name.
-   *
-   * <p>See the discussion of Naming in
-   * {@link org.apache.beam.sdk.transforms.ParDo} for more explanation.
-   *
-   * <p>The resulting {@code PTransform} is incomplete, and its input/output
-   * type is not yet bound.  Use {@link Window.Unbound#into} to specify the
-   * {@link WindowFn} to use, which will also bind the input/output type of this
-   * {@code PTransform}.
-   */
-  public static Unbound named(String name) {
-    return new Unbound().named(name);
-  }
-
-  /**
    * Creates a {@code Window} {@code PTransform} that uses the given
    * {@link WindowFn} to window the data.
    *
@@ -252,19 +237,6 @@ public class Window {
 
     Unbound(String name) {
       this.name = name;
-    }
-
-    /**
-     * Returns a new {@code Window} transform that's like this
-     * transform but with the specified name.  Does not modify this
-     * transform.  The resulting transform is still incomplete.
-     *
-     * <p>See the discussion of Naming in
-     * {@link org.apache.beam.sdk.transforms.ParDo} for more
-     * explanation.
-     */
-    public Unbound named(String name) {
-      return new Unbound(name);
     }
 
     /**
@@ -403,20 +375,6 @@ public class Window {
         throw new IllegalArgumentException("Window coders must be deterministic.", e);
       }
 
-      return new Bound<>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
-    }
-
-    /**
-     * Returns a new {@code Window} {@code PTransform} that's like this
-     * {@code PTransform} but with the specified name.  Does not
-     * modify this {@code PTransform}.
-     *
-     * <p>See the discussion of Naming in
-     * {@link org.apache.beam.sdk.transforms.ParDo} for more
-     * explanation.
-     */
-    public Bound<T> named(String name) {
       return new Bound<>(
           name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
