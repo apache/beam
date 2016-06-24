@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.TriggerBuilder;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
@@ -131,12 +130,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
-      nonCombining(WindowFn<?, W> windowFn, TriggerBuilder trigger, AccumulationMode mode,
+      nonCombining(WindowFn<?, W> windowFn, Trigger trigger, AccumulationMode mode,
           Duration allowedDataLateness, ClosingBehavior closingBehavior) throws Exception {
     WindowingStrategy<?, W> strategy =
         WindowingStrategy.of(windowFn)
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger(trigger.buildTrigger())
+            .withTrigger(trigger)
             .withMode(mode)
             .withAllowedLateness(allowedDataLateness)
             .withClosingBehavior(closingBehavior);

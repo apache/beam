@@ -87,7 +87,7 @@ import javax.annotation.Nullable;
  *
  * <h2> Triggers </h2>
  *
- * <p>{@link Window.Bound#triggering(TriggerBuilder)} allows specifying a trigger to control when
+ * <p>{@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
  * (in processing time) results for the given window can be produced. If unspecified, the default
  * behavior is to trigger first when the watermark passes the end of the window, and then trigger
  * again every time there is late arriving data.
@@ -195,7 +195,7 @@ public class Window {
    * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
   @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> triggering(TriggerBuilder trigger) {
+  public static <T> Bound<T> triggering(Trigger trigger) {
     return new Unbound().triggering(trigger);
   }
 
@@ -290,7 +290,7 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public <T> Bound<T> triggering(TriggerBuilder trigger) {
+    public <T> Bound<T> triggering(Trigger trigger) {
       return new Bound<T>(name).triggering(trigger);
     }
 
@@ -433,11 +433,11 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public Bound<T> triggering(TriggerBuilder trigger) {
+    public Bound<T> triggering(Trigger trigger) {
       return new Bound<T>(
           name,
           windowFn,
-          trigger.buildTrigger(),
+          trigger,
           mode,
           allowedLateness,
           closingBehavior,

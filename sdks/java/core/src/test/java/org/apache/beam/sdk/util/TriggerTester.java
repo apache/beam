@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.TriggerBuilder;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ActiveWindowSet.MergeCallback;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
@@ -108,7 +107,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final Map<W, W> windowToMergeResult;
 
   /**
-   * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link TriggerBuilder}
+   * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link Trigger}
    * under test.
    */
   private final ExecutableTrigger executableTrigger;
@@ -119,10 +118,10 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final Map<W, FinishedTriggers> finishedSets;
 
   public static <W extends BoundedWindow> SimpleTriggerTester<W> forTrigger(
-      TriggerBuilder trigger, WindowFn<Object, W> windowFn)
+      Trigger trigger, WindowFn<Object, W> windowFn)
           throws Exception {
     WindowingStrategy<Object, W> windowingStrategy =
-        WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
+        WindowingStrategy.of(windowFn).withTrigger(trigger)
         // Merging requires accumulation mode or early firings can break up a session.
         // Not currently an issue with the tester (because we never GC) but we don't want
         // mystery failures due to violating this need.
@@ -134,9 +133,9 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   }
 
   public static <InputT, W extends BoundedWindow> TriggerTester<InputT, W> forAdvancedTrigger(
-      TriggerBuilder trigger, WindowFn<Object, W> windowFn) throws Exception {
+      Trigger trigger, WindowFn<Object, W> windowFn) throws Exception {
     WindowingStrategy<Object, W> strategy =
-        WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
+        WindowingStrategy.of(windowFn).withTrigger(trigger)
         // Merging requires accumulation mode or early firings can break up a session.
         // Not currently an issue with the tester (because we never GC) but we don't want
         // mystery failures due to violating this need.
