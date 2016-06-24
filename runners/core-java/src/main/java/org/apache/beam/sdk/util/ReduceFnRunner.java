@@ -236,7 +236,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.triggerRunner =
         new TriggerRunner<>(
             windowingStrategy.getTrigger(),
-            new TriggerContextFactory<>(windowingStrategy, stateInternals, activeWindows));
+            new TriggerContextFactory<>(
+                windowingStrategy.getWindowFn(), stateInternals, activeWindows));
   }
 
   private ActiveWindowSet<W> createActiveWindowSet() {

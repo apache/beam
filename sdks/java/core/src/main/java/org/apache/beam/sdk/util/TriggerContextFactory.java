@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.MergingTriggerInfo;
 import org.apache.beam.sdk.transforms.windowing.Trigger.TriggerInfo;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateAccessor;
@@ -50,19 +51,19 @@ import javax.annotation.Nullable;
  */
 public class TriggerContextFactory<W extends BoundedWindow> {
 
-  private final WindowingStrategy<?, W> windowingStrategy;
+  private final WindowFn<?, W> windowFn;
   private StateInternals<?> stateInternals;
   // Future triggers may be able to exploit the active window to state address window mapping.
   @SuppressWarnings("unused")
   private ActiveWindowSet<W> activeWindows;
   private final Coder<W> windowCoder;
 
-  public TriggerContextFactory(WindowingStrategy<?, W> windowingStrategy,
+  public TriggerContextFactory(WindowFn<?, W> windowFn,
       StateInternals<?> stateInternals, ActiveWindowSet<W> activeWindows) {
-    this.windowingStrategy = windowingStrategy;
+    this.windowFn = windowFn;
     this.stateInternals = stateInternals;
     this.activeWindows = activeWindows;
-    this.windowCoder = windowingStrategy.getWindowFn().windowCoder();
+    this.windowCoder = windowFn.windowCoder();
   }
 
   public Trigger.TriggerContext base(W window, Timers timers,
@@ -106,7 +107,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     @Override
     public boolean isMerging() {
-      return !windowingStrategy.getWindowFn().isNonMerging();
+      return !windowFn.isNonMerging();
     }
 
     @Override
