@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark;
+package org.apache.beam.examples;
 
 import org.apache.beam.examples.complete.TfIdf;
+import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
@@ -30,20 +34,23 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.net.URI;
 import java.util.Arrays;
 
 /**
- * A test based on {@code TfIdf} from the SDK.
+ * End-to-end tests of {@link TfIdf}.
  */
-public class TfIdfTest {
+@RunWith(JUnit4.class)
+public class TfIdfIT {
 
   @Test
-  public void testTfIdf() throws Exception {
-    SparkPipelineOptions opts = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    opts.setRunner(SparkRunner.class);
-    Pipeline pipeline = Pipeline.create(opts);
+  public void testE2ETfIdfSpark() throws Exception {
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    Pipeline pipeline = TestPipeline.create(options);
 
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
@@ -63,5 +70,4 @@ public class TfIdfTest {
     EvaluationResult res = SparkRunner.create().run(pipeline);
     res.close();
   }
-
 }
