@@ -344,6 +344,15 @@ public class AfterWatermarkTest {
   }
 
   @Test
+  public void testEarlyFiringsToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withEarlyFirings(StubTrigger.named("t1"))
+        .buildTrigger();
+
+    assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1)", trigger.toString());
+  }
+
+  @Test
   public void testLateFiringsToString() {
     Trigger trigger = AfterWatermark.pastEndOfWindow()
         .withLateFirings(StubTrigger.named("t1"))
