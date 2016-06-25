@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark.translation;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -66,24 +65,16 @@ public class SideEffectsTest implements Serializable {
       fail("Run should thrown an exception");
     } catch (RuntimeException e) {
       assertNotNull(e.getCause());
-
-      // TODO: remove the version check (and the setup and teardown methods) when we no
-      // longer support Spark 1.3 or 1.4
-      String version = SparkContextFactory.getSparkContext(options.getSparkMaster(),
-          options.getAppName()).version();
-      if (!version.startsWith("1.3.") && !version.startsWith("1.4.")) {
-        assertTrue(e.getCause() instanceof UserException);
-      }
     }
   }
 
   @Before
   public void setup() {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, "true");
+    System.setProperty(SparkSessionFactory.TEST_REUSE_SPARK_CONTEXT, "true");
   }
 
   @After
   public void teardown() {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, "false");
+    System.setProperty(SparkSessionFactory.TEST_REUSE_SPARK_CONTEXT, "false");
   }
 }

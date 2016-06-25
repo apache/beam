@@ -40,7 +40,7 @@ import com.google.common.collect.Iterables;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SparkSession;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -53,8 +53,7 @@ import java.util.Set;
  * Evaluation context for batch using {@link Dataset}s.
  */
 public class DatasetEvaluationContext implements EvaluationContext {
-  private final JavaSparkContext jsc;
-  private final SQLContext sqc;
+  private final SparkSession session;
   private final Pipeline pipeline;
   private final SparkRuntimeContext runtime;
   private final Map<PValue, DatasetHolder<?>> pcollections = new LinkedHashMap<>();
@@ -64,11 +63,10 @@ public class DatasetEvaluationContext implements EvaluationContext {
   private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   protected AppliedPTransform<?, ?, ?> currentTransform;
 
-  public DatasetEvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.jsc = jsc;
-    this.sqc = new SQLContext(jsc);
+  public DatasetEvaluationContext(SparkSession session, Pipeline pipeline) {
+    this.session = session;
     this.pipeline = pipeline;
-    this.runtime = new SparkRuntimeContext(jsc, pipeline);
+    this.runtime = new SparkRuntimeContext(new JavaSparkContext(session.sparkContext()), pipeline);
   }
 
   /**
@@ -97,7 +95,7 @@ public class DatasetEvaluationContext implements EvaluationContext {
     Dataset<WindowedValue<T>> getDataset() {
       if (dataset == null) {
         //TODO: optimize by sending bytes + coder and transforming on the node ?
-        dataset = sqc.createDataset(windowedValues, EncoderHelpers.<WindowedValue<T>>encoder());
+        dataset = session.createDataset(windowedValues, EncoderHelpers.<WindowedValue<T>>encoder());
       }
       return dataset;
     }
@@ -111,12 +109,8 @@ public class DatasetEvaluationContext implements EvaluationContext {
     }
   }
 
-  protected JavaSparkContext getSparkContext() {
-    return jsc;
-  }
-
-  public SQLContext getSqc() {
-    return sqc;
+  SparkSession getSession() {
+    return session;
   }
 
   public Pipeline getPipeline() {
@@ -166,11 +160,6 @@ public class DatasetEvaluationContext implements EvaluationContext {
     pview.put(view, value);
   }
 
-  protected boolean hasOutputDataset(PTransform<? extends PInput, ?> transform) {
-    PValue pvalue = (PValue) getOutput(transform);
-    return pcollections.containsKey(pvalue);
-  }
-
   protected Dataset<?> getDataset(PValue pvalue) {
     DatasetHolder<?> datasetHolder = pcollections.get(pvalue);
     Dataset<?> dataset = datasetHolder.getDataset();
@@ -218,15 +207,13 @@ public class DatasetEvaluationContext implements EvaluationContext {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T get(PValue value) {
     if (pobjects.containsKey(value)) {
-      @SuppressWarnings("unchecked")
-      T result = (T) pobjects.get(value);
-      return result;
+      return (T) pobjects.get(value);
     }
     if (pcollections.containsKey(value)) {
       Dataset<?> dataset = pcollections.get(value).getDataset();
-      @SuppressWarnings("unchecked")
       T res = (T) Iterables.getOnlyElement(dataset.collectAsList());
       pobjects.put(value, res);
       return res;
@@ -261,7 +248,7 @@ public class DatasetEvaluationContext implements EvaluationContext {
 
   @Override
   public void close() {
-    SparkContextFactory.stopSparkContext(jsc);
+    SparkSessionFactory.stopSparkSession(session);
   }
 
   /** The runner is blocking. */

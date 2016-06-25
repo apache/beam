@@ -46,6 +46,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
@@ -82,6 +83,7 @@ public class DatasetTransformTranslator {
       @SuppressWarnings("unchecked")
       public void evaluate(GroupByKeyOnly<K, V> transform, EvaluationContext context) {
         DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
         Dataset<WindowedValue<KV<K, V>>> inputDataset =
             (Dataset<WindowedValue<KV<K, V>>>) dec.getInputDataset(transform);
         // extract key to group by key only.
@@ -109,8 +111,8 @@ public class DatasetTransformTranslator {
       @SuppressWarnings("unchecked")
       public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context) {
         DatasetEvaluationContext dec = datasetEvaluationContext(context);
-        PCollectionList<T> pCollectionList = context.getInput(transform);
 
+        PCollectionList<T> pCollectionList = context.getInput(transform);
         int size = pCollectionList.size();
         if (size == 0) {
           throw new IllegalArgumentException("Cannot flatten an empty PCollectionList");
@@ -143,7 +145,6 @@ public class DatasetTransformTranslator {
             (Dataset<WindowedValue<InputT>>) dec.getInputDataset(transform);
         dec.setOutputDataset(transform, inputDataset.mapPartitions(doFn,
             EncoderHelpers.<WindowedValue<OutputT>>encoder()));
-
       }
     };
   }
@@ -156,6 +157,7 @@ public class DatasetTransformTranslator {
       @SuppressWarnings("unchecked")
       public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
         DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
         Dataset<WindowedValue<T>> inputDataset = (Dataset<WindowedValue<T>>)
             dec.getInputDataset(transform);
 
@@ -203,6 +205,7 @@ public class DatasetTransformTranslator {
       @Override
       public void evaluate(PTransform<?, ?> transform, EvaluationContext context) {
         DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
         Iterable<? extends WindowedValue<?>> iter =
             dec.getWindowedValues((PCollection<?>) dec.getInput(transform));
         dec.setPView((PCollectionView<?>) dec.getOutput(transform), iter);
@@ -282,9 +285,9 @@ public class DatasetTransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal = view.getCoderInternal();
         @SuppressWarnings("unchecked")
         BroadcastHelper<?> helper =
-                BroadcastHelper.create((Iterable<WindowedValue<?>>) collectionView, coderInternal);
+            BroadcastHelper.create((Iterable<WindowedValue<?>>) collectionView, coderInternal);
         //broadcast side inputs
-        helper.broadcast(context.getSparkContext());
+        helper.broadcast(new JavaSparkContext(context.getSession().sparkContext()));
         sideInputs.put(view.getTagInternal(), helper);
       }
       return sideInputs;

@@ -20,56 +20,50 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.coders.ImmutablesRegistrator;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
+import org.apache.spark.sql.SparkSession;
 
 /**
  * The Spark context factory.
  */
-public final class SparkContextFactory {
+public final class SparkSessionFactory {
 
   /**
-   * If the property {@code dataflow.spark.test.reuseSparkContext} is set to
-   * {@code true} then the Spark context will be reused for dataflow pipelines.
+   * If the property {@code beam.spark.test.reuseSparkContext} is set to
+   * {@code true} then the Spark context will be reused for beam pipelines.
    * This property should only be enabled for tests.
    */
-  static final String TEST_REUSE_SPARK_CONTEXT = "dataflow.spark.test.reuseSparkContext";
-  private static JavaSparkContext sparkContext;
-  private static String sparkMaster;
+  static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";
 
-  private SparkContextFactory() {
+  private SparkSessionFactory() {
   }
 
-  public static synchronized JavaSparkContext getSparkContext(String master, String appName) {
-    if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
-      if (sparkContext == null) {
-        sparkContext = createSparkContext(master, appName);
-        sparkMaster = master;
-      } else if (!master.equals(sparkMaster)) {
-        throw new IllegalArgumentException(String.format("Cannot reuse spark context "
-            + "with different spark master URL. Existing: %s, requested: %s.",
-            sparkMaster, master));
-      }
-      return sparkContext;
-    } else {
-      return createSparkContext(master, appName);
-    }
+  public static SparkSession createSparkSession(String master, String appName) {
+    return create(master, appName, defaultConfig());
   }
 
-  static synchronized void stopSparkContext(JavaSparkContext context) {
+  private static synchronized SparkSession create(String master, String appName, SparkConf conf) {
+    // SparkSession supports reuse with getOrCreate()
+    return SparkSession.builder()
+        .master(master)
+        .appName(appName)
+        .config(conf)
+        .getOrCreate();
+  }
+
+  static synchronized void stopSparkSession(SparkSession session) {
+    // avoid stopping the context when reuse is wanted.
     if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
-      context.stop();
+      session.stop();
     }
   }
 
-  private static JavaSparkContext createSparkContext(String master, String appName) {
+  private static SparkConf defaultConfig() {
     SparkConf conf = new SparkConf();
-    conf.setMaster(master);
-    conf.setAppName(appName);
     conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     // register immutable collections serializers because the SDK uses them and they will be
     // used by Dataset Encoders
     conf.set("spark.kryo.registrator", ImmutablesRegistrator.class.getCanonicalName());
-    return new JavaSparkContext(conf);
+    return conf;
   }
 }

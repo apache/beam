@@ -43,6 +43,7 @@ import com.google.common.collect.Iterables;
 
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +60,7 @@ import java.util.Set;
 public class BatchEvaluationContext implements EvaluationContext {
   protected static final Logger LOG = LoggerFactory.getLogger(BatchEvaluationContext.class);
 
+  private final SparkSession session;
   private final JavaSparkContext jsc;
   private final Pipeline pipeline;
   private final SparkRuntimeContext runtime;
@@ -69,8 +71,9 @@ public class BatchEvaluationContext implements EvaluationContext {
   private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   protected AppliedPTransform<?, ?, ?> currentTransform;
 
-  public BatchEvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.jsc = jsc;
+  public BatchEvaluationContext(SparkSession session, Pipeline pipeline) {
+    this.session = session;
+    this.jsc = new JavaSparkContext(session.sparkContext());
     this.pipeline = pipeline;
     this.runtime = new SparkRuntimeContext(jsc, pipeline);
   }
@@ -281,7 +284,7 @@ public class BatchEvaluationContext implements EvaluationContext {
 
   @Override
   public void close() {
-    SparkContextFactory.stopSparkContext(jsc);
+    SparkSessionFactory.stopSparkSession(session);
   }
 
   /** The runner is blocking. */

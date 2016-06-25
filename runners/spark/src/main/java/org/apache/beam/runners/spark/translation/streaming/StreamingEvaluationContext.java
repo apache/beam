@@ -33,6 +33,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -55,9 +56,9 @@ public class StreamingEvaluationContext extends BatchEvaluationContext {
   private final Map<PValue, DStreamHolder<?>> pstreams = new LinkedHashMap<>();
   private final Set<DStreamHolder<?>> leafStreams = new LinkedHashSet<>();
 
-  public StreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
+  public StreamingEvaluationContext(SparkSession session, Pipeline pipeline,
       JavaStreamingContext jssc, long timeout) {
-    super(jsc, pipeline);
+    super(session, pipeline);
     this.jssc = jssc;
     this.timeout = timeout;
   }
