@@ -19,13 +19,17 @@ import com.google.cloud.dataflow.sdk.io.Read.Unbounded;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.CheckpointMark;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.annotations.VisibleForTesting;
+
+import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -40,6 +44,10 @@ import javax.annotation.Nullable;
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
  */
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
+  // Resume from a checkpoint every nth invocation, to ensure close-and-resume is exercised
+  @VisibleForTesting
+  static final int MAX_READER_REUSE_COUNT = 20;
+
   /*
    * An evaluator for a Source is stateful, to ensure the CheckpointMark is properly persisted.
    * Evaluators are cached here to ensure that the checkpoint mark is appropriately reused
@@ -51,7 +59,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * an arbitrary Queue implementation does not, so the concrete type is used explicitly.
    */
   private final ConcurrentMap<
-      EvaluatorKey, ConcurrentLinkedQueue<? extends UnboundedReadEvaluator<?>>>
+      EvaluatorKey, ConcurrentLinkedQueue<? extends UnboundedReadEvaluator<?, ?>>>
       sourceEvaluators = new ConcurrentHashMap<>();
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -76,29 +84,33 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * already done so.
    */
   @SuppressWarnings("unchecked")
-  private <OutputT> Queue<UnboundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
+  private <OutputT, CheckpointMarkT extends CheckpointMark>
+  Queue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> getTransformEvaluatorQueue(
       final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
       final InProcessEvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
     EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
     @SuppressWarnings("unchecked")
-    ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT>> evaluatorQueue =
-        (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
+    ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue =
+        (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
+            sourceEvaluators.get(key);
     if (evaluatorQueue == null) {
       evaluatorQueue = new ConcurrentLinkedQueue<>();
       if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
-        UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
-        UnboundedReadEvaluator<OutputT> evaluator =
-            new UnboundedReadEvaluator<OutputT>(
+        UnboundedSource<OutputT, CheckpointMarkT> source =
+            (UnboundedSource<OutputT, CheckpointMarkT>) transform.getTransform().getSource();
+        UnboundedReadEvaluator<OutputT, CheckpointMarkT> evaluator =
+            new UnboundedReadEvaluator<>(
                 transform, evaluationContext, source, evaluatorQueue);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
         evaluatorQueue =
-            (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
+            (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
+                sourceEvaluators.get(key);
       }
     }
     return evaluatorQueue;
@@ -114,27 +126,38 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * checkpoint, and constructs its reader from the current checkpoint in each call to
    * {@link #finishBundle()}.
    */
-  private static class UnboundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
+  private static class UnboundedReadEvaluator<OutputT, CheckpointMarkT extends CheckpointMark>
+      implements TransformEvaluator<Object> {
     private static final int ARBITRARY_MAX_ELEMENTS = 10;
+
     private final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform;
     private final InProcessEvaluationContext evaluationContext;
-    private final ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT>> evaluatorQueue;
+    private final ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>
+        evaluatorQueue;
     /**
      * The source being read from by this {@link UnboundedReadEvaluator}. This may not be the same
      * source as derived from {@link #transform} due to splitting.
      */
-    private final UnboundedSource<OutputT, ?> source;
-    private CheckpointMark checkpointMark;
+    private final UnboundedSource<OutputT, CheckpointMarkT> source;
+    private UnboundedReader<OutputT> currentReader;
+    private CheckpointMarkT checkpointMark;
+
+    /**
+     * The count of bundles output from this {@link UnboundedReadEvaluator}. Used to exercise
+     * {@link UnboundedReader#close()}.
+     */
+    private int outputBundles = 0;
 
     public UnboundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
         InProcessEvaluationContext evaluationContext,
-        UnboundedSource<OutputT, ?> source,
-        ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT>> evaluatorQueue) {
+        UnboundedSource<OutputT, CheckpointMarkT> source,
+        ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
       this.evaluatorQueue = evaluatorQueue;
       this.source = source;
+      this.currentReader = null;
       this.checkpointMark = null;
     }
 
@@ -144,36 +167,92 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
-      try (UnboundedReader<OutputT> reader =
-              createReader(source, evaluationContext.getPipelineOptions());) {
-        int numElements = 0;
-        if (reader.start()) {
+      try {
+        boolean elementAvailable = startReader();
+
+        Instant watermark = currentReader.getWatermark();
+        if (elementAvailable) {
+          int numElements = 0;
           do {
-            output.add(
-                WindowedValue.timestampedValueInGlobalWindow(
-                    reader.getCurrent(), reader.getCurrentTimestamp()));
+            output.add(WindowedValue.timestampedValueInGlobalWindow(currentReader.getCurrent(),
+                currentReader.getCurrentTimestamp()));
             numElements++;
-          } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
+          } while (numElements < ARBITRARY_MAX_ELEMENTS && currentReader.advance());
+          watermark = currentReader.getWatermark();
+          // Only take a checkpoint if we did any work
+          finishRead();
         }
-        checkpointMark = reader.getCheckpointMark();
-        checkpointMark.finalizeCheckpoint();
         // TODO: When exercising create initial splits, make this the minimum watermark across all
         // existing readers
         StepTransformResult result =
-            StepTransformResult.withHold(transform, reader.getWatermark())
-                .addOutput(output)
-                .build();
+            StepTransformResult.withHold(transform, watermark).addOutput(output).build();
         evaluatorQueue.offer(this);
         return result;
+      } catch (IOException e) {
+        closeReader();
+        throw e;
       }
     }
 
-    private <CheckpointMarkT extends CheckpointMark> UnboundedReader<OutputT> createReader(
-        UnboundedSource<OutputT, CheckpointMarkT> source, PipelineOptions options) {
+    private boolean startReader() throws IOException {
+      if (currentReader == null) {
+        if (checkpointMark != null) {
+          checkpointMark.finalizeCheckpoint();
+        }
+        currentReader = source.createReader(evaluationContext.getPipelineOptions(), checkpointMark);
+        checkpointMark = null;
+        return currentReader.start();
+      } else {
+        return currentReader.advance();
+      }
+    }
+
+    /**
+     * Checkpoint the current reader, finalize the previous checkpoint, and update the state of this
+     * evaluator.
+     */
+    private void finishRead() throws IOException {
+      final CheckpointMark oldMark = checkpointMark;
       @SuppressWarnings("unchecked")
-      CheckpointMarkT mark = (CheckpointMarkT) checkpointMark;
-      return source.createReader(options, mark);
+      final CheckpointMarkT mark = (CheckpointMarkT) currentReader.getCheckpointMark();
+      checkpointMark = mark;
+      if (oldMark != null) {
+        oldMark.finalizeCheckpoint();
+      }
+
+      // If the watermark is the max value, this source may not be invoked again. Finalize after
+      // committing the output.
+      if (!currentReader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        evaluationContext.scheduleAfterOutputWouldBeProduced(transform.getOutput(),
+            GlobalWindow.INSTANCE,
+            transform.getOutput().getWindowingStrategy(),
+            new Runnable() {
+              public void run() {
+                try {
+                  mark.finalizeCheckpoint();
+                } catch (IOException e) {
+                  throw new RuntimeException(
+                      "Couldn't finalize checkpoint after the end of the Global Window",
+                      e);
+                }
+              }
+            });
+      }
+      // Sometimes resume from a checkpoint even if it's not required
+
+      if (outputBundles >= MAX_READER_REUSE_COUNT) {
+        closeReader();
+        outputBundles = 0;
+      } else {
+        outputBundles++;
+      }
+    }
+
+    private void closeReader() throws IOException {
+      if (currentReader != null) {
+        currentReader.close();
+        currentReader = null;
+      }
     }
   }
 }
-

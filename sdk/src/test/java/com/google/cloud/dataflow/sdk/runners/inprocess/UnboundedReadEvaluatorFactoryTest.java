@@ -16,7 +16,6 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -41,7 +40,11 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+
+import com.google.common.collect.ContiguousSet;
+import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Range;
 
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
@@ -133,7 +136,29 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   @Test
-  public void evaluatorClosesReader() throws Exception {
+  public void evaluatorClosesReaderAfterOutputCount() throws Exception {
+    ContiguousSet<Long> elems = ContiguousSet.create(
+        Range.closed(0L, 20L * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT),
+        DiscreteDomain.longs());
+    TestUnboundedSource<Long> source =
+        new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<Long> pcollection = p.apply(Read.from(source));
+    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
+    when(context.createRootBundle(pcollection)).thenReturn(output);
+
+    for (int i = 0; i < UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT + 1; i++) {
+      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+      evaluator.finishBundle();
+    }
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+  }
+
+  @Test
+  public void evaluatorReusesReaderBeforeCount() throws Exception {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), 1L, 2L, 3L);
 
@@ -148,11 +173,18 @@ public class UnboundedReadEvaluatorFactoryTest {
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(ImmutableList.copyOf(committed.getElements()), hasSize(3));
-    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
+    assertThat(TestUnboundedSource.readerAdvancedCount, equalTo(4));
+
+    evaluator = factory.forApplication(sourceTransform, null, context);
+    evaluator.finishBundle();
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
+    // Tried to advance again, even with no elements
+    assertThat(TestUnboundedSource.readerAdvancedCount, equalTo(5));
   }
 
   @Test
-  public void evaluatorNoElementsClosesReader() throws Exception {
+  public void evaluatorNoElementsReusesReaderAlways() throws Exception {
     TestUnboundedSource<Long> source = new TestUnboundedSource<>(BigEndianLongCoder.of());
 
     TestPipeline p = TestPipeline.create();
@@ -162,11 +194,13 @@ public class UnboundedReadEvaluatorFactoryTest {
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
-    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
-    evaluator.finishBundle();
-    CommittedBundle<Long> committed = output.commit(Instant.now());
-    assertThat(committed.getElements(), emptyIterable());
-    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+    for (int i = 0; i < 2 * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT; i++) {
+      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+      evaluator.finishBundle();
+    }
+    assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
+    assertThat(TestUnboundedSource.readerAdvancedCount,
+        equalTo(2 * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT));
   }
 
   // TODO: Once the source is split into multiple sources before evaluating, this test will have to
@@ -212,10 +246,12 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   private static class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
     static int readerClosedCount;
+    static int readerAdvancedCount;
     private final Coder<T> coder;
     private final List<T> elems;
 
     public TestUnboundedSource(Coder<T> coder, T... elems) {
+      readerAdvancedCount = 0;
       readerClosedCount = 0;
       this.coder = coder;
       this.elems = Arrays.asList(elems);
@@ -263,6 +299,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public boolean advance() throws IOException {
+        readerAdvancedCount++;
         if (index + 1 < elems.size()) {
           index++;
           return true;
