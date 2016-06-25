@@ -27,8 +27,8 @@ import org.apache.beam.sdk.io.DatastoreIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
 import com.google.datastore.v1beta3.Entity;
@@ -45,10 +45,10 @@ public class DataflowDatastoreIOTest {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PInput, ? extends POutput> read = DatastoreIO.read().withProjectId(
+    PTransform<PBegin, ? extends POutput> read = DatastoreIO.read().withProjectId(
         "myProject").withQuery(Query.newBuilder().build());
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("DatastoreIO read should include the project in its primitive display data",
         displayData, hasItem(hasDisplayItem("projectId")));
   }

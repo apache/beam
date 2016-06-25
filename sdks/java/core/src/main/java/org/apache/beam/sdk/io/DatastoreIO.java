@@ -41,9 +41,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
@@ -135,7 +135,7 @@ import javax.annotation.Nullable;
  * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
  * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
- * {@code projectId} default may be used to by specifying it in the {@code Entity} {@code Keys}.
+ * {@code projectId} default may be used by specifying it in the {@code Entity} {@code Keys}.
  *
  * <pre>{@code
  * Key.Builder keyBuilder = DatastoreHelper.makeKey(...);
@@ -179,7 +179,7 @@ public class DatastoreIO {
    *
    * @see DatastoreIO
    */
-  public static class Read extends PTransform<PInput, PCollection<Entity>> {
+  public static class Read extends PTransform<PBegin, PCollection<Entity>> {
     @Nullable
     private final String projectId;
 
@@ -246,12 +246,12 @@ public class DatastoreIO {
     }
 
     @Override
-    public PCollection<Entity> apply(PInput input) {
-      return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(getSource()));
+    public PCollection<Entity> apply(PBegin input) {
+      return input.apply(org.apache.beam.sdk.io.Read.from(getSource()));
     }
 
     @Override
-    public void validate(PInput input) {
+    public void validate(PBegin input) {
       checkNotNull(projectId, "projectId");
       checkNotNull(query, "query");
     }
@@ -278,13 +278,13 @@ public class DatastoreIO {
     }
 
     @VisibleForTesting
-    Source getSource() {
-      return new Source(projectId, query, namespace);
+    DatastoreSource getSource() {
+      return new DatastoreSource(projectId, query, namespace);
     }
   }
 
   @VisibleForTesting
-  static class Source extends BoundedSource<Entity> {
+  static class DatastoreSource extends BoundedSource<Entity> {
 
     @Override
     public Coder<Entity> getDefaultOutputCoder() {
@@ -297,8 +297,8 @@ public class DatastoreIO {
     }
 
     @Override
-    public List<Source> splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
-        throws Exception {
+    public List<DatastoreSource> splitIntoBundles(long desiredBundleSizeBytes,
+        PipelineOptions options) throws Exception {
       // Users may request a limit on the number of results. We can currently support this by
       // simply disabling parallel reads and using only a single split.
       if (query.hasLimit()) {
@@ -327,9 +327,9 @@ public class DatastoreIO {
         return ImmutableList.of(this);
       }
 
-      ImmutableList.Builder<Source> splits = ImmutableList.builder();
+      ImmutableList.Builder<DatastoreSource> splits = ImmutableList.builder();
       for (Query splitQuery : datastoreSplits) {
-        splits.add(new Source(projectId, splitQuery, namespace));
+        splits.add(new DatastoreSource(projectId, splitQuery, namespace));
       }
       return splits.build();
     }
@@ -409,7 +409,7 @@ public class DatastoreIO {
           .toString();
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(Source.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DatastoreSource.class);
     private final String projectId;
     private final Query query;
     @Nullable
@@ -421,7 +421,7 @@ public class DatastoreIO {
     @Nullable
     private Long mockEstimateSizeBytes;
 
-    private Source(String projectId, Query query, @Nullable String namespace) {
+    private DatastoreSource(String projectId, Query query, @Nullable String namespace) {
       this.projectId = projectId;
       this.query = query;
       this.namespace = namespace;
@@ -450,7 +450,7 @@ public class DatastoreIO {
 
     /**
      * Builds a {@link RunQueryRequest} from the {@code query}, using the properties set on this
-     * {@code Source}. For example, sets the {@code namespace} for the request.
+     * {@code DatastoreSource}. For example, sets the {@code namespace} for the request.
      */
     private RunQueryRequest makeRequest(Query query) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
@@ -500,16 +500,16 @@ public class DatastoreIO {
     }
 
     /** For testing only. */
-    Source withMockSplitter(QuerySplitter splitter) {
-      Source res = new Source(projectId, query, namespace);
+    DatastoreSource withMockSplitter(QuerySplitter splitter) {
+      DatastoreSource res = new DatastoreSource(projectId, query, namespace);
       res.mockSplitter = splitter;
       res.mockEstimateSizeBytes = mockEstimateSizeBytes;
       return res;
     }
 
     /** For testing only. */
-    Source withMockEstimateSizeBytes(Long estimateSizeBytes) {
-      Source res = new Source(projectId, query, namespace);
+    DatastoreSource withMockEstimateSizeBytes(Long estimateSizeBytes) {
+      DatastoreSource res = new DatastoreSource(projectId, query, namespace);
       res.mockSplitter = mockSplitter;
       res.mockEstimateSizeBytes = estimateSizeBytes;
       return res;
@@ -559,7 +559,7 @@ public class DatastoreIO {
     @Override
     public PDone apply(PCollection<Entity> input) {
       return input.apply(
-          org.apache.beam.sdk.io.Write.to(new Sink(projectId)));
+          org.apache.beam.sdk.io.Write.to(new DatastoreSink(projectId)));
     }
 
     @Override
@@ -589,10 +589,10 @@ public class DatastoreIO {
   }
 
   @VisibleForTesting
-  static class Sink extends org.apache.beam.sdk.io.Sink<Entity> {
+  static class DatastoreSink extends org.apache.beam.sdk.io.Sink<Entity> {
     final String projectId;
 
-    public Sink(String projectId) {
+    public DatastoreSink(String projectId) {
       this.projectId = projectId;
     }
 
@@ -622,9 +622,9 @@ public class DatastoreIO {
       extends WriteOperation<Entity, DatastoreWriteResult> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriteOperation.class);
 
-    private final DatastoreIO.Sink sink;
+    private final DatastoreIO.DatastoreSink sink;
 
-    public DatastoreWriteOperation(DatastoreIO.Sink sink) {
+    public DatastoreWriteOperation(DatastoreIO.DatastoreSink sink) {
       this.sink = sink;
     }
 
@@ -665,7 +665,7 @@ public class DatastoreIO {
     }
 
     @Override
-    public DatastoreIO.Sink getSink() {
+    public DatastoreIO.DatastoreSink getSink() {
       return sink;
     }
   }
@@ -819,13 +819,13 @@ public class DatastoreIO {
   }
 
   /**
-   * A {@link Source.Reader} over the records from a query of the datastore.
+   * A {@link DatastoreSource.Reader} over the records from a query of the datastore.
    *
    * <p>Timestamped records are currently not supported.
    * All records implicitly have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    */
   public static class DatastoreReader extends BoundedSource.BoundedReader<Entity> {
-    private final Source source;
+    private final DatastoreSource source;
 
     /**
      * Datastore to read from.
@@ -867,11 +867,11 @@ public class DatastoreIO {
     private Entity currentEntity;
 
     /**
-     * Returns a DatastoreReader with Source and Datastore object set.
+     * Returns a DatastoreReader with DatastoreSource and Datastore object set.
      *
      * @param datastore a datastore connection to use.
      */
-    public DatastoreReader(Source source, Datastore datastore) {
+    public DatastoreReader(DatastoreSource source, Datastore datastore) {
       this.source = source;
       this.datastore = datastore;
       // If the user set a limit on the query, remember it. Otherwise pin to MAX_VALUE.
@@ -925,12 +925,12 @@ public class DatastoreIO {
     }
 
     @Override
-    public DatastoreIO.Source getCurrentSource() {
+    public DatastoreSource getCurrentSource() {
       return source;
     }
 
     @Override
-    public DatastoreIO.Source splitAtFraction(double fraction) {
+    public DatastoreSource splitAtFraction(double fraction) {
       // Not supported.
       return null;
     }
