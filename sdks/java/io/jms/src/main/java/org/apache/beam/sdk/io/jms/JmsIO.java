@@ -313,18 +313,6 @@ public class JmsIO {
           return false;
         }
 
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("JMSMessageID", message.getJMSMessageID());
-        headers.put("JMSTimestamp", message.getJMSTimestamp());
-        headers.put("JMSCorrelationID", message.getJMSCorrelationID());
-        headers.put("JMSReplyTo", message.getJMSReplyTo());
-        headers.put("JMSDestination", message.getJMSDestination());
-        headers.put("JMSDeliveryMode", message.getJMSDeliveryMode());
-        headers.put("JMSRedelivered", message.getJMSRedelivered());
-        headers.put("JMSType", message.getJMSType());
-        headers.put("JMSExpiration", message.getJMSExpiration());
-        headers.put("JMSPriority", message.getJMSPriority());
-
         Map<String, Object> properties = new HashMap<>();
         Enumeration propertyNames = message.getPropertyNames();
         while (propertyNames.hasMoreElements()) {
