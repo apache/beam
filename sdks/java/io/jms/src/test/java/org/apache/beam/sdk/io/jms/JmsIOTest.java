@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.jms;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -76,7 +76,7 @@ public class JmsIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testReadMessages() throws Exception {
 
     // produce message
@@ -111,7 +111,7 @@ public class JmsIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testWriteMessage() throws Exception {
 
     Pipeline pipeline = TestPipeline.create();
