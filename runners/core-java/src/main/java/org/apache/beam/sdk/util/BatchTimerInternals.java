@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
@@ -105,7 +106,7 @@ public class BatchTimerInternals implements TimerInternals {
 
   public void advanceInputWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark)
       throws Exception {
-    Preconditions.checkState(!newInputWatermark.isBefore(inputWatermarkTime),
+    checkState(!newInputWatermark.isBefore(inputWatermarkTime),
         "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
         newInputWatermark);
     inputWatermarkTime = newInputWatermark;
@@ -114,7 +115,7 @@ public class BatchTimerInternals implements TimerInternals {
 
   public void advanceProcessingTime(ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime)
       throws Exception {
-    Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
+    checkState(!newProcessingTime.isBefore(processingTime),
         "Cannot move processing time backwards from %s to %s", processingTime, newProcessingTime);
     processingTime = newProcessingTime;
     advance(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);

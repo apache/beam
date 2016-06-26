@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.annotations.Experimental;
@@ -26,8 +28,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -265,7 +265,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       AvroMetadata metadata;
       try {
         Collection<String> files = FileBasedSource.expandFilePattern(fileName);
-        Preconditions.checkArgument(files.size() <= 1, "More than 1 file matched %s");
+        checkArgument(files.size() <= 1, "More than 1 file matched %s");
         metadata = AvroUtils.readMetadataFromFile(fileName);
       } catch (IOException e) {
         throw new RuntimeException("Error reading metadata from file " + fileName, e);
@@ -343,10 +343,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   private DatumReader<T> createDatumReader() {
     Schema readSchema = getReadSchema();
     Schema fileSchema = getFileSchema();
-    Preconditions.checkNotNull(
-        readSchema, "No read schema has been initialized for source %s", this);
-    Preconditions.checkNotNull(
-        fileSchema, "No file schema has been initialized for source %s", this);
+    checkNotNull(readSchema, "No read schema has been initialized for source %s", this);
+    checkNotNull(fileSchema, "No file schema has been initialized for source %s", this);
     if (type == GenericRecord.class) {
       return new GenericDatumReader<>(fileSchema, readSchema);
     } else {

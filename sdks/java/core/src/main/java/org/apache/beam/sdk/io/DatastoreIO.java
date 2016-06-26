@@ -47,7 +47,6 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import com.google.datastore.v1beta3.CommitRequest;
@@ -307,8 +306,8 @@ public class DatastoreIO {
 
     @Override
     public void validate() {
-      Preconditions.checkNotNull(query, "query");
-      Preconditions.checkNotNull(projectId, "projectId");
+      checkNotNull(query, "query");
+      checkNotNull(projectId, "projectId");
     }
 
     @Override
@@ -548,7 +547,7 @@ public class DatastoreIO {
      */
     @Override
     public void validate(PipelineOptions options) {
-      Preconditions.checkNotNull(
+      checkNotNull(
           projectId,
           "Project ID is a required parameter. Please use withProject to to set the projectId.");
     }

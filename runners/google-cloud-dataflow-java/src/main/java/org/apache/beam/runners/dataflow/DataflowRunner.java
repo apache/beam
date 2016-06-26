@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
@@ -135,8 +136,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ForwardingMap;
 import com.google.common.collect.HashMultimap;
@@ -261,8 +260,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    Preconditions.checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
-        && Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())),
+    checkArgument(!(isNullOrEmpty(dataflowOptions.getTempLocation())
+        && isNullOrEmpty(dataflowOptions.getStagingLocation())),
         "Missing required value: at least one of tempLocation or stagingLocation must be set.");
 
     if (dataflowOptions.getStagingLocation() != null) {
@@ -271,9 +270,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (dataflowOptions.getTempLocation() != null) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getTempLocation());
     }
-    if (Strings.isNullOrEmpty(dataflowOptions.getTempLocation())) {
+    if (isNullOrEmpty(dataflowOptions.getTempLocation())) {
       dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
-    } else if (Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())) {
+    } else if (isNullOrEmpty(dataflowOptions.getStagingLocation())) {
       try {
         dataflowOptions.setStagingLocation(
             IOChannelUtils.resolve(dataflowOptions.getTempLocation(), "staging"));
@@ -545,7 +544,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     newJob.getEnvironment().setUserAgent(ReleaseInfo.getReleaseInfo());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
-    if (!Strings.isNullOrEmpty(options.getTempLocation())) {
+    if (!isNullOrEmpty(options.getTempLocation())) {
       newJob.getEnvironment().setTempStoragePrefix(
           dataflowOptions.getPathValidator().verifyPath(options.getTempLocation()));
     }
@@ -578,7 +577,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
-    if (!Strings.isNullOrEmpty(options.getDataflowJobFile())) {
+    if (!isNullOrEmpty(options.getDataflowJobFile())) {
       try (PrintWriter printWriter = new PrintWriter(
           new File(options.getDataflowJobFile()))) {
         String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
@@ -2203,7 +2202,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           break;  // supported by server
         case "":
           // Empty shard template allowed - forces single output.
-          Preconditions.checkArgument(originalTransform.getNumShards() <= 1,
+          checkArgument(originalTransform.getNumShards() <= 1,
               "Num shards must be <= 1 when using an empty sharding template");
           break;
         default:
@@ -2308,7 +2307,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           break;  // supported by server
         case "":
           // Empty shard template allowed - forces single output.
-          Preconditions.checkArgument(originalTransform.getNumShards() <= 1,
+          checkArgument(originalTransform.getNumShards() <= 1,
               "Num shards must be <= 1 when using an empty sharding template");
           break;
         default:

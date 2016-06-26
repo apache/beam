@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
-import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 
@@ -316,7 +318,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       DecompressingChannelFactory channelFactory, String filePatternOrSpec, long minBundleSize,
       long startOffset, long endOffset) {
     super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         startOffset == 0,
         "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
     this.sourceDelegate = sourceDelegate;
@@ -329,9 +331,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   public void validate() {
     super.validate();
-    Preconditions.checkNotNull(sourceDelegate);
+    checkNotNull(sourceDelegate);
     sourceDelegate.validate();
-    Preconditions.checkNotNull(channelFactory);
+    checkNotNull(channelFactory);
   }
 
   /**

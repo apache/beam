@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.common.base.Preconditions;
 
 import java.util.List;
 
@@ -42,7 +43,7 @@ public class GcsStager implements Stager {
 
   @Override
   public List<DataflowPackage> stageFiles() {
-    Preconditions.checkNotNull(options.getStagingLocation());
+    checkNotNull(options.getStagingLocation());
     List<String> filesToStage = options.getFilesToStage();
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();

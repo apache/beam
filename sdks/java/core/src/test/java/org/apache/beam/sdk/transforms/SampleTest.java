@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -35,7 +37,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -219,8 +220,7 @@ public class SampleTest {
   }
 
   void runPickAnyTest(final List<String> lines, int limit) {
-    Preconditions.checkArgument(new HashSet<String>(lines).size() == lines.size(),
-        "Duplicates are unsupported.");
+    checkArgument(new HashSet<String>(lines).size() == lines.size(), "Duplicates are unsupported.");
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(lines)
