@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -27,7 +30,6 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ClassToInstanceMap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
@@ -67,6 +69,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -202,8 +205,8 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    * @return An object that implements the interface <T>.
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
-    Preconditions.checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface());
+    checkNotNull(iface);
+    checkArgument(iface.isInterface());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);

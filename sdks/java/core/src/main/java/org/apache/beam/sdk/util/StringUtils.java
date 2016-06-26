@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.transforms.PTransform;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -148,7 +150,7 @@ public class StringUtils {
    * </ul>
    */
   public static String approximatePTransformName(Class<?> clazz) {
-    Preconditions.checkArgument(PTransform.class.isAssignableFrom(clazz));
+    checkArgument(PTransform.class.isAssignableFrom(clazz));
     return approximateSimpleName(clazz, /* dropOuterClassNames */ false)
         .replaceFirst("\\.Bound$", "");
   }
@@ -160,8 +162,8 @@ public class StringUtils {
    * (i.e. insertions, deletions or substitutions) required to change one string into the other.
    */
   public static int getLevenshteinDistance(final String s, final String t) {
-    Preconditions.checkNotNull(s);
-    Preconditions.checkNotNull(t);
+    checkNotNull(s);
+    checkNotNull(t);
 
     // base cases
     if (s.equals(t)) {
@@ -206,7 +208,7 @@ public class StringUtils {
   }
 
   private static String approximateSimpleName(Class<?> clazz, boolean dropOuterClassNames) {
-    Preconditions.checkArgument(!clazz.isAnonymousClass(),
+    checkArgument(!clazz.isAnonymousClass(),
         "Attempted to get simple name of anonymous class");
 
     String fullName = clazz.getName();
