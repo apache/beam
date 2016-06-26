@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.flink.translation.FlinkBatchPipelineTranslator;
 import org.apache.beam.runners.flink.translation.FlinkPipelineTranslator;
 import org.apache.beam.runners.flink.translation.FlinkStreamingPipelineTranslator;
 import org.apache.beam.runners.flink.translation.PipelineTranslationOptimizer;
 import org.apache.beam.runners.flink.translation.TranslationMode;
 import org.apache.beam.sdk.Pipeline;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -74,7 +74,7 @@ public class FlinkPipelineExecutionEnvironment {
    * @param options the user-defined pipeline options.
    * */
   FlinkPipelineExecutionEnvironment(FlinkPipelineOptions options) {
-    this.options = Preconditions.checkNotNull(options);
+    this.options = checkNotNull(options);
   }
 
   /**

@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-
-import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ public class ExecutableTrigger implements Serializable {
   }
 
   private ExecutableTrigger(Trigger trigger, int nextUnusedIndex) {
-    this.trigger = Preconditions.checkNotNull(trigger, "trigger must not be null");
+    this.trigger = checkNotNull(trigger, "trigger must not be null");
     this.triggerIndex = nextUnusedIndex++;
 
     if (trigger.subTriggers() != null) {
@@ -101,8 +102,8 @@ public class ExecutableTrigger implements Serializable {
   }
 
   public ExecutableTrigger getSubTriggerContaining(int index) {
-    Preconditions.checkNotNull(subTriggers);
-    Preconditions.checkState(index > triggerIndex && index < firstIndexAfterSubtree,
+    checkNotNull(subTriggers);
+    checkState(index > triggerIndex && index < firstIndexAfterSubtree,
         "Cannot find sub-trigger containing index not in this tree.");
     ExecutableTrigger previous = null;
     for (ExecutableTrigger subTrigger : subTriggers) {

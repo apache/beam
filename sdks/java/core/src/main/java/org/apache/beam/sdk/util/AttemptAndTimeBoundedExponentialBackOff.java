@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.NanoClock;
-import com.google.common.base.Preconditions;
 
 import java.util.concurrent.TimeUnit;
 
@@ -112,13 +113,13 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
       ResetPolicy resetPolicy,
       NanoClock nanoClock) {
     super(maximumNumberOfAttempts, initialIntervalMillis);
-    Preconditions.checkArgument(
+    checkArgument(
         maximumTotalWaitTimeMillis > 0, "Maximum total wait time must be greater than zero.");
-    Preconditions.checkArgument(
+    checkArgument(
         maximumTotalWaitTimeMillis < MAX_ELAPSED_TIME_MILLIS,
         "Maximum total wait time must be less than " + MAX_ELAPSED_TIME_MILLIS + " milliseconds");
-    Preconditions.checkArgument(resetPolicy != null, "resetPolicy may not be null");
-    Preconditions.checkArgument(nanoClock != null, "nanoClock may not be null");
+    checkArgument(resetPolicy != null, "resetPolicy may not be null");
+    checkArgument(nanoClock != null, "nanoClock may not be null");
     this.maximumTotalWaitTimeMillis = maximumTotalWaitTimeMillis;
     this.resetPolicy = resetPolicy;
     this.nanoClock = nanoClock;

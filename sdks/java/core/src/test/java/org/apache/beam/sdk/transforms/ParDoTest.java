@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
@@ -56,8 +57,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -292,7 +291,7 @@ public class ParDoTest implements Serializable {
     @Override
     public void processElement(ProcessContext c) {
       Instant timestamp = c.timestamp();
-      Preconditions.checkNotNull(timestamp);
+      checkNotNull(timestamp);
       Integer value = c.element();
       c.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
@@ -301,7 +300,7 @@ public class ParDoTest implements Serializable {
   static class TestFormatTimestampDoFn extends DoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
-      Preconditions.checkNotNull(c.timestamp());
+      checkNotNull(c.timestamp());
       c.output("processing: " + c.element() + ", timestamp: " + c.timestamp().getMillis());
     }
   }

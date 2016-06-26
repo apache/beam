@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.examples.common.DataflowExampleUtils;
@@ -58,7 +59,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Key;
 import com.google.datastore.v1beta3.Value;
@@ -460,7 +460,7 @@ public class AutoComplete {
     PTransform<? super PBegin, PCollection<String>> readSource;
     WindowFn<Object, ?> windowFn;
     if (options.isStreaming()) {
-      Preconditions.checkArgument(
+      checkArgument(
           !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
       dataflowUtils.setupPubsub();
 

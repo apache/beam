@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.StateTag;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
@@ -123,7 +123,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final StateNamespace namespace;
 
     public TimersImpl(StateNamespace namespace) {
-      Preconditions.checkArgument(namespace instanceof WindowNamespace);
+      checkArgument(namespace instanceof WindowNamespace);
       this.namespace = namespace;
     }
 
@@ -248,7 +248,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
             namespace = namespaceFor(activeWindows.writeStateAddress(mergingWindow));
             break;
         }
-        Preconditions.checkNotNull(namespace); // cases are exhaustive.
+        checkNotNull(namespace); // cases are exhaustive.
         builder.put(mergingWindow, stateInternals.state(namespace, address, context));
       }
       return builder.build();

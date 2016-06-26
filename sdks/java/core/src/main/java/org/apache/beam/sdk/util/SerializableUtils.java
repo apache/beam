@@ -20,10 +20,10 @@ package org.apache.beam.sdk.util;
 import static org.apache.beam.sdk.util.CoderUtils.decodeFromByteArray;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-
-import com.google.common.base.Preconditions;
 
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
@@ -120,11 +120,10 @@ public class SerializableUtils {
               + "See Coder for details.", coder), e
       );
     }
-    Preconditions.checkState(coder.equals(decoded),
-        String.format("Coder not equal to original after serialization, "
-            + "indicating that the Coder may not implement serialization "
-            + "correctly.  Before: %s, after: %s, cloud encoding: %s",
-            coder, decoded, cloudObject));
+    checkState(coder.equals(decoded),
+        "Coder not equal to original after serialization, indicating that the Coder may not "
+        + "implement serialization correctly.  Before: %s, after: %s, cloud encoding: %s",
+        coder, decoded, cloudObject);
 
     return cloudObject;
   }

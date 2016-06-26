@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,7 +41,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -210,7 +211,7 @@ public class Create<T> {
     while (valueIter.hasNext() && timestampIter.hasNext()) {
       elems.add(TimestampedValue.of(valueIter.next(), new Instant(timestampIter.next())));
     }
-    Preconditions.checkArgument(
+    checkArgument(
         !valueIter.hasNext() && !timestampIter.hasNext(),
         "Expect sizes of values and timestamps are same.");
     return timestamped(elems);

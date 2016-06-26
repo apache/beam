@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -57,7 +59,6 @@ import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -637,7 +638,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           data = processingTimers.peek();
           break;
       }
-      Preconditions.checkNotNull(data); // cases exhaustive
+      checkNotNull(data); // cases exhaustive
       return data == null ? null : data.getTimestamp();
     }
 
@@ -680,7 +681,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public Instant currentInputWatermarkTime() {
-      return Preconditions.checkNotNull(inputWatermarkTime);
+      return checkNotNull(inputWatermarkTime);
     }
 
     @Override
@@ -702,8 +703,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     public void advanceInputWatermark(
         ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark) throws Exception {
-      Preconditions.checkNotNull(newInputWatermark);
-      Preconditions.checkState(
+      checkNotNull(newInputWatermark);
+      checkState(
           !newInputWatermark.isBefore(inputWatermarkTime),
           "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
           newInputWatermark);
@@ -724,14 +725,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     public void advanceOutputWatermark(Instant newOutputWatermark) {
-      Preconditions.checkNotNull(newOutputWatermark);
+      checkNotNull(newOutputWatermark);
       if (newOutputWatermark.isAfter(inputWatermarkTime)) {
         WindowTracing.trace(
             "TestTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
             newOutputWatermark, inputWatermarkTime);
         newOutputWatermark = inputWatermarkTime;
       }
-      Preconditions.checkState(
+      checkState(
           outputWatermarkTime == null || !newOutputWatermark.isBefore(outputWatermarkTime),
           "Cannot move output watermark time backwards from %s to %s", outputWatermarkTime,
           newOutputWatermark);
@@ -742,7 +743,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     public void advanceProcessingTime(
         ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) throws Exception {
-      Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
+      checkState(!newProcessingTime.isBefore(processingTime),
           "Cannot move processing time backwards from %s to %s", processingTime, newProcessingTime);
       WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}", processingTime,
           newProcessingTime);
@@ -752,7 +753,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     public void advanceSynchronizedProcessingTime(
         ReduceFnRunner<?, ?, ?, ?> runner, Instant newSynchronizedProcessingTime) throws Exception {
-      Preconditions.checkState(!newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
+      checkState(!newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
           "Cannot move processing time backwards from %s to %s", processingTime,
           newSynchronizedProcessingTime);
       WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}",

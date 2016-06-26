@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.joinlibrary;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -26,7 +28,6 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
-import com.google.common.base.Preconditions;
 
 /**
  * Utility class with different versions of joins. All methods join two collections of
@@ -46,8 +47,8 @@ public class Join {
    */
   public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> innerJoin(
     final PCollection<KV<K, V1>> leftCollection, final PCollection<KV<K, V2>> rightCollection) {
-    Preconditions.checkNotNull(leftCollection);
-    Preconditions.checkNotNull(rightCollection);
+    checkNotNull(leftCollection);
+    checkNotNull(rightCollection);
 
     final TupleTag<V1> v1Tuple = new TupleTag<>();
     final TupleTag<V2> v2Tuple = new TupleTag<>();
@@ -94,9 +95,9 @@ public class Join {
     final PCollection<KV<K, V1>> leftCollection,
     final PCollection<KV<K, V2>> rightCollection,
     final V2 nullValue) {
-    Preconditions.checkNotNull(leftCollection);
-    Preconditions.checkNotNull(rightCollection);
-    Preconditions.checkNotNull(nullValue);
+    checkNotNull(leftCollection);
+    checkNotNull(rightCollection);
+    checkNotNull(nullValue);
 
     final TupleTag<V1> v1Tuple = new TupleTag<>();
     final TupleTag<V2> v2Tuple = new TupleTag<>();
@@ -147,9 +148,9 @@ public class Join {
     final PCollection<KV<K, V1>> leftCollection,
     final PCollection<KV<K, V2>> rightCollection,
     final V1 nullValue) {
-    Preconditions.checkNotNull(leftCollection);
-    Preconditions.checkNotNull(rightCollection);
-    Preconditions.checkNotNull(nullValue);
+    checkNotNull(leftCollection);
+    checkNotNull(rightCollection);
+    checkNotNull(nullValue);
 
     final TupleTag<V1> v1Tuple = new TupleTag<>();
     final TupleTag<V2> v2Tuple = new TupleTag<>();

@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
@@ -42,7 +41,7 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
   private Coder<T> coder;
 
   public UnboundedFlinkSource(SourceFunction<T> source) {
-    flinkSource = Preconditions.checkNotNull(source);
+    flinkSource = checkNotNull(source);
   }
 
   public SourceFunction<T> getFlinkSource() {

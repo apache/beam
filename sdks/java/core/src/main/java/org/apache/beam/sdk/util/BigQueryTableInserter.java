@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
@@ -36,7 +38,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.slf4j.Logger;
@@ -170,7 +171,7 @@ public class BigQueryTableInserter {
   public void insertAll(TableReference ref, List<TableRow> rowList,
       @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator)
       throws IOException {
-    Preconditions.checkNotNull(ref, "ref");
+    checkNotNull(ref, "ref");
     if (insertIdList != null && rowList.size() != insertIdList.size()) {
       throw new AssertionError("If insertIdList is not null it needs to have at least "
           + "as many elements as rowList");

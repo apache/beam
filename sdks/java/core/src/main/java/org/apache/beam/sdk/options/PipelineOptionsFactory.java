@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -30,7 +31,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Collections2;
@@ -239,7 +239,7 @@ public class PipelineOptionsFactory {
      * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
     public Builder fromArgs(String[] args) {
-      Preconditions.checkNotNull(args, "Arguments should not be null.");
+      checkNotNull(args, "Arguments should not be null.");
       return new Builder(args, validation, strictParsing);
     }
 
@@ -549,8 +549,8 @@ public class PipelineOptionsFactory {
    * @param iface The interface object to manually register.
    */
   public static synchronized void register(Class<? extends PipelineOptions> iface) {
-    Preconditions.checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface(), "Only interface types are supported.");
+    checkNotNull(iface);
+    checkArgument(iface.isInterface(), "Only interface types are supported.");
 
     if (REGISTERED_OPTIONS.contains(iface)) {
       return;
@@ -608,7 +608,7 @@ public class PipelineOptionsFactory {
    */
   static synchronized <T extends PipelineOptions> Registration<T> validateWellFormed(
       Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
-    Preconditions.checkArgument(iface.isInterface(), "Only interface types are supported.");
+    checkArgument(iface.isInterface(), "Only interface types are supported.");
 
     @SuppressWarnings("unchecked")
     Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
@@ -659,7 +659,7 @@ public class PipelineOptionsFactory {
    * format its output to be compatible with a terminal window.
    */
   public static void printHelp(PrintStream out) {
-    Preconditions.checkNotNull(out);
+    checkNotNull(out);
     out.println("The set of registered options are:");
     Set<Class<? extends PipelineOptions>> sortedOptions =
         new TreeSet<>(ClassNameComparator.INSTANCE);
@@ -691,8 +691,8 @@ public class PipelineOptionsFactory {
    * This method will attempt to format its output to be compatible with a terminal window.
    */
   public static void printHelp(PrintStream out, Class<? extends PipelineOptions> iface) {
-    Preconditions.checkNotNull(out);
-    Preconditions.checkNotNull(iface);
+    checkNotNull(out);
+    checkNotNull(iface);
     validateWellFormed(iface, REGISTERED_OPTIONS);
 
     Set<PipelineOptionSpec> properties =
@@ -1116,7 +1116,7 @@ public class PipelineOptionsFactory {
         Sets.filter(
             Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
             NOT_SYNTHETIC_PREDICATE));
-    Preconditions.checkArgument(unknownMethods.isEmpty(),
+    checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
@@ -1329,11 +1329,11 @@ public class PipelineOptionsFactory {
         continue;
       }
       try {
-        Preconditions.checkArgument(arg.startsWith("--"),
+        checkArgument(arg.startsWith("--"),
             "Argument '%s' does not begin with '--'", arg);
         int index = arg.indexOf("=");
         // Make sure that '=' isn't the first character after '--' or the last character
-        Preconditions.checkArgument(index != 2,
+        checkArgument(index != 2,
             "Argument '%s' starts with '--=', empty argument name not allowed", arg);
         if (index > 0) {
           builder.put(arg.substring(2, index), arg.substring(index + 1, arg.length()));
@@ -1448,7 +1448,7 @@ public class PipelineOptionsFactory {
 
           if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
             for (String value : values) {
-              Preconditions.checkArgument(!value.isEmpty(),
+              checkArgument(!value.isEmpty(),
                   "Empty argument value is only allowed for String, String Array, and Collection,"
                   + " but received: " + returnType);
             }
@@ -1456,13 +1456,13 @@ public class PipelineOptionsFactory {
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
-          Preconditions.checkArgument(returnType.equals(String.class) || !value.isEmpty(),
+          checkArgument(returnType.equals(String.class) || !value.isEmpty(),
               "Empty argument value is only allowed for String, String Array, and Collection,"
                + " but received: " + returnType);
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
-          Preconditions.checkArgument(returnType.equals(String.class) || !value.isEmpty(),
+          checkArgument(returnType.equals(String.class) || !value.isEmpty(),
               "Empty argument value is only allowed for String, String Array, and Collection,"
                + " but received: " + returnType);
           try {

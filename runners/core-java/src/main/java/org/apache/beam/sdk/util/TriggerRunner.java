@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -27,7 +29,6 @@ import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
@@ -66,7 +67,7 @@ public class TriggerRunner<W extends BoundedWindow> {
   private final TriggerContextFactory<W> contextFactory;
 
   public TriggerRunner(ExecutableTrigger rootTrigger, TriggerContextFactory<W> contextFactory) {
-    Preconditions.checkState(rootTrigger.getTriggerIndex() == 0);
+    checkState(rootTrigger.getTriggerIndex() == 0);
     this.rootTrigger = rootTrigger;
     this.contextFactory = contextFactory;
   }
