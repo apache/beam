@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.translation;
 import org.apache.beam.runners.spark.coders.EncoderHelpers;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -48,6 +49,7 @@ import com.google.common.collect.Maps;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FilterFunction;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
@@ -213,6 +215,81 @@ public class DatasetTransformTranslator {
     };
   }
 
+  private static <K, InputT, OutputT> TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>
+  combineGrouped() {
+    return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public void evaluate(Combine.GroupedValues<K, InputT, OutputT> transform,
+                           EvaluationContext context) {
+        DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
+        final Combine.KeyedCombineFn<K, InputT, ?, OutputT> fn =
+            (Combine.KeyedCombineFn<K, InputT, ?, OutputT>) transform.getFn();
+
+        Dataset<WindowedValue<KV<K, Iterable<InputT>>>> inputDataset =
+            (Dataset<WindowedValue<KV<K, Iterable<InputT>>>>) dec.getInputDataset(transform);
+        dec.setOutputDataset(transform, inputDataset.map(Functions.keyedCombineFunction(fn),
+            EncoderHelpers.<WindowedValue<KV<K, OutputT>>>encoder()));
+      }
+    };
+  }
+
+  private static <K, InputT, AccumT, OutputT>
+  TransformEvaluator<Combine.PerKey<K, InputT, OutputT>> combinePerKey() {
+    return new TransformEvaluator<Combine.PerKey<K, InputT, OutputT>>() {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public void evaluate(Combine.PerKey<K, InputT, OutputT> transform,
+          EvaluationContext context) {
+        DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
+        final Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> fn =
+            (Combine.KeyedCombineFn<K, InputT, AccumT, OutputT>) transform.getFn();
+
+        Dataset<WindowedValue<KV<K, InputT>>> inputDataset =
+            (Dataset<WindowedValue<KV<K, InputT>>>) dec.getInputDataset(transform);
+        // Key has to bw windowed in order to group by window as well.
+        Dataset<KV<WindowedValue<K>, InputT>> windowedKey =
+            inputDataset.flatMap(
+            new FlatMapFunction<WindowedValue<KV<K, InputT>>, KV<WindowedValue<K>, InputT>>() {
+              @Override
+              public Iterator<KV<WindowedValue<K>, InputT>> call
+                (WindowedValue<KV<K, InputT>> kv) throws Exception {
+                List<KV<WindowedValue<K>, InputT>> multiWindowKey =
+                    Lists.newArrayListWithCapacity(kv.getWindows().size());
+                K key = kv.getValue().getKey();
+                InputT value = kv.getValue().getValue();
+                for (BoundedWindow boundedWindow: kv.getWindows()) {
+                  multiWindowKey.add(KV.of(WindowedValue.of(key, boundedWindow.maxTimestamp(),
+                      boundedWindow, kv.getPane()), value));
+                }
+                return multiWindowKey.iterator();
+              }
+            }, EncoderHelpers.<KV<WindowedValue<K>, InputT>>encoder());
+
+        KeyValueGroupedDataset<WindowedValue<K>, KV<WindowedValue<K>, InputT>> grouped =
+            windowedKey.groupByKey(Functions.<WindowedValue<K>, InputT>extractKey(),
+            EncoderHelpers.<WindowedValue<K>>encoder());
+        Dataset<Tuple2<WindowedValue<K>, WindowedValue<OutputT>>> result =
+            grouped.agg(new SparkKeyedCombineFn<>(fn).toColumn());
+
+        dec.setOutputDataset(transform, result.map(new MapFunction<Tuple2<WindowedValue<K>,
+            WindowedValue<OutputT>>, WindowedValue<KV<K, OutputT>>>() {
+          @Override
+          public WindowedValue<KV<K, OutputT>> call(Tuple2<WindowedValue<K>,
+              WindowedValue<OutputT>> tuple2) throws Exception {
+            WindowedValue<OutputT> wo = tuple2._2();
+            return WindowedValue.of(KV.of(tuple2._1().getValue(), wo.getValue()), wo.getTimestamp(),
+                wo.getWindows(), wo.getPane());
+          }
+        }, EncoderHelpers.<WindowedValue<KV<K, OutputT>>>encoder()));
+      }
+    };
+  }
+
   private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>> multiDo() {
     return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
 
@@ -267,9 +344,8 @@ public class DatasetTransformTranslator {
     EVALUATORS.put(View.AsSingleton.class, view());
     EVALUATORS.put(View.AsIterable.class, view());
     EVALUATORS.put(View.CreatePCollectionView.class, view());
-//    EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-//    EVALUATORS.put(Combine.Globally.class, combineGlobally());
-//    EVALUATORS.put(Combine.PerKey.class, combinePerKey());
+    EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
+    EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
 
   }
@@ -327,6 +403,22 @@ public class DatasetTransformTranslator {
             values.add(iterator.next().getValue());
           }
           return KV.of(k, Iterables.unmodifiableIterable(values));
+        }
+      };
+    }
+
+    private static <K, InputT, OutputT> MapFunction<WindowedValue<KV<K, Iterable<InputT>>>,
+        WindowedValue<KV<K, OutputT>>> keyedCombineFunction(
+        final Combine.KeyedCombineFn<K, InputT, ?, OutputT> fn) {
+
+      return new MapFunction<WindowedValue<KV<K, Iterable<InputT>>>,
+          WindowedValue<KV<K, OutputT>>>() {
+        @Override
+        public WindowedValue<KV<K, OutputT>> call(WindowedValue<KV<K, Iterable<InputT>>> grouped)
+            throws Exception {
+          KV<K, Iterable<InputT>> kv = grouped.getValue();
+          return WindowedValue.of(KV.of(kv.getKey(), fn.apply(kv.getKey(), kv.getValue())),
+                  grouped.getTimestamp(), grouped.getWindows(), grouped.getPane());
         }
       };
     }
