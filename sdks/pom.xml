@@ -34,6 +34,7 @@
 
   <modules>
     <module>java</module>
+    <module>python</module>
   </modules>
 
   <build>
@@ -53,6 +54,7 @@
             </execution>
           </executions>
         </plugin>
+
       </plugins>
     </pluginManagement>
   </build>
