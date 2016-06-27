@@ -1,9 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
-import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.client.triggers.TriggerContext;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -11,8 +8,11 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.QueueCollector;
 import org.slf4j.Logger;
@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,13 +32,21 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
-import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
 
 class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscriber {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
+
+  private static final class LRU<K, V> extends LinkedHashMap<K, V> {
+    private final int maxSize;
+    LRU(int maxSize) { this.maxSize = maxSize; }
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+      return size() > maxSize;
+    }
+  }
 
   // ~ storage of a single window's (internal) state
   private static final class WindowStorage {
@@ -46,9 +55,13 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     // ~ initialized lazily; peers which have seen this window (and will eventually
     // emit or have already emitted a corresponding EoW)
     private List<EndOfWindowBroadcast.Subscriber> eowPeers;
-    WindowStorage(Window window) {
+    WindowStorage(Window window, int maxKeysStates) {
       this.window = requireNonNull(window);
-      this.keyStates = new HashMap<>();
+      if (maxKeysStates > 0) {
+        this.keyStates = new LRU<>(maxKeysStates);
+      } else {
+        this.keyStates = new HashMap<>();
+      }
       this.eowPeers = null;
     }
     // ~ make a copy of 'base' with the specified 'window' assigned
@@ -131,6 +144,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   private final class ProcessingState implements TriggerContext {
 
     final WindowRegistry wRegistry = new WindowRegistry();
+    final int maxKeyStatesPerWindow;
 
     final Collector stateOutput;
     final BlockingQueue rawOutput;
@@ -151,7 +165,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         TriggerScheduler triggering,
         UnaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
-        boolean isBounded)
+        boolean isBounded,
+        int maxKeyStatesPerWindow)
     {
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
@@ -159,6 +174,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       this.stateFactory = requireNonNull(stateFactory);
       this.stateCombiner = requireNonNull(stateCombiner);
       this.isBounded = isBounded;
+      this.maxKeyStatesPerWindow = maxKeyStatesPerWindow;
     }
 
     // ~ signal eos further down the output channel
@@ -220,13 +236,15 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       return states;
     }
 
-    public Pair<Window, State> getWindowState(Window w, Object itemKey) {
+    public Pair<Window, State> getWindowStateForUpdate(Window w, Object itemKey) {
       WindowStorage wStore = getOrCreateWindowStorage(w, false);
       if (wStore == null) {
         // the window is already closed
         return null;
       }
-      State state = wStore.getKeyStates().get(itemKey);
+      // ~ remove and re-insert to give LRU based implementations a chance
+      Map<Object, State> keyStates = wStore.getKeyStates();
+      State state = keyStates.remove(itemKey);
       if (state == null) {
         // ~ collector decorating state output with a window label and item key
         DatumCollector collector = new DatumCollector(stateOutput) {
@@ -236,7 +254,10 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         };
         collector.assignWindowing(w.getGroup(), w.getLabel());
         state = (State) stateFactory.apply(collector);
-        wStore.getKeyStates().put(itemKey, state);
+        keyStates.put(itemKey, state);
+        LOG.debug("wStore({}).keyStates.size: {}", w, wStore.getKeyStates().size());
+      } else {
+        keyStates.put(itemKey, state);
       }
       return Pair.of(wStore.getWindow(), state);
     }
@@ -273,7 +294,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           return null;
         } else {
           // ~ if no such window yet ... set it up
-          wRegistry.setWindow(wStore = new WindowStorage(w));
+          wRegistry.setWindow(wStore = new WindowStorage(w, maxKeyStatesPerWindow));
         }
       } else if (setWindowInstance && wStore.getWindow() != w) {
         // ~ identity comparison on purpose
@@ -383,6 +404,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
                           CombinableReduceFunction stateCombiner,
                           TriggerScheduler triggering,
                           boolean isBounded,
+                          int maxKeyStatesPerWindow,
                           EndOfWindowBroadcast eowBroadcast) {
     this.name = name;
     this.input = requireNonNull(input);
@@ -394,7 +416,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     this.processing = new ProcessingState(
         output, triggering,
         stateFactory, stateCombiner,
-        isBounded);
+        isBounded,
+        maxKeyStatesPerWindow);
     this.eowBroadcast.subscribe(this);
   }
 
@@ -546,7 +569,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     synchronized (processing) {
       for (Window itemWindow : itemWindows) {
         Pair<Window, State> windowState =
-            processing.getWindowState(itemWindow, itemKey);
+            processing.getWindowStateForUpdate(itemWindow, itemKey);
         if (windowState != null) {
           windowState.getSecond().add(itemValue);
           seenGroups.add(itemWindow.getGroup());
