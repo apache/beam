@@ -255,7 +255,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         collector.assignWindowing(w.getGroup(), w.getLabel());
         state = (State) stateFactory.apply(collector);
         keyStates.put(itemKey, state);
-        LOG.debug("wStore({}).keyStates.size: {}", w, wStore.getKeyStates().size());
       } else {
         keyStates.put(itemKey, state);
       }
