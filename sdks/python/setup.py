@@ -21,6 +21,7 @@ import os
 import platform
 import re
 import setuptools
+from apache_beam.version import get_version
 
 
 # Currently all compiled modules are optional  (for performance only).
@@ -33,13 +34,6 @@ else:
     from Cython.Build import cythonize
   except ImportError:
     cythonize = lambda *args, **kwargs: []
-
-
-def get_version():
-  global_names = {}
-  execfile(os.path.normpath('./apache_beam/version.py'),
-           global_names)
-  return global_names['__version__']
 
 
 # Configure the required packages and scripts to install.

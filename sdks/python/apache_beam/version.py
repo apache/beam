@@ -17,4 +17,13 @@
 
 """Apache Beam SDK version information."""
 
-__version__ = '0.3.0'
+from lxml import etree
+
+
+def get_version():
+    pom = etree.parse('pom.xml')
+    elements = pom.xpath(r'/pom:project/pom:parent/pom:version', namespaces={'pom':'http://maven.apache.org/POM/4.0.0'})
+    version = elements[0].text
+    version = version.replace("-SNAPSHOT", ".dev")
+    # TODO: PEP 440 and incubatign suffix
+    return version
