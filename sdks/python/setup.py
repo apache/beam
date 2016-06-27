@@ -36,11 +36,13 @@ else:
 
 
 def get_version():
-  global_names = {}
-  execfile(os.path.normpath('./apache_beam/version.py'),
-           global_names)
-  return global_names['__version__']
-
+    from lxml import etree
+    pom = etree.parse('pom.xml')
+    elements = pom.xpath(r'/pom:project/pom:parent/pom:version', namespaces={'pom':'http://maven.apache.org/POM/4.0.0'})
+    version = elements[0].text
+    version = version.replace("-SNAPSHOT", ".dev")
+    # TODO: PEP 440 and incubatign suffix
+    return version
 
 # Configure the required packages and scripts to install.
 REQUIRED_PACKAGES = [
