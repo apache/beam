@@ -99,6 +99,7 @@ public class DisplayDataEvaluator {
   /**
    * Traverse the specified source {@link PTransform}, collecting {@link DisplayData} registered
    * on the inner primitive {@link PTransform PTransforms}.
+   *
    * @param root The source root {@link PTransform} to traverse
    * @return the set of {@link DisplayData} for primitive source {@link PTransform PTransforms}.
    */
