@@ -83,7 +83,6 @@ disable =
   arguments-differ,
   attribute-defined-outside-init,
   bad-builtin,
-#  bad-continuation,
   bad-option-value,
   bad-super-call,
   broad-except,
@@ -97,7 +96,6 @@ disable =
   import-error,
   import-self,
   invalid-name,
-#  line-too-long,
   locally-disabled,
   locally-enabled,
   misplaced-bare-raise,
@@ -142,7 +140,6 @@ disable =
 reports=no
 
 [CLASSES]
-
 # List of method names used to declare (i.e. assign) instance attributes.
 defining-attr-methods=__init__,__new__,setUp
 
