@@ -83,6 +83,21 @@
               </arguments>
             </configuration>
           </execution>
+          <execution>
+            <id>setuptools-sdist</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <arguments>
+                <argument>setup.py</argument>
+                <argument>sdist</argument>
+                <argument>--dist-dir</argument>
+                <argument>target</argument> <!--FIXME: ${maven.build.dir} is not expanded -->
+              </arguments>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
