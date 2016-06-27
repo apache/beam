@@ -64,7 +64,8 @@ setuptools.setup(
     long_description='',
     url='https://beam.incubator.apache.org',
     download_url='TBD',
-    author='Apache Software Foundation',
+    author='Apache Beam (incubating)',
+    author_email='dev@beam.incubator.apache.org',
     packages=setuptools.find_packages(),
     ext_modules=cythonize([
         '**/*.pyx',
