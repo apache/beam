@@ -18,9 +18,11 @@
 
 package org.apache.beam.runners.flink.translation.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.options.PipelineOptions;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,7 +39,7 @@ public class SerializedPipelineOptions implements Serializable {
   private transient PipelineOptions pipelineOptions;
 
   public SerializedPipelineOptions(PipelineOptions options) {
-    Preconditions.checkNotNull(options, "PipelineOptions must not be null.");
+    checkNotNull(options, "PipelineOptions must not be null.");
 
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
       new ObjectMapper().writeValue(baos, options);

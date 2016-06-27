@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -29,7 +31,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import org.joda.time.Instant;
@@ -102,7 +103,7 @@ public class IntraBundleParallelization {
     }
 
     Unbound(int maxParallelism) {
-      Preconditions.checkArgument(maxParallelism > 0,
+      checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.maxParallelism = maxParallelism;
     }
@@ -143,7 +144,7 @@ public class IntraBundleParallelization {
     private final int maxParallelism;
 
     Bound(DoFn<InputT, OutputT> doFn, int maxParallelism) {
-      Preconditions.checkArgument(maxParallelism > 0,
+      checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
       this.maxParallelism = maxParallelism;
@@ -198,7 +199,7 @@ public class IntraBundleParallelization {
       extends DoFn<InputT, OutputT> {
 
     public MultiThreadedIntraBundleProcessingDoFn(DoFn<InputT, OutputT> doFn, int maxParallelism) {
-      Preconditions.checkArgument(maxParallelism > 0,
+      checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
       this.maxParallelism = maxParallelism;

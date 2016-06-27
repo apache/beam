@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -34,7 +36,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -492,8 +493,8 @@ public class Pipeline {
   public String getFullNameForTesting(PTransform<?, ?> transform) {
     Collection<AppliedPTransform<?, ?, ?>> uses =
         transformApplicationsForTesting.get(transform);
-    Preconditions.checkState(uses.size() > 0, "Unknown transform: " + transform);
-    Preconditions.checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
+    checkState(uses.size() > 0, "Unknown transform: " + transform);
+    checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
     return Iterables.getOnlyElement(uses).getFullName();
   }
 

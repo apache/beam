@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -32,8 +34,6 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -59,9 +59,9 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
   private DoFnProcessContext context;
 
   public FlinkAbstractParDoWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUTDF> doFn) {
-    Preconditions.checkNotNull(options);
-    Preconditions.checkNotNull(windowingStrategy);
-    Preconditions.checkNotNull(doFn);
+    checkNotNull(options);
+    checkNotNull(windowingStrategy);
+    checkNotNull(doFn);
 
     this.doFn = doFn;
     this.serializedPipelineOptions = new SerializedPipelineOptions(options);

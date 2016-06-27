@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static org.apache.beam.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.apache.beam.sdk.WindowMatchers.isWindowedValue;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -66,7 +67,6 @@ import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Duration;
@@ -1391,26 +1391,26 @@ public class ReduceFnRunnerTest {
     }
     @Override
     public int[] createAccumulator(Context c) {
-      Preconditions.checkArgument(
+      checkArgument(
           c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
-      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      checkArgument(c.sideInput(view) == expectedValue);
       return wrap(0);
     }
 
     @Override
     public int[] addInput(int[] accumulator, Integer input, Context c) {
-      Preconditions.checkArgument(
+      checkArgument(
           c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
-      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      checkArgument(c.sideInput(view) == expectedValue);
       accumulator[0] += input.intValue();
       return accumulator;
     }
 
     @Override
     public int[] mergeAccumulators(Iterable<int[]> accumulators, Context c) {
-      Preconditions.checkArgument(
+      checkArgument(
           c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
-      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      checkArgument(c.sideInput(view) == expectedValue);
       Iterator<int[]> iter = accumulators.iterator();
       if (!iter.hasNext()) {
         return createAccumulator(c);
@@ -1425,9 +1425,9 @@ public class ReduceFnRunnerTest {
 
     @Override
     public Integer extractOutput(int[] accumulator, Context c) {
-      Preconditions.checkArgument(
+      checkArgument(
           c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
-      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      checkArgument(c.sideInput(view) == expectedValue);
       return accumulator[0];
     }
 

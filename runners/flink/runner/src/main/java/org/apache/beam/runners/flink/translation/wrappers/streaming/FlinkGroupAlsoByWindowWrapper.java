@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
@@ -50,7 +52,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
@@ -152,7 +153,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       KeyedStream<WindowedValue<KV<K, VIN>>, K> groupedStreamByKey,
       Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner,
       KvCoder<K, VOUT> outputKvCoder) {
-    Preconditions.checkNotNull(options);
+    checkNotNull(options);
 
     KvCoder<K, VIN> inputKvCoder = (KvCoder<K, VIN>) input.getCoder();
     FlinkGroupAlsoByWindowWrapper windower = new FlinkGroupAlsoByWindowWrapper<>(options,
@@ -190,7 +191,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       PipelineOptions options,
       PCollection input,
       KeyedStream<WindowedValue<KV<K, VIN>>, K> groupedStreamByKey) {
-    Preconditions.checkNotNull(options);
+    checkNotNull(options);
 
     KvCoder<K, VIN> inputKvCoder = (KvCoder<K, VIN>) input.getCoder();
     Coder<K> keyCoder = inputKvCoder.getKeyCoder();
@@ -224,7 +225,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
                    WindowingStrategy<KV<K, VIN>, BoundedWindow> windowingStrategy,
                    KvCoder<K, VIN> inputCoder,
                    Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner) {
-    Preconditions.checkNotNull(options);
+    checkNotNull(options);
 
     return new FlinkGroupAlsoByWindowWrapper(options, registry, windowingStrategy, inputCoder, combiner);
   }
@@ -234,12 +235,12 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
                                         WindowingStrategy<KV<K, VIN>, BoundedWindow> windowingStrategy,
                                         KvCoder<K, VIN> inputCoder,
                                         Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner) {
-    Preconditions.checkNotNull(options);
+    checkNotNull(options);
 
-    this.serializedOptions = new SerializedPipelineOptions(Preconditions.checkNotNull(options));
-    this.coderRegistry = Preconditions.checkNotNull(registry);
-    this.inputKvCoder = Preconditions.checkNotNull(inputCoder);//(KvCoder<K, VIN>) input.getCoder();
-    this.windowingStrategy = Preconditions.checkNotNull(windowingStrategy);//input.getWindowingStrategy();
+    this.serializedOptions = new SerializedPipelineOptions(checkNotNull(options));
+    this.coderRegistry = checkNotNull(registry);
+    this.inputKvCoder = checkNotNull(inputCoder);//(KvCoder<K, VIN>) input.getCoder();
+    this.windowingStrategy = checkNotNull(windowingStrategy);//input.getWindowingStrategy();
     this.combineFn = combiner;
     this.operator = createGroupAlsoByWindowOperator();
     this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -447,8 +448,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       function.super();
       super.setupDelegateAggregators();
 
-      this.collector = Preconditions.checkNotNull(outCollector);
-      this.timerInternals = Preconditions.checkNotNull(timerInternals);
+      this.collector = checkNotNull(outCollector);
+      this.timerInternals = checkNotNull(timerInternals);
     }
 
     public void setElement(KeyedWorkItem<K, VIN> element,

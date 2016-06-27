@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.util.state;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 import org.joda.time.Instant;
 
@@ -228,7 +228,7 @@ public class StateMerging {
       // Update directly from window-derived hold.
       Instant hold = result.getOutputTimeFn().assignOutputTime(
           BoundedWindow.TIMESTAMP_MIN_VALUE, resultWindow);
-      Preconditions.checkState(hold.isAfter(BoundedWindow.TIMESTAMP_MIN_VALUE));
+      checkState(hold.isAfter(BoundedWindow.TIMESTAMP_MIN_VALUE));
       result.add(hold);
     } else {
       // Prefetch.

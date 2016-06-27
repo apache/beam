@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,7 +43,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Duration;
@@ -527,7 +529,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // Assert that holds have a proximate timer.
         boolean holdInWindow = !hold.isAfter(window.maxTimestamp());
         boolean timerInWindow = !timer.isAfter(window.maxTimestamp());
-        Preconditions.checkState(
+        checkState(
             holdInWindow == timerInWindow,
             "set a hold at %s, a timer at %s, which disagree as to whether they are in window %s",
             hold,
@@ -559,7 +561,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   public void onTimer(TimerData timer) throws Exception {
     // Which window is the timer for?
-    Preconditions.checkArgument(timer.getNamespace() instanceof WindowNamespace,
+    checkArgument(timer.getNamespace() instanceof WindowNamespace,
         "Expected timer to be in WindowNamespace, but was in %s", timer.getNamespace());
     @SuppressWarnings("unchecked")
     WindowNamespace<W> windowNamespace = (WindowNamespace<W>) timer.getNamespace();
@@ -607,7 +609,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // and the watermark has passed the end of the window.
         @Nullable Instant newHold =
             onTrigger(directContext, renamedContext, true/* isFinished */, isEndOfWindow);
-        Preconditions.checkState(newHold == null,
+        checkState(newHold == null,
             "Hold placed at %s despite isFinished being true.", newHold);
       }
 
@@ -635,7 +637,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // cleanup event and handled by the above).
         // Note we must do this even if the trigger is finished so that we are sure to cleanup
         // any final trigger finished bits.
-        Preconditions.checkState(
+        checkState(
             windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO),
             "Unexpected zero getAllowedLateness");
         WindowTracing.debug(
@@ -643,7 +645,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             + "inputWatermark:{}; outputWatermark:{}",
             key, directContext.window(), cleanupTime, timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
-        Preconditions.checkState(!cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+        checkState(!cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
                                  "Cleanup time %s is beyond end-of-time", cleanupTime);
         directContext.timers().setTimer(cleanupTime, TimeDomain.EVENT_TIME);
       }
@@ -822,14 +824,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     if (newHold != null) {
       // We can't be finished yet.
-      Preconditions.checkState(
+      checkState(
         !isFinished, "new hold at %s but finished %s", newHold, directContext.window());
       // The hold cannot be behind the input watermark.
-      Preconditions.checkState(
+      checkState(
         !newHold.isBefore(inputWM), "new hold %s is before input watermark %s", newHold, inputWM);
       if (newHold.isAfter(directContext.window().maxTimestamp())) {
         // The hold must be for garbage collection, which can't have happened yet.
-        Preconditions.checkState(
+        checkState(
           newHold.isEqual(garbageCollectionTime(directContext.window())),
           "new hold %s should be at garbage collection for window %s plus %s",
           newHold,
@@ -837,12 +839,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           windowingStrategy.getAllowedLateness());
       } else {
         // The hold must be for the end-of-window, which can't have happened yet.
-        Preconditions.checkState(
+        checkState(
           newHold.isEqual(directContext.window().maxTimestamp()),
           "new hold %s should be at end of window %s",
           newHold,
           directContext.window());
-        Preconditions.checkState(
+        checkState(
           !isEndOfWindow,
           "new hold at %s for %s but this is the watermark trigger",
           newHold,
@@ -915,7 +917,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         directContext.window(),
         inputWM,
         timerInternals.currentOutputWatermarkTime());
-    Preconditions.checkState(!timer.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+    checkState(!timer.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
                              "Timer %s is beyond end-of-time", timer);
     directContext.timers().setTimer(timer, TimeDomain.EVENT_TIME);
     return timer;

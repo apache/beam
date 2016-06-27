@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -24,10 +27,11 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
+
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -41,6 +45,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -50,6 +55,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
+
 import javax.annotation.Nullable;
 
 /**
@@ -165,14 +171,10 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
 
   @Override
   public void validate() {
-    Preconditions.checkNotNull(filepattern,
-        "need to set the filepattern of a HDFSFileSource");
-    Preconditions.checkNotNull(formatClass,
-        "need to set the format class of a HDFSFileSource");
-    Preconditions.checkNotNull(keyClass,
-        "need to set the key class of a HDFSFileSource");
-    Preconditions.checkNotNull(valueClass,
-        "need to set the value class of a HDFSFileSource");
+    checkNotNull(filepattern, "need to set the filepattern of a HDFSFileSource");
+    checkNotNull(formatClass, "need to set the format class of a HDFSFileSource");
+    checkNotNull(keyClass, "need to set the key class of a HDFSFileSource");
+    checkNotNull(valueClass, "need to set the value class of a HDFSFileSource");
   }
 
   @Override
@@ -467,8 +469,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     }
 
     public SerializableSplit(InputSplit split) {
-      Preconditions.checkArgument(split instanceof Writable, "Split is not writable: "
-          + split);
+      checkArgument(split instanceof Writable, "Split is not writable: %s", split);
       this.split = split;
     }
 

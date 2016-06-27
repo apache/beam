@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -25,7 +28,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
@@ -191,7 +193,7 @@ public final class PaneInfo {
   }
 
   public static PaneInfo createPane(boolean isFirst, boolean isLast, Timing timing) {
-    Preconditions.checkArgument(isFirst, "Indices must be provided for non-first pane info.");
+    checkArgument(isFirst, "Indices must be provided for non-first pane info.");
     return createPane(isFirst, isLast, timing, 0, timing == Timing.EARLY ? -1 : 0);
   }
 
@@ -201,15 +203,14 @@ public final class PaneInfo {
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
     if (isFirst || timing == Timing.UNKNOWN) {
-      return Preconditions.checkNotNull(
-          BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
+      return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
     } else {
       return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
     }
   }
 
   public static PaneInfo decodePane(byte encodedPane) {
-    return Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get(encodedPane));
+    return checkNotNull(BYTE_TO_PANE_INFO.get(encodedPane));
   }
 
   /**

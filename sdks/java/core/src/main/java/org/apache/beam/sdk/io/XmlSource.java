@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.JAXBCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-
-import com.google.common.base.Preconditions;
 
 import org.codehaus.stax2.XMLInputFactory2;
 
@@ -39,6 +39,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
+
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -209,12 +210,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
   @Override
   public void validate() {
     super.validate();
-    Preconditions.checkNotNull(
+    checkNotNull(
         rootElement, "rootElement is null. Use builder method withRootElement() to set this.");
-    Preconditions.checkNotNull(
+    checkNotNull(
         recordElement,
         "recordElement is null. Use builder method withRecordElement() to set this.");
-    Preconditions.checkNotNull(
+    checkNotNull(
         recordClass, "recordClass is null. Use builder method withRecordClass() to set this.");
   }
 

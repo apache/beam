@@ -29,6 +29,9 @@ import static org.apache.beam.sdk.util.Structs.addString;
 import static org.apache.beam.sdk.util.Structs.getString;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import org.apache.beam.runners.dataflow.DataflowRunner.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.internal.ReadTranslator;
@@ -76,8 +79,6 @@ import com.google.api.services.dataflow.model.Environment;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -435,13 +436,13 @@ public class DataflowPipelineTranslator {
         disk.setDiskType(options.getWorkerDiskType());
         workerPool.setDataDisks(Collections.singletonList(disk));
       }
-      if (!Strings.isNullOrEmpty(options.getZone())) {
+      if (!isNullOrEmpty(options.getZone())) {
         workerPool.setZone(options.getZone());
       }
-      if (!Strings.isNullOrEmpty(options.getNetwork())) {
+      if (!isNullOrEmpty(options.getNetwork())) {
         workerPool.setNetwork(options.getNetwork());
       }
-      if (!Strings.isNullOrEmpty(options.getSubnetwork())) {
+      if (!isNullOrEmpty(options.getSubnetwork())) {
         workerPool.setSubnetwork(options.getSubnetwork());
       }
       if (options.getDiskSizeGb() > 0) {
@@ -669,11 +670,11 @@ public class DataflowPipelineTranslator {
                                                PValue inputValue,
                                                PValue outputValue) {
       Coder<?> inputValueCoder =
-          Preconditions.checkNotNull(outputCoders.get(inputValue));
+          checkNotNull(outputCoders.get(inputValue));
       // The inputValueCoder for the input PCollection should be some
       // WindowedValueCoder of the input PCollection's element
       // coder.
-      Preconditions.checkState(
+      checkState(
           inputValueCoder instanceof WindowedValue.WindowedValueCoder);
       // The outputValueCoder for the output should be an
       // IterableCoder of the inputValueCoder. This is a property

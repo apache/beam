@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
-
-import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 
@@ -48,8 +48,7 @@ public class DataflowPathValidator implements PathValidator {
   @Override
   public String validateInputFilePatternSupported(String filepattern) {
     GcsPath gcsPath = getGcsPath(filepattern);
-    Preconditions.checkArgument(
-        dataflowOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
+    checkArgument(dataflowOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
     String returnValue = verifyPath(filepattern);
     verifyPathIsAccessible(filepattern, "Could not find file %s");
     return returnValue;
@@ -69,9 +68,8 @@ public class DataflowPathValidator implements PathValidator {
   @Override
   public String verifyPath(String path) {
     GcsPath gcsPath = getGcsPath(path);
-    Preconditions.checkArgument(gcsPath.isAbsolute(),
-        "Must provide absolute paths for Dataflow");
-    Preconditions.checkArgument(!gcsPath.getObject().contains("//"),
+    checkArgument(gcsPath.isAbsolute(), "Must provide absolute paths for Dataflow");
+    checkArgument(!gcsPath.getObject().contains("//"),
         "Dataflow Service does not allow objects with consecutive slashes");
     return gcsPath.toResourceName();
   }
@@ -79,7 +77,7 @@ public class DataflowPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      Preconditions.checkArgument(dataflowOptions.getGcsUtil().bucketExists(gcsPath),
+      checkArgument(dataflowOptions.getGcsUtil().bucketExists(gcsPath),
         errorMessage, path);
     } catch (IOException e) {
       throw new RuntimeException(

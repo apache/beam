@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.util.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Queues;
@@ -158,7 +159,7 @@ public class ReflectHelpers {
    * @return
    */
   public static FluentIterable<Class<?>> getClosureOfInterfaces(Class<?> clazz) {
-    Preconditions.checkNotNull(clazz);
+    checkNotNull(clazz);
     Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
     Collections.addAll(interfacesToProcess, clazz.getInterfaces());
 
@@ -196,8 +197,8 @@ public class ReflectHelpers {
    * @return An iterable of {@link Method}s which {@code iface} exposes.
    */
   public static Iterable<Method> getClosureOfMethodsOnInterface(Class<?> iface) {
-    Preconditions.checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface());
+    checkNotNull(iface);
+    checkArgument(iface.isInterface());
     ImmutableSet.Builder<Method> builder = ImmutableSet.builder();
     Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
     interfacesToProcess.add(iface);

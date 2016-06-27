@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import org.apache.beam.sdk.coders.Coder;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.sdk.coders.Coder;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -36,7 +36,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   private final Coder<T> coder;
 
   public CoderTypeInformation(Coder<T> coder) {
-    Preconditions.checkNotNull(coder);
+    checkNotNull(coder);
     this.coder = coder;
   }
 

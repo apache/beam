@@ -42,7 +42,6 @@ import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -487,7 +486,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
     @Override
     public Instant currentInputWatermarkTime() {
-      return Preconditions.checkNotNull(inputWatermarkTime);
+      return checkNotNull(inputWatermarkTime);
     }
 
     @Override
