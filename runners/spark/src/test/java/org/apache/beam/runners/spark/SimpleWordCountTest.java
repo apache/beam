@@ -21,19 +21,14 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.ImmutableSet;
@@ -48,7 +43,6 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * Simple word count test.
@@ -68,7 +62,8 @@ public class SimpleWordCountTest {
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
         .of()));
-    PCollection<String> output = inputWords.apply(new CountWords());
+    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
@@ -86,7 +81,8 @@ public class SimpleWordCountTest {
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
         .of()));
-    PCollection<String> output = inputWords.apply(new CountWords());
+    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     File outputFile = testFolder.newFile();
     output.apply("WriteCounts", TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
@@ -96,65 +92,5 @@ public class SimpleWordCountTest {
 
     assertThat(Sets.newHashSet(FileUtils.readLines(outputFile)),
         containsInAnyOrder(EXPECTED_COUNT_SET.toArray()));
-  }
-
-  /**
-   * A DoFn that tokenizes lines of text into individual words.
-   */
-  static class ExtractWordsFn extends DoFn<String, String> {
-    private static final Pattern WORD_BOUNDARY = Pattern.compile("[^a-zA-Z']+");
-    private final Aggregator<Long, Long> emptyLines =
-        createAggregator("emptyLines", new Sum.SumLongFn());
-
-    @Override
-    public void processElement(ProcessContext c) {
-      // Split the line into words.
-      String[] words = WORD_BOUNDARY.split(c.element());
-
-      // Keep track of the number of lines without any words encountered while tokenizing.
-      // This aggregator is visible in the monitoring UI when run using DataflowRunner.
-      if (words.length == 0) {
-        emptyLines.addValue(1L);
-      }
-
-      // Output each word encountered into the output PCollection.
-      for (String word : words) {
-        if (!word.isEmpty()) {
-          c.output(word);
-        }
-      }
-    }
-  }
-
-  /**
-   * A DoFn that converts a Word and Count into a printable string.
-   */
-  private static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
-    @Override
-    public void processElement(ProcessContext c) {
-      c.output(c.element().getKey() + ": " + c.element().getValue());
-    }
-  }
-
-  /**
-   * A {@link PTransform} counting words.
-   */
-  public static class CountWords extends PTransform<PCollection<String>, PCollection<String>> {
-    @Override
-    public PCollection<String> apply(PCollection<String> lines) {
-
-      // Convert lines of text into individual words.
-      PCollection<String> words = lines.apply(
-          ParDo.of(new ExtractWordsFn()));
-
-      // Count the number of times each word occurs.
-      PCollection<KV<String, Long>> wordCounts =
-          words.apply(Count.<String>perElement());
-
-      // Format each word and count into a printable string.
-
-      return wordCounts.apply(ParDo.of(new FormatCountsFn()));
-    }
-
   }
 }
