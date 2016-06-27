@@ -78,7 +78,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
     position = recordStart;
 
     if (isAtSplitPoint) {
-      if (!range.endsAfterKey(recordStart)) {
+      if (!range.containsKey(recordStart)) {
         done = true;
         return false;
       }
