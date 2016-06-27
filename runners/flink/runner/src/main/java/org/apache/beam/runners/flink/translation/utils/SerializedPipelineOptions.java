@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

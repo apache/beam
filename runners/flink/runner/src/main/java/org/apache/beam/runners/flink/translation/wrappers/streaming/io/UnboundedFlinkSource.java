@@ -23,8 +23,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-import com.google.common.base.Preconditions;
-
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.List;
