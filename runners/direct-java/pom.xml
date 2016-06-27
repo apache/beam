@@ -67,8 +67,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <!-- Use a dummy runner for component tests -->
-            <beamUseDummyRunner>true</beamUseDummyRunner>
+            <beamUseDummyRunner>false</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
         <executions>
