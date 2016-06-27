@@ -23,9 +23,11 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 
@@ -91,5 +93,17 @@ public class DisplayDataEvaluatorTest implements Serializable {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(myTransform);
 
     assertThat(displayData, hasItem(hasDisplayItem("foo")));
+  }
+
+  @Test
+  public void testSourceTransform() {
+    PTransform<? super PBegin, ? extends POutput> myTransform = TextIO.Read
+        .from("foo.*")
+        .withoutValidation();
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(myTransform);
+
+    assertThat(displayData, hasItem(hasDisplayItem("filePattern", "foo.*")));
   }
 }
