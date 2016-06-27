@@ -200,7 +200,8 @@ public final class HadoopIO {
 
       @Override
       public PDone apply(PCollection<KV<K, V>> input) {
-        checkNotNull(filenamePrefix, "need to set the filename prefix of an HadoopIO.Write transform");
+        checkNotNull(
+            filenamePrefix, "need to set the filename prefix of an HadoopIO.Write transform");
         checkNotNull(formatClass, "need to set the format class of an HadoopIO.Write transform");
         checkNotNull(keyClass, "need to set the key class of an HadoopIO.Write transform");
         checkNotNull(valueClass, "need to set the value class of an HadoopIO.Write transform");
