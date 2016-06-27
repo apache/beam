@@ -3,7 +3,6 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -28,6 +27,7 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import cz.seznam.euphoria.core.executor.SerializableUtils;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,6 +242,12 @@ public class InMemExecutor implements Executor {
       });
 
   private TriggerScheduler triggering = new ProcessingTimeTriggerScheduler();
+
+  private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
+
+  public void setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
+    this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
+  }
 
   @Override
   public Future<Integer> submit(Flow flow) {
@@ -602,7 +608,9 @@ public class InMemExecutor implements Executor {
           q, output, windowing,
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
           SerializableUtils.cloneSerializable(triggering),
-          reduceStateByKey.input().isBounded(), eowBroadcast));
+          reduceStateByKey.input().isBounded(),
+          reduceStateByKeyMaxKeysPerWindow,
+          eowBroadcast));
       i++;
     }
     return outputSuppliers;
