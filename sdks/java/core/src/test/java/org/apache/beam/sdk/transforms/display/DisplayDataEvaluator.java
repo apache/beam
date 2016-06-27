@@ -25,6 +25,7 @@ import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 
@@ -79,8 +80,8 @@ public class DisplayDataEvaluator {
    * @return the set of {@link DisplayData} for primitive {@link PTransform PTransforms}.
    */
   public <InputT> Set<DisplayData> displayDataForPrimitiveTransforms(
-    final PTransform<? super PCollection<InputT>, ? extends POutput> root,
-    Coder<InputT> inputCoder) {
+      final PTransform<? super PCollection<InputT>, ? extends POutput> root,
+      Coder<InputT> inputCoder) {
 
     Create.Values<InputT> input = Create.of();
     if (inputCoder != null) {
@@ -89,9 +90,29 @@ public class DisplayDataEvaluator {
 
     Pipeline pipeline = Pipeline.create(options);
     pipeline
-      .apply(input)
-      .apply(root);
+        .apply(input)
+        .apply(root);
 
+    return displayDataForPipeline(pipeline, root);
+  }
+
+  /**
+   * Traverse the specified source {@link PTransform}, collecting {@link DisplayData} registered
+   * on the inner primitive {@link PTransform PTransforms}.
+   *
+   * @param root The source root {@link PTransform} to traverse
+   * @return the set of {@link DisplayData} for primitive source {@link PTransform PTransforms}.
+   */
+  public Set<DisplayData> displayDataForPrimitiveSourceTransforms(
+      final PTransform<? super PBegin, ? extends POutput> root) {
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(root);
+
+    return displayDataForPipeline(pipeline, root);
+  }
+
+  private static Set<DisplayData> displayDataForPipeline(Pipeline pipeline, PTransform root) {
     PrimitiveDisplayDataPTransformVisitor visitor = new PrimitiveDisplayDataPTransformVisitor(root);
     pipeline.traverseTopologically(visitor);
     return visitor.getPrimitivesDisplayData();
