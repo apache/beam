@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
 
 /**
@@ -369,13 +370,6 @@ public class PubsubIO {
    * {@link Bound#maxNumRecords(int)} or {@link Bound#maxReadTime(Duration)} must be set.
    */
   public static class Read {
-    /**
-     * Creates and returns a transform for reading from Cloud Pub/Sub with the specified transform
-     * name.
-     */
-    public static Bound<String> named(String name) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).named(name);
-    }
 
     /**
      * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
@@ -528,16 +522,6 @@ public class PubsubIO {
         this.idLabel = idLabel;
         this.maxNumRecords = maxNumRecords;
         this.maxReadTime = maxReadTime;
-      }
-
-      /**
-       * Returns a transform that's like this one but with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(
-            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
@@ -834,13 +818,6 @@ public class PubsubIO {
   // TODO: Support non-String encodings.
   public static class Write {
     /**
-     * Creates a transform that writes to Pub/Sub with the given step name.
-     */
-    public static Bound<String> named(String name) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).named(name);
-    }
-
-    /**
      * Creates a transform that publishes to the specified topic.
      *
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
@@ -914,16 +891,6 @@ public class PubsubIO {
         this.timestampLabel = timestampLabel;
         this.idLabel = idLabel;
         this.coder = coder;
-      }
-
-      /**
-       * Returns a new transform that's like this one but with the specified step
-       * name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       /**

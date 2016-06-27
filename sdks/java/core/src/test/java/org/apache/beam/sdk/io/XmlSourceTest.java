@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -582,7 +583,7 @@ public class XmlSourceTest {
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
 
-    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<Train> output = p.apply("ReadFileData", Read.from(source));
 
     List<Train> expectedResults =
         ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
@@ -672,7 +673,7 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<Train> output = p.apply("ReadFileData", Read.from(source));
 
     PAssert.that(output).containsInAnyOrder(trains);
     p.run();
@@ -814,13 +815,13 @@ public class XmlSourceTest {
 
     Pipeline p = TestPipeline.create();
 
-    XmlSource<Train> source = XmlSource.<Train>from(file.getParent() + "/"
-        + "temp*.xml")
-                                  .withRootElement("trains")
-                                  .withRecordElement("train")
-                                  .withRecordClass(Train.class)
-                                  .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.getParent() + "/" + "temp*.xml")
+            .withRootElement("trains")
+            .withRecordElement("train")
+            .withRecordClass(Train.class)
+            .withMinBundleSize(1024);
+    PCollection<Train> output = p.apply("ReadFileData", Read.from(source));
 
     List<Train> expectedResults = new ArrayList<>();
     expectedResults.addAll(trains1);

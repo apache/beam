@@ -120,9 +120,9 @@ public class TransformTreeTest {
 
     Pipeline p = TestPipeline.create();
 
-    p.apply(TextIO.Read.named("ReadMyFile").from(inputFile.getPath()))
+    p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
         .apply(Sample.<String>any(10))
-        .apply(TextIO.Write.named("WriteMyFile").to(outputFile.getPath()));
+        .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);

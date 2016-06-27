@@ -45,10 +45,6 @@ public class PubsubIOTest {
         PubsubIO.Read.topic("projects/myproject/topics/mytopic").getName());
     assertEquals("PubsubIO.Write",
         PubsubIO.Write.topic("projects/myproject/topics/mytopic").getName());
-    assertEquals("ReadMyTopic",
-        PubsubIO.Read.named("ReadMyTopic").topic("projects/myproject/topics/mytopic").getName());
-    assertEquals("WriteMyTopic",
-        PubsubIO.Write.named("WriteMyTopic").topic("projects/myproject/topics/mytopic").getName());
   }
 
   @Test
