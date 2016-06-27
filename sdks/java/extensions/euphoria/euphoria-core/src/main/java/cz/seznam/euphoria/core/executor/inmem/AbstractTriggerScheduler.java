@@ -5,8 +5,8 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.Window;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +92,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   public void cancel(Window w) {
     synchronized (activeTasks) {
       activeTasks.get(w).stream().forEach(ScheduledTriggerTask::cancel);
-      activeTasks.asMap().remove(w);
+      activeTasks.removeAll(w);
     }
   }
 
