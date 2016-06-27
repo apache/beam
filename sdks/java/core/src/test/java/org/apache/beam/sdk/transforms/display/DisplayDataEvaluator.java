@@ -116,8 +116,7 @@ public class DisplayDataEvaluator {
     pipeline.traverseTopologically(visitor);
     return visitor.getPrimitivesDisplayData();
   }
-
-
+  
   /**
    * Visits {@link PTransform PTransforms} in a pipeline, and collects {@link DisplayData} for
    * each primitive transform under a given composite root.
