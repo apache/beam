@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Syntax and semantics for type-hinting custom-functions/PTransforms in the SDK.
+"""Syntax & semantics for type-hinting custom-functions/PTransforms in the SDK.
 
 This module defines type-hinting objects and the corresponding syntax for
 type-hinting function arguments, function return types, or PTransform object
@@ -322,7 +322,8 @@ def _unified_repr(o):
   Returns:
     A qualified name for the passed Python object fit for string formatting.
   """
-  return repr(o) if isinstance(o, (TypeConstraint, types.NoneType)) else o.__name__
+  return repr(o) if isinstance(
+      o, (TypeConstraint, types.NoneType)) else o.__name__
 
 
 def check_constraint(type_constraint, object_instance):

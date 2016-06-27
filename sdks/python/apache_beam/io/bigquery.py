@@ -46,7 +46,7 @@ of the side table. The execution framework may use some caching techniques to
 share the side inputs between calls in order to avoid excessive reading::
 
   main_table = pipeline | beam.io.Read(beam.io.BigQuerySource('very_big_table')
-  side_table = pipeline | beam.io.Read(beam.io.BigQuerySource('not_so_big_table')
+  side_table = pipeline | beam.io.Read(beam.io.BigQuerySource('not_big_table')
   results = (
       main_table
       | beam.Map('process data',
