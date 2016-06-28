@@ -106,7 +106,7 @@
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
     <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev26-1.22.0</dataflow.version>
+    <dataflow.version>v1b3-rev30-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.client.version>1.0.0-beta.2</datastore.client.version>
     <datastore.proto.version>1.0.0-beta</datastore.proto.version>
