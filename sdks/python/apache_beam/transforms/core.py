@@ -49,6 +49,11 @@ from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.utils.options import TypeOptions
 
+# Type variables
+T = typehints.TypeVariable('T')
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
+
 
 class DoFnProcessContext(object):
   """A processing context passed to DoFn methods during execution.
@@ -842,6 +847,7 @@ class CombineGlobally(PTransform):
             "an empty PCollection if the input PCollection is empty, "
             "or CombineGlobally().as_singleton_view() to get the default "
             "output of the CombineFn if the input PCollection is empty.")
+
       def typed(transform):
         # TODO(robertwb): We should infer this.
         if combined.element_type:
@@ -954,8 +960,6 @@ class CombineValuesDoFn(DoFn):
     return hints
 
 
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class GroupByKey(PTransform):
@@ -1051,8 +1055,6 @@ class GroupByKey(PTransform):
                       self.GroupAlsoByWindow(pcoll.windowing)))
 
 
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class GroupByKeyOnly(PTransform):
@@ -1145,7 +1147,6 @@ class Windowing(object):
     return self._is_default
 
 
-T = typehints.TypeVariable('T')
 @typehints.with_input_types(T)
 @typehints.with_output_types(T)
 class WindowInto(ParDo):

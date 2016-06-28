@@ -16,10 +16,11 @@
 #    limitations under the License.
 #
 
-# This script will run pylint on files that changed compared to the current
-# HEAD of the branch.
+# This script will run pylint and pep8 on files that changed compared to the
+# current HEAD of the branch.
 #
 # Use "pylint apache_beam" to run pylint all files.
+# Use "pep8 apache_beam" to run pep8 all files.
 #
 # The exit-code of the script indicates success or a failure.
 
