@@ -688,6 +688,7 @@ public class DatastoreIO {
    *
    * <p>Visible for testing purposes.
    */
+  @VisibleForTesting
   static class DatastoreWriter extends Writer<Entity, DatastoreWriteResult> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriter.class);
     private final DatastoreWriteOperation writeOp;
@@ -721,7 +722,6 @@ public class DatastoreIO {
       return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
     }
 
-    // Visible for testing
     DatastoreWriter(DatastoreWriteOperation writeOp, Datastore datastore) {
       this.writeOp = writeOp;
       this.datastore = datastore;
@@ -824,7 +824,8 @@ public class DatastoreIO {
    * <p>Timestamped records are currently not supported.
    * All records implicitly have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    */
-  public static class DatastoreReader extends BoundedSource.BoundedReader<Entity> {
+  @VisibleForTesting
+  static class DatastoreReader extends BoundedSource.BoundedReader<Entity> {
     private final DatastoreSource source;
 
     /**
