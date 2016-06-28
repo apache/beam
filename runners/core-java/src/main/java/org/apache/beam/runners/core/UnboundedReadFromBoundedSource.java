@@ -167,10 +167,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     public Reader createReader(PipelineOptions options, Checkpoint<T> checkpoint)
         throws IOException {
       if (checkpoint == null) {
-        return new Reader(
-            Collections.<TimestampedValue<T>>emptyList() /* residualElements */,
-            boundedSource,
-            options);
+        return new Reader(null /* residualElements */, boundedSource, options);
       } else {
         return new Reader(checkpoint.residualElements, checkpoint.residualSource, options);
       }
@@ -189,11 +186,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
     @VisibleForTesting
     static class Checkpoint<T> implements UnboundedSource.CheckpointMark {
-      private final List<TimestampedValue<T>> residualElements;
+      private final @Nullable List<TimestampedValue<T>> residualElements;
       private final @Nullable BoundedSource<T> residualSource;
 
       public Checkpoint(
-          List<TimestampedValue<T>> residualElements,
+          @Nullable List<TimestampedValue<T>> residualElements,
           @Nullable BoundedSource<T> residualSource) {
         this.residualElements = residualElements;
         this.residualSource = residualSource;
@@ -203,7 +200,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       public void finalizeCheckpoint() {}
 
       @VisibleForTesting
-      List<TimestampedValue<T>> getResidualElements() {
+      @Nullable List<TimestampedValue<T>> getResidualElements() {
         return residualElements;
       }
 
@@ -286,7 +283,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       private boolean done;
 
       Reader(
-          List<TimestampedValue<T>> residualElementsList,
+          @Nullable List<TimestampedValue<T>> residualElementsList,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
         init(residualElementsList, residualSource, options);
@@ -295,10 +292,12 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       }
 
       private void init(
-          List<TimestampedValue<T>> residualElementsList,
+          @Nullable List<TimestampedValue<T>> residualElementsList,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
-        this.residualElements = new ResidualElements(residualElementsList);
+        this.residualElements = residualElementsList == null
+            ? new ResidualElements(Collections.<TimestampedValue<T>>emptyList())
+                : new ResidualElements(residualElementsList);
         this.residualSource =
             residualSource == null ? null : new ResidualSource(residualSource, options);
       }
