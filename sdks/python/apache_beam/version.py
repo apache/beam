@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK version information."""
+"""Apache Beam SDK version utilities."""
 
 import pkg_resources
 from lxml import etree
@@ -30,5 +30,5 @@ def get_version_from_pom():
     return version
 
 
-def get_packaged_version():
+def get_distribution_version():
     return pkg_resources.get_distribution("apache_beam").version

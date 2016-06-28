@@ -19,10 +19,11 @@
 
 import platform
 import setuptools
+import re
 from apache_beam.version import get_version_from_pom
 
 
-# Currently all compiled modules are optional  (for performance only).
+# Currently all compiled modules are optional (for performance only).
 if platform.system() == 'Windows':
     # Windows doesn't always provide int64_t.
     cythonize = lambda *args, **kwargs: []
@@ -33,7 +34,26 @@ else:
     except ImportError:
         cythonize = lambda *args, **kwargs: []
 
-version = get_version_from_pom()
+
+# Reads the actual version from pom.xml file, and synchronizes
+# apache_beam.__version__ field for later usage.
+def sync_version():
+    version = get_version_from_pom()
+    init_path = "apache_beam/__init__.py"
+    regex = r'^__version__\s*=\s*".*"'
+    with open(init_path, "r") as f:
+        lines = f.readlines()
+    with open(init_path, "w") as f:
+        for line in lines:
+            if re.search(regex, line):
+                f.write(re.sub(regex, '__version__ = "%s"' % version, line))
+            else:
+                f.write(line)
+    return version
+
+
+version = sync_version()
+
 
 # Configure the required packages and scripts to install.
 REQUIRED_PACKAGES = [

@@ -23,8 +23,8 @@ import shutil
 import tempfile
 import unittest
 
+from apache_beam import __version__
 from apache_beam import utils
-from apache_beam.version import get_packaged_version
 from apache_beam.utils import dependency
 from apache_beam.utils import names
 from apache_beam.utils.options import GoogleCloudOptions
@@ -246,7 +246,7 @@ class SetupTest(unittest.TestCase):
   def test_sdk_location_default(self):
     staging_dir = tempfile.mkdtemp()
     expected_from_url = '%s/v%s.tar.gz' % (
-        dependency.PACKAGES_URL_PREFIX, get_packaged_version())
+        dependency.PACKAGES_URL_PREFIX, __version__)
     expected_from_path = self.override_file_download(
         expected_from_url, staging_dir)
     self.override_file_copy(expected_from_path, staging_dir)
