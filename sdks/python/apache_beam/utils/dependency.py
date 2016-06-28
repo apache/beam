@@ -57,14 +57,13 @@ import os
 import shutil
 import tempfile
 
-
 from apache_beam import utils
+from apache_beam.version import get_packaged_version
 from apache_beam.internal import pickler
 from apache_beam.utils import names
 from apache_beam.utils import processes
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import SetupOptions
-from apache_beam.version import get_version
 
 
 # Standard file names used for staging files.
@@ -337,7 +336,7 @@ def stage_job_resources(
       # will not stage a tarball.
       if setup_options.sdk_location == 'default':
         sdk_remote_location = '%s/v%s.tar.gz' % (
-            PACKAGES_URL_PREFIX, get_version())
+            PACKAGES_URL_PREFIX, get_packaged_version())
       else:
         sdk_remote_location = setup_options.sdk_location
       _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)

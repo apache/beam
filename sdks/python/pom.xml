@@ -32,16 +32,34 @@
 
   <name>Apache Beam :: SDKs :: Python</name>
 
+  <properties>
+    <maven.resources.skip>true</maven.resources.skip>
+  </properties>
+
   <build>
+    <resources>
+      <resource>
+        <directory>${basedir}</directory>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <configuration>
-          <executable>python</executable>
-          <workingdirectory>${basedir}</workingdirectory>
-        </configuration>
         <executions>
+          <execution>
+            <id>process-resources</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>echo</executable>
+              <arguments>
+                <argument>${project.version}</argument>
+              </arguments>
+            </configuration>
+          </execution>
           <execution>
             <id>setuptools-clean</id>
             <phase>clean</phase>
@@ -49,6 +67,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
+              <executable>python</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>clean</argument>
@@ -62,6 +81,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
+              <executable>python</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>build</argument>
@@ -77,6 +97,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
+              <executable>python</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>test</argument>
@@ -90,6 +111,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
+              <executable>python</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>sdist</argument>

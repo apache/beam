@@ -19,7 +19,7 @@
 
 import platform
 import setuptools
-from apache_beam.version import get_version
+from apache_beam.version import get_version_from_pom
 
 
 # Currently all compiled modules are optional  (for performance only).
@@ -33,6 +33,7 @@ else:
     except ImportError:
         cythonize = lambda *args, **kwargs: []
 
+version = get_version_from_pom()
 
 # Configure the required packages and scripts to install.
 REQUIRED_PACKAGES = [
@@ -52,11 +53,12 @@ REQUIRED_PACKAGES = [
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
     'pyyaml>=3.10',
+    'lxml'
 ]
 
 setuptools.setup(
     name='apache-beam-sdk',
-    version=get_version(),
+    version=version,
     description='Apache Beam SDK for Python',
     long_description='',
     url='https://beam.incubator.apache.org',
@@ -71,7 +73,7 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
     ]),
     install_requires=REQUIRED_PACKAGES,
-    package_data={'': ['*.pyx', '*.pxd']},
+    package_data={'apache_beam': ['*.pyx', '*.pxd', 'pom.xml']},
     test_suite='nose.collector',
     zip_safe=False,
     # PyPI package information.
@@ -83,6 +85,6 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    license='Apache 2.0',
+    license='Apache License, 2.0',
     keywords='apache beam',
 )
