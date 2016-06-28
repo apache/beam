@@ -27,6 +27,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 import java.util.Map;
@@ -36,11 +37,24 @@ import java.util.Map;
  * {@link BoundMulti} primitive {@link PTransform}.
  */
 class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
-  private final LoadingCache<DoFn<?, ?>, ThreadLocal<DoFn<?, ?>>> fnClones;
+  private final LoadingCache<AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<DoFn<?, ?>>>
+      fnClones;
 
   public ParDoMultiEvaluatorFactory() {
-    fnClones = CacheBuilder.newBuilder()
-        .build(SerializableCloningThreadLocalCacheLoader.<DoFn<?, ?>>create());
+    fnClones =
+        CacheBuilder.newBuilder()
+            .build(
+                new CacheLoader<
+                    AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<DoFn<?, ?>>>() {
+                  @Override
+                  public ThreadLocal<DoFn<?, ?>> load(AppliedPTransform<?, ?, BoundMulti<?, ?>> key)
+                      throws Exception {
+                    @SuppressWarnings({"unchecked", "rawtypes"})
+                    ThreadLocal threadLocal =
+                        (ThreadLocal) CloningThreadLocal.of(key.getTransform().getFn());
+                    return threadLocal;
+                  }
+                });
   }
 
   @Override
@@ -59,19 +73,21 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
       CommittedBundle<InT> inputBundle,
       EvaluationContext evaluationContext) {
     Map<TupleTag<?>, PCollection<?>> outputs = application.getOutput().getAll();
-    DoFn<InT, OuT> fn = application.getTransform().getFn();
 
-    @SuppressWarnings({"unchecked", "rawtypes"}) ThreadLocal<DoFn<InT, OuT>> fnLocal =
-        (ThreadLocal) fnClones.getUnchecked(application.getTransform().getFn());
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    ThreadLocal<DoFn<InT, OuT>> fnLocal =
+        (ThreadLocal) fnClones.getUnchecked((AppliedPTransform) application);
     try {
-      TransformEvaluator<InT> parDoEvaluator = ParDoEvaluator.create(evaluationContext,
-          inputBundle,
-          application,
-          fnLocal.get(),
-          application.getTransform().getSideInputs(),
-          application.getTransform().getMainOutputTag(),
-          application.getTransform().getSideOutputTags().getAll(),
-          outputs);
+      TransformEvaluator<InT> parDoEvaluator =
+          ParDoEvaluator.create(
+              evaluationContext,
+              inputBundle,
+              application,
+              fnLocal.get(),
+              application.getTransform().getSideInputs(),
+              application.getTransform().getMainOutputTag(),
+              application.getTransform().getSideOutputTags().getAll(),
+              outputs);
       return ThreadLocalInvalidatingTransformEvaluator.wrapping(parDoEvaluator, fnLocal);
     } catch (Exception e) {
       fnLocal.remove();
