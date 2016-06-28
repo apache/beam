@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.datastore;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
@@ -38,9 +38,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreReader;
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreSource;
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreWriter;
+import org.apache.beam.sdk.io.datastore.V1Beta3.DatastoreReader;
+import org.apache.beam.sdk.io.datastore.V1Beta3.DatastoreSource;
+import org.apache.beam.sdk.io.datastore.V1Beta3.DatastoreWriter;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -461,7 +461,7 @@ public class DatastoreIOTest {
   public void testAddEntitiesWithIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
-    DatastoreWriter writer = new DatastoreIO.DatastoreWriter(null, mockDatastore);
+    DatastoreWriter writer = new DatastoreWriter(null, mockDatastore);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Entities to be written to the Datastore must have complete keys");
@@ -482,7 +482,7 @@ public class DatastoreIOTest {
     List<Entity> allEntities = Lists.newArrayList(expected);
     Collections.shuffle(allEntities);
 
-    DatastoreWriter writer = new DatastoreIO.DatastoreWriter(null, mockDatastore);
+    DatastoreWriter writer = new DatastoreWriter(null, mockDatastore);
     writer.open("test_id");
     for (Entity entity : allEntities) {
       writer.write(entity);

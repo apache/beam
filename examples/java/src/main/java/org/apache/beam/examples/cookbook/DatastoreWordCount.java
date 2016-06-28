@@ -24,8 +24,8 @@ import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.DatastoreIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.datastore.DatastoreIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;

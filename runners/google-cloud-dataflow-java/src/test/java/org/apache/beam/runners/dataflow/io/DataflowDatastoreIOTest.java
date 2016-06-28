@@ -23,7 +23,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
-import org.apache.beam.sdk.io.DatastoreIO;
+import org.apache.beam.sdk.io.datastore.DatastoreIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
