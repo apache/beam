@@ -177,7 +177,7 @@ public class TransformTreeTest {
 
     p.apply(new InvalidCompositeTransform());
 
-    p.traverseTopologically(new RecordingPipelineVisitor());
+    p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {});
     fail("traversal should have failed with an IllegalStateException");
   }
 
