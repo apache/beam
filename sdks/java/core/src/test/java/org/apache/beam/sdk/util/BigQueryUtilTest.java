@@ -31,6 +31,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Sum;
@@ -81,10 +83,12 @@ public class BigQueryUtilTest {
   @Mock private Bigquery.Tables.Get mockTablesGet;
   @Mock private Bigquery.Tabledata mockTabledata;
   @Mock private Bigquery.Tabledata.List mockTabledataList;
+  private PipelineOptions options;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    this.options = PipelineOptionsFactory.create();
   }
 
   @After
@@ -369,7 +373,7 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
 
     inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
         BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
@@ -387,7 +391,7 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
 
     inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
         BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
@@ -408,7 +412,7 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
 
     try {
       inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
@@ -432,7 +436,7 @@ public class BigQueryUtilTest {
 
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, 5);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options, 5);
 
     List<TableRow> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();
