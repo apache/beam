@@ -41,6 +41,7 @@
          a released artifact exists, we need to modify the build order.
     <module>maven-archetypes</module> -->
     <module>extensions</module>
+    <module>microbenchmarks</module>
   </modules>
 
   <profiles>
