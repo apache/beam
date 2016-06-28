@@ -121,12 +121,12 @@ from apache_beam.utils import retry
 from apache_beam.utils.options import GoogleCloudOptions
 
 # Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.internal.clients import bigquery
 except ImportError:
   pass
-# pylint: enable=wrong-import-order
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 __all__ = [

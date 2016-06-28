@@ -478,10 +478,10 @@ class TranscriptTest(unittest.TestCase):
       else:
         return fn
 
-    # pylint: disable=wrong-import-order
+    # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module
     from apache_beam.transforms import trigger as trigger_module
-    # pylint: enable=wrong-import-order
+    # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
     window_fn_names.update({'CustomTimestampingFixedWindowsWindowFn':
                             CustomTimestampingFixedWindowsWindowFn})

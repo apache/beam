@@ -59,7 +59,7 @@ def generate_julia_set_colors(pipeline, c, n, max_iterations):
 
 def generate_julia_set_visualization(data, n, max_iterations):
   """Generate the pixel matrix for rendering the julia set as an image."""
-  import numpy as np  # pylint: disable=wrong-import-order
+  import numpy as np  # pylint: disable=wrong-import-order, wrong-import-position
   colors = []
   for r in range(0, 256, 16):
     for g in range(0, 256, 16):
@@ -75,7 +75,7 @@ def generate_julia_set_visualization(data, n, max_iterations):
 
 def save_julia_set_visualization(out_file, image_array):
   """Save the fractal image of our julia set as a png."""
-  from matplotlib import pyplot as plt  # pylint: disable=wrong-import-order
+  from matplotlib import pyplot as plt  # pylint: disable=wrong-import-order, wrong-import-position
   plt.imsave(out_file, image_array, format='png')
 
 

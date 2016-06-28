@@ -40,7 +40,7 @@ import apache_beam as beam
 # pylint:disable=expression-not-assigned
 # pylint:disable=redefined-outer-name
 # pylint:disable=unused-variable
-# pylint:disable=wrong-import-order
+# pylint:disable=wrong-import-order, wrong-import-position
 
 
 class SnippetUtils(object):

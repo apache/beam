@@ -29,7 +29,7 @@ import collections
 from cPickle import loads, dumps
 
 
-# pylint: disable=wrong-import-order
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   # Don't depend on the full dataflow sdk to test coders.
   from apache_beam.transforms.window import WindowedValue
@@ -43,7 +43,7 @@ try:
 except ImportError:
   from slow_stream import InputStream as create_InputStream
   from slow_stream import OutputStream as create_OutputStream
-# pylint: enable=wrong-import-order
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class CoderImpl(object):

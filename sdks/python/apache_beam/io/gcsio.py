@@ -40,7 +40,7 @@ from apache_beam.utils import retry
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
-  # pylint: disable=wrong-import-order
+  # pylint: disable=wrong-import-order, wrong-import-position
   from apache_beam.internal.clients import storage
 except ImportError:
   raise RuntimeError(

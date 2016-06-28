@@ -383,10 +383,10 @@ class PTransform(WithTypeHints):
     pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
     if pvalues and not pipelines:
       deferred = False
-      # pylint: disable=wrong-import-order
+      # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import pipeline
       from apache_beam.utils.options import PipelineOptions
-      # pylint: enable=wrong-import-order
+      # pylint: enable=wrong-import-order, wrong-import-position
       p = pipeline.Pipeline(
           'DirectPipelineRunner', PipelineOptions(sys.argv))
     else:
@@ -403,9 +403,9 @@ class PTransform(WithTypeHints):
             raise ValueError(
                 'Mixing value from different pipelines not allowed.')
       deferred = not getattr(p.runner, 'is_eager', False)
-    # pylint: disable=wrong-import-order
+    # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
-    # pylint: enable=wrong-import-order
+    # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {id(v): p | Create('CreatePInput%s' % ix, v)
                     for ix, v in enumerate(pvalues)
                     if not isinstance(v, pvalue.PValue) and v is not None}
