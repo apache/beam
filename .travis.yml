@@ -50,5 +50,5 @@ install:
   - travis_retry mvn -B install clean -U -DskipTests=true
 
 script:
-  - travis_retry mvn -B install -U
+  - BEAM_SUREFIRE_ARGLINE="-Xmx512m"; travis_retry mvn -B install -U
   - travis_retry testing/travis/test_wordcount.sh

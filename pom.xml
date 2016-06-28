@@ -790,7 +790,7 @@
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
-            <argLine>-Xmx512m</argLine>
+            <argLine>${env.BEAM_SUREFIRE_ARGLINE}</argLine>
           </configuration>
           <dependencies>
             <dependency>
