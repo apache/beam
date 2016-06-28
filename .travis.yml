@@ -35,11 +35,11 @@ matrix:
       env: MAVEN_OVERRIDE=""
     # On Linux, run with specific JDKs only.
     - os: linux
-      env: CUSTOM_JDK="oraclejdk8"
+      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
     - os: linux
-      env: CUSTOM_JDK="oraclejdk7"
+      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
     - os: linux
-      env: CUSTOM_JDK="openjdk7"
+      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
 
 before_install:
   - echo "MAVEN_OPTS='-Xmx1024m -XX:MaxPermSize=512m'" > ~/.mavenrc
@@ -51,5 +51,5 @@ install:
   - travis_retry mvn -B install clean -U -DskipTests=true
 
 script:
-  - travis_retry mvn -B install -U
+  - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry testing/travis/test_wordcount.sh
