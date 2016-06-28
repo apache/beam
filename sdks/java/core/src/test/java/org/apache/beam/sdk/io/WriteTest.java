@@ -269,6 +269,21 @@ public class WriteTest {
     assertThat(displayData, includesDisplayDataFrom(sink));
   }
 
+  @Test
+  public void testShardedDisplayData() {
+    TestSink sink = new TestSink() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    Write.Bound<String> write = Write.to(sink).withNumShards(1);
+    DisplayData displayData = DisplayData.from(write);
+    assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
+    assertThat(displayData, includesDisplayDataFrom(sink));
+    assertThat(displayData, hasDisplayItem("numShards", 1));
+  }
+
   /**
    * Performs a Write transform and verifies the Write transform calls the appropriate methods on
    * a test sink in the correct order, as well as verifies that the elements of a PCollection are
