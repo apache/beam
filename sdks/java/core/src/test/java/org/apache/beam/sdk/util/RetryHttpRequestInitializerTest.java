@@ -30,6 +30,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
@@ -281,7 +283,8 @@ public class RetryHttpRequestInitializerTest {
     // RetryHttpInitializer.
     Bigquery b = new Bigquery.Builder(
         transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
-    BigQueryTableInserter inserter = new BigQueryTableInserter(b);
+
+    BigQueryTableInserter inserter = new BigQueryTableInserter(b, PipelineOptionsFactory.create());
     TableReference t = new TableReference()
         .setProjectId("project").setDatasetId("dataset").setTableId("table");
 
