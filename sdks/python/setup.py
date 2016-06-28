@@ -17,23 +17,21 @@
 
 """Apache Beam SDK setup configuration."""
 
-import os
 import platform
-import re
 import setuptools
 from apache_beam.version import get_version
 
 
 # Currently all compiled modules are optional  (for performance only).
 if platform.system() == 'Windows':
-  # Windows doesn't always provide int64_t.
-  cythonize = lambda *args, **kwargs: []
-else:
-  try:
-    # pylint: disable=g-statement-before-imports,g-import-not-at-top
-    from Cython.Build import cythonize
-  except ImportError:
+    # Windows doesn't always provide int64_t.
     cythonize = lambda *args, **kwargs: []
+else:
+    try:
+        # pylint: disable=g-statement-before-imports,g-import-not-at-top
+        from Cython.Build import cythonize
+    except ImportError:
+        cythonize = lambda *args, **kwargs: []
 
 
 # Configure the required packages and scripts to install.
@@ -54,8 +52,7 @@ REQUIRED_PACKAGES = [
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
     'pyyaml>=3.10',
-    ]
-
+]
 
 setuptools.setup(
     name='apache-beam-sdk',
@@ -85,7 +82,7 @@ setuptools.setup(
         'Programming Language :: Python :: 2.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        ],
+    ],
     license='Apache 2.0',
     keywords='apache beam',
-    )
+)
