@@ -73,7 +73,7 @@
           </executions>
           <configuration>
             <forkCount>1</forkCount>
-            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline}</argLine>
           </configuration>
         </plugin>
 
@@ -82,7 +82,7 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
-            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline}</argLine>
           </configuration>
         </plugin>
 
