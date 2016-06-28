@@ -24,6 +24,7 @@ from apitools.base.py.extra_types import JsonObject
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
 
+
 class JsonValueTest(unittest.TestCase):
 
   def test_string_to(self):

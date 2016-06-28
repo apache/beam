@@ -159,13 +159,13 @@ if 'save_module' in dir(dill.dill):
       return old_save_module_dict(pickler, obj)
   dill.dill.save_module_dict = new_save_module_dict
 
-
   def _nest_dill_logging():
     """Prefix all dill logging with its depth in the callstack.
 
     Useful for debugging pickling of deeply nested structures.
     """
     old_log_info = dill.dill.log.info
+
     def new_log_info(msg, *args, **kwargs):
       old_log_info(
           ('1 2 3 4 5 6 7 8 9 0 ' * 10)[:len(traceback.extract_stack())] + msg,

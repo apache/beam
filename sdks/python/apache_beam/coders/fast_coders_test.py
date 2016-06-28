@@ -28,7 +28,7 @@ from apache_beam.coders.coders_test_common import *
 class FastCoders(unittest.TestCase):
 
   def test_using_fast_impl(self):
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order, wrong-import-position
     # pylint: disable=unused-variable
     import apache_beam.coders.stream
 

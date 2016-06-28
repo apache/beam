@@ -58,6 +58,7 @@ def remove_objects_from_args(args, kwargs, pvalue_classes):
     a placeholder value.
   """
   pvals = []
+
   def swapper(value):
     pvals.append(value)
     return ArgumentPlaceholder()

@@ -86,6 +86,7 @@ class DataflowPipelineRunner(PipelineRunner):
     # It typically takes about 30 seconds.
     final_countdown_timer_secs = 50.0
     sleep_secs = 5.0
+
     # Try to prioritize the user-level traceback, if any.
     def rank_error(msg):
       if 'work item was attempted' in msg:
@@ -151,7 +152,7 @@ class DataflowPipelineRunner(PipelineRunner):
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.internal import apiclient
     self.job = apiclient.Job(pipeline.options)
     # The superclass's run will trigger a traversal of all reachable nodes.
@@ -244,7 +245,7 @@ class DataflowPipelineRunner(PipelineRunner):
   def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
     """Creates a Step object and adds it to the cache."""
     # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.internal import apiclient
     step = apiclient.Step(step_kind, self._get_unique_step_name())
     self.job.proto.steps.append(step.proto)

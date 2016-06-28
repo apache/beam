@@ -45,6 +45,7 @@ def check_or_interleave(hint, value, var):
     _check_instance_type(hint, value, var)
     return value
 
+
 def check_type_hints(f):
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
@@ -770,6 +771,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
   def test_must_be_primitive_type_or_constraint(self):
     with self.assertRaises(TypeError) as e:
       t = [1, 2]
+
       @with_input_types(a=t)
       def foo(a):
         pass
@@ -781,6 +783,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
 
     with self.assertRaises(TypeError) as e:
       t = 5
+
       @check_type_hints
       @with_input_types(a=t)
       def foo(a):

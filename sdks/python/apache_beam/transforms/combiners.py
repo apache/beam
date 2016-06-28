@@ -46,6 +46,11 @@ __all__ = [
     'ToList',
     ]
 
+# Type variables
+T = TypeVariable('T')
+K = TypeVariable('K')
+V = TypeVariable('V')
+
 
 class Mean(object):
   """Combiners for computing arithmetic means of elements."""
@@ -214,7 +219,6 @@ class Top(object):
     return pcoll | Top.PerKey(label, n, lambda a, b: b < a)
 
 
-T = TypeVariable('T')
 @with_input_types(T)
 @with_output_types(List[T])
 class TopCombineFn(core.CombineFn):
@@ -329,7 +333,6 @@ class Sample(object):
     return pcoll | core.CombinePerKey(label, SampleCombineFn(n))
 
 
-T = TypeVariable('T')
 @with_input_types(T)
 @with_output_types(List[T])
 class SampleCombineFn(core.CombineFn):
@@ -404,7 +407,6 @@ class ToList(ptransform.PTransform):
     return pcoll | core.CombineGlobally(self.label, ToListCombineFn())
 
 
-T = TypeVariable('T')
 @with_input_types(T)
 @with_output_types(List[T])
 class ToListCombineFn(core.CombineFn):
@@ -439,8 +441,6 @@ class ToDict(ptransform.PTransform):
     return pcoll | core.CombineGlobally(self.label, ToDictCombineFn())
 
 
-K = TypeVariable('K')
-V = TypeVariable('V')
 @with_input_types(Tuple[K, V])
 @with_output_types(Dict[K, V])
 class ToDictCombineFn(core.CombineFn):

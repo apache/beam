@@ -21,10 +21,11 @@ import os
 import StringIO
 import zlib
 
-from apache_beam.io import filebasedsource
 from avro import datafile
 from avro import io as avro_io
 from avro import schema
+
+from apache_beam.io import filebasedsource
 
 
 class AvroSource(filebasedsource.FileBasedSource):

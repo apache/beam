@@ -122,6 +122,7 @@ class CombineTest(unittest.TestCase):
       pipeline = Pipeline('DirectPipelineRunner')
       pcoll = pipeline | Create('start', [1, 1, 2, 2])
       result = pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3)
+
       def matcher():
         def match(actual):
           # There is always exactly one result.
@@ -142,6 +143,7 @@ class CombineTest(unittest.TestCase):
         'start-perkey',
         sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(300)), []))
     result = pcoll | combine.Sample.FixedSizePerKey('sample', 3)
+
     def matcher():
       def match(actual):
         for _, samples in actual:
@@ -180,6 +182,7 @@ class CombineTest(unittest.TestCase):
     the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
     pcoll = pipeline | Create('start', the_list)
     result = pcoll | combine.ToList('to list')
+
     def matcher(expected):
       def match(actual):
         equal_to(expected[0])(actual[0])
@@ -191,6 +194,7 @@ class CombineTest(unittest.TestCase):
     pairs = [(1, 2), (3, 4), (5, 6)]
     pcoll = pipeline | Create('start-pairs', pairs)
     result = pcoll | combine.ToDict('to dict')
+
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])

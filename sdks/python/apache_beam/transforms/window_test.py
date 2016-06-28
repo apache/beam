@@ -52,6 +52,7 @@ class ReifyWindowsFn(core.DoFn):
       yield "%s @ %s" % (key, window), values
 reify_windows = core.ParDo(ReifyWindowsFn())
 
+
 class WindowTest(unittest.TestCase):
 
   def test_fixed_windows(self):

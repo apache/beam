@@ -208,8 +208,10 @@ class PTransformTest(unittest.TestCase):
     class MyDoFn(beam.DoFn):
       def start_bundle(self, c):
         yield 'start'
+
       def process(self, c):
         pass
+
       def finish_bundle(self, c):
         yield 'finish'
     pipeline = Pipeline('DirectPipelineRunner')
@@ -540,6 +542,7 @@ class PTransformTest(unittest.TestCase):
       def _extract_input_pvalues(self, pvalueish):
         pvalueish = list(pvalueish)
         return pvalueish, sum([list(p.values()) for p in pvalueish], [])
+
       def apply(self, pcoll_dicts):
         keys = reduce(operator.or_, [set(p.keys()) for p in pcoll_dicts])
         res = {}
@@ -553,6 +556,7 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], sorted(res['a']))
     self.assertEqual(['x', 'x', 'y', 'y', 'z'], sorted(res['b']))
     self.assertEqual([], sorted(res['c']))
+
 
 @beam.ptransform_fn
 def SamplePTransform(label, pcoll, context, *args, **kwargs):
@@ -1646,6 +1650,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Sample.FixedSizeGlobally('sample', 3))
 
     self.assertCompatible(typehints.Iterable[int], d.element_type)
+
     def matcher(expected_len):
       def match(actual):
         equal_to([expected_len])([len(actual[0])])
@@ -1661,6 +1666,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Sample.FixedSizeGlobally('sample', 2))
 
     self.assertCompatible(typehints.Iterable[int], d.element_type)
+
     def matcher(expected_len):
       def match(actual):
         equal_to([expected_len])([len(actual[0])])
@@ -1676,6 +1682,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.KV[int, typehints.Iterable[int]],
                           d.element_type)
+
     def matcher(expected_len):
       def match(actual):
         for _, sample in actual:
@@ -1694,6 +1701,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.KV[int, typehints.Iterable[int]],
                           d.element_type)
+
     def matcher(expected_len):
       def match(actual):
         for _, sample in actual:
@@ -1708,6 +1716,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.ToList('to list'))
 
     self.assertCompatible(typehints.List[int], d.element_type)
+
     def matcher(expected):
       def match(actual):
         equal_to(expected)(actual[0])
@@ -1723,6 +1732,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.ToList('to list'))
 
     self.assertCompatible(typehints.List[str], d.element_type)
+
     def matcher(expected):
       def match(actual):
         equal_to(expected)(actual[0])
