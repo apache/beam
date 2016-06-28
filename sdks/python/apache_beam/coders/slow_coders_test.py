@@ -30,7 +30,7 @@ class SlowCoders(unittest.TestCase):
   def test_using_slow_impl(self):
     # Assert that we are not using the compiled implementation.
     with self.assertRaises(ImportError):
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       # pylint: disable=unused-variable
       import apache_beam.coders.stream
 

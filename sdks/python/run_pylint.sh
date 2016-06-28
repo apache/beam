@@ -43,6 +43,8 @@ if test "$CHANGED_FILES"; then
   echo "Running pylint on changed files:"
   echo "$CHANGED_FILES"
   pylint $CHANGED_FILES
+  echo "Running pep8 on changed files:"
+  pep8 $CHANGED_FILES
 else
   echo "Not running pylint. No eligible files."
 fi

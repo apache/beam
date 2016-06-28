@@ -51,14 +51,15 @@ def generate_julia_set_colors(pipeline, c, n, max_iterations):
 
   julia_set_colors = (pipeline
                       | beam.Create('add points', point_set(n))
-                      | beam.Map(get_julia_set_point_color, c, n, max_iterations))
+                      | beam.Map(
+                          get_julia_set_point_color, c, n, max_iterations))
 
   return julia_set_colors
 
 
 def generate_julia_set_visualization(data, n, max_iterations):
   """Generate the pixel matrix for rendering the julia set as an image."""
-  import numpy as np  # pylint: disable=g-import-not-at-top
+  import numpy as np  # pylint: disable=wrong-import-order
   colors = []
   for r in range(0, 256, 16):
     for g in range(0, 256, 16):
@@ -74,7 +75,7 @@ def generate_julia_set_visualization(data, n, max_iterations):
 
 def save_julia_set_visualization(out_file, image_array):
   """Save the fractal image of our julia set as a png."""
-  from matplotlib import pyplot as plt  # pylint: disable=g-import-not-at-top
+  from matplotlib import pyplot as plt  # pylint: disable=wrong-import-order
   plt.imsave(out_file, image_array, format='png')
 
 
@@ -104,13 +105,11 @@ def run(argv=None):  # pylint: disable=missing-docstring
   # Group each coordinate triplet by its x value, then write the coordinates to
   # the output file with an x-coordinate grouping per line.
   # pylint: disable=expression-not-assigned
-  # pylint: disable=g-long-lambda
   (coordinates | beam.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
    | beam.GroupByKey('x coord') | beam.Map(
        'format',
        lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
    | beam.io.Write('write', beam.io.TextFileSink(known_args.coordinate_output)))
-  # pylint: enable=g-long-lambda
   # pylint: enable=expression-not-assigned
   p.run()
 

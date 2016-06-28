@@ -181,6 +181,7 @@ class DataflowAssertException(Exception):
 # TODO(silviuc): Add contains_in_any_order-style matchers.
 def equal_to(expected):
   expected = list(expected)
+
   def _equal(actual):
     sorted_expected = sorted(expected)
     sorted_actual = sorted(actual)

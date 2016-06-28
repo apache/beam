@@ -22,15 +22,15 @@ import logging
 import time
 import unittest
 
+from apitools.base.py.exceptions import HttpError
 import mock
+
 import apache_beam as beam
+from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
 from apache_beam.utils.options import PipelineOptions
-
-from apitools.base.py.exceptions import HttpError
-from apache_beam.internal.clients import bigquery
 
 
 class TestRowAsDictJsonCoder(unittest.TestCase):

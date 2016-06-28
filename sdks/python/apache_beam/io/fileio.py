@@ -172,7 +172,7 @@ class ChannelFactory(object):
   @staticmethod
   def open(path, mode, mime_type):
     if path.startswith('gs://'):
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       return gcsio.GcsIO().open(path, mode, mime_type=mime_type)
     else:
@@ -182,7 +182,7 @@ class ChannelFactory(object):
   def rename(src, dst):
     if src.startswith('gs://'):
       assert dst.startswith('gs://'), dst
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       gcsio.GcsIO().rename(src, dst)
     else:
@@ -197,7 +197,7 @@ class ChannelFactory(object):
       assert dst.startswith('gs://'), dst
       assert src.endswith('/'), src
       assert dst.endswith('/'), dst
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       gcsio.GcsIO().copytree(src, dst)
     else:
@@ -211,7 +211,7 @@ class ChannelFactory(object):
   @staticmethod
   def exists(path):
     if path.startswith('gs://'):
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       return gcsio.GcsIO().exists()
     else:
@@ -220,7 +220,7 @@ class ChannelFactory(object):
   @staticmethod
   def rmdir(path):
     if path.startswith('gs://'):
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       gcs = gcsio.GcsIO()
       if not path.endswith('/'):
@@ -237,7 +237,7 @@ class ChannelFactory(object):
   @staticmethod
   def rm(path):
     if path.startswith('gs://'):
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       gcsio.GcsIO().delete(path)
     else:
@@ -249,7 +249,7 @@ class ChannelFactory(object):
   @staticmethod
   def glob(path):
     if path.startswith('gs://'):
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       return gcsio.GcsIO().glob(path)
     else:
@@ -608,7 +608,7 @@ class TextFileReader(iobase.NativeSourceReader):
 
   def __enter__(self):
     if self.source.is_gcs_source:
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.io import gcsio
       self._file = gcsio.GcsIO().open(self.source.file_path, 'rb')
     else:

@@ -999,10 +999,10 @@ class GroupByKey(PTransform):
 
     def process(self, context):
       k, vs = context.element
-      # pylint: disable=g-import-not-at-top
+      # pylint: disable=wrong-import-order
       from apache_beam.transforms.trigger import InMemoryUnmergedState
       from apache_beam.transforms.trigger import create_trigger_driver
-      # pylint: enable=g-import-not-at-top
+      # pylint: enable=wrong-import-order
       driver = create_trigger_driver(self.windowing, True)
       state = InMemoryUnmergedState()
       # TODO(robertwb): Conditionally process in smaller chunks.
@@ -1115,9 +1115,9 @@ class Windowing(object):
   def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
                output_time_fn=None):
     global AccumulationMode, DefaultTrigger
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
-    # pylint: enable=g-import-not-at-top
+    # pylint: enable=wrong-import-order
     if triggerfn is None:
       triggerfn = DefaultTrigger()
     if accumulation_mode is None:
@@ -1148,7 +1148,7 @@ class Windowing(object):
 T = typehints.TypeVariable('T')
 @typehints.with_input_types(T)
 @typehints.with_output_types(T)
-class WindowInto(ParDo):  # pylint: disable=g-wrong-blank-lines
+class WindowInto(ParDo):
   """A window transform assigning windows to each element of a PCollection.
 
   Transforms an input PCollection by applying a windowing function to each

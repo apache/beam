@@ -123,7 +123,7 @@ K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
 @typehints.with_input_types(typehints.Tuple[K, V])
 @typehints.with_output_types(typehints.Dict[K, V])
-class ViewAsDict(PTransform):  # pylint: disable=g-wrong-blank-lines
+class ViewAsDict(PTransform):
   """Transform to view PCollection as a dict PCollectionView.
 
   Important: this transform is an implementation detail and should not be used

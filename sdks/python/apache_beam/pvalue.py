@@ -348,7 +348,7 @@ def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pyli
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order
   view = (pcoll | sideinputs.ViewAsSingleton(has_default, default_value,
                                              label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
@@ -380,7 +380,7 @@ def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order
   view = (pcoll | sideinputs.ViewAsIterable(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view
@@ -411,7 +411,7 @@ def AsList(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order
   view = (pcoll | sideinputs.ViewAsList(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view
@@ -443,7 +443,7 @@ def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order
   view = (pcoll | sideinputs.ViewAsDict(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view

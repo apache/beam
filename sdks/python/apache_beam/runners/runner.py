@@ -40,7 +40,7 @@ def create_runner(runner_name):
   Raises:
     RuntimeError: if an invalid runner name is used.
   """
-  # pylint: disable=g-import-not-at-top
+  # pylint: disable=wrong-import-order
   if runner_name == 'DirectPipelineRunner':
     import apache_beam.runners.direct_runner
     return apache_beam.runners.direct_runner.DirectPipelineRunner()
@@ -81,7 +81,7 @@ class PipelineRunner(object):
     """Execute the entire pipeline or the sub-DAG reachable from a node."""
 
     # Imported here to avoid circular dependencies.
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order
     from apache_beam.pipeline import PipelineVisitor
 
     class RunVisitor(PipelineVisitor):
@@ -117,7 +117,7 @@ class PipelineRunner(object):
     """
 
     # Imported here to avoid circular dependencies.
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order
     from apache_beam.pipeline import PipelineVisitor
 
     class ClearVisitor(PipelineVisitor):
