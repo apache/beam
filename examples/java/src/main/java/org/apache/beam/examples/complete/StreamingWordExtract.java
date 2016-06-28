@@ -23,7 +23,7 @@ import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -141,7 +141,7 @@ public class StreamingWordExtract {
         .append(options.getBigQueryTable())
         .toString();
     pipeline
-        .apply(PubsubIO.Read.topic(options.getPubsubTopic()))
+        .apply("ReadLines", TextIO.Read.from(options.getInputFile()))
         .apply(ParDo.of(new ExtractWords()))
         .apply(ParDo.of(new Uppercase()))
         .apply(ParDo.of(new StringToRowConverter()))
@@ -149,11 +149,6 @@ public class StreamingWordExtract {
             .withSchema(StringToRowConverter.getSchema()));
 
     PipelineResult result = pipeline.run();
-
-    if (!options.getInputFile().isEmpty()) {
-      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
-      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
-    }
 
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
     dataflowUtils.waitToFinish(result);
