@@ -790,6 +790,7 @@
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <argLine>-Xmx512m</argLine>
           </configuration>
           <dependencies>
             <dependency>
