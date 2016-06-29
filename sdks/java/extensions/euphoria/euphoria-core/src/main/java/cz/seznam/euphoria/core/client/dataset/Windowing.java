@@ -591,7 +591,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       ArrayList<SessionWindow<G>> sorted = new ArrayList<>(actives);
-      sorted.sort(Comparator.comparing(SessionWindow<G>::getLabel).reversed());
+      sorted.sort(Comparator.comparing(SessionWindow<G>::getLabel));
 
       Iterator<SessionWindow<G>> windows = sorted.iterator();
 
