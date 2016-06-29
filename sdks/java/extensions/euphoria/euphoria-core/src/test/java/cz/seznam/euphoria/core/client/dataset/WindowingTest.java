@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.client.dataset;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionInterval;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionWindow;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -419,7 +420,7 @@ public class WindowingTest {
         windowing.assignWindows(21_000L), null, 21_000L, 31_000L);
     // ~ a small window which is fully contained in w1
     SessionWindow<Void> w4 = new SessionWindow<>(null,
-        new Windowing.Session.SessionInterval(3_000L, 8_000L), null);
+        new SessionInterval(3_000L, 8_000L), null);
 
     Collection<Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>>> merges
         = windowing.mergeWindows(Arrays.asList(w4, w3, w2, w1));
@@ -447,7 +448,7 @@ public class WindowingTest {
   {
     assertNotNull(window);
     assertEquals(expectedGroup, window.getGroup());
-    Windowing.Session.SessionInterval label = window.getLabel();
+    SessionInterval label = window.getLabel();
     assertNotNull(label);
     assertEquals(expectedStartMillis, label.getStartMillis());
     assertEquals(expectedEndMillis, label.getEndMillis());
@@ -479,34 +480,38 @@ public class WindowingTest {
         .windowBy(Windowing.Session.of(Duration.ofSeconds(5))
             .using((Item e) -> e.word.charAt(0), e -> NOW + e.evtTs * 1_000L))
         .setNumPartitions(1)
-        .output()
+        .outputWindowed()
         .persist(URI.create("inmem:///tmp/output"));
 
     executor.waitForCompletion(flow);
 
     @SuppressWarnings("unchecked")
-    Collection<Pair<Integer, HashSet<String>>> output =
+    Collection<WindowedPair<SessionInterval, Integer, HashSet<String>>> output =
         InMemFileSystem.get().getFile("/tmp/output/0");
 
     // ~ prepare the output for comparison
     List<String> flat = new ArrayList<>();
-    for (Pair<Integer, HashSet<String>> o : output) {
+    for (WindowedPair<SessionInterval, Integer, HashSet<String>> o : output) {
       StringBuilder buf = new StringBuilder();
+      buf.append("(")
+          .append((o.getWindowLabel().getStartMillis() - NOW) / 1_000L)
+          .append("-")
+          .append((o.getWindowLabel().getEndMillis() - NOW) / 1_000L)
+          .append("): ");
       buf.append(o.getFirst()).append(": ");
       ArrayList<String> xs = new ArrayList<>(o.getSecond());
       xs.sort(Comparator.naturalOrder());
       Joiner.on(", ").appendTo(buf, xs);
-
       flat.add(buf.toString());
     }
     flat.sort(Comparator.naturalOrder());
     assertEquals(
-        asList(
-            "1: 1-five, 1-six",
-            "1: 1-four, 1-one, 1-three, 1-two",
-            "2: 2-one",
-            "2: 2-three",
-            "2: 2-two"),
+        sorted(asList(
+            "(1-15): 1: 1-four, 1-one, 1-three, 1-two",
+            "(10-15): 2: 2-two",
+            "(18-27): 1: 1-five, 1-six",
+            "(2-7): 2: 2-one",
+            "(20-25): 2: 2-three")),
         flat);
   }
 }
