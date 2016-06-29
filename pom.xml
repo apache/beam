@@ -101,6 +101,9 @@
     <!-- Disable integration tests by default -->
     <skipITs>true</skipITs>
 
+    <!-- Do not add additional surefire arguments by default -->
+    <beamSurefireArgline></beamSurefireArgline>
+
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.7.7</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
@@ -790,6 +793,7 @@
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <argLine>${beamSurefireArgline}</argLine>
           </configuration>
           <dependencies>
             <dependency>
