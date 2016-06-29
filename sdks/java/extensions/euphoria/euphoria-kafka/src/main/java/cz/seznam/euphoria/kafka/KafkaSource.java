@@ -146,7 +146,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   @Override
   public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
-    if (config != null && config.getBoolean("single.reader.only")) {
+    if (config != null && config.getBoolean("single.reader.only", false)) {
       return Collections.singletonList(
           new AllPartitionsConsumer(brokerList, topicId, config));
     }
