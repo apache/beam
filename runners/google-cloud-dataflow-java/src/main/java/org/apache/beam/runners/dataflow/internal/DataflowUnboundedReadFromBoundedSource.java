@@ -78,17 +78,22 @@ import javax.annotation.Nullable;
  *
  * <p>This transform is intended to be used by a runner during pipeline translation to convert
  * a Read.Bounded into a Read.Unbounded.
+ *
+ * @deprecated This class is copied from beam runners core in order to avoid pipeline construction
+ * time dependency. It should be replaced in the dataflow worker as an execution time dependency.
  */
-public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
+@Deprecated
+public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(DataflowUnboundedReadFromBoundedSource.class);
 
   private final BoundedSource<T> source;
 
   /**
    * Constructs a {@link PTransform} that performs an unbounded read from a {@link BoundedSource}.
    */
-  public UnboundedReadFromBoundedSource(BoundedSource<T> source) {
+  public DataflowUnboundedReadFromBoundedSource(BoundedSource<T> source) {
     this.source = source;
   }
 
