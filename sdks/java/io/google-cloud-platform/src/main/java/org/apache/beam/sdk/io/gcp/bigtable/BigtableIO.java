@@ -768,6 +768,8 @@ public class BigtableIO {
               && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()));
       if (hasRecord) {
         ++recordsReturned;
+      } else {
+        rangeTracker.markDone();
       }
       return hasRecord;
     }
@@ -784,6 +786,8 @@ public class BigtableIO {
               && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()));
       if (hasRecord) {
         ++recordsReturned;
+      } else {
+        rangeTracker.markDone();
       }
       return hasRecord;
     }
