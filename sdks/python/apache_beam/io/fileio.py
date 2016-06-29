@@ -213,7 +213,7 @@ class ChannelFactory(object):
     if path.startswith('gs://'):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.io import gcsio
-      return gcsio.GcsIO().exists()
+      return gcsio.GcsIO().exists(path)
     else:
       return os.path.exists(path)
 
