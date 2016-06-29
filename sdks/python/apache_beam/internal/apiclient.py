@@ -25,6 +25,9 @@ import re
 import time
 
 
+from apitools.base.py import encoding
+from apitools.base.py import exceptions
+
 from apache_beam import utils
 from apache_beam import version
 from apache_beam.internal import pickler
@@ -40,8 +43,6 @@ from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
 from apache_beam.utils.options import WorkerOptions
 
-from apitools.base.py import encoding
-from apitools.base.py import exceptions
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
 
@@ -462,33 +463,6 @@ class DataflowApplicationClient(object):
         'To accesss the Dataflow monitoring console, please navigate to '
         'https://console.developers.google.com/project/%s/dataflow/job/%s',
         self.google_cloud_options.project, response.id)
-
-    # Show the whitelisting warning. Projects should be whitelisted prior to
-    # submitting jobs to Google Cloud Dataflow service. Please see documentation
-    # for more information.
-    #
-    # TODO(altay): Remove once the whitelisting requirements are lifted.
-    logging.warning(
-        '\n\n***************************************************************\n'
-        '*      WARNING: PROJECT WHITELISTING REQUIRED.                *'
-        '\n***************************************************************\n'
-        'Please make sure your project is whitelisted for running\n'
-        'Python-based pipelines using the Google Cloud Dataflow service.\n\n'
-        'You may ignore this message if you have successfully ran\n'
-        'Python-based pipelines with this project on Google Cloud\n'
-        'Dataflow service before.\n\n'
-        'If your project is not whitelisted, your job will attempt to run\n'
-        'however it will fail to make any progress. Google Cloud Dataflow\n'
-        'service will automatically cancel your non-whitelisted job\n'
-        'after some time due to inactivity. You can also manually cancel\n'
-        'your job using the following command:\n\n'
-        'gcloud alpha dataflow jobs --project=%s cancel %s\n\n'
-        'Please refer to the documentation to learn more about whitelisting\n'
-        'your project at: %s'
-        '\n***************************************************************\n\n',
-        request.projectId, response.id,
-        'http://goo.gl/forms/o4w14whz9x'
-    )
 
     return response
 

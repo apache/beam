@@ -61,6 +61,7 @@ class TriggerTest(unittest.TestCase):
                          **kwargs):
     late_data = kwargs.pop('late_data', [])
     assert not kwargs
+
     def bundle_data(data, size):
       bundle = []
       for timestamp, elem in data:
@@ -175,17 +176,18 @@ class TriggerTest(unittest.TestCase):
                        late=AfterCount(1)),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (15, 'b'), (7, 'c'), (30, 'd')],
-        {IntervalWindow(1, 25): [
-            set('abc'),                # early
-            set('abc'),                # on time
-            set('abcxy')               # late
-         ],
-         IntervalWindow(30, 40): [
-             set('d'),                  # on time
-         ],
-         IntervalWindow(1, 40): [
-             set('abcdxyz')             # late
-         ],
+        {
+            IntervalWindow(1, 25): [
+                set('abc'),                # early
+                set('abc'),                # on time
+                set('abcxy')               # late
+            ],
+            IntervalWindow(30, 40): [
+                set('d'),                  # on time
+            ],
+            IntervalWindow(1, 40): [
+                set('abcdxyz')             # late
+            ],
         },
         2,
         late_data=[(1, 'x'), (2, 'y'), (21, 'z')])
@@ -374,7 +376,7 @@ class TriggerPipelineTest(unittest.TestCase):
               | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
               | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
               | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
-                              accumulation_mode=AccumulationMode.DISCARDING)
+                                accumulation_mode=AccumulationMode.DISCARDING)
               | beam.GroupByKey()
               | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
     assert_that(result, equal_to(
@@ -476,10 +478,10 @@ class TranscriptTest(unittest.TestCase):
       else:
         return fn
 
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module
     from apache_beam.transforms import trigger as trigger_module
-    # pylint: enable=g-import-not-at-top
+    # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
     window_fn_names.update({'CustomTimestampingFixedWindowsWindowFn':
                             CustomTimestampingFixedWindowsWindowFn})

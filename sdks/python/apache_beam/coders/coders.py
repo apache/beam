@@ -24,7 +24,7 @@ import cPickle as pickle
 from apache_beam.coders import coder_impl
 
 
-# pylint: disable=g-import-not-at-top
+# pylint: disable=wrong-import-order, wrong-import-position
 # Avoid dependencies on the full SDK.
 try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
@@ -46,7 +46,7 @@ def serialize_coder(coder):
 def deserialize_coder(serialized):
   from apache_beam.internal import pickler
   return pickler.loads(serialized.split('$', 1)[1])
-# pylint: enable=g-import-not-at-top
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class Coder(object):
@@ -152,7 +152,7 @@ class Coder(object):
   def __eq__(self, other):
     # pylint: disable=protected-access
     return (self.__class__ == other.__class__
-       and self._dict_without_impl() == other._dict_without_impl())
+            and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
 

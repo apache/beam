@@ -19,9 +19,9 @@
 
 import unittest
 
-from apache_beam.utils import retry
-
 from apitools.base.py.exceptions import HttpError
+
+from apache_beam.utils import retry
 
 
 class FakeClock(object):

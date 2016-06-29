@@ -40,8 +40,7 @@ import apache_beam as beam
 # pylint:disable=expression-not-assigned
 # pylint:disable=redefined-outer-name
 # pylint:disable=unused-variable
-# pylint:disable=g-doc-args
-# pylint:disable=g-import-not-at-top
+# pylint:disable=wrong-import-order, wrong-import-position
 
 
 class SnippetUtils(object):
@@ -95,7 +94,7 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_reading]
   lines = p | beam.io.Read('ReadMyFile',
-                      beam.io.TextFileSource('gs://some/inputData.txt'))
+                           beam.io.TextFileSource('gs://some/inputData.txt'))
   # [END pipelines_constructing_reading]
 
   # [START pipelines_constructing_applying]
@@ -106,7 +105,8 @@ def construct_pipeline(renames):
   # [START pipelines_constructing_writing]
   filtered_words = reversed_words | beam.Filter('FilterWords', filter_words)
   filtered_words | beam.io.Write('WriteMyFile',
-                               beam.io.TextFileSink('gs://some/outputData.txt'))
+                                 beam.io.TextFileSink(
+                                     'gs://some/outputData.txt'))
   # [END pipelines_constructing_writing]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -304,7 +304,8 @@ def pipeline_options_command_line(argv):
 
   # Create the Pipeline with remaining arguments.
   p = beam.Pipeline(argv=pipeline_args)
-  lines = p | beam.io.Read('ReadFromText', beam.io.TextFileSource(known_args.input))
+  lines = p | beam.io.Read('ReadFromText',
+                           beam.io.TextFileSource(known_args.input))
   lines | beam.io.Write('WriteToText', beam.io.TextFileSink(known_args.output))
   # [END pipeline_options_command_line]
 
@@ -594,7 +595,8 @@ def examples_wordcount_debugging(renames):
       | beam.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
 
   # [START example_wordcount_debugging_assert]
-  beam.assert_that(filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.assert_that(
+      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
   # [END example_wordcount_debugging_assert]
 
   output = (filtered_words
@@ -634,7 +636,7 @@ def model_textio(renames):
   # [START model_pipelineio_write]
   filtered_words | beam.io.Write(
       'WriteToText', beam.io.TextFileSink('gs://my_bucket/path/to/numbers',
-                                        file_name_suffix='.csv'))
+                                          file_name_suffix='.csv'))
   # [END model_pipelineio_write]
   # [END model_textio_write]
 
@@ -762,6 +764,7 @@ def model_multiple_pcollections_partition(contents, output_path):
   URL: https://cloud.google.com/dataflow/model/multiple-pcollections
   """
   some_hash_fn = lambda s: ord(s[0])
+
   def get_percentile(i):
     """Assume i in [0,100)."""
     return i
@@ -770,6 +773,7 @@ def model_multiple_pcollections_partition(contents, output_path):
   p = beam.Pipeline(options=PipelineOptions())
 
   students = p | beam.Create(contents)
+
   # [START model_multiple_pcollections_partition]
   def partition_fn(student, num_partitions):
     return int(get_percentile(student) * num_partitions / 100)
@@ -872,4 +876,3 @@ class Count(beam.PTransform):
         | beam.Map('Init', lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]
-# pylint: enable=g-wrong-blank-lines

@@ -109,7 +109,8 @@ class CombineTest(unittest.TestCase):
     pcoll = pipeline | Create(
         'start-perkey', [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
     result_ktop = pcoll | beam.CombinePerKey('top-perkey', combiners.Largest(5))
-    result_kbot = pcoll | beam.CombinePerKey('bot-perkey', combiners.Smallest(4))
+    result_kbot = pcoll | beam.CombinePerKey(
+        'bot-perkey', combiners.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
     pipeline.run()
@@ -121,6 +122,7 @@ class CombineTest(unittest.TestCase):
       pipeline = Pipeline('DirectPipelineRunner')
       pcoll = pipeline | Create('start', [1, 1, 2, 2])
       result = pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3)
+
       def matcher():
         def match(actual):
           # There is always exactly one result.
@@ -141,6 +143,7 @@ class CombineTest(unittest.TestCase):
         'start-perkey',
         sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(300)), []))
     result = pcoll | combine.Sample.FixedSizePerKey('sample', 3)
+
     def matcher():
       def match(actual):
         for _, samples in actual:
@@ -158,8 +161,8 @@ class CombineTest(unittest.TestCase):
         p
         | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
         | beam.CombineGlobally(combine.TupleCombineFn(max,
-                                                    combine.MeanCombineFn(),
-                                                    sum)).without_defaults())
+                                                      combine.MeanCombineFn(),
+                                                      sum)).without_defaults())
     assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
     p.run()
 
@@ -179,6 +182,7 @@ class CombineTest(unittest.TestCase):
     the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
     pcoll = pipeline | Create('start', the_list)
     result = pcoll | combine.ToList('to list')
+
     def matcher(expected):
       def match(actual):
         equal_to(expected[0])(actual[0])
@@ -190,6 +194,7 @@ class CombineTest(unittest.TestCase):
     pairs = [(1, 2), (3, 4), (5, 6)]
     pcoll = pipeline | Create('start-pairs', pairs)
     result = pcoll | combine.ToDict('to dict')
+
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])

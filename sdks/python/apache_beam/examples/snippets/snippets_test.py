@@ -43,6 +43,7 @@ class ParDoTest(unittest.TestCase):
     # the text of the doc.
 
     words = ['aa', 'bbb', 'c']
+
     # [START model_pardo_pardo]
     class ComputeWordLengthFn(beam.DoFn):
       def process(self, context):
@@ -57,6 +58,7 @@ class ParDoTest(unittest.TestCase):
 
   def test_pardo_yield(self):
     words = ['aa', 'bbb', 'c']
+
     # [START model_pardo_yield]
     class ComputeWordLengthFn(beam.DoFn):
       def process(self, context):
@@ -84,11 +86,12 @@ class ParDoTest(unittest.TestCase):
 
   def test_pardo_using_flatmap_yield(self):
     words = ['aA', 'bbb', 'C']
+
     # [START model_pardo_using_flatmap_yield]
     def capitals(word):
       for letter in word:
         if 'A' <= letter <= 'Z':
-            yield letter
+          yield letter
     all_capitals = words | beam.FlatMap(capitals)
     # [END model_pardo_using_flatmap_yield]
 
@@ -113,27 +116,31 @@ class ParDoTest(unittest.TestCase):
         yield word
 
     # Construct a deferred side input.
-    avg_word_len = words | beam.Map(len) | beam.CombineGlobally(beam.combiners.MeanCombineFn())
+    avg_word_len = (words
+                    | beam.Map(len)
+                    | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
 
     # Call with explicit side inputs.
     small_words = words | beam.FlatMap('small', filter_using_length, 0, 3)
 
     # A single deferred side input.
-    larger_than_average = words | beam.FlatMap('large',
-                                             filter_using_length,
-                                             lower_bound=pvalue.AsSingleton(avg_word_len))
+    larger_than_average = (words
+                           | beam.FlatMap('large', filter_using_length,
+                                          lower_bound=pvalue.AsSingleton(
+                                              avg_word_len)))
 
     # Mix and match.
     small_but_nontrivial = words | beam.FlatMap(filter_using_length,
-                                              lower_bound=2,
-                                              upper_bound=pvalue.AsSingleton(avg_word_len))
+                                                lower_bound=2,
+                                                upper_bound=pvalue.AsSingleton(
+                                                    avg_word_len))
     # [END model_pardo_side_input]
 
     beam.assert_that(small_words, beam.equal_to(['a', 'bb', 'ccc']))
     beam.assert_that(larger_than_average, beam.equal_to(['ccc', 'dddd']),
-                   label='larger_than_average')
+                     label='larger_than_average')
     beam.assert_that(small_but_nontrivial, beam.equal_to(['bb']),
-                   label='small_but_not_trivial')
+                     label='small_but_not_trivial')
     p.run()
 
   def test_pardo_side_input_dofn(self):
@@ -170,9 +177,8 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_with_side_outputs]
     results = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
-                         .with_outputs('above_cutoff_lengths',
-                                       'marked strings',
-                                       main='below_cutoff_strings'))
+               .with_outputs('above_cutoff_lengths', 'marked strings',
+                             main='below_cutoff_strings'))
     below = results.below_cutoff_strings
     above = results.above_cutoff_lengths
     marked = results['marked strings']  # indexing works as well
@@ -183,10 +189,12 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'xyz'}, set(marked))
 
     # [START model_pardo_with_side_outputs_iter]
-    below, above, marked = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
-                                      .with_outputs('above_cutoff_lengths',
-                                                    'marked strings',
-                                                    main='below_cutoff_strings'))
+    below, above, marked = (words
+                            | beam.ParDo(
+                                ProcessWords(), cutoff_length=2, marker='x')
+                            .with_outputs('above_cutoff_lengths',
+                                          'marked strings',
+                                          main='below_cutoff_strings'))
     # [END model_pardo_with_side_outputs_iter]
 
     self.assertEqual({'a', 'an'}, set(below))
@@ -195,6 +203,7 @@ class ParDoTest(unittest.TestCase):
 
   def test_pardo_with_undeclared_side_outputs(self):
     numbers = [1, 2, 3, 4, 5, 10, 20]
+
     # [START model_pardo_with_side_outputs_undeclared]
     def even_odd(x):
       yield pvalue.SideOutputValue('odd' if x % 2 else 'even', x)
@@ -258,6 +267,7 @@ class TypeHintsTest(unittest.TestCase):
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
     T = beam.typehints.TypeVariable('T')
+
     @beam.typehints.with_input_types(T)
     @beam.typehints.with_output_types(beam.typehints.Tuple[int, T])
     class MyTransform(beam.PTransform):
@@ -316,7 +326,8 @@ class TypeHintsTest(unittest.TestCase):
     totals = (
         lines
         | beam.Map(parse_player_and_score)
-        | beam.CombinePerKey(sum).with_input_types(beam.typehints.Tuple[Player, int]))
+        | beam.CombinePerKey(sum).with_input_types(
+            beam.typehints.Tuple[Player, int]))
     # [END type_hints_deterministic_key]
 
     self.assertEquals(
@@ -491,12 +502,15 @@ class CombineTest(unittest.TestCase):
         ('cat', 1), ('cat', 5), ('cat', 9), ('cat', 1),
         ('dog', 5), ('dog', 2)]
     # [START combine_per_key]
-    avg_accuracy_per_player = player_accuracies | beam.CombinePerKey(beam.combiners.MeanCombineFn())
+    avg_accuracy_per_player = (player_accuracies
+                               | beam.CombinePerKey(
+                                   beam.combiners.MeanCombineFn()))
     # [END combine_per_key]
     self.assertEqual({('cat', 4.0), ('dog', 3.5)}, set(avg_accuracy_per_player))
 
   def test_combine_concat(self):
     pc = ['a', 'b']
+
     # [START combine_concat]
     def concat(values, separator=', '):
       return separator.join(values)
@@ -511,6 +525,7 @@ class CombineTest(unittest.TestCase):
   def test_bounded_sum(self):
     # [START combine_bounded_sum]
     pc = [1, 10, 100, 1000]
+
     def bounded_sum(values, bound=500):
       return min(sum(values), bound)
     small_sum = pc | beam.CombineGlobally(bounded_sum)              # [500]
@@ -524,23 +539,26 @@ class CombineTest(unittest.TestCase):
     # [START combine_reduce]
     import functools
     import operator
-    product = factors | beam.CombineGlobally(functools.partial(reduce, operator.mul), 1)
+    product = factors | beam.CombineGlobally(
+        functools.partial(reduce, operator.mul), 1)
     # [END combine_reduce]
     self.assertEqual([210], product)
 
   def test_custom_average(self):
     pc = [2, 3, 5, 7]
 
-
     # [START combine_custom_average]
     class AverageFn(beam.CombineFn):
       def create_accumulator(self):
         return (0.0, 0)
+
       def add_input(self, (sum, count), input):
         return sum + input, count + 1
+
       def merge_accumulators(self, accumulators):
         sums, counts = zip(*accumulators)
         return sum(sums), sum(counts)
+
       def extract_output(self, (sum, count)):
         return sum / count if count else float('NaN')
     average = pc | beam.CombineGlobally(AverageFn())

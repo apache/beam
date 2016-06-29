@@ -112,7 +112,7 @@ class DirectPipelineRunner(PipelineRunner):
     values = self._cache.get_pvalue(transform_node.inputs[0])
     if isinstance(view, SingletonPCollectionView):
       has_default, default_value = view._view_options()  # pylint: disable=protected-access
-      if len(values) == 0:  # pylint: disable=g-explicit-length-test
+      if len(values) == 0:
         if has_default:
           result = default_value
         else:

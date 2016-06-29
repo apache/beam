@@ -30,16 +30,17 @@ import re
 import StringIO
 import threading
 
+from apitools.base.py.exceptions import HttpError
+import apitools.base.py.transfer as transfer
+
 from apache_beam.internal import auth
 from apache_beam.utils import retry
 
-from apitools.base.py.exceptions import HttpError
-import apitools.base.py.transfer as transfer
 
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
-  # pylint: disable=g-import-not-at-top
+  # pylint: disable=wrong-import-order, wrong-import-position
   from apache_beam.internal.clients import storage
 except ImportError:
   raise RuntimeError(

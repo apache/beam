@@ -83,7 +83,7 @@ class StreamTest(unittest.TestCase):
     base = -1.7
     self.run_read_write_var_int64(
         [int(base**pow)
-          for pow in range(1, int(63 * math.log(2) / math.log(-base)))])
+         for pow in range(1, int(63 * math.log(2) / math.log(-base)))])
 
   def test_large_var_int64(self):
     self.run_read_write_var_int64([0, 2**63 - 1, -2**63, 2**63 - 3])
@@ -139,7 +139,7 @@ class StreamTest(unittest.TestCase):
 
 
 try:
-  # pylint: disable=g-import-not-at-top
+  # pylint: disable=wrong-import-position
   from apache_beam.coders import stream
 
   class FastStreamTest(StreamTest):
@@ -148,13 +148,11 @@ try:
     OutputStream = stream.OutputStream
     ByteCountingOutputStream = stream.ByteCountingOutputStream
 
-
   class SlowFastStreamTest(StreamTest):
     """Runs the test with compiled and uncompiled stream classes."""
     InputStream = stream.InputStream
     OutputStream = slow_stream.OutputStream
     ByteCountingOutputStream = slow_stream.ByteCountingOutputStream
-
 
   class FastSlowStreamTest(StreamTest):
     """Runs the test with uncompiled and compiled stream classes."""

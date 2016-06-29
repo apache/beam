@@ -46,7 +46,7 @@ of the side table. The execution framework may use some caching techniques to
 share the side inputs between calls in order to avoid excessive reading::
 
   main_table = pipeline | beam.io.Read(beam.io.BigQuerySource('very_big_table')
-  side_table = pipeline | beam.io.Read(beam.io.BigQuerySource('not_so_big_table')
+  side_table = pipeline | beam.io.Read(beam.io.BigQuerySource('not_big_table')
   results = (
       main_table
       | beam.Map('process data',
@@ -110,6 +110,8 @@ import re
 import time
 import uuid
 
+from apitools.base.py.exceptions import HttpError
+
 from apache_beam import coders
 from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
@@ -118,15 +120,13 @@ from apache_beam.io import iobase
 from apache_beam.utils import retry
 from apache_beam.utils.options import GoogleCloudOptions
 
-from apitools.base.py.exceptions import HttpError
-
 # Protect against environments where bigquery library is not available.
-# pylint: disable=g-import-not-at-top
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.internal.clients import bigquery
 except ImportError:
   pass
-# pylint: enable=g-import-not-at-top
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 __all__ = [
