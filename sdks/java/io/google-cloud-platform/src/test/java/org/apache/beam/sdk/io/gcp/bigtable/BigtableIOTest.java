@@ -505,15 +505,17 @@ public class BigtableIOTest {
 
     reader.start();
     // Started, 0 split points consumed
-    assertEquals("splitPointsConsumed starting", splitPointsConsumed, reader.getSplitPointsConsumed());
+    assertEquals("splitPointsConsumed starting",
+        splitPointsConsumed, reader.getSplitPointsConsumed());
 
     // Split points consumed increases for each row read
     while (reader.advance()) {
-      assertEquals("splitPointsConsumed advancing", ++splitPointsConsumed, reader.getSplitPointsConsumed());
+      assertEquals("splitPointsConsumed advancing",
+          ++splitPointsConsumed, reader.getSplitPointsConsumed());
     }
 
     // Reader marked as done, 100 split points consumed
-    assertEquals("splitPointsConsumed done", ++splitPointsConsumed, reader.getSplitPointsConsumed());
+    assertEquals("splitPointsConsumed done", numRows, reader.getSplitPointsConsumed());
 
     reader.close();
   }
