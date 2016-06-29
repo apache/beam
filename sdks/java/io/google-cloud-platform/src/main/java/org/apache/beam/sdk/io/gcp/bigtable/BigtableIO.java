@@ -808,6 +808,11 @@ public class BigtableIO {
     }
 
     @Override
+    public final long getSplitPointsConsumed() {
+      return rangeTracker.getSplitPointsConsumed();
+    }
+
+    @Override
     public final synchronized BigtableSource splitAtFraction(double fraction) {
       ByteKey splitKey;
       try {
