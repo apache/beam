@@ -116,6 +116,18 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     /**
+     * Returns true if the table is empty.
+     */
+    boolean isTableEmpty(String projectId, String datasetId, String tableId)
+        throws IOException, InterruptedException;
+
+    /**
+     * Gets the specified {@link Dataset} resource by dataset ID.
+     */
+    Dataset getDataset(String projectId, String datasetId)
+        throws IOException, InterruptedException;
+
+    /**
      * Create a {@link Dataset} with the given {@code location} and {@code description}.
      */
     void createDataset(String projectId, String datasetId, String location, String description)
