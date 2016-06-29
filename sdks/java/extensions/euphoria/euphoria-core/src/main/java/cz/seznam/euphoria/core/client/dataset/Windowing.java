@@ -445,10 +445,10 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       @Override
       public int compareTo(SessionInterval that) {
         if (this.startMillis == that.startMillis) {
-          return Long.compare(this.endMillis, that.endMillis);
+          return (int) (this.endMillis - that.endMillis);
         }
         // this.startMillis == that.startMillis captured above already
-        return this.startMillis < that.startMillis ? -1 : 1;
+        return (int) (this.startMillis - that.startMillis);
       }
 
       @Override
