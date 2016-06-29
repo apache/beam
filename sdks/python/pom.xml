@@ -75,10 +75,12 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>python</executable>
+              <executable>tox</executable>
               <arguments>
-                <argument>setup.py</argument>
-                <argument>test</argument>
+                <argument>-e</argument>
+                <argument>py27</argument>
+                <argument>c</argument>
+                <argument>tox.ini</argument>
               </arguments>
             </configuration>
           </execution>
