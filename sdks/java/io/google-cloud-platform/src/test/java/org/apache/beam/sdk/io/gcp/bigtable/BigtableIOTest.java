@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
-
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -33,6 +32,7 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
@@ -488,6 +488,36 @@ public class BigtableIOTest {
 
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+  }
+
+  @Test
+  public void testGetSplitPointsConsumed() throws Exception {
+    final String table = "TEST-TABLE";
+    final int numRows = 100;
+    int splitPointsConsumed = 0;
+
+    makeTableData(table, numRows);
+
+    BigtableSource source =
+        new BigtableSource(service, table, null, ByteKeyRange.ALL_KEYS, null);
+
+    BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
+
+    reader.start();
+    // Started, 0 split points consumed
+    assertEquals("splitPointsConsumed starting",
+        splitPointsConsumed, reader.getSplitPointsConsumed());
+
+    // Split points consumed increases for each row read
+    while (reader.advance()) {
+      assertEquals("splitPointsConsumed advancing",
+          ++splitPointsConsumed, reader.getSplitPointsConsumed());
+    }
+
+    // Reader marked as done, 100 split points consumed
+    assertEquals("splitPointsConsumed done", numRows, reader.getSplitPointsConsumed());
+
+    reader.close();
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
