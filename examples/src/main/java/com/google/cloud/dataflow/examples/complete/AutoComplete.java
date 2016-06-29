@@ -38,6 +38,7 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -415,6 +416,7 @@ public class AutoComplete {
    */
   private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input text file")
+    @Validation.Required
     String getInputFile();
     void setInputFile(String value);
 
@@ -499,7 +501,9 @@ public class AutoComplete {
                .to(tableRef)
                .withSchema(FormatForBigquery.getSchema())
                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-               .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+               .withWriteDisposition(options.isStreaming()
+                   ? BigQueryIO.Write.WriteDisposition.WRITE_APPEND
+                   : BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     }
 
     // Run the pipeline.
