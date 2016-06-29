@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+
 import org.apache.beam.sdk.testing.CoderProperties;
 
 import com.google.common.collect.Lists;
@@ -139,5 +142,25 @@ public class DelegateCoderTest implements Serializable {
     CoderProperties.coderAllowsEncoding(
         trivialDelegateCoder,
         TestAllowedEncodingsCoder.class.getName() + ":" + TEST_ALLOWED_ENCODING);
+  }
+
+  @Test
+  public void testCoderEquals() throws Exception {
+    DelegateCoder.CodingFunction<Integer, Integer> identityFn =
+        new DelegateCoder.CodingFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+        };
+    Coder<Integer> varIntCoder1 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
+    Coder<Integer> varIntCoder2 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
+    Coder<Integer> bigEndianIntegerCoder =
+        DelegateCoder.of(BigEndianIntegerCoder.of(), identityFn, identityFn);
+
+    assertEquals(varIntCoder1, varIntCoder2);
+    assertEquals(varIntCoder1.hashCode(), varIntCoder2.hashCode());
+    assertNotEquals(varIntCoder1, bigEndianIntegerCoder);
+    assertNotEquals(varIntCoder1.hashCode(), bigEndianIntegerCoder.hashCode());
   }
 }

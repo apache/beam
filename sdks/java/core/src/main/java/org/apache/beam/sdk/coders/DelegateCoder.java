@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
@@ -98,6 +99,22 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   @Override
   public Object structuralValue(T value) throws Exception {
     return coder.structuralValue(toFn.apply(value));
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || this.getClass() != o.getClass()) {
+      return false;
+    }
+    DelegateCoder<?, ?> that = (DelegateCoder<?, ?>) o;
+    return Objects.equal(this.coder, that.coder)
+        && Objects.equal(this.toFn, that.toFn)
+        && Objects.equal(this.fromFn, that.fromFn);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(this.coder, this.toFn, this.fromFn);
   }
 
   @Override
