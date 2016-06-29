@@ -32,8 +32,10 @@ from apache_beam.transforms.window import WindowFn
 class FakeLogger(object):
   def PerThreadLoggingContext(self, *unused_args, **unused_kwargs):
     return self
+
   def __enter__(self):
     pass
+
   def __exit__(self, *unused_args):
     pass
 
@@ -153,18 +155,22 @@ class DoFnRunner(object):
       else:
         self.tagged_receivers[tag].output(windowed_value)
 
+
 class NoContext(WindowFn.AssignContext):
   """An uninspectable WindowFn.AssignContext."""
   NO_VALUE = object()
+
   def __init__(self, value, timestamp=NO_VALUE):
     self.value = value
     self._timestamp = timestamp
+
   @property
   def timestamp(self):
     if self._timestamp is self.NO_VALUE:
       raise ValueError('No timestamp in this context.')
     else:
       return self._timestamp
+
   @property
   def existing_windows(self):
     raise ValueError('No existing_windows in this context.')

@@ -336,6 +336,7 @@ class SetupTest(unittest.TestCase):
         'gs://my-gcs-bucket/gcs.tar.gz']
 
     gcs_copied_files = []
+
     def file_copy(from_path, to_path):
       if from_path.startswith('gs://'):
         gcs_copied_files.append(from_path)

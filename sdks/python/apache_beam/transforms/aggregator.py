@@ -103,6 +103,6 @@ class Aggregator(object):
 
 
 def _is_supported_kind(combine_fn):
-  # pylint: disable=g-import-not-at-top
+  # pylint: disable=wrong-import-order, wrong-import-position
   from apache_beam.internal.apiclient import metric_translations
   return combine_fn.__class__ in metric_translations

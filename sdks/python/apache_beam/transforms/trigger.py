@@ -731,6 +731,7 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
             unwindowed_value = wv.value
             self.notify_observers(unwindowed_value)
             yield unwindowed_value
+
         def __repr__(self):
           return '<UnwindowedValues of %s>' % windowed_values
       unwindowed = UnwindowedValues()

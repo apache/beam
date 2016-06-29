@@ -28,6 +28,10 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms.ptransform import PTransform
 
+# Type variables
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
+
 
 class CreatePCollectionView(PTransform):
   """Transform to materialize a given PCollectionView in the pipeline.
@@ -119,11 +123,10 @@ class ViewAsList(PTransform):
             .with_input_types(input_type)
             .with_output_types(output_type))
 
-K = typehints.TypeVariable('K')
-V = typehints.TypeVariable('V')
+
 @typehints.with_input_types(typehints.Tuple[K, V])
 @typehints.with_output_types(typehints.Dict[K, V])
-class ViewAsDict(PTransform):  # pylint: disable=g-wrong-blank-lines
+class ViewAsDict(PTransform):
   """Transform to view PCollection as a dict PCollectionView.
 
   Important: this transform is an implementation detail and should not be used

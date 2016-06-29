@@ -24,12 +24,11 @@ import random
 import threading
 import unittest
 
-
 import httplib2
-
-from apache_beam.io import gcsio
 from apitools.base.py.exceptions import HttpError
 from apache_beam.internal.clients import storage
+
+from apache_beam.io import gcsio
 
 
 class FakeGcsClient(object):

@@ -25,6 +25,9 @@ import re
 import time
 
 
+from apitools.base.py import encoding
+from apitools.base.py import exceptions
+
 from apache_beam import utils
 from apache_beam import version
 from apache_beam.internal import pickler
@@ -40,8 +43,6 @@ from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
 from apache_beam.utils.options import WorkerOptions
 
-from apitools.base.py import encoding
-from apitools.base.py import exceptions
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
 

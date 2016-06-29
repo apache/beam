@@ -61,6 +61,7 @@ class TriggerTest(unittest.TestCase):
                          **kwargs):
     late_data = kwargs.pop('late_data', [])
     assert not kwargs
+
     def bundle_data(data, size):
       bundle = []
       for timestamp, elem in data:
@@ -477,10 +478,10 @@ class TranscriptTest(unittest.TestCase):
       else:
         return fn
 
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module
     from apache_beam.transforms import trigger as trigger_module
-    # pylint: enable=g-import-not-at-top
+    # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
     window_fn_names.update({'CustomTimestampingFixedWindowsWindowFn':
                             CustomTimestampingFixedWindowsWindowFn})
