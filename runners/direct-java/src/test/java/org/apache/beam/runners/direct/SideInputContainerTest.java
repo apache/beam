@@ -483,6 +483,7 @@ public class SideInputContainerTest {
             Object callback = invocation.getArguments()[3];
             final Runnable callbackRunnable = (Runnable) callback;
             Executors.newSingleThreadExecutor().submit(new Runnable() {
+              @Override
               public void run() {
                 try {
                   if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
