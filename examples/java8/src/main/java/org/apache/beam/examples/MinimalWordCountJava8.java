@@ -42,17 +42,17 @@ public class MinimalWordCountJava8 {
     // In order to run your pipeline, you need to make following runner specific changes:
     //
     // CHANGE 1/3: Select a Beam runner, such as BlockingDataflowRunner
-    // or FlinkPipelineRunner.
+    // or FlinkRunner.
     // CHANGE 2/3: Specify runner-required options.
     // For BlockingDataflowRunner, set project and temp location as follows:
     //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     //   dataflowOptions.setRunner(BlockingDataflowRunner.class);
     //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
     //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
-    // For FlinkPipelineRunner, set the runner as follows. See {@code FlinkPipelineOptions}
+    // For FlinkRunner, set the runner as follows. See {@code FlinkPipelineOptions}
     // for more details.
     //   options.as(FlinkPipelineOptions.class)
-    //      .setRunner(FlinkPipelineRunner.class);
+    //      .setRunner(FlinkRunner.class);
 
     Pipeline p = Pipeline.create(options);
 
