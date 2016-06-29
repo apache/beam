@@ -181,18 +181,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * transforms, which do not apply any transforms internally, should return
    * a new unbound output and register evaluators (via backend-specific
    * registration methods).
-   *
-   * <p>The default implementation throws an exception.  A derived class must
-   * either implement apply, or else each runner must supply a custom
-   * implementation via
-   * {@link org.apache.beam.sdk.runners.PipelineRunner#apply}.
    */
-  public OutputT apply(InputT input) {
-    throw new IllegalArgumentException(
-        "Runner " + input.getPipeline().getRunner()
-            + " has not registered an implementation for the required primitive operation "
-            + this);
-  }
+  public abstract OutputT apply(InputT input);
 
   /**
    * Called before invoking apply (which may be intercepted by the runner) to
@@ -201,7 +191,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *
    * <p>By default, does nothing.
    */
-  public void validate(InputT input) { }
+  public void validate(InputT input) {}
 
   /**
    * Returns the transform name.
@@ -279,8 +269,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * @throws CannotProvideCoderException if no coder can be inferred
    */
   protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
-    throw new CannotProvideCoderException(
-      "PTransform.getDefaultOutputCoder called.");
+    throw new CannotProvideCoderException("PTransform.getDefaultOutputCoder called.");
   }
 
   /**
@@ -319,6 +308,5 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * to provide their own display data.
    */
   @Override
-  public void populateDisplayData(Builder builder) {
-  }
+  public void populateDisplayData(Builder builder) {}
 }
