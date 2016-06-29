@@ -436,7 +436,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
             && this.endMillis > that.startMillis;
       }
 
-      SessionInterval span(SessionInterval that) {
+      SessionInterval createSpanned(SessionInterval that) {
         return new SessionInterval(
             Long.min(this.startMillis, that.startMillis),
             Long.max(this.endMillis, that.endMillis));
@@ -615,7 +615,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
           }
           toMerge.add(w);
           mergeCandidate = new SessionWindow<>(
-              mergeCandidate.getGroup(), mergeCandidate.getLabel().span(w.getLabel()),
+              mergeCandidate.getGroup(), mergeCandidate.getLabel().createSpanned(w.getLabel()),
               earlyTriggeringPeriod);
           transientCandidate = true;
         } else {
