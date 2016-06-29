@@ -67,13 +67,13 @@ REQUIRED_PACKAGES = [
     # 'google-apitools-dataflow-v1b3>=0.4.20160217',
     # 'google-apitools-storage-v1',
     'httplib2>=0.8',
+    'lxml',
     'mock>=1.0.1',
     'nose>=1.0',
     'oauth2client>=2.0.1',
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
-    'pyyaml>=3.10',
-    'lxml'
+    'pyyaml>=3.10'
 ]
 
 setuptools.setup(
