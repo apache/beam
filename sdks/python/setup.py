@@ -25,31 +25,31 @@ from apache_beam.version import get_version_from_pom
 
 # Currently all compiled modules are optional (for performance only).
 if platform.system() == 'Windows':
-    # Windows doesn't always provide int64_t.
-    cythonize = lambda *args, **kwargs: []
+  # Windows doesn't always provide int64_t.
+  cythonize = lambda *args, **kwargs: []
 else:
-    try:
-        # pylint: disable=g-statement-before-imports,g-import-not-at-top
-        from Cython.Build import cythonize
-    except ImportError:
-        cythonize = lambda *args, **kwargs: []
+  try:
+      # pylint: disable=g-statement-before-imports,g-import-not-at-top
+      from Cython.Build import cythonize
+  except ImportError:
+      cythonize = lambda *args, **kwargs: []
 
 
 # Reads the actual version from pom.xml file, and synchronizes
 # apache_beam.__version__ field for later usage.
 def sync_version():
-    version = get_version_from_pom()
-    init_path = "apache_beam/__init__.py"
-    regex = r'^__version__\s*=\s*".*"'
-    with open(init_path, "r") as f:
-        lines = f.readlines()
-    with open(init_path, "w") as f:
-        for line in lines:
-            if re.search(regex, line):
-                f.write(re.sub(regex, '__version__ = "%s"' % version, line))
-            else:
-                f.write(line)
-    return version
+  version = get_version_from_pom()
+  init_path = "apache_beam/__init__.py"
+  regex = r'^__version__\s*=\s*".*"'
+  with open(init_path, "r") as f:
+    lines = f.readlines()
+  with open(init_path, "w") as f:
+    for line in lines:
+      if re.search(regex, line):
+        f.write(re.sub(regex, '__version__ = "%s"' % version, line))
+      else:
+        f.write(line)
+  return version
 
 
 version = sync_version()

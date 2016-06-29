@@ -22,13 +22,13 @@ from lxml import etree
 
 
 def get_version_from_pom():
-    pom = etree.parse('pom.xml')
-    elements = pom.xpath(r'/pom:project/pom:parent/pom:version', namespaces={'pom':'http://maven.apache.org/POM/4.0.0'})
-    version = elements[0].text
-    version = version.replace("-SNAPSHOT", ".dev")  # PEP 440
-    # TODO: PEP 440 and incubating suffix
-    return version
+  pom = etree.parse('pom.xml')
+  elements = pom.xpath(r'/pom:project/pom:parent/pom:version', namespaces={'pom':'http://maven.apache.org/POM/4.0.0'})
+  version = elements[0].text
+  version = version.replace("-SNAPSHOT", ".dev")  # PEP 440
+  # TODO: PEP 440 and incubating suffix
+  return version
 
 
 def get_distribution_version():
-    return pkg_resources.get_distribution("apache_beam").version
+  return pkg_resources.get_distribution("apache_beam").version
