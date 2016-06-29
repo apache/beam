@@ -65,6 +65,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <dataflow.javadoc_opts></dataflow.javadoc_opts>
+    <dataflow.surefire_argline></dataflow.surefire_argline>
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.7.7</avro.version>
@@ -233,6 +234,7 @@
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <argLine>${dataflow.surefire_argline}</argLine>
           </configuration>
           <dependencies>
             <dependency>
