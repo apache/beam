@@ -417,13 +417,17 @@ public class WindowingTest {
         windowing.assignWindows(10_000L), null, 10_000L, 20_000L);
     SessionWindow<Void> w3 = assertSessionWindow(
         windowing.assignWindows(21_000L), null, 21_000L, 31_000L);
+    // ~ a small window which is fully contained in w1
+    SessionWindow<Void> w4 = new SessionWindow<>(null,
+        new Windowing.Session.SessionInterval(3_000L, 8_000L), null);
 
     Collection<Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>>> merges
-        = windowing.mergeWindows(Arrays.asList(w3, w2, w1));
+        = windowing.mergeWindows(Arrays.asList(w4, w3, w2, w1));
     assertEquals(1L, merges.size());
     Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>> m = merges.iterator().next();
-    assertEquals(2, m.getFirst().size());
+    assertEquals(3, m.getFirst().size());
     assertTrue(m.getFirst().contains(w1));
+    assertTrue(m.getFirst().contains(w4));
     assertTrue(m.getFirst().contains(w2));
     assertSessionWindow(m.getSecond(), null, 1_000L, 20_000L);
   }
