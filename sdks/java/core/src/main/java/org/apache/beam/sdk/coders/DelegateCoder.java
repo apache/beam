@@ -27,6 +27,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
+import autovalue.shaded.com.google.common.common.base.MoreObjects;
+
 /**
  * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder} for {@code IntermediateT} and
  * encodes/decodes values of type {@code T} by converting
@@ -108,18 +110,22 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
     }
     DelegateCoder<?, ?> that = (DelegateCoder<?, ?>) o;
     return Objects.equal(this.coder, that.coder)
-        && Objects.equal(this.toFn, that.toFn)
-        && Objects.equal(this.fromFn, that.fromFn);
+        && Objects.equal(this.toFn.getClass(), that.toFn.getClass())
+        && Objects.equal(this.fromFn.getClass(), that.fromFn.getClass());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(this.coder, this.toFn, this.fromFn);
+    return Objects.hashCode(this.coder, this.toFn.getClass(), this.fromFn.getClass());
   }
 
   @Override
   public String toString() {
-    return "DelegateCoder(" + coder + ")";
+    return MoreObjects.toStringHelper(getClass())
+        .add("coder", coder)
+        .add("toFn", toFn)
+        .add("fromFn", fromFn)
+        .toString();
   }
 
   /**
