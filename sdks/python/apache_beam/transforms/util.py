@@ -228,4 +228,4 @@ def assert_that(actual, matcher, label='assert_that'):
     def default_label(self):
       return label
 
-  actual.pipeline | AssertThat()
+  actual.pipeline | AssertThat()  # pylint: disable=expression-not-assigned

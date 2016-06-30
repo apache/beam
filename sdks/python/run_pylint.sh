@@ -34,9 +34,10 @@ git remote set-branches --add origin $BASE_BRANCH
 git fetch
 
 # Get the name of the files that changed compared to the HEAD of the branch.
-# Filter the output to .py files only. Rewrite the paths relative to the
-# sdks/python folder.
-CHANGED_FILES=$(git diff --name-only origin/$BASE_BRANCH apache_beam \
+# Use diff-filter to exclude deleted files. (i.e. Do not try to lint files that
+# does not exist any more.) Filter the output to .py files only. Rewrite the
+# paths relative to the sdks/python folder.
+CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRTUXB origin/$BASE_BRANCH apache_beam \
                 | { grep ".py$" || true; }  \
                 | sed 's/sdks\/python\///g')
 

@@ -697,9 +697,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         return [prefix + context.element.upper()]
 
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('t', [1, 2, 3]).with_output_types(int)
-           | beam.ParDo('upper', ToUpperCaseWithPrefix(), 'hello'))
+      (self.p
+       | beam.Create('t', [1, 2, 3]).with_output_types(int)
+       | beam.ParDo('upper', ToUpperCaseWithPrefix(), 'hello'))
 
     self.assertEqual("Type hint violation for 'upper': "
                      "requires <type 'str'> but got <type 'int'> for context",
@@ -731,9 +731,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         return [context.element + num]
 
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('t', ['1', '2', '3']).with_output_types(str)
-           | beam.ParDo('add', AddWithNum(), 5))
+      (self.p
+       | beam.Create('t', ['1', '2', '3']).with_output_types(str)
+       | beam.ParDo('add', AddWithNum(), 5))
       self.p.run()
 
     self.assertEqual("Type hint violation for 'add': "
@@ -749,9 +749,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # The function above is expecting an int for its only parameter. However, it
     # will receive a str instead, which should result in a raised exception.
     with self.assertRaises(typehints.TypeCheckError) as e:
-      c = (self.p
-           | beam.Create('s', ['b', 'a', 'r']).with_output_types(str)
-           | beam.FlatMap('to str', int_to_str))
+      (self.p
+       | beam.Create('s', ['b', 'a', 'r']).with_output_types(str)
+       | beam.FlatMap('to str', int_to_str))
 
     self.assertEqual("Type hint violation for 'to str': "
                      "requires <type 'int'> but got <type 'str'> for a",
@@ -805,10 +805,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # The transform before 'Map' has indicated that it outputs PCollections with
     # int's, while Map is expecting one of str.
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('s', [1, 2, 3, 4]).with_output_types(int)
-           | beam.Map('upper', lambda x: x.upper())
-           .with_input_types(str).with_output_types(str))
+      (self.p
+       | beam.Create('s', [1, 2, 3, 4]).with_output_types(int)
+       | beam.Map('upper', lambda x: x.upper())
+       .with_input_types(str).with_output_types(str))
 
     self.assertEqual("Type hint violation for 'upper': "
                      "requires <type 'str'> but got <type 'int'> for x",
@@ -832,9 +832,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # Hinted function above expects a str at pipeline construction.
     # However, 'Map' should detect that Create has hinted an int instead.
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('s', [1, 2, 3, 4]).with_output_types(int)
-           | beam.Map('upper', upper))
+      (self.p
+       | beam.Create('s', [1, 2, 3, 4]).with_output_types(int)
+       | beam.Map('upper', upper))
 
     self.assertEqual("Type hint violation for 'upper': "
                      "requires <type 'str'> but got <type 'int'> for s",
@@ -884,9 +884,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     # Func above was hinted to only take a float, yet an int will be passed.
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('ints', [1, 2, 3, 4]).with_output_types(int)
-           | beam.Filter('half', more_than_half))
+      (self.p
+       | beam.Create('ints', [1, 2, 3, 4]).with_output_types(int)
+       | beam.Filter('half', more_than_half))
 
     self.assertEqual("Type hint violation for 'half': "
                      "requires <type 'float'> but got <type 'int'> for a",
@@ -932,9 +932,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_group_by_key_only_does_not_type_check(self):
     # GBK will be passed raw int's here instead of some form of KV[A, B].
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('s', [1, 2, 3]).with_output_types(int)
-           | beam.GroupByKeyOnly('F'))
+      (self.p
+       | beam.Create('s', [1, 2, 3]).with_output_types(int)
+       | beam.GroupByKeyOnly('F'))
 
     self.assertEqual("Input type hint violation at F: "
                      "expected Tuple[TypeVariable[K], TypeVariable[V]], "
@@ -945,10 +945,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # Create is returning a List[int, str], rather than a KV[int, str] that is
     # aliased to Tuple[int, str].
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | (beam.Create('s', range(5))
-              .with_output_types(typehints.Iterable[int]))
-           | beam.GroupByKey('T'))
+      (self.p
+       | (beam.Create('s', range(5))
+          .with_output_types(typehints.Iterable[int]))
+       | beam.GroupByKey('T'))
 
     self.assertEqual("Input type hint violation at T: "
                      "expected Tuple[TypeVariable[K], TypeVariable[V]], "
@@ -1388,9 +1388,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def test_mean_globally_pipeline_checking_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('c', ['test']).with_output_types(str)
-           | combine.Mean.Globally('mean'))
+      (self.p
+       | beam.Create('c', ['test']).with_output_types(str)
+       | combine.Mean.Globally('mean'))
 
     self.assertEqual("Type hint violation for 'ParDo(CombineValuesDoFn)': "
                      "requires Tuple[TypeVariable[K], "
@@ -1608,10 +1608,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def test_per_key_pipeline_checking_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('n', range(100)).with_output_types(int)
-           | beam.Map('num + 1', lambda x: x + 1).with_output_types(int)
-           | combine.Top.PerKey('top mod', 1, lambda a, b: a < b))
+      (self.p
+       | beam.Create('n', range(100)).with_output_types(int)
+       | beam.Map('num + 1', lambda x: x + 1).with_output_types(int)
+       | combine.Top.PerKey('top mod', 1, lambda a, b: a < b))
 
     self.assertEqual("Input type hint violation at GroupByKey: "
                      "expected Tuple[TypeVariable[K], TypeVariable[V]], "
@@ -1742,9 +1742,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def test_to_dict_pipeline_check_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
-      d = (self.p
-           | beam.Create('d', [1, 2, 3, 4]).with_output_types(int)
-           | combine.ToDict('to dict'))
+      (self.p
+       | beam.Create('d', [1, 2, 3, 4]).with_output_types(int)
+       | combine.ToDict('to dict'))
 
     self.assertEqual("Type hint violation for 'ParDo(CombineValuesDoFn)': "
                      "requires Tuple[TypeVariable[K], "
