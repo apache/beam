@@ -97,6 +97,16 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
     this.clazz = clazz;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    return super.equals(o);
+  }
+
+  @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
+
   /**
    * The encoding id is the fully qualified name of the encoded/decoded class.
    */
