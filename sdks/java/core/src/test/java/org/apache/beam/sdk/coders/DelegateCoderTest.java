@@ -55,11 +55,31 @@ public class DelegateCoderTest implements Serializable {
         public List<Integer> apply(Set<Integer> input) {
           return Lists.newArrayList(input);
         }
+
+        @Override
+        public boolean equals(Object o) {
+          return o != null && this.getClass() == o.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+          return this.getClass().hashCode();
+        }
       },
       new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
         @Override
         public Set<Integer> apply(List<Integer> input) {
           return Sets.newHashSet(input);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+          return o != null && this.getClass() == o.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+          return this.getClass().hashCode();
         }
       });
 

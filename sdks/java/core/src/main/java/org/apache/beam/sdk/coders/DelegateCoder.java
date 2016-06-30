@@ -110,13 +110,13 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
     }
     DelegateCoder<?, ?> that = (DelegateCoder<?, ?>) o;
     return Objects.equal(this.coder, that.coder)
-        && Objects.equal(this.toFn.getClass(), that.toFn.getClass())
-        && Objects.equal(this.fromFn.getClass(), that.fromFn.getClass());
+        && Objects.equal(this.toFn, that.toFn)
+        && Objects.equal(this.fromFn, that.fromFn);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(this.coder, this.toFn.getClass(), this.fromFn.getClass());
+    return Objects.hashCode(this.coder, this.toFn, this.fromFn);
   }
 
   @Override

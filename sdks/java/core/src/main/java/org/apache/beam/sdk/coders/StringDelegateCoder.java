@@ -62,6 +62,16 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
         public String apply(T input) {
           return input.toString();
         }
+
+        @Override
+        public boolean equals(Object o) {
+          return o != null && this.getClass() == o.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+          return this.getClass().hashCode();
+        }
       },
       new CodingFunction<String, T>() {
         @Override
@@ -71,6 +81,16 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
             IllegalAccessException,
             InvocationTargetException {
           return clazz.getConstructor(String.class).newInstance(input);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+          return o != null && this.getClass() == o.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+          return this.getClass().hashCode();
         }
       });
 
