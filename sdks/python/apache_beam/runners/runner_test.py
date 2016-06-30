@@ -58,9 +58,9 @@ class RunnerTest(unittest.TestCase):
                      '--no_auth=True'
                  ]))
 
-    res = (p | ptransform.Create('create', [1, 2, 3])
-           | ptransform.FlatMap('do', lambda x: [(x, x)])
-           | ptransform.GroupByKey('gbk'))
+    (p | ptransform.Create('create', [1, 2, 3])  # pylint: disable=expression-not-assigned
+     | ptransform.FlatMap('do', lambda x: [(x, x)])
+     | ptransform.GroupByKey('gbk'))
     remote_runner.job = apiclient.Job(p.options)
     super(DataflowPipelineRunner, remote_runner).run(p)
 

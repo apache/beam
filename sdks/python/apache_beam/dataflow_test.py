@@ -181,8 +181,8 @@ class DataflowTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     pcol = pipeline | Create('start', [1, 2])
     side = pipeline | Create('side', [3, 4])  # 2 values in side input.
-    pcol | FlatMap('compute', lambda x, s: [x * s], AsSingleton(side))
-    with self.assertRaises(ValueError) as e:
+    pcol | FlatMap('compute', lambda x, s: [x * s], AsSingleton(side))  # pylint: disable=expression-not-assigned
+    with self.assertRaises(ValueError):
       pipeline.run()
 
   def test_default_value_singleton_side_input(self):

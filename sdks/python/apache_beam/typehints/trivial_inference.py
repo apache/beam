@@ -356,7 +356,6 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         if var_args or kw_args:
           state.stack[-1] = Any
           state.stack[-var_args - kw_args] = Any
-        inputs = [] if pop_count == 1 else state.stack[1 - pop_count:]
         return_type = infer_return_type(state.stack[-pop_count].value,
                                         state.stack[1 - pop_count:],
                                         debug=debug,

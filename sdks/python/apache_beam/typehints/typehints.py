@@ -989,7 +989,7 @@ class WindowedTypeConstraint(TypeConstraint):
 
     try:
       check_constraint(self.inner_type, instance.value)
-    except (CompositeTypeHintError, SimpleTypeHintError) as e:
+    except (CompositeTypeHintError, SimpleTypeHintError):
       raise CompositeTypeHintError(
           '%s hint type-constraint violated. The type of element in '
           'is incorrect. Expected an instance of type %s, '

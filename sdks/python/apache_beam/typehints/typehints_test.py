@@ -400,7 +400,7 @@ class TupleHintTestCase(TypeHintTestCase):
 class ListHintTestCase(TypeHintTestCase):
 
   def test_getitem_invalid_composite_type_param(self):
-    with self.assertRaises(TypeError) as e:
+    with self.assertRaises(TypeError):
       typehints.List[4]
 
   def test_list_constraint_compatibility(self):
@@ -503,11 +503,11 @@ class DictHintTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_key_type_must_be_valid_composite_param(self):
-    with self.assertRaises(TypeError) as e:
+    with self.assertRaises(TypeError):
       typehints.Dict[list, int]
 
   def test_value_type_must_be_valid_composite_param(self):
-    with self.assertRaises(TypeError) as e:
+    with self.assertRaises(TypeError):
       typehints.Dict[str, 5]
 
   def test_compatibility(self):
@@ -692,7 +692,7 @@ class IterableHintTestCase(TypeHintTestCase):
   def test_type_check_violation_invalid_composite_type(self):
     hint = typehints.Iterable[typehints.List[int]]
     l = ([['t', 'e'], ['s', 't']])
-    with self.assertRaises(TypeError) as e:
+    with self.assertRaises(TypeError):
       hint.type_check(l)
 
   def test_type_check_violation_valid_composite_type(self):
@@ -773,7 +773,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
       t = [1, 2]
 
       @with_input_types(a=t)
-      def foo(a):
+      def unused_foo(a):
         pass
 
     self.assertEqual('All type hint arguments must be a non-sequence, a '
@@ -786,7 +786,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
 
       @check_type_hints
       @with_input_types(a=t)
-      def foo(a):
+      def unused_foo(a):
         pass
 
     self.assertEqual('All type hint arguments must be a non-sequence, a type, '
@@ -874,24 +874,24 @@ class ReturnsDecoratorTestCase(TypeHintTestCase):
   def test_no_kwargs_accepted(self):
     with self.assertRaises(ValueError):
       @with_output_types(m=int)
-      def foo():
+      def unused_foo():
         return 5
 
   def test_must_be_primitive_type_or_type_constraint(self):
     with self.assertRaises(TypeError):
       @with_output_types(5)
-      def foo():
+      def unused_foo():
         pass
 
     with self.assertRaises(TypeError):
       @with_output_types([1, 2])
-      def foo():
+      def unused_foo():
         pass
 
   def test_must_be_single_return_type(self):
     with self.assertRaises(ValueError):
       @with_output_types(int, str)
-      def foo():
+      def unused_foo():
         return 4, 'f'
 
   def test_type_check_violation(self):

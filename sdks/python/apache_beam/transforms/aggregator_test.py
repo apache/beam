@@ -64,7 +64,7 @@ class AggregatorTest(unittest.TestCase):
           context.aggregate_to(a, context.element)
 
     p = beam.Pipeline('DirectPipelineRunner')
-    p | beam.Create([0, 1, 2, 3]) | beam.ParDo(UpdateAggregators())
+    p | beam.Create([0, 1, 2, 3]) | beam.ParDo(UpdateAggregators())  # pylint: disable=expression-not-assigned
     res = p.run()
     for (_, _, expected), a in zip(counter_types, aggeregators):
       actual = res.aggregated_values(a).values()[0]
