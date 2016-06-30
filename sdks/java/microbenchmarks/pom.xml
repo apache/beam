@@ -26,8 +26,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-io-microbenchmarks</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: Microbenchamkrs</name>
+  <artifactId>beam-sdks-java-microbenchmarks</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: Microbenchmarks</name>
   <description>Microbenchmarks for components in the Beam Java SDK.</description>
   <packaging>jar</packaging>
 

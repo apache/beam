@@ -15,8 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.microbenchmarks.coders;
 
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.CoderUtils;
 
 import java.io.IOException;
