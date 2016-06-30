@@ -69,9 +69,9 @@ def run(argv=None, assert_results=None):
     return (p
             | beam.io.Read('read_%s' % label, textfile)
             | beam.Map('backslash_%s' % label,
-                     lambda x: re.sub(r'\\', r'\\\\', x))
+                       lambda x: re.sub(r'\\', r'\\\\', x))
             | beam.Map('escape_quotes_%s' % label,
-                     lambda x: re.sub(r'"', r'\"', x))
+                       lambda x: re.sub(r'"', r'\"', x))
             | beam.Map('split_%s' % label, lambda x: re.split(r'\t+', x, 1)))
 
   # Read input databases.
@@ -79,8 +79,8 @@ def run(argv=None, assert_results=None):
                            beam.io.TextFileSource(known_args.input_email))
   phone = read_kv_textfile('phone',
                            beam.io.TextFileSource(known_args.input_phone))
-  snailmail = read_kv_textfile('snailmail',
-                               beam.io.TextFileSource(known_args.input_snailmail))
+  snailmail = read_kv_textfile('snailmail', beam.io.TextFileSource(
+      known_args.input_snailmail))
 
   # Group together all entries under the same name.
   grouped = (email, phone, snailmail) | beam.CoGroupByKey('group_by_name')
@@ -109,17 +109,17 @@ def run(argv=None, assert_results=None):
   # Write tab-delimited output.
   # pylint: disable=expression-not-assigned
   tsv_lines | beam.io.Write('write_tsv',
-                          beam.io.TextFileSink(known_args.output_tsv))
+                            beam.io.TextFileSink(known_args.output_tsv))
 
   # TODO(silviuc): Move the assert_results logic to the unit test.
   if assert_results is not None:
     expected_luddites, expected_writers, expected_nomads = assert_results
     beam.assert_that(num_luddites, beam.equal_to([expected_luddites]),
-                   label='assert:luddites')
+                     label='assert:luddites')
     beam.assert_that(num_writers, beam.equal_to([expected_writers]),
-                   label='assert:writers')
+                     label='assert:writers')
     beam.assert_that(num_nomads, beam.equal_to([expected_nomads]),
-                   label='assert:nomads')
+                     label='assert:nomads')
   # Execute pipeline.
   p.run()
 

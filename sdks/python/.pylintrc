@@ -124,9 +124,7 @@ disable =
   unnecessary-lambda,
   unneeded-not,
   unused-argument,
-  unused-import,
   unused-wildcard-import,
-  used-before-assignment,
   wildcard-import,
 
 

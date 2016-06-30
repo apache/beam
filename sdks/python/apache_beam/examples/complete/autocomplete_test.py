@@ -18,16 +18,12 @@
 """Test for the wordcount example."""
 
 import collections
-import logging
-import re
-import tempfile
 import unittest
 
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
 from apache_beam.pvalue import AsIter
-from apache_beam.utils import options
 
 # TODO(robertwb): Move to testing utilities.
 
@@ -41,7 +37,7 @@ def assert_that(pcoll, matcher):
   def check_matcher(_, side_value):
     assert matcher(side_value)
     return []
-  singleton | beam.FlatMap(check_matcher, AsIter(pcoll))
+  singleton | beam.FlatMap(check_matcher, AsIter(pcoll))  # pylint: disable=expression-not-assigned
 
 
 def contains_in_any_order(expected):

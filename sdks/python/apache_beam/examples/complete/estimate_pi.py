@@ -100,8 +100,8 @@ def run(argv=None):
    | beam.Map('Run trials', run_trials)
    | beam.CombineGlobally('Sum', combine_results).without_defaults()
    | beam.io.Write('Write',
-                 beam.io.TextFileSink(known_args.output,
-                                    coder=JsonCoder())))
+                   beam.io.TextFileSink(known_args.output,
+                                        coder=JsonCoder())))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()

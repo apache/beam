@@ -20,9 +20,6 @@
 
 from __future__ import absolute_import
 
-import collections
-import operator
-
 from apache_beam.pvalue import AsIter as AllOf
 from apache_beam.transforms.core import CombinePerKey, Create, Flatten, GroupByKey, Map
 from apache_beam.transforms.ptransform import PTransform

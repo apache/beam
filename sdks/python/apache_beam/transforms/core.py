@@ -20,14 +20,11 @@
 from __future__ import absolute_import
 
 import copy
-import uuid
 
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import util
-from apache_beam.pvalue import AsIter
-from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform

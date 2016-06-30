@@ -47,7 +47,7 @@ class FiltersTest(unittest.TestCase):
     beam.assert_that(
         results,
         beam.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
-                     {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
+                       {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
     results.pipeline.run()
 
   def test_basic_empty(self):

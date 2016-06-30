@@ -369,7 +369,7 @@ class Sessions(WindowFn):
     to_merge = []
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:
-        if end > w.start:
+        if end > w.start:  # pylint: disable=used-before-assignment
           to_merge.append(w)
           if w.end > end:
             end = w.end

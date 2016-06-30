@@ -44,7 +44,7 @@ def run(argv=None):
    | beam.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
    | TopPerPrefix('TopPerPrefix', 5)
    | beam.Map('format',
-            lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
+              lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
    | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
   p.run()
 

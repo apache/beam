@@ -98,7 +98,7 @@ class TfIdf(beam.PTransform):
     uri_to_word_and_count = (
         uri_and_word_to_count
         | beam.Map('shift keys',
-                 lambda ((uri, word), count): (uri, (word, count))))
+                   lambda ((uri, word), count): (uri, (word, count))))
 
     # Perform a CoGroupByKey (a sort of pre-join) on the prepared
     # uri_to_word_total and uri_to_word_and_count tagged by 'word totals' and
@@ -146,8 +146,8 @@ class TfIdf(beam.PTransform):
     word_to_df = (
         word_to_doc_count
         | beam.Map('compute doc frequencies',
-                 lambda (word, count), total: (word, float(count) / total),
-                 AsSingleton(total_documents)))
+                   lambda (word, count), total: (word, float(count) / total),
+                   AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
     # each keyed on the word.
