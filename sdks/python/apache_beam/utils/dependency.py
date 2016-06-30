@@ -72,9 +72,6 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
-PACKAGES_URL_PREFIX = (
-    'https://github.com/GoogleCloudPlatform/DataflowPythonSDK/archive')
-
 
 def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
