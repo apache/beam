@@ -67,6 +67,7 @@ import org.apache.beam.sdk.values.PDone;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,9 +144,11 @@ public class PAssert {
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window, running the checker only on the final pane for each key.
      *
-     * <p>If the input {@link WindowingStrategy} does not always produce final panes (with
-     * {@link ClosingBehavior#FIRE_ALWAYS}), this may produce an empty output even if the trigger
-     * has fired previously.
+     * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
+     * may be executed over an empty input even if the trigger has fired previously. To ensure that
+     * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
+     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
      * specified window.
@@ -169,7 +172,7 @@ public class PAssert {
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
      * specified window.
      */
-    IterableAssert<T> acrossNonLatePanes(BoundedWindow window);
+    IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
 
     /**
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
@@ -231,9 +234,11 @@ public class PAssert {
      * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
      * only run on the provided window, running the checker only on the final pane for each key.
      *
-     * <p>If the input {@link WindowingStrategy} does not always produce final panes (with
-     * {@link ClosingBehavior#FIRE_ALWAYS}), this may produce an empty output even if the trigger
-     * has fired previously.
+     * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
+     * may be executed over an empty input even if the trigger has fired previously. To ensure that
+     * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
+     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
      * the specified window.
@@ -242,7 +247,7 @@ public class PAssert {
 
     /**
      * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
-     * only run on the provided window.
+     * only run on the provided window, running the checker only on the on-time pane for each key.
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
      * the specified window.
@@ -380,7 +385,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionContentsAssert<T> acrossNonLatePanes(BoundedWindow window) {
+    public PCollectionContentsAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPane(window, PaneExtractors.<T>nonLatePanes());
     }
 
@@ -560,7 +565,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionSingletonIterableAssert<T> acrossNonLatePanes(BoundedWindow window) {
+    public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
     }
 
