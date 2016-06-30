@@ -98,4 +98,4 @@ indicates that the infrastructure, communications, and decision making process h
 with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or
 stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
 
-Apache Bean is available under [Apache License, version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+Apache Beam (incubating) is available under [Apache License, version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
