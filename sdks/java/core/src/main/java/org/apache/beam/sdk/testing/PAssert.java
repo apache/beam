@@ -175,15 +175,6 @@ public class PAssert {
     IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
 
     /**
-     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
-     * run on the provided window across all panes produced in the window.
-     *
-     * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
-     * specified window.
-     */
-    IterableAssert<T> acrossAllPanes(BoundedWindow window);
-
-    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
