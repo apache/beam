@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<FindBugsFilter>
+  <!-- Ignored bug categories. Bugs in these categories should not block the build. -->
+  <Bug category="I18N"/>
+  <Bug pattern="DM_STRING_CTOR"/>
+  <Bug pattern="SE_NO_SERIALVERSIONID"/>
+
+
+  <!--
+          Baseline issues below. No new issues should be added to this list. Instead, suppress
+          the issue inline using @SuppressFBWarnings and a documented reason, or (preferably) fix
+          the issue.
+        -->
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.AvroCoder"/>
+    <Field name="decoder"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.AvroCoder"/>
+    <Field name="encoder"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.AvroCoder"/>
+    <Field name="reader"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.AvroCoder"/>
+    <Field name="writer"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.AvroCoder"/>
+    <Field name="reader"/>
+    <Bug pattern="SE_BAD_FIELD_STORE"/>
+    <!--Non-serializable value stored into instance field of a serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.AvroCoder"/>
+    <Field name="writer"/>
+    <Bug pattern="SE_BAD_FIELD_STORE"/>
+    <!--Non-serializable value stored into instance field of a serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.Coder$NonDeterministicException"/>
+    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+    <!--Class is not derived from an Exception, even though it is named as such-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.Coder$NonDeterministicException"/>
+    <Method name="getMessage"/>
+    <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+    <!--Format string should use %n rather than \n-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.EntityCoder"/>
+    <Method name="decode"/>
+    <Bug pattern="RR_NOT_CHECKED"/>
+    <!--Method ignores results of InputStream.read()-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Method name="getContext"/>
+    <Bug pattern="DC_DOUBLECHECK"/>
+    <!--Possible double check of field-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Field name="jaxbContext"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.InstantCoder$1"/>
+    <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE"/>
+    <!--Class inherits equals() and uses Object.hashCode()-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.SerializableCoder"/>
+    <Method name="equals"/>
+    <Bug pattern="NP_EQUALS_SHOULD_HANDLE_NULL_ARGUMENT"/>
+    <!--equals() method does not check for null argument-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.StandardCoder"/>
+    <Method name="toString"/>
+    <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
+    <!--Method invokes inefficient new String(String) constructor-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.StructuralByteArray"/>
+    <Method name="getValue"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!--May expose internal representation by returning reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.StructuralByteArray"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <!--May expose internal representation by incorporating reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.BigQueryIO$StreamingWriteFn"/>
+    <Method name="finishBundle"/>
+    <Bug pattern="WMI_WRONG_MAP_ITERATOR"/>
+    <!--Inefficient use of keySet iterator instead of entrySet iterator-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.PubsubIO$Read$Bound$PubsubBoundedReader"/>
+    <Method name="processElement"/>
+    <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
+    <!--Random object created and used only once-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.PubsubUnboundedSink$WriterFn"/>
+    <Method name="publishBatch"/>
+    <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+    <!--Dead store to local variable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.Write$Bound"/>
+    <Method name="createWrite"/>
+    <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+    <!--Dead store to local variable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="done"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="lastRecordStart"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="offsetOfLastSplitPoint"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="splitPointsSeen"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="startOffset"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="stopOffset"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.options.PipelineOptionsFactory$1"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.options.PipelineOptionsFactory$2"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.options.PipelineOptionsFactory$3"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.options.PipelineOptionsFactory$4"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.options.ProxyInvocationHandler"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="DM_NEXTINT_VIA_NEXTDOUBLE"/>
+    <!--Use the nextInt method of Random rather than nextDouble to generate a random integer-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.runners.DirectPipelineRunner"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
+    <!--Random object created and used only once-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.CoderProperties"/>
+    <Field name="ALL_CONTEXTS"/>
+    <Bug pattern="MS_MUTABLE_COLLECTION_PKGPROTECT"/>
+    <!--Field is a mutable collection which should be package protected-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$IterableAssert"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!--Unusual equals method -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$IterableAssert"/>
+    <Field name="pipeline"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionContentsAssert"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!--Unusual equals method-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionViewAssert"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!--Unusual equals method-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$SingletonAssert"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!--Unusual equals method -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$SingletonAssert"/>
+    <Field name="pipeline"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.SerializableMatchers$SerializableArrayViaCoder"/>
+    <Field name="value"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--Transient field that isn't set by deserialization. -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.WindowSupplier"/>
+    <Field name="windows"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$ApproximateQuantilesCombineFn"/>
+    <Method name="create"/>
+    <Bug pattern="ICAST_INT_CAST_TO_DOUBLE_PASSED_TO_CEIL"/>
+    <!--Integral value cast to double and then passed to Math.ceil-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$QuantileBuffer"/>
+    <Method name="compareTo"/>
+    <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
+    <!--Class defines compareTo(...) and uses Object.equals()-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.Create$TimestampedValues"/>
+    <Field name="elems"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--Transient field that isn't set by deserialization. -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.DoFnTester"/>
+    <Field name="sideOutputTags"/>
+    <Bug pattern="URF_UNREAD_FIELD"/>
+    <!--Unread field-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
+    <Method name="equals"/>
+    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+    <!--Test for floating point equality-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.display.DisplayData"/>
+    <Field name="entries"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.display.DisplayData$InternalBuilder$PopulateDisplayDataException"/>
+    <Bug pattern="SIC_INNER_SHOULD_BE_STATIC"/>
+    <!--Should be a static inner class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.join.CoGbkResult$UnionValueIterator"/>
+    <Method name="hasNext"/>
+    <Bug pattern="RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN"/>
+    <!--Suspicious reference comparison of Boolean values-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.windowing.AfterDelayFromFirstElement"/>
+    <Method name="prefetchOnElement"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.windowing.AfterDelayFromFirstElement"/>
+    <Method name="prefetchShouldFire"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.windowing.AfterPane"/>
+    <Method name="prefetchShouldFire"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
+    <Method name="reset"/>
+    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
+    <!--Uninitialized read of field method called from constructor of superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
+    <Method name="reset"/>
+    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
+    <!--Uninitialized read of field method called from constructor of superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AvroUtils$AvroMetadata"/>
+    <Method name="getSyncMarker"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!--May expose internal representation by returning reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.BitSetCoder"/>
+    <Field name="byteArrayCoder"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--Transient field that isn't set by deserialization. -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
+    <Field name="context"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
+    <Method name="readAll"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!--May expose internal representation by returning reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayOutputStream"/>
+    <Method name="toByteArray"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!--May expose internal representation by returning reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayOutputStream"/>
+    <Method name="writeAndOwn"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <!--May expose internal representation by incorporating reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.PCollectionViews$PCollectionViewBase"/>
+    <Method name="equals"/>
+    <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    <!--Redundant nullcheck of value known to be non-null-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.PCollectionViews$SingletonPCollectionView"/>
+    <Field name="defaultValue"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.PaneInfoTracker$1"/>
+    <Method name="readLater"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.PubsubClient$IncomingMessage"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <!--May expose internal representation by incorporating reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.PubsubClient$IncomingMessage"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <!--May expose internal representation by incorporating reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.PubsubClient$OutgoingMessage"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <!--May expose internal representation by incorporating reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ReleaseInfo"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION"/>
+    <!--Method may fail to clean up stream or resource-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.SystemReduceFn"/>
+    <Method name="prefetchOnTrigger"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.TriggerContextFactory"/>
+    <Field name="activeWindows"/>
+    <Bug pattern="URF_UNREAD_FIELD"/>
+    <!--Unread field-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.TriggerRunner"/>
+    <Method name="prefetchForMerge"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.TriggerRunner"/>
+    <Method name="prefetchForValue"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.TriggerRunner"/>
+    <Method name="prefetchOnFire"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.TriggerRunner"/>
+    <Method name="prefetchShouldFire"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ValueWithRecordId"/>
+    <Method name="getId"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!--May expose internal representation by returning reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ValueWithRecordId"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+    <!--May expose internal representation by incorporating reference to mutable object-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.WatermarkHold"/>
+    <Field name="timerInternals"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.WatermarkHold$1"/>
+    <Method name="readLater"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$1"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$2"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$3"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$4"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$5"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.common.ReflectHelpers$6"/>
+    <Method name="apply"/>
+    <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    <!--Parameter must be non-null but is marked as nullable-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Method name="mergeBags"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Method name="mergeCombiningValues"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Method name="prefetchBags"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Method name="prefetchCombiningValues"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Method name="prefetchWatermarks"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!--Return value of method without side effect is ignored-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateTags$CombiningValueStateTag"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    <!--Class doesn't override equals in superclass-->
+  </Match>
+</FindBugsFilter>
