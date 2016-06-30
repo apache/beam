@@ -620,7 +620,7 @@ public class DisplayData implements Serializable {
     /**
      * Marker exception class for exceptions encountered while populating display data.
      */
-    private class PopulateDisplayDataException extends RuntimeException {
+    private static class PopulateDisplayDataException extends RuntimeException {
       PopulateDisplayDataException(String message, Throwable cause) {
         super(message, cause);
       }

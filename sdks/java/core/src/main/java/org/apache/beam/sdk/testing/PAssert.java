@@ -76,6 +76,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * An assertion on the contents of a {@link PCollection} incorporated into the pipeline. Such an
  * assertion can be checked no matter what kind of {@link PipelineRunner} is used.
@@ -389,6 +391,7 @@ public class PAssert {
      */
     @Deprecated
     @Override
+    @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "Unsupported operation")
     public boolean equals(Object o) {
       throw new UnsupportedOperationException(
           "If you meant to test object equality, use .containsInAnyOrder instead.");
@@ -551,6 +554,7 @@ public class PAssert {
      */
     @Deprecated
     @Override
+    @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "Unsupported operation")
     public boolean equals(Object o) {
       throw new UnsupportedOperationException(
           String.format(

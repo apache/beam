@@ -20,6 +20,8 @@ package org.apache.beam.sdk.util;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * {@link ByteArrayInputStream} that allows accessing the entire internal buffer without copying.
  */
@@ -31,6 +33,7 @@ public class ExposedByteArrayInputStream extends ByteArrayInputStream{
 
   /** Read all remaining bytes.
    * @throws IOException */
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Returns internal buffer by design")
   public byte[] readAll() throws IOException {
     if (pos == 0 && count == buf.length) {
       pos = count;

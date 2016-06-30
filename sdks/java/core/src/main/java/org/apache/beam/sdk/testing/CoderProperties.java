@@ -38,6 +38,7 @@ import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import java.io.ByteArrayInputStream;
@@ -61,7 +62,7 @@ public class CoderProperties {
   /**
    * All the contexts, for use in test cases.
    */
-   public static final List<Coder.Context> ALL_CONTEXTS = Arrays.asList(
+   public static final List<Coder.Context> ALL_CONTEXTS = ImmutableList.of(
        Coder.Context.OUTER, Coder.Context.NESTED);
 
   /**

@@ -33,6 +33,8 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Determine the timing and other properties of a new pane for a given computation, key and window.
  * Incorporates any previous pane, whether the pane has been produced because an
@@ -70,6 +72,8 @@ public class PaneInfoTracker {
 
     return new ReadableState<PaneInfo>() {
       @Override
+      @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+          justification = "prefetch side effect")
       public ReadableState<PaneInfo> readLater() {
         previousPaneFuture.readLater();
         return this;

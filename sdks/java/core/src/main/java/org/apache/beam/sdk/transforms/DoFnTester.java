@@ -160,7 +160,6 @@ public class DoFnTester<InputT, OutputT> {
    * {@code DoFn} doesn't emit to any side outputs.
    */
   public void setSideOutputTags(TupleTagList sideOutputTags) {
-    this.sideOutputTags = sideOutputTags.getAll();
     resetState();
   }
 
@@ -678,7 +677,6 @@ public class DoFnTester<InputT, OutputT> {
 
   /** The output tags used by the DoFn under test. */
   TupleTag<OutputT> mainOutputTag = new TupleTag<>();
-  List<TupleTag<?>> sideOutputTags = new ArrayList<>();
 
   /** The original DoFn under test, if started. */
   DoFn<InputT, OutputT> fn;

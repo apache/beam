@@ -386,8 +386,7 @@ public class Write {
       // The WriteOperation's state is the same as after its initialization in the first do-once
       // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
       // collection as a side input), so it will happen after the parallel write.
-      @SuppressWarnings("unused")
-      final PCollection<Integer> done = operationCollection
+      operationCollection
           .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
             @Override
             public void processElement(ProcessContext c) throws Exception {

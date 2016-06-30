@@ -53,16 +53,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
   private final WindowFn<?, W> windowFn;
   private StateInternals<?> stateInternals;
-  // Future triggers may be able to exploit the active window to state address window mapping.
-  @SuppressWarnings("unused")
-  private ActiveWindowSet<W> activeWindows;
   private final Coder<W> windowCoder;
 
   public TriggerContextFactory(WindowFn<?, W> windowFn,
       StateInternals<?> stateInternals, ActiveWindowSet<W> activeWindows) {
+    // Future triggers may be able to exploit the active window to state address window mapping.
     this.windowFn = windowFn;
     this.stateInternals = stateInternals;
-    this.activeWindows = activeWindows;
     this.windowCoder = windowFn.windowCoder();
   }
 
