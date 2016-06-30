@@ -72,6 +72,8 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
+GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
+
 
 def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
@@ -431,16 +433,11 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
 
 def get_required_container_version():
   """Returns the Google Cloud Dataflow container version for remote execution.
-
-  Raises:
-    pkg_resources.DistributionNotFound: if one of the expected package names
-      are not found: 'google-cloud-dataflow' (right now) and 'apache-beam'
-      (in the future).
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
   try:
-    version = pkg.get_distribution('google-cloud-dataflow').version
+    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
     # We drop any pre/post parts of the version and we keep only the X.Y.Z format.
     # For instance the 0.3.0rc2 SDK version translates into 0.3.0.
     return '%s.%s.%s' % pkg.parse_version(version)._version.release
@@ -453,13 +450,12 @@ def get_required_container_version():
 def _download_pypi_sdk_package(temp_dir):
   """Downloads SDK package from PyPI and returns path to local path."""
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
-  PACKAGE_NAME = 'google-cloud-dataflow'
   import pkg_resources as pkg
-  version = pkg.get_distribution('google-cloud-dataflow').version
+  version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
       'pip', 'install', '--download', temp_dir,
-      '%s==%s' % (PACKAGE_NAME, version),
+      '%s==%s' % (GOOGLE_PACKAGE_NAME, version),
       '--no-binary', ':all:', '--no-deps']
   logging.info('Executing command: %s', cmd_args)
   result = processes.call(cmd_args)
@@ -467,11 +463,12 @@ def _download_pypi_sdk_package(temp_dir):
     raise RuntimeError(
         'Failed to execute command: %s. Exit code %d',
         cmd_args, result)
-  zip_expected = os.path.join(temp_dir, '%s-%s.zip' % (PACKAGE_NAME, version))
+  zip_expected = os.path.join(
+      temp_dir, '%s-%s.zip' % (GOOGLE_PACKAGE_NAME, version))
   if os.path.exists(zip_expected):
     return zip_expected
   tgz_expected = os.path.join(
-      temp_dir, '%s-%s.tar.gz' % (PACKAGE_NAME, version))
+      temp_dir, '%s-%s.tar.gz' % (GOOGLE_PACKAGE_NAME, version))
   if os.path.exists(tgz_expected):
     return tgz_expected
   raise RuntimeError(
