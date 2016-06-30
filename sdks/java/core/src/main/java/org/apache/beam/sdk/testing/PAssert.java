@@ -130,10 +130,10 @@ public class PAssert {
      * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
      * run on the provided window.
      *
-     * <p>The assertion will expect outputs to be produced to the provided window exactly once. If
-     * the upstream {@link Trigger} may produce output multiple times, consider instead using
-     * {@link #inFinalPane(BoundedWindow)}, {@link #inOnTimePane(BoundedWindow)} or
-     * {@link #acrossAllPanes(BoundedWindow)}.
+     * <p>The assertion will concatenate all panes present in the provided window if the
+     * {@link Trigger} produces multiple panes. If the windowing strategy accumulates fired panes
+     * and triggers fire multple times, consider using instead {@link #inFinalPane(BoundedWindow)}
+     * or {@link #inOnTimePane(BoundedWindow)}.
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
      * specified window.
@@ -228,7 +228,7 @@ public class PAssert {
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
      * the specified window.
      */
-    SingletonAssert<T> inWindow(BoundedWindow window);
+    SingletonAssert<T> inOnlyPane(BoundedWindow window);
 
     /**
      * Creates a new {@link SingletonAssert} like this one, but with the assertion restricted to
@@ -371,7 +371,7 @@ public class PAssert {
 
     @Override
     public PCollectionContentsAssert<T> inWindow(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>onlyPane());
+      return withPane(window, PaneExtractors.<T>allPanes());
     }
 
     @Override
@@ -387,11 +387,6 @@ public class PAssert {
     @Override
     public PCollectionContentsAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPane(window, PaneExtractors.<T>nonLatePanes());
-    }
-
-    @Override
-    public PCollectionContentsAssert<T> acrossAllPanes(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>allPanes());
     }
 
     private PCollectionContentsAssert<T> withPane(
@@ -551,7 +546,7 @@ public class PAssert {
 
     @Override
     public PCollectionSingletonIterableAssert<T> inWindow(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>onlyPane());
+      return withPanes(window, PaneExtractors.<Iterable<T>>allPanes());
     }
 
     @Override
@@ -567,11 +562,6 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
-    }
-
-    @Override
-    public PCollectionSingletonIterableAssert<T> acrossAllPanes(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>allPanes());
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
@@ -649,7 +639,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionViewAssert<ElemT, ViewT> inWindow(BoundedWindow window) {
+    public PCollectionViewAssert<ElemT, ViewT> inOnlyPane(BoundedWindow window) {
       return inPane(window, PaneExtractors.<ElemT>onlyPane());
     }
 
