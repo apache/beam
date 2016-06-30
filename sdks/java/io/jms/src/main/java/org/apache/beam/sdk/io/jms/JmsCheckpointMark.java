@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.jms.Message;
 
 /**
  * Checkpoint for an unbounded JmsIO.Read. Consists of
@@ -30,19 +33,29 @@ import org.apache.beam.sdk.io.UnboundedSource;
 @DefaultCoder(AvroCoder.class)
 public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
 
-  private final String messageId;
+  private final List<Message> messages = new ArrayList<>();
 
-  public JmsCheckpointMark(String messageId) {
-    this.messageId = checkNotNull(messageId, "messageId");
+  public JmsCheckpointMark() {
   }
 
-  public String getMessageId() {
-    return messageId;
+  public List<Message> getMessages() {
+    return this.messages;
+  }
+
+  public void addMessage(Message message) {
+    messages.add(message);
   }
 
   @Override
   public void finalizeCheckpoint() {
-    /* nothing to do */
+    for (Message message : messages) {
+      try {
+        message.acknowledge();
+      } catch (Exception e) {
+        // nothing to do
+      }
+    }
+    messages.clear();
   }
 
 }

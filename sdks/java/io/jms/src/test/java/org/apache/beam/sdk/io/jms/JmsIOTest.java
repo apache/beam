@@ -40,6 +40,7 @@ import java.util.ArrayList;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
@@ -108,6 +109,11 @@ public class JmsIOTest {
         .isEqualTo(new Long(5));
     pipeline.run();
 
+    connection = connectionFactory.createConnection();
+    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue("test"));
+    Message msg = consumer.receiveNoWait();
+    Assert.assertNull(msg);
   }
 
   @Test

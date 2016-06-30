@@ -172,6 +172,16 @@ public class JmsIO {
 
     ///////////////////////////////////////////////////////////////////////////////////////
 
+    /**
+     * NB: According to http://docs.oracle.com/javaee/1.4/api/javax/jms/ConnectionFactory.html
+     * "It is expected that JMS providers will provide the tools an administrator needs to create
+     * and configure administered objects in a JNDI namespace. JMS provider implementations of
+     * administered objects should be both javax.jndi.Referenceable and java.io.Serializable so
+     * that they can be stored in all JNDI naming contexts. In addition, it is recommended that
+     * these implementations follow the JavaBeansTM design patterns."
+     *
+     * So, a {@link ConnectionFactory} implementation is serializable.
+     */
     protected ConnectionFactory connectionFactory;
     @Nullable
     protected String queue;
@@ -277,9 +287,13 @@ public class JmsIO {
 
     public UnboundedJmsReader(
         UnboundedJmsSource source,
-        @Nullable JmsCheckpointMark checkpointMark) {
+        JmsCheckpointMark checkpointMark) {
       this.source = source;
-      this.checkpointMark = checkpointMark;
+      if (checkpointMark != null) {
+        this.checkpointMark = checkpointMark;
+      } else {
+        this.checkpointMark = new JmsCheckpointMark();
+      }
       this.currentRecord = null;
     }
 
@@ -334,6 +348,8 @@ public class JmsIO {
             properties,
             message.getText());
 
+        checkpointMark.addMessage(message);
+
         currentRecord = jmsRecord;
         currentTimestamp = new Instant(message.getJMSTimestamp());
 
@@ -366,7 +382,7 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return new JmsCheckpointMark(currentRecord.getJmsMessageID());
+      return checkpointMark;
     }
 
     @Override
