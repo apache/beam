@@ -224,6 +224,22 @@ public class Window {
   }
 
   /**
+   * Override the amount of lateness allowed for data elements in the pipeline. Like
+   * the other properties on this {@link Window} operation, this will be applied at
+   * the next {@link GroupByKey}. Any elements that are later than this as decided by
+   * the system-maintained watermark will be dropped.
+   *
+   * <p>This value also determines how long state will be kept around for old windows.
+   * Once no elements will be added to a window (because this duration has passed) any state
+   * associated with the window will be cleaned up.
+   */
+  @Experimental(Kind.TRIGGER)
+  public static <T> Bound<T> withAllowedLateness(
+      Duration allowedLateness, ClosingBehavior closingBehavior) {
+    return new Unbound().withAllowedLateness(allowedLateness, closingBehavior);
+  }
+
+  /**
    * An incomplete {@code Window} transform, with unbound input/output type.
    *
    * <p>Before being applied, {@link Window.Unbound#into} must be
