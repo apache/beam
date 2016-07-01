@@ -438,14 +438,22 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testValidateReadSetsDefaultProject() {
+  public void testValidateReadSetsDefaultProject() throws Exception {
+    String projectId = "someproject";
+    String datasetId = "somedataset";
     BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    options.setProject("someproject");
+    options.setProject(projectId);
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(mockJobService)
+        .withDatasetService(mockDatasetService);
+    when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
+        new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
     Pipeline p = TestPipeline.create(options);
 
     TableReference tableRef = new TableReference();
-    tableRef.setDatasetId("somedataset");
+    tableRef.setDatasetId(datasetId);
     tableRef.setTableId("sometable");
 
     thrown.expect(RuntimeException.class);
@@ -453,7 +461,8 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage(
         Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
             .or(Matchers.containsString("BigQuery dataset not found for table")));
-    p.apply(BigQueryIO.Read.from(tableRef));
+    p.apply(BigQueryIO.Read.from(tableRef)
+        .withTestServices(fakeBqServices));
   }
 
   @Test
@@ -759,15 +768,24 @@ public class BigQueryIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
-  private void testWriteValidatesDataset(boolean streaming) {
+  private void testWriteValidatesDataset(boolean streaming) throws Exception {
+    String projectId = "someproject";
+    String datasetId = "somedataset";
+
     BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    options.setProject("someproject");
+    options.setProject(projectId);
     options.setStreaming(streaming);
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(mockJobService)
+        .withDatasetService(mockDatasetService);
+    when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
+        new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
     Pipeline p = TestPipeline.create(options);
 
     TableReference tableRef = new TableReference();
-    tableRef.setDatasetId("somedataset");
+    tableRef.setDatasetId(datasetId);
     tableRef.setTableId("sometable");
 
     thrown.expect(RuntimeException.class);
@@ -779,16 +797,17 @@ public class BigQueryIOTest implements Serializable {
      .apply(BigQueryIO.Write
          .to(tableRef)
          .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-         .withSchema(new TableSchema()));
+         .withSchema(new TableSchema())
+         .withTestServices(fakeBqServices));
   }
 
   @Test
-  public void testWriteValidatesDatasetBatch() {
+  public void testWriteValidatesDatasetBatch() throws Exception {
     testWriteValidatesDataset(false);
   }
 
   @Test
-  public void testWriteValidatesDatasetStreaming() {
+  public void testWriteValidatesDatasetStreaming() throws Exception {
     testWriteValidatesDataset(true);
   }
 
