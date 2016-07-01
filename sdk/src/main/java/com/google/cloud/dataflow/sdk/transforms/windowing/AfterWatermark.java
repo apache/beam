@@ -100,43 +100,6 @@ public class AfterWatermark<W extends BoundedWindow> {
     TriggerBuilder<W> withEarlyFirings(OnceTrigger<W> earlyTrigger);
   }
 
-  /**
-   * A trigger which never fires. Used for the "early" trigger when only a late trigger was
-   * specified.
-   */
-  static class NeverTrigger<W extends BoundedWindow> extends OnceTrigger<W> {
-
-    protected NeverTrigger() {
-      super(null);
-    }
-
-    @Override
-    public void onElement(OnElementContext c) throws Exception { }
-
-    @Override
-    public void onMerge(OnMergeContext c) throws Exception { }
-
-    @Override
-    protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-      return this;
-    }
-
-    @Override
-    public Instant getWatermarkThatGuaranteesFiring(W window) {
-      return BoundedWindow.TIMESTAMP_MAX_VALUE;
-    }
-
-    @Override
-    public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
-      return false;
-    }
-
-    @Override
-    protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception {
-      throw new UnsupportedOperationException(
-          String.format("%s should never fire", getClass().getSimpleName()));
-    }
-  }
 
   private static class AfterWatermarkEarlyAndLate<W extends BoundedWindow>
       extends Trigger<W>
@@ -267,14 +230,14 @@ public class AfterWatermark<W extends BoundedWindow> {
     public String toString() {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
-      if (!(earlyTrigger instanceof NeverTrigger)) {
+      if (!(earlyTrigger instanceof Never.NeverTrigger)) {
         builder
             .append(".withEarlyFirings(")
             .append(earlyTrigger)
             .append(")");
       }
 
-      if (lateTrigger != null && !(lateTrigger instanceof NeverTrigger)) {
+      if (lateTrigger != null && !(lateTrigger instanceof Never.NeverTrigger)) {
         builder
             .append(".withLateFirings(")
             .append(lateTrigger)
@@ -352,7 +315,7 @@ public class AfterWatermark<W extends BoundedWindow> {
     public AfterWatermarkLate<W> withLateFirings(OnceTrigger<W> lateFirings) {
       Preconditions.checkNotNull(lateFirings,
           "Must specify the trigger to use for late firings");
-      return new AfterWatermarkEarlyAndLate<W>(new NeverTrigger<W>(), lateFirings);
+      return new AfterWatermarkEarlyAndLate<W>(Never.ever(), lateFirings);
     }
 
     @Override
