@@ -82,10 +82,10 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * Tests for {@link DatastoreIO}.
+ * Tests for {@link V1Beta3}.
  */
 @RunWith(JUnit4.class)
-public class DatastoreIOTest {
+public class V1Beta3Test {
   private static final String PROJECT_ID = "testProject";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
@@ -95,7 +95,7 @@ public class DatastoreIOTest {
     q.addKindBuilder().setName(KIND);
     QUERY = q.build();
   }
-  private DatastoreIO.Read initialRead;
+  private V1Beta3.Read initialRead;
 
   @Mock
   Datastore mockDatastore;
@@ -109,7 +109,7 @@ public class DatastoreIOTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    initialRead = DatastoreIO.read()
+    initialRead = DatastoreIO.v1beta3().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
   }
 
@@ -124,7 +124,7 @@ public class DatastoreIOTest {
 
   @Test
   public void testBuildRead() throws Exception {
-    DatastoreIO.Read read = DatastoreIO.read()
+    V1Beta3.Read read = DatastoreIO.v1beta3().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
@@ -136,7 +136,7 @@ public class DatastoreIOTest {
    */
   @Test
   public void testBuildReadAlt() throws Exception {
-    DatastoreIO.Read read = DatastoreIO.read()
+    V1Beta3.Read read =  DatastoreIO.v1beta3().read()
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
@@ -145,7 +145,7 @@ public class DatastoreIOTest {
 
   @Test
   public void testReadValidationFailsProject() throws Exception {
-    DatastoreIO.Read read = DatastoreIO.read().withQuery(QUERY);
+    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withQuery(QUERY);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("project");
     read.validate(null);
@@ -153,7 +153,7 @@ public class DatastoreIOTest {
 
   @Test
   public void testReadValidationFailsQuery() throws Exception {
-    DatastoreIO.Read read = DatastoreIO.read().withProjectId(PROJECT_ID);
+    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withProjectId(PROJECT_ID);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("query");
     read.validate(null);
@@ -165,7 +165,7 @@ public class DatastoreIOTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid query limit 0: must be positive");
 
-    DatastoreIO.read().withQuery(invalidLimit);
+    DatastoreIO.v1beta3().read().withQuery(invalidLimit);
   }
 
   @Test
@@ -174,19 +174,19 @@ public class DatastoreIOTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid query limit -5: must be positive");
 
-    DatastoreIO.read().withQuery(invalidLimit);
+    DatastoreIO.v1beta3().read().withQuery(invalidLimit);
   }
 
   @Test
   public void testReadValidationSucceedsNamespace() throws Exception {
-    DatastoreIO.Read read = DatastoreIO.read().withProjectId(PROJECT_ID).withQuery(QUERY);
+    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withProjectId(PROJECT_ID).withQuery(QUERY);
     /* Should succeed, as a null namespace is fine. */
     read.validate(null);
   }
 
   @Test
   public void testReadDisplayData() {
-  DatastoreIO.Read read = DatastoreIO.read()
+    V1Beta3.Read read =  DatastoreIO.v1beta3().read()
       .withProjectId(PROJECT_ID)
       .withQuery(QUERY)
       .withNamespace(NAMESPACE);
@@ -203,12 +203,12 @@ public class DatastoreIOTest {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
 
-    DatastoreIO.write().withProjectId(null);
+    DatastoreIO.v1beta3().write().withProjectId(null);
   }
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
-    DatastoreIO.Write write = DatastoreIO.write();
+    V1Beta3.Write write =  DatastoreIO.v1beta3().write();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -218,13 +218,13 @@ public class DatastoreIOTest {
 
   @Test
   public void testSinkValidationSucceedsWithProject() throws Exception {
-    DatastoreIO.Write write = DatastoreIO.write().withProjectId(PROJECT_ID);
+    V1Beta3.Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
     write.validate(null);
   }
 
   @Test
   public void testWriteDisplayData() {
-    DatastoreIO.Write write = DatastoreIO.write()
+    V1Beta3.Write write =  DatastoreIO.v1beta3().write()
         .withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(write);
@@ -346,7 +346,7 @@ public class DatastoreIOTest {
   }
 
   /**
-   * Tests that when {@link QuerySplitter} cannot split a query, {@link DatastoreIO} falls back to
+   * Tests that when {@link QuerySplitter} cannot split a query, {@link V1Beta3} falls back to
    * a single split.
    */
   @Test
@@ -413,7 +413,7 @@ public class DatastoreIOTest {
    */
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreIO.Write write = DatastoreIO.write().withProjectId(PROJECT_ID);
+    V1Beta3.Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
   }
 
@@ -501,7 +501,7 @@ public class DatastoreIOTest {
    * {@link #DATASTORE_QUERY_BATCH_LIMIT} results.
    */
   private static RunQueryResponse mockResponseForQuery(Query q) {
-    // Every query DatastoreIO sends should have a limit.
+    // Every query V1Beta3 sends should have a limit.
     assertTrue(q.hasLimit());
 
     // The limit should be in the range [1, DATASTORE_QUERY_BATCH_LIMIT]
@@ -536,7 +536,7 @@ public class DatastoreIOTest {
     // An empty query to read entities.
     Query query = Query.newBuilder().setLimit(
         Int32Value.newBuilder().setValue(numEntities)).build();
-    DatastoreIO.Read read = DatastoreIO.read().withQuery(query).withProjectId("mockProject");
+    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withQuery(query).withProjectId("mockProject");
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))

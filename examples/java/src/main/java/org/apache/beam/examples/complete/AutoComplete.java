@@ -482,7 +482,7 @@ public class AutoComplete {
     if (options.getOutputToDatastore()) {
       toWrite
       .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.write().withProjectId(MoreObjects.firstNonNull(
+      .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {

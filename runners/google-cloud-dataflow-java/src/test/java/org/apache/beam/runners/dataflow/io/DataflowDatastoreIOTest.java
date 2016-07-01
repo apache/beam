@@ -45,7 +45,7 @@ public class DataflowDatastoreIOTest {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PBegin, ? extends POutput> read = DatastoreIO.read().withProjectId(
+    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1beta3().read().withProjectId(
         "myProject").withQuery(Query.newBuilder().build());
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
@@ -56,7 +56,8 @@ public class DataflowDatastoreIOTest {
   @Test
   public void testSinkPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.write().withProjectId("myProject");
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1beta3().write().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",

@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.datastore;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verify;
 import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
@@ -29,6 +30,7 @@ import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
@@ -37,9 +39,13 @@ import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
@@ -80,16 +86,265 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * A class that provides Datastore Source and Sink using v1beta3 version of the datastore library.
- * Not to be used directly, but through {@link DatastoreIO}
+ * <p>{@link V1Beta3} provides an API to Read and Write {@link PCollection PCollections} of
+ * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1beta3
+ * {@link Entity} objects.
+ *
+ * <p>This API currently requires an authentication workaround. To use {@link V1Beta3}, users
+ * must use the {@code gcloud} command line tool to get credentials for Datastore:
+ * <pre>
+ * $ gcloud auth login
+ * </pre>
+ *
+ * <p>To read a {@link PCollection} from a query to Datastore, use {@link V1Beta3#read} and
+ * its methods {@link V1Beta3.Read#withProjectId} and {@link V1Beta3.Read#withQuery} to
+ * specify the project to query and the query to read from. You can optionally provide a namespace
+ * to query within using {@link V1Beta3.Read#withNamespace}.
+ *
+ * <p>For example:
+ *
+ * <pre> {@code
+ * // Read a query from Datastore
+ * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+ * Query query = ...;
+ * String projectId = "...";
+ *
+ * Pipeline p = Pipeline.create(options);
+ * PCollection<Entity> entities = p.apply(
+ *     DatastoreIO.v1beta3().read()
+ *         .withProjectId(projectId)
+ *         .withQuery(query));
+ * } </pre>
+ *
+ * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
+ * many workers. However, when the {@link Query} is configured with a limit using
+ * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then
+ * all returned results will be read by a single Dataflow worker in order to ensure correct data.
+ *
+ * <p>To write a {@link PCollection} to a Datastore, use {@link V1Beta3#write},
+ * specifying the Cloud datastore project to write to:
+ *
+ * <pre> {@code
+ * PCollection<Entity> entities = ...;
+ * entities.apply(DatastoreIO.v1beta3().write().withProjectId(projectId));
+ * p.run();
+ * } </pre>
+ *
+ * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
+ * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
+ * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
+ * {@code projectId} default may be used by specifying it in the {@code Entity} {@code Keys}.
+ *
+ * <pre>{@code
+ * Key.Builder keyBuilder = DatastoreHelper.makeKey(...);
+ * keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
+ * }</pre>
+ *
+ * <p>{@code Entities} will be committed as upsert (update or insert) mutations. Please read
+ * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
+ * Keys</a> for more information about {@code Entity} keys.
+ *
+ * <p><h3>Permissions</h3>
+ * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
+ * Dataflow job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
+ * more details.
+ *
+ * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
+ * </a>for security and permission related information specific to Datastore.
+ *
+ * @see org.apache.beam.sdk.runners.PipelineRunner
  */
-class V1Beta3 {
-
+@Experimental(Experimental.Kind.SOURCE_SINK)
+public class V1Beta3 {
   /**
    * Datastore has a limit of 500 mutations per batch operation, so we flush
    * changes to Datastore every 500 entities.
    */
   private static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+
+  /**
+   * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
+   * {@code query}, and optionally {@code namespace} using {@link V1Beta3.Read#withProjectId},
+   * {@link V1Beta3.Read#withQuery}, and {@link V1Beta3.Read#withNamespace}.
+   */
+  public V1Beta3.Read read() {
+    return new V1Beta3.Read(null, null, null);
+  }
+
+  /**
+   * A {@link PTransform} that reads the result rows of a Datastore query as {@code Entity}
+   * objects.
+   *
+   * @see DatastoreIO
+   */
+  public static class Read extends PTransform<PBegin, PCollection<Entity>> {
+    @Nullable
+    private final String projectId;
+
+    @Nullable
+    private final Query query;
+
+    @Nullable
+    private final String namespace;
+
+    /**
+     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
+     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
+     * an error will be thrown.
+     */
+    private Read(@Nullable String projectId, @Nullable Query query, @Nullable String namespace) {
+      this.projectId = projectId;
+      this.query = query;
+      this.namespace = namespace;
+    }
+
+    /**
+     * Returns a new {@link V1Beta3.Read} that reads from the Datastore for the specified project.
+     */
+    public V1Beta3.Read withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new V1Beta3.Read(projectId, query, namespace);
+    }
+
+    /**
+     * Returns a new {@link V1Beta3.Read} that reads the results of the specified query.
+     *
+     * <p><b>Note:</b> Normally, {@code DatastoreIO} will read from Cloud Datastore in parallel
+     * across many workers. However, when the {@link Query} is configured with a limit using
+     * {@link Query.Builder#setLimit}, then all results will be read by a single worker in order
+     * to ensure correct results.
+     */
+    public V1Beta3.Read withQuery(Query query) {
+      checkNotNull(query, "query");
+      checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
+          "Invalid query limit %s: must be positive", query.getLimit().getValue());
+      return new V1Beta3.Read(projectId, query, namespace);
+    }
+
+    /**
+     * Returns a new {@link V1Beta3.Read} that reads from the given namespace.
+     */
+    public V1Beta3.Read withNamespace(String namespace) {
+      return new V1Beta3.Read(projectId, query, namespace);
+    }
+
+    @Nullable
+    public Query getQuery() {
+      return query;
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
+    }
+
+    @Nullable
+    public String getNamespace() {
+      return namespace;
+    }
+
+    @Override
+    public PCollection<Entity> apply(PBegin input) {
+      return input.apply(org.apache.beam.sdk.io.Read.from(getSource()));
+    }
+
+    @Override
+    public void validate(PBegin input) {
+      checkNotNull(projectId, "projectId");
+      checkNotNull(query, "query");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("ProjectId"))
+          .addIfNotNull(DisplayData.item("namespace", namespace)
+              .withLabel("Namespace"))
+          .addIfNotNull(DisplayData.item("query", query.toString())
+              .withLabel("Query"));
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .add("query", query)
+          .add("namespace", namespace)
+          .toString();
+    }
+
+    @VisibleForTesting
+    DatastoreSource getSource() {
+      return new DatastoreSource(projectId, query, namespace);
+    }
+  }
+
+  /**
+   * Returns an empty {@link V1Beta3.Write} builder. Configure the destination
+   * {@code projectId} using {@link V1Beta3.Write#withProjectId}.
+   */
+  public Write write() {
+    return new Write(null);
+  }
+
+  /**
+   * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class Write extends PTransform<PCollection<Entity>, PDone> {
+    @Nullable
+    private final String projectId;
+
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    public Write(@Nullable String projectId) {
+      this.projectId = projectId;
+    }
+
+    /**
+     * Returns a new {@link Write} that writes to the Cloud Datastore for the specified project.
+     */
+    public Write withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new Write(projectId);
+    }
+
+    @Override
+    public PDone apply(PCollection<Entity> input) {
+      return input.apply(
+          org.apache.beam.sdk.io.Write.to(new DatastoreSink(projectId)));
+    }
+
+    @Override
+    public void validate(PCollection<Entity> input) {
+      checkNotNull(projectId, "projectId");
+    }
+
+    @Nullable
+    public String getProjectId() {
+      return projectId;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("projectId", projectId)
+          .toString();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("Output Project"));
+    }
+  }
 
   /**
    * A {@link org.apache.beam.sdk.io.Source} that reads data from Datastore.

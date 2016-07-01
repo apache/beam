@@ -26,6 +26,7 @@ import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.datastore.DatastoreIO;
+import org.apache.beam.sdk.io.datastore.V1Beta3;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -194,7 +195,7 @@ public class DatastoreWordCount {
       Pipeline p = Pipeline.create(options);
       p.apply("ReadLines", TextIO.Read.from(options.getInput()))
        .apply(ParDo.of(new CreateEntityFn(options.getNamespace(), options.getKind())))
-       .apply(DatastoreIO.write().withProjectId(options.getProject()));
+       .apply(DatastoreIO.v1beta3().write().withProjectId(options.getProject()));
 
       p.run();
   }
@@ -225,7 +226,7 @@ public class DatastoreWordCount {
     Query query = makeAncestorKindQuery(options);
 
     // For Datastore sources, the read namespace can be set on the entire query.
-    DatastoreIO.Read read = DatastoreIO.read()
+    V1Beta3.Read read = DatastoreIO.v1beta3().read()
         .withProjectId(options.getProject())
         .withQuery(query)
         .withNamespace(options.getNamespace());
