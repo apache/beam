@@ -67,11 +67,11 @@ import sys
 
 if sys.version_info.major != 2:
   raise RuntimeError(
-      'Apache Bean SDK for Python is supported only on Python 2.7. '
+      'Apache Beam SDK for Python is supported only on Python 2.7. '
       'It is not supported on Python [%s].' % sys.version)
 
 
-__version__ = "0.2.0.dev"  # this is the default value, but it will be correctly updated by setup.py
+__version__ = "0.2.0-incubating.dev"  # this is the default value, but it will be correctly updated by setup.py
 
 
 from apache_beam import coders
