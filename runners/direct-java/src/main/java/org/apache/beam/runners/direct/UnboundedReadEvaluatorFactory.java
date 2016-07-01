@@ -241,6 +241,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             GlobalWindow.INSTANCE,
             transform.getOutput().getWindowingStrategy(),
             new Runnable() {
+              @Override
               public void run() {
                 try {
                   mark.finalizeCheckpoint();
