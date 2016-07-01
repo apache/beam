@@ -246,6 +246,11 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     @Override
+    public void updateTriggering(TriggerScheduler triggering, T input) {
+      // ~ no-op; count windows is not registering any triggers
+    }
+
+    @Override
     public Collection<Pair<Collection<CountWindow>, CountWindow>>
     mergeWindows(Collection<CountWindow> actives)
     {
@@ -380,6 +385,10 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       return ret;
     }
 
+    @Override
+    public void updateTriggering(TriggerScheduler triggering, T input) {
+      triggering.updateProcessed(eventTimeFn.apply(input));
+    }
 
     @Override
     public String toString() {
@@ -639,6 +648,11 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
       // ~ deliver results (be sure not to return null)
       return merges == null ? Collections.emptyList() : merges;
+    }
+
+    @Override
+    public void updateTriggering(TriggerScheduler triggering, T input) {
+      triggering.updateProcessed(eventTimeFn.apply(input));
     }
   } // ~ end of Session
 
