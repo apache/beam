@@ -20,7 +20,7 @@
 import platform
 import setuptools
 import re
-from apache_beam.version import get_version_from_pom
+from lxml import etree
 
 
 # Currently all compiled modules are optional (for performance only).
@@ -38,7 +38,10 @@ else:
 # Reads the actual version from pom.xml file, and synchronizes
 # apache_beam.__version__ field for later usage.
 def sync_version():
-  version = get_version_from_pom()
+  pom = etree.parse('pom.xml')
+  elements = pom.xpath(r'/pom:project/pom:parent/pom:version', namespaces={'pom':'http://maven.apache.org/POM/4.0.0'})
+  version = elements[0].text.replace("-SNAPSHOT", ".dev")  # TODO: PEP 440 and incubating suffix
+
   init_path = "apache_beam/__init__.py"
   regex = r'^__version__\s*=\s*".*"'
   with open(init_path, "r") as f:
