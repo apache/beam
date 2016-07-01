@@ -70,7 +70,6 @@ REQUIRED_PACKAGES = [
     # 'google-apitools-dataflow-v1b3>=0.4.20160217',
     # 'google-apitools-storage-v1',
     'httplib2>=0.8',
-    'lxml',
     'mock>=1.0.1',
     'nose>=1.0',
     'oauth2client>=2.0.1',
