@@ -432,8 +432,8 @@ def get_required_container_version():
     return '%s.%s.%s' % pkg.parse_version(version)._version.release
   except pkg.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
-    # will run with the latest container version.
-    return 'latest'
+    # will run with a special container version.
+    return 'beamhead'
 
 
 def _download_pypi_sdk_package(temp_dir):
