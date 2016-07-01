@@ -1,0 +1,25 @@
+Metadata-Version: 1.1
+Name: protorpc
+Version: 0.11.1
+Summary: Google Protocol RPC
+Home-page: http://code.google.com/p/google-protorpc/
+Author: Google Inc.
+Author-email: rafek@google.com
+License: Apache 2.0
+Description: UNKNOWN
+Keywords: google protocol rpc
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Provides: protorpc (0.11.1)

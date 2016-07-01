@@ -1,0 +1,13 @@
+httplib2>=0.8
+oauth2client>=1.5.2
+setuptools>=18.5
+six>=1.9.0
+
+[cli]
+google-apputils>=0.4.0
+python-gflags>=2.0
+
+[testing]
+google-apputils>=0.4.0
+unittest2>=0.5.1
+mock>=1.0.1
