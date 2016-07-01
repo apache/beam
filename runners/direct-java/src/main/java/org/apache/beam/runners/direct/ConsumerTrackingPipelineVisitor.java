@@ -25,6 +25,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.v2.DisplayData;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
@@ -77,7 +78,18 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   public void visitPrimitiveTransform(TransformTreeNode node) {
     toFinalize.removeAll(node.getInput().expand());
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
-    stepNames.put(appliedTransform, genStepName());
+    final String stepName = genStepName();
+    stepNames.put(appliedTransform, stepName);
+    appliedTransform.getTransform().getDisplayData().registerObserver(new DisplayData.Observer() {
+      @Override
+      public void added(DisplayData.Item<?> item) {
+        System.out.println(String.format("%s: %s", stepName, item));
+      }
+      @Override
+      public void updated(DisplayData.Item<?> item) {
+        System.out.println(String.format("%s: %s", stepName, item));
+      }
+    });
     if (node.getInput().expand().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {

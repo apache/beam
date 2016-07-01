@@ -22,8 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.v2.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
@@ -661,6 +660,7 @@ public class ParDo {
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final Class<?> fnClass;
+    private final DisplayData displayData;
 
     Bound(String name,
           List<PCollectionView<?>> sideInputs,
@@ -670,6 +670,11 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.fn = SerializableUtils.clone(fn);
       this.fnClass = fnClass;
+
+      displayData = DisplayData.init(ParDo.class)
+          .include(fn.getDisplayData())
+          .add(DisplayData.item("fn", fnClass)
+              .withLabel("Transform Function"));
     }
 
     /**
@@ -743,17 +748,9 @@ public class ParDo {
       }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>{@link ParDo} registers its internal {@link DoFn} as a subcomponent for display data.
-     * {@link DoFn} implementations can register display data by overriding
-     * {@link DoFn#populateDisplayData}.
-     */
     @Override
-    public void populateDisplayData(Builder builder) {
-      super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnClass);
+    public DisplayData getDisplayData() {
+      return displayData;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -964,12 +961,6 @@ public class ParDo {
       }
     }
 
-    @Override
-    public void populateDisplayData(Builder builder) {
-      super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, fn, fnClass);
-    }
-
     public DoFn<InputT, OutputT> getFn() {
       return fn;
     }
@@ -985,13 +976,5 @@ public class ParDo {
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
-  }
-
-  private static void populateDisplayData(
-      DisplayData.Builder builder, DoFn<?, ?> fn, Class<?> fnClass) {
-    builder
-        .include(fn)
-        .add(DisplayData.item("fn", fnClass)
-            .withLabel("Transform Function"));
   }
 }

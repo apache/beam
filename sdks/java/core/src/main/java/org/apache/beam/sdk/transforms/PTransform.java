@@ -20,8 +20,8 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.display.v2.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -301,12 +301,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return defaultOutputCoder;
   }
 
-  /**
-   * {@inheritDoc}
-   *
-   * <p>By default, does not register any display data. Implementors may override this method
-   * to provide their own display data.
-   */
   @Override
-  public void populateDisplayData(Builder builder) {}
+  public DisplayData getDisplayData() {
+    return DisplayData.empty();
+  }
 }
