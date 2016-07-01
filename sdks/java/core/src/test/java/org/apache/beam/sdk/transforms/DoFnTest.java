@@ -128,6 +128,7 @@ public class DoFnTest implements Serializable {
     DoFn<Void, Void> doFn = new NoOpDoFn();
 
     Aggregator<Double, Double> aggregatorOne =
+
         doFn.createAggregator(nameOne, combiner);
     Aggregator<Double, Double> aggregatorTwo =
         doFn.createAggregator(nameTwo, combiner);

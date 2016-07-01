@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.runners;
+package org.apache.beam.sdk;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AggregatorRetriever;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,7 +36,7 @@ import java.util.Map;
  * Retrieves {@link Aggregator Aggregators} at each {@link ParDo} and returns a {@link Map} of
  * {@link Aggregator} to the {@link PTransform PTransforms} in which it is present.
  */
-public class AggregatorPipelineExtractor {
+class AggregatorPipelineExtractor {
   private final Pipeline pipeline;
 
   /**
