@@ -72,8 +72,7 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
-PACKAGES_URL_PREFIX = (
-    'https://github.com/GoogleCloudPlatform/DataflowPythonSDK/archive')
+GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
 
 
 def _dependency_file_copy(from_path, to_path):
@@ -82,10 +81,7 @@ def _dependency_file_copy(from_path, to_path):
   if from_path.startswith('gs://') or to_path.startswith('gs://'):
     command_args = ['gsutil', '-m', '-q', 'cp', from_path, to_path]
     logging.info('Executing command: %s', command_args)
-    result = processes.call(command_args)
-    if result != 0:
-      raise ValueError(
-          'Failed to copy GCS file from %s to %s.' % (from_path, to_path))
+    processes.check_call(command_args)
   else:
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.
@@ -200,11 +196,7 @@ def _populate_requirements_cache(requirements_file, cache_dir):
       # Download from PyPI source distributions.
       '--no-binary', ':all:']
   logging.info('Executing command: %s', cmd_args)
-  result = processes.call(cmd_args)
-  if result != 0:
-    raise RuntimeError(
-        'Failed to execute command: %s. Exit code %d',
-        cmd_args, result)
+  processes.check_call(cmd_args)
 
 
 def stage_job_resources(
@@ -327,8 +319,9 @@ def stage_job_resources(
     staged_path = utils.path.join(google_cloud_options.staging_location,
                                   names.DATAFLOW_SDK_TARBALL_FILE)
     if stage_tarball_from_remote_location:
-      # If --sdk_location is not specified then the appropriate URL is built
-      # based on the version of the currently running SDK. If the option is
+      # If --sdk_location is not specified then the appropriate package
+      # will be obtained from PyPI (https://pypi.python.org) based on the
+      # version of the currently running SDK. If the option is
       # present then no version matching is made and the exact URL or path
       # is expected.
       #
@@ -336,8 +329,7 @@ def stage_job_resources(
       # not have the sdk_location attribute present and therefore we
       # will not stage a tarball.
       if setup_options.sdk_location == 'default':
-        sdk_remote_location = '%s/v%s.tar.gz' % (
-            PACKAGES_URL_PREFIX, __version__)
+        sdk_remote_location = 'pypi'
       else:
         sdk_remote_location = setup_options.sdk_location
       _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
@@ -382,11 +374,7 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
           'python', os.path.basename(setup_file),
           'sdist', '--dist-dir', temp_dir]
     logging.info('Executing command: %s', build_setup_args)
-    result = processes.call(build_setup_args)
-    if result != 0:
-      raise RuntimeError(
-          'Failed to execute command: %s. Exit code %d',
-          build_setup_args, result)
+    processes.check_call(build_setup_args)
     output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
     if not output_files:
       raise RuntimeError(
@@ -423,7 +411,53 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
         'Staging Dataflow SDK tarball from %s to %s',
         sdk_remote_location, staged_path)
     _dependency_file_copy(sdk_remote_location, staged_path)
+  elif sdk_remote_location == 'pypi':
+    logging.info('Staging the SDK tarball from PyPI to %s', staged_path)
+    _dependency_file_copy(_download_pypi_sdk_package(temp_dir), staged_path)
   else:
     raise RuntimeError(
         'The --sdk_location option was used with an unsupported '
         'type of location: %s' % sdk_remote_location)
+
+
+def get_required_container_version():
+  """Returns the Google Cloud Dataflow container version for remote execution.
+  """
+  # TODO(silviuc): Handle apache-beam versions when we have official releases.
+  import pkg_resources as pkg
+  try:
+    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    # We drop any pre/post parts of the version and we keep only the X.Y.Z
+    # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
+    return '%s.%s.%s' % pkg.parse_version(version)._version.release
+  except pkg.DistributionNotFound:
+    # This case covers Apache Beam end-to-end testing scenarios. All these tests
+    # will run with the latest container version.
+    return 'latest'
+
+
+def _download_pypi_sdk_package(temp_dir):
+  """Downloads SDK package from PyPI and returns path to local path."""
+  # TODO(silviuc): Handle apache-beam versions when we have official releases.
+  import pkg_resources as pkg
+  version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+  # Get a source distribution for the SDK package from PyPI.
+  cmd_args = [
+      'pip', 'install', '--download', temp_dir,
+      '%s==%s' % (GOOGLE_PACKAGE_NAME, version),
+      '--no-binary', ':all:', '--no-deps']
+  logging.info('Executing command: %s', cmd_args)
+  processes.check_call(cmd_args)
+  zip_expected = os.path.join(
+      temp_dir, '%s-%s.zip' % (GOOGLE_PACKAGE_NAME, version))
+  if os.path.exists(zip_expected):
+    return zip_expected
+  tgz_expected = os.path.join(
+      temp_dir, '%s-%s.tar.gz' % (GOOGLE_PACKAGE_NAME, version))
+  if os.path.exists(tgz_expected):
+    return tgz_expected
+  raise RuntimeError(
+      'Failed to download a source distribution for the running SDK. Expected '
+      'either %s or %s to be found in the download folder.' % (
+          zip_expected, tgz_expected))
+
