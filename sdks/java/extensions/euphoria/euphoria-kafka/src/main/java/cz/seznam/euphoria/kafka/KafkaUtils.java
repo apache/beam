@@ -18,6 +18,8 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -27,6 +29,8 @@ import java.util.Map;
 import java.util.Properties;
 
 class KafkaUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaUtils.class);
 
   private static Properties toProperties(Settings properties) {
     final Properties ps = new Properties();
@@ -104,8 +108,8 @@ class KafkaUtils {
           return partitions;
         }
       } catch (Exception e) {
-        e.printStackTrace();
-        continue;
+        LOG.debug("Failed to retrieve offsets on {}:{}: {}",
+            new Object[]{server, port, e});
       } finally {
         if (consumer != null) consumer.close();
       }
