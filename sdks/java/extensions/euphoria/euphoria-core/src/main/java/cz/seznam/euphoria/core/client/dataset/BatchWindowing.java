@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.executor.TriggerScheduler;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
@@ -63,6 +64,11 @@ public final class BatchWindowing<T>
   @Override
   public Set<BatchWindow> assignWindows(T input) {
     return BatchWindow.INSTANCE_SET;
+  }
+
+  @Override
+  public void updateTriggering(TriggerScheduler triggering, T input) {
+    // ~ no-op; batch windows are not registering any triggers
   }
 
   @SuppressWarnings("unchecked")
