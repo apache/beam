@@ -63,17 +63,7 @@ The examples subdirectory has some examples.
 """
 
 
-import sys
-
-if sys.version_info.major != 2:
-  raise RuntimeError(
-      'Apache Beam SDK for Python is supported only on Python 2.7. '
-      'It is not supported on Python [%s].' % sys.version)
-
-
-__version__ = "0.2.0-incubating.dev"  # this is the default value, but it will be correctly updated by setup.py
-
-
+from sys import version_info
 from apache_beam import coders
 from apache_beam import io
 from apache_beam import typehints
@@ -81,3 +71,12 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
 import apache_beam.internal.pickler
 
+
+# this is the default value, but it will be correctly updated by setup.py
+__version__ = "0.2.0-incubating.dev"
+
+
+if version_info.major != 2:
+  raise RuntimeError(
+      'Apache Beam SDK for Python is supported only on Python 2.7. '
+      'It is not supported on Python [%s].' % sys.version)
