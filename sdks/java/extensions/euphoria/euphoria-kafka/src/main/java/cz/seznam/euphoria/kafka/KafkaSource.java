@@ -12,6 +12,7 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.core.util.URIParams;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -64,16 +66,19 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final int partition;
     private final String host;
     private final Settings config;
+    private final long startOffset;
 
     KafkaPartition(String brokerList, String topicId,
                    int partition, String host,
-                   Settings config /* optional */)
+                   Settings config /* optional */,
+                   long startOffset)
     {
       this.brokerList = brokerList;
       this.topicId = topicId;
       this.partition = partition;
       this.host = host;
       this.config = config;
+      this.startOffset = startOffset;
     }
 
     @Override
@@ -87,6 +92,9 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           KafkaUtils.newConsumer(brokerList, config);
       TopicPartition tp = new TopicPartition(topicId, partition);
       c.assign(Lists.newArrayList(tp));
+      if (startOffset > 0) {
+        c.seek(tp, startOffset);
+      }
       return new ConsumerReader(c);
     }
   }
@@ -95,11 +103,15 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final String brokerList;
     private final String topicId;
     private final Settings config; // ~ optional
+    private final long offsetTimestamp; // ~ effective iff > 0
 
-    AllPartitionsConsumer(String brokerList, String topicId, Settings config) {
+    AllPartitionsConsumer(
+        String brokerList, String topicId, Settings config, long offsetTimestamp)
+    {
       this.brokerList = brokerList;
       this.topicId = topicId;
       this.config = config;
+      this.offsetTimestamp = offsetTimestamp;
     }
 
     @Override
@@ -115,6 +127,13 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
               .stream()
               .map(p -> new TopicPartition(p.topic(), p.partition()))
               .collect(Collectors.toList()));
+      if (offsetTimestamp > 0) {
+        Map<Integer, Long> offs =
+            KafkaUtils.getOffsetsBeforeTimestamp(brokerList, topicId, offsetTimestamp);
+        for (Map.Entry<Integer, Long> off : offs.entrySet()) {
+          c.seek(new TopicPartition(topicId, off.getKey()), off.getValue());
+        }
+      }
       return new ConsumerReader(c);
     }
   }
@@ -146,18 +165,31 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   @Override
   public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
+    long offsetTimestamp = -1L;
+    if (config != null) {
+      offsetTimestamp = config.getLong("reset.offset.timestamp", -1L);
+    }
     if (config != null && config.getBoolean("single.reader.only", false)) {
       return Collections.singletonList(
-          new AllPartitionsConsumer(brokerList, topicId, config));
+          new AllPartitionsConsumer(brokerList, topicId, config, offsetTimestamp));
     }
     try (Consumer<?, ?> c = KafkaUtils.newConsumer(brokerList, config)) {
+      final Map<Integer, Long> offs;
+      try {
+        offs = offsetTimestamp > 0
+            ? KafkaUtils.getOffsetsBeforeTimestamp(brokerList, topicId, offsetTimestamp)
+            : Collections.emptyMap();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       List<PartitionInfo> ps = c.partitionsFor(topicId);
       return ps.stream().map(p ->
           // ~ XXX a leader might not be available (check p.leader().id() == -1)
           // ... fail in this situation
           new KafkaPartition(
               brokerList, topicId, p.partition(),
-              p.leader().host(), config))
+              p.leader().host(), config,
+              offs.getOrDefault(p.partition(), -1L)))
           .collect(Collectors.toList());
     }
   }
