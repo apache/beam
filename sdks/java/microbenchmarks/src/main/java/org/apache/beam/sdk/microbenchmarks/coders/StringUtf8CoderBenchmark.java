@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * Benchmarks for StringUtf8Coder.
+ * Benchmarks for {@link StringUtf8Coder}.
  */
 @State(Scope.Benchmark)
 @Fork(1)

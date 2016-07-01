@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * Benchmarks for ByteArrayCoder.
+ * Benchmarks for {@link ByteArrayCoder}.
  */
 @State(Scope.Benchmark)
 @Fork(1)

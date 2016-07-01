@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * Benchmarks for AvroCoder.
+ * Benchmarks for {@link AvroCoder}.
  */
 @State(Scope.Benchmark)
 @Fork(1)
