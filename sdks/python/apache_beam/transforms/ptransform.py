@@ -42,7 +42,6 @@ import operator
 import os
 import sys
 
-from apache_beam import coders
 from apache_beam import error
 from apache_beam import pvalue
 from apache_beam import typehints

@@ -26,7 +26,6 @@ coder_impl.pxd file for type hints.
 """
 
 import collections
-from cPickle import loads, dumps
 
 
 # pylint: disable=wrong-import-order, wrong-import-position

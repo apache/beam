@@ -81,12 +81,11 @@ def run(argv=None):
   p = beam.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
    | beam.io.Read('read',
-                beam.io.TextFileSource(known_args.input,
-                                     coder=JsonCoder()))
-   | beam.FlatMap('points', compute_points) | beam.CombinePerKey(sum) | beam.io.Write(
-       'write',
-       beam.io.TextFileSink(known_args.output,
-                          coder=JsonCoder())))
+                  beam.io.TextFileSource(known_args.input, coder=JsonCoder()))
+   | beam.FlatMap('points', compute_points)
+   | beam.CombinePerKey(sum)
+   | beam.io.Write('write',
+                   beam.io.TextFileSink(known_args.output, coder=JsonCoder())))
   p.run()
 
 
