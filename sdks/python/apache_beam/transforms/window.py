@@ -367,9 +367,10 @@ class Sessions(WindowFn):
 
   def merge(self, merge_context):
     to_merge = []
+    end = timeutil.MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:
-        if end > w.start:  # pylint: disable=used-before-assignment
+        if end > w.start:
           to_merge.append(w)
           if w.end > end:
             end = w.end
