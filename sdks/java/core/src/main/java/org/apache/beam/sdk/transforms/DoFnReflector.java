@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -502,11 +503,14 @@ public abstract class DoFnReflector {
           .intercept(new InvokerConstructor())
           // Implement the three methods by calling into the appropriate functions on the fn.
           .method(ElementMatchers.named("invokeProcessElement"))
-          .intercept(InvokerDelegation.create(processElement, false, processElementArgs))
+          .intercept(InvokerDelegation.create(
+              processElement, BeforeDelegation.NOOP, processElementArgs))
           .method(ElementMatchers.named("invokeStartBundle"))
-          .intercept(InvokerDelegation.create(startBundle, true, startBundleArgs))
+          .intercept(InvokerDelegation.create(
+              startBundle, BeforeDelegation.INVOKE_PREPARE_FOR_PROCESSING, startBundleArgs))
           .method(ElementMatchers.named("invokeFinishBundle"))
-          .intercept(InvokerDelegation.create(finishBundle, false, finishBundleArgs));
+          .intercept(InvokerDelegation.create(
+              finishBundle, BeforeDelegation.NOOP, finishBundleArgs));
 
       @SuppressWarnings("unchecked")
       Class<? extends DoFnInvoker<?, ?>> dynamicClass = (Class<? extends DoFnInvoker<?, ?>>) builder
@@ -729,6 +733,71 @@ public abstract class DoFnReflector {
     }
   }
 
+  private static enum BeforeDelegation {
+    NOOP {
+      @Override
+      StackManipulation manipulation(
+          TypeDescription delegateType, MethodDescription instrumentedMethod, boolean finalStep) {
+        Preconditions.checkArgument(!finalStep,
+            "Shouldn't use NOOP delegation if there is nothing to do afterwards.");
+        return StackManipulation.Trivial.INSTANCE;
+      }
+    },
+    INVOKE_PREPARE_FOR_PROCESSING {
+      private final Assigner assigner = Assigner.DEFAULT;
+
+      @Override
+      StackManipulation manipulation(
+          TypeDescription delegateType, MethodDescription instrumentedMethod, boolean finalStep) {
+        MethodDescription prepareMethod;
+        try {
+          prepareMethod = new MethodLocator.ForExplicitMethod(
+              new MethodDescription.ForLoadedMethod(
+                  DoFnWithContext.class.getDeclaredMethod("prepareForProcessing")))
+          .resolve(instrumentedMethod);
+        } catch (NoSuchMethodException | SecurityException e) {
+          throw new RuntimeException("Unable to locate prepareForProcessing method", e);
+        }
+
+        if (finalStep) {
+          return new StackManipulation.Compound(
+              // Invoke the prepare method
+              MethodInvoker.Simple.INSTANCE.invoke(prepareMethod),
+              // Return from the invokeStartBundle when we're done.
+              TerminationHandler.Returning.INSTANCE.resolve(
+                  assigner, instrumentedMethod, prepareMethod));
+        } else {
+          return new StackManipulation.Compound(
+              // Duplicate the delegation target so that it remains after we call perform this delegation.
+              Duplication.duplicate(delegateType),
+              // Invoke the prepare method
+              MethodInvoker.Simple.INSTANCE.invoke(prepareMethod),
+              // Drop the return value from prepareForProcessing
+              TerminationHandler.Dropping.INSTANCE.resolve(
+                  assigner, instrumentedMethod, prepareMethod));
+        }
+      }
+    };
+
+    /**
+     * Stack manipulation to perform prior to the delegate call.
+     *
+     * <ul>
+     * <li>Precondition: Stack has the delegate target on top of the stack
+     * <li>Postcondition: If finalStep is true, then we've returned from the method. Otherwise, the
+     * stack still has the delegate target on top of the stack.
+     * </ul>
+     *
+     * @param delegateType The type of the delegate target, in case it needs to be duplicated.
+     * @param instrumentedMethod The method bing instrumented. Necessary for resolving types and
+     *     other information.
+     * @param finalStep If true, return from the {@code invokeStartBundle} method after invoking
+     * {@code prepareForProcessing} on the delegate.
+     */
+    abstract StackManipulation manipulation(
+        TypeDescription delegateType, MethodDescription instrumentedMethod, boolean finalStep);
+  }
+
   /**
    * A byte-buddy {@link Implementation} that delegates a call that receives
    * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
@@ -736,7 +805,7 @@ public abstract class DoFnReflector {
   private static final class InvokerDelegation implements Implementation {
     @Nullable
     private final Method target;
-    private final boolean isStartBundle;
+    private final BeforeDelegation before;
     private final List<AdditionalParameter> args;
     private final Assigner assigner = Assigner.DEFAULT;
     private FieldDescription field;
@@ -749,9 +818,11 @@ public abstract class DoFnReflector {
      * @param args the {@link AdditionalParameter} to be passed to the {@code target}
      */
     private InvokerDelegation(
-        @Nullable Method target, boolean isStartBundle, List<AdditionalParameter> args) {
+        @Nullable Method target,
+        BeforeDelegation before,
+        List<AdditionalParameter> args) {
       this.target = target;
-      this.isStartBundle = isStartBundle;
+      this.before = before;
       this.args = args;
     }
 
@@ -760,14 +831,13 @@ public abstract class DoFnReflector {
      * {@link DoFnWithContext}.
      */
     private static Implementation create(
-        @Nullable final Method target, boolean isStartBundle, List<AdditionalParameter> args) {
-      if (target == null && !isStartBundle) {
-        // There is no target to call, and this is not a startBundle method (which needs to call
-        // prepareForProcessing no matter what). There is nothing to do, so just produce a stub:
+        @Nullable final Method target, BeforeDelegation before, List<AdditionalParameter> args) {
+      if (target == null && before == BeforeDelegation.NOOP) {
+        // There is no target to call and nothing needs to happen before. Just produce a stub.
         return StubMethod.INSTANCE;
       } else {
         // We need to generate a non-empty method implementation.
-        return new InvokerDelegation(target, isStartBundle, args);
+        return new InvokerDelegation(target, before, args);
       }
     }
 
@@ -797,49 +867,6 @@ public abstract class DoFnReflector {
           MethodVariableAccess.REFERENCE.loadOffset(0),
           // Access the delegate field of the the invoker
           FieldAccess.forField(field).getter());
-    }
-
-    /**
-     * Stack manipulation to call the {@code prepareForProcessing} method.
-     *
-     * <ul>
-     * <li>Precondition: Stack has the delegate target on top of the stack
-     * <li>Postcondition: If finalStep is true, then we've returned from the method. Otherwise, the
-     * stack still has the delegate target on top of the stack.
-     * </ul>
-     *
-     * @param finalStep If true, return from the {@code invokeStartBundle} method after invoking
-     * {@code prepareForProcessing} on the delegate.
-     */
-    private StackManipulation invokePrepareForProcessing(
-        MethodDescription instrumentedMethod, boolean finalStep) {
-      MethodDescription prepareMethod;
-      try {
-        prepareMethod = new MethodLocator.ForExplicitMethod(
-            new MethodDescription.ForLoadedMethod(
-                DoFnWithContext.class.getDeclaredMethod("prepareForProcessing")))
-            .resolve(instrumentedMethod);
-      } catch (NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException("Unable to locate prepareForProcessing method", e);
-      }
-
-      if (finalStep) {
-        return new StackManipulation.Compound(
-            // Invoke the prepare method
-            MethodInvoker.Simple.INSTANCE.invoke(prepareMethod),
-            // Return from the invokeStartBundle when we're done.
-            TerminationHandler.Returning.INSTANCE.resolve(
-                assigner, instrumentedMethod, prepareMethod));
-      } else {
-        return new StackManipulation.Compound(
-            // Duplicate the delegation target so that it remains after we call prepareForProcessing
-            Duplication.duplicate(field.getType().asErasure()),
-            // Invoke the prepare method
-            MethodInvoker.Simple.INSTANCE.invoke(prepareMethod),
-            // Drop the return value from prepareForProcessing
-            TerminationHandler.Dropping.INSTANCE.resolve(
-                assigner, instrumentedMethod, prepareMethod));
-      }
     }
 
     private StackManipulation pushArgument(
@@ -957,10 +984,8 @@ public abstract class DoFnReflector {
           StackManipulation.Size size = new StackManipulation.Compound(
               // Put the target on top of the stack
               pushDelegateField(),
-              // If this is startBundle, invoke the prepareForProcessing method
-              isStartBundle
-                  ? invokePrepareForProcessing(instrumentedMethod, target == null)
-                  : StackManipulation.Trivial.INSTANCE,
+              // Do any necessary pre-delegation work
+              before.manipulation(field.getType().asErasure(), instrumentedMethod, target == null),
               // Invoke the target method, if there is one. If there wasn't, then isStartBundle was
               // true, and we've already emitted the appropriate return instructions.
               target != null
