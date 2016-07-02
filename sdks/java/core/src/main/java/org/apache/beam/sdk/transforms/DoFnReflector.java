@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
@@ -85,6 +86,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -248,7 +250,7 @@ public abstract class DoFnReflector {
   }
 
   @VisibleForTesting
-  static <InputT, OutputT> AdditionalParameter[] verifyProcessMethodArguments(Method m) {
+  static <InputT, OutputT> List<AdditionalParameter> verifyProcessMethodArguments(Method m) {
     return verifyMethodArguments(m,
         EXTRA_PROCESS_CONTEXTS,
         new TypeToken<DoFnWithContext<InputT, OutputT>.ProcessContext>() {},
@@ -257,7 +259,7 @@ public abstract class DoFnReflector {
   }
 
   @VisibleForTesting
-  static <InputT, OutputT> AdditionalParameter[] verifyBundleMethodArguments(Method m) {
+  static <InputT, OutputT> List<AdditionalParameter> verifyBundleMethodArguments(Method m) {
     if (m == null) {
       return null;
     }
@@ -289,9 +291,12 @@ public abstract class DoFnReflector {
    * @param iParam TypeParameter representing the input type
    * @param oParam TypeParameter representing the output type
    */
-  @VisibleForTesting static <InputT, OutputT> AdditionalParameter[] verifyMethodArguments(Method m,
+  @VisibleForTesting static <InputT, OutputT> List<AdditionalParameter> verifyMethodArguments(
+      Method m,
       Map<Class<?>, AdditionalParameter> contexts,
-      TypeToken<?> firstContextArg, TypeParameter<InputT> iParam, TypeParameter<OutputT> oParam) {
+      TypeToken<?> firstContextArg,
+      TypeParameter<InputT> iParam,
+      TypeParameter<OutputT> oParam) {
 
     if (!void.class.equals(m.getReturnType())) {
       throw new IllegalStateException(String.format(
@@ -350,7 +355,7 @@ public abstract class DoFnReflector {
       // Register the (now validated) context info
       contextInfos[i - 1] = info;
     }
-    return contextInfos;
+    return ImmutableList.copyOf(contextInfos);
   }
 
   /** Interface for invoking the {@code DoFn} processing methods. */
@@ -378,9 +383,9 @@ public abstract class DoFnReflector {
     private final Method startBundle;
     private final Method processElement;
     private final Method finishBundle;
-    private final AdditionalParameter[] processElementArgs;
-    private final AdditionalParameter[] startBundleArgs;
-    private final AdditionalParameter[] finishBundleArgs;
+    private final List<AdditionalParameter> processElementArgs;
+    private final List<AdditionalParameter> startBundleArgs;
+    private final List<AdditionalParameter> finishBundleArgs;
     private final Constructor<?> constructor;
 
     private GenericDoFnReflector(
@@ -471,16 +476,13 @@ public abstract class DoFnReflector {
 
     @Override
     public boolean usesSingleWindow() {
-      return usesContext(BoundedWindow.class);
+      return usesContext(AdditionalParameter.WINDOW_OF_ELEMENT);
     }
 
-    private boolean usesContext(Class<?> context) {
-      for (Class<?> clazz : processElement.getParameterTypes()) {
-        if (clazz.equals(context)) {
-          return true;
-        }
-      }
-      return false;
+    private boolean usesContext(AdditionalParameter param) {
+      return processElementArgs.contains(param)
+          || (startBundleArgs != null && startBundleArgs.contains(param))
+          || (finishBundleArgs != null && finishBundleArgs.contains(param));
     }
 
     /**
@@ -735,7 +737,7 @@ public abstract class DoFnReflector {
     @Nullable
     private final Method target;
     private final boolean isStartBundle;
-    private final AdditionalParameter[] args;
+    private final List<AdditionalParameter> args;
     private final Assigner assigner = Assigner.DEFAULT;
     private FieldDescription field;
 
@@ -747,7 +749,7 @@ public abstract class DoFnReflector {
      * @param args the {@link AdditionalParameter} to be passed to the {@code target}
      */
     private InvokerDelegation(
-        @Nullable Method target, boolean isStartBundle, AdditionalParameter[] args) {
+        @Nullable Method target, boolean isStartBundle, List<AdditionalParameter> args) {
       this.target = target;
       this.isStartBundle = isStartBundle;
       this.args = args;
@@ -758,7 +760,7 @@ public abstract class DoFnReflector {
      * {@link DoFnWithContext}.
      */
     private static Implementation create(
-        @Nullable final Method target, boolean isStartBundle, AdditionalParameter[] args) {
+        @Nullable final Method target, boolean isStartBundle, List<AdditionalParameter> args) {
       if (target == null && !isStartBundle) {
         // There is no target to call, and this is not a startBundle method (which needs to call
         // prepareForProcessing no matter what). There is nothing to do, so just produce a stub:
@@ -857,7 +859,7 @@ public abstract class DoFnReflector {
       ParameterList<?> params = targetMethod.getParameters();
 
       // Instructions to setup the parameters for the call
-      ArrayList<StackManipulation> parameters = new ArrayList<>(args.length + 1);
+      ArrayList<StackManipulation> parameters = new ArrayList<>(args.size() + 1);
       // 1. The first argument in the delegate method must be the context. This corresponds to
       //    the first argument in the instrumented method, so copy that.
       parameters.add(MethodVariableAccess.of(
