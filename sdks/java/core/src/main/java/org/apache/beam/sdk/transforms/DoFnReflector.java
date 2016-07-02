@@ -97,55 +97,89 @@ public abstract class DoFnReflector {
 
   private static final String FN_DELEGATE_FIELD_NAME = "delegate";
 
-  private interface ExtraContextInfo {
-
-    /**
-     * Create the type token for the given type, filling in the generics.
-     */
-    <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out);
-
-    /**
-     * Return the {@link MethodDescription} for accessing this context info from the
-     * {@link ExtraContextFactory}.
-     */
-    MethodDescription getMethodDescription() throws NoSuchMethodException, SecurityException;
+  private enum Availability {
+    /** Indicates parameters only available in {@code @ProcessElement} methods. */
+    PROCESS_ELEMENT_ONLY,
+    /** Indicates parameters available in all methods. */
+    EVERYWHERE;
   }
 
-  private static final Map<Class<?>, ExtraContextInfo> EXTRA_CONTEXTS = Collections.emptyMap();
-  private static final Map<Class<?>, ExtraContextInfo> EXTRA_PROCESS_CONTEXTS =
-      ImmutableMap.<Class<?>, ExtraContextInfo>builder()
-      .putAll(EXTRA_CONTEXTS)
-      .put(BoundedWindow.class, new ExtraContextInfo() {
-        @Override
-        public <InputT, OutputT> TypeToken<?>
-            tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
-          return TypeToken.of(BoundedWindow.class);
-        }
+  /**
+   * Enumeration of the parameters available from the {@link ExtraContextFactory} to use as
+   * additional parameters for {@link DoFnWithContext} methods.
+   * <p>
+   * We don't rely on looking for properly annotated methods within {@link ExtraContextFactory}
+   * because erasure would make it impossible to completely fill in the type token for context
+   * parameters that depend on the input/output type.
+   */
+  private enum AdditionalParameter {
 
-        @Override
-        public MethodDescription getMethodDescription()
-            throws NoSuchMethodException, SecurityException {
-          return new MethodDescription.ForLoadedMethod(
-              ExtraContextFactory.class.getMethod("window"));
-        }
-      })
-      .put(WindowingInternals.class, new ExtraContextInfo() {
-        @Override
-        public <InputT, OutputT> TypeToken<?> tokenFor(
-            TypeToken<InputT> in, TypeToken<OutputT> out) {
-          return new TypeToken<WindowingInternals<InputT, OutputT>>() {}
-          .where(new TypeParameter<InputT>() {}, in)
-          .where(new TypeParameter<OutputT>() {}, out);
-        }
+    /** Any {@link BoundedWindow} parameter is populated by the window of the current element. */
+    WINDOW_OF_ELEMENT(Availability.PROCESS_ELEMENT_ONLY, BoundedWindow.class, "window") {
+      @Override
+      public <InputT, OutputT> TypeToken<?>
+          tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+        return TypeToken.of(BoundedWindow.class);
+      }
+    },
 
-        @Override
-        public MethodDescription getMethodDescription()
-            throws NoSuchMethodException, SecurityException {
-          return new MethodDescription.ForLoadedMethod(
-              ExtraContextFactory.class.getMethod("windowingInternals"));
-        }
-      })
-      .build();
+    WINDOWING_INTERNALS(Availability.PROCESS_ELEMENT_ONLY,
+        WindowingInternals.class, "windowingInternals") {
+      @Override
+      public <InputT, OutputT> TypeToken<?> tokenFor(
+          TypeToken<InputT> in, TypeToken<OutputT> out) {
+        return new TypeToken<WindowingInternals<InputT, OutputT>>() {}
+            .where(new TypeParameter<InputT>() {}, in)
+            .where(new TypeParameter<OutputT>() {}, out);
+      }
+    };
+
+    /**
+     * Create a type token representing the given parameter. May use the type token associated
+     * with the input and output types of the {@link DoFnWithContext}, depending on the extra
+     * context.
+     */
+    abstract <InputT, OutputT> TypeToken<?> tokenFor(
+        TypeToken<InputT> in, TypeToken<OutputT> out);
+
+    private final Class<?> rawType;
+    private final Availability availability;
+    private final MethodDescription method;
+
+    private AdditionalParameter(Availability availability, Class<?> rawType, String method) {
+      this.availability = availability;
+      this.rawType = rawType;
+      try {
+        this.method = new MethodDescription.ForLoadedMethod(
+            ExtraContextFactory.class.getMethod(method));
+      } catch (NoSuchMethodException | SecurityException e) {
+        throw new RuntimeException(
+            "Unable to access method " + method + " on " + ExtraContextFactory.class, e);
+      }
+    }
+  }
+
+  private static final Map<Class<?>, AdditionalParameter> EXTRA_CONTEXTS;
+  private static final Map<Class<?>, AdditionalParameter> EXTRA_PROCESS_CONTEXTS;
+
+  static {
+    ImmutableMap.Builder<Class<?>, AdditionalParameter> everywhereBuilder =
+        ImmutableMap.<Class<?>, AdditionalParameter>builder();
+    ImmutableMap.Builder<Class<?>, AdditionalParameter> processElementBuilder =
+        ImmutableMap.<Class<?>, AdditionalParameter>builder();
+
+    for (AdditionalParameter value : AdditionalParameter.values()) {
+      switch (value.availability) {
+        case EVERYWHERE:
+          everywhereBuilder.put(value.rawType, value);
+        case PROCESS_ELEMENT_ONLY:
+          processElementBuilder.put(value.rawType, value);
+      }
+    }
+
+    EXTRA_CONTEXTS = everywhereBuilder.build();
+    EXTRA_PROCESS_CONTEXTS = processElementBuilder.build();
+  }
 
   /**
    * @return true if the reflected {@link DoFnWithContext} uses a Single Window.
@@ -194,14 +228,15 @@ public abstract class DoFnReflector {
   }
 
   private static Collection<String> describeSupportedTypes(
-      Map<Class<?>, ExtraContextInfo> extraProcessContexts,
+      Map<Class<?>, AdditionalParameter> extraProcessContexts,
       final TypeToken<?> in, final TypeToken<?> out) {
     return FluentIterable
         .from(extraProcessContexts.values())
-        .transform(new Function<ExtraContextInfo, String>() {
+        .transform(new Function<AdditionalParameter, String>() {
+
           @Override
           @Nullable
-          public String apply(@Nullable ExtraContextInfo input) {
+          public String apply(@Nullable AdditionalParameter input) {
             if (input == null) {
               return null;
             } else {
@@ -213,7 +248,7 @@ public abstract class DoFnReflector {
   }
 
   @VisibleForTesting
-  static <InputT, OutputT> ExtraContextInfo[] verifyProcessMethodArguments(Method m) {
+  static <InputT, OutputT> AdditionalParameter[] verifyProcessMethodArguments(Method m) {
     return verifyMethodArguments(m,
         EXTRA_PROCESS_CONTEXTS,
         new TypeToken<DoFnWithContext<InputT, OutputT>.ProcessContext>() {},
@@ -222,7 +257,7 @@ public abstract class DoFnReflector {
   }
 
   @VisibleForTesting
-  static <InputT, OutputT> ExtraContextInfo[] verifyBundleMethodArguments(Method m) {
+  static <InputT, OutputT> AdditionalParameter[] verifyBundleMethodArguments(Method m) {
     if (m == null) {
       return null;
     }
@@ -248,14 +283,14 @@ public abstract class DoFnReflector {
    * </ol>
    *
    * @param m the method to verify
-   * @param contexts mapping from raw classes to the {@link ExtraContextInfo} used
+   * @param contexts mapping from raw classes to the {@link AdditionalParameter} used
    *     to create new instances.
    * @param firstContextArg the expected type of the first context argument
    * @param iParam TypeParameter representing the input type
    * @param oParam TypeParameter representing the output type
    */
-  @VisibleForTesting static <InputT, OutputT> ExtraContextInfo[] verifyMethodArguments(Method m,
-      Map<Class<?>, ExtraContextInfo> contexts,
+  @VisibleForTesting static <InputT, OutputT> AdditionalParameter[] verifyMethodArguments(Method m,
+      Map<Class<?>, AdditionalParameter> contexts,
       TypeToken<?> firstContextArg, TypeParameter<InputT> iParam, TypeParameter<OutputT> oParam) {
 
     if (!void.class.equals(m.getReturnType())) {
@@ -279,7 +314,7 @@ public abstract class DoFnReflector {
           "%s must take a %s as its first argument",
           format(m), firstContextArg.getRawType().getSimpleName()));
     }
-    ExtraContextInfo[] contextInfos = new ExtraContextInfo[params.length - 1];
+    AdditionalParameter[] contextInfos = new AdditionalParameter[params.length - 1];
 
     // Fill in the generics in the allExtraContextArgs interface from the types in the
     // Context or ProcessContext DoFn.
@@ -296,7 +331,7 @@ public abstract class DoFnReflector {
     for (int i = 1; i < params.length; i++) {
       TypeToken<?> param = TypeToken.of(params[i]);
 
-      ExtraContextInfo info = contexts.get(param.getRawType());
+      AdditionalParameter info = contexts.get(param.getRawType());
       if (info == null) {
         throw new IllegalStateException(String.format(
             "%s is not a valid context parameter for method %s. Should be one of %s",
@@ -343,9 +378,9 @@ public abstract class DoFnReflector {
     private final Method startBundle;
     private final Method processElement;
     private final Method finishBundle;
-    private final ExtraContextInfo[] processElementArgs;
-    private final ExtraContextInfo[] startBundleArgs;
-    private final ExtraContextInfo[] finishBundleArgs;
+    private final AdditionalParameter[] processElementArgs;
+    private final AdditionalParameter[] startBundleArgs;
+    private final AdditionalParameter[] finishBundleArgs;
     private final Constructor<?> constructor;
 
     private GenericDoFnReflector(
@@ -485,16 +520,20 @@ public abstract class DoFnReflector {
       }
     }
 
+    @Override
     public <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(
         DoFnWithContext<InputT, OutputT> fn) {
       try {
-        return (DoFnInvoker<InputT, OutputT>) constructor.newInstance(fn);
+        @SuppressWarnings("unchecked")
+        DoFnInvoker<InputT, OutputT> invoker =
+            (DoFnInvoker<InputT, OutputT>) constructor.newInstance(fn);
+        return invoker;
       } catch (InstantiationException
           | IllegalAccessException
           | IllegalArgumentException
           | InvocationTargetException
           | SecurityException e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Unable to bind invoker for " + fn.getClass(), e);
       }
     }
   }
@@ -690,13 +729,13 @@ public abstract class DoFnReflector {
 
   /**
    * A byte-buddy {@link Implementation} that delegates a call that receives
-   * {@link ExtraContextInfo} to the given {@link DoFnWithContext} method.
+   * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
    */
   private static final class InvokerDelegation implements Implementation {
     @Nullable
     private final Method target;
     private final boolean isStartBundle;
-    private final ExtraContextInfo[] args;
+    private final AdditionalParameter[] args;
     private final Assigner assigner = Assigner.DEFAULT;
     private FieldDescription field;
 
@@ -705,10 +744,10 @@ public abstract class DoFnReflector {
      *
      * @param target the method to delegate to
      * @param isStartBundle whether or not this is the {@code startBundle} call
-     * @param args the {@link ExtraContextInfo} to be passed to the {@code target}
+     * @param args the {@link AdditionalParameter} to be passed to the {@code target}
      */
     private InvokerDelegation(
-        @Nullable Method target, boolean isStartBundle, ExtraContextInfo[] args) {
+        @Nullable Method target, boolean isStartBundle, AdditionalParameter[] args) {
       this.target = target;
       this.isStartBundle = isStartBundle;
       this.args = args;
@@ -719,7 +758,7 @@ public abstract class DoFnReflector {
      * {@link DoFnWithContext}.
      */
     private static Implementation create(
-        @Nullable final Method target, boolean isStartBundle, ExtraContextInfo[] args) {
+        @Nullable final Method target, boolean isStartBundle, AdditionalParameter[] args) {
       if (target == null && !isStartBundle) {
         // There is no target to call, and this is not a startBundle method (which needs to call
         // prepareForProcessing no matter what). There is nothing to do, so just produce a stub:
@@ -747,7 +786,7 @@ public abstract class DoFnReflector {
      * <p>This implementation is derived from the code for
      * {@code MethodCall.invoke(m).onInstanceField(clazz, delegateField)} with two key differences.
      * First, it doesn't add a synthetic field each time, which is critical to avoid duplicate field
-     * definitions. Second, it uses the {@link ExtraContextInfo} to populate the arguments to the
+     * definitions. Second, it uses the {@link AdditionalParameter} to populate the arguments to the
      * method.
      */
     private StackManipulation pushDelegateField() {
@@ -802,15 +841,8 @@ public abstract class DoFnReflector {
     }
 
     private StackManipulation pushArgument(
-        ExtraContextInfo arg, MethodDescription instrumentedMethod) {
-      // TODO: We may be able to find this by inspecting the factoryType for methods
-      // with  the given return type.
-      MethodDescription transform;
-      try {
-        transform = arg.getMethodDescription();
-      } catch (NoSuchMethodException | SecurityException e) {
-        throw new RuntimeException("Unable to get the method description for " + arg, e);
-      }
+        AdditionalParameter arg, MethodDescription instrumentedMethod) {
+      MethodDescription transform = arg.method;
 
       return new StackManipulation.Compound(
           // Push the ExtraContextFactory which must have been argument 2 of the instrumented method
@@ -831,7 +863,7 @@ public abstract class DoFnReflector {
       parameters.add(MethodVariableAccess.of(
           params.get(0).getType().getSuperClass()).loadOffset(1));
       // 2. For each of the extra arguments push the appropriate value.
-      for (ExtraContextInfo arg : args) {
+      for (AdditionalParameter arg : args) {
         parameters.add(pushArgument(arg, instrumentedMethod));
       }
 
@@ -942,7 +974,7 @@ public abstract class DoFnReflector {
   /**
    * A byte-buddy {@link Implementation} for the constructor of a {@link DoFnInvoker}. The generated
    * constructor takes a single argument and assigns it to the delegate field.
-   * {@link ExtraContextInfo} to the given {@link DoFnWithContext} method.
+   * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
    */
   private final class InvokerConstructor implements Implementation {
     @Override
