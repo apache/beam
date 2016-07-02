@@ -122,7 +122,7 @@ import javax.annotation.Nullable;
  * all returned results will be read by a single Dataflow worker in order to ensure correct data.
  *
  * <p>To write a {@link PCollection} to a Datastore, use {@link V1Beta3#write},
- * specifying the Cloud datastore project to write to:
+ * specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
@@ -156,6 +156,10 @@ import javax.annotation.Nullable;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class V1Beta3 {
+
+  // A package-private constructor to prevent direct instantiation from outside of this package
+  V1Beta3() {}
+
   /**
    * Datastore has a limit of 500 mutations per batch operation, so we flush
    * changes to Datastore every 500 entities.
