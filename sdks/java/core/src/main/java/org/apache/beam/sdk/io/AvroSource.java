@@ -393,7 +393,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       ByteArrayInputStream byteStream = new ByteArrayInputStream(data);
       switch (codec) {
         case DataFileConstants.SNAPPY_CODEC:
-          return new SnappyCompressorInputStream(byteStream);
+          return new SnappyCompressorInputStream(byteStream, 1 << 16 /* Avro uses 64KB blocks */);
         case DataFileConstants.DEFLATE_CODEC:
           // nowrap == true: Do not expect ZLIB header or checksum, as Avro does not write them.
           Inflater inflater = new Inflater(true);
