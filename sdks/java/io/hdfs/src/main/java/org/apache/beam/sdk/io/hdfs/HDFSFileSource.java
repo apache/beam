@@ -100,11 +100,11 @@ import javax.annotation.Nullable;
 public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
   private static final long serialVersionUID = 0L;
 
-  private final String filepattern;
-  private final Class<? extends FileInputFormat<?, ?>> formatClass;
-  private final Class<K> keyClass;
-  private final Class<V> valueClass;
-  private final SerializableSplit serializableSplit;
+  protected final String filepattern;
+  protected final Class<? extends FileInputFormat<?, ?>> formatClass;
+  protected final Class<K> keyClass;
+  protected final Class<V> valueClass;
+  protected final SerializableSplit serializableSplit;
 
   /**
    * Creates a {@code Read} transform that will read from an {@code HDFSFileSource}
@@ -133,9 +133,9 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
   /**
    * Create a {@code HDFSFileSource} based on a file or a file pattern specification.
    */
-  private HDFSFileSource(String filepattern,
-                         Class<? extends FileInputFormat<?, ?>> formatClass, Class<K> keyClass,
-                         Class<V> valueClass) {
+  protected HDFSFileSource(String filepattern,
+                           Class<? extends FileInputFormat<?, ?>> formatClass, Class<K> keyClass,
+                           Class<V> valueClass) {
     this(filepattern, formatClass, keyClass, valueClass, null);
   }
 
@@ -143,9 +143,9 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
    * Create a {@code HDFSFileSource} based on a single Hadoop input split, which won't be
    * split up further.
    */
-  private HDFSFileSource(String filepattern,
-                         Class<? extends FileInputFormat<?, ?>> formatClass, Class<K> keyClass,
-                         Class<V> valueClass, SerializableSplit serializableSplit) {
+  protected HDFSFileSource(String filepattern,
+                           Class<? extends FileInputFormat<?, ?>> formatClass, Class<K> keyClass,
+                           Class<V> valueClass, SerializableSplit serializableSplit) {
     this.filepattern = filepattern;
     this.formatClass = formatClass;
     this.keyClass = keyClass;
@@ -183,9 +183,9 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     if (serializableSplit == null) {
       return Lists.transform(computeSplits(desiredBundleSizeBytes),
           new Function<InputSplit, BoundedSource<KV<K, V>>>() {
-        @Nullable @Override
+        @Override
         public BoundedSource<KV<K, V>> apply(@Nullable InputSplit inputSplit) {
-          return new HDFSFileSource<K, V>(filepattern, formatClass, keyClass,
+          return new HDFSFileSource<>(filepattern, formatClass, keyClass,
               valueClass, new SerializableSplit(inputSplit));
         }
       });
@@ -201,7 +201,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     return formatClass.newInstance();
   }
 
-  private List<InputSplit> computeSplits(long desiredBundleSizeBytes) throws IOException,
+  protected List<InputSplit> computeSplits(long desiredBundleSizeBytes) throws IOException,
       IllegalAccessException, InstantiationException {
     Job job = Job.getInstance();
     FileInputFormat.setMinInputSplitSize(job, desiredBundleSizeBytes);
@@ -276,13 +276,14 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     private final BoundedSource<KV<K, V>> source;
     private final String filepattern;
     private final Class formatClass;
+    protected Job job;
 
     private FileInputFormat<?, ?> format;
     private TaskAttemptContext attemptContext;
     private List<InputSplit> splits;
     private ListIterator<InputSplit> splitsIterator;
     private Configuration conf;
-    private RecordReader<K, V> currentReader;
+    protected RecordReader<K, V> currentReader;
     private KV<K, V> currentPair;
     private volatile boolean done = false;
 
@@ -290,7 +291,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
      * Create a {@code HDFSFileReader} based on a file or a file pattern specification.
      */
     public HDFSFileReader(BoundedSource<KV<K, V>> source, String filepattern,
-                          Class<? extends FileInputFormat<?, ?>> formatClass) {
+                          Class<? extends FileInputFormat<?, ?>> formatClass) throws IOException {
       this(source, filepattern, formatClass, null);
     }
 
@@ -298,7 +299,8 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
      * Create a {@code HDFSFileReader} based on a single Hadoop input split.
      */
     public HDFSFileReader(BoundedSource<KV<K, V>> source, String filepattern,
-                          Class<? extends FileInputFormat<?, ?>> formatClass, InputSplit split) {
+                          Class<? extends FileInputFormat<?, ?>> formatClass, InputSplit split)
+            throws IOException {
       this.source = source;
       this.filepattern = filepattern;
       this.formatClass = formatClass;
@@ -306,11 +308,11 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
         this.splits = ImmutableList.of(split);
         this.splitsIterator = splits.listIterator();
       }
+      this.job = Job.getInstance(); // new instance
     }
 
     @Override
     public boolean start() throws IOException {
-      Job job = Job.getInstance(); // new instance
       Path path = new Path(filepattern);
       FileInputFormat.addInputPath(job, path);
 
@@ -369,7 +371,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     }
 
     @SuppressWarnings("unchecked")
-    private KV<K, V> nextPair() throws IOException, InterruptedException {
+    protected KV<K, V> nextPair() throws IOException, InterruptedException {
       K key = currentReader.getCurrentKey();
       V value = currentReader.getCurrentValue();
       // clone Writable objects since they are reused between calls to RecordReader#nextKeyValue
