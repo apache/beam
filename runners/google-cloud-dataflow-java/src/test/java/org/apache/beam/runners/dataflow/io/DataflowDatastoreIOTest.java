@@ -23,12 +23,13 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
-import org.apache.beam.sdk.io.DatastoreIO;
+import org.apache.beam.sdk.io.datastore.DatastoreIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Query;
@@ -44,21 +45,22 @@ public class DataflowDatastoreIOTest {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PInput, ?> read = DatastoreIO.readFrom(
-        "myProject", Query.newBuilder().build());
+    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1beta3().read().withProjectId(
+        "myProject").withQuery(Query.newBuilder().build());
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("DatastoreIO read should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("project")));
+        displayData, hasItem(hasDisplayItem("projectId")));
   }
 
   @Test
   public void testSinkPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PCollection<Entity>, ?> write = DatastoreIO.writeTo("myProject");
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1beta3().write().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("project")));
+        displayData, hasItem(hasDisplayItem("projectId")));
   }
 }
