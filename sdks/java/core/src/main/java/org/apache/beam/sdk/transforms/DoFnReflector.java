@@ -999,8 +999,8 @@ public abstract class DoFnReflector {
   }
 
   /**
-   * A byte-buddy {@link Implementation} for the constructor of a {@link DoFnInvoker}. The generated
-   * constructor takes a single argument and assigns it to the delegate field.
+   * A constructor {@link Implementation} for a {@link DoFnInvoker class}. Produces the byte code
+   * for a constructor that takes a single argument and assigns it to the delegate field.
    * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
    */
   private final class InvokerConstructor implements Implementation {
