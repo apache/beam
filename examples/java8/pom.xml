@@ -170,6 +170,7 @@
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -177,6 +178,7 @@
       <artifactId>beam-runners-flink_2.10</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
   </dependencies>
 </project>
