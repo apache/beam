@@ -763,7 +763,8 @@ public class BigtableIO {
       reader = service.createReader(getCurrentSource());
       boolean hasRecord =
           reader.start()
-              && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()));
+              && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()))
+              || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
       }
@@ -779,7 +780,8 @@ public class BigtableIO {
     public boolean advance() throws IOException {
       boolean hasRecord =
           reader.advance()
-              && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()));
+              && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()))
+              || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
       }
@@ -803,6 +805,11 @@ public class BigtableIO {
     @Override
     public final Double getFractionConsumed() {
       return rangeTracker.getFractionConsumed();
+    }
+
+    @Override
+    public final long getSplitPointsConsumed() {
+      return rangeTracker.getSplitPointsConsumed();
     }
 
     @Override
