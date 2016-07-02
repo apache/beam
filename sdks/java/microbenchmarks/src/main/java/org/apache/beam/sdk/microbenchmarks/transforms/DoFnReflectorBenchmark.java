@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnReflector;
+import org.apache.beam.sdk.transforms.DoFnReflector.DoFnInvoker;
 import org.apache.beam.sdk.transforms.DoFnWithContext;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -72,10 +73,13 @@ public class DoFnReflectorBenchmark {
   private DoFnReflector doFnReflector;
   private DoFn<String, String> adaptedDoFnWithContext;
 
+  private DoFnInvoker<String, String> invoker;
+
   @Setup
   public void setUp() {
     doFnReflector = DoFnReflector.of(doFnWithContext.getClass());
     adaptedDoFnWithContext = doFnReflector.toDoFn(doFnWithContext);
+    invoker = doFnReflector.bindInvoker(doFnWithContext);
   }
 
   @Benchmark
@@ -92,8 +96,7 @@ public class DoFnReflectorBenchmark {
 
   @Benchmark
   public String invokeDoFnWithContext() throws Exception {
-    doFnReflector.invokeProcessElement(
-        doFnWithContext, stubDoFnWithContextContext, extraContextFactory);
+    invoker.invokeProcessElement(stubDoFnWithContextContext, extraContextFactory);
     return stubDoFnWithContextContext.output;
   }
 
