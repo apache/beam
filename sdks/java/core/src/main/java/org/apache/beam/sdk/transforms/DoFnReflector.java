@@ -722,7 +722,7 @@ public abstract class DoFnReflector {
         @Nullable final Method target, boolean isStartBundle, ExtraContextInfo[] args) {
       if (target == null && !isStartBundle) {
         // There is no target to call, and this is not a startBundle method (which needs to call
-        // prepareForProcessing no matter whaht). There is nothing to do, so just produce a stub:
+        // prepareForProcessing no matter what). There is nothing to do, so just produce a stub:
         return StubMethod.INSTANCE;
       } else {
         // We need to generate a non-empty method implementation.
@@ -732,7 +732,7 @@ public abstract class DoFnReflector {
 
     @Override
     public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      // Remember the filed description of the instrumented type.
+      // Remember the field description of the instrumented type.
       field = instrumentedType.getDeclaredFields()
           .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME)).getOnly();
 
@@ -761,9 +761,11 @@ public abstract class DoFnReflector {
     /**
      * Stack manipulation to call the {@code prepareForProcessing} method.
      *
-     * Precondition: Stack has the delegate target on top of the stack
-     * Postcondition: If finalStep is true, then we've returned from the method. Otherwise, the
+     * <ul>
+     * <li>Precondition: Stack has the delegate target on top of the stack
+     * <li>Postcondition: If finalStep is true, then we've returned from the method. Otherwise, the
      * stack still has the delegate target on top of the stack.
+     * </ul>
      *
      * @param finalStep If true, return from the {@code invokeStartBundle} method after invoking
      * {@code prepareForProcessing} on the delegate.
@@ -901,7 +903,7 @@ public abstract class DoFnReflector {
               // No local variables
               0, new Object[] {},
               // No new stack variables
-              0, new Object[] { });
+              0, new Object[] {});
 
           return new Size(
               trySize.getSizeImpact(),
