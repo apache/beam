@@ -590,6 +590,12 @@
         <version>${slf4j.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>1.4.3</version>
+      </dependency>
+
       <!-- Testing -->
 
       <dependency>
