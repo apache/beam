@@ -809,9 +809,10 @@ public class BigtableIO {
     public final synchronized BigtableSource splitAtFraction(double fraction) {
       ByteKey splitKey;
       try {
-        splitKey = source.getRange().interpolateKey(fraction);
+        splitKey = rangeTracker.getRange().interpolateKey(fraction);
       } catch (IllegalArgumentException e) {
-        logger.info("%s: Failed to interpolate key for fraction %s.", source.getRange(), fraction);
+        logger.info(
+            "%s: Failed to interpolate key for fraction %s.", rangeTracker.getRange(), fraction);
         return null;
       }
       logger.debug(
