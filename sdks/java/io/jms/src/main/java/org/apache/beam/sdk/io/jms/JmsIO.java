@@ -324,6 +324,7 @@ public class JmsIO {
         TextMessage message = (TextMessage) this.consumer.receiveNoWait();
 
         if (message == null) {
+          currentRecord = null;
           return false;
         }
 
