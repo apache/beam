@@ -194,12 +194,6 @@
     <!--Parameter must be non-null but is marked as nullable-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.options.ProxyInvocationHandler"/>
-    <Method name="&lt;init&gt;"/>
-    <Bug pattern="DM_NEXTINT_VIA_NEXTDOUBLE"/>
-    <!--Use the nextInt method of Random rather than nextDouble to generate a random integer-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.runners.DirectPipelineRunner"/>
     <Method name="&lt;init&gt;"/>
     <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
