@@ -66,6 +66,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -93,7 +94,8 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    * No two instances of this class are considered equivalent hence we generate a random hash code
    * between 0 and {@link Integer#MAX_VALUE}.
    */
-  private final int hashCode = (int) (Math.random() * Integer.MAX_VALUE);
+  private final int hashCode = (RANDOM.nextInt() * Integer.MAX_VALUE);
+  private static final Random RANDOM = new Random();
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
   private final Map<String, BoundValue> options;
