@@ -69,12 +69,6 @@
     <!--Class is not derived from an Exception, even though it is named as such-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.coders.Coder$NonDeterministicException"/>
-    <Method name="getMessage"/>
-    <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
-    <!--Format string should use %n rather than \n-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.coders.EntityCoder"/>
     <Method name="decode"/>
     <Bug pattern="RR_NOT_CHECKED"/>
