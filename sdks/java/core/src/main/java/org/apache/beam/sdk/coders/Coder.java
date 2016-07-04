@@ -293,8 +293,8 @@ public interface Coder<T> extends Serializable {
 
     @Override
     public String getMessage() {
-      return String.format("%s is not deterministic because:\n  %s",
-          coder, Joiner.on("\n  ").join(reasons));
+      return String.format("%s is not deterministic because:%n  %s",
+          coder, Joiner.on("%n  ").join(reasons));
     }
   }
 }
