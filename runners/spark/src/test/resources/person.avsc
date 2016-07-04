@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 {
-"namespace": "org.apache.beam.spark.test",
+"namespace": "org.apache.beam.runners.spark.test",
 "name": "Person",
 "type": "record",
 "fields": [
