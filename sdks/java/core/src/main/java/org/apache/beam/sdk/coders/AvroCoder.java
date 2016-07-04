@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import static org.apache.beam.sdk.util.Structs.addString;
 
+import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -121,7 +122,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, ReflectData.get().getSchema(clazz));
+    // Workaround AVRO-607, a race in Avro's getSchema function.
+    //    https://issues.apache.org/jira/browse/AVRO-607
+    return new AvroCoder<>(clazz, AvroUtils.getSchemaThreadsafe(clazz));
   }
 
   /**
@@ -312,6 +315,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumReader<>(schema);
     } else {
+      // Workaround AVRO-607, a race in Avro's getSchema function.
+      //    https://issues.apache.org/jira/browse/AVRO-607
+//      AvroUtils.getSchemaThreadsafe(type);
       return new ReflectDatumReader<>(schema);
     }
   }
@@ -327,6 +333,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumWriter<>(schema);
     } else {
+      // Workaround AVRO-607, a race in Avro's getSchema function.
+      //    https://issues.apache.org/jira/browse/AVRO-607
+//      AvroUtils.getSchemaThreadsafe(type);
       return new ReflectDatumWriter<>(schema);
     }
   }

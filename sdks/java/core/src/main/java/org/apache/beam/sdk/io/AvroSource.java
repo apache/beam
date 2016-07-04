@@ -37,7 +37,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
@@ -167,7 +166,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   public static <T> Read.Bounded<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
     return Read.from(new AvroSource<T>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
-        ReflectData.get().getSchema(clazz).toString(), clazz, null, null));
+        AvroUtils.getSchemaThreadsafe(clazz).toString(), clazz, null, null));
   }
 
   /**
@@ -210,7 +209,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
     return new AvroSource<X>(getFileOrPatternSpec(), getMinBundleSize(),
-        ReflectData.get().getSchema(clazz).toString(), clazz, codec, syncMarker);
+        AvroUtils.getSchemaThreadsafe(clazz).toString(), clazz, codec, syncMarker);
   }
 
   /**

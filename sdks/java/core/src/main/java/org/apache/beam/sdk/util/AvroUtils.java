@@ -34,6 +34,8 @@ import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.specific.SpecificData;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -313,6 +315,18 @@ public class AvroUtils {
                 "Unexpected BigQuery field schema type %s for field named %s",
                 fieldSchema.getType(),
                 fieldSchema.getName()));
+    }
+  }
+
+  /**
+   * As a workaround for AVRO-607, whenever invoking {@link ReflectData#getSchema} a user can call
+   * this method instead or first to populate the cache.
+   *
+   * @see https://issues.apache.org/jira/browse/AVRO-607
+   */
+  public static Schema getSchemaThreadsafe(java.lang.reflect.Type type) {
+    synchronized (AvroUtils.class) {
+      return ReflectData.get().getSchema(type);
     }
   }
 

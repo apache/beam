@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,7 +40,6 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.ReflectData;
 
 import java.io.IOException;
 import java.nio.channels.Channels;
@@ -236,7 +236,7 @@ public class AvroIO {
        * the resulting PCollection
        */
       public <X> Bound<X> withSchema(Class<X> type) {
-        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type), validate);
+        return new Bound<>(name, filepattern, type, AvroUtils.getSchemaThreadsafe(type), validate);
       }
 
       /**
@@ -588,7 +588,7 @@ public class AvroIO {
             numShards,
             shardTemplate,
             type,
-            ReflectData.get().getSchema(type),
+            AvroUtils.getSchemaThreadsafe(type),
             validate);
       }
 

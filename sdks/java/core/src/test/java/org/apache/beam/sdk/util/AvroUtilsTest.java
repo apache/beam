@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -27,6 +28,10 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -36,6 +41,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.Nullable;
+import org.apache.avro.reflect.ReflectData;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,8 +52,16 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 
 /**
  * Tests for AvroUtils.
@@ -223,5 +237,67 @@ public class AvroUtilsTest {
       records.add(bird);
     }
     return records;
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  public static class MyClass {
+    public MyClass() {
+      str = "abadsdsa";
+      bird = new Bird();
+      birds = new LinkedList<Bird>();
+      map = new HashMap<>();
+      map2 = new HashMap<>();
+      map2.put("aninnermap", new HashMap<String, MyClass>());
+    }
+    @Nullable String str;
+    @Nullable Bird bird;
+    @Nullable List<Bird> birds;
+    @Nullable Map<String, Set<MyClass>> map;
+    @Nullable Map<String, Map<String, MyClass>> map2;
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  public static class MyClass2 {
+    public MyClass2() {}
+    long value;
+    Bird bird;
+  }
+
+  @Test
+  public void getMyClassSchema()
+      throws ClassNotFoundException, ExecutionException, InterruptedException {
+    fail(AvroCoder.of(MyClass.class).getSchema().toString());
+  }
+
+
+  @Test
+  public void reproThreadAvro607Issue()
+      throws ClassNotFoundException, ExecutionException, InterruptedException {
+    final String schemaStr = "{\"type\":\"record\",\"name\":\"MyClass\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$\",\"fields\":[{\"name\":\"str\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"bird\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"Bird\",\"fields\":[{\"name\":\"number\",\"type\":\"long\"},{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"quality\",\"type\":[\"null\",\"double\"],\"default\":null},{\"name\":\"quantity\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"birthday\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"flighted\",\"type\":[\"null\",\"boolean\"],\"default\":null},{\"name\":\"scion\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubBird\",\"namespace\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$\",\"fields\":[{\"name\":\"species\",\"type\":[\"null\",\"string\"],\"default\":null}]}],\"default\":null},{\"name\":\"associates\",\"type\":{\"type\":\"array\",\"items\":\"org.apache.beam.sdk.util.AvroUtilsTest$Bird$.SubBird\",\"java-class\":\"[Lorg.apache.beam.sdk.util.AvroUtilsTest$Bird$SubBird;\"}}]}],\"default\":null},{\"name\":\"birds\",\"type\":[\"null\",{\"type\":\"array\",\"items\":\"Bird\",\"java-class\":\"java.util.List\"}],\"default\":null},{\"name\":\"map\",\"type\":[\"null\",{\"type\":\"map\",\"values\":{\"type\":\"array\",\"items\":\"MyClass\",\"java-class\":\"java.util.Set\"}}],\"default\":null},{\"name\":\"map2\",\"type\":[\"null\",{\"type\":\"map\",\"values\":{\"type\":\"map\",\"values\":\"MyClass\"}}],\"default\":null}]}";
+    final Schema schema = new Schema.Parser().parse(schemaStr);
+    final int numThreads = 1024;
+    final CountDownLatch latch = new CountDownLatch(numThreads);
+    ListeningExecutorService executorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(numThreads));
+    List<ListenableFuture<byte[]>> ret = new LinkedList<>();
+    for (int i = 0; i < numThreads; ++i) {
+      final int current = i;
+      ret.add(executorService.submit(new Callable<byte[]>() {
+        @Override
+        public byte[] call() throws Exception {
+          latch.countDown();
+          latch.await();
+          if (current % 3 == 0) {
+            ReflectData.get().getSchema(MyClass.class);
+          } else if (current % 3 == 1) {
+            ReflectData.get().getSchema(MyClass2.class);
+          } else {
+            ReflectData.get().getSchema(Bird.class);
+          }
+          return null;
+        }
+      }));
+    }
+    Futures.allAsList(ret).get();
+    executorService.shutdown();
   }
 }
