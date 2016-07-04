@@ -77,8 +77,7 @@ public class TfIdfTest {
   }
 
   /**
-   * Duplicated from {@link org.apache.beam.examples.complete.TfIdf} to avoid dependency on
-   * beam-examlpes.
+   * Duplicated to avoid dependency on beam-examlpes.
    */
   public static class ComputeTfIdf
       extends PTransform<PCollection<KV<URI, String>>, PCollection<KV<String, KV<URI, Double>>>> {

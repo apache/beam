@@ -35,8 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Duplicated from {@link org.apache.beam.examples.WordCount} to avoid dependency on
- * beam-examlpes.
+ * Duplicated to avoid dependency on beam-examples.
  */
 public class WordCount {
 
