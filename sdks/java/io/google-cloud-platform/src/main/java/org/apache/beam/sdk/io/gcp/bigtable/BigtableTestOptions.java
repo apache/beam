@@ -30,13 +30,8 @@ public interface BigtableTestOptions extends TestPipelineOptions {
   String getProjectId();
   void setProjectId(String value);
 
-  @Description("Cluster ID for Bigtable")
+  @Description("Instance ID for Bigtable")
   @Default.String("beam-test")
-  String getClusterId();
-  void setClusterId(String value);
-
-  @Description("Zone ID for Bigtable")
-  @Default.String("us-central1-c")
-  String getZoneId();
-  void setZoneId(String value);
+  String getInstanceId();
+  void setInstanceId(String value);
 }

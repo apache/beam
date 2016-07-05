@@ -49,14 +49,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import com.google.bigtable.v1.Cell;
-import com.google.bigtable.v1.Column;
-import com.google.bigtable.v1.Family;
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.Mutation.SetCell;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowFilter;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.v2.Cell;
+import com.google.bigtable.v2.Column;
+import com.google.bigtable.v2.Family;
+import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.Mutation.SetCell;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowFilter;
+import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
@@ -67,7 +68,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -108,8 +108,7 @@ public class BigtableIOTest {
   private static final BigtableOptions BIGTABLE_OPTIONS =
       new BigtableOptions.Builder()
           .setProjectId("project")
-          .setClusterId("cluster")
-          .setZoneId("zone")
+          .setInstanceId("instance")
           .build();
   private static BigtableIO.Read defaultRead =
       BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS);
@@ -132,8 +131,7 @@ public class BigtableIOTest {
     BigtableIO.Read read =
         BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS).withTableId("table");
     assertEquals("project", read.getBigtableOptions().getProjectId());
-    assertEquals("cluster", read.getBigtableOptions().getClusterId());
-    assertEquals("zone", read.getBigtableOptions().getZoneId());
+    assertEquals("instance", read.getBigtableOptions().getInstanceId());
     assertEquals("table", read.getTableId());
   }
 
@@ -142,8 +140,7 @@ public class BigtableIOTest {
     BigtableIO.Read read =
         BigtableIO.read().withTableId("table").withBigtableOptions(BIGTABLE_OPTIONS);
     assertEquals("project", read.getBigtableOptions().getProjectId());
-    assertEquals("cluster", read.getBigtableOptions().getClusterId());
-    assertEquals("zone", read.getBigtableOptions().getZoneId());
+    assertEquals("instance", read.getBigtableOptions().getInstanceId());
     assertEquals("table", read.getTableId());
   }
 
@@ -153,17 +150,15 @@ public class BigtableIOTest {
         BigtableIO.write().withBigtableOptions(BIGTABLE_OPTIONS).withTableId("table");
     assertEquals("table", write.getTableId());
     assertEquals("project", write.getBigtableOptions().getProjectId());
-    assertEquals("zone", write.getBigtableOptions().getZoneId());
-    assertEquals("cluster", write.getBigtableOptions().getClusterId());
+    assertEquals("instance", write.getBigtableOptions().getInstanceId());
   }
 
   @Test
   public void testWriteBuildsCorrectlyInDifferentOrder() {
     BigtableIO.Write write =
         BigtableIO.write().withTableId("table").withBigtableOptions(BIGTABLE_OPTIONS);
-    assertEquals("cluster", write.getBigtableOptions().getClusterId());
     assertEquals("project", write.getBigtableOptions().getProjectId());
-    assertEquals("zone", write.getBigtableOptions().getZoneId());
+    assertEquals("instance", write.getBigtableOptions().getInstanceId());
     assertEquals("table", write.getTableId());
   }
 
@@ -791,7 +786,8 @@ public class BigtableIOTest {
     }
 
     @Override
-    public ListenableFuture<Empty> writeRecord(KV<ByteString, Iterable<Mutation>> record) {
+    public ListenableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record) {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
       ByteString key = record.getKey();
@@ -802,7 +798,7 @@ public class BigtableIOTest {
         }
         table.put(key, cell.getValue());
       }
-      return Futures.immediateFuture(Empty.getDefaultInstance());
+      return Futures.immediateFuture(MutateRowResponse.getDefaultInstance());
     }
 
     @Override
