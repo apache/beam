@@ -41,10 +41,11 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowFilter;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowFilter;
+import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.MoreObjects;
@@ -52,7 +53,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 
 import io.grpc.Status;
 
@@ -81,15 +81,14 @@ import javax.annotation.Nullable;
  *
  * <p>To configure a Cloud Bigtable source, you must supply a table id and a {@link BigtableOptions}
  * or builder configured with the project and other information necessary to identify the
- * Bigtable cluster. A {@link RowFilter} may also optionally be specified using
+ * Bigtable instance. A {@link RowFilter} may also optionally be specified using
  * {@link BigtableIO.Read#withRowFilter}. For example:
  *
  * <pre>{@code
  * BigtableOptions.Builder optionsBuilder =
  *     new BigtableOptions.Builder()
  *         .setProjectId("project")
- *         .setClusterId("cluster")
- *         .setZoneId("zone");
+ *         .setInstanceId("instance");
  *
  * Pipeline p = ...;
  *
@@ -116,14 +115,13 @@ import javax.annotation.Nullable;
  *
  * <p>To configure a Cloud Bigtable sink, you must supply a table id and a {@link BigtableOptions}
  * or builder configured with the project and other information necessary to identify the
- * Bigtable cluster, for example:
+ * Bigtable instance, for example:
  *
  * <pre>{@code
  * BigtableOptions.Builder optionsBuilder =
  *     new BigtableOptions.Builder()
  *         .setProjectId("project")
- *         .setClusterId("cluster")
- *         .setZoneId("zone");
+ *         .setInstanceId("instance");
  *
  * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
  *
@@ -153,7 +151,7 @@ public class BigtableIO {
    * Creates an uninitialized {@link BigtableIO.Read}. Before use, the {@code Read} must be
    * initialized with a
    * {@link BigtableIO.Read#withBigtableOptions(BigtableOptions) BigtableOptions} that specifies
-   * the source Cloud Bigtable cluster, and a {@link BigtableIO.Read#withTableId tableId} that
+   * the source Cloud Bigtable instance, and a {@link BigtableIO.Read#withTableId tableId} that
    * specifies which table to read. A {@link RowFilter} may also optionally be specified using
    * {@link BigtableIO.Read#withRowFilter}.
    */
@@ -166,8 +164,8 @@ public class BigtableIO {
    * Creates an uninitialized {@link BigtableIO.Write}. Before use, the {@code Write} must be
    * initialized with a
    * {@link BigtableIO.Write#withBigtableOptions(BigtableOptions) BigtableOptions} that specifies
-   * the destination Cloud Bigtable cluster, and a {@link BigtableIO.Write#withTableId tableId} that
-   * specifies which table to write.
+   * the destination Cloud Bigtable instance, and a {@link BigtableIO.Write#withTableId tableId}
+   * that specifies which table to write.
    */
   @Experimental
   public static Write write() {
@@ -183,7 +181,7 @@ public class BigtableIO {
   @Experimental
   public static class Read extends PTransform<PBegin, PCollection<Row>> {
     /**
-     * Returns a new {@link BigtableIO.Read} that will read from the Cloud Bigtable cluster
+     * Returns a new {@link BigtableIO.Read} that will read from the Cloud Bigtable instance
      * indicated by the given options, and using any other specified customizations.
      *
      * <p>Does not modify this object.
@@ -194,7 +192,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will read from the Cloud Bigtable cluster
+     * Returns a new {@link BigtableIO.Read} that will read from the Cloud Bigtable instance
      * indicated by the given options, and using any other specified customizations.
      *
      * <p>Clones the given {@link BigtableOptions} builder so that any further changes
@@ -247,7 +245,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns the Google Cloud Bigtable cluster being read from, and other parameters.
+     * Returns the Google Cloud Bigtable instance being read from, and other parameters.
      */
     public BigtableOptions getBigtableOptions() {
       return options;
@@ -308,7 +306,7 @@ public class BigtableIO {
 
     /////////////////////////////////////////////////////////////////////////////////////////
     /**
-     * Used to define the Cloud Bigtable cluster and any options for the networking layer.
+     * Used to define the Cloud Bigtable instance and any options for the networking layer.
      * Cannot actually be {@code null} at validation time, but may start out {@code null} while
      * source is being built.
      */
@@ -364,7 +362,7 @@ public class BigtableIO {
   public static class Write
       extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
     /**
-     * Used to define the Cloud Bigtable cluster and any options for the networking layer.
+     * Used to define the Cloud Bigtable instance and any options for the networking layer.
      * Cannot actually be {@code null} at validation time, but may start out {@code null} while
      * source is being built.
      */
@@ -382,7 +380,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} that will write to the Cloud Bigtable cluster
+     * Returns a new {@link BigtableIO.Write} that will write to the Cloud Bigtable instance
      * indicated by the given options, and using any other specified customizations.
      *
      * <p>Does not modify this object.
@@ -393,7 +391,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Write} that will write to the Cloud Bigtable cluster
+     * Returns a new {@link BigtableIO.Write} that will write to the Cloud Bigtable instance
      * indicated by the given options, and using any other specified customizations.
      *
      * <p>Clones the given {@link BigtableOptions} builder so that any further changes
@@ -437,7 +435,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns the Google Cloud Bigtable cluster being written to, and other parameters.
+     * Returns the Google Cloud Bigtable instance being written to, and other parameters.
      */
     public BigtableOptions getBigtableOptions() {
       return options;
@@ -585,7 +583,7 @@ public class BigtableIO {
         throw new IOException(message);
       }
 
-      private class WriteExceptionCallback implements FutureCallback<Empty> {
+      private class WriteExceptionCallback implements FutureCallback<MutateRowResponse> {
         private final KV<ByteString, Iterable<Mutation>> value;
 
         public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
@@ -598,7 +596,7 @@ public class BigtableIO {
         }
 
         @Override
-        public void onSuccess(Empty produced) {}
+        public void onSuccess(MutateRowResponse produced) {}
       }
     }
   }
