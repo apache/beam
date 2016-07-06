@@ -47,6 +47,7 @@ import logging
 import os
 import shutil
 import tempfile
+import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -197,6 +198,9 @@ class Pipeline(object):
         and needs to be cloned in order to apply again.
     """
     if not isinstance(transform, ptransform.PTransform):
+      if isinstance(transform, (type, types.ClassType)):
+        raise TypeError("%s is not a PTransform instance, did you mean %s()?"
+                        % (transform, transform.__name__))
       transform = _CallableWrapperPTransform(transform)
 
     full_label = format_full_label(self._current_transform(), transform)
