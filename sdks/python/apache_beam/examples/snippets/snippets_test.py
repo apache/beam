@@ -26,10 +26,11 @@ import apache_beam as beam
 from apache_beam import io
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.examples.snippets import snippets
 from apache_beam.io import fileio
 from apache_beam.utils.options import TypeOptions
+from apache_beam.examples.snippets import snippets
 
+# pylint: disable=expression-not-assigned
 
 # Monky-patch to use native sink for file path re-writing.
 io.TextFileSink = fileio.NativeTextFileSink
@@ -226,6 +227,7 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
     p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    evens = None  # pylint: disable=unused-variable
 
     # [START type_hints_missing_define_numbers]
     numbers = p | beam.Create(['1', '2', '3'])
@@ -236,7 +238,7 @@ class TypeHintsTest(unittest.TestCase):
     evens = numbers | beam.Filter(lambda x: x % 2 == 0)
     # [END type_hints_missing_apply]
 
-    # Now suppose numers was defined as [snippet above].
+    # Now suppose numbers was defined as [snippet above].
     # When running this pipeline, you'd get a runtime error,
     # possibly on a remote machine, possibly very late.
 
@@ -298,7 +300,6 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     lines = ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']
 
     # [START type_hints_deterministic_key]

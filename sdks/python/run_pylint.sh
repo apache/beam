@@ -37,7 +37,7 @@ git fetch
 # Use diff-filter to exclude deleted files. (i.e. Do not try to lint files that
 # does not exist any more.) Filter the output to .py files only. Rewrite the
 # paths relative to the sdks/python folder.
-CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRTUXB origin/$BASE_BRANCH apache_beam \
+CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRTUXB origin/$BASE_BRANCH . \
                 | { grep ".py$" || true; }  \
                 | sed 's/sdks\/python\///g')
 

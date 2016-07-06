@@ -19,7 +19,6 @@
 
 import os
 import platform
-import re
 import setuptools
 
 
@@ -29,7 +28,7 @@ if platform.system() == 'Windows':
   cythonize = lambda *args, **kwargs: []
 else:
   try:
-    # pylint: disable=g-statement-before-imports,g-import-not-at-top
+    # pylint: disable=wrong-import-position
     from Cython.Build import cythonize
   except ImportError:
     cythonize = lambda *args, **kwargs: []
