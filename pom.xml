@@ -202,7 +202,7 @@
             <plugin>
               <groupId>org.apache.rat</groupId>
               <artifactId>apache-rat-plugin</artifactId>
-              <version>0.11</version>
+              <version>0.12</version>
               <executions>
                 <execution>
                   <phase>verify</phase>
@@ -226,6 +226,9 @@
                   <exclude>**/test/resources/**/*.txt</exclude>
                   <exclude>**/test/**/.placeholder</exclude>
                   <exclude>.repository/**/*</exclude>
+                  <exclude>**/.tox/**/*</exclude>
+                  <exclude>**/*.egg-info/**</exclude>
+                  <exclude>**/.eggs/**</exclude>
                 </excludes>
               </configuration>
             </plugin>
