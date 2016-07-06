@@ -106,9 +106,9 @@ class Pipeline(object):
         raise ValueError(
             'Parameter argv, if specified, must be a list. Received : %r', argv)
     else:
-      self.options = None
+      self.options = PipelineOptions([])
 
-    if runner is None and self.options is not None:
+    if runner is None:
       runner = self.options.view_as(StandardOptions).runner
       if runner is None:
         runner = StandardOptions.DEFAULT_RUNNER
@@ -122,11 +122,10 @@ class Pipeline(object):
                       'name of a registered runner.')
 
     # Validate pipeline options
-    if self.options is not None:
-      errors = PipelineOptionsValidator(self.options, runner).validate()
-      if errors:
-        raise ValueError(
-            'Pipeline has validations errors: \n' + '\n'.join(errors))
+    errors = PipelineOptionsValidator(self.options, runner).validate()
+    if errors:
+      raise ValueError(
+          'Pipeline has validations errors: \n' + '\n'.join(errors))
 
     # Default runner to be used.
     self.runner = runner
@@ -151,7 +150,7 @@ class Pipeline(object):
 
   def run(self):
     """Runs the pipeline. Returns whatever our runner returns after running."""
-    if not self.options or self.options.view_as(SetupOptions).save_main_session:
+    if self.options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
       try:
@@ -226,12 +225,9 @@ class Pipeline(object):
     self._current_transform().add_part(current)
     self.transforms_stack.append(current)
 
-    if self.options is not None:
-      type_options = self.options.view_as(TypeOptions)
-    else:
-      type_options = None
+    type_options = self.options.view_as(TypeOptions)
 
-    if type_options is not None and type_options.pipeline_type_check:
+    if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
     pvalueish_result = self.runner.apply(transform, pvalueish)

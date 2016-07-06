@@ -47,6 +47,7 @@ class PValueTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     value = pipeline | Create('create1', [1, 2, 3])
     value2 = pipeline | Create('create2', [(1, 1), (2, 2), (3, 3)])
+    value3 = pipeline | Create('create3', [(1, 1), (2, 2), (3, 3)])
     self.assertEqual(AsSingleton(value), AsSingleton(value))
     self.assertEqual(AsSingleton('new', value, default_value=1),
                      AsSingleton('new', value, default_value=1))
@@ -59,7 +60,7 @@ class PValueTest(unittest.TestCase):
     self.assertNotEqual(AsSingleton(value), AsSingleton(value2))
     self.assertNotEqual(AsIter(value), AsIter(value2))
     self.assertNotEqual(AsList(value), AsList(value2))
-    self.assertNotEqual(AsDict(value), AsDict(value2))
+    self.assertNotEqual(AsDict(value2), AsDict(value3))
 
 
 if __name__ == '__main__':
