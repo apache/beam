@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.runners.AggregatorValues;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 
 import com.google.common.base.MoreObjects;

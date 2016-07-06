@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk;
 
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 
 /**
