@@ -46,7 +46,7 @@ from apache_beam.transforms.window import WindowFn
 class DataflowTest(unittest.TestCase):
   """Dataflow integration tests."""
 
-  SAMPLE_DATA = 'aa bb cc aa bb aa \n' * 10
+  SAMPLE_DATA = ['aa bb cc aa bb aa \n'] * 10
   SAMPLE_RESULT = [('cc', 10), ('bb', 20), ('aa', 30)]
 
   # TODO(silviuc): Figure out a nice way to specify labels for stages so that
@@ -61,7 +61,7 @@ class DataflowTest(unittest.TestCase):
 
   def test_word_count(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    lines = pipeline | Create('SomeWords', [DataflowTest.SAMPLE_DATA])
+    lines = pipeline | Create('SomeWords', DataflowTest.SAMPLE_DATA)
     result = (
         (lines | FlatMap('GetWords', lambda x: re.findall(r'\w+', x)))
         .apply('CountWords', DataflowTest.Count))
@@ -75,15 +75,6 @@ class DataflowTest(unittest.TestCase):
               | Map('upper', str.upper)
               | Map('prefix', lambda x, prefix: prefix + x, 'foo-'))
     assert_that(result, equal_to(['foo-A', 'foo-B', 'foo-C']))
-    pipeline.run()
-
-  def test_word_count_using_get(self):
-    pipeline = Pipeline('DirectPipelineRunner')
-    lines = pipeline | Create('SomeWords', [DataflowTest.SAMPLE_DATA])
-    result = (
-        (lines | FlatMap('GetWords', lambda x: re.findall(r'\w+', x)))
-        .apply('CountWords', DataflowTest.Count))
-    assert_that(result, equal_to(DataflowTest.SAMPLE_RESULT))
     pipeline.run()
 
   def test_par_do_with_side_input_as_arg(self):
