@@ -277,7 +277,6 @@ public class JmsIO {
 
     private UnboundedJmsSource source;
     private JmsCheckpointMark checkpointMark;
-    private String destination;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
@@ -306,10 +305,8 @@ public class JmsIO {
         this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
         if (source.topic != null) {
           this.consumer = this.session.createConsumer(this.session.createTopic(source.topic));
-          this.destination = source.topic;
         } else {
           this.consumer = this.session.createConsumer(this.session.createQueue(source.queue));
-          this.destination = source.queue;
         }
 
         return advance();
