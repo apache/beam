@@ -60,6 +60,12 @@
               <goals>
                 <goal>integration-test</goal>
               </goals>
+              <configuration>
+                <!--
+                On windows EOL will be \n\r but we expect \n in tests.
+                -->
+                <ignoreEOLStyle>true</ignoreEOLStyle>
+              </configuration>
             </execution>
           </executions>
         </plugin>
