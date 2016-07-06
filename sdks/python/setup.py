@@ -57,7 +57,6 @@ def sync_version(version):
         f.write(re.sub(regex, '__version__ = "%s"' % version, line))
       else:
         f.write(line)
-  return version
 
 
 version = get_version_from_pom()
