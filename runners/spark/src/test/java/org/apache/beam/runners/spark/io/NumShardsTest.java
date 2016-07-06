@@ -29,6 +29,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.HadoopWorkarounds;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,6 +39,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -63,6 +65,11 @@ public class NumShardsTest {
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();
+
+  @BeforeClass
+  public static void initWin() throws IOException {
+    HadoopWorkarounds.winTests();
+  }
 
   @Before
   public void setUp() throws IOException {

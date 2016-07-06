@@ -28,10 +28,12 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.HadoopWorkarounds;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Charsets;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -50,6 +52,11 @@ import java.util.List;
  */
 public class TransformTranslatorTest {
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
+
+  @BeforeClass
+  public static void initWin() throws IOException {
+    HadoopWorkarounds.winTests();
+  }
 
   /**
    * Builds a simple pipeline with TextIO.Read and TextIO.Write, runs the pipeline

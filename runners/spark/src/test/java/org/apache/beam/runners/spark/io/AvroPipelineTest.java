@@ -25,6 +25,7 @@ import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.HadoopWorkarounds;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.Lists;
@@ -38,6 +39,7 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -57,6 +59,11 @@ public class AvroPipelineTest {
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();
+
+  @BeforeClass
+  public static void initWin() throws IOException {
+    HadoopWorkarounds.winTests();
+  }
 
   @Before
   public void setUp() throws IOException {

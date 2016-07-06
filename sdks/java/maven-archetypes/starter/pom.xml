@@ -60,6 +60,13 @@
               <goals>
                 <goal>integration-test</goal>
               </goals>
+              <configuration>
+                <!--
+                For windows since project files use \n and win uses during the generation \r\n.
+                Since it doesn't change the validity of the generated files (java, xml) we are fine doing it.
+                -->
+                <ignoreEOLStyle>true</ignoreEOLStyle>
+              </configuration>
             </execution>
           </executions>
         </plugin>
