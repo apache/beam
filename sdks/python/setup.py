@@ -39,8 +39,8 @@ else:
 def get_version_from_pom():
   with open('pom.xml', 'r') as f:
     pom = f.read()
-    pom_version_regex = '.*<parent>\s*<groupId>[a-z\.]+</groupId>\s*<artifactId>[a-z\-]+</artifactId>\s*<version>([0-9a-zA-Z\.\-]+)</version>.*'
-    pattern = re.compile(pom_version_regex)
+    regex = '.*<parent>\s*<groupId>[a-z\.]+</groupId>\s*<artifactId>[a-z\-]+</artifactId>\s*<version>([0-9a-zA-Z\.\-]+)</version>.*'
+    pattern = re.compile(regex)
     search = pattern.search(pom)
     return search.group(1).replace("-SNAPSHOT", ".dev")  # TODO: PEP 440 and incubating suffix
 
