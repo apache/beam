@@ -204,6 +204,9 @@
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
                 <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                <dependency>org.apache.beam:beam-sdks-java-io-hdfs</dependency>
+                <dependency>org.apache.beam:beam-sdks-java-io-kafka</dependency>
+                <dependency>org.apache.beam:beam-sdks-java-io-google-cloud-platform</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
