@@ -420,22 +420,20 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone apply(PCollection<T> input) {
-    input.apply(
-        Window.named("PubsubUnboundedSink.Window")
-            .<T>into(new GlobalWindows())
-            .triggering(
-                Repeatedly.forever(
-                    AfterFirst.of(AfterPane.elementCountAtLeast(publishBatchSize),
-                                  AfterProcessingTime.pastFirstElementInPane()
-                                                     .plusDelayOf(maxLatency))))
+    input.apply("PubsubUnboundedSink.Window", Window.<T>into(new GlobalWindows())
+        .triggering(
+            Repeatedly.forever(
+                AfterFirst.of(AfterPane.elementCountAtLeast(publishBatchSize),
+                    AfterProcessingTime.pastFirstElementInPane()
+                    .plusDelayOf(maxLatency))))
             .discardingFiredPanes())
-         .apply(ParDo.named("PubsubUnboundedSink.Shard")
-                     .of(new ShardFn<T>(elementCoder, numShards, recordIdMethod)))
+         .apply("PubsubUnboundedSink.Shard",
+             ParDo.of(new ShardFn<T>(elementCoder, numShards, recordIdMethod)))
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, OutgoingMessage>create())
-         .apply(ParDo.named("PubsubUnboundedSink.Writer")
-                     .of(new WriterFn(pubsubFactory, topic, timestampLabel, idLabel,
-                                      publishBatchSize, publishBatchBytes)));
+         .apply("PubsubUnboundedSink.Writer",
+             ParDo.of(new WriterFn(pubsubFactory, topic, timestampLabel, idLabel,
+                 publishBatchSize, publishBatchBytes)));
     return PDone.in(input.getPipeline());
   }
 }

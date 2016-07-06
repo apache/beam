@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -28,7 +31,6 @@ import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
@@ -142,7 +144,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   @Override
   public void ensureWindowIsActive(W window) {
     Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
-    Preconditions.checkState(stateAddressWindows != null,
+    checkState(stateAddressWindows != null,
                              "Cannot ensure window %s is active since it is neither ACTIVE nor NEW",
                              window);
     if (stateAddressWindows.isEmpty()) {
@@ -196,25 +198,22 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     @Override
     public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
       // The arguments have come from userland.
-      Preconditions.checkNotNull(toBeMerged);
-      Preconditions.checkNotNull(mergeResult);
+      checkNotNull(toBeMerged);
+      checkNotNull(mergeResult);
       List<W> copyOfToBeMerged = new ArrayList<>(toBeMerged.size());
       boolean includesMergeResult = false;
       for (W window : toBeMerged) {
-        Preconditions.checkNotNull(window);
-        Preconditions.checkState(
-            isActiveOrNew(window), "Expecting merge window %s to be ACTIVE or NEW", window);
+        checkNotNull(window);
+        checkState(isActiveOrNew(window), "Expecting merge window %s to be ACTIVE or NEW", window);
         if (window.equals(mergeResult)) {
           includesMergeResult = true;
         }
         boolean notDup = seen.add(window);
-        Preconditions.checkState(
-            notDup, "Expecting merge window %s to appear in at most one merge set", window);
+        checkState(notDup, "Expecting merge window %s to appear in at most one merge set", window);
         copyOfToBeMerged.add(window);
       }
       if (!includesMergeResult) {
-        Preconditions.checkState(
-            !isActive(mergeResult), "Expecting result window %s to be NEW", mergeResult);
+        checkState(!isActive(mergeResult), "Expecting result window %s to be NEW", mergeResult);
       }
       allToBeMerged.add(copyOfToBeMerged);
       allMergeResults.add(mergeResult);
@@ -267,7 +266,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
     for (W other : toBeMerged) {
       Set<W> otherStateAddressWindows = activeWindowToStateAddressWindows.get(other);
-      Preconditions.checkState(otherStateAddressWindows != null,
+      checkState(otherStateAddressWindows != null,
                                "Window %s is not ACTIVE or NEW", other);
 
       for (W otherStateAddressWindow : otherStateAddressWindows) {
@@ -295,7 +294,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   public void merged(W window) {
     // Take just the first state address window.
     Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
-    Preconditions.checkState(stateAddressWindows != null, "Window %s is not ACTIVE", window);
+    checkState(stateAddressWindows != null, "Window %s is not ACTIVE", window);
     W first = Iterables.getFirst(stateAddressWindows, null);
     stateAddressWindows.clear();
     stateAddressWindows.add(first);
@@ -308,7 +307,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   @Override
   public Set<W> readStateAddresses(W window) {
     Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
-    Preconditions.checkState(stateAddressWindows != null, "Window %s is not ACTIVE", window);
+    checkState(stateAddressWindows != null, "Window %s is not ACTIVE", window);
     return stateAddressWindows;
   }
 
@@ -319,9 +318,9 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   @Override
   public W writeStateAddress(W window) {
     Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
-    Preconditions.checkState(stateAddressWindows != null, "Window %s is not ACTIVE", window);
+    checkState(stateAddressWindows != null, "Window %s is not ACTIVE", window);
     W result = Iterables.getFirst(stateAddressWindows, null);
-    Preconditions.checkState(result != null, "Window %s is still NEW", window);
+    checkState(result != null, "Window %s is still NEW", window);
     return result;
   }
 
@@ -345,11 +344,11 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     Set<W> knownStateAddressWindows = new HashSet<>();
     for (Map.Entry<W, Set<W>> entry : activeWindowToStateAddressWindows.entrySet()) {
       W active = entry.getKey();
-      Preconditions.checkState(!entry.getValue().isEmpty(),
+      checkState(!entry.getValue().isEmpty(),
                                "Unexpected empty state address window set for ACTIVE window %s",
                                active);
       for (W stateAddressWindow : entry.getValue()) {
-        Preconditions.checkState(knownStateAddressWindows.add(stateAddressWindow),
+        checkState(knownStateAddressWindows.add(stateAddressWindow),
                                  "%s is in more than one state address window set",
                                  stateAddressWindow);
       }

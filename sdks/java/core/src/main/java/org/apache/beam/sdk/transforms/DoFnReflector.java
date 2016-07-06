@@ -123,7 +123,7 @@ public abstract class DoFnReflector {
    * @param c the {@link org.apache.beam.sdk.transforms.DoFnWithContext.ProcessContext}
    *     to pass to {@link ProcessElement}.
    */
-  abstract <InputT, OutputT> void invokeProcessElement(
+  public abstract <InputT, OutputT> void invokeProcessElement(
       DoFnWithContext<InputT, OutputT> fn,
       DoFnWithContext<InputT, OutputT>.ProcessContext c,
       ExtraContextFactory<InputT, OutputT> extra);
@@ -135,7 +135,7 @@ public abstract class DoFnReflector {
    * @param c the {@link org.apache.beam.sdk.transforms.DoFnWithContext.Context}
    *     to pass to {@link StartBundle}.
    */
-  <InputT, OutputT> void invokeStartBundle(
+  public <InputT, OutputT> void invokeStartBundle(
      DoFnWithContext<InputT, OutputT> fn,
      DoFnWithContext<InputT, OutputT>.Context c,
      ExtraContextFactory<InputT, OutputT> extra) {
@@ -149,7 +149,7 @@ public abstract class DoFnReflector {
    * @param c the {@link org.apache.beam.sdk.transforms.DoFnWithContext.Context}
    *     to pass to {@link FinishBundle}.
    */
-  abstract <InputT, OutputT> void invokeFinishBundle(
+  public abstract <InputT, OutputT> void invokeFinishBundle(
       DoFnWithContext<InputT, OutputT> fn,
       DoFnWithContext<InputT, OutputT>.Context c,
       ExtraContextFactory<InputT, OutputT> extra);
@@ -430,7 +430,7 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    <InputT, OutputT> void invokeProcessElement(
+    public <InputT, OutputT> void invokeProcessElement(
         DoFnWithContext<InputT, OutputT> fn,
         DoFnWithContext<InputT, OutputT>.ProcessContext c,
         ExtraContextFactory<InputT, OutputT> extra) {
@@ -438,7 +438,7 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    <InputT, OutputT> void invokeStartBundle(
+    public <InputT, OutputT> void invokeStartBundle(
         DoFnWithContext<InputT, OutputT> fn,
         DoFnWithContext<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra) {
@@ -449,7 +449,7 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    <InputT, OutputT> void invokeFinishBundle(
+    public <InputT, OutputT> void invokeFinishBundle(
         DoFnWithContext<InputT, OutputT> fn,
         DoFnWithContext<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra) {

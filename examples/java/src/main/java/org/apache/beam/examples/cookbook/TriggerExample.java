@@ -467,7 +467,7 @@ public class TriggerExample {
     TableReference tableRef = getTableReference(options.getProject(),
         options.getBigQueryDataset(), options.getBigQueryTable());
 
-    PCollectionList<TableRow> resultList = pipeline.apply(PubsubIO.Read.named("ReadPubsubInput")
+    PCollectionList<TableRow> resultList = pipeline.apply("ReadPubsubInput", PubsubIO.Read
         .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
         .topic(options.getPubsubTopic()))
         .apply(ParDo.of(new ExtractFlowInfo()))
@@ -493,8 +493,8 @@ public class TriggerExample {
     copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
     injectorPipeline
-    .apply(TextIO.Read.named("ReadMyFile").from(options.getInput()))
-    .apply(ParDo.named("InsertRandomDelays").of(new InsertDelays()))
+    .apply("ReadMyFile", TextIO.Read.from(options.getInput()))
+    .apply("InsertRandomDelays", ParDo.of(new InsertDelays()))
     .apply(IntraBundleParallelization.of(PubsubFileInjector
         .withTimestampLabelKey(PUBSUB_TIMESTAMP_LABEL_KEY)
         .publish(options.getPubsubTopic()))

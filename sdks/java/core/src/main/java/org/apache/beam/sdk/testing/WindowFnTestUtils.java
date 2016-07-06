@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -115,8 +116,8 @@ public class WindowFnTestUtils {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return null;
+    public BoundedWindow window() {
+      return GlobalWindow.INSTANCE;
     }
   }
 

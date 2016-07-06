@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -57,8 +58,7 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
   public static MapCoder<?, ?> of(
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
       List<Coder<?>> components) {
-    Preconditions.checkArgument(components.size() == 2,
-        "Expecting 2 components, got " + components.size());
+    checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
     return of((Coder<?>) components.get(0), (Coder<?>) components.get(1));
   }
 

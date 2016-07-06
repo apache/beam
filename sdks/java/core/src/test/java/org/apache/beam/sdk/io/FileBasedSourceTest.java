@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -717,7 +718,7 @@ public class FileBasedSourceTest {
     File file = createFileWithData(fileName, data);
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
-    PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<String> output = p.apply("ReadFileData", Read.from(source));
 
     PAssert.that(output).containsInAnyOrder(data);
     p.run();
@@ -743,7 +744,7 @@ public class FileBasedSourceTest {
     TestFileBasedSource source =
         new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
 
-    PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<String> output = p.apply("ReadFileData", Read.from(source));
 
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data1);

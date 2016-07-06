@@ -87,7 +87,7 @@ import javax.annotation.Nullable;
  *
  * <h2> Triggers </h2>
  *
- * <p>{@link Window.Bound#triggering(TriggerBuilder)} allows specifying a trigger to control when
+ * <p>{@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
  * (in processing time) results for the given window can be produced. If unspecified, the default
  * behavior is to trigger first when the watermark passes the end of the window, and then trigger
  * again every time there is late arriving data.
@@ -159,21 +159,6 @@ public class Window {
   }
 
   /**
-   * Creates a {@code Window} {@code PTransform} with the given name.
-   *
-   * <p>See the discussion of Naming in
-   * {@link org.apache.beam.sdk.transforms.ParDo} for more explanation.
-   *
-   * <p>The resulting {@code PTransform} is incomplete, and its input/output
-   * type is not yet bound.  Use {@link Window.Unbound#into} to specify the
-   * {@link WindowFn} to use, which will also bind the input/output type of this
-   * {@code PTransform}.
-   */
-  public static Unbound named(String name) {
-    return new Unbound().named(name);
-  }
-
-  /**
    * Creates a {@code Window} {@code PTransform} that uses the given
    * {@link WindowFn} to window the data.
    *
@@ -195,7 +180,7 @@ public class Window {
    * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
   @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> triggering(TriggerBuilder trigger) {
+  public static <T> Bound<T> triggering(Trigger trigger) {
     return new Unbound().triggering(trigger);
   }
 
@@ -255,19 +240,6 @@ public class Window {
     }
 
     /**
-     * Returns a new {@code Window} transform that's like this
-     * transform but with the specified name.  Does not modify this
-     * transform.  The resulting transform is still incomplete.
-     *
-     * <p>See the discussion of Naming in
-     * {@link org.apache.beam.sdk.transforms.ParDo} for more
-     * explanation.
-     */
-    public Unbound named(String name) {
-      return new Unbound(name);
-    }
-
-    /**
      * Returns a new {@code Window} {@code PTransform} that's like this
      * transform but that will use the given {@link WindowFn}, and that has
      * its input and output types bound.  Does not modify this transform.  The
@@ -290,7 +262,7 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public <T> Bound<T> triggering(TriggerBuilder trigger) {
+    public <T> Bound<T> triggering(Trigger trigger) {
       return new Bound<T>(name).triggering(trigger);
     }
 
@@ -408,20 +380,6 @@ public class Window {
     }
 
     /**
-     * Returns a new {@code Window} {@code PTransform} that's like this
-     * {@code PTransform} but with the specified name.  Does not
-     * modify this {@code PTransform}.
-     *
-     * <p>See the discussion of Naming in
-     * {@link org.apache.beam.sdk.transforms.ParDo} for more
-     * explanation.
-     */
-    public Bound<T> named(String name) {
-      return new Bound<>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
-    }
-
-    /**
      * Sets a non-default trigger for this {@code Window} {@code PTransform}.
      * Elements that are assigned to a specific window will be output when
      * the trigger fires.
@@ -433,11 +391,11 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public Bound<T> triggering(TriggerBuilder trigger) {
+    public Bound<T> triggering(Trigger trigger) {
       return new Bound<T>(
           name,
           windowFn,
-          trigger.buildTrigger(),
+          trigger,
           mode,
           allowedLateness,
           closingBehavior,
@@ -645,16 +603,6 @@ public class Window {
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-
-  private static <T> PTransform<PCollection<? extends T>, PCollection<T>> identity() {
-    return ParDo.named("Identity").of(new DoFn<T, T>() {
-      @Override public void processElement(ProcessContext c) {
-        c.output(c.element());
-      }
-    });
-  }
-
   /**
    * Creates a {@code Window} {@code PTransform} that does not change assigned
    * windows, but will cause windows to be merged again as part of the next
@@ -675,7 +623,16 @@ public class Window {
       WindowingStrategy<?, ?> outputWindowingStrategy = getOutputWindowing(
           input.getWindowingStrategy());
 
-      return input.apply(Window.<T>identity())
+      return input
+          // We first apply a (trivial) transform to the input PCollection to produce a new
+          // PCollection. This ensures that we don't modify the windowing strategy of the input
+          // which may be used elsewhere.
+          .apply("Identity", ParDo.of(new DoFn<T, T>() {
+            @Override public void processElement(ProcessContext c) {
+              c.output(c.element());
+            }
+          }))
+          // Then we modify the windowing strategy.
           .setWindowingStrategyInternal(outputWindowingStrategy);
     }
 

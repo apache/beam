@@ -29,8 +29,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -237,7 +237,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedSource() {
     Pipeline p = TestPipeline.create();
     int numElements = 1000;
@@ -252,7 +252,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedSourceWithExplicitPartitions() {
     Pipeline p = TestPipeline.create();
     int numElements = 1000;
@@ -290,7 +290,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedSourceTimestamps() {
     Pipeline p = TestPipeline.create();
     int numElements = 1000;
@@ -318,7 +318,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testUnboundedSourceSplits() throws Exception {
     Pipeline p = TestPipeline.create();
     int numElements = 1000;

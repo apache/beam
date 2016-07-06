@@ -69,7 +69,17 @@ public class StringUtilsTest {
   }
 
   private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
-    private class Bound extends PTransform<PBegin, PDone> {}
+    @Override
+    public PDone apply(PBegin begin) {
+      throw new IllegalArgumentException("Should never be applied");
+    }
+
+    private class Bound extends PTransform<PBegin, PDone> {
+      @Override
+      public PDone apply(PBegin begin) {
+        throw new IllegalArgumentException("Should never be applied");
+      }
+    }
 
     private Bound getBound() {
       return new Bound();
@@ -118,7 +128,12 @@ public class StringUtilsTest {
   @Test
   public void testPTransformNameWithAnonOuterClass() throws Exception {
     AnonymousClass anonymousClassObj = new AnonymousClass() {
-      class NamedInnerClass extends PTransform<PBegin, PDone> {}
+      class NamedInnerClass extends PTransform<PBegin, PDone> {
+        @Override
+        public PDone apply(PBegin begin) {
+          throw new IllegalArgumentException("Should never be applied");
+        }
+      }
 
       @Override
       public Object getInnerClassInstance() {

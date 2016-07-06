@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.spark.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
-
-import com.google.common.base.Preconditions;
 
 import java.util.Map;
 import java.util.Set;
@@ -82,18 +82,13 @@ public final class KafkaIO {
       Unbound(Class<? extends Decoder<K>> keyDecoder,
               Class<? extends Decoder<V>> valueDecoder, Class<K> key,
               Class<V> value, Set<String> topics, Map<String, String> kafkaParams) {
-        Preconditions.checkNotNull(keyDecoder,
-            "need to set the key decoder class of a KafkaIO.Read transform");
-        Preconditions.checkNotNull(valueDecoder,
-            "need to set the value decoder class of a KafkaIO.Read transform");
-        Preconditions.checkNotNull(key,
-            "need to set the key class of aKafkaIO.Read transform");
-        Preconditions.checkNotNull(value,
-            "need to set the value class of a KafkaIO.Read transform");
-        Preconditions.checkNotNull(topics,
-            "need to set the topics of a KafkaIO.Read transform");
-        Preconditions.checkNotNull(kafkaParams,
-            "need to set the kafkaParams of a KafkaIO.Read transform");
+        checkNotNull(keyDecoder, "need to set the key decoder class of a KafkaIO.Read transform");
+        checkNotNull(
+            valueDecoder, "need to set the value decoder class of a KafkaIO.Read transform");
+        checkNotNull(key, "need to set the key class of a KafkaIO.Read transform");
+        checkNotNull(value, "need to set the value class of a KafkaIO.Read transform");
+        checkNotNull(topics, "need to set the topics of a KafkaIO.Read transform");
+        checkNotNull(kafkaParams, "need to set the kafkaParams of a KafkaIO.Read transform");
         this.keyDecoderClass = keyDecoder;
         this.valueDecoderClass = valueDecoder;
         this.keyClass = key;

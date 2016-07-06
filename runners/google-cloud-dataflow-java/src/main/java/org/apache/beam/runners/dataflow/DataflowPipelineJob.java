@@ -55,7 +55,7 @@ import javax.annotation.Nullable;
 
 /**
  * A DataflowPipelineJob represents a job submitted to Dataflow using
- * {@link DataflowPipelineRunner}.
+ * {@link DataflowRunner}.
  */
 public class DataflowPipelineJob implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineJob.class);
@@ -104,7 +104,7 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * The amount of polling attempts for job status and messages information.
    */
-  static final int MESSAGES_POLLING_ATTEMPTS = 10;
+  static final int MESSAGES_POLLING_ATTEMPTS = 12;
   static final int STATUS_POLLING_ATTEMPTS = 5;
 
   /**

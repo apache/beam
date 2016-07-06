@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -25,11 +27,21 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+
+import com.google.common.collect.Iterables;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -148,6 +160,45 @@ public class PAssertTest implements Serializable {
   }
 
   /**
+   * A {@link PAssert} about the contents of a {@link PCollection}
+   * is allows to be verified by an arbitrary {@link SerializableFunction},
+   * though.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testWindowedSerializablePredicate() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    PCollection<NotSerializableObject> pcollection = pipeline
+        .apply(Create.timestamped(
+            TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
+            TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
+            .withCoder(NotSerializableObjectCoder.of()))
+        .apply(Window.<NotSerializableObject>into(FixedWindows.of(Duration.millis(300L))));
+
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(0L), new Instant(300L)))
+        .satisfies(new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
+          @Override
+          public Void apply(Iterable<NotSerializableObject> contents) {
+            assertThat(Iterables.isEmpty(contents), is(false));
+            return null; // no problem!
+          }
+        });
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(300L), new Instant(600L)))
+        .satisfies(new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
+          @Override
+          public Void apply(Iterable<NotSerializableObject> contents) {
+            assertThat(Iterables.isEmpty(contents), is(false));
+            return null; // no problem!
+          }
+        });
+
+    pipeline.run();
+  }
+
+  /**
    * Test that we throw an error at pipeline construction time when the user mistakenly uses
    * {@code PAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
    */
@@ -220,6 +271,26 @@ public class PAssertTest implements Serializable {
   }
 
   /**
+   * Basic test for {@code isEqualTo}.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testWindowedIsEqualTo() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection =
+        pipeline.apply(Create.timestamped(TimestampedValue.of(43, new Instant(250L)),
+            TimestampedValue.of(22, new Instant(-250L))))
+            .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(500L))));
+    PAssert.thatSingleton(pcollection)
+        .inWindow(new IntervalWindow(new Instant(0L), new Instant(500L)))
+        .isEqualTo(43);
+    PAssert.thatSingleton(pcollection)
+        .inWindow(new IntervalWindow(new Instant(-500L), new Instant(0L)))
+        .isEqualTo(22);
+    pipeline.run();
+  }
+
+  /**
    * Basic test for {@code notEqualTo}.
    */
   @Test
@@ -240,6 +311,51 @@ public class PAssertTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
+    pipeline.run();
+  }
+
+  /**
+   * Tests that {@code containsInAnyOrder} is actually order-independent.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testGlobalWindowContainsInAnyOrder() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
+    PAssert.that(pcollection).inWindow(GlobalWindow.INSTANCE).containsInAnyOrder(2, 1, 4, 3);
+    pipeline.run();
+  }
+
+  /**
+   * Tests that windowed {@code containsInAnyOrder} is actually order-independent.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testWindowedContainsInAnyOrder() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection =
+        pipeline.apply(Create.timestamped(TimestampedValue.of(1, new Instant(100L)),
+            TimestampedValue.of(2, new Instant(200L)),
+            TimestampedValue.of(3, new Instant(300L)),
+            TimestampedValue.of(4, new Instant(400L))))
+            .apply(Window.<Integer>into(SlidingWindows.of(Duration.millis(200L))
+                .every(Duration.millis(100L))
+                .withOffset(Duration.millis(50L))));
+
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(-50L), new Instant(150L))).containsInAnyOrder(1);
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(50L), new Instant(250L)))
+        .containsInAnyOrder(2, 1);
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(150L), new Instant(350L)))
+        .containsInAnyOrder(2, 3);
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(250L), new Instant(450L)))
+        .containsInAnyOrder(4, 3);
+    PAssert.that(pcollection)
+        .inWindow(new IntervalWindow(new Instant(350L), new Instant(550L)))
+        .containsInAnyOrder(4);
     pipeline.run();
   }
 

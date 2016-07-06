@@ -80,7 +80,7 @@ import java.util.TimeZone;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  *   --dataset=YOUR-DATASET
  *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
  * }
@@ -119,9 +119,11 @@ public class LeaderBoard extends HourlyTeamScore {
     Integer getAllowedLateness();
     void setAllowedLateness(Integer value);
 
+    @Override
     @Description("Prefix used for the BigQuery table names")
     @Default.String("leaderboard")
     String getTableName();
+    @Override
     void setTableName(String value);
   }
 
@@ -183,14 +185,13 @@ public class LeaderBoard extends HourlyTeamScore {
     // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents = pipeline
         .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
-        .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()));
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // [START DocInclude_WindowAndTrigger]
     // Extract team/score pairs from the event stream, using hour-long windows by default.
     gameEvents
-        .apply(Window.named("LeaderboardTeamFixedWindows")
-          .<GameActionInfo>into(FixedWindows.of(
-              Duration.standardMinutes(options.getTeamWindowDuration())))
+        .apply("LeaderboardTeamFixedWindows", Window.<GameActionInfo>into(
+            FixedWindows.of(Duration.standardMinutes(options.getTeamWindowDuration())))
           // We will get early (speculative) results as well as cumulative
           // processing of late data.
           .triggering(
@@ -213,8 +214,7 @@ public class LeaderBoard extends HourlyTeamScore {
     // Extract user/score pairs from the event stream using processing time, via global windowing.
     // Get periodic updates on all users' running scores.
     gameEvents
-        .apply(Window.named("LeaderboardUserGlobalWindow")
-          .<GameActionInfo>into(new GlobalWindows())
+        .apply("LeaderboardUserGlobalWindow", Window.<GameActionInfo>into(new GlobalWindows())
           // Get periodic results every ten minutes.
               .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
                   .plusDelayOf(TEN_MINUTES)))

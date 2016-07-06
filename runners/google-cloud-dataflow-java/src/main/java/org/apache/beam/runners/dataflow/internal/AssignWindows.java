@@ -63,7 +63,7 @@ public class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>>
     } else {
       // If the windowFn didn't change, we just run a pass-through transform and then set the
       // new windowing strategy.
-      return input.apply(ParDo.named("Identity").of(new DoFn<T, T>() {
+      return input.apply("Identity", ParDo.of(new DoFn<T, T>() {
         @Override
         public void processElement(DoFn<T, T>.ProcessContext c) throws Exception {
           c.output(c.element());

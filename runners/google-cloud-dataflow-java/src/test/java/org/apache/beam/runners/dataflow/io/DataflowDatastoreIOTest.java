@@ -23,14 +23,16 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
-import org.apache.beam.sdk.io.DatastoreIO;
+import org.apache.beam.sdk.io.datastore.DatastoreIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 
-import com.google.api.services.datastore.DatastoreV1;
+import com.google.datastore.v1beta3.Entity;
+import com.google.datastore.v1beta3.Query;
 
 import org.junit.Test;
 
@@ -43,21 +45,22 @@ public class DataflowDatastoreIOTest {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PInput, ?> read = DatastoreIO.readFrom(
-        "myDataset", DatastoreV1.Query.newBuilder().build());
+    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1beta3().read().withProjectId(
+        "myProject").withQuery(Query.newBuilder().build());
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
-    assertThat("DatastoreIO read should include the dataset in its primitive display data",
-        displayData, hasItem(hasDisplayItem("dataset")));
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+    assertThat("DatastoreIO read should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
   }
 
   @Test
   public void testSinkPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
-    PTransform<PCollection<DatastoreV1.Entity>, ?> write = DatastoreIO.writeTo("myDataset");
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1beta3().write().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("DatastoreIO write should include the dataset in its primitive display data",
-        displayData, hasItem(hasDisplayItem("dataset")));
+    assertThat("DatastoreIO write should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
   }
 }

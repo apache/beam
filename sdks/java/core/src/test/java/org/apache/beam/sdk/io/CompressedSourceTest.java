@@ -24,6 +24,8 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -44,6 +46,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.primitives.Bytes;
 
@@ -94,6 +98,56 @@ public class CompressedSourceTest {
   public void testReadGzip() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, CompressionMode.GZIP);
+  }
+
+  /**
+   * Test splittability of files in AUTO mode.
+   */
+  @Test
+  public void testAutoSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // GZip files are not splittable
+    source = CompressedSource.from(new ByteSource("input.gz", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.GZ", 1));
+    assertFalse(source.isSplittable());
+
+    // BZ2 files are not splittable
+    source = CompressedSource.from(new ByteSource("input.bz2", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.BZ2", 1));
+    assertFalse(source.isSplittable());
+
+    // Other extensions are assumed to be splittable.
+    source = CompressedSource.from(new ByteSource("input.txt", 1));
+    assertTrue(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.csv", 1));
+    assertTrue(source.isSplittable());
+  }
+
+  /**
+   * Test splittability of files in GZIP mode -- none should be splittable.
+   */
+  @Test
+  public void testGzipSplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    // GZip files are not splittable
+    source = CompressedSource.from(new ByteSource("input.gz", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.GZ", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+
+    // Other extensions are also not splittable.
+    source = CompressedSource.from(new ByteSource("input.txt", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.csv", 1))
+        .withDecompression(CompressionMode.GZIP);
+    assertFalse(source.isSplittable());
   }
 
   /**
@@ -580,6 +634,37 @@ public class CompressedSourceTest {
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
+  }
+
+  @Test
+  public void testUnsplittable() throws IOException {
+    String baseName = "test-input";
+    File compressedFile = tmpFolder.newFile(baseName + ".gz");
+    byte[] input = generateInput(10000);
+    writeFile(compressedFile, input, CompressionMode.GZIP);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    List<Byte> expected = Lists.newArrayList();
+    for (byte i : input) {
+      expected.add(i);
+    }
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BoundedReader<Byte> reader = source.createReader(options);
+
+    List<Byte> actual = Lists.newArrayList();
+    for (boolean hasNext = reader.start(); hasNext; hasNext = reader.advance()) {
+      actual.add(reader.getCurrent());
+      // checkpoint every 9 elements
+      if (actual.size() % 9 == 0) {
+        Double fractionConsumed = reader.getFractionConsumed();
+        assertNotNull(fractionConsumed);
+        assertNull(reader.splitAtFraction(fractionConsumed));
+      }
+    }
+    assertEquals(expected.size(), actual.size());
+    assertEquals(Sets.newHashSet(expected), Sets.newHashSet(actual));
   }
 
   @Test

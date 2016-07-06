@@ -54,7 +54,6 @@ import org.apache.beam.sdk.util.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.util.BigQueryServices.JobService;
 import org.apache.beam.sdk.util.BigQueryServicesImpl;
 import org.apache.beam.sdk.util.BigQueryTableInserter;
-import org.apache.beam.sdk.util.BigQueryTableRowIterator;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -85,7 +84,6 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
-import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -162,8 +160,7 @@ import javax.annotation.Nullable;
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
  * PCollection<TableRow> shakespeare = pipeline.apply(
- *     BigQueryIO.Read.named("Read")
- *                    .from("clouddataflow-readonly:samples.weather_stations"));
+ *     BigQueryIO.Read.from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
  *
  * <p>See {@link TableRow} for more information on the {@link TableRow} object.
@@ -174,8 +171,7 @@ import javax.annotation.Nullable;
  *
  * <pre>{@code
  * PCollection<TableRow> shakespeare = pipeline.apply(
- *     BigQueryIO.Read.named("Read")
- *                    .fromQuery("SELECT year, mean_temp FROM samples.weather_stations"));
+ *     BigQueryIO.Read.fromQuery("SELECT year, mean_temp FROM samples.weather_stations"));
  * }</pre>
  *
  * <p>When creating a BigQuery input transform, users should provide either a query or a table.
@@ -193,7 +189,6 @@ import javax.annotation.Nullable;
  * TableSchema schema = new TableSchema().setFields(fields);
  *
  * quotes.apply(BigQueryIO.Write
- *     .named("Write")
  *     .to("my-project:output.output_table")
  *     .withSchema(schema)
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
@@ -214,7 +209,6 @@ import javax.annotation.Nullable;
  * PCollection<TableRow> quotes = ...
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
  *       .apply(BigQueryIO.Write
- *         .named("Write")
  *         .withSchema(schema)
  *         .to(new SerializableFunction<BoundedWindow, String>() {
  *           public String apply(BoundedWindow window) {
@@ -345,13 +339,6 @@ public class BigQueryIO {
    * }}</pre>
    */
   public static class Read {
-    /**
-     * Returns a {@link Read.Bound} with the given name. The BigQuery table or query to be read
-     * from has not yet been configured.
-     */
-    public static Bound named(String name) {
-      return new Bound().named(name);
-    }
 
     /**
      * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"} or
@@ -389,9 +376,15 @@ public class BigQueryIO {
     public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
       @Nullable final String jsonTableRef;
       @Nullable final String query;
+
+      /**
+       * Disable validation that the table exists or the query succeeds prior to pipeline
+       * submission. Basic validation (such as ensuring that a query or table is specified) still
+       * occurs.
+       */
       final boolean validate;
       @Nullable final Boolean flattenResults;
-      @Nullable final BigQueryServices testBigQueryServices;
+      @Nullable BigQueryServices bigQueryServices;
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
@@ -408,27 +401,18 @@ public class BigQueryIO {
             null /* jsonTableRef */,
             true /* validate */,
             null /* flattenResults */,
-            null /* testBigQueryServices */);
+            null /* bigQueryServices */);
       }
 
       private Bound(
           String name, @Nullable String query, @Nullable String jsonTableRef, boolean validate,
-          @Nullable Boolean flattenResults, @Nullable BigQueryServices testBigQueryServices) {
+          @Nullable Boolean flattenResults, @Nullable BigQueryServices bigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.query = query;
         this.validate = validate;
         this.flattenResults = flattenResults;
-        this.testBigQueryServices = testBigQueryServices;
-      }
-
-      /**
-       * Returns a copy of this transform using the name associated with this transformation.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound named(String name) {
-        return new Bound(name, query, jsonTableRef, validate, flattenResults, testBigQueryServices);
+        this.bigQueryServices = bigQueryServices;
       }
 
       /**
@@ -448,7 +432,7 @@ public class BigQueryIO {
        */
       public Bound from(TableReference table) {
         return new Bound(
-            name, query, toJsonString(table), validate, flattenResults, testBigQueryServices);
+            name, query, toJsonString(table), validate, flattenResults, bigQueryServices);
       }
 
       /**
@@ -463,14 +447,16 @@ public class BigQueryIO {
        */
       public Bound fromQuery(String query) {
         return new Bound(name, query, jsonTableRef, validate,
-            MoreObjects.firstNonNull(flattenResults, Boolean.TRUE), testBigQueryServices);
+            MoreObjects.firstNonNull(flattenResults, Boolean.TRUE), bigQueryServices);
       }
 
       /**
-       * Disable table validation.
+       * Disable validation that the table exists or the query succeeds prior to pipeline
+       * submission. Basic validation (such as ensuring that a query or table is specified) still
+       * occurs.
        */
       public Bound withoutValidation() {
-        return new Bound(name, query, jsonTableRef, false, flattenResults, testBigQueryServices);
+        return new Bound(name, query, jsonTableRef, false, flattenResults, bigQueryServices);
       }
 
       /**
@@ -481,7 +467,7 @@ public class BigQueryIO {
        * from a table will cause an error during validation.
        */
       public Bound withoutResultFlattening() {
-        return new Bound(name, query, jsonTableRef, validate, false, testBigQueryServices);
+        return new Bound(name, query, jsonTableRef, validate, false, bigQueryServices);
       }
 
       @VisibleForTesting
@@ -491,51 +477,45 @@ public class BigQueryIO {
 
       @Override
       public void validate(PInput input) {
+        // Even if existence validation is disabled, we need to make sure that the BigQueryIO
+        // read is properly specified.
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+
+        TableReference table = getTableWithDefaultProject(bqOptions);
+        if (table == null && query == null) {
+          throw new IllegalStateException(
+              "Invalid BigQuery read operation, either table reference or query has to be set");
+        } else if (table != null && query != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
+              + " query and a table, only one of these should be provided");
+        } else if (table != null && flattenResults != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " table with a result flattening preference, which is not configurable");
+        } else if (query != null && flattenResults == null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " query without a result flattening preference");
+        }
+
         if (validate) {
-          BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-
-          TableReference table = getTableWithDefaultProject(bqOptions);
-          if (table == null && query == null) {
-            throw new IllegalStateException(
-                "Invalid BigQuery read operation, either table reference or query has to be set");
-          } else if (table != null && query != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
-                + " query and a table, only one of these should be provided");
-          } else if (table != null && flattenResults != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " table with a result flattening preference, which is not configurable");
-          } else if (query != null && flattenResults == null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " query without a result flattening preference");
-          }
-
+          BigQueryServices bqServices = getBigQueryServices();
           // Check for source table/query presence for early failure notification.
           // Note that a presence check can fail if the table or dataset are created by earlier
           // stages of the pipeline or if a query depends on earlier stages of a pipeline. For these
           // cases the withoutValidation method can be used to disable the check.
           if (table != null) {
-            verifyDatasetPresence(bqOptions, table);
-            verifyTablePresence(bqOptions, table);
+            DatasetService datasetService = bqServices.getDatasetService(bqOptions);
+            verifyDatasetPresence(datasetService, table);
+            verifyTablePresence(datasetService, table);
           }
           if (query != null) {
-            dryRunQuery(bqOptions, query);
+            JobService jobService = bqServices.getJobService(bqOptions);
+            try {
+              jobService.dryRunQuery(bqOptions.getProject(), query);
+            } catch (Exception e) {
+              throw new IllegalArgumentException(
+                  String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
+            }
           }
-        }
-      }
-
-      private static void dryRunQuery(BigQueryOptions options, String query) {
-        Bigquery client = Transport.newBigQueryClient(options).build();
-        QueryRequest request = new QueryRequest();
-        request.setQuery(query);
-        request.setDryRun(true);
-
-        try {
-          BigQueryTableRowIterator.executeWithBackOff(
-              client.jobs().query(options.getProject(), request), QUERY_VALIDATION_FAILURE_ERROR,
-              query);
-        } catch (Exception e) {
-          throw new IllegalArgumentException(
-              String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
         }
       }
 
@@ -679,11 +659,10 @@ public class BigQueryIO {
       }
 
       private BigQueryServices getBigQueryServices() {
-        if (testBigQueryServices != null) {
-          return testBigQueryServices;
-        } else {
-          return new BigQueryServicesImpl();
+        if (bigQueryServices == null) {
+          bigQueryServices = new BigQueryServicesImpl();
         }
+        return bigQueryServices;
       }
     }
 
@@ -1362,14 +1341,6 @@ public class BigQueryIO {
     }
 
     /**
-     * Creates a write transformation with the given transform name. The BigQuery table to be
-     * written has not yet been configured.
-     */
-    public static Bound named(String name) {
-      return new Bound().named(name);
-    }
-
-    /**
      * Creates a write transformation for the given table specification.
      *
      * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
@@ -1461,8 +1432,7 @@ public class BigQueryIO {
       // An option to indicate if table validation is desired. Default is true.
       final boolean validate;
 
-      // A fake or mock BigQueryServices for tests.
-      @Nullable private BigQueryServices testBigQueryServices;
+      @Nullable private BigQueryServices bigQueryServices;
 
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
@@ -1493,14 +1463,14 @@ public class BigQueryIO {
             CreateDisposition.CREATE_IF_NEEDED,
             WriteDisposition.WRITE_EMPTY,
             true /* validate */,
-            null /* testBigQueryServices */);
+            null /* bigQueryServices */);
       }
 
       private Bound(String name, @Nullable String jsonTableRef,
           @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
           @Nullable String jsonSchema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
-          @Nullable BigQueryServices testBigQueryServices) {
+          @Nullable BigQueryServices bigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.tableRefFunction = tableRefFunction;
@@ -1508,17 +1478,7 @@ public class BigQueryIO {
         this.createDisposition = checkNotNull(createDisposition, "createDisposition");
         this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
         this.validate = validate;
-        this.testBigQueryServices = testBigQueryServices;
-      }
-
-      /**
-       * Returns a copy of this write transformation, but with the specified transform name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound named(String name) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+        this.bigQueryServices = bigQueryServices;
       }
 
       /**
@@ -1538,7 +1498,7 @@ public class BigQueryIO {
        */
       public Bound to(TableReference table) {
         return new Bound(name, toJsonString(table), tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1567,7 +1527,7 @@ public class BigQueryIO {
       public Bound toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1578,7 +1538,7 @@ public class BigQueryIO {
        */
       public Bound withSchema(TableSchema schema) {
         return new Bound(name, jsonTableRef, tableRefFunction, toJsonString(schema),
-            createDisposition, writeDisposition, validate, testBigQueryServices);
+            createDisposition, writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1588,7 +1548,7 @@ public class BigQueryIO {
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1598,7 +1558,7 @@ public class BigQueryIO {
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1608,7 +1568,7 @@ public class BigQueryIO {
        */
       public Bound withoutValidation() {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, false, testBigQueryServices);
+            writeDisposition, false, bigQueryServices);
       }
 
       @VisibleForTesting
@@ -1618,18 +1578,18 @@ public class BigQueryIO {
       }
 
       private static void verifyTableEmpty(
-          BigQueryOptions options,
+          DatasetService datasetService,
           TableReference table) {
         try {
-          Bigquery client = Transport.newBigQueryClient(options).build();
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client);
-          if (!inserter.isEmpty(table)) {
+          boolean isEmpty = datasetService.isTableEmpty(
+              table.getProjectId(), table.getDatasetId(), table.getTableId());
+          if (!isEmpty) {
             throw new IllegalArgumentException(
                 "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
           }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
           ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          if (errorExtractor.itemNotFound(e)) {
+          if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
             // Nothing to do. If the table does not exist, it is considered empty.
           } else {
             throw new RuntimeException(
@@ -1661,16 +1621,17 @@ public class BigQueryIO {
         if (jsonTableRef != null && validate) {
           TableReference table = getTableWithDefaultProject(options);
 
+          DatasetService datasetService = getBigQueryServices().getDatasetService(options);
           // Check for destination table presence and emptiness for early failure notification.
           // Note that a presence check can fail when the table or dataset is created by an earlier
           // stage of the pipeline. For these cases the #withoutValidation method can be used to
           // disable the check.
-          verifyDatasetPresence(options, table);
+          verifyDatasetPresence(datasetService, table);
           if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
-            verifyTablePresence(options, table);
+            verifyTablePresence(datasetService, table);
           }
           if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-            verifyTableEmpty(options, table);
+            verifyTableEmpty(datasetService, table);
           }
         }
 
@@ -1691,7 +1652,7 @@ public class BigQueryIO {
           checkArgument(
               !Strings.isNullOrEmpty(tempLocation),
               "BigQueryIO.Write needs a GCS temp location to store temp files.");
-          if (testBigQueryServices == null) {
+          if (bigQueryServices == null) {
             try {
               GcsPath.fromUri(tempLocation);
             } catch (IllegalArgumentException e) {
@@ -1817,11 +1778,10 @@ public class BigQueryIO {
       }
 
       private BigQueryServices getBigQueryServices() {
-        if (testBigQueryServices != null) {
-          return testBigQueryServices;
-        } else {
-          return new BigQueryServicesImpl();
+        if (bigQueryServices == null) {
+          bigQueryServices = new BigQueryServicesImpl();
         }
+        return bigQueryServices;
       }
     }
 
@@ -2013,12 +1973,9 @@ public class BigQueryIO {
     }
   }
 
-  private static void verifyDatasetPresence(BigQueryOptions options, TableReference table) {
+  private static void verifyDatasetPresence(DatasetService datasetService, TableReference table) {
     try {
-      Bigquery client = Transport.newBigQueryClient(options).build();
-      BigQueryTableRowIterator.executeWithBackOff(
-          client.datasets().get(table.getProjectId(), table.getDatasetId()),
-          RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table));
+      datasetService.getDataset(table.getProjectId(), table.getDatasetId());
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
@@ -2034,12 +1991,9 @@ public class BigQueryIO {
     }
   }
 
-  private static void verifyTablePresence(BigQueryOptions options, TableReference table) {
+  private static void verifyTablePresence(DatasetService datasetService, TableReference table) {
     try {
-      Bigquery client = Transport.newBigQueryClient(options).build();
-      BigQueryTableRowIterator.executeWithBackOff(
-          client.tables().get(table.getProjectId(), table.getDatasetId(), table.getTableId()),
-          RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table));
+      datasetService.getTable(table.getProjectId(), table.getDatasetId(), table.getTableId());
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
@@ -2112,7 +2066,7 @@ public class BigQueryIO {
       for (String tableSpec : tableRows.keySet()) {
         TableReference tableReference = getOrCreateTable(options, tableSpec);
         flushRows(client, tableReference, tableRows.get(tableSpec),
-            uniqueIdsForTableRows.get(tableSpec));
+            uniqueIdsForTableRows.get(tableSpec), options);
       }
       tableRows.clear();
       uniqueIdsForTableRows.clear();
@@ -2137,7 +2091,7 @@ public class BigQueryIO {
           if (!createdTables.contains(tableSpec)) {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+            BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
             inserter.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
                 CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
@@ -2149,10 +2103,10 @@ public class BigQueryIO {
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
     private void flushRows(Bigquery client, TableReference tableReference,
-        List<TableRow> tableRows, List<String> uniqueIds) {
+        List<TableRow> tableRows, List<String> uniqueIds, BigQueryOptions options) {
       if (!tableRows.isEmpty()) {
         try {
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+          BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
           inserter.insertAll(tableReference, tableRows, uniqueIds, byteCountAggregator);
         } catch (IOException e) {
           throw new RuntimeException(e);

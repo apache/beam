@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasName
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
@@ -110,6 +109,11 @@ public class DisplayDataTest implements Serializable {
         new PTransform<PCollection<String>, PCollection<String>>() {
           final Instant defaultStartTime = new Instant(0);
           Instant startTime = defaultStartTime;
+
+          @Override
+          public PCollection<String> apply(PCollection<String> begin) {
+            throw new IllegalArgumentException("Should never be applied");
+          }
 
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -57,7 +59,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -1348,7 +1349,7 @@ public class Combine {
      */
     public Globally<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      Preconditions.checkState(fn instanceof RequiresContextInternal);
+      checkState(fn instanceof RequiresContextInternal);
       return new Globally<>(name, fn, fnDisplayData, insertDefault, fanout,
           ImmutableList.copyOf(sideInputs));
     }
@@ -1400,7 +1401,7 @@ public class Combine {
       final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(ParDo.named("ProduceDefault").withSideInputs(maybeEmptyView).of(
+          .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
               new DoFn<Void, OutputT>() {
                 @Override
                 public void processElement(DoFn<Void, OutputT>.ProcessContext c) {
@@ -1732,7 +1733,7 @@ public class Combine {
      */
     public PerKey<K, InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      Preconditions.checkState(fn instanceof RequiresContextInternal);
+      checkState(fn instanceof RequiresContextInternal);
       return new PerKey<>(name, fn, fnDisplayData, fewKeys,
           ImmutableList.copyOf(sideInputs));
     }
@@ -2024,28 +2025,27 @@ public class Combine {
       // augmenting the hot keys with a nonce.
       final TupleTag<KV<KV<K, Integer>, InputT>> hot = new TupleTag<>();
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
-      PCollectionTuple split = input.apply(
-          ParDo.named("AddNonce").of(
-              new DoFn<KV<K, InputT>, KV<K, InputT>>() {
-                transient int counter;
-                @Override
-                public void startBundle(Context c) {
-                  counter = ThreadLocalRandom.current().nextInt(
-                      Integer.MAX_VALUE);
-                }
+      PCollectionTuple split = input.apply("AddNonce", ParDo.of(
+          new DoFn<KV<K, InputT>, KV<K, InputT>>() {
+            transient int counter;
+            @Override
+            public void startBundle(Context c) {
+              counter = ThreadLocalRandom.current().nextInt(
+                  Integer.MAX_VALUE);
+            }
 
-                @Override
-                public void processElement(ProcessContext c) {
-                  KV<K, InputT> kv = c.element();
-                  int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
-                  if (spread <= 1) {
-                    c.output(kv);
-                  } else {
-                    int nonce = counter++ % spread;
-                    c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
-                  }
-                }
-              })
+            @Override
+            public void processElement(ProcessContext c) {
+              KV<K, InputT> kv = c.element();
+              int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
+              if (spread <= 1) {
+                c.output(kv);
+              } else {
+                int nonce = counter++ % spread;
+                c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+              }
+            }
+          })
           .withOutputTags(cold, TupleTagList.of(hot)));
 
       // The first level of combine should never use accumulating mode.
@@ -2063,7 +2063,7 @@ public class Combine {
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
-          .apply(ParDo.named("StripNonce").of(
+          .apply("StripNonce", ParDo.of(
               new DoFn<KV<KV<K, Integer>, AccumT>,
                        KV<K, InputOrAccum<InputT, AccumT>>>() {
                 @Override
@@ -2079,7 +2079,7 @@ public class Combine {
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply(ParDo.named("PrepareCold").of(
+          .apply("PrepareCold", ParDo.of(
               new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
                 @Override
                 public void processElement(ProcessContext c) {

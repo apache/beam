@@ -60,7 +60,7 @@ import java.util.List;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  * }
  * </pre>
  * and an output prefix on GCS:
@@ -168,7 +168,7 @@ public class TopWikipediaSessions {
       return input
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
 
-          .apply(ParDo.named("SampleUsers").of(
+          .apply("SampleUsers", ParDo.of(
               new DoFn<String, String>() {
                 @Override
                 public void processElement(ProcessContext c) {
@@ -179,10 +179,9 @@ public class TopWikipediaSessions {
               }))
 
           .apply(new ComputeSessions())
-
-          .apply(ParDo.named("SessionsToStrings").of(new SessionsToStringsDoFn()))
+          .apply("SessionsToStrings", ParDo.of(new SessionsToStringsDoFn()))
           .apply(new TopPerMonth())
-          .apply(ParDo.named("FormatOutput").of(new FormatOutputDoFn()));
+          .apply("FormatOutput", ParDo.of(new FormatOutputDoFn()));
     }
   }
 
@@ -218,7 +217,7 @@ public class TopWikipediaSessions {
         .from(options.getInput())
         .withCoder(TableRowJsonCoder.of()))
      .apply(new ComputeTopSessions(samplingThreshold))
-     .apply(TextIO.Write.named("Write").withoutSharding().to(options.getOutput()));
+     .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run();
   }

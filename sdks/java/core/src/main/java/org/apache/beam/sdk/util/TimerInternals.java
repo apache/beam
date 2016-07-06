@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -229,8 +229,7 @@ public interface TimerInternals {
     public static TimerDataCoder of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 components, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 components, got %s", components.size());
       return of((Coder<? extends BoundedWindow>) components.get(0));
     }
 

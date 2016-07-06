@@ -17,9 +17,9 @@
  */
 package ${package}.common;
 
-import org.apache.beam.runners.dataflow.BlockingDataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 
@@ -251,10 +251,10 @@ public class DataflowExampleUtils {
   }
 
   public void setupRunner() {
-    if (options.isStreaming() && options.getRunner().equals(BlockingDataflowPipelineRunner.class)) {
+    if (options.isStreaming() && options.getRunner().equals(BlockingDataflowRunner.class)) {
       // In order to cancel the pipelines automatically,
-      // {@literal DataflowPipelineRunner} is forced to be used.
-      options.setRunner(DataflowPipelineRunner.class);
+      // {@literal DataflowRunner} is forced to be used.
+      options.setRunner(DataflowRunner.class);
     }
   }
 
@@ -268,7 +268,7 @@ public class DataflowExampleUtils {
     DataflowPipelineOptions copiedOptions = options.cloneAs(DataflowPipelineOptions.class);
     copiedOptions.setStreaming(false);
     copiedOptions.setWorkerHarnessContainerImage(
-        DataflowPipelineRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
+        DataflowRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
     copiedOptions.setNumWorkers(
         options.as(ExamplePubsubTopicOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
@@ -298,7 +298,7 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * If {@literal DataflowPipelineRunner} or {@literal BlockingDataflowPipelineRunner} is used,
+   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
    * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
    */
   public void waitToFinish(PipelineResult result) {
@@ -315,7 +315,7 @@ public class DataflowExampleUtils {
       }
     } else {
       // Do nothing if the given PipelineResult doesn't support waitToFinish(),
-      // such as EvaluationResults returned by DirectPipelineRunner.
+      // such as EvaluationResults returned by DirectRunner.
     }
   }
 

@@ -23,7 +23,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
 import org.apache.beam.sdk.io.TextIO;
@@ -39,7 +39,7 @@ import org.junit.runners.JUnit4;
 import java.util.Set;
 
 /**
- * {@link DataflowPipelineRunner} specific tests for TextIO Read and Write transforms.
+ * {@link DataflowRunner} specific tests for TextIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
 public class DataflowTextIOTest {

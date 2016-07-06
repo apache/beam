@@ -21,14 +21,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link ByteKeyRangeTracker}. */
 @RunWith(JUnit4.class)
 public class ByteKeyRangeTrackerTest {
+  private static final ByteKey BEFORE_START_KEY = ByteKey.of(0x11);
   private static final ByteKey INITIAL_START_KEY = ByteKey.of(0x12);
+  private static final ByteKey AFTER_START_KEY = ByteKey.of(0x13);
   private static final ByteKey INITIAL_MIDDLE_KEY = ByteKey.of(0x23);
   private static final ByteKey NEW_START_KEY = ByteKey.of(0x14);
   private static final ByteKey NEW_MIDDLE_KEY = ByteKey.of(0x24);
@@ -38,6 +42,8 @@ public class ByteKeyRangeTrackerTest {
   private static final ByteKeyRange INITIAL_RANGE = ByteKeyRange.of(INITIAL_START_KEY, END_KEY);
   private static final double NEW_RANGE_SIZE = 0x34 - 0x14;
   private static final ByteKeyRange NEW_RANGE = ByteKeyRange.of(NEW_START_KEY, END_KEY);
+
+  @Rule public final ExpectedException expected = ExpectedException.none();
 
   /** Tests for {@link ByteKeyRangeTracker#toString}. */
   @Test
@@ -127,7 +133,30 @@ public class ByteKeyRangeTrackerTest {
 
     assertFalse(tracker.tryReturnRecordAt(true, END_KEY)); // after end
 
-    assertTrue(tracker.tryReturnRecordAt(true, BEFORE_END_KEY)); // still succeeds
+    assertFalse(tracker.tryReturnRecordAt(true, BEFORE_END_KEY)); // false because done
+  }
+
+  @Test
+  public void testTryReturnFirstRecordNotSplitPoint() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    expected.expect(IllegalStateException.class);
+    tracker.tryReturnRecordAt(false, INITIAL_START_KEY);
+  }
+
+  @Test
+  public void testTryReturnBeforeStartKey() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    expected.expect(IllegalStateException.class);
+    tracker.tryReturnRecordAt(true, BEFORE_START_KEY);
+  }
+
+  @Test
+  public void testTryReturnBeforeLastReturnedRecord() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
+    expected.expect(IllegalStateException.class);
+    tracker.tryReturnRecordAt(true, AFTER_START_KEY);
   }
 
   /** Tests for {@link ByteKeyRangeTracker#trySplitAtPosition}. */
@@ -150,5 +179,32 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
     assertFalse(tracker.trySplitAtPosition(INITIAL_MIDDLE_KEY));
     assertTrue(tracker.tryReturnRecordAt(true, INITIAL_MIDDLE_KEY));
+  }
+
+  /** Tests for {@link ByteKeyRangeTracker#getSplitPointsConsumed()}. */
+  @Test
+  public void testGetSplitPointsConsumed() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    assertEquals(0, tracker.getSplitPointsConsumed());
+
+    // Started, 0 split points consumed
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
+    assertEquals(0, tracker.getSplitPointsConsumed());
+
+    // Processing new split point, 1 split point consumed
+    assertTrue(tracker.tryReturnRecordAt(true, AFTER_START_KEY));
+    assertEquals(1, tracker.getSplitPointsConsumed());
+
+    // Processing new non-split point, 1 split point consumed
+    assertTrue(tracker.tryReturnRecordAt(false, INITIAL_MIDDLE_KEY));
+    assertEquals(1, tracker.getSplitPointsConsumed());
+
+    // Processing new split point, 2 split points consumed
+    assertTrue(tracker.tryReturnRecordAt(true, BEFORE_END_KEY));
+    assertEquals(2, tracker.getSplitPointsConsumed());
+
+    // Mark tracker as done, 3 split points consumed
+    tracker.markDone();
+    assertEquals(3, tracker.getSplitPointsConsumed());
   }
 }

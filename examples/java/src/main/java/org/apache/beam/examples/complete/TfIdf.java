@@ -80,7 +80,7 @@ import java.util.Set;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  * and an output prefix on GCS:
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
@@ -187,8 +187,7 @@ public class TfIdf {
         }
 
         PCollection<KV<URI, String>> oneUriToLines = pipeline
-            .apply(TextIO.Read.from(uriString)
-                .named("TextIO.Read(" + uriString + ")"))
+            .apply("TextIO.Read(" + uriString + ")", TextIO.Read.from(uriString))
             .apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri));
 
         urisToLines = urisToLines.and(oneUriToLines);
@@ -225,7 +224,7 @@ public class TfIdf {
       // Create a collection of pairs mapping a URI to each
       // of the words in the document associated with that that URI.
       PCollection<KV<URI, String>> uriToWords = uriToContent
-          .apply(ParDo.named("SplitWords").of(
+          .apply("SplitWords", ParDo.of(
               new DoFn<KV<URI, String>, KV<URI, String>>() {
                 @Override
                 public void processElement(ProcessContext c) {
@@ -268,7 +267,7 @@ public class TfIdf {
       // from URI to (word, count) pairs, to prepare for a join
       // by the URI key.
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
-          .apply(ParDo.named("ShiftKeys").of(
+          .apply("ShiftKeys", ParDo.of(
               new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
@@ -307,7 +306,7 @@ public class TfIdf {
       // is simply the number of times that word occurs in the document
       // divided by the total number of words in the document.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
-          .apply(ParDo.named("ComputeTermFrequencies").of(
+          .apply("ComputeTermFrequencies", ParDo.of(
               new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
@@ -331,8 +330,7 @@ public class TfIdf {
       // documents is passed as a side input; the same value is
       // presented to each invocation of the DoFn.
       PCollection<KV<String, Double>> wordToDf = wordToDocCount
-          .apply(ParDo
-              .named("ComputeDocFrequencies")
+          .apply("ComputeDocFrequencies", ParDo
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
                 @Override
@@ -362,7 +360,7 @@ public class TfIdf {
       // here we use a basic version that is the term frequency
       // divided by the log of the document frequency.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
-          .apply(ParDo.named("ComputeTfIdf").of(
+          .apply("ComputeTfIdf", ParDo.of(
               new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
@@ -402,7 +400,7 @@ public class TfIdf {
     @Override
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
-          .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
+          .apply("Format", ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
             @Override
             public void processElement(ProcessContext c) {
               c.output(String.format("%s,\t%s,\t%f",

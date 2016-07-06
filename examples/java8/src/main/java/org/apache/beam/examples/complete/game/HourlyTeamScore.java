@@ -60,7 +60,7 @@ import java.util.TimeZone;
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
+ *   --runner=BlockingDataflowRunner
  *   --dataset=YOUR-DATASET
  * }
  * </pre>
@@ -109,9 +109,11 @@ public class HourlyTeamScore extends UserScore {
     String getStopMin();
     void setStopMin(String value);
 
+    @Override
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("hourly_team_score")
     String getTableName();
+    @Override
     void setTableName(String value);
   }
 
@@ -155,7 +157,7 @@ public class HourlyTeamScore extends UserScore {
     // Read 'gaming' events from a text file.
     pipeline.apply(TextIO.Read.from(options.getInput()))
       // Parse the incoming data.
-      .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
+      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
       // Filter out data before and after the given times so that it is not included
       // in the calculations. As we collect data in batches (say, by day), the batch for the day
@@ -176,9 +178,8 @@ public class HourlyTeamScore extends UserScore {
       // Add an element timestamp based on the event log, and apply fixed windowing.
       .apply("AddEventTimestamps",
              WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
-      .apply(Window.named("FixedWindowsTeam")
-          .<GameActionInfo>into(FixedWindows.of(
-                Duration.standardMinutes(options.getWindowDuration()))))
+      .apply("FixedWindowsTeam", Window.<GameActionInfo>into(
+          FixedWindows.of(Duration.standardMinutes(options.getWindowDuration()))))
       // [END DocInclude_HTSAddTsAndWindow]
 
       // Extract and sum teamname/score pairs from the event data.

@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.util.WindowedValue;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.sdk.coders.Coder;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -38,7 +36,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   private final Coder<T> coder;
 
   public CoderTypeInformation(Coder<T> coder) {
-    Preconditions.checkNotNull(coder);
+    checkNotNull(coder);
     this.coder = coder;
   }
 
@@ -107,19 +105,13 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   @Override
   public String toString() {
-    return "CoderTypeInformation{" +
-        "coder=" + coder +
-        '}';
+    return "CoderTypeInformation{coder=" + coder + '}';
   }
 
   @Override
   public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
       executionConfig) {
-    WindowedValue.WindowedValueCoder windowCoder = (WindowedValue.WindowedValueCoder) coder;
-    if (windowCoder.getValueCoder() instanceof KvCoder) {
-      return new KvCoderComperator(windowCoder);
-    } else {
-      return new CoderComparator<>(coder);
-    }
+    throw new UnsupportedOperationException(
+        "Non-encoded values cannot be compared directly.");
   }
 }

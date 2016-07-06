@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -27,7 +29,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
@@ -161,7 +162,7 @@ public class CoderRegistry implements CoderProvider {
    * appropriate static methods and register it directly via {@link #registerCoder(Class, Class)}.
    */
   public <T> void registerCoder(Class<T> rawClazz, Coder<T> coder) {
-    Preconditions.checkArgument(
+    checkArgument(
       rawClazz.getTypeParameters().length == 0,
       "CoderRegistry.registerCoder(Class<T>, Coder<T>) may not be used "
       + "with unspecialized generic classes");
