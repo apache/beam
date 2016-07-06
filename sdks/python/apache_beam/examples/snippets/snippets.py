@@ -39,6 +39,7 @@ import apache_beam as beam
 # pylint:disable=invalid-name
 # pylint:disable=expression-not-assigned
 # pylint:disable=redefined-outer-name
+# pylint:disable=reimported
 # pylint:disable=unused-variable
 # pylint:disable=wrong-import-order, wrong-import-position
 

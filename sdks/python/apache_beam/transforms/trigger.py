@@ -800,11 +800,12 @@ class GeneralTriggerDriver(TriggerDriver):
 
         class TriggerMergeContext(WindowFn.MergeContext):
 
-          def merge(_, to_be_merged, merge_result):
+          def merge(_, to_be_merged, merge_result):  # pylint: disable=no-self-argument
             for window in to_be_merged:
               if window != merge_result:
                 merged_away[window] = merge_result
             state.merge(to_be_merged, merge_result)
+            # using the outer self argument.
             self.trigger_fn.on_merge(
                 to_be_merged, merge_result, state.at(merge_result))
 
