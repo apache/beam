@@ -161,8 +161,8 @@ public class Mean {
       }
       @SuppressWarnings("unchecked")
       CountSum<?> otherCountSum = (CountSum<?>) other;
-      return (count == otherCountSum.count)
-          && (sum == otherCountSum.sum);
+      return (Math.abs(count - otherCountSum.count) < .0000001)
+              && Math.abs(sum - otherCountSum.sum) < .0000001;
     }
 
     @Override
