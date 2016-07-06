@@ -133,10 +133,17 @@ public class AvroSourceTest {
   @Test
   public void testReadWithDifferentCodecs() throws Exception {
     // Test reading files generated using all codecs.
-    String codecs[] = {DataFileConstants.NULL_CODEC, DataFileConstants.BZIP2_CODEC,
-        DataFileConstants.DEFLATE_CODEC, DataFileConstants.SNAPPY_CODEC,
-        DataFileConstants.XZ_CODEC};
-    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+    String codecs[] = {
+        DataFileConstants.NULL_CODEC,
+        DataFileConstants.BZIP2_CODEC,
+        DataFileConstants.DEFLATE_CODEC,
+        DataFileConstants.SNAPPY_CODEC,
+        DataFileConstants.XZ_CODEC,
+    };
+    // As Avro's default block size is 64KB, write 64K records to ensure at least one full block.
+    // We could make this smaller than 64KB assuming each record is at least B bytes, but then the
+    // test could silently stop testing the failure condition from BEAM-422.
+    List<Bird> expected = createRandomRecords(1 << 16);
 
     for (String codec : codecs) {
       String filename = generateTestFile(
