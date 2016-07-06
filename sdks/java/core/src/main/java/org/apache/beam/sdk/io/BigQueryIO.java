@@ -2063,10 +2063,10 @@ public class BigQueryIO {
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
       Bigquery client = Transport.newBigQueryClient(options).build();
 
-      for (String tableSpec : tableRows.keySet()) {
-        TableReference tableReference = getOrCreateTable(options, tableSpec);
-        flushRows(client, tableReference, tableRows.get(tableSpec),
-            uniqueIdsForTableRows.get(tableSpec), options);
+      for (Map.Entry<String, List<TableRow>> entry : tableRows.entrySet()) {
+        TableReference tableReference = getOrCreateTable(options, entry.getKey());
+        flushRows(client, tableReference, entry.getValue(),
+            uniqueIdsForTableRows.get(entry.getKey()), options);
       }
       tableRows.clear();
       uniqueIdsForTableRows.clear();

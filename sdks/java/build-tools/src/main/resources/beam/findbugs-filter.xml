@@ -122,12 +122,6 @@
     <!--May expose internal representation by incorporating reference to mutable object-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.io.BigQueryIO$StreamingWriteFn"/>
-    <Method name="finishBundle"/>
-    <Bug pattern="WMI_WRONG_MAP_ITERATOR"/>
-    <!--Inefficient use of keySet iterator instead of entrySet iterator-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.io.PubsubIO$Read$Bound$PubsubBoundedReader"/>
     <Method name="processElement"/>
     <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
