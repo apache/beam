@@ -17,10 +17,10 @@
 
 """Apache Beam SDK setup configuration."""
 
+
 import platform
 import setuptools
 import re
-from lxml import etree
 
 
 # Currently all compiled modules are optional (for performance only).
@@ -35,14 +35,19 @@ else:
       cythonize = lambda *args, **kwargs: []
 
 
-# Reads the actual version from pom.xml file, and synchronizes
-# apache_beam.__version__ field for later usage.
-def sync_version():
-  pom = etree.parse('pom.xml')
-  elements = pom.xpath(r'/pom:project/pom:parent/pom:version', namespaces={'pom':'http://maven.apache.org/POM/4.0.0'})
-  version = elements[0].text.replace("-SNAPSHOT", ".dev")  # TODO: PEP 440 and incubating suffix
+# Reads the actual version from pom.xml file,
+def get_version_from_pom():
+  with open('pom.xml', 'r') as f:
+    pom = f.read()
+    pom_version_regex = '.*<parent>\s*<groupId>[a-z\.]+</groupId>\s*<artifactId>[a-z\-]+</artifactId>\s*<version>([0-9a-zA-Z\.\-]+)</version>.*'
+    pattern = re.compile(pom_version_regex)
+    search = pattern.search(pom)
+    return search.group(1).replace("-SNAPSHOT", ".dev")  # TODO: PEP 440 and incubating suffix
 
-  init_path = "apache_beam/__init__.py"
+
+# Synchronizes apache_beam.__version__ field for later usage
+def sync_version(version):
+  init_path = 'apache_beam/__init__.py'
   regex = r'^__version__\s*=\s*".*"'
   with open(init_path, "r") as f:
     lines = f.readlines()
@@ -55,7 +60,8 @@ def sync_version():
   return version
 
 
-version = sync_version()
+version = get_version_from_pom()
+sync_version(version)
 
 
 # Configure the required packages and scripts to install.
@@ -70,7 +76,6 @@ REQUIRED_PACKAGES = [
     # 'google-apitools-dataflow-v1b3>=0.4.20160217',
     # 'google-apitools-storage-v1',
     'httplib2>=0.8',
-    'lxml',
     'mock>=1.0.1',
     'nose>=1.0',
     'oauth2client>=2.0.1',
