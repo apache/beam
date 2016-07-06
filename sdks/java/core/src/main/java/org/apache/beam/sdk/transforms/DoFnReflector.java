@@ -147,7 +147,7 @@ public abstract class DoFnReflector {
 
     private final Class<?> rawType;
     private final Availability availability;
-    private final MethodDescription method;
+    private final transient MethodDescription method;
 
     private AdditionalParameter(Availability availability, Class<?> rawType, String method) {
       this.availability = availability;
@@ -175,13 +175,18 @@ public abstract class DoFnReflector {
       switch (value.availability) {
         case EVERYWHERE:
           everywhereBuilder.put(value.rawType, value);
+          break;
         case PROCESS_ELEMENT_ONLY:
           processElementBuilder.put(value.rawType, value);
+          break;
       }
     }
 
     EXTRA_CONTEXTS = everywhereBuilder.build();
-    EXTRA_PROCESS_CONTEXTS = processElementBuilder.build();
+    EXTRA_PROCESS_CONTEXTS = processElementBuilder
+        // Process Element contexts include everything available everywhere
+        .putAll(EXTRA_CONTEXTS)
+        .build();
   }
 
   /**
@@ -768,7 +773,7 @@ public abstract class DoFnReflector {
                   assigner, instrumentedMethod, prepareMethod));
         } else {
           return new StackManipulation.Compound(
-              // Duplicate the delegation target so that it remains after we call perform this delegation.
+              // Duplicate the delegation target so that it remains after we invoke prepare
               Duplication.duplicate(delegateType),
               // Invoke the prepare method
               MethodInvoker.Simple.INSTANCE.invoke(prepareMethod),
@@ -1003,7 +1008,7 @@ public abstract class DoFnReflector {
    * for a constructor that takes a single argument and assigns it to the delegate field.
    * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
    */
-  private final class InvokerConstructor implements Implementation {
+  private static final class InvokerConstructor implements Implementation {
     @Override
     public InstrumentedType prepare(InstrumentedType instrumentedType) {
       return instrumentedType;
