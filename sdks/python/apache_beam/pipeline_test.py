@@ -185,9 +185,9 @@ class PipelineTest(unittest.TestCase):
     with self.assertRaises(TypeError) as cm:
       pcoll | GroupByKey  # Note the missing ()'s
     self.assertEqual(
-      cm.exception.message,
-      "<class 'apache_beam.transforms.core.GroupByKey'> is not "
-      "a PTransform instance, did you mean GroupByKey()?")
+        cm.exception.message,
+        "<class 'apache_beam.transforms.core.GroupByKey'> is not "
+        "a PTransform instance, did you mean GroupByKey()?")
 
   def test_transform_no_super_init(self):
     class AddSuffix(PTransform):
