@@ -29,10 +29,10 @@ if platform.system() == 'Windows':
   cythonize = lambda *args, **kwargs: []
 else:
   try:
-      # pylint: disable=g-statement-before-imports,g-import-not-at-top
-      from Cython.Build import cythonize
+    # pylint: disable=g-statement-before-imports,g-import-not-at-top
+    from Cython.Build import cythonize
   except ImportError:
-      cythonize = lambda *args, **kwargs: []
+    cythonize = lambda *args, **kwargs: []
 
 
 # Reads the actual version from pom.xml file,
