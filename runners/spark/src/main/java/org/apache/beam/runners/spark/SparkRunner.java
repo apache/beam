@@ -29,14 +29,12 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingEvaluationContext;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingWindowPipelineDetector;
-import org.apache.beam.runners.spark.util.SinglePrimitiveOutputPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
@@ -120,17 +118,14 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   /**
    * Overrides for this runner.
    */
-  @SuppressWarnings("rawtypes")
   @Override
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
 
     if (transform instanceof GroupByKey) {
       return (OutputT) ((PCollection) input).apply(
           new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
-    } else if (transform instanceof Create.Values) {
-      return (OutputT) super.apply(
-        new SinglePrimitiveOutputPTransform((Create.Values) transform), input);
     } else {
       return super.apply(transform, input);
     }

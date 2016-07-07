@@ -19,8 +19,11 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.coders.EncoderHelpers;
+import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,12 +50,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.KeyValueGroupedDataset;
 
 import org.slf4j.Logger;
@@ -78,6 +83,27 @@ public class DatasetTransformTranslator {
     return (DatasetEvaluationContext) context;
   }
 
+  /** Using {@link org.apache.spark.rdd.RDD} because the {@link Dataset} API is too high-level. */
+  private static <T> TransformEvaluator<Read.Bounded<T>> readBounded() {
+    return new TransformEvaluator<Read.Bounded<T>>() {
+
+      @Override
+      public void evaluate(final Read.Bounded<T> transform, EvaluationContext context) {
+        DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
+        BoundedSource<T> boundedSource = transform.getSource();
+        Encoder<WindowedValue<T>> encoder = EncoderHelpers.encoder();
+        JavaRDD<WindowedValue<T>> rdd = new JavaRDD<>(
+            new SourceRDD<>(dec.getSession().sparkContext(), boundedSource,
+            dec.getRuntimeContext()), encoder.clsTag());
+        // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
+        rdd.cache();
+        dec.setOutputDataset(transform,
+            dec.getSession().createDataset(rdd.rdd(), encoder));
+      }
+    };
+  }
+
   private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> groupByKey() {
     return new TransformEvaluator<GroupByKeyOnly<K, V>>() {
 
@@ -94,6 +120,8 @@ public class DatasetTransformTranslator {
             EncoderHelpers.<KV<K, V>>encoder())
             .groupByKey(Functions.<K, V>extractKey(), EncoderHelpers.<K>encoder());
         // materialize grouped values - OOM hazard see KeyValueGroupedDataset#mapGroups.
+        //TODO: optimize by saving the unmaterialized KeyValueGroupedDataset and apply the
+        // following transformation on it.
         Dataset<KV<K, Iterable<V>>> materialized =
             grouped.mapGroups(Functions.<K, V>materializeGroupedKV(),
             EncoderHelpers.<KV<K, Iterable<V>>>encoder());
@@ -332,7 +360,7 @@ public class DatasetTransformTranslator {
 
   static {
     //-------- SDK primitives
-//    PRIMITIVES.put(Read.Bounded.class, readBounded());
+    PRIMITIVES.put(Read.Bounded.class, readBounded());
 //    PRIMITIVES.put(Read.Unbounded.class, readUnbounded());
     PRIMITIVES.put(GroupByKeyOnly.class, groupByKey());
     PRIMITIVES.put(Flatten.FlattenPCollectionList.class, flattenPColl());
