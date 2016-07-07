@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.options;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -102,6 +104,27 @@ public class GcpOptionsTest {
     DefaultProjectFactory projectFactory = spy(new DefaultProjectFactory());
     when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.<String, String>of());
     assertNull(projectFactory.create(PipelineOptionsFactory.create()));
+  }
+
+  @Test
+  public void testEmptyGcpTempLocation() throws Exception {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
+  }
+
+  @Test
+  public void testDefaultGcpTempLocation() throws Exception {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    String tempLocation = "gs://bucket";
+    options.setTempLocation(tempLocation);
+    assertEquals(tempLocation, options.getGcpTempLocation());
+  }
+
+  @Test
+  public void testDefaultGcpTempLocationInvalid() throws Exception {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setTempLocation("file://");
+    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
   }
 
   private static void makePropertiesFileWithProject(File path, String projectId)

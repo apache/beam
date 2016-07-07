@@ -189,7 +189,14 @@ public class DataflowRunnerTest {
     return mockDataflowClient;
   }
 
-  private GcsUtil buildMockGcsUtil(boolean bucketExists) throws IOException {
+  /**
+   * Build a mock {@link GcsUtil} with return values.
+   *
+   * @param bucketExist fist return value
+   * @param bucketExists next return values
+   */
+  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
+      throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(new Answer<SeekableByteChannel>() {
@@ -208,7 +215,7 @@ public class DataflowRunnerTest {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExists);
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExist, bucketExists);
     return mockGcsUtil;
   }
 
@@ -510,16 +517,29 @@ public class DataflowRunnerTest {
   }
 
   @Test
-  public void testInvalidTempLocation() throws IOException {
+  public void testInvalidGcpTempLocation() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcpTempLocation("file://temp/location");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    DataflowRunner.fromOptions(options);
+    assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testNonGcsTempLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    thrown.expectMessage(containsString("Missing required value: at least one of tempLocation, "
+        + "gcpTempLocation or stagingLocation must be set."));
     DataflowRunner.fromOptions(options);
-    assertValidJob(jobCaptor.getValue());
   }
 
   @Test
@@ -545,7 +565,8 @@ public class DataflowRunnerTest {
   public void testNonExistentTempLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
-    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    GcsUtil mockGcsUtil =
+        buildMockGcsUtil(false /* temp bucket exists */, true /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setGcsUtil(mockGcsUtil);
     options.setTempLocation("gs://non-existent-bucket/location");
@@ -561,7 +582,8 @@ public class DataflowRunnerTest {
   public void testNonExistentStagingLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
-    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    GcsUtil mockGcsUtil =
+        buildMockGcsUtil(true /* temp bucket exists */, false /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
     options.setGcsUtil(mockGcsUtil);
     options.setStagingLocation("gs://non-existent-bucket/location");
@@ -672,9 +694,8 @@ public class DataflowRunnerTest {
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
-
+    thrown.expectMessage("Missing required value: at least one of tempLocation, gcpTempLocation"
+        + " or stagingLocation must be set.");
     DataflowRunner.fromOptions(options);
   }
 
