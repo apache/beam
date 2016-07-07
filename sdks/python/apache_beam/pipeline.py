@@ -226,7 +226,6 @@ class Pipeline(object):
     self.transforms_stack.append(current)
 
     type_options = self.options.view_as(TypeOptions)
-
     if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
