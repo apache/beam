@@ -559,13 +559,11 @@ class PTransformTest(unittest.TestCase):
 
 
 @beam.ptransform_fn
-def SamplePTransform(label, pcoll, context, *args, **kwargs):
+def SamplePTransform(pcoll):
   """Sample transform using the @ptransform_fn decorator."""
-  _ = label, args, kwargs
   map_transform = beam.Map('ToPairs', lambda v: (v, None))
   combine_transform = beam.CombinePerKey('Group', lambda vs: None)
   keys_transform = beam.Keys('RemoveDuplicates')
-  context.extend([map_transform, combine_transform, keys_transform])
   return pcoll | map_transform | combine_transform | keys_transform
 
 
@@ -626,8 +624,7 @@ class PTransformLabelsTest(unittest.TestCase):
   def test_apply_ptransform_using_decorator(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | beam.Create('pcoll', [1, 2, 3])
-    context = []
-    sample = SamplePTransform('*sample*', context)
+    sample = SamplePTransform('*sample*')
     _ = pcoll | sample
     self.assertTrue('*sample*' in pipeline.applied_labels)
     self.assertTrue('*sample*/ToPairs' in pipeline.applied_labels)

@@ -157,12 +157,12 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-def RemoveDuplicates(label, pcoll):  # pylint: disable=invalid-name
+def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing the unique elements of a PCollection."""
   return (pcoll
-          | Map('%s:ToPairs' % label, lambda v: (v, None))
-          | CombinePerKey('%s:Group' % label, lambda vs: None)
-          | Keys('%s:RemoveDuplicates' % label))
+          | Map('ToPairs', lambda v: (v, None))
+          | CombinePerKey('Group', lambda vs: None)
+          | Keys('RemoveDuplicates'))
 
 
 class DataflowAssertException(Exception):
