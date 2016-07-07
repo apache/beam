@@ -360,4 +360,26 @@ public class DisplayDataMatchers {
       }
     };
   }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has the specified
+   * label.
+   */
+  public static Matcher<DisplayData.Item<?>> hasLabel(String label) {
+    return hasLabel(Matchers.is(label));
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has a label matching
+   * the specified label matcher.
+   */
+  public static Matcher<DisplayData.Item<?>> hasLabel(Matcher<String> labelMatcher) {
+    return new FeatureMatcher<DisplayData.Item<?>, String>(
+        labelMatcher, "display item with label", "label") {
+      @Override
+      protected String featureValueOf(DisplayData.Item<?> actual) {
+        return actual.getLabel();
+      }
+    };
+  }
 }
