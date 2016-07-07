@@ -236,6 +236,21 @@ class GcsIO(object):
     except IOError:
       return False
 
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def size(self, path):
+    """Returns the size of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: size of the GCS object in bytes.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(bucket=bucket,
+                                               object=object_path)
+    return self.client.objects.Get(request).size
+
 
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""

@@ -189,6 +189,14 @@ class TestGCSIO(unittest.TestCase):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
 
+  def test_size(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+
+    self._insert_random_file(self.client, file_name, file_size)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(1234, self.gcs.size(file_name))
+
   def test_delete(self):
     file_name = 'gs://gcsio-test/delete_me'
     file_size = 1024
