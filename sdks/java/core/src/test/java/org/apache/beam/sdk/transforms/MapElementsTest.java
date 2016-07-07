@@ -19,13 +19,16 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -38,6 +41,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Set;
 
 /**
  * Tests for {@link MapElements}.
@@ -153,6 +157,24 @@ public class MapElementsTest implements Serializable {
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPrimitiveDisplayData() {
+    SimpleFunction<?, ?> mapFn = new SimpleFunction<Integer, Integer>() {
+      @Override
+      public Integer apply(Integer input) {
+        return input;
+      }
+    };
+
+    MapElements<?, ?> map = MapElements.via(mapFn);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(map);
+    assertThat("MapElements should include the mapFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("mapFn", mapFn.getClass())));
   }
 
   static class VoidValues<K, V>
