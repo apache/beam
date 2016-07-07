@@ -31,7 +31,6 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -70,10 +69,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 
-import com.sun.org.apache.regexp.internal.RE;
-
-import io.grpc.Status;
-
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -87,12 +82,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -537,72 +530,64 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testAddBulkOptions() {
+  public void testReadWithBigTableOptionsSetsRetryOptions() {
+    final int initialBackoffMillis = -1;
+
     BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
-    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder();
-    bulkOptionsBuilder.setAsyncMutatorWorkerCount(
-        BulkOptions.BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT - 1);
-    bulkOptionsBuilder.setBulkMaxRowKeyCount(
-        BulkOptions.BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT - 1);
-    bulkOptionsBuilder.setMaxInflightRpcs(BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT
-        * optionsBuilder.getDataChannelCount() - 1);
 
-    optionsBuilder.setBulkOptions(bulkOptionsBuilder.build());
-    optionsBuilder = BigtableIO.addBulkOptions(optionsBuilder);
+    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
+    retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
 
-    BulkOptions bulkOptions = bulkOptionsBuilder.build();
-    BulkOptions clonedBulkOptions = optionsBuilder.build().getBulkOptions();
-    assertEquals(bulkOptions.getAsyncMutatorCount(), clonedBulkOptions.getAsyncMutatorCount());
-    assertEquals(true, clonedBulkOptions.useBulkApi());
-    assertEquals(bulkOptions.getBulkMaxRowKeyCount(), clonedBulkOptions.getBulkMaxRowKeyCount());
-    assertEquals(bulkOptions.getBulkMaxRequestSize(), clonedBulkOptions.getBulkMaxRequestSize());
-    assertEquals(bulkOptions.getMaxInflightRpcs(), clonedBulkOptions.getMaxInflightRpcs());
-    assertEquals(bulkOptions.getMaxMemory(), clonedBulkOptions.getMaxMemory());
+    optionsBuilder.setRetryOptions(retryOptionsBuilder.build());
+
+    BigtableIO.Read read =
+        BigtableIO.read().withBigtableOptions(optionsBuilder.build());
+
+    BigtableOptions options = read.getBigtableOptions();
+    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE,
+        options.getRetryOptions().getStreamingBatchSize());
+    assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
+
+    assertThat(options.getRetryOptions(),
+        Matchers.equalTo(retryOptionsBuilder
+            .setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE)
+            .build()));
   }
 
   @Test
-  public void testAddRetryOptions() {
-    final double delta = 0.0000001;
+  public void testWriteWithBigTableOptionsSetsBulkOptionsAndRetryOptions() {
+    final int maxInflightRpcs = 1;
+    final int initialBackoffMillis = -1;
+
     BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
+
+    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder();
+    bulkOptionsBuilder.setMaxInflightRpcs(maxInflightRpcs);
+
     RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
-    retryOptionsBuilder.setEnableRetries(false);
-    retryOptionsBuilder.setInitialBackoffMillis(RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS - 1);
-    retryOptionsBuilder.setBackoffMultiplier(RetryOptions.DEFAULT_BACKOFF_MULTIPLIER - 1);
-    retryOptionsBuilder.setStreamingBufferSize(RetryOptions.DEFAULT_STREAMING_BUFFER_SIZE);
-    retryOptionsBuilder.setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE);
+    retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
 
-    optionsBuilder.setRetryOptions(retryOptionsBuilder.build());
-    optionsBuilder = BigtableIO.addRetryOptions(optionsBuilder);
+    optionsBuilder.setBulkOptions(bulkOptionsBuilder.build())
+        .setRetryOptions(retryOptionsBuilder.build());
 
-    RetryOptions retryOptions = retryOptionsBuilder.build();
-    RetryOptions clonedRetryOptions = optionsBuilder.build().getRetryOptions();
-    assertEquals(retryOptions.enableRetries(), clonedRetryOptions.enableRetries());
-    assertEquals(retryOptions.getInitialBackoffMillis(),
-        clonedRetryOptions.getInitialBackoffMillis());
-    assertEquals(retryOptions.getBackoffMultiplier(), clonedRetryOptions.getBackoffMultiplier(),
-        delta);
-    assertEquals(retryOptions.getMaxElaspedBackoffMillis(),
-        clonedRetryOptions.getMaxElaspedBackoffMillis());
-    assertEquals(retryOptions.getStreamingBufferSize(), clonedRetryOptions.getStreamingBufferSize());
-    assertEquals(retryOptions.getStreamingBatchSize(), clonedRetryOptions.getStreamingBatchSize());
-    assertEquals(retryOptions.getReadPartialRowTimeoutMillis(),
-        clonedRetryOptions.getReadPartialRowTimeoutMillis());
-    assertEquals(retryOptions.getMaxScanTimeoutRetries(),
-        clonedRetryOptions.getMaxScanTimeoutRetries());
-    assertFalse(clonedRetryOptions.allowRetriesWithoutTimestamp());
+    BigtableIO.Write write =
+        BigtableIO.write().withBigtableOptions(optionsBuilder.build());
 
-    Set<Status.Code> statusToRetryOn = new HashSet<>();
-    Set<Status.Code> clonedStatusToRetryOn = new HashSet<>();
-    for (Status.Code code : Status.Code.values()) {
-      if (retryOptions.isRetryable(code)) {
-        statusToRetryOn.add(code);
-      }
-      if (clonedRetryOptions.isRetryable(code)) {
-        clonedStatusToRetryOn.add(code);
-      }
-    }
+    BigtableOptions options = write.getBigtableOptions();
+    assertEquals(true, options.getBulkOptions().useBulkApi());
+    assertEquals(maxInflightRpcs, options.getBulkOptions().getMaxInflightRpcs());
+    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE,
+        options.getRetryOptions().getStreamingBatchSize());
+    assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
 
-    assertThat(clonedStatusToRetryOn, Matchers.containsInAnyOrder(statusToRetryOn.toArray()));
+    assertThat(options.getBulkOptions(),
+        Matchers.equalTo(bulkOptionsBuilder
+            .setUseBulkApi(true)
+            .build()));
+    assertThat(options.getRetryOptions(),
+        Matchers.equalTo(retryOptionsBuilder
+            .setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE)
+            .build()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
