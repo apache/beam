@@ -273,7 +273,7 @@ public class BigtableIO {
       super.populateDisplayData(builder);
 
       builder.add(DisplayData.item("tableId", tableId)
-        .withLinkUrl("Table ID"));
+        .withLabel("Table ID"));
 
       if (options != null) {
         builder.add(DisplayData.item("bigtableOptions", options.toString())
