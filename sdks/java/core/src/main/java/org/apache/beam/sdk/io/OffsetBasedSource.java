@@ -370,13 +370,13 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
       LOG.debug(
           "Proposing to split OffsetBasedReader {} at fraction {} (offset {})",
           rangeTracker, fraction, splitOffset);
-      if (!rangeTracker.trySplitAtPosition(splitOffset)) {
-        return null;
-      }
       long start = source.getStartOffset();
       long end = source.getEndOffset();
       OffsetBasedSource<T> primary = source.createSourceForSubrange(start, splitOffset);
       OffsetBasedSource<T> residual = source.createSourceForSubrange(splitOffset, end);
+      if (!rangeTracker.trySplitAtPosition(splitOffset)) {
+        return null;
+      }
       this.source = primary;
       return residual;
     }
