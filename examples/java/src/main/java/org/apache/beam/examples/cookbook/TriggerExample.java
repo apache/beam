@@ -419,8 +419,7 @@ public class TriggerExample {
   /**
    * Inherits standard configuration options.
    */
-  public interface TrafficFlowOptions
-      extends ExampleBigQueryTableOptions, ExampleOptions {
+  public interface TrafficFlowOptions extends ExampleBigQueryTableOptions, ExampleOptions {
 
     @Description("Input file to read from")
     @Default.String("gs://dataflow-samples/traffic_sensor/"

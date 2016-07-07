@@ -192,8 +192,7 @@ public class WindowedWordCount {
     options.setBigQuerySchema(getSchema());
     // DataflowExampleUtils creates the necessary input sources to simplify execution of this
     // Pipeline.
-    ExampleUtils exampleDataflowUtils = new ExampleUtils(options,
-      options.isUnbounded());
+    ExampleUtils exampleDataflowUtils = new ExampleUtils(options, options.isUnbounded());
 
     Pipeline pipeline = Pipeline.create(options);
 
