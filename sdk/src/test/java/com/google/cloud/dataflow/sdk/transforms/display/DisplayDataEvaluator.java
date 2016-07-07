@@ -40,10 +40,11 @@ public class DisplayDataEvaluator {
   private final PipelineOptions options;
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using {@link TestPipeline#testingPipelineOptions()}.
+   * Create a new {@link DisplayDataEvaluator} using options returned from
+   * {@link #getDefaultOptions()}.
    */
   public static DisplayDataEvaluator create() {
-    return create(TestPipeline.testingPipelineOptions());
+    return create(getDefaultOptions());
   }
 
   /**
@@ -51,6 +52,13 @@ public class DisplayDataEvaluator {
    */
   public static DisplayDataEvaluator create(PipelineOptions pipelineOptions) {
     return new DisplayDataEvaluator(pipelineOptions);
+  }
+
+  /**
+   * The default {@link PipelineOptions} which will be used by {@link #create()}.
+   */
+  public static PipelineOptions getDefaultOptions() {
+    return TestPipeline.testingPipelineOptions();
   }
 
   private DisplayDataEvaluator(PipelineOptions options) {
