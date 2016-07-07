@@ -861,11 +861,11 @@ public class BigtableIO {
       }
       logger.debug(
           "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
+      BigtableSource primary = source.withEndKey(splitKey);
+      BigtableSource residual = source.withStartKey(splitKey);
       if (!rangeTracker.trySplitAtPosition(splitKey)) {
         return null;
       }
-      BigtableSource primary = source.withEndKey(splitKey);
-      BigtableSource residual = source.withStartKey(splitKey);
       this.source = primary;
       return residual;
     }
