@@ -1036,9 +1036,7 @@ public class BigtableIO {
   }
 
   /**
-   * A helper function to add appropriate bulk options. See
-   * <a href="https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/899">RetryOptions
-   * toBuilder</a> for issue.
+   * A helper function to add appropriate bulk options.
    */
   static BigtableOptions.Builder addBulkOptions(BigtableOptions.Builder builder) {
     BulkOptions.Builder bulkOptionsBuilder = builder.build().getBulkOptions().toBuilder();
