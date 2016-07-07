@@ -1041,15 +1041,8 @@ public class BigtableIO {
    * toBuilder</a> for issue.
    */
   static BigtableOptions.Builder addBulkOptions(BigtableOptions.Builder builder) {
-    BulkOptions bulkOptions = builder.build().getBulkOptions();
-
-    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder()
-        .setAsyncMutatorWorkerCount(bulkOptions.getAsyncMutatorCount())
-        .setUseBulkApi(true)
-        .setBulkMaxRowKeyCount(bulkOptions.getBulkMaxRowKeyCount())
-        .setBulkMaxRequestSize(bulkOptions.getBulkMaxRequestSize())
-        .setMaxInflightRpcs(bulkOptions.getMaxInflightRpcs())
-        .setMaxMemory(bulkOptions.getMaxMemory());
+    BulkOptions.Builder bulkOptionsBuilder = builder.build().getBulkOptions().toBuilder();
+    bulkOptionsBuilder.setUseBulkApi(true);
 
     builder.setBulkOptions(bulkOptionsBuilder.build());
     return builder;
