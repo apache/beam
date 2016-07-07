@@ -69,6 +69,21 @@
             </configuration>
           </execution>
           <execution>
+            <id>ssetup-test</id>
+            <phase>process-test-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>pip</executable>
+              <arguments>
+                <argument>install</argument>
+                <argument>tox</argument>
+                <argument>--user</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
             <id>setuptools-test</id>
             <phase>test</phase>
             <goals>
