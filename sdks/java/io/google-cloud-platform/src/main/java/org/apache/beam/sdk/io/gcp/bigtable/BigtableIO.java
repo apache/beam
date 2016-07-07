@@ -486,6 +486,94 @@ public class BigtableIO {
       }
       return new BigtableServiceImpl(options);
     }
+
+    private class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
+
+      public BigtableWriterFn(String tableId, BigtableService bigtableService) {
+        this.tableId = checkNotNull(tableId, "tableId");
+        this.bigtableService = checkNotNull(bigtableService, "bigtableService");
+        this.failures = new ConcurrentLinkedQueue<>();
+      }
+
+      @Override
+      public void startBundle(Context c) throws Exception {
+        bigtableWriter = bigtableService.openForWriting(tableId);
+        recordsWritten = 0;
+      }
+
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+        checkForFailures();
+        Futures.addCallback(
+            bigtableWriter.writeRecord(c.element()), new WriteExceptionCallback(c.element()));
+        ++recordsWritten;
+      }
+
+      @Override
+      public void finishBundle(Context c) throws Exception {
+        bigtableWriter.close();
+        bigtableWriter = null;
+        checkForFailures();
+        logger.info("Wrote {} records", recordsWritten);
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        Write.this.populateDisplayData(builder);
+      }
+
+      ///////////////////////////////////////////////////////////////////////////////
+      private final String tableId;
+      private final BigtableService bigtableService;
+      private BigtableService.Writer bigtableWriter;
+      private long recordsWritten;
+      private final ConcurrentLinkedQueue<BigtableWriteException> failures;
+
+      /**
+       * If any write has asynchronously failed, fail the bundle with a useful error.
+       */
+      private void checkForFailures() throws IOException {
+        // Note that this function is never called by multiple threads and is the only place that
+        // we remove from failures, so this code is safe.
+        if (failures.isEmpty()) {
+          return;
+        }
+
+        StringBuilder logEntry = new StringBuilder();
+        int i = 0;
+        for (; i < 10 && !failures.isEmpty(); ++i) {
+          BigtableWriteException exc = failures.remove();
+          logEntry.append("\n").append(exc.getMessage());
+          if (exc.getCause() != null) {
+            logEntry.append(": ").append(exc.getCause().getMessage());
+          }
+        }
+        String message =
+            String.format(
+                "At least %d errors occurred writing to Bigtable. First %d errors: %s",
+                i + failures.size(),
+                i,
+                logEntry.toString());
+        logger.error(message);
+        throw new IOException(message);
+      }
+
+      private class WriteExceptionCallback implements FutureCallback<Empty> {
+        private final KV<ByteString, Iterable<Mutation>> value;
+
+        public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
+          this.value = value;
+        }
+
+        @Override
+        public void onFailure(Throwable cause) {
+          failures.add(new BigtableWriteException(value, cause));
+        }
+
+        @Override
+        public void onSuccess(Empty produced) {}
+      }
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////
@@ -840,96 +928,6 @@ public class BigtableIO {
       BigtableSource residual = source.withStartKey(splitKey);
       this.source = primary;
       return residual;
-    }
-  }
-
-  private static class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
-
-    public BigtableWriterFn(String tableId, BigtableService bigtableService) {
-      this.tableId = checkNotNull(tableId, "tableId");
-      this.bigtableService = checkNotNull(bigtableService, "bigtableService");
-      this.failures = new ConcurrentLinkedQueue<>();
-    }
-
-    @Override
-    public void startBundle(Context c) throws Exception {
-      bigtableWriter = bigtableService.openForWriting(tableId);
-      recordsWritten = 0;
-    }
-
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      checkForFailures();
-      Futures.addCallback(
-          bigtableWriter.writeRecord(c.element()), new WriteExceptionCallback(c.element()));
-      ++recordsWritten;
-    }
-
-    @Override
-    public void finishBundle(Context c) throws Exception {
-      bigtableWriter.close();
-      bigtableWriter = null;
-      checkForFailures();
-      logger.info("Wrote {} records", recordsWritten);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder.add(DisplayData.item("tableId", tableId)
-        .withLabel("Table ID"));
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////
-    private final String tableId;
-    private final BigtableService bigtableService;
-    private BigtableService.Writer bigtableWriter;
-    private long recordsWritten;
-    private final ConcurrentLinkedQueue<BigtableWriteException> failures;
-
-    /**
-     * If any write has asynchronously failed, fail the bundle with a useful error.
-     */
-    private void checkForFailures() throws IOException {
-      // Note that this function is never called by multiple threads and is the only place that
-      // we remove from failures, so this code is safe.
-      if (failures.isEmpty()) {
-        return;
-      }
-
-      StringBuilder logEntry = new StringBuilder();
-      int i = 0;
-      for (; i < 10 && !failures.isEmpty(); ++i) {
-        BigtableWriteException exc = failures.remove();
-        logEntry.append("\n").append(exc.getMessage());
-        if (exc.getCause() != null) {
-          logEntry.append(": ").append(exc.getCause().getMessage());
-        }
-      }
-      String message =
-          String.format(
-              "At least %d errors occurred writing to Bigtable. First %d errors: %s",
-              i + failures.size(),
-              i,
-              logEntry.toString());
-      logger.error(message);
-      throw new IOException(message);
-    }
-
-    private class WriteExceptionCallback implements FutureCallback<Empty> {
-      private final KV<ByteString, Iterable<Mutation>> value;
-
-      public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
-        this.value = value;
-      }
-
-      @Override
-      public void onFailure(Throwable cause) {
-        failures.add(new BigtableWriteException(value, cause));
-      }
-
-      @Override
-      public void onSuccess(Empty produced) {}
     }
   }
 
