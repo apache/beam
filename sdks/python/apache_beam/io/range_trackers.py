@@ -114,6 +114,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
+    assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
         logging.debug('refusing to split %r at %d: stop position unspecified',
@@ -163,7 +164,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise Exception(
           'get_position_for_fraction_consumed is not applicable for an '
           'unbounded range')
-    return (math.ceil(self.start_position() + fraction * (
+    return int(math.ceil(self.start_position() + fraction * (
         self.stop_position() - self.start_position())))
 
 

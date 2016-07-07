@@ -255,6 +255,20 @@ class ChannelFactory(object):
     else:
       return glob.glob(path)
 
+  @staticmethod
+  def size_in_bytes(path):
+    """Returns the size of a file in bytes.
+
+    Args:
+      path: a string that gives the path of a single file.
+    """
+    if path.startswith('gs://'):
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.io import gcsio
+      return gcsio.GcsIO().size(path)
+    else:
+      return os.path.getsize(path)
+
 
 class _CompressionType(object):
   """Object representing single compression type."""
