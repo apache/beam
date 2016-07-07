@@ -189,7 +189,7 @@ class UnionHintTestCase(TypeHintTestCase):
                              Union[int, float, SubClass])
 
     self.assertCompatible(Tuple[Any, Any],
-                           Union[Tuple[str, int], Tuple[str, float]])
+                          Union[Tuple[str, int], Tuple[str, float]])
 
   def test_union_hint_repr(self):
     hint = typehints.Union[DummyTestClass1, str]
