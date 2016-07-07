@@ -94,7 +94,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    * No two instances of this class are considered equivalent hence we generate a random hash code
    * between 0 and {@link Integer#MAX_VALUE}.
    */
-  private final int hashCode =  ThreadLocalRandom.current().nextInt(
+  private final int hashCode = ThreadLocalRandom.current().nextInt(
           Integer.MIN_VALUE, Integer.MAX_VALUE);
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
