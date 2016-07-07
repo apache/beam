@@ -22,9 +22,14 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
+
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -424,7 +429,10 @@ public class BigtableIOTest {
 
     DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("tableId"),
+        hasLabel("Table ID"),
+        hasValue("fooTable"))));
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
