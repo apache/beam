@@ -284,12 +284,6 @@
     <!--Unread field-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
-    <Method name="equals"/>
-    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
-    <!--Test for floating point equality-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.transforms.display.DisplayData"/>
     <Field name="entries"/>
     <Bug pattern="SE_BAD_FIELD"/>
