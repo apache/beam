@@ -91,11 +91,9 @@ import javax.annotation.concurrent.ThreadSafe;
 class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
-   * No two instances of this class are considered equivalent hence we generate a random hash code
-   * between 0 and {@link Integer#MAX_VALUE}.
+   * No two instances of this class are considered equivalent hence we generate a random hash code.
    */
-  private final int hashCode =  ThreadLocalRandom.current().nextInt(
-          Integer.MIN_VALUE, Integer.MAX_VALUE);
+  private final int hashCode = ThreadLocalRandom.current().nextInt();
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
   private final Map<String, BoundValue> options;
