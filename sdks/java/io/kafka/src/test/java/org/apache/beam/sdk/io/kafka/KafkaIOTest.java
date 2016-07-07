@@ -126,7 +126,6 @@ public class KafkaIOTest {
         records.put(tp, new ArrayList<ConsumerRecord<byte[], byte[]>>());
       }
       records.get(tp).add(
-          // Note: this interface has changed in 0.10. may get fixed before the release.
           new ConsumerRecord<byte[], byte[]>(
               tp.topic(),
               tp.partition(),
