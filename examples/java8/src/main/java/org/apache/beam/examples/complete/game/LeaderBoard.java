@@ -17,8 +17,8 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
-import org.apache.beam.examples.common.DataflowExampleUtils;
+import org.apache.beam.examples.common.ExampleOptions;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
@@ -102,7 +102,7 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Options supported by {@link LeaderBoard}.
    */
-  static interface Options extends HourlyTeamScore.Options, DataflowExampleOptions {
+  static interface Options extends HourlyTeamScore.Options, ExampleOptions {
 
     @Description("Pub/Sub topic to read from")
     @Validation.Required
@@ -178,7 +178,7 @@ public class LeaderBoard extends HourlyTeamScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    ExampleUtils dataflowUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
