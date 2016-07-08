@@ -78,9 +78,6 @@ import java.util.List;
  */
 public class TrafficMaxLaneFlow {
 
-  private static final String PUBSUB_TIMESTAMP_LABEL_KEY = "timestamp_ms";
-  private static final Integer VALID_INPUTS = 4999;
-
   static final int WINDOW_DURATION = 60;  // Default sliding window duration in minutes
   static final int WINDOW_SLIDE_EVERY = 5;  // Default window 'slide every' setting in minutes
 
@@ -323,11 +320,6 @@ public class TrafficMaxLaneFlow {
     @Default.Integer(WINDOW_SLIDE_EVERY)
     Integer getWindowSlideEvery();
     void setWindowSlideEvery(Integer value);
-
-    @Description("Whether to run the pipeline with unbounded input")
-    @Default.Boolean(false)
-    boolean isUnbounded();
-    void setUnbounded(boolean value);
   }
 
   /**
@@ -341,7 +333,8 @@ public class TrafficMaxLaneFlow {
         .as(TrafficMaxLaneFlowOptions.class);
     options.setBigQuerySchema(FormatMaxesFn.getSchema());
     // Using DataflowExampleUtils to set up required resources.
-    ExampleUtils dataflowUtils = new ExampleUtils(options, options.isUnbounded());
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
     TableReference tableRef = new TableReference();
@@ -365,7 +358,7 @@ public class TrafficMaxLaneFlow {
     PipelineResult result = pipeline.run();
 
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 
   private static Integer tryIntParse(String number) {

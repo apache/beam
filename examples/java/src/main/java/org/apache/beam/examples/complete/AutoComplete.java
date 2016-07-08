@@ -451,7 +451,7 @@ public class AutoComplete {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
-    ExampleUtils dataflowUtils = new ExampleUtils(options);
+    ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either
     // batch or windowed streaming mode.
@@ -480,7 +480,7 @@ public class AutoComplete {
           options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
-      dataflowUtils.setupBigQueryTable();
+      exampleUtils.setupBigQueryTable();
 
       TableReference tableRef = new TableReference();
       tableRef.setProjectId(options.getProject());
@@ -502,6 +502,6 @@ public class AutoComplete {
     PipelineResult result = p.run();
 
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }
