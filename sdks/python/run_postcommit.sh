@@ -38,7 +38,7 @@ pip install virtualenv --user
 pip install tox --user
 
 # Tox runs unit tests in a virtual environment
-# ${LOCAL_PATH}/tox -e py27 -c sdks/python/tox.ini
+${LOCAL_PATH}/tox -e py27 -c sdks/python/tox.ini
 
 # Virtualenv for the rest of the script to run setup & e2e tests
 ${LOCAL_PATH}/virtualenv sdks/python
