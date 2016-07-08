@@ -71,12 +71,13 @@
     <avro.version>1.7.7</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
     <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
-    <bigtable.version>0.2.3</bigtable.version>
+    <bigtable.version>0.3.0</bigtable.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
     <dataflow.version>v1b3-rev30-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.version>v1beta2-rev1-4.0.0</datastore.version>
     <google-clients.version>1.22.0</google-clients.version>
+    <grpc.version>0.13.1</grpc.version>
     <guava.version>19.0</guava.version>
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.7.0</jackson.version>
