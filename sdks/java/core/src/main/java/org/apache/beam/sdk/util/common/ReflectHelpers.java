@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Queue;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -50,7 +51,7 @@ public class ReflectHelpers {
   /** A {@link Function} that turns a method into a simple method signature. */
   public static final Function<Method, String> METHOD_FORMATTER = new Function<Method, String>() {
     @Override
-    public String apply(Method input) {
+    public String apply(@Nonnull Method input) {
       String parameterTypes = FluentIterable.from(asList(input.getParameterTypes()))
           .transform(CLASS_SIMPLE_NAME)
           .join(COMMA_SEPARATOR);
@@ -64,7 +65,7 @@ public class ReflectHelpers {
   public static final Function<Method, String> CLASS_AND_METHOD_FORMATTER =
       new Function<Method, String>() {
     @Override
-    public String apply(Method input) {
+    public String apply(@Nonnull Method input) {
       return String.format("%s#%s",
           CLASS_NAME.apply(input.getDeclaringClass()),
           METHOD_FORMATTER.apply(input));
@@ -75,7 +76,7 @@ public class ReflectHelpers {
   public static final Function<Class<?>, String> CLASS_NAME =
       new Function<Class<?>, String>() {
     @Override
-    public String apply(Class<?> input) {
+    public String apply(@Nonnull Class<?> input) {
       return input.getName();
     }
   };
@@ -84,7 +85,7 @@ public class ReflectHelpers {
   public static final Function<Class<?>, String> CLASS_SIMPLE_NAME =
       new Function<Class<?>, String>() {
     @Override
-    public String apply(Class<?> input) {
+    public String apply(@Nonnull Class<?> input) {
       return input.getSimpleName();
     }
   };
@@ -94,7 +95,7 @@ public class ReflectHelpers {
       new Function<Type, String>() {
     @Override
     @Nullable
-    public String apply(@Nullable Type input) {
+    public String apply(@Nonnull Type input) {
       StringBuilder builder = new StringBuilder();
       format(builder, input);
       return builder.toString();
@@ -184,7 +185,7 @@ public class ReflectHelpers {
     return FluentIterable.from(interfaces).transformAndConcat(
         new Function<Class<?>, Iterable<Method>>() {
           @Override
-          public Iterable<Method> apply(Class<?> input) {
+          public Iterable<Method> apply(@Nonnull Class<?> input) {
             return getClosureOfMethodsOnInterface(input);
           }
     });

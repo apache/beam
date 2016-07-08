@@ -40,6 +40,8 @@ import java.io.Serializable;
 
 import javax.annotation.Nullable;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Implements the logic to hold the output watermark for a computation back
  * until it has seen all the elements it needs based on the input watermark for the
@@ -465,6 +467,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     final WatermarkHoldState<BoundedWindow> extraHoldState = context.state().access(EXTRA_HOLD_TAG);
     return new ReadableState<OldAndNewHolds>() {
       @Override
+      @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+        justification = "")
       public ReadableState<OldAndNewHolds> readLater() {
         elementHoldState.readLater();
         extraHoldState.readLater();

@@ -422,7 +422,7 @@ public class CoGbkResult {
 
     @Override
     public boolean hasNext() {
-      if (containsTag[tag] == Boolean.FALSE) {
+      if (Boolean.FALSE.equals(containsTag[tag])) {
         return false;
       }
       advance();

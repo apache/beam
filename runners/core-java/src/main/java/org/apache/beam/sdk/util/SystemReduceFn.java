@@ -34,6 +34,8 @@ import org.apache.beam.sdk.util.state.StateMerging;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * {@link ReduceFn} implementing the default reduction behaviors of {@link GroupByKey}.
  *
@@ -114,6 +116,8 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   @Override
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+    justification = "prefetch side effect")
   public void prefetchOnTrigger(StateAccessor<K> state) {
     state.access(bufferTag).readLater();
   }

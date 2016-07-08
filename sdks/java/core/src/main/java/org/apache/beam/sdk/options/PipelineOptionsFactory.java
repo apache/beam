@@ -83,7 +83,7 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 /**
  * Constructs a {@link PipelineOptions} or any derived interface that is composable to any other
@@ -348,7 +348,7 @@ public class PipelineOptionsFactory {
             getRegisteredOptions(),
             new Predicate<Class<? extends PipelineOptions>>() {
               @Override
-              public boolean apply(Class<? extends PipelineOptions> input) {
+              public boolean apply(@Nonnull Class<? extends PipelineOptions> input) {
                 if (helpOption.contains(".")) {
                   return input.getName().endsWith(helpOption);
                 } else {
@@ -462,7 +462,7 @@ public class PipelineOptionsFactory {
   private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE =
       new Predicate<Method>() {
         @Override
-        public boolean apply(Method input) {
+        public boolean apply(@Nonnull Method input) {
           return !input.isSynthetic();
         }
       };
@@ -1388,7 +1388,7 @@ public class PipelineOptionsFactory {
           SortedSet<String> closestMatches = new TreeSet<String>(
               Sets.filter(propertyNamesToGetters.keySet(), new Predicate<String>() {
                 @Override
-                public boolean apply(@Nullable String input) {
+                public boolean apply(@Nonnull String input) {
                   return StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2;
                 }
           }));
@@ -1441,7 +1441,7 @@ public class PipelineOptionsFactory {
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
                 @Override
-                public Iterable<String> apply(String input) {
+                public Iterable<String> apply(@Nonnull String input) {
                   return Arrays.asList(input.split(","));
                 }
           }).toList();

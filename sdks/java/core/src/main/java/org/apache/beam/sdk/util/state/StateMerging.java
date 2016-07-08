@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Helpers for merging state.
  */
@@ -59,7 +61,7 @@ public class StateMerging {
     // Prefetch everything except what's already in result.
     for (BagState<T> source : map.values()) {
       if (!source.equals(result)) {
-        source.readLater();
+        prefetchRead(source);
       }
     }
   }
@@ -85,7 +87,7 @@ public class StateMerging {
     List<ReadableState<Iterable<T>>> futures = new ArrayList<>(sources.size());
     for (BagState<T> source : sources) {
       if (!source.equals(result)) {
-        source.readLater();
+        prefetchRead(source);
         futures.add(source);
       }
     }
@@ -115,7 +117,7 @@ public class StateMerging {
       prefetchCombiningValues(MergingStateAccessor<K, W> context,
           StateTag<? super K, StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {
-      state.readLater();
+      prefetchRead(state);
     }
   }
 
@@ -147,7 +149,7 @@ public class StateMerging {
     // Prefetch.
     List<ReadableState<AccumT>> futures = new ArrayList<>(sources.size());
     for (AccumulatorCombiningState<InputT, AccumT, OutputT> source : sources) {
-      source.readLater();
+      prefetchRead(source);
     }
     // Read.
     List<AccumT> accumulators = new ArrayList<>(futures.size());
@@ -188,8 +190,14 @@ public class StateMerging {
     }
     // Prefetch.
     for (WatermarkHoldState<W> source : map.values()) {
-      source.readLater();
+      prefetchRead(source);
     }
+  }
+
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch call readLater")
+  private static void prefetchRead(ReadableState<?> source) {
+    source.readLater();
   }
 
   /**

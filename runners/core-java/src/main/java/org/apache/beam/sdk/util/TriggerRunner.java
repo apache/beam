@@ -37,6 +37,8 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Executes a trigger while managing persistence of information about which subtriggers are
  * finished. Subtriggers include all recursive trigger expressions as well as the entire trigger.
@@ -100,6 +102,8 @@ public class TriggerRunner<W extends BoundedWindow> {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchForValue(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
@@ -108,6 +112,8 @@ public class TriggerRunner<W extends BoundedWindow> {
         contextFactory.createStateAccessor(window, rootTrigger));
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchOnFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
@@ -115,6 +121,8 @@ public class TriggerRunner<W extends BoundedWindow> {
     rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateAccessor(window, rootTrigger));
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
@@ -137,6 +145,8 @@ public class TriggerRunner<W extends BoundedWindow> {
     persistFinishedSet(state, finishedSet);
   }
 
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+      justification = "prefetch side effect")
   public void prefetchForMerge(
       W window, Collection<W> mergingWindows, MergingStateAccessor<?, W> state) {
     if (isFinishedSetNeeded()) {
