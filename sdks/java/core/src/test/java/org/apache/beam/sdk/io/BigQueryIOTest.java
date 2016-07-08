@@ -333,9 +333,10 @@ public class BigQueryIOTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient ExpectedLogs logged = ExpectedLogs.none(BigQueryIO.class);
   @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
-  @Mock public transient BigQueryServices.JobService mockJobService;
+  @Mock(extraInterfaces = Serializable.class)
+  public transient BigQueryServices.JobService mockJobService;
   @Mock private transient IOChannelFactory mockIOChannelFactory;
-  @Mock private transient DatasetService mockDatasetService;
+  @Mock(extraInterfaces = Serializable.class) private transient DatasetService mockDatasetService;
 
   private transient BigQueryOptions bqOptions;
 
@@ -642,10 +643,13 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testTableSourcePrimitiveDisplayData() {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+  public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .from("project:dataset.tableId")
+        .withTestServices(new FakeBigQueryServices()
+            .withDatasetService(mockDatasetService)
+            .withJobService(mockJobService))
         .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
@@ -655,10 +659,13 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testQuerySourcePrimitiveDisplayData() {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+  public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .fromQuery("foobar")
+        .withTestServices(new FakeBigQueryServices()
+            .withDatasetService(mockDatasetService)
+            .withJobService(mockJobService))
         .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
@@ -677,24 +684,27 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testBatchSinkPrimitiveDisplayData() {
+  public void testBatchSinkPrimitiveDisplayData() throws IOException, InterruptedException {
     testSinkPrimitiveDisplayData(/* streaming: */ false);
   }
 
   @Test
   @Category(RunnableOnService.class)
-  public void testStreamingSinkPrimitiveDisplayData() {
+  public void testStreamingSinkPrimitiveDisplayData() throws IOException, InterruptedException {
     testSinkPrimitiveDisplayData(/* streaming: */ true);
   }
 
-  private void testSinkPrimitiveDisplayData(boolean streaming) {
-    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
-    options.as(StreamingOptions.class).setStreaming(streaming);
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
+  private void testSinkPrimitiveDisplayData(boolean streaming) throws IOException,
+      InterruptedException {
+    bqOptions.as(StreamingOptions.class).setStreaming(streaming);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
 
     BigQueryIO.Write.Bound write = BigQueryIO.Write
         .to("project:dataset.table")
         .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
+        .withTestServices(new FakeBigQueryServices()
+          .withDatasetService(mockDatasetService)
+          .withJobService(mockJobService))
         .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
