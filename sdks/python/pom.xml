@@ -69,17 +69,29 @@
             </configuration>
           </execution>
           <execution>
-            <id>setup-test-env</id>
+            <id>setup-test-virtualenv</id>
             <phase>process-test-resources</phase>
             <goals>
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>pip</executable>
+              <executable>virtualenv</executable>
+              <arguments>
+                <argument>${project.build.directory}/virtualenv</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>setup-test-tox</id>
+            <phase>process-test-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${project.build.directory}/virtualenv/bin/pip</executable>
               <arguments>
                 <argument>install</argument>
                 <argument>tox</argument>
-                <argument>--user</argument>
               </arguments>
             </configuration>
           </execution>
@@ -90,7 +102,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>tox</executable>
+              <executable>${project.build.directory}/virtualenv/bin/tox</executable>
               <arguments>
                 <argument>-e</argument>
                 <argument>py27</argument>
