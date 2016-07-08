@@ -644,7 +644,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .from("project:dataset.tableId")
         .withTestServices(new FakeBigQueryServices()
@@ -660,7 +660,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .fromQuery("foobar")
         .withTestServices(new FakeBigQueryServices()
@@ -696,8 +696,9 @@ public class BigQueryIOTest implements Serializable {
 
   private void testSinkPrimitiveDisplayData(boolean streaming) throws IOException,
       InterruptedException {
-    bqOptions.as(StreamingOptions.class).setStreaming(streaming);
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(streaming);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
     BigQueryIO.Write.Bound write = BigQueryIO.Write
         .to("project:dataset.table")
