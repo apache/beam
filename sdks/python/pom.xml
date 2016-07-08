@@ -64,7 +64,7 @@
                 <argument>setup.py</argument>
                 <argument>build</argument>
                 <argument>--build-base</argument>
-                <argument>target/build</argument> <!--FIXME: ${maven.build.dir} is not expanded -->
+                <argument>${project.build.directory}/build</argument>
               </arguments>
             </configuration>
           </execution>
@@ -111,7 +111,7 @@
                 <argument>setup.py</argument>
                 <argument>sdist</argument>
                 <argument>--dist-dir</argument>
-                <argument>target</argument> <!--FIXME: ${maven.build.dir} is not expanded -->
+                <argument>${project.build.directory}</argument>
               </arguments>
             </configuration>
           </execution>
