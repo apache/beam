@@ -35,6 +35,53 @@
 
   <packaging>jar</packaging>
 
+  <profiles>
+
+    <!--
+      A default profile that includes optional dependencies
+      on all of our runners. This is aimed at making it very
+      easy for users to run examples with any runner without
+      any configuration. It is not needed or desirable when
+      testing the examples with a particular runner.
+
+      This profile can be disabled on the command line
+      by specifying -P !include-runners.
+
+      This profile cannot be lifted to examples-parent because
+      it would be automatically deactivated when the Java 8
+      profile were activated.
+    -->
+    <profile>
+      <id>include-runners</id>
+      <activation><activeByDefault>true</activeByDefault></activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-direct-java</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-flink_2.10</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-spark</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
   <build>
     <plugins>
       <plugin>
@@ -163,22 +210,6 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-flink_2.10</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-      <optional>true</optional>
     </dependency>
   </dependencies>
 </project>
