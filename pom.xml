@@ -948,10 +948,25 @@
               <artifactId>beam-sdks-java-build-tools</artifactId>
               <version>${project.version}</version>
             </dependency>
+
+            <!-- Explicitly exclude deps which we do not really need. -->
+            <dependency>
+              <groupId>com.google.code.findbugs</groupId>
+              <artifactId>findbugs</artifactId>
+              <version>${findbugs.version}</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>com.apple</groupId>
+                  <artifactId>AppleJavaExtensions</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
           </dependencies>
+
           <configuration>
             <excludeFilterFile>beam/findbugs-filter.xml</excludeFilterFile>
           </configuration>
+
           <executions>
             <execution>
               <phase>test</phase>
