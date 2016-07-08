@@ -29,10 +29,12 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
@@ -47,6 +49,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -68,6 +72,11 @@ import java.util.Set;
 public class AvroIOTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @BeforeClass
+  public static void setupClass() {
+    IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
+  }
 
   @Test
   public void testReadWithoutValidationFlag() throws Exception {
@@ -313,11 +322,16 @@ public class AvroIOTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testPrimitiveWriteDisplayData() {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
+  public void testPrimitiveWriteDisplayData() throws IOException {
+    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
+    String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
+    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foo");
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
     AvroIO.Write.Bound<?> write = AvroIO.Write
-        .to("foo")
+        .to(outputPath)
         .withSchema(Schema.create(Schema.Type.STRING))
         .withoutValidation();
 

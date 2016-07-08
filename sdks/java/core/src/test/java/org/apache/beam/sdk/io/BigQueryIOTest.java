@@ -94,6 +94,7 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -643,8 +644,9 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .from("project:dataset.tableId")
         .withTestServices(new FakeBigQueryServices()
@@ -659,8 +661,9 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read.Bound read = BigQueryIO.Read
         .fromQuery("foobar")
         .withTestServices(new FakeBigQueryServices()
@@ -684,20 +687,23 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testBatchSinkPrimitiveDisplayData() throws IOException, InterruptedException {
     testSinkPrimitiveDisplayData(/* streaming: */ false);
   }
 
   @Test
   @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testStreamingSinkPrimitiveDisplayData() throws IOException, InterruptedException {
     testSinkPrimitiveDisplayData(/* streaming: */ true);
   }
 
   private void testSinkPrimitiveDisplayData(boolean streaming) throws IOException,
       InterruptedException {
-    bqOptions.as(StreamingOptions.class).setStreaming(streaming);
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(streaming);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
     BigQueryIO.Write.Bound write = BigQueryIO.Write
         .to("project:dataset.table")
