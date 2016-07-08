@@ -56,12 +56,12 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The utility class that sets up and tears down external resources, starts the Google Cloud Pub/Sub
- * injector, and cancels the streaming and the injector pipelines once the program terminates.
+ * The utility class that sets up and tears down external resources,
+ * and cancels the streaming pipelines once the program terminates.
  *
- * <p>It is used to run Dataflow examples, such as TrafficMaxLaneFlow and TrafficRoutes.
+ * <p>It is used to run Beam examples, such as TrafficMaxLaneFlow and TrafficRoutes.
  */
-public class DataflowExampleUtils {
+public class ExampleUtils {
 
   private static final int SC_NOT_FOUND = 404;
 
@@ -72,14 +72,14 @@ public class DataflowExampleUtils {
   private Set<DataflowPipelineJob> jobsToCancel = Sets.newHashSet();
   private List<String> pendingMessages = Lists.newArrayList();
 
-  public DataflowExampleUtils(DataflowPipelineOptions options) {
+  public ExampleUtils(DataflowPipelineOptions options) {
     this.options = options;
   }
 
   /**
    * Do resources and runner options setup.
    */
-  public DataflowExampleUtils(DataflowPipelineOptions options, boolean isUnbounded)
+  public ExampleUtils(DataflowPipelineOptions options, boolean isUnbounded)
       throws IOException {
     this.options = options;
     setupResourcesAndRunner(isUnbounded);
@@ -316,7 +316,7 @@ public class DataflowExampleUtils {
     if (result instanceof DataflowPipelineJob) {
       final DataflowPipelineJob job = (DataflowPipelineJob) result;
       jobsToCancel.add(job);
-      if (!options.as(DataflowExampleOptions.class).getKeepJobsRunning()) {
+      if (!options.as(ExampleOptions.class).getKeepJobsRunning()) {
         addShutdownHook(jobsToCancel);
       }
       try {

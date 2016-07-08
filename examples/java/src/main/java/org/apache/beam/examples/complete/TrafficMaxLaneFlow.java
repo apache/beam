@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
-import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
+import org.apache.beam.examples.common.ExampleOptions;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -307,8 +307,7 @@ public class TrafficMaxLaneFlow {
     *
     * <p>Inherits standard configuration options.
     */
-  private interface TrafficMaxLaneFlowOptions extends DataflowExampleOptions,
-      ExampleBigQueryTableOptions {
+  private interface TrafficMaxLaneFlowOptions extends ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
@@ -342,7 +341,7 @@ public class TrafficMaxLaneFlow {
         .as(TrafficMaxLaneFlowOptions.class);
     options.setBigQuerySchema(FormatMaxesFn.getSchema());
     // Using DataflowExampleUtils to set up required resources.
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options, options.isUnbounded());
+    ExampleUtils dataflowUtils = new ExampleUtils(options, options.isUnbounded());
 
     Pipeline pipeline = Pipeline.create(options);
     TableReference tableRef = new TableReference();
