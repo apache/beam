@@ -82,6 +82,9 @@ class GCEMetadataCredentials(OAuth2Credentials):
         None,  # token_uri
         user_agent)
 
+  @retry.with_exponential_backoff(
+      num_retries=3, initial_delay_secs=1.0,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _refresh(self, http_request):
     refresh_time = datetime.datetime.now()
     req = urllib2.Request('http://metadata.google.internal/computeMetadata/v1/'
