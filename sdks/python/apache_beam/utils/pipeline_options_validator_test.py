@@ -70,7 +70,7 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(
         self.check_errors_for_arguments(
             errors,
-            ['project', 'job_name', 'staging_location', 'temp_location']),
+            ['project', 'job_name', 'staging_location']),
         [])
 
   def test_gcs_path(self):
@@ -87,7 +87,7 @@ class SetupTest(unittest.TestCase):
       return validator
 
     test_cases = [
-        {'temp_location': None, 'errors': ['temp_location']},
+        {'temp_location': None, 'errors': []},
         {'temp_location': 'gcs:/foo/bar', 'errors': ['temp_location']},
         {'temp_location': 'gs:/foo/bar', 'errors': ['temp_location']},
         {'temp_location': 'gs://ABC/bar', 'errors': ['temp_location']},

@@ -235,7 +235,8 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='GCS path for staging code packages needed by '
                         'workers.')
-    # Remote execution must check that this option is not None.
+    # If this option is None then the Dataflow pipeline defaults to using
+    # staging_location.
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
@@ -254,7 +255,8 @@ class GoogleCloudOptions(PipelineOptions):
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
       errors.extend(validator.validate_gcs_path(self, 'staging_location'))
-      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+      if getattr(self, 'temp_location', None):
+        errors.extend(validator.validate_gcs_path(self, 'temp_location'))
     return errors
 
 
