@@ -72,17 +72,12 @@ public class ExampleUtils {
   private Set<DataflowPipelineJob> jobsToCancel = Sets.newHashSet();
   private List<String> pendingMessages = Lists.newArrayList();
 
-  public ExampleUtils(DataflowPipelineOptions options) {
-    this.options = options;
-  }
-
   /**
    * Do resources and runner options setup.
    */
-  public ExampleUtils(DataflowPipelineOptions options, boolean isUnbounded)
-      throws IOException {
+  public ExampleUtils(DataflowPipelineOptions options) {
     this.options = options;
-    setupResourcesAndRunner(isUnbounded);
+    setupRunner();
   }
 
   /**
@@ -110,17 +105,6 @@ public class ExampleUtils {
       // Ignore InterruptedException
     }
     throw new RuntimeException(lastException);
-  }
-
-  /**
-   * Set up external resources, and configure the runner appropriately.
-   */
-  public void setupResourcesAndRunner(boolean isUnbounded) throws IOException {
-    if (isUnbounded) {
-      options.setStreaming(true);
-    }
-    setup();
-    setupRunner();
   }
 
   /**
@@ -297,11 +281,9 @@ public class ExampleUtils {
    * Do some runner setup: check that the DirectRunner is not used in conjunction with
    * streaming, and if streaming is specified, use the DataflowRunner.
    */
-  public void setupRunner() {
+  private void setupRunner() {
     Class<? extends PipelineRunner<?>> runner = options.getRunner();
-    if (options.isStreaming()
-        && (runner.equals(DataflowRunner.class)
-            || runner.equals(BlockingDataflowRunner.class))) {
+    if (options.isStreaming() && runner.equals(BlockingDataflowRunner.class)) {
       // In order to cancel the pipelines automatically,
       // {@literal DataflowRunner} is forced to be used.
       options.setRunner(DataflowRunner.class);

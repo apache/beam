@@ -181,10 +181,6 @@ public class WindowedWordCount {
     @Default.Integer(WINDOW_SIZE)
     Integer getWindowSize();
     void setWindowSize(Integer value);
-
-    @Description("Whether to run the pipeline with unbounded input")
-    boolean isUnbounded();
-    void setUnbounded(boolean value);
   }
 
   public static void main(String[] args) throws IOException {
@@ -192,7 +188,8 @@ public class WindowedWordCount {
     options.setBigQuerySchema(getSchema());
     // DataflowExampleUtils creates the necessary input sources to simplify execution of this
     // Pipeline.
-    ExampleUtils exampleDataflowUtils = new ExampleUtils(options, options.isUnbounded());
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -237,6 +234,6 @@ public class WindowedWordCount {
     PipelineResult result = pipeline.run();
 
     // dataflowUtils will try to cancel the pipeline before the program exists.
-    exampleDataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }

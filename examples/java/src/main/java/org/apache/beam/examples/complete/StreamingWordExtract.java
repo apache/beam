@@ -120,8 +120,8 @@ public class StreamingWordExtract {
     options.setStreaming(true);
 
     options.setBigQuerySchema(StringToRowConverter.getSchema());
-    ExampleUtils dataflowUtils = new ExampleUtils(options);
-    dataflowUtils.setup();
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -141,6 +141,6 @@ public class StreamingWordExtract {
     PipelineResult result = pipeline.run();
 
     // dataflowUtils will try to cancel the pipeline before the program exists.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }
