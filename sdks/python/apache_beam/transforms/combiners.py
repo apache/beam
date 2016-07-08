@@ -148,7 +148,7 @@ class Top(object):
   # pylint: disable=no-self-argument
 
   @ptransform.ptransform_fn
-  def Of(label, pcoll, n, compare, *args, **kwargs):
+  def Of(pcoll, n, compare, *args, **kwargs):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
@@ -160,7 +160,6 @@ class Top(object):
     become additional arguments to the comparator.
 
     Args:
-      label: display label for transform processes.
       pcoll: PCollection to process.
       n: number of elements to extract from pcoll.
       compare: as described above.
@@ -168,10 +167,10 @@ class Top(object):
       **kwargs: as described above.
     """
     return pcoll | core.CombineGlobally(
-        label, TopCombineFn(n, compare), *args, **kwargs)
+        TopCombineFn(n, compare), *args, **kwargs)
 
   @ptransform.ptransform_fn
-  def PerKey(label, pcoll, n, compare, *args, **kwargs):
+  def PerKey(pcoll, n, compare, *args, **kwargs):
     """Identifies the compare-most N elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
@@ -184,7 +183,6 @@ class Top(object):
     become additional arguments to the comparator.
 
     Args:
-      label: display label for transform processes.
       pcoll: PCollection to process.
       n: number of elements to extract from pcoll.
       compare: as described above.
@@ -196,27 +194,27 @@ class Top(object):
         compatible with KV[A, B].
     """
     return pcoll | core.CombinePerKey(
-        label, TopCombineFn(n, compare), *args, **kwargs)
+        TopCombineFn(n, compare), *args, **kwargs)
 
   @ptransform.ptransform_fn
-  def Largest(label, pcoll, n):
+  def Largest(pcoll, n):
     """Obtain a list of the greatest N elements in a PCollection."""
-    return pcoll | Top.Of(label, n, lambda a, b: a < b)
+    return pcoll | Top.Of(n, lambda a, b: a < b)
 
   @ptransform.ptransform_fn
-  def Smallest(label, pcoll, n):
+  def Smallest(pcoll, n):
     """Obtain a list of the least N elements in a PCollection."""
-    return pcoll | Top.Of(label, n, lambda a, b: b < a)
+    return pcoll | Top.Of(n, lambda a, b: b < a)
 
   @ptransform.ptransform_fn
-  def LargestPerKey(label, pcoll, n):
+  def LargestPerKey(pcoll, n):
     """Identifies the N greatest elements associated with each key."""
-    return pcoll | Top.PerKey(label, n, lambda a, b: a < b)
+    return pcoll | Top.PerKey(n, lambda a, b: a < b)
 
   @ptransform.ptransform_fn
-  def SmallestPerKey(label, pcoll, n):
+  def SmallestPerKey(pcoll, n):
     """Identifies the N least elements associated with each key."""
-    return pcoll | Top.PerKey(label, n, lambda a, b: b < a)
+    return pcoll | Top.PerKey(n, lambda a, b: b < a)
 
 
 @with_input_types(T)
@@ -325,12 +323,12 @@ class Sample(object):
   # pylint: disable=no-self-argument
 
   @ptransform.ptransform_fn
-  def FixedSizeGlobally(label, pcoll, n):
-    return pcoll | core.CombineGlobally(label, SampleCombineFn(n))
+  def FixedSizeGlobally(pcoll, n):
+    return pcoll | core.CombineGlobally(SampleCombineFn(n))
 
   @ptransform.ptransform_fn
-  def FixedSizePerKey(label, pcoll, n):
-    return pcoll | core.CombinePerKey(label, SampleCombineFn(n))
+  def FixedSizePerKey(pcoll, n):
+    return pcoll | core.CombinePerKey(SampleCombineFn(n))
 
 
 @with_input_types(T)

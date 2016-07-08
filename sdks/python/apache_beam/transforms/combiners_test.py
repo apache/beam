@@ -21,7 +21,6 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
-from apache_beam.transforms import combiners
 import apache_beam.transforms.combiners as combine
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
@@ -101,16 +100,16 @@ class CombineTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
 
     pcoll = pipeline | Create('start', [6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-    result_top = pcoll | beam.CombineGlobally('top', combiners.Largest(5))
-    result_bot = pcoll | beam.CombineGlobally('bot', combiners.Smallest(4))
+    result_top = pcoll | beam.CombineGlobally('top', combine.Largest(5))
+    result_bot = pcoll | beam.CombineGlobally('bot', combine.Smallest(4))
     assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
     assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
 
     pcoll = pipeline | Create(
         'start-perkey', [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-    result_ktop = pcoll | beam.CombinePerKey('top-perkey', combiners.Largest(5))
+    result_ktop = pcoll | beam.CombinePerKey('top-perkey', combine.Largest(5))
     result_kbot = pcoll | beam.CombinePerKey(
-        'bot-perkey', combiners.Smallest(4))
+        'bot-perkey', combine.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
     pipeline.run()

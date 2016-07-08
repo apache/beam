@@ -153,18 +153,20 @@ def run(argv=None):
    | beam.Map('pair_with_key', lambda x: ('chars_temp_key', x))
    | beam.GroupByKey()
    | beam.Map('count chars', lambda (_, counts): sum(counts))
-   | beam.Write('write chars', beam.io.TextFileSink(known_args.output + '-chars')))
+   | beam.Write('write chars',
+                beam.io.TextFileSink(known_args.output + '-chars')))
 
   # pylint: disable=expression-not-assigned
   (short_words
    | CountWords('count short words')
    | beam.Write('write short words',
-              beam.io.TextFileSink(known_args.output + '-short-words')))
+                beam.io.TextFileSink(known_args.output + '-short-words')))
 
   # pylint: disable=expression-not-assigned
   (words
    | CountWords('count words')
-   | beam.Write('write words', beam.io.TextFileSink(known_args.output + '-words')))
+   | beam.Write('write words',
+                beam.io.TextFileSink(known_args.output + '-words')))
 
   p.run()
 

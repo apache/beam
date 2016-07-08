@@ -243,11 +243,19 @@ class SetupTest(unittest.TestCase):
     dependency._dependency_file_download = file_download
     return os.path.join(expected_to_folder, 'sdk-tarball')
 
+  def override_pypi_download(self, expected_from_url, expected_to_folder):
+    def pypi_download(_):
+      tarball_path = os.path.join(expected_to_folder, 'sdk-tarball')
+      with open(tarball_path, 'w') as f:
+        f.write('Some contents.')
+      return tarball_path
+    dependency._download_pypi_sdk_package = pypi_download
+    return os.path.join(expected_to_folder, 'sdk-tarball')
+
   def test_sdk_location_default(self):
     staging_dir = tempfile.mkdtemp()
-    expected_from_url = '%s/v%s.tar.gz' % (
-        dependency.PACKAGES_URL_PREFIX, __version__)
-    expected_from_path = self.override_file_download(
+    expected_from_url = 'pypi'
+    expected_from_path = self.override_pypi_download(
         expected_from_url, staging_dir)
     self.override_file_copy(expected_from_path, staging_dir)
 

@@ -989,7 +989,7 @@ class WindowedTypeConstraint(TypeConstraint):
 
     try:
       check_constraint(self.inner_type, instance.value)
-    except (CompositeTypeHintError, SimpleTypeHintError) as e:
+    except (CompositeTypeHintError, SimpleTypeHintError):
       raise CompositeTypeHintError(
           '%s hint type-constraint violated. The type of element in '
           'is incorrect. Expected an instance of type %s, '
@@ -1050,7 +1050,10 @@ def is_consistent_with(sub, base):
   sub = normalize(sub)
   base = normalize(base)
   if isinstance(base, TypeConstraint):
-    return base._consistent_with_check_(sub)
+    if isinstance(sub, UnionConstraint):
+      return all(is_consistent_with(c, base) for c in sub.union_types)
+    else:
+      return base._consistent_with_check_(sub)
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object

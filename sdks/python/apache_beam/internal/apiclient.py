@@ -38,6 +38,7 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.utils import dependency
 from apache_beam.utils import names
 from apache_beam.utils import retry
+from apache_beam.utils.dependency import get_required_container_version
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
@@ -260,7 +261,8 @@ class Environment(object):
       # Default to using the worker harness container image for the current SDK
       # version.
       pool.workerHarnessContainerImage = (
-          'dataflow.gcr.io/v1beta3/python:%s' % version.__version__)
+          'dataflow.gcr.io/v1beta3/python:%s' %
+          get_required_container_version())
     if self.worker_options.teardown_policy:
       if self.worker_options.teardown_policy == 'TEARDOWN_NEVER':
         pool.teardownPolicy = (

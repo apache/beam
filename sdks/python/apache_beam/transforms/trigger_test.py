@@ -495,7 +495,6 @@ class TranscriptTest(unittest.TestCase):
         AccumulationMode, spec.get('accumulation_mode', 'ACCUMULATING').upper())
     output_time_fn = getattr(
         OutputTimeFn, spec.get('output_time_fn', 'OUTPUT_AT_EOW').upper())
-    allowed_lateness = float(spec.get('allowed_lateness', '-inf'))
 
     driver = GeneralTriggerDriver(
         Windowing(window_fn, trigger_fn, accumulation_mode, output_time_fn))

@@ -42,7 +42,6 @@ import operator
 import os
 import sys
 
-from apache_beam import coders
 from apache_beam import error
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -628,7 +627,7 @@ class CallablePTransform(PTransform):
     except TypeError:
       # Might not be a function.
       pass
-    return self.fn(self.label, pcoll, *args, **kwargs)
+    return self.fn(pcoll, *args, **kwargs)
 
   def default_label(self):
     if self._args:
@@ -650,11 +649,11 @@ def ptransform_fn(fn):
   This wrapper provides an alternative, simpler way to define a PTransform.
   The standard method is to subclass from PTransform and override the apply()
   method. An equivalent effect can be obtained by defining a function that
-  takes a label, an input PCollection and additional optional arguments and
-  returns a resulting PCollection. For example::
+  an input PCollection and additional optional arguments and returns a
+  resulting PCollection. For example::
 
     @ptransform_fn
-    def CustomMapper(label, pcoll, mapfn):
+    def CustomMapper(pcoll, mapfn):
       return pcoll | ParDo(mapfn)
 
   The equivalent approach using PTransform subclassing::

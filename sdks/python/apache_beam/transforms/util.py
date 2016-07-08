@@ -20,9 +20,6 @@
 
 from __future__ import absolute_import
 
-import collections
-import operator
-
 from apache_beam.pvalue import AsIter as AllOf
 from apache_beam.transforms.core import CombinePerKey, Create, Flatten, GroupByKey, Map
 from apache_beam.transforms.ptransform import PTransform
@@ -160,12 +157,12 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-def RemoveDuplicates(label, pcoll):  # pylint: disable=invalid-name
+def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing the unique elements of a PCollection."""
   return (pcoll
-          | Map('%s:ToPairs' % label, lambda v: (v, None))
-          | CombinePerKey('%s:Group' % label, lambda vs: None)
-          | Keys('%s:RemoveDuplicates' % label))
+          | Map('ToPairs', lambda v: (v, None))
+          | CombinePerKey('Group', lambda vs: None)
+          | Keys('RemoveDuplicates'))
 
 
 class DataflowAssertException(Exception):
@@ -228,4 +225,4 @@ def assert_that(actual, matcher, label='assert_that'):
     def default_label(self):
       return label
 
-  actual.pipeline | AssertThat()
+  actual.pipeline | AssertThat()  # pylint: disable=expression-not-assigned

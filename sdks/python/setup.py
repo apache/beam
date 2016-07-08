@@ -17,11 +17,10 @@
 
 """Apache Beam SDK setup configuration."""
 
-
 import os
 import platform
-import setuptools
 import re
+import setuptools
 
 
 # Currently all compiled modules are optional (for performance only).
@@ -30,7 +29,7 @@ if platform.system() == 'Windows':
   cythonize = lambda *args, **kwargs: []
 else:
   try:
-    # pylint: disable=g-statement-before-imports,g-import-not-at-top
+    # pylint: disable=wrong-import-position
     from Cython.Build import cythonize
   except ImportError:
     cythonize = lambda *args, **kwargs: []

@@ -31,12 +31,12 @@ class BigQuerySideInputTest(unittest.TestCase):
 
     group_ids_pcoll = p | beam.Create('create_group_ids', ['A', 'B', 'C'])
     corpus_pcoll = p | beam.Create('create_corpus',
-                                 [{'f': 'corpus1'},
-                                  {'f': 'corpus2'},
-                                  {'f': 'corpus3'}])
+                                   [{'f': 'corpus1'},
+                                    {'f': 'corpus2'},
+                                    {'f': 'corpus3'}])
     words_pcoll = p | beam.Create('create_words', [{'f': 'word1'},
-                                                 {'f': 'word2'},
-                                                 {'f': 'word3'}])
+                                                   {'f': 'word2'},
+                                                   {'f': 'word3'}])
     ignore_corpus_pcoll = p | beam.Create('create_ignore_corpus', ['corpus1'])
     ignore_word_pcoll = p | beam.Create('create_ignore_word', ['word1'])
 

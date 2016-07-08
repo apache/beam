@@ -57,7 +57,7 @@ def run_count2(known_args, options):
   """Runs the second example pipeline."""
 
   @beam.ptransform_fn
-  def Count(label, pcoll):      # pylint: disable=invalid-name,unused-argument
+  def Count(pcoll):      # pylint: disable=invalid-name
     """Count as a decorated function."""
     return (
         pcoll
@@ -76,12 +76,11 @@ def run_count3(known_args, options):
   """Runs the third example pipeline."""
 
   @beam.ptransform_fn
-  # pylint: disable=invalid-name,unused-argument
-  def Count(label, pcoll, factor=1):
+  # pylint: disable=invalid-name
+  def Count(pcoll, factor=1):
     """Count as a decorated function with a side input.
 
     Args:
-      label: optional label for this transform
       pcoll: the PCollection passed in from the previous transform
       factor: the amount by which to count
 

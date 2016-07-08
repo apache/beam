@@ -35,16 +35,17 @@ addons:
 
 matrix:
   include:
-    # On OSX, run with default JDK only.
-    - os: osx
-      env: MAVEN_OVERRIDE=""
-    # On Linux, run with specific JDKs only.
-    - os: linux
-      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DforkCount=0"
-    - os: linux
-      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DforkCount=0"
-    - os: linux
-      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DforkCount=0"
+    # TODO(altay): Re-enable Java tests before merging python-sdk branch to master.
+    ## On OSX, run with default JDK only.
+    #- os: osx
+    #  env: MAVEN_OVERRIDE=""
+    ## On Linux, run with specific JDKs only.
+    #- os: linux
+    #  env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DforkCount=0"
+    #- os: linux
+    #  env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DforkCount=0"
+    #- os: linux
+    #  env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DforkCount=0"
     # Python SDK environments.
     - os: osx
       env: TEST_PYTHON="1"
