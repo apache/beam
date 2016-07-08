@@ -47,7 +47,6 @@ import com.google.bigtable.v1.Row;
 import com.google.bigtable.v1.RowFilter;
 import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -207,10 +206,23 @@ public class BigtableIO {
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       checkNotNull(optionsBuilder, "optionsBuilder");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
-      BigtableOptions.Builder clonedBuilder = optionsBuilder.build().toBuilder();
-      clonedBuilder.setDataChannelCount(1);
-      clonedBuilder = addRetryOptions(clonedBuilder);
+      BigtableOptions options = optionsBuilder.build();
+      RetryOptions retryOptions = options.getRetryOptions();
+
+      // Set data channel count to one because there is only 1 scanner in this session
+      // Use retryOptionsToBuilder because absent in Bigtable library
+      // TODO: replace with RetryOptions.toBuilder() when added to Bigtable library
+      // Set batch size because of bug (incorrect initialization) in Bigtable library
+      // TODO: remove setRetryOptions when fixed in Bigtable library
+      BigtableOptions.Builder clonedBuilder = options.toBuilder()
+          .setDataChannelCount(1)
+          .setRetryOptions(
+              retryOptionsToBuilder(retryOptions)
+                  .setStreamingBatchSize(Math.min(retryOptions.getStreamingBatchSize(),
+                      retryOptions.getStreamingBufferSize() / 2))
+                  .build());
       BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
+
       return new Read(optionsWithAgent, tableId, filter, bigtableService);
     }
 
@@ -393,9 +405,24 @@ public class BigtableIO {
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       checkNotNull(optionsBuilder, "optionsBuilder");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
-      BigtableOptions.Builder clonedBuilder = optionsBuilder.build().toBuilder();
-      clonedBuilder = addBulkOptions(clonedBuilder);
-      clonedBuilder = addRetryOptions(clonedBuilder);
+      BigtableOptions options = optionsBuilder.build();
+      RetryOptions retryOptions = options.getRetryOptions();
+
+      // Set useBulkApi to true for enabling bulk writes
+      // Use retryOptionsToBuilder because absent in Bigtable library
+      // TODO: replace with RetryOptions.toBuilder() when added to Bigtable library
+      // Set batch size because of bug (incorrect initialization) in Bigtable library
+      // TODO: remove setRetryOptions when fixed in Bigtable library
+      BigtableOptions.Builder clonedBuilder = options.toBuilder()
+          .setBulkOptions(
+              options.getBulkOptions().toBuilder()
+                  .setUseBulkApi(true)
+                  .build())
+          .setRetryOptions(
+              retryOptionsToBuilder(retryOptions)
+                  .setStreamingBatchSize(Math.min(retryOptions.getStreamingBatchSize(),
+                      retryOptions.getStreamingBufferSize() / 2))
+                  .build());
       BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
       return new Write(optionsWithAgent, tableId, bigtableService);
     }
@@ -1036,52 +1063,26 @@ public class BigtableIO {
   }
 
   /**
-   * A helper function to add appropriate bulk options. See
-   * <a href="https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/899">RetryOptions
-   * toBuilder</a> for issue.
+   * A helper function to convert a RetryOptions into a RetryOptions.Builder.
    */
-  static BigtableOptions.Builder addBulkOptions(BigtableOptions.Builder builder) {
-    BulkOptions bulkOptions = builder.build().getBulkOptions();
-
-    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder()
-        .setAsyncMutatorWorkerCount(bulkOptions.getAsyncMutatorCount())
-        .setUseBulkApi(true)
-        .setBulkMaxRowKeyCount(bulkOptions.getBulkMaxRowKeyCount())
-        .setBulkMaxRequestSize(bulkOptions.getBulkMaxRequestSize())
-        .setMaxInflightRpcs(bulkOptions.getMaxInflightRpcs())
-        .setMaxMemory(bulkOptions.getMaxMemory());
-
-    builder.setBulkOptions(bulkOptionsBuilder.build());
-    return builder;
-  }
-
-  /**
-   * A helper function to add appropriate retry options. See
-   * <a href="https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/899">RetryOptions
-   * toBuilder</a> for issue.
-   */
-  static BigtableOptions.Builder addRetryOptions(BigtableOptions.Builder builder) {
-    RetryOptions retryOptions = builder.build().getRetryOptions();
-
-    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder()
-        .setEnableRetries(retryOptions.enableRetries())
-        .setInitialBackoffMillis(retryOptions.getInitialBackoffMillis())
-        .setBackoffMultiplier(retryOptions.getBackoffMultiplier())
-        .setMaxElapsedBackoffMillis(retryOptions.getMaxElaspedBackoffMillis())
-        .setStreamingBufferSize(retryOptions.getStreamingBufferSize())
-        .setStreamingBatchSize(Math.min(retryOptions.getStreamingBatchSize(),
-            retryOptions.getStreamingBufferSize() / 2))
-        .setReadPartialRowTimeoutMillis(retryOptions.getReadPartialRowTimeoutMillis())
-        .setMaxScanTimeoutRetries(retryOptions.getMaxScanTimeoutRetries())
-        .setAllowRetriesWithoutTimestamp(retryOptions.allowRetriesWithoutTimestamp());
+  private static RetryOptions.Builder retryOptionsToBuilder(RetryOptions options) {
+    RetryOptions.Builder builder = new RetryOptions.Builder();
+    builder.setEnableRetries(options.enableRetries());
+    builder.setInitialBackoffMillis(options.getInitialBackoffMillis());
+    builder.setBackoffMultiplier(options.getBackoffMultiplier());
+    builder.setMaxElapsedBackoffMillis(options.getMaxElaspedBackoffMillis());
+    builder.setStreamingBufferSize(options.getStreamingBufferSize());
+    builder.setStreamingBatchSize(options.getStreamingBatchSize());
+    builder.setReadPartialRowTimeoutMillis(options.getReadPartialRowTimeoutMillis());
+    builder.setMaxScanTimeoutRetries(options.getMaxScanTimeoutRetries());
+    builder.setAllowRetriesWithoutTimestamp(options.allowRetriesWithoutTimestamp());
 
     for (Status.Code code : Status.Code.values()) {
-      if (retryOptions.isRetryable(code)) {
-        retryOptionsBuilder.addStatusToRetryOn(code);
+      if (options.isRetryable(code)) {
+        builder.addStatusToRetryOn(code);
       }
     }
 
-    builder.setRetryOptions(retryOptionsBuilder.build());
     return builder;
   }
 }
