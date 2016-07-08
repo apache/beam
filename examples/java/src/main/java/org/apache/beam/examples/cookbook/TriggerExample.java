@@ -433,8 +433,6 @@ public class TriggerExample {
     void setWindowDuration(Integer value);
   }
 
-  private static final String PUBSUB_TIMESTAMP_LABEL_KEY = "timestamp_ms";
-
   public static void main(String[] args) throws Exception {
     TrafficFlowOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
@@ -443,8 +441,8 @@ public class TriggerExample {
 
     options.setBigQuerySchema(getSchema());
 
-    ExampleUtils dataflowUtils = new ExampleUtils(options);
-    dataflowUtils.setup();
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -464,7 +462,7 @@ public class TriggerExample {
     PipelineResult result = pipeline.run();
 
     // dataflowUtils will try to cancel the pipeline and the injector before the program exits.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 
   /**
