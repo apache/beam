@@ -18,6 +18,7 @@
 """Apache Beam SDK setup configuration."""
 
 
+import os
 import platform
 import setuptools
 import re
@@ -35,32 +36,14 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 
-# Reads the actual version from pom.xml file,
-def get_version_from_pom():
-  with open('pom.xml', 'r') as f:
-    pom = f.read()
-    regex = '.*<parent>\s*<groupId>[a-z\.]+</groupId>\s*<artifactId>[a-z\-]+</artifactId>\s*<version>([0-9a-zA-Z\.\-]+)</version>.*'
-    pattern = re.compile(regex)
-    search = pattern.search(pom)
-    return search.group(1).replace("-SNAPSHOT", ".dev")  # TODO: PEP 440 and incubating suffix
+# Read the current version
+def get_version():
+  global_names = {}
+  execfile(os.path.normpath('./apache_beam/version.py'), global_names)
+  return global_names['__version__']
 
 
-# Synchronizes apache_beam.__version__ field for later usage
-def sync_version(version):
-  init_path = 'apache_beam/__init__.py'
-  regex = r'^__version__\s*=\s*".*"'
-  with open(init_path, "r") as f:
-    lines = f.readlines()
-  with open(init_path, "w") as f:
-    for line in lines:
-      if re.search(regex, line):
-        f.write(re.sub(regex, '__version__ = "%s"' % version, line))
-      else:
-        f.write(line)
-
-
-version = get_version_from_pom()
-sync_version(version)
+version = get_version()
 
 
 # Configure the required packages and scripts to install.
