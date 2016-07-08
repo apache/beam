@@ -348,6 +348,8 @@ class Job(object):
           'Missing required configuration parameters: %s' % missing)
 
     if not self.google_cloud_options.temp_location:
+      logging.info('Defaulting to the staging_location as temp_location: %s',
+                   self.google_cloud_options.staging_location)
       (self.google_cloud_options
        .temp_location) = self.google_cloud_options.staging_location
 
