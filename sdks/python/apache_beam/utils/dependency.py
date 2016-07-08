@@ -459,4 +459,3 @@ def _download_pypi_sdk_package(temp_dir):
       'Failed to download a source distribution for the running SDK. Expected '
       'either %s or %s to be found in the download folder.' % (
           zip_expected, tgz_expected))
-

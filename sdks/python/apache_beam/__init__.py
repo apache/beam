@@ -76,4 +76,3 @@ if version_info.major != 2:
   raise RuntimeError(
       'Apache Beam SDK for Python is supported only on Python 2.7. '
       'It is not supported on Python [%s].' % sys.version)
-
