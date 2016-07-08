@@ -69,7 +69,7 @@
             </configuration>
           </execution>
           <execution>
-            <id>ssetup-test</id>
+            <id>setup-test-env</id>
             <phase>process-test-resources</phase>
             <goals>
               <goal>exec</goal>
