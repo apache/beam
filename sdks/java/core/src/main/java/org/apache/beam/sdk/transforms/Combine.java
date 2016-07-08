@@ -2295,6 +2295,11 @@ public class Combine {
 
               c.output(KV.of(key, combineFnRunner.apply(key, c.element().getValue(), c)));
             }
+
+            @Override
+            public void populateDisplayData(DisplayData.Builder builder) {
+              Combine.GroupedValues.this.populateDisplayData(builder);
+            }
           }).withSideInputs(sideInputs));
 
       try {

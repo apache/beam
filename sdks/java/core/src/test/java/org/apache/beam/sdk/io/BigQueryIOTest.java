@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -57,6 +59,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BigQueryServices;
 import org.apache.beam.sdk.util.BigQueryServices.DatasetService;
@@ -109,6 +112,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -329,9 +333,10 @@ public class BigQueryIOTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient ExpectedLogs logged = ExpectedLogs.none(BigQueryIO.class);
   @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
-  @Mock public transient BigQueryServices.JobService mockJobService;
+  @Mock(extraInterfaces = Serializable.class)
+  public transient BigQueryServices.JobService mockJobService;
   @Mock private transient IOChannelFactory mockIOChannelFactory;
-  @Mock private transient DatasetService mockDatasetService;
+  @Mock(extraInterfaces = Serializable.class) private transient DatasetService mockDatasetService;
 
   private transient BigQueryOptions bqOptions;
 
@@ -637,11 +642,77 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
+  public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    BigQueryIO.Read.Bound read = BigQueryIO.Read
+        .from("project:dataset.tableId")
+        .withTestServices(new FakeBigQueryServices()
+            .withDatasetService(mockDatasetService)
+            .withJobService(mockJobService))
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("BigQueryIO.Read should include the table spec in its primitive display data",
+        displayData, hasItem(hasDisplayItem("table")));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+    BigQueryIO.Read.Bound read = BigQueryIO.Read
+        .fromQuery("foobar")
+        .withTestServices(new FakeBigQueryServices()
+            .withDatasetService(mockDatasetService)
+            .withJobService(mockJobService))
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("BigQueryIO.Read should include the query in its primitive display data",
+        displayData, hasItem(hasDisplayItem("query")));
+  }
+
+
+  @Test
   public void testBuildSink() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBatchSinkPrimitiveDisplayData() throws IOException, InterruptedException {
+    testSinkPrimitiveDisplayData(/* streaming: */ false);
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testStreamingSinkPrimitiveDisplayData() throws IOException, InterruptedException {
+    testSinkPrimitiveDisplayData(/* streaming: */ true);
+  }
+
+  private void testSinkPrimitiveDisplayData(boolean streaming) throws IOException,
+      InterruptedException {
+    bqOptions.as(StreamingOptions.class).setStreaming(streaming);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(bqOptions);
+
+    BigQueryIO.Write.Bound write = BigQueryIO.Write
+        .to("project:dataset.table")
+        .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
+        .withTestServices(new FakeBigQueryServices()
+          .withDatasetService(mockDatasetService)
+          .withJobService(mockJobService))
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
+        displayData, hasItem(hasDisplayItem("tableSpec")));
+
+    assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
+        displayData, hasItem(hasDisplayItem("schema")));
   }
 
   @Test
