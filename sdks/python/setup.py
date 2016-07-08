@@ -63,7 +63,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1',
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
-    'pyyaml>=3.10'
+    'pyyaml>=3.10',
 ]
 
 setuptools.setup(
