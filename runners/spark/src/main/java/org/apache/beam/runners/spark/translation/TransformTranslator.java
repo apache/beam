@@ -430,7 +430,7 @@ public final class TransformTranslator {
     }
   }
 
-  private static <K, V> JavaPairRDD<K, V> toPair(JavaRDDLike<KV<K, V>, ?> rdd) {
+  static <K, V> JavaPairRDD<K, V> toPair(JavaRDDLike<KV<K, V>, ?> rdd) {
     return rdd.mapToPair(new PairFunction<KV<K, V>, K, V>() {
       @Override
       public Tuple2<K, V> call(KV<K, V> kv) {
@@ -650,13 +650,13 @@ public final class TransformTranslator {
     };
   }
 
-  private static final class ShardTemplateInformation {
+  static final class ShardTemplateInformation {
     private final int numShards;
     private final String shardTemplate;
     private final String filenamePrefix;
     private final String filenameSuffix;
 
-    private ShardTemplateInformation(int numShards, String shardTemplate, String
+    public ShardTemplateInformation(int numShards, String shardTemplate, String
         filenamePrefix, String filenameSuffix) {
       this.numShards = numShards;
       this.shardTemplate = shardTemplate;
@@ -681,7 +681,7 @@ public final class TransformTranslator {
     }
   }
 
-  private static <K, V> void writeHadoopFile(JavaPairRDD<K, V> rdd, Configuration conf,
+  static <K, V> void writeHadoopFile(JavaPairRDD<K, V> rdd, Configuration conf,
       ShardTemplateInformation shardTemplateInfo, Class<?> keyClass, Class<?> valueClass,
       Class<? extends FileOutputFormat> formatClass) {
     int numShards = shardTemplateInfo.getNumShards();

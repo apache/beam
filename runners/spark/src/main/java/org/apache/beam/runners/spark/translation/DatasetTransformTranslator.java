@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.coders.EncoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
+import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -50,10 +51,13 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsFunction;
 import org.apache.spark.sql.Dataset;
@@ -82,6 +86,8 @@ public class DatasetTransformTranslator {
   private static DatasetEvaluationContext datasetEvaluationContext(EvaluationContext context) {
     return (DatasetEvaluationContext) context;
   }
+
+  //-------- SDK primitives
 
   /** Using {@link org.apache.spark.rdd.RDD} because the {@link Dataset} API is too high-level. */
   private static <T> TransformEvaluator<Read.Bounded<T>> readBounded() {
@@ -214,6 +220,8 @@ public class DatasetTransformTranslator {
     };
   }
 
+  //-------- Composites
+
   private static <T> TransformEvaluator<Create.Values<T>> createValues() {
     return new TransformEvaluator<Create.Values<T>>() {
 
@@ -279,7 +287,7 @@ public class DatasetTransformTranslator {
 
         Dataset<WindowedValue<KV<K, InputT>>> inputDataset =
             (Dataset<WindowedValue<KV<K, InputT>>>) dec.getInputDataset(transform);
-        // Key has to bw windowed in order to group by window as well.
+        // Key has to be windowed in order to group by window as well.
         Dataset<KV<WindowedValue<K>, InputT>> windowedKey =
             inputDataset.flatMap(
             new FlatMapFunction<WindowedValue<KV<K, InputT>>, KV<WindowedValue<K>, InputT>>() {
@@ -352,6 +360,64 @@ public class DatasetTransformTranslator {
     };
   }
 
+  //--------- Spark runner specific transformations
+
+  private static <K, V> TransformEvaluator<HadoopIO.Read.Bound<K, V>> readHadoop() {
+    return new TransformEvaluator<HadoopIO.Read.Bound<K, V>>() {
+
+      @Override
+      public void evaluate(HadoopIO.Read.Bound<K, V> transform, EvaluationContext context) {
+        DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
+        String filePattern = transform.getFilepattern();
+        JavaSparkContext jsc = new JavaSparkContext(dec.getSession().sparkContext());
+        JavaPairRDD<K, V> file = jsc.newAPIHadoopFile(filePattern, transform.getFormatClass(),
+            transform.getKeyClass(), transform.getValueClass(), new Configuration());
+        JavaRDD<WindowedValue<KV<K, V>>> rdd =
+            file.map(new Function<Tuple2<K, V>, KV<K, V>>() {
+          @Override
+          public KV<K, V> call(Tuple2<K, V> t2) throws Exception {
+            return KV.of(t2._1(), t2._2());
+          }
+        }).map(WindowingHelpers.<KV<K, V>>windowFunction());
+
+        Dataset<WindowedValue<KV<K, V>>> inputDataset = dec.getSession().createDataset(rdd.rdd(),
+            EncoderHelpers.<WindowedValue<KV<K, V>>>encoder());
+
+        dec.setOutputDataset(transform, inputDataset);
+      }
+    };
+  }
+
+  private static <K, V> TransformEvaluator<HadoopIO.Write.Bound<K, V>> writeHadoop() {
+    return new TransformEvaluator<HadoopIO.Write.Bound<K, V>>() {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public void evaluate(HadoopIO.Write.Bound<K, V> transform, EvaluationContext context) {
+        DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
+        Dataset<KV<K, V>> inputDataset =
+            ((Dataset<WindowedValue<KV<K, V>>>) dec.getInputDataset(transform))
+            .map(WindowingHelpers.<KV<K, V>>unwindowMapFunction(),
+            EncoderHelpers.<KV<K, V>>encoder());
+        JavaPairRDD<K, V> pairRDD = TransformTranslator.toPair(inputDataset.javaRDD());
+
+        TransformTranslator.ShardTemplateInformation shardTemplateInfo =
+            new TransformTranslator.ShardTemplateInformation(transform.getNumShards(),
+                transform.getShardTemplate(), transform.getFilenamePrefix(),
+                transform.getFilenameSuffix());
+        Configuration conf = new Configuration();
+        for (Map.Entry<String, String> e : transform.getConfigurationProperties().entrySet()) {
+          conf.set(e.getKey(), e.getValue());
+        }
+
+        TransformTranslator.writeHadoopFile(pairRDD, conf, shardTemplateInfo,
+            transform.getKeyClass(), transform.getValueClass(), transform.getFormatClass());
+      }
+    };
+  }
+
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>>
       PRIMITIVES = Maps.newHashMap();
 
@@ -376,6 +442,10 @@ public class DatasetTransformTranslator {
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
 
+    //--------- Spark runner specific transformations
+    //TODO: should we even have those ?
+    EVALUATORS.put(HadoopIO.Read.Bound.class, readHadoop());
+    EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
   }
 
   private static Map<TupleTag<?>, BroadcastHelper<?>>
@@ -416,6 +486,16 @@ public class DatasetTransformTranslator {
         @Override
         public T2 call(Tuple2<T1, T2> tuple2) throws Exception {
           return tuple2._2();
+        }
+      };
+    }
+
+    private static <K, V> MapFunction<KV<K, V>, Tuple2<K, V>> kv2Tuple2() {
+
+      return new MapFunction<KV<K, V>, Tuple2<K, V>>() {
+        @Override
+        public Tuple2<K, V> call(KV<K, V> kv) throws Exception {
+          return new Tuple2<>(kv.getKey(), kv.getValue());
         }
       };
     }
