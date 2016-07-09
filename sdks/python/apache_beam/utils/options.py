@@ -255,7 +255,8 @@ class GoogleCloudOptions(PipelineOptions):
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
       errors.extend(validator.validate_gcs_path(self, 'staging_location'))
-      if getattr(self, 'temp_location', None):
+      if getattr(self, 'temp_location',
+                 None) or getattr(self, 'staging_location', None) is None:
         errors.extend(validator.validate_gcs_path(self, 'temp_location'))
     return errors
 
