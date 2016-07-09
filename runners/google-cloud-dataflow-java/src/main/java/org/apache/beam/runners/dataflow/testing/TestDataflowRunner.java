@@ -82,7 +82,6 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         "output",
         "results");
     dataflowOptions.setTempLocation(tempLocation);
-    dataflowOptions.setStagingLocation(tempLocation);
 
     return new TestDataflowRunner(dataflowOptions);
   }

@@ -106,13 +106,23 @@ public class DataflowPipelineOptionsTest {
   }
 
   @Test
-  public void testDefaultStagingLocation() {
+  public void testDefaultToTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerStandardIOFactories(options);
     options.setTempLocation("gs://temp_location");
     assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://temp_location/staging", options.getStagingLocation());
   }
+
+  @Test
+  public void testDefaultToGcpTempLocation() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    IOChannelUtils.registerStandardIOFactories(options);
+    options.setTempLocation("gs://temp_location");
+    options.setGcpTempLocation("gs://gcp_temp_location");
+    assertEquals("gs://gcp_temp_location/staging", options.getStagingLocation());
+  }
+
 
   @Test
   public void testDefaultNoneGcsTempLocation() {

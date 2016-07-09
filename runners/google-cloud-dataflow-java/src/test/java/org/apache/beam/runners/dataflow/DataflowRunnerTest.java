@@ -192,7 +192,7 @@ public class DataflowRunnerTest {
   /**
    * Build a mock {@link GcsUtil} with return values.
    *
-   * @param bucketExist fist return value
+   * @param bucketExist first return value
    * @param bucketExists next return values
    */
   private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
