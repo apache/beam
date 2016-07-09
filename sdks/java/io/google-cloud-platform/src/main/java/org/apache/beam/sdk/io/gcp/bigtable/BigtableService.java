@@ -20,12 +20,12 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,7 +48,7 @@ interface BigtableService extends Serializable {
      *
      * @throws IOException if there is an error submitting the write.
      */
-    ListenableFuture<Empty> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+    ListenableFuture<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException;
 
     /**

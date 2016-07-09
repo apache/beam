@@ -32,7 +32,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <bigtable.version>0.3.0</bigtable.version>
+    <bigtable.version>0.9.0</bigtable.version>
   </properties>
 
   <build>
