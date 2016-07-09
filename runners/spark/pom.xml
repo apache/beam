@@ -73,9 +73,6 @@
                     <dependenciesToScan>
                       <dependency>org.apache.beam:java-sdk-all</dependency>
                     </dependenciesToScan>
-                    <excludes>
-                      org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest
-                    </excludes>
                     <systemPropertyVariables>
                       <beamTestPipelineOptions>
                         [
