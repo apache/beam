@@ -411,7 +411,8 @@ public class TfIdf {
           }))
           .apply(TextIO.Write
               .to(output)
-              .withSuffix(".csv"));
+              .withSuffix(".csv")
+              .withoutSharding());
     }
   }
 
