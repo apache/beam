@@ -272,6 +272,32 @@ public class DatasetTransformTranslator {
     };
   }
 
+  private static <InputT, AccumT, OutputT> TransformEvaluator<Combine.Globally<InputT, OutputT>>
+  combineGlobally() {
+    return new TransformEvaluator<Combine.Globally<InputT, OutputT>>() {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public void evaluate(Combine.Globally<InputT, OutputT> transform,
+          EvaluationContext context) {
+        DatasetEvaluationContext dec = datasetEvaluationContext(context);
+
+        final Combine.CombineFn<InputT, AccumT, OutputT> fn =
+            (Combine.CombineFn<InputT, AccumT, OutputT>) transform.getFn();
+
+        Dataset<InputT> inputDataset =
+            ((Dataset<WindowedValue<InputT>>) dec.getInputDataset(transform))
+            .map(WindowingHelpers.<InputT>unwindowMapFunction(), EncoderHelpers.<InputT>encoder());
+        Dataset<OutputT> outputDataset =
+            inputDataset.select(new SparkCombineFn(fn).toColumn(),
+            EncoderHelpers.<OutputT>encoder());
+        dec.setOutputDataset(transform,
+            outputDataset.map(WindowingHelpers.<OutputT>windowMapFunction(),
+            EncoderHelpers.<WindowedValue<OutputT>>encoder()));
+      }
+    };
+  }
+
   private static <K, InputT, AccumT, OutputT>
   TransformEvaluator<Combine.PerKey<K, InputT, OutputT>> combinePerKey() {
     return new TransformEvaluator<Combine.PerKey<K, InputT, OutputT>>() {
@@ -439,6 +465,7 @@ public class DatasetTransformTranslator {
     EVALUATORS.put(View.AsIterable.class, view());
     EVALUATORS.put(View.CreatePCollectionView.class, view());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
+    EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
 
