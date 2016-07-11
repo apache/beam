@@ -63,12 +63,10 @@ import java.util.Map;
  * // Process a batch containing a single input element:
  * Input testInput = ...;
  * List<OutputT> testOutputs = fnTester.processBatch(testInput);
- * Assert.assertThat(testOutputs,
- *                   JUnitMatchers.hasItems(...));
+ * Assert.assertThat(testOutputs, Matchers.hasItems(...));
  *
  * // Process a bigger batch:
- * Assert.assertThat(fnTester.processBatch(i1, i2, ...),
- *                   JUnitMatchers.hasItems(...));
+ * Assert.assertThat(fnTester.processBatch(i1, i2, ...), Matchers.hasItems(...));
  * } </pre>
  *
  * @param <InputT> the type of the {@code DoFn}'s (main) input elements
