@@ -15,27 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.datastore;
-
-import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * <p>{@link DatastoreIO} provides an API for reading from and writing to
+ * <p>Provides an API for reading from and writing to
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
  * versions of the Datastore Client libraries.
- *
- * <p>To use the v1beta3 version see {@link V1Beta3}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
-public class DatastoreIO {
-
-  private DatastoreIO() {}
-
-  /**
-   * Returns a {@link V1Beta3} that provides an API for accessing Datastore through v1beta3 version
-   * of Datastore Client library.
-   */
-  public static V1Beta3 v1beta3() {
-    return new V1Beta3();
-  }
-}
+package org.apache.beam.sdk.io.gcp.datastore;
