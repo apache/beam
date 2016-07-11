@@ -190,7 +190,8 @@ class DataflowPipelineRunner(PipelineRunner):
     return self._get_cloud_encoding(self._get_coder(typehint,
                                                     window_coder=window_coder))
 
-  def _get_coder(self, typehint, window_coder):
+  @staticmethod
+  def _get_coder(typehint, window_coder):
     """Returns a coder based on a typehint object."""
     if window_coder:
       return coders.WindowedValueCoder(
@@ -360,27 +361,20 @@ class DataflowPipelineRunner(PipelineRunner):
 
     # Attach side inputs.
     si_dict = {}
-    si_tags_and_types = []
+    lookup_label = lambda side_pval: self._cache.get_pvalue(side_pval).step_name
     for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, PCollectionView)
-      side_input_step = self._cache.get_pvalue(side_pval)
-      si_label = side_input_step.step_name
+      si_label = lookup_label(side_pval)
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: si_label,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
-      # The label for the side input step will appear as a 'tag' property for
-      # the side input source specification. Its type (singleton or iterator)
-      # will also be used to read the entire source or just first element.
-      si_tags_and_types.append((si_label, side_pval.__class__,
-                                side_pval._view_options()))  # pylint: disable=protected-access
 
     # Now create the step for the ParDo transform being handled.
     step = self._add_step(
         TransformNames.DO, transform_node.full_label, transform_node,
         transform_node.transform.side_output_tags)
-    fn_data = (transform.fn, transform.args, transform.kwargs,
-               si_tags_and_types, transform_node.inputs[0].windowing)
+    fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
@@ -414,6 +408,15 @@ class DataflowPipelineRunner(PipelineRunner):
            PropertyNames.OUTPUT_NAME: (
                '%s_%s' % (PropertyNames.OUT, side_tag))})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
+
+  @staticmethod
+  def _pardo_fn_data(transform_node, get_label):
+    transform = transform_node.transform
+    si_tags_and_types = [  # pylint: disable=protected-access
+        (get_label(side_pval), side_pval.__class__, side_pval._view_options())
+        for side_pval in transform_node.side_inputs]
+    return (transform.fn, transform.args, transform.kwargs, si_tags_and_types,
+            transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll):
     return pvalue.PCollection(pcoll.pipeline)

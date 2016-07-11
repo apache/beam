@@ -29,7 +29,8 @@ from .stream cimport InputStream, OutputStream
 
 
 cdef object loads, dumps, create_InputStream, create_OutputStream
-cdef type WindowedValue
+# Temporarily untyped to allow monkeypatching on failed import.
+#cdef type WindowedValue
 
 
 cdef class CoderImpl(object):
