@@ -211,5 +211,18 @@
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
     </dependency>
+
+    <!-- Test dependencies -->
+
+    <!--
+      For testing the example itself, use the direct runner. This is separate from
+      the use of RunnableOnService tests for testing a particular runner.
+    -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
