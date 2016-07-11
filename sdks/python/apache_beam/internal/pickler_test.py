@@ -40,6 +40,9 @@ class PicklerTest(unittest.TestCase):
         ['abc', 'def'],
         loads(dumps(module_test.get_lambda_with_globals()))('abc def'))
 
+  def test_lambda_with_main_globals(self):
+    self.assertEquals(unittest, loads(dumps(lambda : unittest))())
+
   def test_lambda_with_closure(self):
     """Tests that the closure of a function is preserved."""
     self.assertEquals(
