@@ -83,12 +83,6 @@
     <!--[BEAM-398] Inconsistent synchronization-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.coders.SerializableCoder"/>
-    <Method name="equals"/>
-    <Bug pattern="NP_EQUALS_SHOULD_HANDLE_NULL_ARGUMENT"/>
-    <!--[BEAM-399] equals() method does not check for null argument-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.coders.StandardCoder"/>
     <Method name="toString"/>
     <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>

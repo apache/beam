@@ -130,6 +130,12 @@ public class SerializableCoderTest implements Serializable {
   }
 
   @Test
+  public void testNullEquals() {
+    SerializableCoder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
+    Assert.assertFalse(coder.equals(null));
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testDefaultCoder() throws Exception {
     Pipeline p = TestPipeline.create();
