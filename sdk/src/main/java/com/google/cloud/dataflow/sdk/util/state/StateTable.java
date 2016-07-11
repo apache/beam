@@ -16,11 +16,9 @@
 package com.google.cloud.dataflow.sdk.util.state;
 
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
-import com.google.common.base.Supplier;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-import com.google.common.collect.Tables;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,13 +28,7 @@ import java.util.Set;
 public abstract class StateTable<K> {
 
   private final Table<StateNamespace, StateTag<? super K, ?>, State> stateTable =
-      Tables.newCustomTable(new HashMap<StateNamespace, Map<StateTag<? super K, ?>, State>>(),
-          new Supplier<Map<StateTag<? super K, ?>, State>>() {
-        @Override
-        public Map<StateTag<? super K, ?>, State> get() {
-          return new HashMap<>();
-        }
-      });
+      HashBasedTable.create();
 
   /**
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
