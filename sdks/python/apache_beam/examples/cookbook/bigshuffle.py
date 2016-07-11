@@ -42,7 +42,6 @@ def run(argv=None):
                       required=True,
                       help='Output file pattern to write results to.')
   parser.add_argument('--checksum_output',
-                      required=True,
                       help='Checksum output file pattern.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
@@ -59,24 +58,26 @@ def run(argv=None):
                 'format',
                 lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
-  input_csum = (lines
-                | beam.Map('input-csum', crc32line)
-                | beam.CombineGlobally('combine-input-csum', sum)
-                | beam.Map('hex-format', lambda x: '%x' % x))
-  input_csum | beam.io.Write(
-      'write-input-csum',
-      beam.io.TextFileSink(known_args.checksum_output + '-input'))
-
   # Write the output using a "Write" transform that has side effects.
   output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
-  # Write the output checksum
-  output_csum = (output
-                 | beam.Map('output-csum', crc32line)
-                 | beam.CombineGlobally('combine-output-csum', sum)
-                 | beam.Map('hex-format-output', lambda x: '%x' % x))
-  output_csum | beam.io.Write(
-      'write-output-csum',
-      beam.io.TextFileSink(known_args.checksum_output + '-output'))
+
+  # Optionally write the input and output checksums.
+  if known_args.checksum_output:
+    input_csum = (lines
+                  | beam.Map('input-csum', crc32line)
+                  | beam.CombineGlobally('combine-input-csum', sum)
+                  | beam.Map('hex-format', lambda x: '%x' % x))
+    input_csum | beam.io.Write(
+        'write-input-csum',
+        beam.io.TextFileSink(known_args.checksum_output + '-input'))
+
+    output_csum = (output
+                   | beam.Map('output-csum', crc32line)
+                   | beam.CombineGlobally('combine-output-csum', sum)
+                   | beam.Map('hex-format-output', lambda x: '%x' % x))
+    output_csum | beam.io.Write(
+        'write-output-csum',
+        beam.io.TextFileSink(known_args.checksum_output + '-output'))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
