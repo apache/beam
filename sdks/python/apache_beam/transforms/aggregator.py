@@ -17,26 +17,29 @@
 
 """Support for user-defined Aggregators.
 
-Aggregators allow a pipeline to have the workers do custom aggregation
-of statistics about the data processed.  To update an aggregator's value,
-call aggregate_to() on the context passed to a DoFn.
+Aggregators allow steps in a pipeline to perform custom aggregation of
+statistics about the data processed across all workers.  To update an
+aggregator's value, call aggregate_to() on the context passed to a DoFn.
 
 Example:
 import apache_beam as beam
 
-simple_counter = beam.Aggregator('example-counter')
-
 class ExampleDoFn(beam.DoFn):
+  def __init__(self):
+    super(ExampleDoFn, self).__init__()
+    self.simple_counter = beam.Aggregator('example-counter')
+
   def process(self, context):
-    context.aggregate_to(simple_counter, 1)
+    context.aggregate_to(self.simple_counter, 1)
     ...
 
-The aggregators defined here show up in the UI as "Custom counters."
+These aggregators may be used by runners to collect and present statistics of
+a pipeline.  For example, in the Google Cloud Dataflow console, aggregators and
+their values show up in the UI under "Custom counters."
 
 You can also query the combined value(s) of an aggregator by calling
-aggregated_value() or aggregated_values() on the result of running a
-pipeline.
-
+aggregated_value() or aggregated_values() on the result object returned after
+running a pipeline.
 """
 
 from __future__ import absolute_import
@@ -45,7 +48,7 @@ from apache_beam.transforms import core
 
 
 class Aggregator(object):
-  """A user-specified aggregator of statistics about pipeline data.
+  """A user-specified aggregator of statistics about a pipeline step.
 
   Args:
     combine_fn: how to combine values input to the aggregation.
@@ -63,8 +66,17 @@ class Aggregator(object):
   Example uses::
 
     import apache_beam as beam
-    simple_counter = beam.Aggregator('example-counter')
-    complex_counter = beam.Aggregator('other-counter', beam.Mean(), float)
+
+    class ExampleDoFn(beam.DoFn):
+      def __init__(self):
+        super(ExampleDoFn, self).__init__()
+        self.simple_counter = beam.Aggregator('example-counter')
+        self.complex_counter = beam.Aggregator('other-counter', beam.Mean(),
+                                               float)
+
+      def process(self, context):
+        context.aggregate_to(self.simple_counter, 1)
+        context.aggregate_to(self.complex_counter, float(len(context.element))
   """
 
   def __init__(self, name, combine_fn=sum, input_type=int):
