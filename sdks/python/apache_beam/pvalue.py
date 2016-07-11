@@ -197,6 +197,9 @@ class DoOutputsTuple(object):
     # Transfer the producer from the DoOutputsTuple to the resulting
     # PCollection.
     pcoll.producer = self.producer
+    # Add this as an output to both the inner ParDo and the outer _MultiParDo
+    # PTransforms.
+    self.producer.parts[0].add_output(pcoll, tag)
     self.producer.add_output(pcoll, tag)
     self._pcolls[tag] = pcoll
     return pcoll

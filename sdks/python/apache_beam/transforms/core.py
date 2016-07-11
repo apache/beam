@@ -28,7 +28,6 @@ from apache_beam.internal import util
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
 from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import OutputTimeFn
@@ -856,8 +855,7 @@ class CombineGlobally(PTransform):
               | typed(Map('InjectDefault', lambda _, s: s, view)))
 
 
-@ptransform_fn
-def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
+class CombinePerKey(PTransformWithSideInputs):
   """A per-key Combine transform.
 
   Identifies sets of values associated with the same key in the input
@@ -876,7 +874,19 @@ def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
   Returns:
     A PObject holding the result of the combine operation.
   """
-  return pcoll | GroupByKey() | CombineValues('Combine', fn, *args, **kwargs)
+
+  def make_fn(self, fn):
+    self._fn_label = ptransform.label_from_callable(fn)
+    return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
+
+  def default_label(self):
+    return '%s(%s)' % (self.__class__.__name__, self._fn_label)
+
+  def apply(self, pcoll):
+    args, kwargs = util.insert_values_in_args(
+        self.args, self.kwargs, self.side_inputs)
+    return pcoll | GroupByKey() | CombineValues('Combine',
+                                                self.fn, *args, **kwargs)
 
 
 # TODO(robertwb): Rename to CombineGroupedValues?
