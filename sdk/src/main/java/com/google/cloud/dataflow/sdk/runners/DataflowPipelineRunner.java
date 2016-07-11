@@ -57,6 +57,7 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound.PubsubReader;
@@ -79,6 +80,7 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.Transfor
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
 import com.google.cloud.dataflow.sdk.runners.dataflow.AssignWindows;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
+import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowUnboundedReadFromBoundedSource;
 import com.google.cloud.dataflow.sdk.runners.dataflow.ReadTranslator;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecord;
@@ -354,11 +356,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       builder.put(View.AsIterable.class, StreamingViewAsIterable.class);
       builder.put(Write.Bound.class, StreamingWrite.class);
       builder.put(Read.Unbounded.class, StreamingUnboundedRead.class);
-      builder.put(Read.Bounded.class, UnsupportedIO.class);
-      builder.put(AvroIO.Read.Bound.class, UnsupportedIO.class);
+      builder.put(Read.Bounded.class, StreamingBoundedRead.class);
       builder.put(AvroIO.Write.Bound.class, UnsupportedIO.class);
-      builder.put(BigQueryIO.Read.Bound.class, UnsupportedIO.class);
-      builder.put(TextIO.Read.Bound.class, UnsupportedIO.class);
       builder.put(TextIO.Write.Bound.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
@@ -2802,6 +2801,34 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
                   c.output(c.element().getValue().getValue());
                 }
               }));
+    }
+  }
+
+  /**
+   * Specialized implementation for
+   * {@link com.google.cloud.dataflow.sdk.io.Read.Bounded Read.Bounded} for the
+   * Dataflow runner in streaming mode.
+   */
+  private static class StreamingBoundedRead<T> extends PTransform<PInput, PCollection<T>> {
+    private final BoundedSource<T> source;
+
+    /** Builds an instance of this class from the overridden transform. */
+    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
+    public StreamingBoundedRead(DataflowPipelineRunner runner, Read.Bounded<T> transform) {
+      this.source = transform.getSource();
+    }
+
+    @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return source.getDefaultOutputCoder();
+    }
+
+    @Override
+    public final PCollection<T> apply(PInput input) {
+      source.validate();
+
+      return Pipeline.applyTransform(input, new DataflowUnboundedReadFromBoundedSource<>(source))
+          .setIsBoundedInternal(IsBounded.BOUNDED);
     }
   }
 
