@@ -349,8 +349,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         if (dstKeyState == null) {
           dst.put(s.getKey(), s.getValue());
         } else {
-          toCombine.add(s.getValue());
           toCombine.add(dstKeyState);
+          toCombine.add(s.getValue());
           State newState = (State) stateCombiner.apply(toCombine);
           if (newState.getCollector() instanceof DatumCollector) {
             ((DatumCollector) newState.getCollector())

@@ -48,5 +48,12 @@ public final class Either<LEFT, RIGHT> {
     return right;
   }
 
+  @Override
+  public String toString() {
+    return "Either{" +
+        "left=" + left +
+        ", right=" + right +
+        '}';
+  }
 }
 
