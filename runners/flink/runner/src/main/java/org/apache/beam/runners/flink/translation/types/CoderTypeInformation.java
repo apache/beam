@@ -40,6 +40,10 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
     this.coder = coder;
   }
 
+  public Coder<T> getCoder() {
+    return coder;
+  }
+
   @Override
   public boolean isBasicType() {
     return false;

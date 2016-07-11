@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -52,6 +53,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -71,12 +73,6 @@ import javax.annotation.Nullable;
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {
 
-  /**
-   * To keep track of the current watermark so that we can immediately fire if a trigger
-   * registers an event time callback for a timestamp that lies in the past.
-   */
-  private transient long currentWatermark = Long.MIN_VALUE;
-
   private final Coder<K> keyCoder;
   private final TimerInternals.TimerDataCoder timerCoder;
 
@@ -89,19 +85,23 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
+      TypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> inputType,
       TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       OutputManagerFactory<WindowedValue<KV<K, OutputT>>> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
+      Map<Integer, PCollectionView<?>> sideInputTagMapping,
+      Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
       Coder<K> keyCoder) {
     super(
         null,
+        inputType,
         mainOutputTag,
         sideOutputTags,
         outputManagerFactory,
         windowingStrategy,
+        sideInputTagMapping,
         sideInputs,
         options);
 
@@ -184,21 +184,33 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   @Override
   public void processWatermark(Watermark mark) throws Exception {
-    this.currentWatermark = mark.getTimestamp();
+    processWatermark1(mark);
+  }
+
+  @Override
+  public void processWatermark1(Watermark mark) throws Exception {
+    pushbackDoFnRunner.startBundle();
+
+    this.currentInputWatermark = mark.getTimestamp();
+
+    // hold back by the pushed back values waiting for side inputs
+    long actualInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
 
     boolean fire;
 
     do {
       Tuple2<ByteBuffer, TimerInternals.TimerData> timer = watermarkTimersQueue.peek();
-      if (timer != null && timer.f1.getTimestamp().getMillis() <= mark.getTimestamp()) {
+      if (timer != null && timer.f1.getTimestamp().getMillis() < actualInputWatermark) {
         fire = true;
+
+        System.out.println("FIRING: " + timer);
 
         watermarkTimersQueue.remove();
         watermarkTimers.remove(timer);
 
         setKeyContext(timer.f0);
 
-        doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
+        pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
                 KeyedWorkItems.<K, InputT>timersWorkItem(
                     stateInternals.getKey(),
                     Collections.singletonList(timer.f1))));
@@ -210,9 +222,16 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
     Instant watermarkHold = stateInternals.watermarkHold();
 
-    long outputWatermark = Math.min(currentWatermark, watermarkHold.getMillis());
+    long combinedWatermarkHold = Math.min(watermarkHold.getMillis(), getPushbackWatermarkHold());
 
-    output.emitWatermark(new Watermark(outputWatermark));
+    long potentialOutputWatermark = Math.min(currentInputWatermark, combinedWatermarkHold);
+
+    if (potentialOutputWatermark > currentOutputWatermark) {
+      currentOutputWatermark = potentialOutputWatermark;
+      output.emitWatermark(new Watermark(currentOutputWatermark));
+    }
+    pushbackDoFnRunner.finishBundle();
+
   }
 
   @Override
@@ -311,13 +330,13 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
         @Override
         public Instant currentInputWatermarkTime() {
-          return new Instant(currentWatermark);
+          return new Instant(Math.min(currentInputWatermark, getPushbackWatermarkHold()));
         }
 
         @Nullable
         @Override
         public Instant currentOutputWatermarkTime() {
-          return new Instant(currentWatermark);
+          return new Instant(currentOutputWatermark);
         }
       };
     }

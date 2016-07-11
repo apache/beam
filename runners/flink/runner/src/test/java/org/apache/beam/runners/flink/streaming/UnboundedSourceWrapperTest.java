@@ -91,7 +91,7 @@ public class UnboundedSourceWrapperTest {
 
             @Override
             public void collect(
-                StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
+                StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
 
               count++;
               if (count >= NUM_ELEMENTS) {
