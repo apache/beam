@@ -339,16 +339,20 @@ class Job(object):
   def __init__(self, options):
     self.options = options
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
-    required_google_cloud_options = ['project',
-                                     'job_name',
-                                     'staging_location',
-                                     'temp_location']
+    required_google_cloud_options = ['project', 'job_name', 'staging_location']
     missing = [
         option for option in required_google_cloud_options
         if not getattr(self.google_cloud_options, option)]
     if missing:
       raise ValueError(
           'Missing required configuration parameters: %s' % missing)
+
+    if not self.google_cloud_options.temp_location:
+      logging.info('Defaulting to the staging_location as temp_location: %s',
+                   self.google_cloud_options.staging_location)
+      (self.google_cloud_options
+       .temp_location) = self.google_cloud_options.staging_location
+
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
     # area or team members using same job names. This method is not entirely
