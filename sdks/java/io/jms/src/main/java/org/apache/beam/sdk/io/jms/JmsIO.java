@@ -367,7 +367,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return currentTimestamp;
+      return new Instant(checkpointMark.getOldestPendingTimestamp());
     }
 
     @Override

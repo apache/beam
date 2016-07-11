@@ -34,6 +34,7 @@ import javax.jms.Message;
 public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private final List<Message> messages = new ArrayList<>();
+  private long oldestPendingTimestamp = System.currentTimeMillis();
 
   public JmsCheckpointMark() {
   }
@@ -42,8 +43,15 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
     return this.messages;
   }
 
-  public void addMessage(Message message) {
+  public void addMessage(Message message) throws Exception {
+    if (message.getJMSTimestamp() < oldestPendingTimestamp) {
+      oldestPendingTimestamp = message.getJMSTimestamp();
+    }
     messages.add(message);
+  }
+
+  public long getOldestPendingTimestamp() {
+    return oldestPendingTimestamp;
   }
 
   @Override
@@ -56,6 +64,7 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
       }
     }
     messages.clear();
+    oldestPendingTimestamp = System.currentTimeMillis();
   }
 
 }
