@@ -405,7 +405,7 @@ public class V1Beta3 {
 
     @Override
     public BoundedReader<Entity> createReader(PipelineOptions pipelineOptions) throws IOException {
-      return new DatastoreReader(this, getDatastore(pipelineOptions, projectId));
+      return new DatastoreReader(this, getDatastore(pipelineOptions));
     }
 
     @Override
@@ -426,7 +426,7 @@ public class V1Beta3 {
         return mockEstimateSizeBytes;
       }
 
-      Datastore datastore = getDatastore(options, projectId);
+      Datastore datastore = getDatastore(options);
       if (query.getKindCount() != 1) {
         throw new UnsupportedOperationException(
             "Can only estimate size for queries specifying exactly 1 kind.");
@@ -514,7 +514,7 @@ public class V1Beta3 {
       }
 
       return DatastoreHelper.getQuerySplitter().getSplits(
-          query, partitionBuilder.build(), numSplits, getDatastore(options, projectId));
+          query, partitionBuilder.build(), numSplits, getDatastore(options));
     }
 
     /**
@@ -553,7 +553,7 @@ public class V1Beta3 {
       return entity.getProperties().get("timestamp").getTimestampValue().getNanos();
     }
 
-    static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+    private Datastore getDatastore(PipelineOptions pipelineOptions) {
       DatastoreOptions.Builder builder =
           new DatastoreOptions.Builder()
               .projectId(projectId)

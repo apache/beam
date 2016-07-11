@@ -26,7 +26,6 @@ import java.util.UUID;
  */
 @RunWith(JUnit4.class)
 public class V1Beta3WriteIT {
-
   private V1Beta3TestOptions options;
   private String ancestor;
   private final long numEntities = 1000;

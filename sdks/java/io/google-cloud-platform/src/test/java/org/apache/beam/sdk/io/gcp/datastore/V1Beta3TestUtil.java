@@ -37,13 +37,13 @@ import com.google.protobuf.Int32Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+
+import javax.annotation.Nullable;
 
 class V1Beta3TestUtil {
 
@@ -97,6 +97,7 @@ class V1Beta3TestUtil {
    */
   static class CreateFn extends DoFn<Long, Entity> {
     private final String kind;
+    @Nullable
     private final String namespace;
     private Key ancestorKey;
 
@@ -206,7 +207,6 @@ class V1Beta3TestUtil {
     //Initial backoff time for exponential backoff for retry attempts.
     private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
-
     // Returns true if a Datastore key is complete. A key is complete if its last element
     // has either an id or a name.
     static boolean isValidKey(Key key) {
@@ -283,19 +283,19 @@ class V1Beta3TestUtil {
    * A helper class to read entities from datastore directly
    */
   static class V1Beta3TestReader {
+    private static final int QUERY_BATCH_LIMIT = 500;
+
     private final Datastore datastore;
     private final Query query;
+    @Nullable
     private final String namespace;
-
     private boolean moreResults;
     private java.util.Iterator<EntityResult> entities;
     // Current batch of query results
     private QueryResultBatch currentBatch;
-    private static final int QUERY_BATCH_LIMIT = 500;
-
     private Entity currentEntity;
 
-    V1Beta3TestReader(Datastore datastore, Query query, String namespace) {
+    V1Beta3TestReader(Datastore datastore, Query query, @Nullable String namespace) {
       this.datastore = datastore;
       this.query = query;
       this.namespace = namespace;
