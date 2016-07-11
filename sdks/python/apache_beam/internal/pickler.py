@@ -159,6 +159,24 @@ if 'save_module' in dir(dill.dill):
       return old_save_module_dict(pickler, obj)
   dill.dill.save_module_dict = new_save_module_dict
 
+
+  old_save_function = dill.dill.save_function
+
+  @dill.dill.register(types.FunctionType)
+  def new_save_function(pickler, obj):
+    globs = obj.__globals__ if dill.dill.PY3 else obj.func_globals
+    if (dill.dill.is_dill(pickler) and globs == pickler._main.__dict__
+        and not pickler._recurse):
+      try:
+        pickler._recurse = True
+        return old_save_function(pickler, obj)
+      finally:
+        pickler._recurse = False
+    else:
+      return old_save_function(pickler, obj)
+  dill.dill.save_function = new_save_function
+
+
   def _nest_dill_logging():
     """Prefix all dill logging with its depth in the callstack.
 
