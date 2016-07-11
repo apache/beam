@@ -723,19 +723,7 @@ public class Combine {
     @Override
     public Coder<int[]> getAccumulatorCoder(CoderRegistry registry, Coder<Integer> inputCoder) {
       return DelegateCoder.of(
-          inputCoder,
-          new DelegateCoder.CodingFunction<int[], Integer>() {
-            @Override
-            public Integer apply(int[] accumulator) {
-              return accumulator[0];
-            }
-          },
-          new DelegateCoder.CodingFunction<Integer, int[]>() {
-            @Override
-            public int[] apply(Integer value) {
-              return wrap(value);
-            }
-          });
+          inputCoder, new ToIntegerCodingFunction(), new FromIntegerCodingFunction());
     }
 
     @Override
@@ -744,12 +732,48 @@ public class Combine {
       return inputCoder;
     }
 
-    private int[] wrap(int value) {
+    private static int[] wrap(int value) {
       return new int[] { value };
     }
 
-    public Counter<Integer> getCounter(String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    public Counter<Integer> getCounter(@SuppressWarnings("unused") String name) {
+      throw new UnsupportedOperationException("BinaryCombineIntegerFn does not support getCounter");
+    }
+
+    private static final class ToIntegerCodingFunction
+        implements DelegateCoder.CodingFunction<int[], Integer> {
+      @Override
+      public Integer apply(int[] accumulator) {
+        return accumulator[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof ToIntegerCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
+    }
+
+    private static final class FromIntegerCodingFunction
+        implements DelegateCoder.CodingFunction<Integer, int[]> {
+      @Override
+      public int[] apply(Integer value) {
+        return wrap(value);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof FromIntegerCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     }
   }
 
@@ -803,20 +827,7 @@ public class Combine {
 
     @Override
     public Coder<long[]> getAccumulatorCoder(CoderRegistry registry, Coder<Long> inputCoder) {
-      return DelegateCoder.of(
-          inputCoder,
-          new DelegateCoder.CodingFunction<long[], Long>() {
-            @Override
-            public Long apply(long[] accumulator) {
-              return accumulator[0];
-            }
-          },
-          new DelegateCoder.CodingFunction<Long, long[]>() {
-            @Override
-            public long[] apply(Long value) {
-              return wrap(value);
-            }
-          });
+      return DelegateCoder.of(inputCoder, new ToLongCodingFunction(), new FromLongCodingFunction());
     }
 
     @Override
@@ -824,12 +835,48 @@ public class Combine {
       return inputCoder;
     }
 
-    private long[] wrap(long value) {
+    private static long[] wrap(long value) {
       return new long[] { value };
     }
 
-    public Counter<Long> getCounter(String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    public Counter<Long> getCounter(@SuppressWarnings("unused") String name) {
+      throw new UnsupportedOperationException("BinaryCombineLongFn does not support getCounter");
+    }
+
+    private static final class ToLongCodingFunction
+        implements DelegateCoder.CodingFunction<long[], Long> {
+      @Override
+      public Long apply(long[] accumulator) {
+        return accumulator[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof ToLongCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
+    }
+
+    private static final class FromLongCodingFunction
+        implements DelegateCoder.CodingFunction<Long, long[]> {
+      @Override
+      public long[] apply(Long value) {
+        return wrap(value);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof FromLongCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     }
   }
 
@@ -885,19 +932,7 @@ public class Combine {
     @Override
     public Coder<double[]> getAccumulatorCoder(CoderRegistry registry, Coder<Double> inputCoder) {
       return DelegateCoder.of(
-          inputCoder,
-          new DelegateCoder.CodingFunction<double[], Double>() {
-            @Override
-            public Double apply(double[] accumulator) {
-              return accumulator[0];
-            }
-          },
-          new DelegateCoder.CodingFunction<Double, double[]>() {
-            @Override
-            public double[] apply(Double value) {
-              return wrap(value);
-            }
-          });
+          inputCoder, new ToDoubleCodingFunction(), new FromDoubleCodingFunction());
     }
 
     @Override
@@ -905,12 +940,48 @@ public class Combine {
       return inputCoder;
     }
 
-    private double[] wrap(double value) {
+    private static double[] wrap(double value) {
       return new double[] { value };
     }
 
-    public Counter<Double> getCounter(String name) {
+    public Counter<Double> getCounter(@SuppressWarnings("unused") String name) {
       throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    }
+
+    private static final class ToDoubleCodingFunction
+        implements DelegateCoder.CodingFunction<double[], Double> {
+      @Override
+      public Double apply(double[] accumulator) {
+        return accumulator[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof ToDoubleCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
+    }
+
+    private static final class FromDoubleCodingFunction
+        implements DelegateCoder.CodingFunction<Double, double[]> {
+      @Override
+      public double[] apply(Double value) {
+        return wrap(value);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o instanceof FromDoubleCodingFunction;
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     }
   }
 
