@@ -415,4 +415,3 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   if debug:
     print f, id(f), input_types, '->', result
   return result
-
