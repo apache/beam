@@ -92,12 +92,12 @@ class NativeTestTextFileSink(
   pass
 
 
-class TestPureTextFileSink(
-    TestWithInProcessPipelineRunner, fileio_test.TestPureTextFileSink):
+class TestTextFileSink(
+    TestWithInProcessPipelineRunner, fileio_test.TestTextFileSink):
 
   def setUp(self):
     TestWithInProcessPipelineRunner.setUp(self)
-    fileio_test.TestPureTextFileSink.setUp(self)
+    fileio_test.TestTextFileSink.setUp(self)
 
 
 class MyFileSink(TestWithInProcessPipelineRunner, fileio_test.MyFileSink):
