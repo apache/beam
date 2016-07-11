@@ -166,10 +166,8 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
 
   @Override
   public boolean equals(Object other) {
-    if (getClass() != other.getClass()) {
-      return false;
-    }
-    return type == ((SerializableCoder<?>) other).type;
+    return !(other == null || getClass() != other.getClass())
+            && type == ((SerializableCoder<?>) other).type;
   }
 
   @Override
