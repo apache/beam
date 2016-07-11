@@ -20,11 +20,14 @@
 from __future__ import absolute_import
 
 import copy
+import uuid
 
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import util
+from apache_beam.pvalue import AsIter
+from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
@@ -52,8 +55,13 @@ K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
 
 
-class DoFnProcessContext(object):
-  """A processing context passed to DoFn methods during execution.
+class DoFnContext(object):
+  """A context available to all methods of DoFn instance."""
+  pass
+
+
+class DoFnProcessContext(DoFnContext):
+  """A processing context passed to DoFn process() during execution.
 
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
@@ -133,7 +141,7 @@ class DoFn(WithTypeHints):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self.process, [input_type]))
 
-  def start_bundle(self, context, *args, **kwargs):
+  def start_bundle(self, context):
     """Called before a bundle of elements is processed on a worker.
 
     Elements to be processed are split into bundles and distributed
@@ -141,18 +149,16 @@ class DoFn(WithTypeHints):
     of its bundle, it calls this method.
 
     Args:
-      context: a DoFnProcessContext object
-      *args: side inputs
-      **kwargs: keyword side inputs
+      context: a DoFnContext object
 
     """
     pass
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self, context):
     """Called after a bundle of elements is processed on a worker.
 
     Args:
-      context: a DoFnProcessContext object
+      context: a DoFnContext object
       *args: side inputs
       **kwargs: keyword side inputs
     """
@@ -857,7 +863,7 @@ class CombineGlobally(PTransform):
 
 
 @ptransform_fn
-def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
+def CombinePerKey(label, pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
   """A per-key Combine transform.
 
   Identifies sets of values associated with the same key in the input
@@ -866,6 +872,8 @@ def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
   CombineFns are applied.
 
   Args:
+    label: name of this transform instance. Useful while monitoring and
+      debugging a pipeline execution.
     pcoll: input pcollection.
     fn: instance of CombineFn to apply to all values under the same key in
       pcoll, or a callable whose signature is f(iterable, *args, **kwargs)
@@ -895,6 +903,7 @@ class CombineValues(PTransformWithSideInputs):
       key_type, _ = input_type.tuple_types
 
     runtime_type_check = (
+        pcoll.pipeline.options is not None and
         pcoll.pipeline.options.view_as(TypeOptions).runtime_type_check)
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
