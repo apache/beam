@@ -49,6 +49,11 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
     flinkSource = checkNotNull(source);
   }
 
+  public UnboundedFlinkSource(SourceFunction<T> source, AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+    flinkSource = checkNotNull(source);
+    flinkTimestampAssigner = checkNotNull(timestampAssigner);
+  }
+
   public SourceFunction<T> getFlinkSource() {
     return this.flinkSource;
   }
@@ -100,5 +105,10 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
    */
   public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(SourceFunction<T> flinkSource) {
     return new UnboundedFlinkSource<>(flinkSource);
+  }
+
+  public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(
+          SourceFunction<T> flinkSource, AssignerWithPeriodicWatermarks<T> flinkTimestampAssigner) {
+    return new UnboundedFlinkSource<>(flinkSource, flinkTimestampAssigner);
   }
 }
