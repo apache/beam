@@ -29,7 +29,7 @@ and a --setup_file option.
 If --setup_file is present then it is assumed that the folder containing the
 file specified by the option has the typical layout required by setuptools and
 it will run 'python setup.py sdist' to produce a source distribution. The
-resulting tarball (a file ending in .tar.gz) will be staged at the GCS staging
+resulting tarball (a .tar or .tar.gz file) will be staged at the GCS staging
 location specified as job option. When a worker starts it will check for the
 presence of this file and will run 'easy_install tarball' to install the
 package in the worker.
@@ -137,10 +137,11 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   staging_temp_dir = None
   local_packages = []
   for package in extra_packages:
-    if not os.path.basename(package).endswith('.tar.gz'):
+    if not (os.path.basename(package).endswith('.tar') or
+            os.path.basename(package).endswith('.tar.gz')):
       raise RuntimeError(
           'The --extra_packages option expects a full path ending with '
-          '\'.tar.gz\' instead of %s' % package)
+          '\'.tar\' or \'.tar.gz\' instead of %s' % package)
 
     if not os.path.isfile(package):
       if package.startswith('gs://'):
@@ -460,4 +461,3 @@ def _download_pypi_sdk_package(temp_dir):
       'Failed to download a source distribution for the running SDK. Expected '
       'either %s or %s to be found in the download folder.' % (
           zip_expected, tgz_expected))
-

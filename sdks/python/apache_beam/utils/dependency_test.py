@@ -333,6 +333,8 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, 'xyz.tar.gz'), 'nothing')
     self.create_temp_file(
+        os.path.join(source_dir, 'xyz2.tar'), 'nothing')
+    self.create_temp_file(
         os.path.join(source_dir, dependency.EXTRA_PACKAGES_FILE), 'nothing')
 
     options = PipelineOptions()
@@ -341,6 +343,7 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).extra_packages = [
         os.path.join(source_dir, 'abc.tar.gz'),
         os.path.join(source_dir, 'xyz.tar.gz'),
+        os.path.join(source_dir, 'xyz2.tar'),
         'gs://my-gcs-bucket/gcs.tar.gz']
 
     gcs_copied_files = []
@@ -359,13 +362,13 @@ class SetupTest(unittest.TestCase):
     dependency._dependency_file_copy = file_copy
 
     self.assertEqual(
-        ['abc.tar.gz', 'xyz.tar.gz', 'gcs.tar.gz',
+        ['abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'gcs.tar.gz',
          dependency.EXTRA_PACKAGES_FILE,
          names.PICKLED_MAIN_SESSION_FILE],
         dependency.stage_job_resources(options))
     with open(os.path.join(staging_dir, dependency.EXTRA_PACKAGES_FILE)) as f:
-      self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n', 'gcs.tar.gz\n'],
-                       f.readlines())
+      self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n',
+                        'gcs.tar.gz\n'], f.readlines())
     self.assertEqual(['gs://my-gcs-bucket/gcs.tar.gz'], gcs_copied_files)
 
   def test_with_extra_packages_missing_files(self):
@@ -398,7 +401,8 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(
         cm.exception.message,
         'The --extra_packages option expects a full path ending with '
-        '\'.tar.gz\' instead of %s' % os.path.join(source_dir, 'abc.tgz'))
+        '\'.tar\' or \'.tar.gz\' instead of %s' % os.path.join(source_dir,
+                                                               'abc.tgz'))
 
 
 if __name__ == '__main__':
