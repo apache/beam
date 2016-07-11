@@ -17,9 +17,9 @@
 
 """Support for user-defined Aggregators.
 
-Aggregators allow steps in a pipeline perform custom aggregation of statistics
-about the data processed across all workers.  To update an aggregator's value,
-call aggregate_to() on the context passed to a DoFn.
+Aggregators allow steps in a pipeline to perform custom aggregation of
+statistics about the data processed across all workers.  To update an
+aggregator's value, call aggregate_to() on the context passed to a DoFn.
 
 Example:
 import apache_beam as beam
