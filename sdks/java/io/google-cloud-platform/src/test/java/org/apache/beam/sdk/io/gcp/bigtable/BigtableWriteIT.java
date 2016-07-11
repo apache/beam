@@ -27,15 +27,16 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 
-import com.google.bigtable.admin.table.v1.ColumnFamily;
-import com.google.bigtable.admin.table.v1.CreateTableRequest;
-import com.google.bigtable.admin.table.v1.DeleteTableRequest;
-import com.google.bigtable.admin.table.v1.GetTableRequest;
-import com.google.bigtable.admin.table.v1.Table;
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.ReadRowsRequest;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowRange;
+import com.google.bigtable.admin.v2.ColumnFamily;
+import com.google.bigtable.admin.v2.CreateTableRequest;
+import com.google.bigtable.admin.v2.DeleteTableRequest;
+import com.google.bigtable.admin.v2.GetTableRequest;
+import com.google.bigtable.admin.v2.Table;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.ReadRowsRequest;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowRange;
+import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
@@ -87,8 +88,7 @@ public class BigtableWriteIT implements Serializable {
 
     BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
         .setProjectId(options.getProjectId())
-        .setClusterId(options.getClusterId())
-        .setZoneId(options.getZoneId())
+        .setInstanceId(options.getInstanceId())
         .setUserAgent("apache-beam-test")
         .setRetryOptions(retryOptionsBuilder.build());
     bigtableOptions = bigtableOptionsBuilder.build();
@@ -99,12 +99,12 @@ public class BigtableWriteIT implements Serializable {
 
   @Test
   public void testE2EBigtableWrite() throws Exception {
-    final String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
-    final String clusterName = bigtableOptions.getClusterName().toString();
+    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
+    final String instanceName = bigtableOptions.getInstanceName().toString();
     final int numRows = 1000;
     final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
 
-    createEmptyTable(clusterName, tableId);
+    createEmptyTable(instanceName, tableId);
 
     Pipeline p = Pipeline.create(options);
     p.apply(CountingInput.upTo(numRows))
@@ -140,7 +140,7 @@ public class BigtableWriteIT implements Serializable {
 
   @After
   public void tearDown() throws Exception {
-    final String tableName = bigtableOptions.getClusterName().toTableNameStr(tableId);
+    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
     deleteTable(tableName);
     session.close();
   }
@@ -159,13 +159,13 @@ public class BigtableWriteIT implements Serializable {
   }
 
   /** Helper function to create an empty table. */
-  private void createEmptyTable(String clusterName, String tableId) {
+  private void createEmptyTable(String instanceName, String tableId) {
     Table.Builder tableBuilder = Table.newBuilder();
     Map<String, ColumnFamily> columnFamilies = tableBuilder.getMutableColumnFamilies();
     columnFamilies.put(COLUMN_FAMILY_NAME, ColumnFamily.newBuilder().build());
 
     CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder()
-        .setName(clusterName)
+        .setParent(instanceName)
         .setTableId(tableId)
         .setTable(tableBuilder.build());
     tableAdminClient.createTable(createTableRequestBuilder.build());
@@ -182,16 +182,19 @@ public class BigtableWriteIT implements Serializable {
   private List<KV<ByteString, ByteString>> getTableData(String tableName) throws IOException {
     // Add empty range to avoid TARGET_NOT_SET error
     RowRange range = RowRange.newBuilder()
-        .setStartKey(ByteString.EMPTY)
-        .setEndKey(ByteString.EMPTY)
+        .setStartKeyClosed(ByteString.EMPTY)
+        .setEndKeyOpen(ByteString.EMPTY)
         .build();
-    List<KV<ByteString, ByteString>> tableData = new ArrayList<>();
+    RowSet rowSet = RowSet.newBuilder()
+        .addRowRanges(range)
+        .build();
     ReadRowsRequest.Builder readRowsRequestBuilder = ReadRowsRequest.newBuilder()
         .setTableName(tableName)
-        .setRowRange(range);
+        .setRows(rowSet);
     ResultScanner<Row> scanner = session.getDataClient().readRows(readRowsRequestBuilder.build());
 
     Row currentRow;
+    List<KV<ByteString, ByteString>> tableData = new ArrayList<>();
     while ((currentRow = scanner.next()) != null) {
       ByteString key = currentRow.getKey();
       ByteString value = currentRow.getFamilies(0).getColumns(0).getCells(0).getValue();

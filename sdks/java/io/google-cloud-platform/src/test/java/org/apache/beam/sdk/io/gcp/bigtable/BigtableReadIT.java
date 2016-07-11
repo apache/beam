@@ -24,7 +24,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.bigtable.v1.Row;
+import com.google.bigtable.v2.Row;
 import com.google.cloud.bigtable.config.BigtableOptions;
 
 import org.junit.Test;
@@ -45,8 +45,7 @@ public class BigtableReadIT {
 
     BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
         .setProjectId(options.getProjectId())
-        .setClusterId(options.getClusterId())
-        .setZoneId(options.getZoneId());
+        .setInstanceId(options.getInstanceId());
 
     final String tableId = "BigtableReadTest";
     final long numRows = 1000L;

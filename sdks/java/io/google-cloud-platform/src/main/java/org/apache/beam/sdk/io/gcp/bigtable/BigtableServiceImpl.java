@@ -20,14 +20,16 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
-import com.google.bigtable.admin.table.v1.GetTableRequest;
-import com.google.bigtable.v1.MutateRowRequest;
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.ReadRowsRequest;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowRange;
-import com.google.bigtable.v1.SampleRowKeysRequest;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.admin.v2.GetTableRequest;
+import com.google.bigtable.v2.MutateRowRequest;
+import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.Mutation;
+import com.google.bigtable.v2.ReadRowsRequest;
+import com.google.bigtable.v2.Row;
+import com.google.bigtable.v2.RowRange;
+import com.google.bigtable.v2.RowSet;
+import com.google.bigtable.v2.SampleRowKeysRequest;
+import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
@@ -38,7 +40,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Empty;
 
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
@@ -66,7 +67,7 @@ class BigtableServiceImpl implements BigtableService {
   @Override
   public BigtableWriterImpl openForWriting(String tableId) throws IOException {
     BigtableSession session = new BigtableSession(options);
-    BigtableTableName tableName = options.getClusterName().toTableName(tableId);
+    BigtableTableName tableName = options.getInstanceName().toTableName(tableId);
     return new BigtableWriterImpl(session, tableName);
   }
 
@@ -84,7 +85,7 @@ class BigtableServiceImpl implements BigtableService {
     try (BigtableSession session = new BigtableSession(options)) {
       GetTableRequest getTable =
           GetTableRequest.newBuilder()
-              .setName(options.getClusterName().toTableNameStr(tableId))
+              .setName(options.getInstanceName().toTableNameStr(tableId))
               .build();
       session.getTableAdminClient().getTable(getTable);
       return true;
@@ -115,13 +116,16 @@ class BigtableServiceImpl implements BigtableService {
     public boolean start() throws IOException {
       RowRange range =
           RowRange.newBuilder()
-              .setStartKey(source.getRange().getStartKey().getValue())
-              .setEndKey(source.getRange().getEndKey().getValue())
+              .setStartKeyClosed(source.getRange().getStartKey().getValue())
+              .setEndKeyOpen(source.getRange().getEndKey().getValue())
               .build();
+      RowSet rowSet = RowSet.newBuilder()
+          .addRowRanges(range)
+          .build();
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder()
-              .setRowRange(range)
-              .setTableName(options.getClusterName().toTableNameStr(source.getTableId()));
+              .setRows(rowSet)
+              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId()));
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
@@ -200,7 +204,8 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public ListenableFuture<Empty> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+    public ListenableFuture<MutateRowResponse> writeRecord(
+        KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
       MutateRowRequest r =
           partialBuilder
@@ -231,7 +236,7 @@ class BigtableServiceImpl implements BigtableService {
     try (BigtableSession session = new BigtableSession(options)) {
       SampleRowKeysRequest request =
           SampleRowKeysRequest.newBuilder()
-              .setTableName(options.getClusterName().toTableNameStr(source.getTableId()))
+              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId()))
               .build();
       return session.getDataClient().sampleRowKeys(request);
     }

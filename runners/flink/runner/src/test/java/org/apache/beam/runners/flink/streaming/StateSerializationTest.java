@@ -99,6 +99,16 @@ public class StateSerializationTest {
       public Integer apply(int[] accumulator) {
         return accumulator[0];
       }
+
+      @Override
+      public boolean equals(Object o) {
+        return o != null && this.getClass() == o.getClass();
+      }
+
+     @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
+      }
     },
     new DelegateCoder.CodingFunction<Integer, int[]>() {
       @Override
@@ -106,6 +116,16 @@ public class StateSerializationTest {
         int[] a = new int[1];
         a[0] = value;
         return a;
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return o != null && this.getClass() == o.getClass();
+      }
+
+      @Override
+      public int hashCode() {
+        return this.getClass().hashCode();
       }
     });
 
