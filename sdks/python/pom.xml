@@ -32,6 +32,13 @@
 
   <name>Apache Beam :: SDKs :: Python</name>
 
+  <properties>
+    <python.interpreter.bin>python2</python.interpreter.bin>
+    <python.pip.bin>pip2</python.pip.bin>
+    <python.build.base>${project.build.directory}/build</python.build.base>
+    <python.user.base>${project.build.directory}/python</python.user.base>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -45,7 +52,7 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>python</executable>
+              <executable>${python.interpreter.bin}</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>clean</argument>
@@ -59,25 +66,25 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>python</executable>
+              <executable>${python.interpreter.bin}</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>build</argument>
                 <argument>--build-base</argument>
-                <argument>${project.build.directory}/build</argument>
+                <argument>${python.build.base}</argument>
               </arguments>
             </configuration>
           </execution>
           <execution>
-            <id>setup-test-virtualenv</id>
+            <id>setup-test-create-python-base</id>
             <phase>process-test-resources</phase>
             <goals>
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>virtualenv</executable>
+              <executable>mkdir</executable>
               <arguments>
-                <argument>${project.build.directory}/virtualenv</argument>
+                <argument>${python.user.base}</argument>
               </arguments>
             </configuration>
           </execution>
@@ -88,11 +95,17 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>${project.build.directory}/virtualenv/bin/pip</executable>
+              <executable>${python.pip.bin}</executable>
               <arguments>
                 <argument>install</argument>
+                <argument>--user</argument>
+                <argument>--upgrade</argument>
+                <argument>--ignore-installed</argument>
                 <argument>tox</argument>
               </arguments>
+              <environmentVariables>
+                <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+              </environmentVariables>
             </configuration>
           </execution>
           <execution>
@@ -102,13 +115,16 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>${project.build.directory}/virtualenv/bin/tox</executable>
+              <executable>${python.user.base}/bin/tox</executable>
               <arguments>
                 <argument>-e</argument>
                 <argument>py27</argument>
                 <argument>-c</argument>
                 <argument>tox.ini</argument>
               </arguments>
+              <environmentVariables>
+                <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+              </environmentVariables>
             </configuration>
           </execution>
           <execution>
@@ -118,13 +134,16 @@
               <goal>exec</goal>
             </goals>
             <configuration>
-              <executable>python</executable>
+              <executable>${python.interpreter.bin}</executable>
               <arguments>
                 <argument>setup.py</argument>
                 <argument>sdist</argument>
                 <argument>--dist-dir</argument>
                 <argument>${project.build.directory}</argument>
               </arguments>
+              <environmentVariables>
+                <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+              </environmentVariables>
             </configuration>
           </execution>
         </executions>
