@@ -39,15 +39,15 @@
     <python.user.base>${project.build.directory}/python</python.user.base>
   </properties>
 
+  <prerequisites>
+    <maven>3.3.0</maven>
+  </prerequisites>
+
   <build>
     <plugins>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <configuration>
-          <!-- just to make exec:java happy in some old maven versions -->
-          <mainClass>org.apache.beam.FakeMain</mainClass>
-        </configuration>
         <executions>
           <execution>
             <id>setuptools-clean</id>
