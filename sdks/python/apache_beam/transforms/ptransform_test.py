@@ -461,9 +461,8 @@ class PTransformTest(unittest.TestCase):
 
     self.assertStartswith(
         e.exception.message,
-        'Runtime type violation detected within '
-        'ParDo(D/reify_windows): Input to GroupByKey must be '
-        'a PCollection with elements compatible with KV[A, B]')
+        'Input type hint violation at D: expected '
+        'Tuple[TypeVariable[K], TypeVariable[V]]')
 
   def test_group_by_key_only_input_must_be_kv_pairs(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -472,8 +471,8 @@ class PTransformTest(unittest.TestCase):
       pcolls | beam.GroupByKeyOnly('D')
       pipeline.run()
 
-    expected_error_prefix = ('Input to GroupByKeyOnly must be a PCollection of '
-                             'windowed key-value pairs.')
+    expected_error_prefix = ('Input type hint violation at D: expected '
+                             'Tuple[TypeVariable[K], TypeVariable[V]]')
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
   def test_keys_and_values(self):
