@@ -59,7 +59,9 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   @Override
   public FlinkRunnerResult run(Pipeline pipeline) {
     try {
-      return delegate.run(pipeline);
+      FlinkRunnerResult result = delegate.run(pipeline);
+
+      return result;
     } catch (RuntimeException e) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.
