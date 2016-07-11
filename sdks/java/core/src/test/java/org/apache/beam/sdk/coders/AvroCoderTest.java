@@ -62,10 +62,8 @@ import org.junit.runners.JUnit4;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -153,13 +151,13 @@ public class AvroCoderTest {
   }
 
   /**
-   * Confirm that we can serialize and deserialize an AvroCoder object and then still successfully decode after
-   * (BEAM-349)
+   * Confirm that we can serialize and deserialize an AvroCoder object and still decode after.
+   * (BEAM-349).
+   *
    * @throws Exception
    */
   @Test
-  public void testTransientFieldInitialization() throws Exception
-  {
+  public void testTransientFieldInitialization() throws Exception {
     Pojo value = new Pojo("Hello", 42);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
