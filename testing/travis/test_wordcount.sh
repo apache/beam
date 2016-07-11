@@ -42,14 +42,14 @@ function check_result_hash {
   local outfile_prefix=$2
   local expected=$3
 
-  local actual=$(LC_ALL=C sort $outfile_prefix-* | md5sum | awk '{print $1}' \
-    || LC_ALL=C sort $outfile_prefix-* | md5 -q) || exit 2  # OSX
+  local actual=$(LC_ALL=C sort $outfile_prefix | md5sum | awk '{print $1}' \
+    || LC_ALL=C sort $outfile_prefix | md5 -q) || exit 2  # OSX
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
     PASS=""
     echo "head hexdump of actual:"
-    head $outfile_prefix-* | hexdump -c
+    head $outfile_prefix | hexdump -c
   else
     echo "pass $name"
     # Output files are left behind in /tmp
