@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -419,7 +420,8 @@ public class TriggerExample {
   /**
    * Inherits standard configuration options.
    */
-  public interface TrafficFlowOptions extends ExampleBigQueryTableOptions, ExampleOptions {
+  public interface TrafficFlowOptions
+      extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
 
     @Description("Input file to read from")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
