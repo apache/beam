@@ -295,6 +295,3 @@ class InProcessEvaluationContext(object):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_schedule_after_output(
         pcollection_view, task)
-
-
-

@@ -140,8 +140,3 @@ class InProcessPipelineResult(PipelineResult):
 
   def aggregated_values(self, aggregator_or_name):
     return self._evaluation_context.get_aggregator_values(aggregator_or_name)
-
-
-
-
-

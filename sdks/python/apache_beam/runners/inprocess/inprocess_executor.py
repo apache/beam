@@ -548,4 +548,3 @@ class _ExecutorServiceParallelExecutor(object):
           self._executor.schedule_consumption(
               applied_transform, None,
               self._executor.default_completion_callback)
-
