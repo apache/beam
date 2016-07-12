@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import com.google.common.base.MoreObjects;
 
@@ -67,14 +68,13 @@ public interface DataflowPipelineOptions
    *
    * <p>Must be a valid Cloud Storage URL, beginning with the prefix "gs://"
    *
-   * <p>At least one of {@link GcpOptions#getGcpTempLocation()} or {@link #getStagingLocation()}
-   * must be set. If {@link #getStagingLocation()} is not set, then the Dataflow
-   * pipeline defaults to using {@link GcpOptions#getGcpTempLocation()}.
+   * <p>If {@link #getStagingLocation()} is not set, it will default to
+   * {@link GcpOptions#getGcpTempLocation()}. {@link GcpOptions#getGcpTempLocation()}
+   * must be a valid GCS path.
    */
   @Description("GCS path for staging local files, e.g. \"gs://bucket/object\". "
       + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
-      + "At least one of stagingLocation or gcpTempLocation must be set. "
-      + "If stagingLocation is unset, defaults to using gcpTempLocation.")
+      + "If stagingLocation is unset, defaults to gcpTempLocation.")
   @Default.InstanceFactory(StagingLocationFactory.class)
   String getStagingLocation();
   void setStagingLocation(String value);
@@ -140,14 +140,22 @@ public interface DataflowPipelineOptions
     public String create(PipelineOptions options) {
       String gcpTempLocation = options.as(GcpOptions.class).getGcpTempLocation();
       checkArgument(!isNullOrEmpty(gcpTempLocation),
-          "Missing required value: at least one of tempLocation, gcpTempLocation "
-          + "or stagingLocation must be set.");
-
+          "Error constructing default value for stagingLocation: gcpTempLocation is missing."
+          + "Either stagingLocation must be set explicitly or a valid value must be provided"
+          + "for gcpTempLocation.");
+      try {
+        GcsPath.fromUri(gcpTempLocation);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(String.format(
+            "Error constructing default value for stagingLocation: gcpTempLocation is not"
+            + " a valid GCS path, %s. ", gcpTempLocation));
+      }
       try {
         return IOChannelUtils.resolve(gcpTempLocation, "staging");
       } catch (IOException e) {
-        throw new IllegalArgumentException("Unable to resolve stagingLocation from gcpTempLocation."
-            + " Please set the staging location explicitly.", e);
+        throw new IllegalArgumentException(String.format(
+            "Unable to resolve stagingLocation from gcpTempLocation: %s."
+            + " Please set the staging location explicitly.", gcpTempLocation), e);
       }
     }
   }

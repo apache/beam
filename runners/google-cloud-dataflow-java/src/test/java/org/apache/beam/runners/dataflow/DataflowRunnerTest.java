@@ -537,8 +537,8 @@ public class DataflowRunnerTest {
     options.setTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("Missing required value: at least one of tempLocation, "
-        + "gcpTempLocation or stagingLocation must be set."));
+    thrown.expectMessage(
+        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
     DataflowRunner.fromOptions(options);
   }
 
@@ -617,7 +617,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
 
@@ -630,7 +630,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("google.com:some-project-12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
 
@@ -643,7 +643,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     thrown.expect(IllegalArgumentException.class);
@@ -659,7 +659,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("some project");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     thrown.expect(IllegalArgumentException.class);
@@ -675,7 +675,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     options.as(DataflowPipelineDebugOptions.class).setNumberOfWorkerHarnessThreads(-1);
@@ -694,8 +694,8 @@ public class DataflowRunnerTest {
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Missing required value: at least one of tempLocation, gcpTempLocation"
-        + " or stagingLocation must be set.");
+    thrown.expectMessage(
+        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
     DataflowRunner.fromOptions(options);
   }
 
@@ -705,7 +705,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
-    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcpTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     DataflowRunner.fromOptions(options);

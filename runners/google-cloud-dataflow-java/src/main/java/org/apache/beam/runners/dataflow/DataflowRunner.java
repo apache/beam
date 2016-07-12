@@ -182,16 +182,17 @@ import java.util.TreeSet;
 import javax.annotation.Nullable;
 
 /**
- * A {@link PipelineRunner} that executes the operations in the
- * pipeline by first translating them to the Dataflow representation
- * using the {@link DataflowPipelineTranslator} and then submitting
+ * A {@link PipelineRunner} that executes the operations in the pipeline by first translating them
+ * to the Dataflow representation using the {@link DataflowPipelineTranslator} and then submitting
  * them to a Dataflow service for execution.
  *
- * <p><h3>Permissions</h3>
- * When reading from a Dataflow source or writing to a Dataflow sink using
- * {@code DataflowRunner}, the Google cloudservices account and the Google compute engine
- * service account of the GCP project running the Dataflow Job will need access to the corresponding
- * source/sink.
+ * <p>
+ *
+ * <h3>Permissions</h3>
+ *
+ * When reading from a Dataflow source or writing to a Dataflow sink using {@code DataflowRunner},
+ * the Google cloudservices account and the Google compute engine service account of the GCP project
+ * running the Dataflow Job will need access to the corresponding source/sink.
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
@@ -260,12 +261,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    if (dataflowOptions.getGcpTempLocation() != null) {
-      validator.validateOutputFilePrefixSupported(dataflowOptions.getGcpTempLocation());
-    }
-    if (dataflowOptions.getStagingLocation() != null) {
-      validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
-    }
+    checkArgument(
+        !isNullOrEmpty(dataflowOptions.getGcpTempLocation()),
+        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
+    validator.validateOutputFilePrefixSupported(dataflowOptions.getGcpTempLocation());
+    checkArgument(
+        !isNullOrEmpty(dataflowOptions.getStagingLocation()),
+        "DataflowRunner requires stagingLocation, and it is missing in PipelineOptions.");
+    validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(

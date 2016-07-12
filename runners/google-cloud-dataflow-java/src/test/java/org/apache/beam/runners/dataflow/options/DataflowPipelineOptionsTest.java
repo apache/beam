@@ -123,14 +123,24 @@ public class DataflowPipelineOptionsTest {
     assertEquals("gs://gcp_temp_location/staging", options.getStagingLocation());
   }
 
-
   @Test
   public void testDefaultNoneGcsTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation("file://temp_location");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Missing required value: at least one of tempLocation, gcpTempLocation"
-        + " or stagingLocation must be set.");
+    thrown.expectMessage(
+        "Error constructing default value for stagingLocation: gcpTempLocation is missing.");
+    options.getStagingLocation();
+  }
+
+  @Test
+  public void testDefaultInvalidGcpTempLocation() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setGcpTempLocation("file://temp_location");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Error constructing default value for stagingLocation: gcpTempLocation is not"
+        + " a valid GCS path");
     options.getStagingLocation();
   }
 
@@ -138,8 +148,8 @@ public class DataflowPipelineOptionsTest {
   public void testDefaultStagingLocationUnset() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Missing required value: at least one of tempLocation, gcpTempLocation"
-        + " or stagingLocation must be set.");
+    thrown.expectMessage(
+        "Error constructing default value for stagingLocation: gcpTempLocation is missing.");
     options.getStagingLocation();
   }
 }
