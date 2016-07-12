@@ -218,10 +218,17 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Integer}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinIntegerFn extends MinFn<Integer> implements
-      CounterProvider<Integer> {
-    public MinIntegerFn() {
-      super(Integer.MAX_VALUE, new Top.Largest<Integer>());
+  public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn
+      implements CounterProvider<Integer> {
+
+    @Override
+    public int apply(int left, int right) {
+      return left <= right ? left : right;
+    }
+
+    @Override
+    public int identity() {
+      return Integer.MAX_VALUE;
     }
 
     @Override
@@ -234,10 +241,17 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Long}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinLongFn extends MinFn<Long> implements
-      CounterProvider<Long> {
-    public MinLongFn() {
-      super(Long.MAX_VALUE, new Top.Largest<Long>());
+  public static class MinLongFn extends Combine.BinaryCombineLongFn
+      implements CounterProvider<Long> {
+
+    @Override
+    public long apply(long left, long right) {
+      return left <= right ? left : right;
+    }
+
+    @Override
+    public long identity() {
+      return Long.MAX_VALUE;
     }
 
     @Override
@@ -250,10 +264,17 @@ public class Min {
    * A {@code CombineFn} that computes the minimum of a collection of {@code Double}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MinDoubleFn extends MinFn<Double> implements
-      CounterProvider<Double> {
-    public MinDoubleFn() {
-      super(Double.POSITIVE_INFINITY, new Top.Largest<Double>());
+  public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn
+      implements CounterProvider<Double> {
+
+    @Override
+    public double apply(double left, double right) {
+      return left <= right ? left : right;
+    }
+
+    @Override
+    public double identity() {
+      return Double.POSITIVE_INFINITY;
     }
 
     @Override
