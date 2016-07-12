@@ -39,10 +39,6 @@
     <python.user.base>${project.build.directory}/python</python.user.base>
   </properties>
 
-  <prerequisites>
-    <maven>3.3.0</maven>
-  </prerequisites>
-
   <build>
     <plugins>
       <plugin>

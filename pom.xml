@@ -226,9 +226,6 @@
                   <exclude>**/test/resources/**/*.txt</exclude>
                   <exclude>**/test/**/.placeholder</exclude>
                   <exclude>.repository/**/*</exclude>
-                  <exclude>**/.tox/**/*</exclude>
-                  <exclude>**/*.egg-info/**</exclude>
-                  <exclude>**/.eggs/**</exclude>
                 </excludes>
               </configuration>
             </plugin>
