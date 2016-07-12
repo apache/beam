@@ -153,13 +153,6 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   /**
-   * Get the Cloud Dataflow API Client used by this job.
-   */
-  public Dataflow getDataflowClient() {
-    return dataflowClient;
-  }
-
-  /**
    * Waits for the job to finish and return the final status.
    *
    * @param timeToWait The time to wait in units timeUnit for the job to finish.
