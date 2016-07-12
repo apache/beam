@@ -49,11 +49,14 @@ def run(argv=None):
   p = beam.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+  lines = p | beam.io.Read(
+      'read', beam.io.TextFileSource(known_args.input,
+                                     coder=beam.coders.BytesCoder()))
 
   # Count the occurrences of each word.
   output = (lines
             | beam.Map('split', lambda x: (x[:10], x[10:99]))
+                  .with_output_types(beam.typehints.KV[str, str])
             | beam.GroupByKey('group')
             | beam.FlatMap(
                 'format',
