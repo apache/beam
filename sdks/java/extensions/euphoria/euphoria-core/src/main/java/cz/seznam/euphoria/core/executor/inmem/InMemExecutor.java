@@ -380,7 +380,7 @@ public class InMemExecutor implements Executor {
 
 
   private void execUnit(ExecUnit unit, ExecutionContext context) {
-    unit.getDAG().bfs().forEach(n -> execNode(n, context));
+    unit.getDAG().traverse().forEach(n -> execNode(n, context));
   }
 
   /**
