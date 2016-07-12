@@ -44,16 +44,10 @@ class BigQuerySideInputTest(unittest.TestCase):
                                                words_pcoll, ignore_corpus_pcoll,
                                                ignore_word_pcoll)
 
-    def group_matcher(actual):
-      self.assertEqual(len(actual), 3)
-      for group in actual:
-        self.assertEqual(len(group), 3)
-        self.assertTrue(group[1].startswith('corpus'))
-        self.assertNotEqual(group[1], 'corpus1')
-        self.assertTrue(group[2].startswith('word'))
-        self.assertNotEqual(group[2], 'word1')
-
-    beam.assert_that(groups, group_matcher)
+    beam.assert_that(groups, beam.equal_to(
+        [('A', 'corpus2', 'word2'),
+         ('B', 'corpus2', 'word2'),
+         ('C', 'corpus2', 'word2')]))
     p.run()
 
 

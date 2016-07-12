@@ -14,21 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-[nosetests]
-# Allow discovery of Python test files marked executable.
-exe=True
-verbosity=2
-# TODO(silviuc): Find a way to run the remaining tests excluded here.
-#
-# The following tests are excluded because they try to load the Cython-based
-# fast_coders module which is not available when running unit tests:
-# fast_coders_test, typecoders_test, workitem_test, and executor_test.
-#
-# The streamingworker_test test is excluded because it depends on protobuf and
-# gRPC.
-#
-# The batchworker_test is excluded because it imports batchworker.py which
-# in-turn tries to import module 'resource' which does not work for Windows.
-exclude=fast_coders_test|typecoders_test|workitem_test|executor_test|streamingworker_test|batchworker_test
-
