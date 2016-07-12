@@ -28,7 +28,7 @@ coder_impl.pxd file for type hints.
 import collections
 
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   # Don't depend on the full dataflow sdk to test coders.
   from apache_beam.transforms.window import WindowedValue
@@ -42,7 +42,7 @@ try:
 except ImportError:
   from slow_stream import InputStream as create_InputStream
   from slow_stream import OutputStream as create_OutputStream
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 class CoderImpl(object):
