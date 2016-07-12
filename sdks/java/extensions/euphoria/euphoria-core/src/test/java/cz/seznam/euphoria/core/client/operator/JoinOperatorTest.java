@@ -50,7 +50,8 @@ public class JoinOperatorTest {
                         Duration readDelay,
                         List<String> leftInput,
                         List<String> rightInput,
-                        List<String> expectedOutput)
+                        List<String> expectedOutput,
+                        boolean makeOneArmLonger)
       throws Exception
   {
     inmemfs
@@ -75,6 +76,10 @@ public class JoinOperatorTest {
     Dataset<Pair<String, Integer>> secondkv = FlatMap.of(second)
         .using(tokv)
         .output();
+    if (makeOneArmLonger) {
+      secondkv = Filter.of(secondkv).by(e -> true).output();
+      secondkv = MapElements.of(secondkv).using(e -> e).output();
+    }
 
     Join.WindowingBuilder joinBuilder = Join.of(firstkv, secondkv)
         .by(Pair::getFirst, Pair::getFirst)
@@ -105,7 +110,8 @@ public class JoinOperatorTest {
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),
         asList("one, 11",  "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
-            "one, 77", "one, 110", "two, 21"));
+            "one, 77", "one, 110", "two, 21"),
+        false);
   }
 
   @Test
@@ -115,7 +121,8 @@ public class JoinOperatorTest {
         Duration.ofSeconds(2),
         asList("one 1",  "two 1", "one 22",  "one 44"),
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),
-        asList("one, 11",  "two, 21", "one, 55"));
+        asList("one, 11",  "two, 21", "one, 55"),
+        false);
   }
 
   @Test
@@ -128,7 +135,8 @@ public class JoinOperatorTest {
         asList(
             "one, 11",  "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
-            "one, 77", "one, 110", "two, 21", "three, 55"));
+            "one, 77", "one, 110", "two, 21", "three, 55"),
+        false);
   }
 
   @Test
@@ -138,7 +146,20 @@ public class JoinOperatorTest {
         Duration.ofSeconds(2),
         asList("one 1",  "two 1", "one 22",  "one 44"),
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),
-        asList("one, 11",  "two, 21", "one, 55", "one, 44", "three, 55", "one, 66"));
+        asList("one, 11",  "two, 21", "one, 55", "one, 44", "three, 55", "one, 66"),
+        false);
   }
 
+  @Test
+  public void testOneArmLongerJoin() throws Exception {
+    testJoin(false,
+        BatchWindowing.get(),
+        null,
+        asList("one 1",  "two 1", "one 22",  "one 44"),
+        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
+        asList("one, 11",  "one, 34", "one, 67",
+            "one, 32", "one, 55", "one, 88", "one, 54",
+            "one, 77", "one, 110", "two, 21"),
+        true);
+  }
 }
