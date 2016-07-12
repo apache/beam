@@ -262,6 +262,15 @@ public interface PipelineOptions extends HasDisplayData {
   String getTempLocation();
   void setTempLocation(String value);
 
+  @Default.Boolean(false)
+  @Description(
+      "If the pipeline should block awaiting completion of the pipeline. If set to true, "
+          + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
+          + "the Pipeline will execute asynchronously. If set to false, the completion of the "
+          + "pipeline can be awaited on by use of DirectPipelineResult#awaitCompletion().")
+  boolean isBlockOnRun();
+  void setBlockOnRun(boolean b);
+
   /**
    * A {@link DefaultValueFactory} that obtains the class of the {@code DirectRunner} if it exists
    * on the classpath, and throws an exception otherwise.
