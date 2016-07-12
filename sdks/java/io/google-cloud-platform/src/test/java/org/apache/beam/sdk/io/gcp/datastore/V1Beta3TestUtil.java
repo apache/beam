@@ -46,7 +46,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 class V1Beta3TestUtil {
-
   private static final Logger LOG = LoggerFactory.getLogger(V1Beta3TestUtil.class);
 
   /**
@@ -74,9 +73,9 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * Build an entity for the given ancestorKey, kind, namespace and value
+   * Build an entity for the given ancestorKey, kind, namespace and value.
    */
-  static Entity makeEntity(Long value, Key ancestorKey, String kind, String namespace) {
+  static Entity makeEntity(Long value, Key ancestorKey, String kind, @Nullable String namespace) {
     Entity.Builder entityBuilder = Entity.newBuilder();
     Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
     // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
@@ -89,19 +88,18 @@ class V1Beta3TestUtil {
     entityBuilder.setKey(keyBuilder.build());
     entityBuilder.getMutableProperties().put("value", makeValue(value).build());
     return entityBuilder.build();
-
   }
 
   /**
-   * A DoFn that creates entity for an integer.
+   * A DoFn that creates entity for a long number.
    */
-  static class CreateFn extends DoFn<Long, Entity> {
+  static class CreateEntityFn extends DoFn<Long, Entity> {
     private final String kind;
     @Nullable
     private final String namespace;
     private Key ancestorKey;
 
-    CreateFn(String kind, @Nullable String namespace, String ancestor) {
+    CreateEntityFn(String kind, @Nullable String namespace, String ancestor) {
       this.kind = kind;
       this.namespace = namespace;
       // Build the ancestor key for all created entities once, including the namespace.
@@ -133,9 +131,9 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * Build a datastore query request
+   * Build a datastore query request.
    */
-  private static RunQueryRequest makeRequest(Query query, String namespace) {
+  private static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
     RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
     if (namespace != null) {
       requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
@@ -144,11 +142,9 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * Delete all entities with the given ancestor
+   * Delete all entities with the given ancestor.
    */
-  static void deleteAllEntities(
-      V1Beta3TestOptions options, String ancestor) throws Exception {
-
+  static void deleteAllEntities(V1Beta3TestOptions options, String ancestor) throws Exception {
     Datastore datastore = getDatastore(options, options.getProject());
     Query query = V1Beta3TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
@@ -157,20 +153,18 @@ class V1Beta3TestUtil {
     V1Beta3TestWriter writer = new V1Beta3TestWriter(datastore, new DeleteMutationBuilder());
 
     long numEntities = 0;
-    while(reader.advance()) {
+    while (reader.advance()) {
       Entity entity = reader.getCurrent();
       numEntities++;
       writer.write(entity);
     }
 
     writer.close();
-
     LOG.info("Successfully deleted {} entities", numEntities);
   }
 
-
   /**
-   * An interface to represent any datastore Mutation operation.
+   * An interface to represent any datastore mutation operation.
    * Mutation operations include insert, delete, upsert, update.
    */
   interface MutationBuilder {
@@ -196,7 +190,7 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * A helper class to write entities to datastore directly
+   * A helper class to write entities to datastore.
    */
   static class V1Beta3TestWriter {
     private static final Logger LOG = LoggerFactory.getLogger(V1Beta3TestWriter.class);
@@ -280,11 +274,10 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * A helper class to read entities from datastore directly
+   * A helper class to read entities from datastore.
    */
   static class V1Beta3TestReader {
     private static final int QUERY_BATCH_LIMIT = 500;
-
     private final Datastore datastore;
     private final Query query;
     @Nullable

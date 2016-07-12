@@ -28,11 +28,10 @@ import org.junit.runners.JUnit4;
 import java.util.UUID;
 
 /**
- * End-to-end tests for Datastore V1Beta3.Read
+ * End-to-end tests for Datastore V1Beta3.Read.
  */
 @RunWith(JUnit4.class)
 public class V1Beta3ReadIT {
-
   private V1Beta3TestOptions options;
   private String ancestor;
   private final long numEntities = 1000;
@@ -46,15 +45,21 @@ public class V1Beta3ReadIT {
     ancestor = UUID.randomUUID().toString();
   }
 
+  /**
+   * An end-to-end test for {@link V1Beta3.Read}.
+   *
+   * Write some test entities to datastore and then run a dataflow pipeline that
+   * reads and counts the total number of entities. Verify that the count matches the
+   * number of entities written.
+   */
   @Test
   public void testE2EV1Beta3Read() throws Exception {
     Datastore datastore = getDatastore(options, options.getProject());
-
     // Write test entities to datastore
     V1Beta3TestWriter writer = new V1Beta3TestWriter(datastore, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
 
-    for(long i = 0; i < numEntities; i++) {
+    for (long i = 0; i < numEntities; i++) {
       Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace());
       writer.write(entity);
     }
@@ -68,7 +73,6 @@ public class V1Beta3ReadIT {
         .withProjectId(options.getProject())
         .withQuery(query)
         .withNamespace(options.getNamespace());
-
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3TestUtil.CreateEntityFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3TestUtil.V1Beta3TestReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -22,7 +23,7 @@ import org.junit.runners.JUnit4;
 import java.util.UUID;
 
 /**
- * End-to-end tests for Datastore V1Beta3.Write
+ * End-to-end tests for Datastore V1Beta3.Write.
  */
 @RunWith(JUnit4.class)
 public class V1Beta3WriteIT {
@@ -39,19 +40,26 @@ public class V1Beta3WriteIT {
     ancestor = UUID.randomUUID().toString();
   }
 
+  /**
+   * An end-to-end test for {@link V1Beta3.Write}.
+   *
+   * Write some test entities to datastore through a dataflow pipeline.
+   * Read and count all the entities. Verify that the count matches the
+   * number of entities written.
+   */
   @Test
   public void testE2EV1Beta3Write() throws Exception {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
     p.apply(CountingInput.upTo(numEntities))
-        .apply(ParDo.of(new V1Beta3TestUtil.CreateFn(
+        .apply(ParDo.of(new CreateEntityFn(
             options.getKind(), options.getNamespace(), ancestor)))
         .apply(DatastoreIO.v1beta3().write().withProjectId(options.getProject()));
 
     p.run();
 
-    // Read from datastore
+    // Read from datastore.
     Datastore datastore = V1Beta3TestUtil.getDatastore(options, options.getProject());
     Query query = V1Beta3TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
@@ -59,7 +67,7 @@ public class V1Beta3WriteIT {
     V1Beta3TestReader reader = new V1Beta3TestReader(datastore, query, options.getNamespace());
 
     long numEntitiesRead = 0;
-    while(reader.advance()) {
+    while (reader.advance()) {
       reader.getCurrent();
       numEntitiesRead++;
     }
