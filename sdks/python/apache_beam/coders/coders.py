@@ -354,6 +354,49 @@ class DeterministicPickleCoder(FastCoder):
     return self
 
 
+class FastPrimitivesCoder(FastCoder):
+  """Encodes simple primitives (e.g. str, int) efficiently.
+
+  For unknown types, falls back to another coder (e.g. PickleCoder).
+  """
+  def __init__(self, fallback_coder):
+    self._fallback_coder = fallback_coder
+
+  def _create_impl(self):
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._fallback_coder.get_impl())
+
+  def is_deterministic(self):
+    return self._fallback_coder.is_deterministic()
+
+  def as_cloud_object(self, is_pair_like=True):
+    value = super(FastCoder, self).as_cloud_object()
+    # We currently use this coder in places where we cannot infer the coder to
+    # use for the value type in a more granular way.  In places where the
+    # service expects a pair, it checks for the "is_pair_like" key, in which
+    # case we would fail without the hack below.
+    if is_pair_like:
+      value['is_pair_like'] = True
+      value['component_encodings'] = [
+          self.as_cloud_object(is_pair_like=False),
+          self.as_cloud_object(is_pair_like=False)
+      ]
+
+    return value
+
+  # We allow .key_coder() and .value_coder() to be called on PickleCoder since
+  # we can't always infer the return values of lambdas in ParDo operations, the
+  # result of which may be used in a GroupBykey.
+  def is_kv_coder(self):
+    return True
+
+  def key_coder(self):
+    return self
+
+  def value_coder(self):
+    return self
+
+
 class Base64PickleCoder(Coder):
   """Coder of objects by Python pickle, then base64 encoding."""
   # TODO(robertwb): Do base64 encoding where it's needed (e.g. in json) rather
