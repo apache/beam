@@ -74,7 +74,7 @@ public interface DataflowPipelineOptions
    */
   @Description("GCS path for staging local files, e.g. \"gs://bucket/object\". "
       + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
-      + "If stagingLocation is unset, defaults to gcpTempLocation.")
+      + "If stagingLocation is unset, defaults to gcpTempLocation with \"/staging\" suffix.")
   @Default.InstanceFactory(StagingLocationFactory.class)
   String getStagingLocation();
   void setStagingLocation(String value);
