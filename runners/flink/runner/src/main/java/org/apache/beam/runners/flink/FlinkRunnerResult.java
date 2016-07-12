@@ -22,6 +22,9 @@ import org.apache.beam.sdk.runners.AggregatorRetrievalException;
 import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 
+import org.joda.time.Duration;
+
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
@@ -31,16 +34,16 @@ import java.util.Map;
  * {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class FlinkRunnerResult implements PipelineResult {
-  
+
   private final Map<String, Object> aggregators;
-  
+
   private final long runtime;
-  
+
   public FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
     this.aggregators = (aggregators == null || aggregators.isEmpty()) ?
         Collections.<String, Object>emptyMap() :
         Collections.unmodifiableMap(aggregators);
-    
+
     this.runtime = runtime;
   }
 
@@ -72,5 +75,15 @@ public class FlinkRunnerResult implements PipelineResult {
         "aggregators=" + aggregators +
         ", runtime=" + runtime +
         '}';
+  }
+
+  @Override
+  public State cancel() throws IOException {
+    throw new UnsupportedOperationException("FlinkRunnerResult does not support cancel.");
+  }
+
+  @Override
+  public State waitToFinish(Duration duration) {
+    throw new UnsupportedOperationException("FlinkRunnerResult does not support waitToFinish.");
   }
 }

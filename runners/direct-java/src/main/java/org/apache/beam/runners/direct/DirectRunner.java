@@ -53,8 +53,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -365,6 +367,18 @@ public class DirectRunner
         }
       }
       return state;
+    }
+
+    @Override
+    public State cancel() throws IOException {
+      throw new UnsupportedOperationException("DirectPipelineResult does not support cancel.");
+    }
+
+    @Override
+    public State waitToFinish(Duration duration)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException(
+          "DirectPipelineResult does not support waitToFinish.");
     }
   }
 }

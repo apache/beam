@@ -21,6 +21,10 @@ import org.apache.beam.sdk.runners.AggregatorRetrievalException;
 import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 
+import org.joda.time.Duration;
+
+import java.io.IOException;
+
 /**
  * Result of {@link Pipeline#run()}.
  */
@@ -32,6 +36,26 @@ public interface PipelineResult {
    * @return the {@link State} representing the state of this pipeline.
    */
   State getState();
+
+  /**
+   * Cancels the pipeline.
+   * @throws IOException if there is a problem executing the cancel request.
+   */
+  State cancel() throws IOException;
+
+  /**
+   * Waits for the job to finish and returns the final status.
+   *
+   * @param duration The time to wait for the job to finish.
+   *     Provide a value less than 1 ms for an infinite wait.
+   *
+   * @return The final state of the job or null on timeout or if the
+   *   thread is interrupted.
+   * @throws IOException If there is a persistent problem getting job
+   *   information.
+   * @throws InterruptedException
+   */
+  State waitToFinish(Duration duration) throws IOException, InterruptedException;
 
   /**
    * Retrieves the current value of the provided {@link Aggregator}.
