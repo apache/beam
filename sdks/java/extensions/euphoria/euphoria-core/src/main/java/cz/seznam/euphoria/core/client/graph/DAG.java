@@ -1,7 +1,7 @@
-
 package cz.seznam.euphoria.core.client.graph;
 
 import cz.seznam.euphoria.core.client.util.Pair;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -157,8 +157,16 @@ public class DAG<T> {
     return nodeMap.values().stream().map(n -> n.value);
   }
 
-  /** Retrieve BFS stream of nodes. */
-  public Stream<Node<T>> bfs() {
+  /**
+   * Retrieves a stream of nodes in traversal order (i.e. from non-dependent nodes
+   * to those depending on the already served ones.)<p />
+   *
+   * In the returned stream, a node at a certain position is likely to be a
+   * dependency of a node at a later position; reversely, a node at a certain
+   * position is guaranteed <i>not to be</i> a dependency of all nodes at earlier
+   * positions.
+   */
+  public Stream<Node<T>> traverse() {
     List<Node<T>> ret = new LinkedList<>();
     Set<Node<T>> closed = new HashSet<>();
     Queue<Node<T>> open = new LinkedList<>();
@@ -167,9 +175,16 @@ public class DAG<T> {
     while (!open.isEmpty()) {
       Node<T> next = open.poll();
       if (!closed.contains(next)) {
-        open.addAll(next.children);
-        ret.add(next);
-        closed.add(next);
+        if (closed.containsAll(next.parents)) {
+          open.addAll(next.children);
+          ret.add(next);
+          closed.add(next);
+        } else {
+          // ~ add the node again to the list of nodes to visit;
+          // this time at the end of the list such that its
+          // missing parents will be visited first
+          open.add(next);
+        }
       }
     }
 

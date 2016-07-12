@@ -142,7 +142,7 @@ public class DAGTest {
 
 
   @Test
-  public void testBFS() {
+  public void testTraversal() {
     DAG<Integer> dag = DAG.of(1, 2, 3);
     // 4 is child of 2 and 3
     dag.add(4, 2, 3);
@@ -151,7 +151,7 @@ public class DAGTest {
     // 6 if a child of 5 and 3
     dag.add(6, 5, 3);
     // 1 and 6 are the leafs
-    List<Integer> bfs = dag.bfs().map(Node::get).collect(Collectors.toList());
+    List<Integer> bfs = dag.traverse().map(Node::get).collect(Collectors.toList());
 
     assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), bfs);
   }
