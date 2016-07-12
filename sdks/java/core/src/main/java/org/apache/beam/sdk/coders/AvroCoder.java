@@ -168,7 +168,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   };
 
   private final Class<T> type;
-  private final Schema schema;
+  private final transient Schema schema;
 
   private final List<String> nonDeterministicReasons;
 
@@ -178,10 +178,10 @@ public class AvroCoder<T> extends StandardCoder<T> {
   // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
   // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
   // an inner coder.
-  private final ThreadLocal<BinaryDecoder> decoder;
-  private final ThreadLocal<BinaryEncoder> encoder;
-  private final ThreadLocal<DatumWriter<T>> writer;
-  private final ThreadLocal<DatumReader<T>> reader;
+  private final transient ThreadLocal<BinaryDecoder> decoder;
+  private final transient ThreadLocal<BinaryEncoder> encoder;
+  private final transient ThreadLocal<DatumWriter<T>> writer;
+  private final transient ThreadLocal<DatumReader<T>> reader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
