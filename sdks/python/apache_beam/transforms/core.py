@@ -882,6 +882,9 @@ class CombinePerKey(PTransformWithSideInputs):
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._fn_label)
 
+  def process_argspec_fn(self):
+    return self.fn._fn  # pylint: disable=protected-access
+
   def apply(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
