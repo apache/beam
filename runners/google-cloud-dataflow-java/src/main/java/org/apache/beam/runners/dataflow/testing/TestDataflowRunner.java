@@ -182,7 +182,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return Optional.of(false);
     }
 
-    JobMetrics metrics = job.getDataflowClient().projects().jobs()
+    JobMetrics metrics = options.getDataflowClient().projects().jobs()
         .getMetrics(job.getProjectId(), job.getJobId()).execute();
 
     if (metrics == null || metrics.getMetrics() == null) {
