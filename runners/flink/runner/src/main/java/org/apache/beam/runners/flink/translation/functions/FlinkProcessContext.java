@@ -141,7 +141,7 @@ class FlinkProcessContext<InputT, OutputT>
   public BoundedWindow window() {
     if (!requiresWindowAccess) {
       throw new UnsupportedOperationException(
-          "window() is only available in the context of a DoFn marked as RequiresWindow.");
+          "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
     }
     return Iterables.getOnlyElement(windowedValue.getWindows());
   }

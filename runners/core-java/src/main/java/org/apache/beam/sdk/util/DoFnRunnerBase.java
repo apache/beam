@@ -436,7 +436,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     public BoundedWindow window() {
       if (!(fn instanceof RequiresWindowAccess)) {
         throw new UnsupportedOperationException(
-            "window() is only available in the context of a DoFn marked as RequiresWindow.");
+            "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
       }
       return Iterables.getOnlyElement(windows());
     }

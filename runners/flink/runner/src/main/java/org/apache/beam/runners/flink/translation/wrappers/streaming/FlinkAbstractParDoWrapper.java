@@ -139,7 +139,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     public BoundedWindow window() {
       if (!(fn instanceof DoFn.RequiresWindowAccess)) {
         throw new UnsupportedOperationException(
-            "window() is only available in the context of a DoFn marked as RequiresWindow.");
+            "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
       }
 
       Collection<? extends BoundedWindow> windows = this.element.getWindows();
