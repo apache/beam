@@ -186,9 +186,7 @@ import javax.annotation.Nullable;
  * to the Dataflow representation using the {@link DataflowPipelineTranslator} and then submitting
  * them to a Dataflow service for execution.
  *
- * <p>
- *
- * <h3>Permissions</h3>
+ * <p><h3>Permissions</h3>
  *
  * When reading from a Dataflow source or writing to a Dataflow sink using {@code DataflowRunner},
  * the Google cloudservices account and the Google compute engine service account of the GCP project
