@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.core.executor;
 
 import com.google.common.collect.Iterables;
@@ -8,6 +7,7 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Operator;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,7 +82,7 @@ public class FlowUnfolder {
     dag.nodes().forEach(n -> datasetProducents.put(n.output(), Optional.of(n)));
 
     // filter the dag to contain only specified operators
-    dag.bfs().forEach(n -> {
+    dag.traverse().forEach(n -> {
       if (n.get() instanceof InputOperator) {
         // this is added 'fake' operator node, the operator has by definition no
         // parents
@@ -106,7 +106,7 @@ public class FlowUnfolder {
 
         DAG<Operator<?, ?>> modified = translate(basicOps, allowed);
         
-        modified.bfs().forEach(m -> {
+        modified.traverse().forEach(m -> {
           List<Operator<?, ?>> parents = getParents(m, datasetProducents);
           ret.add(m.get(), parents);
           datasetProducents.put(m.get().output(), Optional.of(m.get()));
@@ -127,8 +127,6 @@ public class FlowUnfolder {
     });
 
     return ret;
-
-
   }
 
   /**
