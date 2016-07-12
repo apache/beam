@@ -361,7 +361,11 @@ class DataflowPipelineRunner(PipelineRunner):
 
     # Attach side inputs.
     si_dict = {}
-    lookup_label = lambda side_pval: self._cache.get_pvalue(side_pval).step_name
+    # We must call self._cache.get_pvalue exactly once due to refcounting.
+    si_labels = {}
+    for side_pval in transform_node.side_inputs:
+      si_labels[side_pval] = self._cache.get_pvalue(side_pval).step_name
+    lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, PCollectionView)
       si_label = lookup_label(side_pval)
