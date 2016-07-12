@@ -609,6 +609,162 @@ def examples_wordcount_debugging(renames):
   p.run()
 
 
+def model_custom_source(count):
+  """Demonstrates creating a new custom source and using it in a pipeline.
+
+  Defines a new source 'CountingSource' that produces integers starting from 0
+  up to a given size.
+
+  Uses the new source in an example pipeline.
+
+  Args:
+    count: the size of the counting source to be used in the pipeline
+           demonstrated in this method.
+  """
+
+  import apache_beam as beam
+  from apache_beam.io import iobase
+  from apache_beam.io.range_trackers import OffsetRangeTracker
+  from apache_beam.utils.options import PipelineOptions
+
+  # Defining a new source.
+  # [START model_custom_source_new_source]
+  class CountingSource(iobase.BoundedSource):
+
+    def __init__(self, count):
+      self._count = count
+
+    def estimate_size(self):
+      return self._count
+
+    def get_range_tracker(self, start_position, stop_position):
+      if start_position is None:
+        start_position = 0
+      if stop_position is None:
+        stop_position = self._count
+
+      return OffsetRangeTracker(start_position, stop_position)
+
+    def read(self, range_tracker):
+      for i in range(self._count):
+        if not range_tracker.try_claim(i):
+          return
+        yield i
+
+    def split(self, desired_bundle_size, start_position=None,
+              stop_position=None):
+      if start_position is None:
+        start_position = 0
+      if stop_position is None:
+        stop_position = self._count
+
+      bundle_start = start_position
+      while bundle_start < self._count:
+        bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+        yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                  source=self,
+                                  start_position=bundle_start,
+                                  stop_position=bundle_stop)
+        bundle_start = bundle_stop
+  # [END model_custom_source_new_source]
+
+  # Using the source in an example pipeline.
+  # [START model_custom_source_use_new_source]
+  p = beam.Pipeline(options=PipelineOptions())
+  numbers = p | beam.io.Read('ProduceNumbers', CountingSource(count))
+  # [END model_custom_source_use_new_source]
+
+  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+  beam.assert_that(
+      lines, beam.equal_to(
+          ['line ' + str(number) for number in range(0, count)]))
+
+  p.run()
+
+
+def model_custom_sink(simplekv, KVs, final_table_name):
+  """Demonstrates creating a new custom sink and using it in a pipeline.
+
+  Defines a new sink 'SimpleKVSink' that demonstrates writing to a simple
+  key-value based storage system.
+
+  Uses the new sink in an example pipeline.
+
+  Args:
+    simplekv: an object that mocks the key-value storage. The API of the
+              key-value storage consists of following methods.
+              simplekv.connect(url) -
+                  connects to the storage and returns an access token
+                  which can be used to perform further operations
+              simplekv.open_table(access_token, table_name) -
+                  creates a table named 'table_name'. Returns a table object.
+              simplekv.write_to_table(table, access_token, key, value) -
+                  writes a key-value pair to the given table.
+              simplekv.rename_table(access_token, old_name, new_name) -
+                  renames the table named 'old_name' to 'new_name'.
+    KVs: the set of key-value pairs to be written in the example pipeline.
+    final_table_name: the prefix of final set of tables to be created by the
+                      example pipeline.
+  """
+
+  import apache_beam as beam
+  from apache_beam.io import iobase
+  from apache_beam.utils.options import PipelineOptions
+
+  # Defining the new sink.
+  # [START model_custom_sink_new_sink]
+  class SimpleKVSink(iobase.Sink):
+
+    def __init__(self, url, final_table_name):
+      self._url = url
+      self._final_table_name = final_table_name
+
+    def initialize_write(self):
+      access_token = simplekv.connect(self._url)
+      return access_token
+
+    def open_writer(self, access_token, uid):
+      table_name = 'table' + uid
+      return SimpleKVWriter(access_token, table_name)
+
+    def finalize_write(self, access_token, table_names):
+      for i, table_name in enumerate(table_names):
+        simplekv.rename_table(
+            access_token, table_name, self._final_table_name + str(i))
+  # [END model_custom_sink_new_sink]
+
+  # Defining a writer for the new sink.
+  # [START model_custom_sink_new_writer]
+  class SimpleKVWriter(iobase.Writer):
+
+    def __init__(self, access_token, table_name):
+      self._access_token = access_token
+      self._table_name = table_name
+      self._table = simplekv.open_table(access_token, table_name)
+
+    def write(self, record):
+      key, value = record
+
+      simplekv.write_to_table(self._access_token, self._table, key, value)
+
+    def close(self):
+      return self._table_name
+  # [END model_custom_sink_new_writer]
+
+  # Using the new sink in an example pipeline.
+  # [START model_custom_sink_use_new_sink]
+  p = beam.Pipeline(options=PipelineOptions())
+  kvs = p | beam.core.Create(
+      'CreateKVs', KVs)
+
+  kvs | beam.io.Write('WriteToSimpleKV',
+                      SimpleKVSink('http://url_to_simple_kv/',
+                                   final_table_name))
+  # [END model_custom_sink_use_new_sink]
+
+  p.run()
+
+
 def model_textio(renames):
   """Using a Read and Write transform to read/write text files.
 
@@ -855,6 +1011,45 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
 
   contact_lines = result | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
+  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
+  p.run()
+
+
+def model_join_using_side_inputs(
+    name_list, email_list, phone_list, output_path):
+  """Joining PCollections using side inputs."""
+
+  import apache_beam as beam
+  from apache_beam.pvalue import AsIter
+  from apache_beam.utils.options import PipelineOptions
+
+  p = beam.Pipeline(options=PipelineOptions())
+  # [START model_join_using_side_inputs]
+  # This code performs a join by receiving the set of names as an input and
+  # passing PCollections that contain emails and phone numbers as side inputs
+  # instead of using CoGroupByKey.
+  names = p | beam.Create('names', name_list)
+  emails = p | beam.Create('email', email_list)
+  phones = p | beam.Create('phone', phone_list)
+
+  def join_info(name, emails, phone_numbers):
+    filtered_emails = []
+    for name_in_list, email in emails:
+      if name_in_list == name:
+        filtered_emails.append(email)
+
+    filtered_phone_numbers = []
+    for name_in_list, phone_number in phone_numbers:
+      if name_in_list == name:
+        filtered_phone_numbers.append(phone_number)
+
+    return '; '.join(['%s' % name,
+                      '%s' % ','.join(filtered_emails),
+                      '%s' % ','.join(filtered_phone_numbers)])
+
+  contact_lines = names | beam.core.Map(
+      "CreateContacts", join_info, AsIter(emails), AsIter(phones))
+  # [END model_join_using_side_inputs]
   contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
   p.run()
 
