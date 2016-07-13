@@ -139,10 +139,10 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
        * Early results will be triggered periodically until the window is finally closed.
        */
       @SuppressWarnings("unchecked")
-      public <T> UTime<T> earlyTriggering(After time) {
+      public <T> UTime<T> earlyTriggering(Duration timeout) {
         // ~ the unchecked cast is ok: eventTimeFn is
         // ProcessingTime which is independent of <T>
-        return new UTime<>(super.durationMillis, time.period);
+        return new UTime<>(super.durationMillis, timeout);
       }
 
       /**
@@ -168,19 +168,11 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     final Duration earlyTriggeringPeriod;
     final UnaryFunction<T, Long> eventTimeFn;
 
-    public static <T> UTime<T> seconds(long seconds) {
-      return new UTime<>(seconds * 1000, null);
+    public static <T> UTime<T> of(Duration duration) {
+      return new UTime<>(duration.toMillis(), null);
     }
 
-    public static <T> UTime<T> minutes(long minutes) {
-      return new UTime<>(minutes * 1000 * 60, null);
-    }
-
-    public static <T> UTime<T> hours(long hours) {
-      return new UTime<>(hours * 1000 * 60 * 60, null);
-    }
-
-    public Time(long durationMillis, Duration earlyTriggeringPeriod, UnaryFunction<T, Long> eventTimeFn) {
+    Time(long durationMillis, Duration earlyTriggeringPeriod, UnaryFunction<T, Long> eventTimeFn) {
       this.durationMillis = durationMillis;
       this.earlyTriggeringPeriod = earlyTriggeringPeriod;
       this.eventTimeFn = eventTimeFn;
@@ -345,8 +337,8 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
     }
 
-    public static <T> TimeSliding<T> of(long duration, long step) {
-      return new TimeSliding<>(duration, step, Time.ProcessingTime.get());
+    public static <T> TimeSliding<T> of(Duration duration, long step) {
+      return new TimeSliding<>(duration.toMillis(), step, Time.ProcessingTime.get());
     }
 
     private final long duration;
@@ -519,8 +511,8 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
         gapMillis = gap.toMillis();
       }
 
-      public EarlyTriggeringChain earlyTriggering(After time) {
-        return new EarlyTriggeringChain(this, requireNonNull(time));
+      public EarlyTriggeringChain earlyTriggering(Duration timeout) {
+        return new EarlyTriggeringChain(this, requireNonNull(timeout));
       }
 
       public <T, G> Session<T, G> using(UnaryFunction<T, G> groupFn) {
@@ -536,11 +528,11 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
     public static class EarlyTriggeringChain {
       private final OfChain ofChain;
-      private final After earlyTriggering;
+      private final Duration earlyTriggering;
 
       private EarlyTriggeringChain(
           OfChain ofChain,
-          After earlyTriggering /* optional */ )
+          Duration earlyTriggering /* optional */ )
       {
         this.ofChain = requireNonNull(ofChain);
         this.earlyTriggering = earlyTriggering;
@@ -555,8 +547,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
           UnaryFunction<T, G> groupFn, UnaryFunction<T, Long> eventFn)
       {
         return new Session<>(groupFn, eventFn,
-            this.ofChain.gapMillis,
-            this.earlyTriggering == null ? null : this.earlyTriggering.period);
+            this.ofChain.gapMillis, this.earlyTriggering);
       }
     } // ~ end of EarlyTriggeringChain
 

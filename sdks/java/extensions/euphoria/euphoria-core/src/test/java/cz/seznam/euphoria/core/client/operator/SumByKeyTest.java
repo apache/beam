@@ -9,6 +9,8 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
+import java.time.Duration;
+
 import static org.junit.Assert.*;
 
 public class SumByKeyTest {
@@ -59,7 +61,7 @@ public class SumByKeyTest {
     Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
@@ -73,7 +75,7 @@ public class SumByKeyTest {
 
     Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
             .keyBy(s -> s)
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 

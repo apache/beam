@@ -2,7 +2,6 @@ package cz.seznam.euphoria.core.client.operator;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import cz.seznam.euphoria.core.client.dataset.After;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -85,7 +84,7 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.seconds(1))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
         .output();
 
     streamOutput.persist(URI.create("inmem:///tmp/output"));
@@ -133,7 +132,7 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.seconds(1))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
         .outputWindowed();
 
     MapElements.of(streamOutput)
@@ -211,7 +210,8 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.seconds(10).earlyTriggering(After.seconds(1)))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(10))
+            .earlyTriggering(Duration.ofSeconds(1)))
         .output();
 
 
@@ -367,7 +367,7 @@ public class BasicOperatorTest {
         .output();
 
     Dataset<String> output = Distinct.of(words)
-        .windowBy(Windowing.Time.seconds(1))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
         .output();
 
     ListDataSink<String> f = ListDataSink.get(1);
@@ -401,7 +401,7 @@ public class BasicOperatorTest {
 
     Dataset<Pair<TimeInterval, String>> output =
         Distinct.of(words)
-        .windowBy(Windowing.Time.seconds(1))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
         .outputWindowed();
 
     ListDataSink<Pair<TimeInterval, String>> f = ListDataSink.get(1);
@@ -474,7 +474,7 @@ public class BasicOperatorTest {
         .keyBy(e -> e)
         .valueBy(e -> (Void) null)
         .combineBy(values -> null)
-        .windowBy(Windowing.Time.seconds(1))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
         .output();
 
     // take distinct tuples
@@ -487,7 +487,7 @@ public class BasicOperatorTest {
     Dataset<Pair<String, Long>> output =
         CountByKey.of(distinct)
         .keyBy(Pair::getFirst)
-        .windowBy(Windowing.Time.seconds(1))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
         .output();
 
     output.persist(URI.create("stdout:///?dump-partition-id=false"));

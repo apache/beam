@@ -10,6 +10,8 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
+import java.time.Duration;
+
 import static org.junit.Assert.*;
 
 public class JoinTest {
@@ -87,7 +89,7 @@ public class JoinTest {
             .of(left, right)
             .by(String::length, String::length)
             .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
