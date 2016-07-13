@@ -30,6 +30,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -88,8 +89,16 @@ public class IOChannelUtilsTest {
   }
 
   @Test
-  public void testResolve() throws Exception {
+  public void testResolveSinglePath() throws Exception {
     String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
     assertEquals(expected, IOChannelUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
+  }
+
+  @Test
+  public void testResolveMultiplePaths() throws IOException {
+    String expected =
+            tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
+    assertEquals(expected,
+            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
   }
 }
