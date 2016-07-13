@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
@@ -20,7 +21,7 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Windowing.Time<String> windowing = Windowing.Time.hours(1);
+    Windowing.Time<String> windowing = Windowing.Time.of(Duration.ofHours(1));
     Dataset<Pair<String, Long>> reduced = ReduceByKey.named("ReduceByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -86,7 +87,7 @@ public class ReduceByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
@@ -103,7 +104,7 @@ public class ReduceByKeyTest {
             .valueBy(s -> 1L)
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
             .setPartitioning(new HashPartitioning<>(1))
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
@@ -120,7 +121,7 @@ public class ReduceByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .setPartitioner(new HashPartitioner<>())
             .setNumPartitions(5)
             .output();
@@ -142,7 +143,7 @@ public class ReduceByKeyTest {
             .keyBy(s -> s)
             .output();
 
-    Windowing.Time<String> windowing = Windowing.Time.hours(1);
+    Windowing.Time<String> windowing = Windowing.Time.of(Duration.ofHours(1));
     Dataset<Pair<CompositeKey<String, String>, Long>> reduced =
             ReduceByKey.named("ReduceByKey1")
                     .of(grouped)
@@ -203,7 +204,7 @@ public class ReduceByKeyTest {
                     .keyBy(s -> s)
                     .valueBy(s -> 1L)
                     .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-                    .windowBy(Windowing.Time.hours(1))
+                    .windowBy(Windowing.Time.of(Duration.ofHours(1)))
                     .output();
 
     ReduceByKey reduce = (ReduceByKey) ((List)flow.operators()).get(1);

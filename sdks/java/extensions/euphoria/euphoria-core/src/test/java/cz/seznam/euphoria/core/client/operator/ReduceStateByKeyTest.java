@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -21,7 +22,7 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Windowing.Time<String> windowing = Windowing.Time.hours(1);
+    Windowing.Time<String> windowing = Windowing.Time.of(Duration.ofHours(1));
     Dataset<Pair<String, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -75,7 +76,7 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
@@ -92,7 +93,7 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 
@@ -194,7 +195,7 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) ((List)flow.operators()).get(1);
@@ -215,7 +216,7 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.hours(1))
+            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 
