@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -29,6 +32,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import com.google.common.base.MoreObjects;
 
@@ -36,6 +41,8 @@ import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+
+import java.io.IOException;
 
 /**
  * Options that can be used to configure the {@link DataflowRunner}.
@@ -61,14 +68,14 @@ public interface DataflowPipelineOptions
    *
    * <p>Must be a valid Cloud Storage URL, beginning with the prefix "gs://"
    *
-   * <p>At least one of {@link PipelineOptions#getTempLocation()} or {@link #getStagingLocation()}
-   * must be set. If {@link #getStagingLocation()} is not set, then the Dataflow
-   * pipeline defaults to using {@link PipelineOptions#getTempLocation()}.
+   * <p>If {@link #getStagingLocation()} is not set, it will default to
+   * {@link GcpOptions#getGcpTempLocation()}. {@link GcpOptions#getGcpTempLocation()}
+   * must be a valid GCS path.
    */
   @Description("GCS path for staging local files, e.g. \"gs://bucket/object\". "
       + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
-      + "At least one of stagingLocation or tempLocation must be set. If stagingLocation is unset, "
-      + "defaults to using tempLocation.")
+      + "If stagingLocation is unset, defaults to gcpTempLocation with \"/staging\" suffix.")
+  @Default.InstanceFactory(StagingLocationFactory.class)
   String getStagingLocation();
   void setStagingLocation(String value);
 
@@ -121,6 +128,35 @@ public interface DataflowPipelineOptions
                                           .replaceAll("[^a-z0-9]", "0");
       String datePart = FORMATTER.print(DateTimeUtils.currentTimeMillis());
       return normalizedAppName + "-" + normalizedUserName + "-" + datePart;
+    }
+  }
+
+  /**
+   * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
+   */
+  public static class StagingLocationFactory implements DefaultValueFactory<String> {
+
+    @Override
+    public String create(PipelineOptions options) {
+      String gcpTempLocation = options.as(GcpOptions.class).getGcpTempLocation();
+      checkArgument(!isNullOrEmpty(gcpTempLocation),
+          "Error constructing default value for stagingLocation: gcpTempLocation is missing."
+          + "Either stagingLocation must be set explicitly or a valid value must be provided"
+          + "for gcpTempLocation.");
+      try {
+        GcsPath.fromUri(gcpTempLocation);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(String.format(
+            "Error constructing default value for stagingLocation: gcpTempLocation is not"
+            + " a valid GCS path, %s. ", gcpTempLocation));
+      }
+      try {
+        return IOChannelUtils.resolve(gcpTempLocation, "staging");
+      } catch (IOException e) {
+        throw new IllegalArgumentException(String.format(
+            "Unable to resolve stagingLocation from gcpTempLocation: %s."
+            + " Please set the staging location explicitly.", gcpTempLocation), e);
+      }
     }
   }
 }

@@ -198,6 +198,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     settings.put("runner", "org.apache.beam.runners.dataflow.DataflowRunner");
     settings.put("jobName", "some-job-name");
     settings.put("tempLocation", "gs://somebucket/some/path");
+    settings.put("gcpTempLocation", "gs://somebucket/some/path");
     settings.put("stagingLocation", "gs://somebucket/some/path/staging");
     settings.put("stableUniqueNames", "WARNING");
     settings.put("streaming", false);
