@@ -95,10 +95,10 @@ public class IOChannelUtilsTest {
   }
 
   @Test
-  public void testResolveMultiplePaths() throws IOException {
+  public void testResolveMultiplePaths() throws Exception {
     String expected =
-            tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
+        tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
     assertEquals(expected,
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
+        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
   }
 }
