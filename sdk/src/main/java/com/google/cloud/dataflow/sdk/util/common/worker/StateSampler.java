@@ -16,18 +16,22 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import com.google.api.client.util.NanoClock;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -40,6 +44,94 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public class StateSampler implements AutoCloseable {
+
+  /**
+   * An interface for scheduling state sampling.
+   */
+  public static interface SampleScheduler {
+    Closeable scheduleSampling(StateSampler sampler);
+  }
+
+  /**
+   * An implementation of {@link SampleScheduler} using a scheduled executor service and two
+   * callbacks per sample. The sampling uses "stratified sampling" -- in every bucket of
+   * samplingPeriodMs we choose a random point to sample. This prevents pathological behavior in
+   * case some states happen to occur at a similar period.
+   *
+   * <p>The current implementation uses a fixed-rate timer with a period samplingPeriodMs as a
+   * trampoline to a one-shot random timer which fires with a random delay within
+   * samplingPeriodMs.
+   */
+  @VisibleForTesting
+  static final class DefaultScheduler implements SampleScheduler {
+    private static final int NUM_EXECUTOR_THREADS = 16;
+    private static final ScheduledExecutorService EXECUTOR_SERVICE =
+        Executors.newScheduledThreadPool(NUM_EXECUTOR_THREADS,
+            new ThreadFactoryBuilder().setDaemon(true).build());
+
+    private final long samplingPeriodMs;
+
+    @VisibleForTesting
+    DefaultScheduler(long samplingPeriodMs) {
+      this.samplingPeriodMs = samplingPeriodMs;
+    }
+
+    @Override
+    public Closeable scheduleSampling(final StateSampler sampler) {
+      return new Closeable() {
+        private ScheduledFuture<?> invocationFuture = null;
+        private ScheduledFuture<?> invocationTriggerFuture = EXECUTOR_SERVICE.scheduleAtFixedRate(
+            new Runnable() {
+              @Override
+              public void run() {
+                long delay = ThreadLocalRandom.current().nextInt((int) samplingPeriodMs);
+                synchronized (this) {
+                  if (invocationFuture != null) {
+                    invocationFuture.cancel(false);
+                  }
+                  invocationFuture = EXECUTOR_SERVICE.schedule(
+                      new Runnable() {
+                        @Override
+                        public void run() {
+                          sampler.run();
+                        }
+                      },
+                      delay,
+                      TimeUnit.MILLISECONDS);
+                }
+              }
+            },
+            0,
+            samplingPeriodMs,
+            TimeUnit.MILLISECONDS);
+
+        @Override
+        public void close() throws IOException {
+          synchronized (this) {
+            if (invocationTriggerFuture != null) {
+              invocationTriggerFuture.cancel(false);
+              invocationTriggerFuture = null;
+            }
+            if (invocationFuture != null) {
+              invocationFuture.cancel(false);
+              invocationFuture = null;
+            }
+          }
+        }
+      };
+    }
+  }
+
+  public static final SampleScheduler NOOP_SCHEDULER = new SampleScheduler() {
+    @Override
+    public Closeable scheduleSampling(StateSampler sampler) {
+      return new Closeable() {
+        @Override
+        public void close() throws IOException {
+        }
+      };
+    }
+  };
 
   /** Different kinds of states. */
   public enum StateKind {
@@ -82,20 +174,32 @@ public class StateSampler implements AutoCloseable {
    */
   private long stateTimestampNs = 0;
 
-  /** Using a fixed number of timers for all StateSampler objects. */
-  private static final int NUM_EXECUTOR_THREADS = 16;
-
-  private static final ScheduledExecutorService executorService =
-      Executors.newScheduledThreadPool(NUM_EXECUTOR_THREADS,
-          new ThreadFactoryBuilder().setDaemon(true).build());
-
-  private Random rand = new Random();
-
   private List<SamplingCallback> callbacks = new ArrayList<>();
 
-  private ScheduledFuture<?> invocationTriggerFuture = null;
+  private final Closeable sampleSchedule;
+  private final NanoClock nanoClock;
 
-  private ScheduledFuture<?> invocationFuture = null;
+  /**
+   * Constructs a new {@link StateSampler} that can be used to obtain
+   * an approximate breakdown of the time spent by an execution
+   * context in various states, as a fraction of the total time.
+   *
+   * @param prefix the prefix of the counter names for the states
+   * @param counterSetMutator the {@link CounterSet.AddCounterMutator}
+   * used to create a counter for each distinct state
+   * @param scheduler the sample scheduler to use
+   */
+  public StateSampler(String prefix,
+                      CounterSet.AddCounterMutator counterSetMutator,
+                      SampleScheduler scheduler,
+                      NanoClock nanoClock) {
+    this.prefix = prefix;
+    this.counterSetMutator = counterSetMutator;
+    this.nanoClock = nanoClock;
+    this.currentState = DO_NOT_SAMPLE;
+    this.sampleSchedule = scheduler.scheduleSampling(this);
+    this.stateTimestampNs = nanoClock.nanoTime();
+  }
 
   /**
    * Constructs a new {@link StateSampler} that can be used to obtain
@@ -110,10 +214,7 @@ public class StateSampler implements AutoCloseable {
   public StateSampler(String prefix,
                       CounterSet.AddCounterMutator counterSetMutator,
                       final long samplingPeriodMs) {
-    this.prefix = prefix;
-    this.counterSetMutator = counterSetMutator;
-    currentState = DO_NOT_SAMPLE;
-    scheduleSampling(samplingPeriodMs);
+    this(prefix, counterSetMutator, new DefaultScheduler(samplingPeriodMs), NanoClock.SYSTEM);
   }
 
   /**
@@ -130,50 +231,8 @@ public class StateSampler implements AutoCloseable {
     this(prefix, counterSetMutator, DEFAULT_SAMPLING_PERIOD_MS);
   }
 
-  /**
-   * Called by the constructor to schedule sampling at the given period.
-   *
-   * <p>Should not be overridden by sub-classes unless they want to change
-   * or disable the automatic sampling of state.
-   */
-  protected void scheduleSampling(final long samplingPeriodMs) {
-    // Here "stratified sampling" is used, which makes sure that there's 1 uniformly chosen sampled
-    // point in every bucket of samplingPeriodMs, to prevent pathological behavior in case some
-    // states happen to occur at a similar period.
-    // The current implementation uses a fixed-rate timer with a period samplingPeriodMs as a
-    // trampoline to a one-shot random timer which fires with a random delay within
-    // samplingPeriodMs.
-    stateTimestampNs = System.nanoTime();
-    invocationTriggerFuture =
-        executorService.scheduleAtFixedRate(
-            new Runnable() {
-              @Override
-              public void run() {
-                long delay = rand.nextInt((int) samplingPeriodMs);
-                synchronized (StateSampler.this) {
-                  if (invocationFuture != null) {
-                    invocationFuture.cancel(false);
-                  }
-                  invocationFuture =
-                      executorService.schedule(
-                          new Runnable() {
-                            @Override
-                            public void run() {
-                              StateSampler.this.run();
-                            }
-                          },
-                          delay,
-                          TimeUnit.MILLISECONDS);
-                }
-              }
-            },
-            0,
-            samplingPeriodMs,
-            TimeUnit.MILLISECONDS);
-  }
-
   public synchronized void run() {
-    long startTimestampNs = System.nanoTime();
+    long startTimestampNs = nanoClock.nanoTime();
     int state = currentState;
     if (state != DO_NOT_SAMPLE) {
       StateKind kind = null;
@@ -189,14 +248,9 @@ public class StateSampler implements AutoCloseable {
   }
 
   @Override
-  public synchronized void close() {
+  public synchronized void close() throws IOException {
     currentState = DO_NOT_SAMPLE;
-    if (invocationTriggerFuture != null) {
-      invocationTriggerFuture.cancel(false);
-    }
-    if (invocationFuture != null) {
-      invocationFuture.cancel(false);
-    }
+    sampleSchedule.close();
   }
 
   /**
