@@ -23,6 +23,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.IngestionTimeExtractor;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.List;
@@ -40,12 +42,24 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
   /** Coder set during translation */
   private Coder<T> coder;
 
+  /** Timestamp / watermark assigner for source; defaults to ingestion time */
+  private AssignerWithPeriodicWatermarks<T> flinkTimestampAssigner = new IngestionTimeExtractor<T>();
+
   public UnboundedFlinkSource(SourceFunction<T> source) {
     flinkSource = checkNotNull(source);
   }
 
+  public UnboundedFlinkSource(SourceFunction<T> source, AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+    flinkSource = checkNotNull(source);
+    flinkTimestampAssigner = checkNotNull(timestampAssigner);
+  }
+
   public SourceFunction<T> getFlinkSource() {
     return this.flinkSource;
+  }
+
+  public AssignerWithPeriodicWatermarks<T> getFlinkTimestampAssigner() {
+    return flinkTimestampAssigner;
   }
 
   @Override
@@ -79,6 +93,10 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
     this.coder = coder;
   }
 
+  public void setFlinkTimestampAssigner(AssignerWithPeriodicWatermarks<T> flinkTimestampAssigner) {
+    this.flinkTimestampAssigner = flinkTimestampAssigner;
+  }
+
   /**
    * Creates a new unbounded source from a Flink source.
    * @param flinkSource The Flink source function
@@ -87,5 +105,10 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
    */
   public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(SourceFunction<T> flinkSource) {
     return new UnboundedFlinkSource<>(flinkSource);
+  }
+
+  public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(
+          SourceFunction<T> flinkSource, AssignerWithPeriodicWatermarks<T> flinkTimestampAssigner) {
+    return new UnboundedFlinkSource<>(flinkSource, flinkTimestampAssigner);
   }
 }
