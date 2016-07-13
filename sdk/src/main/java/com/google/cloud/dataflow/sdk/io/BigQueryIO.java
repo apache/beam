@@ -492,6 +492,22 @@ public class BigQueryIO {
         if (validate) {
           BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
+          String tempLocation = bqOptions.getTempLocation();
+          checkArgument(
+              !Strings.isNullOrEmpty(tempLocation),
+              "BigQueryIO.Read needs a GCS temp location to store temp files.");
+          if (testBigQueryServices == null) {
+            try {
+              GcsPath.fromUri(tempLocation);
+            } catch (IllegalArgumentException e) {
+              throw new IllegalArgumentException(
+                  String.format(
+                      "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                      tempLocation),
+                  e);
+            }
+          }
+
           TableReference table = getTableWithDefaultProject(bqOptions);
           if (table == null && query == null) {
             throw new IllegalStateException(
