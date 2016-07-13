@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static com.google.datastore.v1beta3.QueryResultBatch.MoreResultsType.NOT_FINISHED;
@@ -49,7 +67,7 @@ class V1Beta3TestUtil {
   private static final Logger LOG = LoggerFactory.getLogger(V1Beta3TestUtil.class);
 
   /**
-   *  A helper function to create the ancestor key for all created and queried entities.
+   * A helper function to create the ancestor key for all created and queried entities.
    */
   static Key makeAncestorKey(@Nullable String namespace, String kind, String ancestor) {
     Key.Builder keyBuilder = makeKey(kind, ancestor);
@@ -161,6 +179,25 @@ class V1Beta3TestUtil {
 
     writer.close();
     LOG.info("Successfully deleted {} entities", numEntities);
+  }
+
+  /**
+   * Returns the total number of entities for the given datastore.
+   */
+  static long countEntities(V1Beta3TestOptions options, String ancestor) throws Exception {
+    // Read from datastore.
+    Datastore datastore = V1Beta3TestUtil.getDatastore(options, options.getProject());
+    Query query = V1Beta3TestUtil.makeAncestorKindQuery(
+        options.getKind(), options.getNamespace(), ancestor);
+
+    V1Beta3TestReader reader = new V1Beta3TestReader(datastore, query, options.getNamespace());
+
+    long numEntitiesRead = 0;
+    while (reader.advance()) {
+      reader.getCurrent();
+      numEntitiesRead++;
+    }
+    return numEntitiesRead;
   }
 
   /**
