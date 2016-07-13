@@ -190,7 +190,7 @@ public class IOChannelUtils {
   /**
    * Resolve multiple {@code others} against the {@code path} sequentially.
    *
-   * Empty paths in {@code others} are ignored. If {@code others} contains one or more
+   * <p>Empty paths in {@code others} are ignored. If {@code others} contains one or more
    * absolute paths, then this method returns a path that starts with the last absolute path
    * in {@code others} joined with the remaining paths. Resolution of paths is highly
    * implementation dependent and therefore unspecified.
