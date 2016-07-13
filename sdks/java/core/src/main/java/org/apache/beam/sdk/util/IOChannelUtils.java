@@ -202,4 +202,25 @@ public class IOChannelUtils {
   public static String resolve(String path, String other) throws IOException {
     return getFactory(path).resolve(path, other);
   }
+
+  /**
+   * Resolve given multiple {@code others} against the {@code path}.
+   *
+   * <p>If the {@code others} parameter contains empty paths then empty paths are ignored. If the
+   * {@code others} contains one or more absolute paths then this method returns a resulting path
+   * that starts with the last absolute path in {@code others} joining with rest paths.
+   * Otherwise this method considers the given {@code path} to be a base directory and resolves
+   * {@code others} paths against this path sequentially. Where the {@code others} paths have
+   * root components then resolution is highly implementation dependent and therefore unspecified.
+   */
+  public static String resolve(String path, String... others) throws IOException {
+    IOChannelFactory ioFactory = getFactory(path);
+    String fullPath = path;
+
+    for (String other : others) {
+      fullPath = ioFactory.resolve(fullPath, other);
+    }
+
+    return fullPath;
+  }
 }
