@@ -111,7 +111,7 @@ public class WindowingTest {
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
         // ~ windowing by one second using a user supplied event-time-fn
-        .windowBy(Windowing.Time.seconds(1)
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1))
             .using((Pair<Item, Long> x) -> x.getFirst().evtTs))
         .output();
 
@@ -137,13 +137,14 @@ public class WindowingTest {
   @Test
   public void testTimeBuilders() {
     assertTimeWindowing(
-        Windowing.Time.seconds(100),
+        Windowing.Time.of(Duration.ofSeconds(100)),
         100 * 1000,
         null,
         Windowing.Time.ProcessingTime.<String>get());
 
     assertTimeWindowing(
-        Windowing.Time.seconds(20).earlyTriggering(After.seconds(10)),
+        Windowing.Time.of(Duration.ofSeconds(20))
+            .earlyTriggering(Duration.ofSeconds(10)),
         20 * 1000,
         Duration.ofSeconds(10),
         Windowing.Time.ProcessingTime.<Pair<Long, String>>get());
@@ -151,19 +152,23 @@ public class WindowingTest {
     UnaryFunction<Pair<Long, Long>, Long> evtf = event-> 0L;
 
     assertTimeWindowing(
-        Windowing.Time.seconds(4).earlyTriggering(After.seconds(10)).using(evtf),
+        Windowing.Time.of(Duration.ofSeconds(4))
+            .earlyTriggering(Duration.ofSeconds(10))
+            .using(evtf),
         4 * 1000,
         Duration.ofSeconds(10),
         evtf);
 
     assertTimeWindowing(
-        Windowing.Time.seconds(3).earlyTriggering(After.hours(1)).using(evtf),
+        Windowing.Time.of(Duration.ofSeconds(3))
+            .earlyTriggering(Duration.ofHours(1))
+            .using(evtf),
         3 * 1000,
         Duration.ofHours(1),
         evtf);
 
     assertTimeWindowing(
-        Windowing.Time.seconds(8).using(evtf),
+        Windowing.Time.of(Duration.ofSeconds(8)).using(evtf),
         8 * 1000,
         null,
         evtf);
@@ -299,7 +304,7 @@ public class WindowingTest {
         .keyBy(Pair::getFirst)
         .valueBy(e -> (Void) null)
         .combineBy(e -> null)
-        .windowBy(Windowing.Time.seconds(1).using(Pair::getSecond))
+        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)).using(Pair::getSecond))
         .outputWindowed();
 
     Dataset<Pair<TimeInterval, Long>> counts = ReduceByKey.of(distinctRBK)
