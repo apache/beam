@@ -188,30 +188,12 @@ public class IOChannelUtils {
   }
 
   /**
-   * Resolve the given {@code other} against the {@code path}.
+   * Resolve multiple {@code others} against the {@code path} sequentially.
    *
-   * <p>If the {@code other} parameter is an absolute path then this method trivially returns
-   * other. If {@code other} is an empty path then this method trivially returns the given
-   * {@code path}. Otherwise this method considers the given {@code path} to be a directory and
-   * resolves the {@code other} path against this path. In the simplest case, the {@code other}
-   * path does not have a root component, in which case this method joins the {@code other} path
-   * to the given {@code path} and returns a resulting path that ends with the {@code other} path.
-   * Where the {@code other} path has a root component then resolution is highly implementation
-   * dependent and therefore unspecified.
-   */
-  public static String resolve(String path, String other) throws IOException {
-    return getFactory(path).resolve(path, other);
-  }
-
-  /**
-   * Resolve given multiple {@code others} against the {@code path}.
-   *
-   * <p>If the {@code others} parameter contains empty paths then empty paths are ignored. If the
-   * {@code others} contains one or more absolute paths then this method returns a resulting path
-   * that starts with the last absolute path in {@code others} joining with rest paths.
-   * Otherwise this method considers the given {@code path} to be a base directory and resolves
-   * {@code others} paths against this path sequentially. Where the {@code others} paths have
-   * root components then resolution is highly implementation dependent and therefore unspecified.
+   * Empty paths in {@code others} are ignored. If {@code others} contains one or more
+   * absolute paths, then this method returns a path that starts with the last absolute path
+   * in {@code others} joined with the remaining paths. Resolution of paths is highly
+   * implementation dependent and therefore unspecified.
    */
   public static String resolve(String path, String... others) throws IOException {
     IOChannelFactory ioFactory = getFactory(path);
