@@ -85,6 +85,20 @@ class JsonCoder(object):
     return json.dumps(x)
 
 
+class EstimatePiTransform(beam.PTransform):
+  """Runs 10M trials, and combine the results to estimate pi."""
+
+  def __init__(self, label):
+    super(EstimatePiTransform, self).__init__(label)
+
+  def apply(self, pcoll):
+    # A hundred work items of a hundred thousand tries each.
+    return (pcoll
+            | beam.Create('Initialize', [100000] * 100).with_output_types(int)
+            | beam.Map('Run trials', run_trials)
+            | beam.CombineGlobally('Sum', combine_results).without_defaults())
+
+
 def run(argv=None):
 
   parser = argparse.ArgumentParser()
@@ -94,11 +108,8 @@ def run(argv=None):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   p = beam.Pipeline(argv=pipeline_args)
-  # A thousand work items of a million tries each.
   (p  # pylint: disable=expression-not-assigned
-   | beam.Create('Initialize', [100000] * 100).with_output_types(int)
-   | beam.Map('Run trials', run_trials)
-   | beam.CombineGlobally('Sum', combine_results).without_defaults()
+   | EstimatePiTransform('Estimate')
    | beam.io.Write('Write',
                    beam.io.TextFileSink(known_args.output,
                                         coder=JsonCoder())))

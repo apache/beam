@@ -33,69 +33,67 @@ from apache_beam.utils.options import PipelineOptions
 # pylint doesn't understand our pipeline syntax:
 # pylint:disable=expression-not-assigned
 
+class Count1(beam.PTransform):
+  """Count as a subclass of PTransform, with an apply method."""
 
-def run_count1(known_args, options):
-  """Runs the first example pipeline."""
-
-  class Count(beam.PTransform):
-    """Count as a subclass of PTransform, with an apply method."""
-
-    def apply(self, pcoll):
-      return (
-          pcoll
-          | beam.Map('Init', lambda v: (v, 1))
-          | beam.CombinePerKey(sum))
-
-  logging.info('Running first pipeline')
-  p = beam.Pipeline(options=options)
-  (p | beam.io.Read(beam.io.TextFileSource(known_args.input)) | Count()
-   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
-  p.run()
-
-
-def run_count2(known_args, options):
-  """Runs the second example pipeline."""
-
-  @beam.ptransform_fn
-  def Count(pcoll):      # pylint: disable=invalid-name
-    """Count as a decorated function."""
+  def apply(self, pcoll):
     return (
         pcoll
         | beam.Map('Init', lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 
-  logging.info('Running second pipeline')
+
+def run_count1(known_args, options):
+  """Runs the first example pipeline."""
+  logging.info('Running first pipeline')
   p = beam.Pipeline(options=options)
-  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
-   | Count()  # pylint: disable=no-value-for-parameter
+  (p | beam.io.Read(beam.io.TextFileSource(known_args.input)) | Count1()
    | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 
+@beam.ptransform_fn
+def Count2(pcoll):  # pylint: disable=invalid-name
+  """Count as a decorated function."""
+  return (
+      pcoll
+      | beam.Map('Init', lambda v: (v, 1))
+      | beam.CombinePerKey(sum))
+
+
+def run_count2(known_args, options):
+  """Runs the second example pipeline."""
+  logging.info('Running second pipeline')
+  p = beam.Pipeline(options=options)
+  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
+   | Count2()  # pylint: disable=no-value-for-parameter
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
+  p.run()
+
+
+@beam.ptransform_fn
+def Count3(pcoll, factor=1):  # pylint: disable=invalid-name
+  """Count as a decorated function with a side input.
+
+  Args:
+    pcoll: the PCollection passed in from the previous transform
+    factor: the amount by which to count
+
+  Returns:
+    A PCollection counting the number of times each unique element occurs.
+  """
+  return (
+      pcoll
+      | beam.Map('Init', lambda v: (v, factor))
+      | beam.CombinePerKey(sum))
+
+
 def run_count3(known_args, options):
   """Runs the third example pipeline."""
-
-  @beam.ptransform_fn
-  # pylint: disable=invalid-name
-  def Count(pcoll, factor=1):
-    """Count as a decorated function with a side input.
-
-    Args:
-      pcoll: the PCollection passed in from the previous transform
-      factor: the amount by which to count
-
-    Returns:
-      A PCollection counting the number of times each unique element occurs.
-    """
-    return (
-        pcoll
-        | beam.Map('Init', lambda v: (v, factor))
-        | beam.CombinePerKey(sum))
-
   logging.info('Running third pipeline')
   p = beam.Pipeline(options=options)
   (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
-   | Count(2)  # pylint: disable=no-value-for-parameter
+   | Count3(2)  # pylint: disable=no-value-for-parameter
    | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
