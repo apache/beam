@@ -88,11 +88,12 @@
     </plugins>
 
     <extensions>
-      <!-- Use os-maven-plugin to initialize the "os.detected" properties -->
+      <!-- Use os-maven-plugin to initialize the "os.detected" properties for Bigtable.
+           See: https://cloud.google.com/bigtable/docs/using-maven#encryption -->
       <extension>
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
-        <version>1.4.0.Final</version>
+        <version>${os-maven-plugin.version}</version>
       </extension>
     </extensions>
   </build>
