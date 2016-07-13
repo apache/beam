@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 import javax.annotation.Nullable;
@@ -29,12 +29,12 @@ import javax.annotation.Nullable;
  */
 public interface V1Beta3TestOptions extends TestPipelineOptions {
   @Description("Project ID to read from datastore")
-  @Validation.Required
+  @Default.String("apache-beam-testing")
   String getProject();
   void setProject(String value);
 
   @Description("Datastore Entity kind")
-  @Validation.Required
+  @Default.String("beam-test")
   String getKind();
   void setKind(String value);
 
