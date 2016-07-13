@@ -17,12 +17,13 @@
 
 """Test for the coders example."""
 
-import json
 import logging
-import tempfile
 import unittest
 
+import apache_beam as beam
 from apache_beam.examples.cookbook import coders
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 
 
 class CodersTest(unittest.TestCase):
@@ -32,26 +33,14 @@ class CodersTest(unittest.TestCase):
       {'host': ['Germany', 1], 'guest': ['Brasil', 3]},
       {'host': ['Brasil', 1], 'guest': ['Italy', 0]}]
 
-  def create_temp_file(self, records):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      for record in records:
-        f.write('%s\n' % json.dumps(record))
-      return f.name
-
-  def test_basics(self):
-    temp_path = self.create_temp_file(self.SAMPLE_RECORDS)
-    coders.run([
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path])
-    # Parse result file and compare.
-    results = []
-    with open(temp_path + '.result-00000-of-00001') as result_file:
-      for line in result_file:
-        results.append(json.loads(line))
-      logging.info('result: %s', results)
-    self.assertEqual(
-        sorted(results),
-        sorted([['Italy', 0], ['Brasil', 6], ['Germany', 3]]))
+  def test_compute_points(self):
+    p = beam.Pipeline('DirectPipelineRunner')
+    records = p | beam.Create('create', self.SAMPLE_RECORDS)
+    result = (records
+              | beam.FlatMap('points', coders.compute_points)
+              | beam.CombinePerKey(sum))
+    assert_that(result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
+    p.run()
 
 
 if __name__ == '__main__':
