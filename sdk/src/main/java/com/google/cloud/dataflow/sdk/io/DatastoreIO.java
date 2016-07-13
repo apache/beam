@@ -173,7 +173,11 @@ import javax.annotation.Nullable;
  * </a>for security and permission related information specific to Datastore.
  *
  * @see com.google.cloud.dataflow.sdk.runners.PipelineRunner
+ *
+ * @deprecated replaced by {@link com.google.cloud.dataflow.sdk.io.datastore.DatastoreIO}
  */
+
+@Deprecated
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreIO {
   public static final String DEFAULT_HOST = "https://www.googleapis.com";

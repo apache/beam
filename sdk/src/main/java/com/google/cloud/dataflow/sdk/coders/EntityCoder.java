@@ -26,7 +26,10 @@ import java.io.OutputStream;
 
 /**
  * A {@link Coder} for {@link Entity} objects based on their encoded Protocol Buffer form.
+ *
+ * @deprecated use {@link com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder} instead.
  */
+@Deprecated
 public class EntityCoder extends AtomicCoder<Entity> {
 
   @JsonCreator
