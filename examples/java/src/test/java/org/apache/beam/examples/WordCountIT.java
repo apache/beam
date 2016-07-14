@@ -18,6 +18,7 @@
 
 package org.apache.beam.examples;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.examples.WordCount.WordCountOptions;
@@ -67,13 +68,11 @@ public class WordCountIT {
     PipelineOptionsFactory.register(WordCountITOptions.class);
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
-    IOChannelUtils.registerStandardIOFactories(options);
-    options.setOutput(
-            IOChannelUtils.resolve(
-                    options.getTempRoot(),
-                    IOChannelUtils.resolve(
-                            String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
-                            IOChannelUtils.resolve("output", "results"))));
+    options.setOutput(IOChannelUtils.resolve(
+            options.getTempRoot(),
+            String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+            "output",
+            "results"));
     options.setOnSuccessMatcher(new WordCountOnSuccessMatcher(options.getOutput() + "*"));
 
     WordCount.main(TestPipeline.convertToArgs(options));
@@ -93,18 +92,17 @@ public class WordCountIT {
     private final String outputPath;
 
     WordCountOnSuccessMatcher(String outputPath) {
-      this.outputPath = outputPath;
+      this.outputPath = checkNotNull(outputPath);
     }
 
     @Override
     protected boolean matchesSafely(PipelineResult pResult) {
-      if (outputPath == null || outputPath.isEmpty()) {
+      if (outputPath.isEmpty()) {
         fail(String.format("Expected valid output path, but received %s", outputPath));
       }
 
       try {
         // Load output data
-        LOG.info("Loading from path: {}", outputPath);
         List<String> outputs = readLines(outputPath);
 
         // Verify outputs. Checksum is computed using SHA-1 algorithm
@@ -123,18 +121,20 @@ public class WordCountIT {
     private List<String> readLines(String path) throws IOException {
       List<String> readData = new ArrayList<>();
 
-        IOChannelFactory factory = IOChannelUtils.getFactory(path);
+      IOChannelFactory factory = IOChannelUtils.getFactory(path);
 
-        // Match inputPath which may contains glob
-        Collection<String> files = factory.match(path);
+      // Match inputPath which may contains glob
+      Collection<String> files = factory.match(path);
 
-        // Read data from file paths
-        for (String file : files) {
-          try (Reader reader =
-                       Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
-            readData.addAll(CharStreams.readLines(reader));
-          }
+      // Read data from file paths
+      for (String file : files) {
+        try (Reader reader =
+                     Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+          readData.addAll(CharStreams.readLines(reader));
         }
+      }
+      LOG.info("Read {} lines from {} files with destination path {}",
+              readData.size(), files.size(), outputPath);
 
       return readData;
     }
