@@ -31,6 +31,7 @@ _KNOWN_DIRECT_RUNNERS = ('DirectPipelineRunner', 'DiskCachedPipelineRunner',
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowPipelineRunner',
                            'BlockingDataflowPipelineRunner')
 
+
 def create_runner(runner_name):
   """Creates a runner instance from a runner class name.
 
