@@ -47,7 +47,7 @@ public final class DataflowReleaseInfo extends GenericJson {
     return LazyInit.INSTANCE;
   }
 
-  @Key private String name = "Google Cloud Dataflow Java SDK";
+  @Key private String name = "Google Cloud Dataflow SDK for Java";
   @Key private String version = "Unknown";
 
   /** Provides the SDK name. */
