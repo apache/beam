@@ -90,10 +90,6 @@
     </developer>
   </developers>
 
-  <prerequisites>
-    <maven>3.0.3</maven>
-  </prerequisites>
-
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <dataflow.javadoc_opts />
@@ -1017,7 +1013,7 @@
                   <version>[1.7,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <version>[3.0.3,)</version>
+                  <version>[3.3,)</version>
                 </requireMavenVersion>
               </rules>
             </configuration>
