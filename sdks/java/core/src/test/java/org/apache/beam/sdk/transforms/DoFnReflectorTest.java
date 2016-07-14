@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessContext;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowingInternals;
 
 import org.junit.Before;
@@ -45,9 +46,16 @@ import java.lang.reflect.Method;
 @RunWith(JUnit4.class)
 public class DoFnReflectorTest {
 
-  private boolean wasProcessElementInvoked = false;
-  private boolean wasStartBundleInvoked = false;
-  private boolean wasFinishBundleInvoked = false;
+  private static class Invocations {
+    private boolean wasProcessElementInvoked = false;
+    private boolean wasStartBundleInvoked = false;
+    private boolean wasFinishBundleInvoked = false;
+    private final String name;
+
+    public Invocations(String name) {
+      this.name = name;
+    }
+  }
 
   private DoFnWithContext<String, String> fn;
 
@@ -84,39 +92,78 @@ public class DoFnReflectorTest {
     return DoFnReflector.of(fn.getClass());
   }
 
-  private void checkInvokeProcessElementWorks(DoFnReflector r) throws Exception {
-    assertFalse(wasProcessElementInvoked);
-    r.invokeProcessElement(fn, mockContext, extraContextFactory);
-    assertTrue(wasProcessElementInvoked);
+  private void checkInvokeProcessElementWorks(
+      DoFnReflector r, Invocations... invocations) throws Exception {
+    assertTrue("Need at least one invocation to check", invocations.length >= 1);
+    for (Invocations invocation : invocations) {
+      assertFalse("Should not yet have called processElement on " + invocation.name,
+          invocation.wasProcessElementInvoked);
+    }
+    r.bindInvoker(fn).invokeProcessElement(mockContext, extraContextFactory);
+    for (Invocations invocation : invocations) {
+      assertTrue("Should have called processElement on " + invocation.name,
+          invocation.wasProcessElementInvoked);
+    }
   }
 
-  private void checkInvokeStartBundleWorks(DoFnReflector r) throws Exception {
-    assertFalse(wasStartBundleInvoked);
-    r.invokeStartBundle(fn, mockContext, extraContextFactory);
-    assertTrue(wasStartBundleInvoked);
+  private void checkInvokeStartBundleWorks(
+      DoFnReflector r, Invocations... invocations) throws Exception {
+    assertTrue("Need at least one invocation to check", invocations.length >= 1);
+    for (Invocations invocation : invocations) {
+      assertFalse("Should not yet have called startBundle on " + invocation.name,
+          invocation.wasStartBundleInvoked);
+    }
+    r.bindInvoker(fn).invokeStartBundle(mockContext, extraContextFactory);
+    for (Invocations invocation : invocations) {
+      assertTrue("Should have called startBundle on " + invocation.name,
+          invocation.wasStartBundleInvoked);
+    }
   }
 
-  private void checkInvokeFinishBundleWorks(DoFnReflector r) throws Exception {
-    assertFalse(wasFinishBundleInvoked);
-    r.invokeFinishBundle(fn, mockContext, extraContextFactory);
-    assertTrue(wasFinishBundleInvoked);
+  private void checkInvokeFinishBundleWorks(
+      DoFnReflector r, Invocations... invocations) throws Exception {
+    assertTrue("Need at least one invocation to check", invocations.length >= 1);
+    for (Invocations invocation : invocations) {
+      assertFalse("Should not yet have called finishBundle on " + invocation.name,
+          invocation.wasFinishBundleInvoked);
+    }
+    r.bindInvoker(fn).invokeFinishBundle(mockContext, extraContextFactory);
+    for (Invocations invocation : invocations) {
+      assertTrue("Should have called finishBundle on " + invocation.name,
+          invocation.wasFinishBundleInvoked);
+    }
   }
 
   @Test
   public void testDoFnWithNoExtraContext() throws Exception {
+    final Invocations invocations = new Invocations("AnonymousClass");
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
 
       @ProcessElement
       public void processElement(ProcessContext c)
           throws Exception {
-        wasProcessElementInvoked = true;
+        invocations.wasProcessElementInvoked = true;
         assertSame(c, mockContext);
       }
     });
 
     assertFalse(reflector.usesSingleWindow());
 
-    checkInvokeProcessElementWorks(reflector);
+    checkInvokeProcessElementWorks(reflector, invocations);
+  }
+
+  @Test
+  public void testDoFnInvokersReused() throws Exception {
+    // Ensures that we don't create a new Invoker class for every instance of the DoFn.
+    IdentityParent fn1 = new IdentityParent();
+    IdentityParent fn2 = new IdentityParent();
+    DoFnReflector reflector1 = underTest(fn1);
+    DoFnReflector reflector2 = underTest(fn2);
+    assertSame("DoFnReflector instances should be cached and reused for identical types",
+        reflector1, reflector2);
+    assertSame("Invoker classes should only be generated once for each type",
+        reflector1.bindInvoker(fn1).getClass(),
+        reflector2.bindInvoker(fn2).getClass());
   }
 
   interface InterfaceWithProcessElement {
@@ -130,45 +177,71 @@ public class DoFnReflectorTest {
       extends DoFnWithContext<String, String>
       implements LayersOfInterfaces {
 
+    private Invocations invocations = new Invocations("Named Class");
+
     @Override
     public void processElement(DoFnWithContext<String, String>.ProcessContext c) {
-      wasProcessElementInvoked = true;
+      invocations.wasProcessElementInvoked = true;
       assertSame(c, mockContext);
     }
   }
 
   @Test
   public void testDoFnWithProcessElementInterface() throws Exception {
-    DoFnReflector reflector = underTest(new IdentityUsingInterfaceWithProcessElement());
+    IdentityUsingInterfaceWithProcessElement fn = new IdentityUsingInterfaceWithProcessElement();
+    DoFnReflector reflector = underTest(fn);
     assertFalse(reflector.usesSingleWindow());
-    checkInvokeProcessElementWorks(reflector);
+    checkInvokeProcessElementWorks(reflector, fn.invocations);
   }
 
   private class IdentityParent extends DoFnWithContext<String, String> {
+    protected Invocations parentInvocations = new Invocations("IdentityParent");
+
     @ProcessElement
     public void process(ProcessContext c) {
-      wasProcessElementInvoked = true;
+      parentInvocations.wasProcessElementInvoked = true;
       assertSame(c, mockContext);
     }
   }
 
-  private class IdentityChild extends IdentityParent {}
+  private class IdentityChildWithoutOverride extends IdentityParent {
+  }
+
+  private class IdentityChildWithOverride extends IdentityParent {
+    protected Invocations childInvocations = new Invocations("IdentityChildWithOverride");
+
+    @Override
+    public void process(DoFnWithContext<String, String>.ProcessContext c) {
+      super.process(c);
+      childInvocations.wasProcessElementInvoked = true;
+    }
+  }
 
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
-    DoFnReflector reflector = underTest(new IdentityChild());
+    IdentityChildWithoutOverride fn = new IdentityChildWithoutOverride();
+    DoFnReflector reflector = underTest(fn);
     assertFalse(reflector.usesSingleWindow());
-    checkInvokeProcessElementWorks(reflector);
+    checkInvokeProcessElementWorks(reflector, fn.parentInvocations);
+  }
+
+  @Test
+  public void testDoFnWithMethodInSubclass() throws Exception {
+    IdentityChildWithOverride fn = new IdentityChildWithOverride();
+    DoFnReflector reflector = underTest(fn);
+    assertFalse(reflector.usesSingleWindow());
+    checkInvokeProcessElementWorks(reflector, fn.parentInvocations, fn.childInvocations);
   }
 
   @Test
   public void testDoFnWithWindow() throws Exception {
+    final Invocations invocations = new Invocations("AnonymousClass");
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
 
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow w)
           throws Exception {
-        wasProcessElementInvoked = true;
+        invocations.wasProcessElementInvoked = true;
         assertSame(c, mockContext);
         assertSame(w, mockWindow);
       }
@@ -176,17 +249,18 @@ public class DoFnReflectorTest {
 
     assertTrue(reflector.usesSingleWindow());
 
-    checkInvokeProcessElementWorks(reflector);
+    checkInvokeProcessElementWorks(reflector, invocations);
   }
 
   @Test
   public void testDoFnWithWindowingInternals() throws Exception {
+    final Invocations invocations = new Invocations("AnonymousClass");
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
 
       @ProcessElement
       public void processElement(ProcessContext c, WindowingInternals<String, String> w)
           throws Exception {
-        wasProcessElementInvoked = true;
+        invocations.wasProcessElementInvoked = true;
         assertSame(c, mockContext);
         assertSame(w, mockWindowingInternals);
       }
@@ -194,30 +268,31 @@ public class DoFnReflectorTest {
 
     assertFalse(reflector.usesSingleWindow());
 
-    checkInvokeProcessElementWorks(reflector);
+    checkInvokeProcessElementWorks(reflector, invocations);
   }
 
   @Test
   public void testDoFnWithStartBundle() throws Exception {
+    final Invocations invocations = new Invocations("AnonymousClass");
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
       @ProcessElement
       public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
 
       @StartBundle
       public void startBundle(Context c) {
-        wasStartBundleInvoked = true;
+        invocations.wasStartBundleInvoked = true;
         assertSame(c, mockContext);
       }
 
       @FinishBundle
       public void finishBundle(Context c) {
-        wasFinishBundleInvoked = true;
+        invocations.wasFinishBundleInvoked = true;
         assertSame(c, mockContext);
       }
     });
 
-    checkInvokeStartBundleWorks(reflector);
-    checkInvokeFinishBundleWorks(reflector);
+    checkInvokeStartBundleWorks(reflector, invocations);
+    checkInvokeFinishBundleWorks(reflector, invocations);
   }
 
   @Test
@@ -321,7 +396,7 @@ public class DoFnReflectorTest {
     });
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void missingProcessContext() {}
 
   @Test
@@ -334,7 +409,7 @@ public class DoFnReflectorTest {
         getClass().getDeclaredMethod("missingProcessContext"));
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void badProcessContext(String s) {}
 
   @Test
@@ -347,7 +422,7 @@ public class DoFnReflectorTest {
         getClass().getDeclaredMethod("badProcessContext", String.class));
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void badExtraContext(DoFnWithContext<Integer, String>.Context c, int n) {}
 
   @Test
@@ -361,7 +436,7 @@ public class DoFnReflectorTest {
         getClass().getDeclaredMethod("badExtraContext", Context.class, int.class));
   }
 
-  @SuppressWarnings({"unused", "rawtypes"})
+  @SuppressWarnings({"unused"})
   private void badExtraProcessContext(
       DoFnWithContext<Integer, String>.ProcessContext c, Integer n) {}
 
@@ -490,5 +565,55 @@ public class DoFnReflectorTest {
         + "WindowingInternals<InputT, OutputT>");
 
     DoFnReflector.verifyProcessMethodArguments(method);
+  }
+
+  @Test
+  public void testProcessElementException() throws Exception {
+    DoFnWithContext<Integer, Integer> fn = new DoFnWithContext<Integer, Integer>() {
+      @ProcessElement
+      public void processElement(@SuppressWarnings("unused") ProcessContext c) {
+        throw new IllegalArgumentException("bogus");
+      }
+    };
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnReflector.of(fn.getClass()).bindInvoker(fn).invokeProcessElement(null, null);
+  }
+
+  @Test
+  public void testStartBundleException() throws Exception {
+    DoFnWithContext<Integer, Integer> fn = new DoFnWithContext<Integer, Integer>() {
+      @StartBundle
+      public void startBundle(@SuppressWarnings("unused") Context c) {
+        throw new IllegalArgumentException("bogus");
+      }
+
+      @ProcessElement
+      public void processElement(@SuppressWarnings("unused") ProcessContext c) {
+      }
+    };
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnReflector.of(fn.getClass()).bindInvoker(fn).invokeStartBundle(null, null);
+  }
+
+  @Test
+  public void testFinishBundleException() throws Exception {
+    DoFnWithContext<Integer, Integer> fn = new DoFnWithContext<Integer, Integer>() {
+      @FinishBundle
+      public void finishBundle(@SuppressWarnings("unused") Context c) {
+        throw new IllegalArgumentException("bogus");
+      }
+
+      @ProcessElement
+      public void processElement(@SuppressWarnings("unused") ProcessContext c) {
+      }
+    };
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnReflector.of(fn.getClass()).bindInvoker(fn).invokeFinishBundle(null, null);
   }
 }
