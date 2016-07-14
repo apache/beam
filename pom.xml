@@ -126,6 +126,7 @@
     <joda.version>2.4</joda.version>
     <junit.version>4.11</junit.version>
     <mockito.version>1.9.5</mockito.version>
+    <os-maven-plugin.version>1.4.0.Final</os-maven-plugin.version>
     <protobuf.version>3.0.0-beta-1</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
