@@ -44,7 +44,7 @@ class RunnerTest(unittest.TestCase):
     self.assertTrue(
         isinstance(create_runner('BlockingDataflowPipelineRunner'),
                    DataflowPipelineRunner))
-    self.assertRaises(RuntimeError, create_runner, 'xyz')
+    self.assertRaises(ValueError, create_runner, 'xyz')
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowPipelineRunner()
