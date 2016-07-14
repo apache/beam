@@ -152,6 +152,20 @@ public class DoFnReflectorTest {
     checkInvokeProcessElementWorks(reflector, invocations);
   }
 
+  @Test
+  public void testDoFnInvokersReused() throws Exception {
+    // Ensures that we don't create a new Invoker class for every instance of the DoFn.
+    IdentityParent fn1 = new IdentityParent();
+    IdentityParent fn2 = new IdentityParent();
+    DoFnReflector reflector1 = underTest(fn1);
+    DoFnReflector reflector2 = underTest(fn2);
+    assertSame("DoFnReflector instances should be cached and reused for identical types",
+        reflector1, reflector2);
+    assertSame("Invoker classes should only be generated once for each type",
+        reflector1.bindInvoker(fn1).getClass(),
+        reflector2.bindInvoker(fn2).getClass());
+  }
+
   interface InterfaceWithProcessElement {
     @ProcessElement
     void processElement(DoFnWithContext<String, String>.ProcessContext c);
