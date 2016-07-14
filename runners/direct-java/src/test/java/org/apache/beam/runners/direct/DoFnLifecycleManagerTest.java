@@ -18,7 +18,9 @@
 
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
@@ -49,6 +51,8 @@ public class DoFnLifecycleManagerTest {
     TestFn obtained = (TestFn) mgr.get();
 
     assertThat(obtained, not(theInstance(fn)));
+    assertThat(obtained.setupCalled, is(true));
+    assertThat(obtained.teardownCalled, is(false));
   }
 
   @Test
@@ -57,6 +61,8 @@ public class DoFnLifecycleManagerTest {
     TestFn secondObtained = (TestFn) mgr.get();
 
     assertThat(obtained, theInstance(secondObtained));
+    assertThat(obtained.setupCalled, is(true));
+    assertThat(obtained.teardownCalled, is(false));
   }
 
   @Test
@@ -74,6 +80,7 @@ public class DoFnLifecycleManagerTest {
     }
 
     for (TestFn fn : fns) {
+      assertThat(fn.setupCalled, is(true));
       int sameInstances = 0;
       for (TestFn otherFn : fns) {
         if (otherFn == fn) {
@@ -90,8 +97,31 @@ public class DoFnLifecycleManagerTest {
     mgr.remove();
 
     assertThat(obtained, not(theInstance(fn)));
+    assertThat(obtained.setupCalled, is(true));
+    assertThat(obtained.teardownCalled, is(true));
 
     assertThat(mgr.get(), not(Matchers.<OldDoFn<?, ?>>theInstance(obtained)));
+  }
+
+  @Test
+  public void teardownAllOnRemoveAll() throws Exception {
+    CountDownLatch startSignal = new CountDownLatch(1);
+    ExecutorService executor = Executors.newCachedThreadPool();
+    List<Future<TestFn>> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      futures.add(executor.submit(new GetFnCallable(mgr, startSignal)));
+    }
+    startSignal.countDown();
+    List<TestFn> fns = new ArrayList<>();
+    for (Future<TestFn> future : futures) {
+      fns.add(future.get(1L, TimeUnit.SECONDS));
+    }
+    mgr.removeAll();
+
+    for (TestFn fn : fns) {
+      assertThat(fn.setupCalled, is(true));
+      assertThat(fn.teardownCalled, is(true));
+    }
   }
 
   private static class GetFnCallable implements Callable<TestFn> {
@@ -112,8 +142,27 @@ public class DoFnLifecycleManagerTest {
 
 
   private static class TestFn extends OldDoFn<Object, Object> {
+    boolean setupCalled = false;
+    boolean teardownCalled = false;
+
+    @Override
+    public void setup() {
+      checkState(!setupCalled);
+      checkState(!teardownCalled);
+
+      setupCalled = true;
+    }
+
     @Override
     public void processElement(ProcessContext c) throws Exception {
+    }
+
+    @Override
+    public void teardown() {
+      checkState(setupCalled);
+      checkState(!teardownCalled);
+
+      teardownCalled = true;
     }
   }
 }

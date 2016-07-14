@@ -70,6 +70,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
   @Override
   public void open(Configuration parameters) throws Exception {
+    doFn.setup();
   }
 
   @Override
@@ -78,6 +79,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
       // we have initialized the context
       this.doFn.finishBundle(this.context);
     }
+    this.doFn.teardown();
   }
 
   @Override
