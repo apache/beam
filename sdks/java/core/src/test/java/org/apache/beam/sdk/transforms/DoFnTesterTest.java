@@ -254,7 +254,7 @@ public class DoFnTesterTest {
     DoFn<Integer, Integer> fn = new SideInputDoFn(value);
 
     DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
-    tester.setSideInput(value, -2);
+    tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
     tester.processElement(16);
     tester.processElement(32);
     tester.processElement(64);
