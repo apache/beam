@@ -55,7 +55,7 @@ def create_runner(runner_name):
     return getattr(__import__(module, {}, {}, [runner], -1), runner)()
   else:
     raise ValueError(
-        'Unexpected pipeline runner: %s. Valid values are %s'
+        'Unexpected pipeline runner: %s. Valid values are %s '
         'or the fully qualified name of a PipelineRunner subclass.' % (
             runner_name,
             ', '.join(_KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS)))
