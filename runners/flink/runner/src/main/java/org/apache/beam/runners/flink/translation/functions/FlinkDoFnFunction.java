@@ -25,6 +25,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.util.Map;
@@ -86,7 +87,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
       // side inputs and window access also only works if an element
       // is in only one window
       for (WindowedValue<InputT> value : values) {
-        for (WindowedValue<InputT> explodedValue: value.explodeWindows()) {
+        for (WindowedValue<InputT> explodedValue : value.explodeWindows()) {
           context = context.forWindowedValue(value);
           doFn.processElement(context);
         }
@@ -99,4 +100,13 @@ public class FlinkDoFnFunction<InputT, OutputT>
     this.doFn.finishBundle(context);
   }
 
+  @Override
+  public void open(Configuration parameters) throws Exception {
+    doFn.setup();
+  }
+
+  @Override
+  public void close() throws Exception {
+    doFn.teardown();
+  }
 }

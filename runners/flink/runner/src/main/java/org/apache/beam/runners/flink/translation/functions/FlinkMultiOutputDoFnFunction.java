@@ -27,6 +27,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.util.Map;
@@ -75,14 +76,15 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
       Iterable<WindowedValue<InputT>> values,
       Collector<WindowedValue<RawUnionValue>> out) throws Exception {
 
-    FlinkProcessContext<InputT, OutputT> context = new FlinkMultiOutputProcessContext<>(
-        serializedOptions.getPipelineOptions(),
-        getRuntimeContext(),
-        doFn,
-        windowingStrategy,
-        out,
-        outputMap,
-        sideInputs);
+    FlinkProcessContext<InputT, OutputT> context =
+        new FlinkMultiOutputProcessContext<>(
+            serializedOptions.getPipelineOptions(),
+            getRuntimeContext(),
+            doFn,
+            windowingStrategy,
+            out,
+            outputMap,
+            sideInputs);
 
     this.doFn.startBundle(context);
 
@@ -97,14 +99,23 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
       // side inputs and window access also only works if an element
       // is in only one window
       for (WindowedValue<InputT> value : values) {
-        for (WindowedValue<InputT> explodedValue: value.explodeWindows()) {
+        for (WindowedValue<InputT> explodedValue : value.explodeWindows()) {
           context = context.forWindowedValue(value);
           doFn.processElement(context);
         }
       }
     }
 
-
     this.doFn.finishBundle(context);
+  }
+
+  @Override
+  public void open(Configuration parameters) throws Exception {
+    doFn.setup();
+  }
+
+  @Override
+  public void close() throws Exception {
+    doFn.teardown();
   }
 }

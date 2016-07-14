@@ -34,14 +34,14 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
   private final DoFnLifecycleManager lifecycleManager;
 
   public static <InputT> TransformEvaluator<InputT> wrapping(
-      TransformEvaluator<InputT> underlying, DoFnLifecycleManager threadLocal) {
-    return new DoFnLifecycleManagerRemovingTransformEvaluator<>(underlying, threadLocal);
+      TransformEvaluator<InputT> underlying, DoFnLifecycleManager lifecycleManager) {
+    return new DoFnLifecycleManagerRemovingTransformEvaluator<>(underlying, lifecycleManager);
   }
 
   private DoFnLifecycleManagerRemovingTransformEvaluator(
-      TransformEvaluator<InputT> underlying, DoFnLifecycleManager threadLocal) {
+      TransformEvaluator<InputT> underlying, DoFnLifecycleManager lifecycleManager) {
     this.underlying = underlying;
-    this.lifecycleManager = threadLocal;
+    this.lifecycleManager = lifecycleManager;
   }
 
   @Override
@@ -49,14 +49,7 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
     try {
       underlying.processElement(element);
     } catch (Exception e) {
-      try {
-        lifecycleManager.remove();
-      } catch (Exception removalException) {
-        LOG.error(
-            "Exception encountered while cleaning up after processing an element",
-            removalException);
-        e.addSuppressed(removalException);
-      }
+      onException(e, "Exception encountered while cleaning up after processing an element");
       throw e;
     }
   }
@@ -66,15 +59,21 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
     try {
       return underlying.finishBundle();
     } catch (Exception e) {
-      try {
-        lifecycleManager.remove();
-      } catch (Exception removalException) {
-        LOG.error(
-            "Exception encountered while cleaning up after finishing a bundle",
-            removalException);
-        e.addSuppressed(removalException);
-      }
+      onException(e, "Exception encountered while cleaning up after finishing a bundle");
       throw e;
     }
   }
+
+  private void onException(Exception e, String msg) {
+    try {
+      lifecycleManager.remove();
+    } catch (Exception removalException) {
+      if (removalException instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      LOG.error(msg, removalException);
+      e.addSuppressed(removalException);
+    }
+  }
+
 }

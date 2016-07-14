@@ -252,6 +252,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   @Override
   public void open() throws Exception {
     super.open();
+    operator.setup();
     this.context = new ProcessContext(operator, new TimestampedCollector<>(output), this.timerInternals);
     operator.startBundle(context);
   }
@@ -351,6 +352,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   @Override
   public void close() throws Exception {
     operator.finishBundle(context);
+    operator.teardown();
     super.close();
   }
 
