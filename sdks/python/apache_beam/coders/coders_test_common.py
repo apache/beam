@@ -121,9 +121,10 @@ class CodersTest(unittest.TestCase):
     # Multi-byte encoding starts at 128
     self.check_coder(coders.VarIntCoder(), *range(120, 140))
     # Large values
+    MAX_64_BIT_INT = 0x7fffffffffffffff
     self.check_coder(coders.VarIntCoder(),
                      *[int(math.pow(-1, k) * math.exp(k))
-                       for k in range(0, int(math.log(sys.maxint)))])
+                       for k in range(0, int(math.log(MAX_64_BIT_INT)))])
 
   def test_float_coder(self):
     self.check_coder(coders.FloatCoder(),
