@@ -124,8 +124,10 @@ public class DoFnTester<InputT, OutputT> {
    * <p>If this isn't called, {@code DoFnTester} assumes the
    * {@code DoFn} takes no side inputs.
    */
-  public void setSideInput(PCollectionView<?> sideInput, Iterable<WindowedValue<?>> value) {
-    sideInputs.put(sideInput, value);
+  public <T> void setSideInput(PCollectionView<T> sideInput, Iterable<WindowedValue<T>> value) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Iterable values = (Iterable) value;
+    sideInputs.put(sideInput, values);
   }
 
   /**
@@ -133,19 +135,13 @@ public class DoFnTester<InputT, OutputT> {
    * pass to the {@link DoFn} under test. All values are placed
    * in the global window.
    */
-  public void setSideInputInGlobalWindow(
-      PCollectionView<?> sideInput,
-      Iterable<?> value) {
-    sideInputs.put(
-        sideInput,
-        Iterables.transform(value, new Function<Object, WindowedValue<?>>() {
-          @Override
-          public WindowedValue<?> apply(Object input) {
-            return WindowedValue.valueInGlobalWindow(input);
-          }
-        }));
+  public <T> void setSideInput(
+      PCollectionView<T> sideInput,
+      T value) {
+    setSideInput(
+        sideInput, Collections.singleton(WindowedValue.valueInGlobalWindow(value))
+       );
   }
-
 
   /**
    * Registers the list of {@code TupleTag}s that can be used by the
@@ -523,14 +519,14 @@ public class DoFnTester<InputT, OutputT> {
     private final TestContext<InT, OutT> context;
     private final TupleTag<OutT> mainOutputTag;
     private final WindowedValue<InT> element;
-    private final Map<PCollectionView<?>, ?> sideInputs;
+    private final Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs;
 
     private TestProcessContext(
         DoFn<InT, OutT> fn,
         TestContext<InT, OutT> context,
         WindowedValue<InT> element,
         TupleTag<OutT> mainOutputTag,
-        Map<PCollectionView<?>, ?> sideInputs) {
+        Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs) {
       fn.super();
       this.context = context;
       this.element = element;
@@ -545,9 +541,16 @@ public class DoFnTester<InputT, OutputT> {
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      @SuppressWarnings("unchecked")
-      T sideInput = (T) sideInputs.get(view);
-      return sideInput;
+      if (sideInputs.containsKey(view)) {
+        BoundedWindow sideInputWindow =
+            view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window());
+        for (WindowedValue<?> wv : sideInputs.get(view)) {
+          if (wv.getWindows().contains(sideInputWindow)) {
+            return (T) wv.getValue();
+          }
+        }
+      }
+      return view.fromIterableInternal(Collections.<WindowedValue<?>>emptyList());
     }
 
     @Override
