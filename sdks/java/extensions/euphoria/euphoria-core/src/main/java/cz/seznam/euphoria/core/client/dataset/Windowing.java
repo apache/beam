@@ -337,8 +337,9 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
     }
 
-    public static <T> TimeSliding<T> of(Duration duration, long step) {
-      return new TimeSliding<>(duration.toMillis(), step, Time.ProcessingTime.get());
+    public static <T> TimeSliding<T> of(Duration duration, Duration step) {
+      return new TimeSliding<>(duration.toMillis(), step.toMillis(),
+          Time.ProcessingTime.get());
     }
 
     private final long duration;
