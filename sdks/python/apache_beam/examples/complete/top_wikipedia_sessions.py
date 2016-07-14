@@ -42,7 +42,6 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
-import sys
 
 import apache_beam as beam
 from apache_beam import combiners
@@ -50,6 +49,7 @@ from apache_beam import window
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
+MAX_TIMESTAMP = 0x7fffffffffffffff
 
 
 class ExtractUserAndTimestampDoFn(beam.DoFn):
@@ -128,8 +128,8 @@ class ComputeTopSessions(beam.PTransform):
     return (pcoll
             | beam.ParDo('ExtractUserAndTimestamp',
                          ExtractUserAndTimestampDoFn())
-            | beam.Filter(
-                lambda x: abs(hash(x)) <= sys.maxint * self.sampling_threshold)
+            | beam.Filter(lambda x: (abs(hash(x)) <=
+                                     MAX_TIMESTAMP * self.sampling_threshold))
             | ComputeSessions()
             | beam.ParDo('SessionsToStrings', SessionsToStringsDoFn())
             | TopPerMonth()
