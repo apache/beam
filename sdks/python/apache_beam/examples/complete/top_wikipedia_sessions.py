@@ -128,8 +128,8 @@ class ComputeTopSessions(beam.PTransform):
     return (pcoll
             | beam.ParDo('ExtractUserAndTimestamp',
                          ExtractUserAndTimestampDoFn())
-            | beam.Filter(
-                lambda x: abs(hash(x)) <= MAX_TIMESTAMP * self.sampling_threshold)
+            | beam.Filter(lambda x: (abs(hash(x)) <=
+                                     MAX_TIMESTAMP * self.sampling_threshold))
             | ComputeSessions()
             | beam.ParDo('SessionsToStrings', SessionsToStringsDoFn())
             | TopPerMonth()

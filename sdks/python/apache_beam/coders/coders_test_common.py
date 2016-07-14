@@ -19,7 +19,6 @@
 
 import logging
 import math
-import sys
 import unittest
 
 import dill

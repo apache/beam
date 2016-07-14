@@ -23,7 +23,6 @@ from abc import ABCMeta
 from abc import abstractmethod
 
 import datetime
-import sys
 
 
 class Timestamp(object):
