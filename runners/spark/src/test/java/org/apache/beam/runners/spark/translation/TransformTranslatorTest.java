@@ -32,23 +32,27 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Charsets;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * A test for the transforms registered in TransformTranslator.
- * Builds a regular Dataflow pipeline with each of the mapped
+ * Builds a regular Beam pipeline with each of the mapped
  * transforms, and makes sure that they work when the pipeline is
  * executed in Spark.
  */
 public class TransformTranslatorTest {
+  private static final Logger LOG = LoggerFactory.getLogger(TransformTranslatorTest.class);
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
   /**
@@ -61,11 +65,13 @@ public class TransformTranslatorTest {
     String directOut = runPipeline(DirectRunner.class);
     String sparkOut = runPipeline(SparkRunner.class);
 
+    File directOutFile = new File(directOut);
     List<String> directOutput =
-        Files.readAllLines(Paths.get(directOut + "-00000-of-00001"), Charsets.UTF_8);
+            readFromOutputFiles(directOutFile.getParentFile(), directOutFile.getName());
 
+    File sparkOutFile = new File(sparkOut);
     List<String> sparkOutput =
-        Files.readAllLines(Paths.get(sparkOut + "-00000-of-00001"), Charsets.UTF_8);
+            readFromOutputFiles(sparkOutFile.getParentFile(), sparkOutFile.getName());
 
     // sort output to get a stable result (PCollections are not ordered)
     assertThat(sparkOutput, containsInAnyOrder(directOutput.toArray()));
@@ -80,5 +86,21 @@ public class TransformTranslatorTest {
     lines.apply(TextIO.Write.to(outFile.getAbsolutePath()));
     p.run();
     return outFile.getAbsolutePath();
+  }
+
+  private List<String> readFromOutputFiles(File parent, String outPattern) throws IOException {
+    // example pattern: outprefix-00000-of-00001
+    Pattern pattern = Pattern.compile(String.format("%s-[0-9]{5}-of-[0-9]{5}", outPattern));
+    List<String> lines = new ArrayList<>();
+    if (parent.exists() && parent.isDirectory()) {
+      //noinspection ConstantConditions
+      for (File f : parent.listFiles()) {
+        if (pattern.matcher(f.getName()).matches()) {
+          LOG.info("For " + outPattern + " reading file " + f.getName());
+          lines.addAll(FileUtils.readLines(f, Charsets.UTF_8));
+        }
+      }
+    }
+    return lines;
   }
 }
