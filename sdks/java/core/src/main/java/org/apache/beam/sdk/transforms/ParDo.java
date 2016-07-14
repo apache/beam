@@ -67,11 +67,11 @@ import java.util.List;
  * For each bundle of input elements processing proceeds as follows:
  *
  * <ol>
- *   <li>If required, a fresh instance of the argument {@link OldDoFn} is created
- *     on a worker. This may be through deserialization or other means. A
- *     {@link PipelineRunner} may reuse {@link OldDoFn} instances for multiple bundles.
- *     A {@link OldDoFn} that has terminated abnormally (by throwing an {@link Exception}
- *     will never be reused.</li>
+ *   <li>If required, a fresh instance of the argument {@link DoFn} is created
+ *     on a worker, and {@link DoFn#setup()} is called on this instance. This may be through
+ *     deserialization or other means. A {@link PipelineRunner} may reuse {@link DoFn} instances for
+ *     multiple bundles. A {@link DoFn} that has terminated abnormally (by throwing an
+ *     {@link Exception}) will never be reused.</li>
  *   <li>The {@link OldDoFn OldDoFn's} {@link OldDoFn#startBundle} method is called to
  *     initialize it. If this method is not overridden, the call may be optimized
  *     away.</li>
@@ -83,6 +83,11 @@ import java.util.List;
  *     {@link OldDoFn#finishBundle}
  *     until a new call to {@link OldDoFn#startBundle} has occurred.
  *     If this method is not overridden, this call may be optimized away.</li>
+ *   <li>If any of {@link DoFn#setup}, {@link DoFn#startBundle}, {@link DoFn#processElement} or
+ *     {@link DoFn#finishBundle} throw an exception, {@link DoFn#teardown} will be called on the
+ *     {@link DoFn} instance.</li>
+ *   <li>If a runner will no longer use a {@link DoFn}, {@link DoFn#teardown()} will be called on
+ *     the discarded instance.</li>
  * </ol>
  *
  * Each of the calls to any of the {@link OldDoFn OldDoFn's} processing

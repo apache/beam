@@ -24,17 +24,18 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -53,6 +54,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -60,6 +62,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -77,6 +80,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tests for ParDo.
@@ -169,8 +173,10 @@ public class ParDoTest implements Serializable {
   }
 
   static class TestDoFn extends DoFn<Integer, String> {
-    enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
-    State state = State.UNSTARTED;
+    enum State {NOT_SET_UP, UNSTARTED, STARTED, PROCESSING, FINISHED}
+
+
+    State state = State.NOT_SET_UP;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
     final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
@@ -182,6 +188,12 @@ public class ParDoTest implements Serializable {
                     List<TupleTag<String>> sideOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
+    }
+
+    @Setup
+    public void prepare() {
+      assertEquals(State.NOT_SET_UP, state);
+      state = State.UNSTARTED;
     }
 
     @StartBundle
@@ -1462,5 +1474,405 @@ public class ParDoTest implements Serializable {
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFrom(fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFnCallSequence() {
+    TestPipeline p = TestPipeline.create();
+    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
+        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
+        .apply(Flatten.<Integer>pCollections())
+        .apply(ParDo.of(new CallSequenceEnforcingOldFn<Integer>()));
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFnCallSequenceMulti() {
+    TestPipeline p = TestPipeline.create();
+    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
+        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
+        .apply(Flatten.<Integer>pCollections())
+        .apply(ParDo.of(new CallSequenceEnforcingOldFn<Integer>())
+                .withOutputTags(new TupleTag<Integer>() {}, TupleTagList.empty()));
+
+    p.run();
+  }
+
+  private static class CallSequenceEnforcingOldFn<T> extends OldDoFn<T, T> {
+    private boolean setupCalled = false;
+    private int startBundleCalls = 0;
+    private int finishBundleCalls = 0;
+    private boolean teardownCalled = false;
+
+    @Override
+    public void setup() {
+      assertThat("setup should not be called twice", setupCalled, is(false));
+      assertThat("setup should be called before startBundle", startBundleCalls, equalTo(0));
+      assertThat("setup should be called before finishBundle", finishBundleCalls, equalTo(0));
+      assertThat("setup should be called before teardown", teardownCalled, is(false));
+      setupCalled = true;
+    }
+
+    @Override
+    public void startBundle(Context c) {
+      assertThat("setup should have been called", setupCalled, is(true));
+      assertThat(
+          "Even number of startBundle and finishBundle calls in startBundle",
+          startBundleCalls,
+          equalTo(finishBundleCalls));
+      assertThat("teardown should not have been called", teardownCalled, is(false));
+      startBundleCalls++;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
+      assertThat(
+          "there should be one startBundle call with no call to finishBundle",
+          startBundleCalls,
+          equalTo(finishBundleCalls + 1));
+      assertThat("teardown should not have been called", teardownCalled, is(false));
+    }
+
+    @Override
+    public void finishBundle(Context c) {
+      assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
+      assertThat(
+          "there should be one bundle that has been started but not finished",
+          startBundleCalls,
+          equalTo(finishBundleCalls + 1));
+      assertThat("teardown should not have been called", teardownCalled, is(false));
+      finishBundleCalls++;
+    }
+
+    @Override
+    public void teardown() {
+      assertThat(setupCalled, is(true));
+      assertThat(startBundleCalls, anyOf(equalTo(finishBundleCalls)));
+      assertThat(teardownCalled, is(false));
+      teardownCalled = true;
+    }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFnWithContextCallSequence() {
+    TestPipeline p = TestPipeline.create();
+    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
+        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
+        .apply(Flatten.<Integer>pCollections())
+        .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>()));
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFnWithContextCallSequenceMulti() {
+    TestPipeline p = TestPipeline.create();
+    PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
+        .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
+        .apply(Flatten.<Integer>pCollections())
+        .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>())
+            .withOutputTags(new TupleTag<Integer>() {
+            }, TupleTagList.empty()));
+
+    p.run();
+  }
+
+  private static class CallSequenceEnforcingFn<T> extends DoFn<T, T> {
+    private boolean setupCalled = false;
+    private int startBundleCalls = 0;
+    private int finishBundleCalls = 0;
+    private boolean teardownCalled = false;
+
+    @Setup
+    public void before() {
+      assertThat("setup should not be called twice", setupCalled, is(false));
+      assertThat("setup should be called before startBundle", startBundleCalls, equalTo(0));
+      assertThat("setup should be called before finishBundle", finishBundleCalls, equalTo(0));
+      assertThat("setup should be called before teardown", teardownCalled, is(false));
+      setupCalled = true;
+    }
+
+    @StartBundle
+    public void begin(Context c) {
+      assertThat("setup should have been called", setupCalled, is(true));
+      assertThat("Even number of startBundle and finishBundle calls in startBundle",
+          startBundleCalls,
+          equalTo(finishBundleCalls));
+      assertThat("teardown should not have been called", teardownCalled, is(false));
+      startBundleCalls++;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c) throws Exception {
+      assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
+      assertThat("there should be one startBundle call with no call to finishBundle",
+          startBundleCalls,
+          equalTo(finishBundleCalls + 1));
+      assertThat("teardown should not have been called", teardownCalled, is(false));
+    }
+
+    @FinishBundle
+    public void end(Context c) {
+      assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
+      assertThat("there should be one bundle that has been started but not finished",
+          startBundleCalls,
+          equalTo(finishBundleCalls + 1));
+      assertThat("teardown should not have been called", teardownCalled, is(false));
+      finishBundleCalls++;
+    }
+
+    @Teardown
+    public void after() {
+      assertThat(setupCalled, is(true));
+      assertThat(startBundleCalls, anyOf(equalTo(finishBundleCalls)));
+      assertThat(teardownCalled, is(false));
+      teardownCalled = true;
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testTeardownCalledAfterExceptionInSetup() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
+    p
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat(
+          "Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testTeardownCalledAfterExceptionInStartBundle() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
+    p
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat(
+          "Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testTeardownCalledAfterExceptionInProcessElement() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
+    p
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat(
+          "Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testTeardownCalledAfterExceptionInFinishBundle() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
+    p
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat(
+          "Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWithContextTeardownCalledAfterExceptionInSetup() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat("Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWithContextTeardownCalledAfterExceptionInStartBundle() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat("Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWithContextTeardownCalledAfterExceptionInProcessElement() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat("Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWithContextTeardownCalledAfterExceptionInFinishBundle() {
+    TestPipeline p = TestPipeline.create();
+    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
+    try {
+      p.run();
+      fail("Pipeline should have failed with an exception");
+    } catch (Exception e) {
+      assertThat("Function should have been torn down after exception",
+          ExceptionThrowingOldFn.teardownCalled.get(),
+          is(true));
+    }
+  }
+
+  private static class ExceptionThrowingOldFn extends OldDoFn<Object, Object> {
+    static AtomicBoolean teardownCalled = new AtomicBoolean(false);
+
+    private final MethodForException toThrow;
+    private boolean thrown;
+
+    private ExceptionThrowingOldFn(MethodForException toThrow) {
+      this.toThrow = toThrow;
+    }
+
+    @Override
+    public void setup() throws Exception {
+      throwIfNecessary(MethodForException.SETUP);
+    }
+
+    @Override
+    public void startBundle(Context c) throws Exception {
+      throwIfNecessary(MethodForException.START_BUNDLE);
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      throwIfNecessary(MethodForException.PROCESS_ELEMENT);
+    }
+
+    @Override
+    public void finishBundle(Context c) throws Exception {
+      throwIfNecessary(MethodForException.FINISH_BUNDLE);
+    }
+
+    private void throwIfNecessary(MethodForException method) throws Exception {
+      if (toThrow == method && !thrown) {
+        thrown = true;
+        throw new Exception("Hasn't yet thrown");
+      }
+    }
+
+    @Override
+    public void teardown() {
+      if (!thrown) {
+        fail("Excepted to have a processing method throw an exception");
+      }
+      teardownCalled.set(true);
+    }
+  }
+
+
+  private static class ExceptionThrowingFn extends DoFn<Object, Object> {
+    static AtomicBoolean teardownCalled = new AtomicBoolean(false);
+
+    private final MethodForException toThrow;
+    private boolean thrown;
+
+    private ExceptionThrowingFn(MethodForException toThrow) {
+      this.toThrow = toThrow;
+    }
+
+    @Setup
+    public void before() throws Exception {
+      throwIfNecessary(MethodForException.SETUP);
+    }
+
+    @StartBundle
+    public void preBundle(Context c) throws Exception {
+      throwIfNecessary(MethodForException.START_BUNDLE);
+    }
+
+    @ProcessElement
+    public void perElement(ProcessContext c) throws Exception {
+      throwIfNecessary(MethodForException.PROCESS_ELEMENT);
+    }
+
+    @FinishBundle
+    public void postBundle(Context c) throws Exception {
+      throwIfNecessary(MethodForException.FINISH_BUNDLE);
+    }
+
+    private void throwIfNecessary(MethodForException method) throws Exception {
+      if (toThrow == method && !thrown) {
+        thrown = true;
+        throw new Exception("Hasn't yet thrown");
+      }
+    }
+
+    @Teardown
+    public void after() {
+      if (!thrown) {
+        fail("Excepted to have a processing method throw an exception");
+      }
+      teardownCalled.set(true);
+    }
+  }
+
+  private enum MethodForException {
+    SETUP,
+    START_BUNDLE,
+    PROCESS_ELEMENT,
+    FINISH_BUNDLE
   }
 }

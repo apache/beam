@@ -70,9 +70,7 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
 
   @Override
   public void cleanup() throws Exception {
-    for (DoFnLifecycleManager lifecycleManager : fnClones.asMap().values()) {
-      lifecycleManager.removeAll();
-    }
+    DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
   }
 
   private <InputT, OutputT> TransformEvaluator<InputT> createSingleEvaluator(

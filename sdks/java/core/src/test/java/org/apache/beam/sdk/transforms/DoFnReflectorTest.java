@@ -25,6 +25,8 @@ import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.Setup;
+import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.dofnreflector.DoFnReflectorTestHelper;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -53,6 +55,8 @@ public class DoFnReflectorTest {
     public boolean wasProcessElementInvoked = false;
     public boolean wasStartBundleInvoked = false;
     public boolean wasFinishBundleInvoked = false;
+    public boolean wasSetupInvoked = false;
+    public boolean wasTeardownInvoked = false;
     private final String name;
 
     public Invocations(String name) {
@@ -141,6 +145,33 @@ public class DoFnReflectorTest {
     for (Invocations invocation : invocations) {
       assertTrue("Should have called finishBundle on " + invocation.name,
           invocation.wasFinishBundleInvoked);
+    }
+  }
+
+  private void checkInvokeSetupWorks(DoFnReflector r, Invocations... invocations) throws Exception {
+    assertTrue("Need at least one invocation to check", invocations.length >= 1);
+    for (Invocations invocation : invocations) {
+      assertFalse("Should not yet have called setup on " + invocation.name,
+          invocation.wasSetupInvoked);
+    }
+    r.bindInvoker(fn).invokeSetup();
+    for (Invocations invocation : invocations) {
+      assertTrue("Should have called setup on " + invocation.name,
+          invocation.wasSetupInvoked);
+    }
+  }
+
+  private void checkInvokeTeardownWorks(DoFnReflector r, Invocations... invocations)
+      throws Exception {
+    assertTrue("Need at least one invocation to check", invocations.length >= 1);
+    for (Invocations invocation : invocations) {
+      assertFalse("Should not yet have called teardown on " + invocation.name,
+          invocation.wasTeardownInvoked);
+    }
+    r.bindInvoker(fn).invokeTeardown();
+    for (Invocations invocation : invocations) {
+      assertTrue("Should have called teardown on " + invocation.name,
+          invocation.wasTeardownInvoked);
     }
   }
 
@@ -322,6 +353,40 @@ public class DoFnReflectorTest {
 
     checkInvokeStartBundleWorks(reflector, invocations);
     checkInvokeFinishBundleWorks(reflector, invocations);
+  }
+
+  @Test
+  public void testDoFnWithSetupTeardown() throws Exception {
+    final Invocations invocations = new Invocations("AnonymousClass");
+    DoFnReflector reflector = underTest(new DoFn<String, String>() {
+      @ProcessElement
+      public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
+
+      @StartBundle
+      public void startBundle(Context c) {
+        invocations.wasStartBundleInvoked = true;
+        assertSame(c, mockContext);
+      }
+
+      @FinishBundle
+      public void finishBundle(Context c) {
+        invocations.wasFinishBundleInvoked = true;
+        assertSame(c, mockContext);
+      }
+
+      @Setup
+      public void before() {
+        invocations.wasSetupInvoked = true;
+      }
+
+      @Teardown
+      public void after() {
+        invocations.wasTeardownInvoked = true;
+      }
+    });
+
+    checkInvokeSetupWorks(reflector, invocations);
+    checkInvokeTeardownWorks(reflector, invocations);
   }
 
   @Test

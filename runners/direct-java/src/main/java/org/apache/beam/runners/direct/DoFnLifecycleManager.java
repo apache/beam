@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -25,6 +26,13 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * Manages {@link DoFn} setup, teardown, and serialization.
@@ -35,6 +43,8 @@ import com.google.common.cache.LoadingCache;
  * {@link DoFn DoFns}.
  */
 class DoFnLifecycleManager {
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnLifecycleManager.class);
+
   public static DoFnLifecycleManager of(OldDoFn<?, ?> original) {
     return new DoFnLifecycleManager(original);
   }
@@ -52,14 +62,30 @@ class DoFnLifecycleManager {
 
   public void remove() throws Exception {
     Thread currentThread = Thread.currentThread();
-    outstanding.invalidate(currentThread);
+    OldDoFn<?, ?> fn = outstanding.asMap().remove(currentThread);
+    fn.teardown();
   }
 
   /**
-   * Remove all {@link DoFn DoFns} from this {@link DoFnLifecycleManager}.
+   * Remove all {@link DoFn DoFns} from this {@link DoFnLifecycleManager}. Returns all exceptions
+   * that were thrown while calling the remove methods.
+   *
+   * <p>If the returned Collection is nonempty, an exception was thrown from at least one
+   * {@link DoFn#teardown()} method, and the {@link PipelineRunner} should throw an exception.
    */
-  public void removeAll() throws Exception {
-    outstanding.invalidateAll();
+  public Collection<Exception> removeAll() throws Exception {
+    Iterator<OldDoFn<?, ?>> fns = outstanding.asMap().values().iterator();
+    Collection<Exception> thrown = new ArrayList<>();
+    while (fns.hasNext()) {
+      OldDoFn<?, ?> fn = fns.next();
+      fns.remove();
+      try {
+        fn.teardown();
+      } catch (Exception e) {
+        thrown.add(e);
+      }
+    }
+    return thrown;
   }
 
   private class DeserializingCacheLoader extends CacheLoader<Thread, OldDoFn<?, ?>> {
@@ -71,8 +97,10 @@ class DoFnLifecycleManager {
 
     @Override
     public OldDoFn<?, ?> load(Thread key) throws Exception {
-      return (OldDoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
+      OldDoFn<?, ?> fn = (OldDoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
+      fn.setup();
+      return fn;
     }
   }
 }

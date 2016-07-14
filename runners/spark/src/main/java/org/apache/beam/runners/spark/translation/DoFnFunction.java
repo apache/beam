@@ -24,6 +24,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -40,6 +42,8 @@ public class DoFnFunction<InputT, OutputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>,
     WindowedValue<OutputT>> {
   private final OldDoFn<InputT, OutputT> mFunction;
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnFunction.class);
+
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
@@ -61,8 +65,23 @@ public class DoFnFunction<InputT, OutputT>
       Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     ctxt.setup();
-    mFunction.startBundle(ctxt);
-    return ctxt.getOutputIterable(iter, mFunction);
+    try {
+      mFunction.setup();
+      mFunction.startBundle(ctxt);
+      return ctxt.getOutputIterable(iter, mFunction);
+    } catch (Exception e) {
+      try {
+        // this teardown handles exceptions encountered in setup() and startBundle(). teardown
+        // after execution or due to exceptions in process element is called in the iterator
+        // produced by ctxt.getOutputIterable returned from this method.
+        mFunction.teardown();
+      } catch (Exception teardownException) {
+        LOG.error(
+            "Suppressing exception while tearing down Function {}", mFunction, teardownException);
+        e.addSuppressed(teardownException);
+      }
+      throw e;
+    }
   }
 
   private class ProcCtxt extends SparkProcessContext<InputT, OutputT, WindowedValue<OutputT>> {
