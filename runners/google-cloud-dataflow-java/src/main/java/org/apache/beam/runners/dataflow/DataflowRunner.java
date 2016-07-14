@@ -357,7 +357,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } else {
       builder.put(Read.Unbounded.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
-      builder.put(Write.Bound.class, BatchWrite.class);
       // In batch mode must use the custom Pubsub bounded source/sink.
       builder.put(PubsubUnboundedSource.class, UnsupportedIO.class);
       builder.put(PubsubUnboundedSink.class, UnsupportedIO.class);
@@ -2024,34 +2023,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public Iterable<V> apply(Iterable<WindowedValue<V>> input) {
       return Iterables.transform(input, WindowedValueToValue.<V>of());
-    }
-  }
-
-  /**
-   * Specialized implementation which overrides
-   * {@link org.apache.beam.sdk.io.Write.Bound Write.Bound} to provide Google
-   * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
-   */
-  private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final DataflowRunner runner;
-    private final Write.Bound<T> transform;
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchWrite(DataflowRunner runner, Write.Bound<T> transform) {
-      this.runner = runner;
-      this.transform = transform;
-    }
-
-    @Override
-    public PDone apply(PCollection<T> input) {
-      if (transform.getSink() instanceof FileBasedSink) {
-        FileBasedSink<?> sink = (FileBasedSink<?>) transform.getSink();
-        PathValidator validator = runner.options.getPathValidator();
-        validator.validateOutputFilePrefixSupported(sink.getBaseOutputFilename());
-      }
-      return transform.apply(input);
     }
   }
 
