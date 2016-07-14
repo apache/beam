@@ -639,10 +639,10 @@ public class DoFnTester<InputT, OutputT> {
     FINISHED
   }
 
-  final PipelineOptions options = PipelineOptionsFactory.create();
+  private final PipelineOptions options = PipelineOptionsFactory.create();
 
   /** The original DoFn under test. */
-  final DoFn<InputT, OutputT> origFn;
+  private final DoFn<InputT, OutputT> origFn;
 
   /** The side input values to provide to the DoFn under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
@@ -651,23 +651,23 @@ public class DoFnTester<InputT, OutputT> {
   private Map<String, Object> accumulators;
 
   /** The output tags used by the DoFn under test. */
-  TupleTag<OutputT> mainOutputTag = new TupleTag<>();
+  private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
   /** The original DoFn under test, if started. */
   DoFn<InputT, OutputT> fn;
 
   /** The ListOutputManager to examine the outputs. */
-  Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
+  private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
   /** The state of processing of the DoFn under test. */
-  State state;
+  private State state;
 
-  DoFnTester(DoFn<InputT, OutputT> origFn) {
+  private DoFnTester(DoFn<InputT, OutputT> origFn) {
     this.origFn = origFn;
     resetState();
   }
 
-  void resetState() {
+  private void resetState() {
     fn = null;
     outputs = null;
     accumulators = null;
@@ -675,7 +675,7 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   @SuppressWarnings("unchecked")
-  void initializeState() {
+  private void initializeState() {
     fn = (DoFn<InputT, OutputT>)
         SerializableUtils.deserializeFromByteArray(
             SerializableUtils.serializeToByteArray(origFn),
