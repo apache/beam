@@ -23,7 +23,6 @@ from abc import ABCMeta
 from abc import abstractmethod
 
 import datetime
-import sys
 
 
 class Timestamp(object):
@@ -115,8 +114,8 @@ class Timestamp(object):
     return Duration(micros=self.micros % other.micros)
 
 
-MIN_TIMESTAMP = Timestamp(micros=-sys.maxint - 1)
-MAX_TIMESTAMP = Timestamp(micros=sys.maxint)
+MIN_TIMESTAMP = Timestamp(micros=-0x7fffffffffffffff - 1)
+MAX_TIMESTAMP = Timestamp(micros=0x7fffffffffffffff)
 
 
 class Duration(object):
