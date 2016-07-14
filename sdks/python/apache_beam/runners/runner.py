@@ -41,26 +41,24 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
   # pylint: disable=wrong-import-order, wrong-import-position
-  if runner_name == 'DirectPipelineRunner':
-    import apache_beam.runners.direct_runner
-    return apache_beam.runners.direct_runner.DirectPipelineRunner()
-  if runner_name == 'DiskCachedPipelineRunner':
-    import apache_beam.runners.direct_runner
-    return apache_beam.runners.direct_runner.DiskCachedPipelineRunner(
-    )
-  if runner_name == 'EagerPipelineRunner':
-    import apache_beam.runners.direct_runner
-    return apache_beam.runners.direct_runner.EagerPipelineRunner()
-  elif runner_name in ('DataflowPipelineRunner',
-                       'BlockingDataflowPipelineRunner'):
+  if runner_name in ('DirectPipelineRunner', 'DiskCachedPipelineRunner',
+                     'EagerPipelineRunner'):
+    runner_name = 'apache_beam.runners.direct_runner.' + runner_name
+
+  if runner_name in ('DataflowPipelineRunner',
+                     'BlockingDataflowPipelineRunner'):
     import apache_beam.runners.dataflow_runner
     return apache_beam.runners.dataflow_runner.DataflowPipelineRunner(
         blocking=runner_name == 'BlockingDataflowPipelineRunner')
+  elif '.' in runner_name:
+    module, runner = runner_name.rsplit('.', 1)
+    return getattr(__import__(module, {}, {}, [runner], -1), runner)()
   else:
-    raise RuntimeError(
+    raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are '
-        'DirectPipelineRunner, DataflowPipelineRunner, EagerPipelineRunner, or '
-        'BlockingDataflowPipelineRunner.' % runner_name)
+        'DirectPipelineRunner, DataflowPipelineRunner, EagerPipelineRunner, '
+        'BlockingDataflowPipelineRunner or the fully qualified name of '
+        'a PipelineRunner subclass.' % runner_name)
 
 
 class PipelineRunner(object):
