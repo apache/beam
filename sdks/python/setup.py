@@ -75,6 +75,7 @@ setuptools.setup(
         '**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/runners/common.py',
+        'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
     ]),
     install_requires=REQUIRED_PACKAGES,
