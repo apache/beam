@@ -44,6 +44,10 @@ from apache_beam.utils.options import StandardOptions
 from apache_beam.internal.clients import dataflow as dataflow_api
 
 
+def BlockingDataflowPipelineRunner(*args, **kwargs):
+  return DataflowPipelineRunner(*args, blocking=True, **kwargs)
+
+
 class DataflowPipelineRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
