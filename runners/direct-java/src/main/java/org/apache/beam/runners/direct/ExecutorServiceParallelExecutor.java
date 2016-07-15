@@ -447,13 +447,18 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     private boolean shouldShutdown() {
       boolean shouldShutdown = exceptionThrown || evaluationContext.isDone();
       if (shouldShutdown) {
+        LOG.debug("Pipeline has terminated. Shutting down.");
+        executorService.shutdown();
+        try {
+          registry.cleanup();
+        } catch (Exception e) {
+          visibleUpdates.add(VisibleExecutorUpdate.fromThrowable(e));
+        }
         if (evaluationContext.isDone()) {
-          LOG.debug("Pipeline is finished. Shutting down. {}");
           while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
             visibleUpdates.poll();
           }
         }
-        executorService.shutdown();
       }
       return shouldShutdown;
     }

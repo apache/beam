@@ -51,4 +51,12 @@ public interface TransformEvaluatorFactory {
   @Nullable <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle,
       EvaluationContext evaluationContext) throws Exception;
+
+  /**
+   * Cleans up any state maintained by this {@link TransformEvaluatorFactory}. Called after a
+   * {@link Pipeline} is shut down. No more calls to
+   * {@link #forApplication(AppliedPTransform, CommittedBundle, EvaluationContext)} will be made
+   * after a call to {@link #cleanup()}.
+   */
+  void cleanup() throws Exception;
 }

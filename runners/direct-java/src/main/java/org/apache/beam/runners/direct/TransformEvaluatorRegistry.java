@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -29,7 +31,13 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 
 import com.google.common.collect.ImmutableMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
 
@@ -38,6 +46,7 @@ import javax.annotation.Nullable;
  * implementations based on the type of {@link PTransform} of the application.
  */
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
   public static TransformEvaluatorRegistry defaultRegistry() {
     @SuppressWarnings("rawtypes")
     ImmutableMap<Class<? extends PTransform>, TransformEvaluatorFactory> primitives =
@@ -61,6 +70,8 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories;
 
+  private final AtomicBoolean finished = new AtomicBoolean(false);
+
   private TransformEvaluatorRegistry(
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories) {
@@ -73,7 +84,37 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       @Nullable CommittedBundle<?> inputBundle,
       EvaluationContext evaluationContext)
       throws Exception {
+    checkState(
+        !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
     TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
     return factory.forApplication(application, inputBundle, evaluationContext);
+  }
+
+  @Override
+  public void cleanup() throws Exception {
+    Collection<Exception> thrownInCleanup = new ArrayList<>();
+    for (TransformEvaluatorFactory factory : factories.values()) {
+      try {
+        factory.cleanup();
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        thrownInCleanup.add(e);
+      }
+    }
+    finished.set(true);
+    if (!thrownInCleanup.isEmpty()) {
+      LOG.error("Exceptions {} thrown while cleaning up evaluators", thrownInCleanup);
+      Exception toThrow = null;
+      for (Exception e : thrownInCleanup) {
+        if (toThrow == null) {
+          toThrow = e;
+        } else {
+          toThrow.addSuppressed(e);
+        }
+      }
+      throw toThrow;
+    }
   }
 }
