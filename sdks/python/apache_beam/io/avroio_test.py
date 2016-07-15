@@ -19,9 +19,10 @@ import logging
 import os
 import tempfile
 import unittest
-
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
+from apache_beam.io.source_test_utils import SourceTestUtils
+import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 import avro.schema as avro_schema
@@ -90,16 +91,15 @@ class TestAvro(unittest.TestCase):
       if len(splits) < 2:
         raise ValueError('Test is trivial. Please adjust it so that at least '
                          'two splits get generated')
-      for split in splits:
-        records = [record for record in split.source.read(
-            split.source.get_range_tracker(split.start_position,
-                                           split.stop_position))]
-        read_records.extend(records)
-    else:
-      range_tracker = source.get_range_tracker(None, None)
-      read_records = [record for record in source.read(range_tracker)]
 
-    self.assertItemsEqual(expected_result, read_records)
+      sources_info = [
+          (split.source, split.start_position, split.stop_position)
+          for split in splits]
+      SourceTestUtils.assertSourcesEqualReferenceSource(
+          (source, None, None), sources_info)
+    else:
+      read_records = SourceTestUtils.readFromSource(source, None, None)
+      self.assertItemsEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
     file_name = self._write_data()
@@ -140,6 +140,21 @@ class TestAvro(unittest.TestCase):
     pattern = self._write_pattern(3)
     expected_result = self.RECORDS * 3
     self._run_avro_test(pattern, 100, True, expected_result)
+
+  def test_dynamic_work_rebalancing_exhaustive(self):
+    # Adjusting block size so that we can perform a exhaustive dynamic
+    # work rebalancing test that completes within an acceptable amount of time.
+    old_sync_interval = avro.datafile.SYNC_INTERVAL
+    try:
+      avro.datafile.SYNC_INTERVAL = 5
+      file_name = self._write_data(count=20)
+      source = avroio.AvroSource(file_name)
+      splits = [split for split in source.split(
+          desired_bundle_size=float('inf'))]
+      assert len(splits) == 1
+      SourceTestUtils.assertSplitAtFractionExhaustive(splits[0].source)
+    finally:
+      avro.datafile.SYNC_INTERVAL = old_sync_interval
 
 
 if __name__ == '__main__':
