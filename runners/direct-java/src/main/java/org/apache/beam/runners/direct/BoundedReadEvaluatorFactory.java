@@ -60,6 +60,10 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
+  @Override
+  public void cleanup() {
+  }
+
   /**
    * Get a {@link TransformEvaluator} that produces elements for the provided application of
    * {@link Bounded Read.Bounded}, initializing the queue of evaluators if required.

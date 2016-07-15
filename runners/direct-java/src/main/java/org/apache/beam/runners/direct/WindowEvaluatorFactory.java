@@ -66,6 +66,9 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     return new WindowIntoEvaluator<>(transform, fn, outputBundle);
   }
 
+  @Override
+  public void cleanup() {}
+
   private static class WindowIntoEvaluator<InputT> implements TransformEvaluator<InputT> {
     private final AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>>
         transform;
