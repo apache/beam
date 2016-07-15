@@ -79,10 +79,6 @@
                 <location>${basedir}/../javadoc/bq-docs</location>
               </offlineLink>
               <offlineLink>
-                <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
-                <location>${basedir}/../javadoc/datastore-docs</location>
-              </offlineLink>
-              <offlineLink>
                 <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
                 <location>${basedir}/../javadoc/guava-docs</location>
               </offlineLink>
@@ -204,12 +200,9 @@
                   <exclude>com.google.api-client:google-api-client</exclude>
                   <exclude>com.google.apis:google-api-services-bigquery</exclude>
                   <exclude>com.google.apis:google-api-services-dataflow</exclude>
-                  <exclude>com.google.apis:google-api-services-datastore-protobuf</exclude>
                   <exclude>com.google.apis:google-api-services-pubsub</exclude>
                   <exclude>com.google.apis:google-api-services-storage</exclude>
                   <exclude>com.google.auto.service:auto-service</exclude>
-                  <exclude>com.google.cloud.bigtable:bigtable-client-core</exclude>
-                  <exclude>com.google.cloud.bigtable:bigtable-protos</exclude>
                   <exclude>com.google.code.findbugs:jsr305</exclude>
                   <exclude>com.google.http-client:google-http-client</exclude>
                   <exclude>com.google.http-client:google-http-client-jackson2</exclude>
@@ -258,11 +251,9 @@
                     <exclude>com.google.api.client.**</exclude>
                     <exclude>com.google.api.services.bigquery.**</exclude>
                     <exclude>com.google.api.services.dataflow.**</exclude>
-                    <exclude>com.google.api.services.datastore.**</exclude>
                     <exclude>com.google.api.services.pubsub.**</exclude>
                     <exclude>com.google.api.services.storage.**</exclude>
                     <exclude>com.google.cloud.dataflow.**</exclude>
-                    <exclude>com.google.bigtable.**</exclude>
                     <exclude>com.google.protobuf.**</exclude>
                     <exclude>com.fasterxml.jackson.**</exclude>
                   </excludes>
@@ -319,12 +310,9 @@
                   <include>com.google.api-client:google-api-client</include>
                   <include>com.google.apis:google-api-services-bigquery</include>
                   <include>com.google.apis:google-api-services-dataflow</include>
-                  <include>com.google.apis:google-api-services-datastore-protobuf</include>
                   <include>com.google.apis:google-api-services-pubsub</include>
                   <include>com.google.apis:google-api-services-storage</include>
                   <include>com.google.auto.service:auto-service</include>
-                  <include>com.google.cloud.bigtable:bigtable-client-core</include>
-                  <include>com.google.cloud.bigtable:bigtable-protos</include>
                   <include>com.google.code.findbugs:jsr305</include>
                   <include>com.google.http-client:google-http-client</include>
                   <include>com.google.http-client:google-http-client-jackson2</include>
