@@ -103,6 +103,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.windowing = Objects.requireNonNull(windowing);
     }
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, Long>> output() {
       return (Dataset) outputWindowed();

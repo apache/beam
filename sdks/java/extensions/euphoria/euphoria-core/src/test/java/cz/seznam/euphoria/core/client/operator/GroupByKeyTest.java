@@ -51,6 +51,7 @@ public class GroupByKeyTest {
     assertEquals("GroupByKey", group.getName());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testBuild_NoValueBy() {
     Flow flow = Flow.create("TEST");

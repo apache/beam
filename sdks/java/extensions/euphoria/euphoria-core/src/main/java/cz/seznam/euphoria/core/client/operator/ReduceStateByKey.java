@@ -201,6 +201,7 @@ public class ReduceStateByKey<
       this.windowing = windowing;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return (Dataset) outputWindowed();
@@ -372,6 +373,7 @@ public class ReduceStateByKey<
       this.windowing = windowing;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
       return (Dataset) outputWindowed();
@@ -421,11 +423,8 @@ public class ReduceStateByKey<
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
-    super(name, flow, input, keyExtractor, windowing, partitioning);
-    this.stateFactory = stateFactory;
-    this.valueExtractor = valueExtractor;
-    this.stateCombiner = stateCombiner;
-    this.grouped = false;
+    this(name, flow, input, false, keyExtractor, valueExtractor, windowing,
+        stateFactory, stateCombiner, partitioning);
   }
 
   @SuppressWarnings("unchecked")
@@ -439,13 +438,27 @@ public class ReduceStateByKey<
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
-    super(name, flow, (Dataset) groupedInput, keyExtractor, windowing, partitioning);
+    this(name, flow, (Dataset) groupedInput, true, keyExtractor, valueExtractor,
+        windowing, stateFactory, stateCombiner, partitioning);
+  }
+
+  ReduceStateByKey(String name,
+                   Flow flow,
+                   Dataset<IN> input,
+                   boolean grouped,
+                   UnaryFunction<KIN, KEY> keyExtractor,
+                   UnaryFunction<KIN, VALUE> valueExtractor,
+                   Windowing<WIN, ?, WLABEL, W> windowing,
+                   UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                   CombinableReduceFunction<STATE> stateCombiner,
+                   Partitioning<KEY> partitioning)
+  {
+    super(name, flow, input, keyExtractor, windowing, partitioning);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateCombiner;
-    this.grouped = true;
+    this.grouped = grouped;
   }
-
 
   public UnaryFunction<Collector<OUT>, STATE> getStateFactory() {
     return stateFactory;
@@ -462,7 +475,4 @@ public class ReduceStateByKey<
   public boolean isGrouped() {
     return grouped;
   }
-
-
-
 }

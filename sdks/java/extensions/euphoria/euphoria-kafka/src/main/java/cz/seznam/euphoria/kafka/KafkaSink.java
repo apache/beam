@@ -28,6 +28,7 @@ public class KafkaSink implements DataSink<Pair<byte[], byte[]>> {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
 
   public static class Factory implements DataSinkFactory {
+    @SuppressWarnings("unchecked")
     @Override
     public <T> DataSink<T> get(URI uri, Settings settings) {
       String brokers = uri.getAuthority();

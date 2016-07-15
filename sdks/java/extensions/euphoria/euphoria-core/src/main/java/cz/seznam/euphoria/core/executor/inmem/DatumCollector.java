@@ -5,12 +5,12 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import java.util.Objects;
 
 class DatumCollector<T> implements Collector<T> {
-  private final Collector wrap;
+  private final Collector<Datum<?, ?, T>> wrap;
 
   private Object assignGroup;
   private Object assignLabel;
 
-  DatumCollector(Collector wrap) {
+  DatumCollector(Collector<Datum<?, ?, T>> wrap) {
     this.wrap = Objects.requireNonNull(wrap);
   }
 
