@@ -62,13 +62,13 @@ class DoFnRunner(object):
       class CurriedFn(core.DoFn):
 
         def start_bundle(self, context):
-          return fn.start_bundle(context, *args, **kwargs)
+          return fn.start_bundle(context)
 
         def process(self, context):
           return fn.process(context, *args, **kwargs)
 
         def finish_bundle(self, context):
-          return fn.finish_bundle(context, *args, **kwargs)
+          return fn.finish_bundle(context)
       self.dofn = CurriedFn()
     self.window_fn = windowing.windowfn
     self.context = context
