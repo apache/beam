@@ -161,6 +161,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
       this.windowing = windowing;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return (Dataset) outputWindowed();
@@ -217,7 +218,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
     this.leftKeyExtractor = leftKeyExtractor;
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
-    this.output = createOutput((Dataset) left);
+    @SuppressWarnings("unchecked")
+      Dataset<PAIROUT> output = createOutput((Dataset) left);
+    this.output = output;
     this.outer = outer;
   }
 

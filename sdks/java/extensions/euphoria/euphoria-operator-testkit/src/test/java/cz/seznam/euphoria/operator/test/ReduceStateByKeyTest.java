@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -146,8 +145,9 @@ public class ReduceStateByKeyTest extends OperatorTest {
         assertEquals(12, first.size());
 
         // map (window, key) -> list(data)
-        Map<Pair<Integer, Integer>, List<WindowedPair<Integer, Integer, Integer>>> windowKeyMap;
-        windowKeyMap = first.stream()
+        @SuppressWarnings("unchecked")
+        Map<Pair<Integer, Integer>, List<WindowedPair<Integer, Integer, Integer>>>
+            windowKeyMap = first.stream()
             .map(p -> (WindowedPair<Integer, Integer, Integer>) p)
             .collect(Collectors.groupingBy(p -> Pair.of(p.getWindowLabel(), p.getKey())));
 
@@ -171,7 +171,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
         assertEquals(Arrays.asList(9, 9), list);
         // third window, key 1
         list = flatten(windowKeyMap.get(Pair.of(2, 1)));
-        assertEquals(Arrays.asList(10), list);
+        assertEquals(Collections.singletonList(10), list);
         // third window, key 2
         list = flatten(windowKeyMap.get(Pair.of(2, 2)));
         assertEquals(Arrays.asList(8, 8, 11), list);

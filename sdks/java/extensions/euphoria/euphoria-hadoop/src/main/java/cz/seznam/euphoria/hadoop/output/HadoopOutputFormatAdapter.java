@@ -110,6 +110,7 @@ public class HadoopOutputFormatAdapter implements DataSink<Pair<?,?>> {
       this.ctx = ctx;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void write(Pair<?, ?> record) throws IOException {
       try {

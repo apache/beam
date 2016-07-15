@@ -13,6 +13,7 @@ import static org.junit.Assert.*;
 
 public class SerializableWritableTest {
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testSerialization() throws Exception {
     Configuration conf = new Configuration();
