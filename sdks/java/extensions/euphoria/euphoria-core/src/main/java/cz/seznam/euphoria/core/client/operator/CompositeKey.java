@@ -16,4 +16,8 @@ public final class CompositeKey<T0, T1> extends Pair<T0, T1> {
     super(first, second);
   }
 
+  @Override
+  public String toString() {
+    return "CompositeKey{first='" + getFirst() + "', second='" + getSecond() + "'}";
+  }
 }
