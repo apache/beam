@@ -54,13 +54,13 @@ class TypeCheckWrapperDoFn(DoFn):
     # TODO(robertwb): Multi-output.
     self._output_type_hint = type_hints.simple_output_type(label)
 
-  def start_bundle(self, context, *args, **kwargs):
+  def start_bundle(self, context):
     return self._type_check_result(
-        self._dofn.start_bundle(context, *args, **kwargs))
+        self._dofn.start_bundle(context))
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self, context):
     return self._type_check_result(
-        self._dofn.finish_bundle(context, *args, **kwargs))
+        self._dofn.finish_bundle(context))
 
   def process(self, context, *args, **kwargs):
     if self._input_hints:
@@ -139,11 +139,11 @@ class OutputCheckWrapperDoFn(DoFn):
     else:
       return self._check_type(result)
 
-  def start_bundle(self, context, *args, **kwargs):
-    return self.run(self.dofn.start_bundle, context, args, kwargs)
+  def start_bundle(self, context):
+    return self.run(self.dofn.start_bundle, context, [], {})
 
-  def finish_bundle(self, context, *args, **kwargs):
-    return self.run(self.dofn.finish_bundle, context, args, kwargs)
+  def finish_bundle(self, context):
+    return self.run(self.dofn.finish_bundle, context, [], {})
 
   def process(self, context, *args, **kwargs):
     return self.run(self.dofn.process, context, args, kwargs)
