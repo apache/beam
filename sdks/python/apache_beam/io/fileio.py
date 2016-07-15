@@ -70,6 +70,9 @@ class TextFileSource(iobase.NativeSource):
 
   Parses a text file as newline-delimited elements, by default assuming
   UTF-8 encoding.
+
+  This implementation has only been tested to read text encoded using UTF-8 or
+  ASCII. This has not been tested for other encodings such as UTF-16 or UTF-32.
   """
 
   def __init__(self, file_path, start_offset=None, end_offset=None,
@@ -89,6 +92,7 @@ class TextFileSource(iobase.NativeSource):
           is 'AUTO'.
       strip_trailing_newlines: Indicates whether this source should remove
           the newline char in each line it reads before decoding that line.
+          This feature only works for ASCII and UTF-8 encoded input.
       coder: Coder used to decode each line.
 
     Raises:
