@@ -393,6 +393,7 @@ class SnippetsTest(unittest.TestCase):
     tempdir_name = tempfile.mkdtemp()
 
     class SimpleKV(object):
+
       def __init__(self, tmp_dir):
         self._dummy_token = 'dummy_token'
         self._tmp_dir = tmp_dir
@@ -426,19 +427,32 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_custom_sink(
         SimpleKV(tempdir_name),
         [('key' + str(i), 'value' + str(i)) for i in range(100)],
-        'final_table')
+        'final_table_no_ptransform', 'final_table_with_ptransform')
 
-    glob_pattern = tempdir_name + os.sep + 'final_table*'
+    expected_output = [
+        'key' + str(i) + ':' + 'value' + str(i) for i in range(100)]
+
+    glob_pattern = tempdir_name + os.sep + 'final_table_no_ptransform*'
     output_files = glob.glob(glob_pattern)
-    assert len(output_files) > 0
+    assert output_files
 
     received_output = []
     for file_name in output_files:
       with open(file_name) as f:
         for line in f:
           received_output.append(line.rstrip(os.linesep))
-    expected_output = [
-        'key' + str(i) + ':' + 'value' + str(i) for i in range(100)]
+
+    self.assertItemsEqual(expected_output, received_output)
+
+    glob_pattern = tempdir_name + os.sep + 'final_table_with_ptransform*'
+    output_files = glob.glob(glob_pattern)
+    assert output_files
+
+    received_output = []
+    for file_name in output_files:
+      with open(file_name) as f:
+        for line in f:
+          received_output.append(line.rstrip(os.linesep))
 
     self.assertItemsEqual(expected_output, received_output)
 

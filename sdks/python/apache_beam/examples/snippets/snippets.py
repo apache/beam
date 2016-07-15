@@ -612,10 +612,20 @@ def examples_wordcount_debugging(renames):
 def model_custom_source(count):
   """Demonstrates creating a new custom source and using it in a pipeline.
 
-  Defines a new source 'CountingSource' that produces integers starting from 0
+  Defines a new source ``CountingSource`` that produces integers starting from 0
   up to a given size.
 
   Uses the new source in an example pipeline.
+
+  Additionally demonstrates how a source should be implemented using a
+  ``PTransform``. This is the recommended way to develop sources that are to
+  distributed to a large number of end users.
+
+  This method runs two pipelines.
+  (1) A pipeline that uses ``CountingSource`` directly using the ``df.Read``
+      transform.
+  (2) A pipeline that uses a custom ``PTransform`` that wraps
+      ``CountingSource``.
 
   Args:
     count: the size of the counting source to be used in the pipeline
@@ -625,6 +635,7 @@ def model_custom_source(count):
   import apache_beam as beam
   from apache_beam.io import iobase
   from apache_beam.io.range_trackers import OffsetRangeTracker
+  from apache_beam.transforms.core import PTransform
   from apache_beam.utils.options import PipelineOptions
 
   # Defining a new source.
@@ -681,34 +692,81 @@ def model_custom_source(count):
 
   p.run()
 
+  # We recommend users to start Source classes with an underscore to discourage
+  # using the Source class directly when a PTransform for the source is
+  # available. We simulate that here by simply extending the previous Source
+  # class.
+  class _CountingSource(CountingSource):
+    pass
 
-def model_custom_sink(simplekv, KVs, final_table_name):
+  # [START model_custom_source_new_ptransform]
+  class ReadFromCountingSource(PTransform):
+
+    def __init__(self, label, count, **kwargs):
+      super(ReadFromCountingSource, self).__init__(label, **kwargs)
+      self._count = count
+
+    def apply(self, pcoll):
+      return pcoll | iobase.Read(_CountingSource(count))
+  # [END model_custom_source_new_ptransform]
+
+  # [START model_custom_source_use_ptransform]
+  p = beam.Pipeline(options=PipelineOptions())
+  numbers = p | ReadFromCountingSource('ProduceNumbers', count)
+  # [END model_custom_source_use_ptransform]
+
+  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+  beam.assert_that(
+      lines, beam.equal_to(
+          ['line ' + str(number) for number in range(0, count)]))
+
+  p.run()
+
+
+def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
+                      final_table_name_with_ptransform):
   """Demonstrates creating a new custom sink and using it in a pipeline.
 
-  Defines a new sink 'SimpleKVSink' that demonstrates writing to a simple
-  key-value based storage system.
+  Defines a new sink ``SimpleKVSink`` that demonstrates writing to a simple
+  key-value based storage system which has following API.
+
+    simplekv.connect(url) -
+        connects to the storage system and returns an access token which can be
+        used to perform further operations
+    simplekv.open_table(access_token, table_name) -
+        creates a table named 'table_name'. Returns a table object.
+    simplekv.write_to_table(access_token, table, key, value) -
+        writes a key-value pair to the given table.
+    simplekv.rename_table(access_token, old_name, new_name) -
+        renames the table named 'old_name' to 'new_name'.
 
   Uses the new sink in an example pipeline.
 
+  Additionally demonstrates how a sink should be implemented using a
+  ``PTransform``. This is the recommended way to develop sinks that are to be
+  distributed to a large number of end users.
+
+  This method runs two pipelines.
+  (1) A pipeline that uses ``SimpleKVSink`` directly using the ``df.Write``
+      transform.
+  (2) A pipeline that uses a custom ``PTransform`` that wraps
+      ``SimpleKVSink``.
+
   Args:
-    simplekv: an object that mocks the key-value storage. The API of the
-              key-value storage consists of following methods.
-              simplekv.connect(url) -
-                  connects to the storage and returns an access token
-                  which can be used to perform further operations
-              simplekv.open_table(access_token, table_name) -
-                  creates a table named 'table_name'. Returns a table object.
-              simplekv.write_to_table(table, access_token, key, value) -
-                  writes a key-value pair to the given table.
-              simplekv.rename_table(access_token, old_name, new_name) -
-                  renames the table named 'old_name' to 'new_name'.
+    simplekv: an object that mocks the key-value storage.
     KVs: the set of key-value pairs to be written in the example pipeline.
-    final_table_name: the prefix of final set of tables to be created by the
-                      example pipeline.
+    final_table_name_no_ptransform: the prefix of final set of tables to be
+                                    created by the example pipeline that uses
+                                    ``SimpleKVSink`` directly.
+    final_table_name_with_ptransform: the prefix of final set of tables to be
+                                      created by the example pipeline that uses
+                                      a ``PTransform`` that wraps
+                                      ``SimpleKVSink``.
   """
 
   import apache_beam as beam
   from apache_beam.io import iobase
+  from apache_beam.transforms.core import PTransform
   from apache_beam.utils.options import PipelineOptions
 
   # Defining the new sink.
@@ -751,6 +809,8 @@ def model_custom_sink(simplekv, KVs, final_table_name):
       return self._table_name
   # [END model_custom_sink_new_writer]
 
+  final_table_name = final_table_name_no_ptransform
+
   # Using the new sink in an example pipeline.
   # [START model_custom_sink_use_new_sink]
   p = beam.Pipeline(options=PipelineOptions())
@@ -761,6 +821,37 @@ def model_custom_sink(simplekv, KVs, final_table_name):
                       SimpleKVSink('http://url_to_simple_kv/',
                                    final_table_name))
   # [END model_custom_sink_use_new_sink]
+
+  p.run()
+
+  # We recommend users to start Sink class names with an underscore to
+  # discourage using the Sink class directly when a PTransform for the sink is
+  # available. We simulate that here by simply extending the previous Sink
+  # class.
+  class _SimpleKVSink(SimpleKVSink):
+    pass
+
+  # [START model_custom_sink_new_ptransform]
+  class WriteToKVSink(PTransform):
+
+    def __init__(self, label, url, final_table_name, **kwargs):
+      super(WriteToKVSink, self).__init__(label, **kwargs)
+      self._url = url
+      self._final_table_name = final_table_name
+
+    def apply(self, pcoll):
+      return pcoll | iobase.Write(_SimpleKVSink(self._url,
+                                                self._final_table_name))
+  # [END model_custom_sink_new_ptransform]
+
+  final_table_name = final_table_name_with_ptransform
+
+  # [START model_custom_sink_use_ptransform]
+  p = beam.Pipeline(options=PipelineOptions())
+  kvs = p | beam.core.Create('CreateKVs', KVs)
+  kvs | WriteToKVSink('WriteToSimpleKV',
+                      'http://url_to_simple_kv/', final_table_name)
+  # [END model_custom_sink_use_ptransform]
 
   p.run()
 
