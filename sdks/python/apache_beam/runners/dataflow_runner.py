@@ -530,6 +530,12 @@ class DataflowPipelineRunner(PipelineRunner):
     else:
       coder = transform.source.coder
 
+    # Wrap coder in WindowedValueCoder: this is necessary as the encoding of a
+    # step should be the type of value outputted by each step.  Read steps
+    # automatically wrap output values in a WindowedValue wrapper, if necessary.
+    # This is also necessary for proper encoding for size estimation.
+    coder = coders.WindowedValueCoder(coder)
+
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
@@ -595,7 +601,11 @@ class DataflowPipelineRunner(PipelineRunner):
           'Sink %r has unexpected format %s.' % (
               transform.sink, transform.sink.format))
     step.add_property(PropertyNames.FORMAT, transform.sink.format)
-    step.encoding = self._get_cloud_encoding(transform.sink.coder)
+
+    # Wrap coder in WindowedValueCoder: this is necessary for proper encoding
+    # for size estimation.
+    coder = coders.WindowedValueCoder(transform.sink.coder)
+    step.encoding = self._get_cloud_encoding(coder)
     step.add_property(PropertyNames.ENCODING, step.encoding)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
