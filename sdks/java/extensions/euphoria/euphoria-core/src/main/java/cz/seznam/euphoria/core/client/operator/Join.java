@@ -219,7 +219,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
     @SuppressWarnings("unchecked")
-      Dataset<PAIROUT> output = createOutput((Dataset) left);
+    Dataset<PAIROUT> output = createOutput((Dataset) left);
     this.output = output;
     this.outer = outer;
   }
