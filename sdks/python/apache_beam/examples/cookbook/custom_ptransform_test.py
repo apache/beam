@@ -18,48 +18,33 @@
 """Tests for the various custom Count implementation examples."""
 
 import logging
-import tempfile
 import unittest
 
+import apache_beam as beam
 from apache_beam.examples.cookbook import custom_ptransform
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 
 
 class CustomCountTest(unittest.TestCase):
 
   def test_count1(self):
-    self.run_pipeline(custom_ptransform.run_count1)
+    self.run_pipeline(custom_ptransform.Count1())
 
   def test_count2(self):
-    self.run_pipeline(custom_ptransform.run_count2)
+    self.run_pipeline(custom_ptransform.Count2())
 
   def test_count3(self):
-    self.run_pipeline(custom_ptransform.run_count3, factor=2)
+    factor = 2
+    self.run_pipeline(custom_ptransform.Count3(factor), factor=factor)
 
   def run_pipeline(self, count_implementation, factor=1):
-    input_path = self.create_temp_file('CAT\nDOG\nCAT\nCAT\nDOG\n')
-    output_path = input_path + '.result'
-
-    known_args, pipeline_args = custom_ptransform.get_args([
-        '--input=%s*' % input_path, '--output=%s' % output_path
-    ])
-
-    count_implementation(known_args, PipelineOptions(pipeline_args))
-    self.assertEqual(["(u'CAT', %d)" % (3 * factor),
-                      "(u'DOG', %d)" % (2 * factor)],
-                     self.get_output(output_path + '-00000-of-00001'))
-
-  def create_temp_file(self, contents=''):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
-      return f.name
-
-  def get_output(self, path):
-    logging.info('Reading output from "%s"', path)
-    lines = []
-    with open(path) as f:
-      lines = f.readlines()
-    return sorted(s.rstrip('\n') for s in lines)
+    p = beam.Pipeline('DirectPipelineRunner')
+    words = p | beam.Create('create', ['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
+    result = words | count_implementation
+    assert_that(
+        result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))
+    p.run()
 
 
 if __name__ == '__main__':
