@@ -19,9 +19,13 @@ import logging
 import os
 import tempfile
 import unittest
-from apache_beam.io import avroio
+
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
+
+# Importing following private class for testing purposes.
+from apache_beam.io.avroio import _AvroSource as AvroSource
+
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
@@ -81,7 +85,7 @@ class TestAvro(unittest.TestCase):
 
   def _run_avro_test(
       self, pattern, desired_bundle_size, perform_splitting, expected_result):
-    source = avroio.AvroSource(pattern)
+    source = AvroSource(pattern)
 
     read_records = []
     if perform_splitting:
@@ -148,7 +152,7 @@ class TestAvro(unittest.TestCase):
     try:
       avro.datafile.SYNC_INTERVAL = 5
       file_name = self._write_data(count=20)
-      source = avroio.AvroSource(file_name)
+      source = AvroSource(file_name)
       splits = [split for split in source.split(
           desired_bundle_size=float('inf'))]
       assert len(splits) == 1
