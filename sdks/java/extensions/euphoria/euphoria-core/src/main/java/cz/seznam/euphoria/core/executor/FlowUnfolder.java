@@ -38,7 +38,7 @@ public class FlowUnfolder {
 
     @Override
     public Collection<Dataset<T>> listInputs() {
-      return Collections.EMPTY_LIST;
+      return Collections.emptyList();
     }
 
     @Override
@@ -138,9 +138,9 @@ public class FlowUnfolder {
 
     if (node.getParents().isEmpty()) {
       Operator<?, ?> op = node.get();
-      List<Operator<?, ?>> parents = op.listInputs()
+      return op.listInputs()
           .stream()
-          .map(i -> datasetProducents.get(i))
+          .map(datasetProducents::get)
           .filter(o -> {
             if (o == null) {
               // there is some strange error
@@ -151,7 +151,6 @@ public class FlowUnfolder {
           })
           .map(Optional::get)
           .collect(Collectors.toList());
-      return parents;
     }
     return node.getParents().stream()
         .map(n -> datasetProducents.get(n.get().output()))

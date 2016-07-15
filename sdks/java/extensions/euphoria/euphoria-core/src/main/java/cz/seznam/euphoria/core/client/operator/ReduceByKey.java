@@ -179,6 +179,7 @@ public class ReduceByKey<
       this.windowing = windowing;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return (Dataset) outputWindowed();
@@ -225,7 +226,7 @@ public class ReduceByKey<
       return new GroupedDatasetBuilder4<>(name, input, keyExtractor, e-> e, reducer);
     }
     public GroupedDatasetBuilder4<IN, KIN, KEY, KIN, KIN> combineBy(CombinableReduceFunction<KIN> reducer) {
-      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, e -> e, (ReduceFunction) reducer);
+      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, e -> e, reducer);
     }
   }
   public static class GroupedDatasetBuilder3<IN, KIN, KEY, VALUE> {
@@ -319,6 +320,7 @@ public class ReduceByKey<
       this.windowing = windowing;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
       return (Dataset) outputWindowed();
@@ -351,6 +353,7 @@ public class ReduceByKey<
 
   final ReduceFunction<VALUE, OUT> reducer;
   final UnaryFunction<KIN, VALUE> valueExtractor;
+  final boolean grouped;
 
 
   ReduceByKey(String name,
@@ -365,8 +368,10 @@ public class ReduceByKey<
     super(name, flow, input, keyExtractor, windowing, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
+    this.grouped = false;
   }
 
+  @SuppressWarnings("unchecked")
   ReduceByKey(String name,
               Flow flow,
               GroupedDataset<IN, KIN> groupedInput,
@@ -379,10 +384,15 @@ public class ReduceByKey<
     super(name, flow, (Dataset) groupedInput, keyExtractor, windowing, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
+    this.grouped = true;
   }
   
   public ReduceFunction<VALUE, OUT> getReducer() {
     return reducer;
+  }
+
+  public boolean isGrouped() {
+    return this.grouped;
   }
 
   // state represents the output value
@@ -431,7 +441,7 @@ public class ReduceByKey<
     Flow flow = getFlow();
     Operator<?, ?> reduceState;
     reduceState = new ReduceStateByKey<>(getName(),
-        flow, input, keyExtractor, valueExtractor,
+        flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
         ReduceState::new,
         (Iterable<ReduceState> states) -> {

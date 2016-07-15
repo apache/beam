@@ -146,8 +146,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
 
-    final Collector stateOutput;
-    final BlockingQueue rawOutput;
+    final Collector<Object> stateOutput;
+    final BlockingQueue<Object> rawOutput;
     final TriggerScheduler triggering;
     final UnaryFunction stateFactory;
     final CombinableReduceFunction stateCombiner;
@@ -160,6 +160,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     // ~ are we still actively processing input?
     private boolean active = true;
 
+    @SuppressWarnings("unchecked")
     private ProcessingState(
         BlockingQueue output,
         TriggerScheduler triggering,
@@ -236,6 +237,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       return states;
     }
 
+    @SuppressWarnings("unchecked")
     public Pair<Window, State> getWindowStateForUpdate(Window w, Object itemKey) {
       WindowStorage wStore = getOrCreateWindowStorage(w, false);
       if (wStore == null) {
@@ -265,7 +267,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     // and optionally override the window instance associated
     // with it
     private WindowStorage
-    getOrCreateWindowStorage(Window w, boolean setWindowInstance) {
+    getOrCreateWindowStorage(Window<?, ?> w, boolean setWindowInstance) {
       WindowStorage wStore =
               wRegistry.getWindow(w.getGroup(), w.getLabel());
       if (wStore == null) {
@@ -351,6 +353,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
         } else {
           toCombine.add(dstKeyState);
           toCombine.add(s.getValue());
+          @SuppressWarnings("unchecked")
           State newState = (State) stateCombiner.apply(toCombine);
           if (newState.getCollector() instanceof DatumCollector) {
             ((DatumCollector) newState.getCollector())
@@ -442,6 +445,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
    */
   private void flushWindow(Window window) {
     // ~ notify others we're about to evict the window
+    @SuppressWarnings("unchecked")
     EndOfWindow eow = new EndOfWindow<>(window);
 
     // ~ notify others we're about to evict the window
