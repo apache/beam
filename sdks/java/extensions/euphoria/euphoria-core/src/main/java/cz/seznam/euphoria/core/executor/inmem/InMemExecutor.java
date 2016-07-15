@@ -531,20 +531,26 @@ public class InMemExecutor implements Executor {
       ExecutionContext context) {
 
     final UnaryFunction keyExtractor;
+    final UnaryFunction valueExtractor;
     final ReduceStateByKey reduceStateByKey = reduceStateByKeyNode.get();
     if (reduceStateByKey.isGrouped()) {
       UnaryFunction reduceKeyExtractor = reduceStateByKey.getKeyExtractor();
       keyExtractor = (UnaryFunction<Pair, CompositeKey>)
-          (Pair p) -> CompositeKey.of(p.getFirst(), reduceKeyExtractor.apply(p));
+          (Pair p) -> CompositeKey.of(
+              p.getFirst(),
+              reduceKeyExtractor.apply(p.getSecond()));
+      UnaryFunction vfn = reduceStateByKey.getValueExtractor();
+      valueExtractor = (UnaryFunction<Pair, Object>)
+          (Pair p) -> vfn.apply(p.getSecond());
     } else {
       keyExtractor = reduceStateByKey.getKeyExtractor();
+      valueExtractor = reduceStateByKey.getValueExtractor();
     }
 
     InputProvider<?> suppliers = context.get(
         reduceStateByKeyNode.getSingleParentOrNull().get(),
         reduceStateByKeyNode.get());
 
-    final UnaryFunction valueExtractor = reduceStateByKey.getValueExtractor();
     final UnaryFunction stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
