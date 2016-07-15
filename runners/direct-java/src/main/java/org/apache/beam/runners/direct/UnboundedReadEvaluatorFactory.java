@@ -62,7 +62,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * an arbitrary Queue implementation does not, so the concrete type is used explicitly.
    */
   private final ConcurrentMap<
-      EvaluatorKey, ConcurrentLinkedQueue<? extends UnboundedReadEvaluator<?, ?>>>
+      AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<? extends UnboundedReadEvaluator<?, ?>>>
       sourceEvaluators = new ConcurrentHashMap<>();
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -91,16 +91,13 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   Queue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> getTransformEvaluatorQueue(
       final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
       final EvaluationContext evaluationContext) {
-    // Key by the application and the context the evaluation is occurring in (which call to
-    // Pipeline#run).
-    EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
     @SuppressWarnings("unchecked")
     ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue =
         (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
-            sourceEvaluators.get(key);
+            sourceEvaluators.get(transform);
     if (evaluatorQueue == null) {
       evaluatorQueue = new ConcurrentLinkedQueue<>();
-      if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
+      if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
         UnboundedSource<OutputT, CheckpointMarkT> source =
@@ -119,7 +116,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         // otherwise return the existing Queue that arrived before us
         evaluatorQueue =
             (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
-                sourceEvaluators.get(key);
+                sourceEvaluators.get(transform);
       }
     }
     return evaluatorQueue;
