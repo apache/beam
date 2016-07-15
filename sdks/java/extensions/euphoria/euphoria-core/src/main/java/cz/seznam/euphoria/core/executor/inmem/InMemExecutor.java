@@ -16,6 +16,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
+import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -524,44 +525,6 @@ public class InMemExecutor implements Executor {
   }
 
 
-  private static final class CompositeKey<A, B> {
-    final A first;
-    final B second;
-
-    CompositeKey(A first, B second) {
-      this.first = first;
-      this.second = second;
-    }
-
-    @Override
-    public String toString() {
-      return "CompositeKey(" + first + "," + second + ")";
-    }
-    @Override
-    public boolean equals(Object obj) {
-      if (obj instanceof CompositeKey) {
-        CompositeKey other = (CompositeKey) obj;
-        return first.equals(other.first) && second.equals(other.second);
-      }
-      return false;
-    }
-    @Override
-    public int hashCode() {
-      if (first != null && second != null) {
-        int h = first.hashCode();
-        int shift = Integer.SIZE >> 1;
-        return ((h >> shift) | (h << shift)) ^ second.hashCode();
-      }
-      if (first != null) {
-        return first.hashCode();
-      }
-      if (second != null) {
-        return second.hashCode();
-      }
-      return 0;
-    }
-  }
-
   @SuppressWarnings("unchecked")
   private InputProvider<?> execReduceStateByKey(
       Node<ReduceStateByKey> reduceStateByKeyNode,
@@ -571,9 +534,8 @@ public class InMemExecutor implements Executor {
     final ReduceStateByKey reduceStateByKey = reduceStateByKeyNode.get();
     if (reduceStateByKey.isGrouped()) {
       UnaryFunction reduceKeyExtractor = reduceStateByKey.getKeyExtractor();
-      keyExtractor = (UnaryFunction<Pair, CompositeKey>) (Pair p) -> {
-        return new CompositeKey(p.getFirst(), reduceKeyExtractor.apply(p));
-      };
+      keyExtractor = (UnaryFunction<Pair, CompositeKey>)
+          (Pair p) -> CompositeKey.of(p.getFirst(), reduceKeyExtractor.apply(p));
     } else {
       keyExtractor = reduceStateByKey.getKeyExtractor();
     }
