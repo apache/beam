@@ -78,6 +78,7 @@ public class CountByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
+    @SuppressWarnings("unchecked")
     public Dataset<Pair<KEY, Long>> output() {
       return (Dataset) outputWindowed();
     }

@@ -42,16 +42,19 @@ public interface PartitioningAware<KEY> {
       return partitioning;
     }
 
+    @SuppressWarnings("unchecked")
     public BUILDER setPartitioning(Partitioning<KEY> p) {
       this.partitioning = Objects.requireNonNull(p);
       return (BUILDER) this;
     }
 
+    @SuppressWarnings("unchecked")
     public BUILDER setPartitioner(Partitioner<KEY> p) {
       this.defaultPartitioning.setPartitioner(p);
       return (BUILDER) this;
     }
 
+    @SuppressWarnings("unchecked")
     public BUILDER setNumPartitions(int numPartitions) {
       this.defaultPartitioning.setNumPartitions(numPartitions);
       return (BUILDER) this;

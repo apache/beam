@@ -23,6 +23,7 @@ import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;

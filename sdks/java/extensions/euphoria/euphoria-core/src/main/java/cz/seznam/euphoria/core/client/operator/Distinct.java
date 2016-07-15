@@ -66,10 +66,12 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
+    @SuppressWarnings("unchecked")
     @Override
     public Dataset<IN> output() {
       return outputImpl(false);
     }
+    @SuppressWarnings("unchecked")
     public Dataset<Pair<WLABEL, IN>> outputWindowed() {
       return outputImpl(true);
     }
