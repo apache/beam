@@ -369,7 +369,7 @@ public class InMemExecutor implements Executor {
     return tasks;
   }
 
-  // ~ unchecked: all if fine, except javac (1.8.0_91) has some issue
+  // ~ unchecked: all is fine, except javac (1.8.0_91) has some issue
   @SuppressWarnings("unchecked")
   private InputProvider<?> createStream(DataSource<?> source) {
     InputProvider<?> ret = new InputProvider<>();
