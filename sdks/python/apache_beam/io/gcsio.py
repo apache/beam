@@ -533,6 +533,7 @@ class GcsBufferedWriter(object):
 
     # Set up communication with uploading thread.
     parent_conn, child_conn = multiprocessing.Pipe()
+    self.child_conn = child_conn
     self.conn = parent_conn
 
     # Set up uploader.
@@ -547,6 +548,7 @@ class GcsBufferedWriter(object):
     # Start uploading thread.
     self.upload_thread = threading.Thread(target=self._start_upload)
     self.upload_thread.daemon = True
+    self.upload_thread.last_error = None
     self.upload_thread.start()
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
@@ -560,7 +562,15 @@ class GcsBufferedWriter(object):
     #
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
-    self.client.objects.Insert(self.insert_request, upload=self.upload)
+    try:
+      self.client.objects.Insert(self.insert_request, upload=self.upload)
+    except HttpError as http_error:
+      logging.error(
+          'HTTP error while inserting file %s: %s', self.path, http_error)
+      self.upload_thread.last_error = http_error
+      raise
+    finally:
+      self.child_conn.close()
 
   def write(self, data):
     """Write data to a GCS file.
@@ -574,8 +584,14 @@ class GcsBufferedWriter(object):
     self._check_open()
     if not data:
       return
-    self.conn.send_bytes(data)
-    self.position += len(data)
+    try:
+      self.conn.send_bytes(data)
+      self.position += len(data)
+    except IOError:
+      if self.upload_thread.last_error:
+        raise self.upload_thread.last_error  # pylint: disable=raising-bad-type
+      else:
+        raise
 
   def tell(self):
     """Return the total number of bytes passed to write() so far."""
@@ -583,6 +599,7 @@ class GcsBufferedWriter(object):
 
   def close(self):
     """Close the current GCS file."""
+    self.closed = True
     self.conn.close()
     self.upload_thread.join()
 
