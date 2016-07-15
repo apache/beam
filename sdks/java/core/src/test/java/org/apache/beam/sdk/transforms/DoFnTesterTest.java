@@ -24,8 +24,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
@@ -150,19 +155,15 @@ public class DoFnTesterTest {
     tester.processElement(2L);
 
     List<TimestampedValue<String>> peek = tester.peekOutputElementsWithTimestamp();
-    TimestampedValue<String> one =
-        TimestampedValue.of("1", new Instant(1000L));
-    TimestampedValue<String> two =
-        TimestampedValue.of("2", new Instant(2000L));
+    TimestampedValue<String> one = TimestampedValue.of("1", new Instant(1000L));
+    TimestampedValue<String> two = TimestampedValue.of("2", new Instant(2000L));
     assertThat(peek, hasItems(one, two));
 
     tester.processElement(3L);
     tester.processElement(4L);
 
-    TimestampedValue<String> three =
-        TimestampedValue.of("3", new Instant(3000L));
-    TimestampedValue<String> four =
-        TimestampedValue.of("4", new Instant(4000L));
+    TimestampedValue<String> three = TimestampedValue.of("3", new Instant(3000L));
+    TimestampedValue<String> four = TimestampedValue.of("4", new Instant(4000L));
     peek = tester.peekOutputElementsWithTimestamp();
     assertThat(peek, hasItems(one, two, three, four));
     List<TimestampedValue<String>> take = tester.takeOutputElementsWithTimestamp();
@@ -219,12 +220,61 @@ public class DoFnTesterTest {
     tester.processElement(2L);
     tester.finishBundle();
 
-    assertThat(tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
-        containsInAnyOrder(TimestampedValue.of("1", new Instant(1000L)),
+    assertThat(
+        tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
+        containsInAnyOrder(
+            TimestampedValue.of("1", new Instant(1000L)),
             TimestampedValue.of("2", new Instant(2000L))));
-    assertThat(tester.peekOutputElementsInWindow(
-        new IntervalWindow(new Instant(0L), new Instant(10L))),
+    assertThat(
+        tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
         Matchers.<TimestampedValue<String>>emptyIterable());
+  }
+
+  @Test
+  public void fnWithSideInputDefault() throws Exception {
+    final PCollectionView<Integer> value =
+        PCollectionViews.singletonView(
+            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+    DoFn<Integer, Integer> fn = new SideInputDoFn(value);
+
+    DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
+
+    tester.processElement(1);
+    tester.processElement(2);
+    tester.processElement(4);
+    tester.processElement(8);
+    assertThat(tester.peekOutputElements(), containsInAnyOrder(0, 0, 0, 0));
+  }
+
+  @Test
+  public void fnWithSideInputExplicit() throws Exception {
+    final PCollectionView<Integer> value =
+        PCollectionViews.singletonView(
+            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+    DoFn<Integer, Integer> fn = new SideInputDoFn(value);
+
+    DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
+    tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
+    tester.processElement(16);
+    tester.processElement(32);
+    tester.processElement(64);
+    tester.processElement(128);
+    tester.finishBundle();
+
+    assertThat(tester.peekOutputElements(), containsInAnyOrder(-2, -2, -2, -2));
+  }
+
+  private static class SideInputDoFn extends DoFn<Integer, Integer> {
+    private final PCollectionView<Integer> value;
+
+    private SideInputDoFn(PCollectionView<Integer> value) {
+      this.value = value;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      c.output(c.sideInput(value));
+    }
   }
 
   /**

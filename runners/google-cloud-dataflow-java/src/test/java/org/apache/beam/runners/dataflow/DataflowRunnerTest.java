@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -84,7 +83,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -1060,8 +1058,6 @@ public class DataflowRunnerTest {
             keyCoder,
             ismCoder,
             false /* unique keys */));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
@@ -1162,8 +1158,6 @@ public class DataflowRunnerTest {
             keyCoder,
             ismCoder,
             true /* unique keys */));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
 
@@ -1203,8 +1197,6 @@ public class DataflowRunnerTest {
                IsmRecord<WindowedValue<Long>>> doFnTester = DoFnTester.of(
         new BatchViewAsMultimap.ToIsmMetadataRecordForSizeDoFn<Long, Long, IntervalWindow>(
             windowCoder));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
@@ -1256,8 +1248,6 @@ public class DataflowRunnerTest {
                IsmRecord<WindowedValue<Long>>> doFnTester = DoFnTester.of(
         new BatchViewAsMultimap.ToIsmMetadataRecordForKeyDoFn<Long, Long, IntervalWindow>(
             keyCoder, windowCoder));
-    doFnTester.setSideOutputTags(TupleTagList.of(
-        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
 
     IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));

@@ -24,7 +24,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.PTuple;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -34,7 +33,6 @@ import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
@@ -103,62 +101,33 @@ public class DoFnTester<InputT, OutputT> {
    * Registers the tuple of values of the side input {@link PCollectionView}s to
    * pass to the {@link DoFn} under test.
    *
-   * <p>If needed, first creates a fresh instance of the {@link DoFn}
-   * under test.
+   * <p>Resets the state of this {@link DoFnTester}.
    *
    * <p>If this isn't called, {@code DoFnTester} assumes the
    * {@link DoFn} takes no side inputs.
    */
-  public void setSideInputs(Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs) {
+  public void setSideInputs(Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
     this.sideInputs = sideInputs;
     resetState();
   }
 
   /**
-   * Registers the values of a side input {@link PCollectionView} to
-   * pass to the {@link DoFn} under test.
+   * Registers the values of a side input {@link PCollectionView} to pass to the {@link DoFn} under
+   * test.
    *
-   * <p>If needed, first creates a fresh instance of the {@code DoFn}
-   * under test.
+   * <p>The provided value is the final value of the side input in the specified window, not
+   * the value of the input PCollection in that window.
    *
-   * <p>If this isn't called, {@code DoFnTester} assumes the
-   * {@code DoFn} takes no side inputs.
+   * <p>If this isn't called, {@code DoFnTester} will return the default value for any side input
+   * that is used.
    */
-  public void setSideInput(PCollectionView<?> sideInput, Iterable<WindowedValue<?>> value) {
-    sideInputs.put(sideInput, value);
-  }
-
-  /**
-   * Registers the values for a side input {@link PCollectionView} to
-   * pass to the {@link DoFn} under test. All values are placed
-   * in the global window.
-   */
-  public void setSideInputInGlobalWindow(
-      PCollectionView<?> sideInput,
-      Iterable<?> value) {
-    sideInputs.put(
-        sideInput,
-        Iterables.transform(value, new Function<Object, WindowedValue<?>>() {
-          @Override
-          public WindowedValue<?> apply(Object input) {
-            return WindowedValue.valueInGlobalWindow(input);
-          }
-        }));
-  }
-
-
-  /**
-   * Registers the list of {@code TupleTag}s that can be used by the
-   * {@code DoFn} under test to output to side output
-   * {@code PCollection}s.
-   *
-   * <p>If needed, first creates a fresh instance of the DoFn under test.
-   *
-   * <p>If this isn't called, {@code DoFnTester} assumes the
-   * {@code DoFn} doesn't emit to any side outputs.
-   */
-  public void setSideOutputTags(TupleTagList sideOutputTags) {
-    resetState();
+  public <T> void setSideInput(PCollectionView<T> sideInput, BoundedWindow window, T value) {
+    Map<BoundedWindow, T> windowValues = (Map<BoundedWindow, T>) sideInputs.get(sideInput);
+    if (windowValues == null) {
+      windowValues = new HashMap<>();
+      sideInputs.put(sideInput, windowValues);
+    }
+    windowValues.put(window, value);
   }
 
   /**
@@ -523,14 +492,14 @@ public class DoFnTester<InputT, OutputT> {
     private final TestContext<InT, OutT> context;
     private final TupleTag<OutT> mainOutputTag;
     private final WindowedValue<InT> element;
-    private final Map<PCollectionView<?>, ?> sideInputs;
+    private final Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs;
 
     private TestProcessContext(
         DoFn<InT, OutT> fn,
         TestContext<InT, OutT> context,
         WindowedValue<InT> element,
         TupleTag<OutT> mainOutputTag,
-        Map<PCollectionView<?>, ?> sideInputs) {
+        Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
       fn.super();
       this.context = context;
       this.element = element;
@@ -545,9 +514,17 @@ public class DoFnTester<InputT, OutputT> {
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      @SuppressWarnings("unchecked")
-      T sideInput = (T) sideInputs.get(view);
-      return sideInput;
+      Map<BoundedWindow, ?> viewValues = sideInputs.get(view);
+      if (viewValues != null) {
+        BoundedWindow sideInputWindow =
+            view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window());
+        @SuppressWarnings("unchecked")
+        T windowValue = (T) viewValues.get(sideInputWindow);
+        if (windowValue != null) {
+          return windowValue;
+        }
+      }
+      return view.fromIterableInternal(Collections.<WindowedValue<?>>emptyList());
     }
 
     @Override
@@ -662,35 +639,35 @@ public class DoFnTester<InputT, OutputT> {
     FINISHED
   }
 
-  final PipelineOptions options = PipelineOptionsFactory.create();
+  private final PipelineOptions options = PipelineOptionsFactory.create();
 
   /** The original DoFn under test. */
-  final DoFn<InputT, OutputT> origFn;
+  private final DoFn<InputT, OutputT> origFn;
 
   /** The side input values to provide to the DoFn under test. */
-  private Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs =
+  private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
 
   private Map<String, Object> accumulators;
 
   /** The output tags used by the DoFn under test. */
-  TupleTag<OutputT> mainOutputTag = new TupleTag<>();
+  private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
   /** The original DoFn under test, if started. */
   DoFn<InputT, OutputT> fn;
 
   /** The ListOutputManager to examine the outputs. */
-  Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
+  private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
   /** The state of processing of the DoFn under test. */
-  State state;
+  private State state;
 
-  DoFnTester(DoFn<InputT, OutputT> origFn) {
+  private DoFnTester(DoFn<InputT, OutputT> origFn) {
     this.origFn = origFn;
     resetState();
   }
 
-  void resetState() {
+  private void resetState() {
     fn = null;
     outputs = null;
     accumulators = null;
@@ -698,16 +675,11 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   @SuppressWarnings("unchecked")
-  void initializeState() {
+  private void initializeState() {
     fn = (DoFn<InputT, OutputT>)
         SerializableUtils.deserializeFromByteArray(
             SerializableUtils.serializeToByteArray(origFn),
             origFn.toString());
-    PTuple runnerSideInputs = PTuple.empty();
-    for (Map.Entry<PCollectionView<?>, Iterable<WindowedValue<?>>> entry
-        : sideInputs.entrySet()) {
-      runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
-    }
     outputs = new HashMap<>();
     accumulators = new HashMap<>();
   }
