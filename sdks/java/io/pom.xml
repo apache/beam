@@ -38,6 +38,7 @@
     <module>jms</module>
     <module>kafka</module>
     <module>kinesis</module>
+    <module>mongodb</module>
   </modules>
 
 </project>
