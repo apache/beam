@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.jms;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+
+import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +37,7 @@ import javax.jms.Message;
 public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private final List<Message> messages = new ArrayList<>();
-  private long oldestPendingTimestamp = System.currentTimeMillis();
+  private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public JmsCheckpointMark() {
   }
@@ -44,13 +47,14 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
   }
 
   public void addMessage(Message message) throws Exception {
-    if (message.getJMSTimestamp() < oldestPendingTimestamp) {
-      oldestPendingTimestamp = message.getJMSTimestamp();
+    Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+    if (currentMessageTimestamp.isBefore(oldestPendingTimestamp)) {
+      oldestPendingTimestamp = currentMessageTimestamp;
     }
     messages.add(message);
   }
 
-  public long getOldestPendingTimestamp() {
+  public Instant getOldestPendingTimestamp() {
     return oldestPendingTimestamp;
   }
 
@@ -59,12 +63,15 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
     for (Message message : messages) {
       try {
         message.acknowledge();
+        Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+        if (currentMessageTimestamp.isAfter(oldestPendingTimestamp)) {
+          oldestPendingTimestamp = currentMessageTimestamp;
+        }
       } catch (Exception e) {
         // nothing to do
       }
     }
     messages.clear();
-    oldestPendingTimestamp = System.currentTimeMillis();
   }
 
 }
