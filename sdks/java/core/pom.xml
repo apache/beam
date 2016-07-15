@@ -577,7 +577,6 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.1.2.1</version>
     </dependency>
 
     <dependency>
