@@ -11,7 +11,6 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.GroupByKey;
@@ -670,5 +669,61 @@ public class InMemExecutorTest {
     assertEquals(1, output.size());
   }
 
+
+  @Test(timeout = 2000)
+  public void testGroupedDatasetReduceByKey() throws Exception {
+    Settings settings = new Settings();
+    settings.setClass("euphoria.io.datasource.factory.inmem",
+        InMemFileSystem.SourceFactory.class);
+    settings.setClass("euphoria.io.datasink.factory.inmem",
+        InMemFileSystem.SinkFactory.class);
+
+    Flow flow = Flow.create("Test", settings);
+
+    InMemFileSystem.get()
+        .reset()
+        .setFile("/tmp/foo.txt",
+            Arrays.asList(
+                Pair.of(1, "one"),
+                Pair.of(1, "two"),
+                Pair.of(1, "three"),
+                Pair.of(1, "one"),
+                Pair.of(2, "two"),
+                Pair.of(1, "three"),
+                Pair.of(1, "three")));
+
+    Dataset<Pair<Integer, String>> pairs =
+        flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+
+    GroupedDataset<Integer, String> grouped = GroupByKey.of(pairs)
+        .keyBy(Pair::getFirst)
+        .valueBy(Pair::getSecond)
+        .output();
+
+    Dataset<Pair<CompositeKey<Integer, String>, Long>> output = ReduceByKey.of(grouped)
+        .keyBy(input -> input)
+        .valueBy(input -> 1L)
+        .combineBy(Sums.ofLongs())
+        .output();
+    output.persist(URI.create("inmem:///tmp/output"));
+
+    InMemExecutor executor = new InMemExecutor();
+    executor.waitForCompletion(flow);
+
+    @SuppressWarnings("unchecked")
+    Collection<Pair<CompositeKey<Integer, String>, Long>> out =
+        (Collection<Pair<CompositeKey<Integer, String>, Long>>)
+            InMemFileSystem.get().getFile("/tmp/output/0");
+    assertUnorderedEquals(
+        Arrays.asList("1-one:2", "1-two:1", "1-three:3", "2-two:1"),
+        out.stream().map(p -> {
+          assertEquals(Integer.class, p.getFirst().getFirst().getClass());
+          assertEquals(String.class, p.getFirst().getSecond().getClass());
+          assertEquals(Long.class, p.getSecond().getClass());
+          return p.getFirst().getFirst() + "-"
+              + p.getFirst().getSecond() + ":"
+              + p.getSecond();
+        }).collect(Collectors.toList()));
+  }
 
 }
