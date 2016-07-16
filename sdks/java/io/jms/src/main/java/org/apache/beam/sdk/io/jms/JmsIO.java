@@ -86,7 +86,7 @@ import javax.jms.TextMessage;
  *
  * <h3>Writing to a JMS destination</h3>
  *
- * JmsIO sink supports writing test messages to a JMS destination on a broker.
+ * JmsIO sink supports writing text messages to a JMS destination on a broker.
  * To configure a JMS sink, you must specify a {@link javax.jms.ConnectionFactory} and a
  * {@link javax.jms.Destination} name.
  * For instance:

@@ -42,11 +42,11 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
   public JmsCheckpointMark() {
   }
 
-  public List<Message> getMessages() {
+  protected List<Message> getMessages() {
     return this.messages;
   }
 
-  public void addMessage(Message message) throws Exception {
+  protected void addMessage(Message message) throws Exception {
     Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
     if (currentMessageTimestamp.isBefore(oldestPendingTimestamp)) {
       oldestPendingTimestamp = currentMessageTimestamp;
@@ -54,10 +54,15 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
     messages.add(message);
   }
 
-  public Instant getOldestPendingTimestamp() {
+  protected Instant getOldestPendingTimestamp() {
     return oldestPendingTimestamp;
   }
 
+  /**
+   * Acknowledge all outstanding message. Since we believe that messages will be delivered in
+   * timestamp order, and acknowledged messages will not be retried, the newest message in this
+   * batch is a good bound for future messages.
+   */
   @Override
   public void finalizeCheckpoint() {
     for (Message message : messages) {
