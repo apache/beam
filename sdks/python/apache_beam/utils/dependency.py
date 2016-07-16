@@ -434,7 +434,11 @@ def get_required_container_version():
   except pkg.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
-    return 'beamhead'
+    #
+    # TODO(ccy): change this back to 'beamhead' when worker support for the
+    # recent change to use WindowedValueCoders in Sources and Sinks is rolled
+    # out.
+    return 'beamhead-02'
 
 
 def _download_pypi_sdk_package(temp_dir):
