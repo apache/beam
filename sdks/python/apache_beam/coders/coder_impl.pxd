@@ -38,6 +38,8 @@ cdef class CoderImpl(object):
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cpdef bytes encode(self, value)
   cpdef decode(self, bytes encoded)
+  cpdef estimate_size(self, value)
+  cpdef get_estimated_size_and_observables(self, value)
 
 
 cdef class SimpleCoderImpl(CoderImpl):
@@ -51,6 +53,7 @@ cdef class StreamCoderImpl(CoderImpl):
 cdef class CallbackCoderImpl(CoderImpl):
   cdef object _encoder
   cdef object _decoder
+  cdef object _size_estimator
 
 
 cdef class DeterministicPickleCoderImpl(CoderImpl):
@@ -81,6 +84,9 @@ cdef class SingletonCoderImpl(CoderImpl):
   cdef object _value
 
 
+cpdef int ESTIMATED_NESTED_OVERHEAD
+
+
 cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   cdef tuple _coder_impls
 
@@ -91,6 +97,9 @@ cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
   @cython.locals(c=CoderImpl)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
+
+  @cython.locals(c=CoderImpl)
+  cpdef get_estimated_size_and_observables(self, value)
 
 
 cdef class TupleCoderImpl(AbstractComponentCoderImpl):
@@ -111,3 +120,6 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cdef CoderImpl _value_coder
   cdef CoderImpl _timestamp_coder
   cdef CoderImpl _windows_coder
+
+  @cython.locals(c=CoderImpl)
+  cpdef get_estimated_size_and_observables(self, value)
