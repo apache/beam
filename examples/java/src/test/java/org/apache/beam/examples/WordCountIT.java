@@ -18,8 +18,7 @@
 
 package org.apache.beam.examples;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.junit.Assert.fail;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.examples.WordCount.WordCountOptions;
 import org.apache.beam.sdk.PipelineResult;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 
+import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CharStreams;
 
@@ -47,7 +47,6 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -69,10 +68,10 @@ public class WordCountIT {
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
     options.setOutput(IOChannelUtils.resolve(
-            options.getTempRoot(),
-            String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
-            "output",
-            "results"));
+        options.getTempRoot(),
+        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+        "output",
+        "results"));
     options.setOnSuccessMatcher(new WordCountOnSuccessMatcher(options.getOutput() + "*"));
 
     WordCount.main(TestPipeline.convertToArgs(options));
@@ -86,35 +85,33 @@ public class WordCountIT {
 
     private static final Logger LOG = LoggerFactory.getLogger(WordCountOnSuccessMatcher.class);
 
-    private static final String EXPECTED_CHECKSUM = "0723901e2878b2913c548b3a497b9c86b71a5708";
+    private static final String EXPECTED_CHECKSUM = "8ae94f799f97cfd1cb5e8125951b32dfb52e1f12";
     private String actualChecksum;
 
     private final String outputPath;
 
     WordCountOnSuccessMatcher(String outputPath) {
-      this.outputPath = checkNotNull(outputPath);
+      checkArgument(
+          outputPath != null && !outputPath.isEmpty(),
+          "Expected valid output path, but received %s", outputPath);
+
+      this.outputPath = outputPath;
     }
 
     @Override
     protected boolean matchesSafely(PipelineResult pResult) {
-      if (outputPath.isEmpty()) {
-        fail(String.format("Expected valid output path, but received %s", outputPath));
-      }
-
       try {
         // Load output data
         List<String> outputs = readLines(outputPath);
 
         // Verify outputs. Checksum is computed using SHA-1 algorithm
-        Collections.sort(outputs);
-        actualChecksum =
-                Hashing.sha1().hashString(outputs.toString(), StandardCharsets.UTF_8).toString();
-        LOG.info("Generate checksum for output data: {}", actualChecksum);
+        actualChecksum = hashing(outputs);
+        LOG.info("Generated checksum for output data: {}", actualChecksum);
 
         return actualChecksum.equals(EXPECTED_CHECKSUM);
       } catch (IOException e) {
         throw new RuntimeException(
-                String.format("Fail to read from path: %s", outputPath));
+            String.format("Failed to read from path: %s", outputPath));
       }
     }
 
@@ -127,32 +124,42 @@ public class WordCountIT {
       Collection<String> files = factory.match(path);
 
       // Read data from file paths
+      int i = 0;
       for (String file : files) {
         try (Reader reader =
-                     Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
-          readData.addAll(CharStreams.readLines(reader));
+              Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+          List<String> lines = CharStreams.readLines(reader);
+          readData.addAll(lines);
+          LOG.info(
+              "[{} of {}] Read {} lines from file: ", i, files.size() - 1, lines.size(), file);
         }
+        i++;
       }
-      LOG.info("Read {} lines from {} files with destination path {}",
-              readData.size(), files.size(), outputPath);
-
       return readData;
+    }
+
+    private String hashing(List<String> strs) {
+      List<HashCode> hashCodes = new ArrayList<>();
+      for (String str : strs) {
+        hashCodes.add(Hashing.sha1().hashString(str, StandardCharsets.UTF_8));
+      }
+      return Hashing.combineUnordered(hashCodes).toString();
     }
 
     @Override
     public void describeTo(Description description) {
       description
-              .appendText("Expected checksum is (")
-              .appendText(EXPECTED_CHECKSUM)
-              .appendText(")");
+          .appendText("Expected checksum is (")
+          .appendText(EXPECTED_CHECKSUM)
+          .appendText(")");
     }
 
     @Override
     protected void describeMismatchSafely(PipelineResult pResult, Description description) {
       description
-              .appendText("was (")
-              .appendText(actualChecksum)
-              .appendText(")");
+          .appendText("was (")
+          .appendText(actualChecksum)
+          .appendText(")");
     }
   }
 }
