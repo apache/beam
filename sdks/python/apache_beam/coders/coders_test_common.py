@@ -24,6 +24,7 @@ import unittest
 import dill
 
 import coders
+import observable
 
 
 # Defined out of line for picklability.
@@ -79,6 +80,10 @@ class CodersTest(unittest.TestCase):
     self._observe(coder)
     for v in values:
       self.assertEqual(v, coder.decode(coder.encode(v)))
+      self.assertEqual(coder.estimate_size(v),
+                       coder.get_impl().estimate_size(v))
+      self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
+                       (coder.get_impl().estimate_size(v), []))
     copy1 = dill.loads(dill.dumps(coder))
     copy2 = dill.loads(dill.dumps(coder))
     for v in values:
@@ -185,6 +190,35 @@ class CodersTest(unittest.TestCase):
 
   def test_utf8_coder(self):
     self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
+
+  def test_nested_observables(self):
+    class FakeObservableIterator(observable.ObservableMixin):
+
+      def __iter__(self):
+        return iter([1, 2, 3])
+
+    # Coder for elements from the observable iterator.
+    iter_coder = coders.VarIntCoder()
+
+    # Test nested WindowedValue observable.
+    coder = coders.WindowedValueCoder(iter_coder)
+    observ = FakeObservableIterator()
+    try:
+      value = coders.coder_impl.WindowedValue(observ)
+    except TypeError:
+      # We are running tests with a fake WindowedValue implementation so as to
+      # not pull in the rest of the SDK.
+      value = coders.coder_impl.WindowedValue(observ, 0, [])
+    self.assertEqual(
+        coder.get_impl().get_estimated_size_and_observables(value)[1],
+        [(observ, iter_coder.get_impl())])
+
+    # Test nested tuple observable.
+    coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
+    value = (u'123', observ)
+    self.assertEqual(
+        coder.get_impl().get_estimated_size_and_observables(value)[1],
+        [(observ, iter_coder.get_impl())])
 
 
 if __name__ == '__main__':
