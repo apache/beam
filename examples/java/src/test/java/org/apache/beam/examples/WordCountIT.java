@@ -93,7 +93,7 @@ public class WordCountIT {
 
     WordCountOnSuccessMatcher(String outputPath) {
       checkArgument(
-          Strings.isNullOrEmpty(outputPath),
+          !Strings.isNullOrEmpty(outputPath),
           "Expected valid output path, but received %s", outputPath);
 
       this.outputPath = outputPath;
