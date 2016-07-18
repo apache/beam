@@ -20,8 +20,6 @@
 
 from __future__ import absolute_import
 
-import collections
-
 from apache_beam.pvalue import AsIter as AllOf
 from apache_beam.transforms.core import CombinePerKey, Create, Flatten, GroupByKey, Map
 from apache_beam.transforms.ptransform import PTransform
@@ -37,7 +35,6 @@ __all__ = [
     'assert_that',
     'equal_to',
     'is_empty',
-    'contains_in_any_order',
     ]
 
 
@@ -197,16 +194,6 @@ def is_empty():
       raise DataflowAssertException(
           'Failed assert: [] == %r' % actual)
   return _empty
-
-
-def contains_in_any_order(expected):
-  def _contains_in_any_order(actual):
-    vs = collections.Counter(actual)
-    es = collections.Counter(expected)
-    if vs != es:
-      raise DataflowAssertException(
-          'Failed assert: extra: %s, missing: %s' % (vs - es, es - vs))
-  return _contains_in_any_order
 
 
 def assert_that(actual, matcher, label='assert_that'):

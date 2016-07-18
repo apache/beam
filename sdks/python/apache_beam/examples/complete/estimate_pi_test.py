@@ -17,6 +17,7 @@
 
 """Test for the estimate_pi example."""
 
+import logging
 import unittest
 
 import apache_beam as beam
