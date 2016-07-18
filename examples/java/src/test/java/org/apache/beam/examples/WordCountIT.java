@@ -29,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 
+import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CharStreams;
@@ -92,7 +93,7 @@ public class WordCountIT {
 
     WordCountOnSuccessMatcher(String outputPath) {
       checkArgument(
-          outputPath != null && !outputPath.isEmpty(),
+          Strings.isNullOrEmpty(outputPath),
           "Expected valid output path, but received %s", outputPath);
 
       this.outputPath = outputPath;
@@ -131,7 +132,7 @@ public class WordCountIT {
           List<String> lines = CharStreams.readLines(reader);
           readData.addAll(lines);
           LOG.info(
-              "[{} of {}] Read {} lines from file: ", i, files.size() - 1, lines.size(), file);
+              "[{} of {}] Read {} lines from file: {}", i, files.size() - 1, lines.size(), file);
         }
         i++;
       }
