@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.io.Files;
@@ -80,10 +82,9 @@ public class IOChannelUtilsTest {
   }
 
   @Test
-  public void testFilePrefix() throws Exception {
-    IOChannelUtils.getFactory("file://tmp");
-    IOChannelUtils.getFactory("file:/tmp");
-    IOChannelUtils.getFactory("file:tmp");
+  public void testHandlerNoScheme() throws Exception {
+    String pathToTempFolder = tmpFolder.getRoot().getAbsolutePath();
+    assertThat(IOChannelUtils.getFactory(pathToTempFolder), instanceOf(FileIOChannelFactory.class));
   }
 
   @Test

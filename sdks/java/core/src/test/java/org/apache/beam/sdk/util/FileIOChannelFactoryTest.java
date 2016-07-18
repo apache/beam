@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.IOChannelUtils.resolve;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -52,8 +54,21 @@ public class FileIOChannelFactoryTest {
 
   private void testCreate(Path path) throws Exception {
     String expected = "my test string";
+    // First with the path string
     try (Writer writer = Channels.newWriter(
         factory.create(path.toString(), MimeTypes.TEXT), StandardCharsets.UTF_8.name())) {
+      writer.write(expected);
+    }
+    assertThat(
+        Files.readLines(path.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder(expected));
+
+    // Delete the file before trying as URI
+    assertTrue("Unable to delete file " + path, path.toFile().delete());
+
+    // Second with the path URI
+    try (Writer writer = Channels.newWriter(
+        factory.create(path.toUri().toString(), MimeTypes.TEXT), StandardCharsets.UTF_8.name())) {
       writer.write(expected);
     }
     assertThat(
@@ -194,8 +209,12 @@ public class FileIOChannelFactoryTest {
 
   @Test
   public void testResolve() throws Exception {
-    String expected = temporaryFolder.getRoot().toPath().resolve("aa").toString();
-    assertEquals(expected, factory.resolve(temporaryFolder.getRoot().toString(), "aa"));
+    Path rootPath = temporaryFolder.getRoot().toPath();
+    String rootString = rootPath.toString();
+
+    String expected = rootPath.resolve("aa").toString();
+    assertEquals(expected, factory.resolve(rootString, "aa"));
+    assertEquals(expected, factory.resolve("file://" + rootString, "aa"));
   }
 
   @Test

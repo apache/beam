@@ -36,24 +36,38 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 
 /**
- * Implements IOChannelFactory for local files.
+ * Implements {@link IOChannelFactory} for local files.
  */
 public class FileIOChannelFactory implements IOChannelFactory {
   private static final Logger LOG = LoggerFactory.getLogger(FileIOChannelFactory.class);
+
+  /**
+   *  Converts the given file spec to a java {@link File}. If {@code spec} is actually a URI with
+   *  the {@code file://} prefix, then this function will ensure that the returned {@link File}
+   *  has the correct path.
+   */
+  private static File specToFile(String spec) {
+    // Strip the "file://" prefix from the spec, if present.
+    if (spec.toLowerCase().startsWith("file://")) {
+      return new File(spec.substring("file://".length()));
+    } else {
+      return new File(spec);
+    }
+  }
 
   // This implementation only allows for wildcards in the file name.
   // The directory portion must exist as-is.
   @Override
   public Collection<String> match(String spec) throws IOException {
-    File file = new File(spec);
+    File file = specToFile(spec);
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
@@ -95,7 +109,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
   public ReadableByteChannel open(String spec) throws IOException {
     LOG.debug("opening file {}", spec);
     @SuppressWarnings("resource") // The caller is responsible for closing the channel.
-    FileInputStream inputStream = new FileInputStream(spec);
+    FileInputStream inputStream = new FileInputStream(specToFile(spec));
     // Use this method for creating the channel (rather than new FileChannel) so that we get
     // regular FileNotFoundException. Closing the underyling channel will close the inputStream.
     return inputStream.getChannel();
@@ -105,7 +119,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
   public WritableByteChannel create(String spec, String mimeType)
       throws IOException {
     LOG.debug("creating file {}", spec);
-    File file = new File(spec);
+    File file = specToFile(spec);
     if (file.getAbsoluteFile().getParentFile() != null
         && !file.getAbsoluteFile().getParentFile().exists()
         && !file.getAbsoluteFile().getParentFile().mkdirs()) {
@@ -118,7 +132,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Override
   public long getSizeBytes(String spec) throws IOException {
     try {
-      return Files.size(FileSystems.getDefault().getPath(spec));
+      return Files.size(specToFile(spec).toPath());
     } catch (NoSuchFileException e) {
       throw new FileNotFoundException(e.getReason());
     }
@@ -131,6 +145,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
 
   @Override
   public String resolve(String path, String other) throws IOException {
-    return Paths.get(path).resolve(other).toString();
+    Path p = specToFile(path).toPath();
+    return p.resolve(other).toString();
   }
 }
