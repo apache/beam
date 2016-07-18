@@ -50,8 +50,6 @@ class DataflowTest(unittest.TestCase):
   SAMPLE_DATA = ['aa bb cc aa bb aa \n'] * 10
   SAMPLE_RESULT = [('cc', 10), ('bb', 20), ('aa', 30)]
 
-  # TODO(silviuc): Figure out a nice way to specify labels for stages so that
-  # internal steps get prepended with surorunding stage names.
   @beam.ptransform_fn
   def Count(pcoll):  # pylint: disable=invalid-name, no-self-argument
     """A Count transform: v, ... => (v, n), ..."""

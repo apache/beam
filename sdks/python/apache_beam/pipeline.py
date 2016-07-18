@@ -53,7 +53,6 @@ from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
-from apache_beam.transforms import format_full_label
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.options import PipelineOptions
@@ -182,7 +181,7 @@ class Pipeline(object):
     visited = set()
     self._root_transform().visit(visitor, self, visited)
 
-  def apply(self, transform, pvalueish=None):
+  def apply(self, transform, pvalueish=None, label=None):
     """Applies a custom transform using the pvalueish specified.
 
     Args:
@@ -195,16 +194,21 @@ class Pipeline(object):
       RuntimeError: if the transform object was already applied to this pipeline
         and needs to be cloned in order to apply again.
     """
+    if isinstance(transform, ptransform._NamedPTransform):
+      return self.apply(transform.transform, pvalueish,
+                        label or transform.label)
+
     if not isinstance(transform, ptransform.PTransform):
       raise TypeError("Expected a PTransform object, got %s" % transform)
 
-    full_label = format_full_label(self._current_transform(), transform)
+    full_label = '/'.join([self._current_transform().full_label,
+                           label or transform.label]).lstrip('/')
     if full_label in self.applied_labels:
       raise RuntimeError(
           'Transform "%s" does not have a stable unique label. '
           'This will prevent updating of pipelines. '
-          'To clone a transform with a new label use: '
-          'transform.clone("NEW LABEL").'
+          'To apply a transform with a specified label write '
+          'pvalue | "label" >> transform'
           % full_label)
     self.applied_labels.add(full_label)
 
