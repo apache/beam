@@ -23,6 +23,7 @@ import logging
 import re
 import unittest
 
+import apache_beam as beam
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsDict
 from apache_beam.pvalue import AsIter as AllOf
@@ -51,7 +52,7 @@ class DataflowTest(unittest.TestCase):
 
   # TODO(silviuc): Figure out a nice way to specify labels for stages so that
   # internal steps get prepended with surorunding stage names.
-  @staticmethod
+  @beam.ptransform_fn
   def Count(pcoll):  # pylint: disable=invalid-name
     """A Count transform: v, ... => (v, n), ..."""
     return (pcoll

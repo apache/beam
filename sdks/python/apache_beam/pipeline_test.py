@@ -172,23 +172,6 @@ class PipelineTest(unittest.TestCase):
     assert_that(result2, equal_to([5, 6, 7]), label='r2')
     pipeline.run()
 
-  def test_apply_custom_callable(self):
-    pipeline = Pipeline(self.runner_name)
-    pcoll = pipeline | Create('pcoll', [1, 2, 3])
-    result = pcoll | PipelineTest.custom_callable
-    assert_that(result, equal_to([2, 3, 4]))
-    pipeline.run()
-
-  def test_apply_custom_callable_error(self):
-    pipeline = Pipeline(self.runner_name)
-    pcoll = pipeline | Create('pcoll', [1, 2, 3])
-    with self.assertRaises(TypeError) as cm:
-      pcoll | GroupByKey  # Note the missing ()'s
-    self.assertEqual(
-        cm.exception.message,
-        "<class 'apache_beam.transforms.core.GroupByKey'> is not "
-        "a PTransform instance, did you mean GroupByKey()?")
-
   def test_transform_no_super_init(self):
     class AddSuffix(PTransform):
 
