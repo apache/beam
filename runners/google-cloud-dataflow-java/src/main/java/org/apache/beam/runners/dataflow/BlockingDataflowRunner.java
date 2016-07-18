@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
  * A {@link PipelineRunner} that's like {@link DataflowRunner}
  * but that waits for the launched job to finish.
  *
- * <p>Prints out job status updates and console messages while it waits.
+ * <p>Logs job status updates and console messages while it waits.
  *
  * <p>Returns the final job state, or throws an exception if the job
  * fails or cannot be monitored.
