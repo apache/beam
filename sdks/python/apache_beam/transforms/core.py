@@ -51,8 +51,13 @@ K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
 
 
-class DoFnProcessContext(object):
-  """A processing context passed to DoFn methods during execution.
+class DoFnContext(object):
+  """A context available to all methods of DoFn instance."""
+  pass
+
+
+class DoFnProcessContext(DoFnContext):
+  """A processing context passed to DoFn process() during execution.
 
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
@@ -132,7 +137,7 @@ class DoFn(WithTypeHints):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self.process, [input_type]))
 
-  def start_bundle(self, context, *args, **kwargs):
+  def start_bundle(self, context):
     """Called before a bundle of elements is processed on a worker.
 
     Elements to be processed are split into bundles and distributed
@@ -140,20 +145,15 @@ class DoFn(WithTypeHints):
     of its bundle, it calls this method.
 
     Args:
-      context: a DoFnProcessContext object
-      *args: side inputs
-      **kwargs: keyword side inputs
-
+      context: a DoFnContext object
     """
     pass
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self, context):
     """Called after a bundle of elements is processed on a worker.
 
     Args:
-      context: a DoFnProcessContext object
-      *args: side inputs
-      **kwargs: keyword side inputs
+      context: a DoFnContext object
     """
     pass
 
