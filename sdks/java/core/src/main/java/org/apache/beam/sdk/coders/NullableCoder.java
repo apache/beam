@@ -175,6 +175,9 @@ public class NullableCoder<T> extends StandardCoder<T> {
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(@Nullable T value, Context context) {
+    if (value == null) {
+      return true;
+    }
     return valueCoder.isRegisterByteSizeObserverCheap(value, context.nested());
   }
 }
