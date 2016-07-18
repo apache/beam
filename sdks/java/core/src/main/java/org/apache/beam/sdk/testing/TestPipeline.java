@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.TestCredential;
 
 import com.google.common.base.Optional;
@@ -155,6 +156,8 @@ public class TestPipeline extends Pipeline {
         options.as(GcpOptions.class).setGcpCredential(new TestCredential());
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
+
+      IOChannelUtils.registerStandardIOFactories(options);
       return options;
     } catch (IOException e) {
       throw new RuntimeException("Unable to instantiate test options from system property "
