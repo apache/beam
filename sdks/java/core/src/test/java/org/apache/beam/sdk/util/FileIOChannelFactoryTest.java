@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.sdk.util.IOChannelUtils.resolve;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
