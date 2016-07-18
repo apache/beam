@@ -196,7 +196,8 @@ class Pipeline(object):
         and needs to be cloned in order to apply again.
     """
     if isinstance(transform, ptransform._NamedPTransform):
-      return self.apply(transform.transform, pvalueish, label or transform.label)
+      return self.apply(transform.transform, pvalueish,
+                        label or transform.label)
 
     if not isinstance(transform, ptransform.PTransform):
       if isinstance(transform, (type, types.ClassType)):
