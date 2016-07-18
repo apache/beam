@@ -26,6 +26,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
@@ -98,10 +99,9 @@ public class StreamingWordExtract {
 
   /**
    * Options supported by {@link StreamingWordExtract}.
-   *
-   * <p>Inherits standard configuration options.
    */
-  private interface StreamingWordExtractOptions extends ExampleBigQueryTableOptions {
+  private interface StreamingWordExtractOptions
+      extends ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
     String getInputFile();
