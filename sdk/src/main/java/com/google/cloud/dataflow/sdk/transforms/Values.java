@@ -26,7 +26,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <p>Example of use:
  * <pre> {@code
  * PCollection<KV<String, Long>> wordCounts = ...;
- * PCollection<Long> counts = wordCounts.apply(Values.<String>create());
+ * PCollection<Long> counts = wordCounts.apply(Values.<Long>create());
  * } </pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows
