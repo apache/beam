@@ -197,8 +197,12 @@ public class StateSampler implements AutoCloseable {
     this.counterSetMutator = counterSetMutator;
     this.nanoClock = nanoClock;
     this.currentState = DO_NOT_SAMPLE;
-    this.sampleSchedule = scheduler.scheduleSampling(this);
     this.stateTimestampNs = nanoClock.nanoTime();
+
+    // Schedule sampling. It should be assumed that as soon as this call
+    // is made, sampling may happen. Therefore, it should be the final
+    // step of initialization.
+    this.sampleSchedule = scheduler.scheduleSampling(this);
   }
 
   /**
