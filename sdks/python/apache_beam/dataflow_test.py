@@ -53,7 +53,7 @@ class DataflowTest(unittest.TestCase):
   # TODO(silviuc): Figure out a nice way to specify labels for stages so that
   # internal steps get prepended with surorunding stage names.
   @beam.ptransform_fn
-  def Count(pcoll):  # pylint: disable=invalid-name
+  def Count(pcoll):  # pylint: disable=invalid-name, no-self-argument
     """A Count transform: v, ... => (v, n), ..."""
     return (pcoll
             | Map('AddCount', lambda x: (x, 1))

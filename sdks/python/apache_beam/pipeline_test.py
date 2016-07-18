@@ -32,7 +32,6 @@ from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
-from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Read
 from apache_beam.transforms.util import assert_that, equal_to

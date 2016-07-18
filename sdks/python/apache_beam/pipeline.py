@@ -47,7 +47,6 @@ import logging
 import os
 import shutil
 import tempfile
-import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -196,7 +195,6 @@ class Pipeline(object):
       RuntimeError: if the transform object was already applied to this pipeline
         and needs to be cloned in order to apply again.
     """
-    print transform, type(transform)
     if not isinstance(transform, ptransform.PTransform):
       raise TypeError("Expected a PTransform object, got %s" % transform)
 
