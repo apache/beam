@@ -17,14 +17,14 @@
  */
 package org.apache.beam.examples.common;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Options that can be used to configure Pub/Sub topic/subscription in Dataflow examples.
+ * Options that can be used to configure Pub/Sub topic/subscription in Beam examples.
  */
 public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubTopicOptions {
   @Description("Pub/Sub subscription")
@@ -38,10 +38,8 @@ public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubT
   static class PubsubSubscriptionFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      DataflowPipelineOptions dataflowPipelineOptions =
-          options.as(DataflowPipelineOptions.class);
-      return "projects/" + dataflowPipelineOptions.getProject()
-          + "/subscriptions/" + dataflowPipelineOptions.getJobName();
+      return "projects/" + options.as(GcpOptions.class).getProject()
+          + "/subscriptions/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
     }
   }
 }
