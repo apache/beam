@@ -31,7 +31,7 @@ from apache_beam.transforms import PTransform
 
 
 class ReadFromAvro(PTransform):
-  """A ``PTrasnfrom`` for reading avro files."""
+  """A ``PTransform`` for reading avro files."""
 
   def __init__(self, label=None, file_pattern=None, min_bundle_size=0,
                **kwargs):
@@ -53,7 +53,7 @@ class ReadFromAvro(PTransform):
     will contain the corresponding field names and will be of type ``string``
     while the values of the dictionary will be of the type defined in the
     corresponding Avro schema.
-    For example, if schema of the Avro file is following.
+    For example, if schema of the Avro file is the following.
       {"namespace": "example.avro","type": "record","name": "User","fields":
       [{"name": "name", "type": "string"},
        {"name": "favorite_number",  "type": ["int", "null"]},
