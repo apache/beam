@@ -18,9 +18,7 @@
 import tempfile
 import unittest
 from filebasedsource_test import LineSource
-from source_test_utils import ExpectedSplitOutcome
-from source_test_utils import SourceTestUtils
-from source_test_utils import SplitFractionStatistics
+import source_test_utils
 
 
 class SourceTestUtilsTest(unittest.TestCase):
@@ -48,7 +46,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     data = self._create_data(100)
     source = self._create_source(data)
     self.assertItemsEqual(
-        data, SourceTestUtils.readFromSource(source, None, None))
+        data, source_test_utils.readFromSource(source, None, None))
 
   def test_source_equals_reference_source(self):
     data = self._create_data(100)
@@ -60,23 +58,27 @@ class SourceTestUtilsTest(unittest.TestCase):
                        'bundles. Please adjust the test so that at least '
                        'two splits get generated.', len(sources_info))
 
-    SourceTestUtils.assertSourcesEqualReferenceSource(
+    source_test_utils.assertSourcesEqualReferenceSource(
         (reference_source, None, None), sources_info)
 
   def test_split_at_fraction_successful(self):
     data = self._create_data(100)
     source = self._create_source(data)
-    result1 = SourceTestUtils.assertSplitAtFractionBehavior(
-        source, 10, 0.5, ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    result2 = SourceTestUtils.assertSplitAtFractionBehavior(
-        source, 20, 0.5, ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+    result1 = source_test_utils.assertSplitAtFractionBehavior(
+        source, 10, 0.5,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+    result2 = source_test_utils.assertSplitAtFractionBehavior(
+        source, 20, 0.5,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
     self.assertEquals(result1, result2)
     self.assertEquals(100, result1[0] + result1[1])
 
-    result3 = SourceTestUtils.assertSplitAtFractionBehavior(
-        source, 30, 0.8, ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
-    result4 = SourceTestUtils.assertSplitAtFractionBehavior(
-        source, 50, 0.8, ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+    result3 = source_test_utils.assertSplitAtFractionBehavior(
+        source, 30, 0.8,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
+    result4 = source_test_utils.assertSplitAtFractionBehavior(
+        source, 50, 0.8,
+        source_test_utils.ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT)
     self.assertEquals(result3, result4)
     self.assertEquals(100, result3[0] + result4[1])
 
@@ -87,21 +89,21 @@ class SourceTestUtilsTest(unittest.TestCase):
     data = self._create_data(100)
     source = self._create_source(data)
 
-    result = SourceTestUtils.assertSplitAtFractionBehavior(
-        source, 90, 0.1, ExpectedSplitOutcome.MUST_FAIL)
+    result = source_test_utils.assertSplitAtFractionBehavior(
+        source, 90, 0.1, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
     self.assertEquals(result[0], 100)
     self.assertEquals(result[1], -1)
 
     with self.assertRaises(ValueError):
-      SourceTestUtils.assertSplitAtFractionBehavior(
-          source, 10, 0.5, ExpectedSplitOutcome.MUST_FAIL)
+      source_test_utils.assertSplitAtFractionBehavior(
+          source, 10, 0.5, source_test_utils.ExpectedSplitOutcome.MUST_FAIL)
 
   def test_split_at_fraction_binary(self):
     data = self._create_data(100)
     source = self._create_source(data)
 
-    stats = SplitFractionStatistics([], [])
-    SourceTestUtils.assertSplitAtFractionBinary(
+    stats = source_test_utils.SplitFractionStatistics([], [])
+    source_test_utils.assertSplitAtFractionBinary(
         source, data, 10, 0.5, None, 0.8, None, stats)
 
     # These lists should not be empty now.
@@ -112,4 +114,4 @@ class SourceTestUtilsTest(unittest.TestCase):
     data = self._create_data(20)
     source = self._create_source(data)
 
-    SourceTestUtils.assertSplitAtFractionExhaustive(source)
+    source_test_utils.assertSplitAtFractionExhaustive(source)

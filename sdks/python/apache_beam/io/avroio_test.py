@@ -21,7 +21,7 @@ import tempfile
 import unittest
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
-from apache_beam.io.source_test_utils import SourceTestUtils
+from apache_beam.io import source_test_utils
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
@@ -95,10 +95,10 @@ class TestAvro(unittest.TestCase):
       sources_info = [
           (split.source, split.start_position, split.stop_position)
           for split in splits]
-      SourceTestUtils.assertSourcesEqualReferenceSource(
+      source_test_utils.assertSourcesEqualReferenceSource(
           (source, None, None), sources_info)
     else:
-      read_records = SourceTestUtils.readFromSource(source, None, None)
+      read_records = source_test_utils.readFromSource(source, None, None)
       self.assertItemsEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
@@ -152,7 +152,7 @@ class TestAvro(unittest.TestCase):
       splits = [split for split in source.split(
           desired_bundle_size=float('inf'))]
       assert len(splits) == 1
-      SourceTestUtils.assertSplitAtFractionExhaustive(splits[0].source)
+      source_test_utils.assertSplitAtFractionExhaustive(splits[0].source)
     finally:
       avro.datafile.SYNC_INTERVAL = old_sync_interval
 
