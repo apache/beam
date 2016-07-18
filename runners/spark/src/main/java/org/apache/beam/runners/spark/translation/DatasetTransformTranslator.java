@@ -125,9 +125,10 @@ public class DatasetTransformTranslator {
             inputDataset.map(WindowingHelpers.<KV<K, V>>unwindowMapFunction(),
             EncoderHelpers.<KV<K, V>>encoder())
             .groupByKey(Functions.<K, V>extractKey(), EncoderHelpers.<K>encoder());
+        LOG.warn("Using GroupByKey with the Spark runner is inefficient and might end-up with OOM "
+            + "if the set of values per key is too large for your cluster settings. "
+            + "It is recommended to use a Combine transformation such as Combine.PerKey.");
         // materialize grouped values - OOM hazard see KeyValueGroupedDataset#mapGroups.
-        //TODO: optimize by saving the unmaterialized KeyValueGroupedDataset and apply the
-        // following transformation on it.
         Dataset<KV<K, Iterable<V>>> materialized =
             grouped.mapGroups(Functions.<K, V>materializeGroupedKV(),
             EncoderHelpers.<KV<K, Iterable<V>>>encoder());
