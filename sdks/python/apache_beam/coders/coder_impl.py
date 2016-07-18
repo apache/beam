@@ -203,6 +203,7 @@ class FloatCoderImpl(StreamCoderImpl):
     return in_stream.read_bigendian_double()
 
   def estimate_size(self, unused_value):
+    # A double is encoded as 8 bytes.
     return 8
 
 
@@ -218,6 +219,7 @@ class TimestampCoderImpl(StreamCoderImpl):
     return self.timestamp_class(micros=in_stream.read_bigendian_int64())
 
   def estimate_size(self, unused_value):
+    # A Timestamp is encoded as a 64-bit integer in 8 bytes.
     return 8
 
 
@@ -302,7 +304,7 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
 
   def estimate_size(self, value):
     """Estimates the encoded size of the given value, in bytes."""
-    estimated_size, unused_observables = (
+    estimated_size, _ = (
         self.get_estimated_size_and_observables(value))
     return estimated_size
 
