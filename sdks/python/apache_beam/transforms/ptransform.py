@@ -369,6 +369,9 @@ class PTransform(WithTypeHints):
     # TODO(robertwb): Assert all input WindowFns compatible.
     return inputs[0].windowing
 
+  def __rrshift__(self, label):
+    return _NamedPTransform(self, label)
+
   def __or__(self, right):
     """Used to compose PTransforms, e.g., ptransform1 | ptransform2."""
     if isinstance(right, PTransform):
@@ -674,24 +677,6 @@ def ptransform_fn(fn):
   return CallablePTransform(fn)
 
 
-def format_full_label(applied_transform, pending_transform):
-  """Returns a fully formatted cumulative PTransform label.
-
-  Args:
-    applied_transform: An instance of an AppliedPTransform that has been fully
-      applied prior to 'pending_transform'.
-    pending_transform: An instance of PTransform that has yet to be applied to
-      the Pipeline.
-
-  Returns:
-    A fully formatted PTransform label. Example: '/foo/bar/baz'.
-  """
-  label = '/'.join([applied_transform.full_label, pending_transform.label])
-  # Remove leading backslash because the monitoring UI expects names that do not
-  # start with such a character.
-  return label if not label.startswith('/') else label[1:]
-
-
 def label_from_callable(fn):
   if hasattr(fn, 'default_label'):
     return fn.default_label()
@@ -704,3 +689,12 @@ def label_from_callable(fn):
       return fn.__name__
   else:
     return str(fn)
+
+class _NamedPTransform(PTransform):
+
+  def __init__(self, transform, label):
+    super(_NamedPTransform, self).__init__(label)
+    self.transform = transform
+
+  def apply(self, pvalue):
+    raise RuntimeError("Should never be applied directly.")
