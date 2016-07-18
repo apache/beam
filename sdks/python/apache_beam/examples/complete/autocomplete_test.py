@@ -22,7 +22,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
 from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import contains_in_any_order
+from apache_beam.transforms.util import equal_to
 
 
 class AutocompleteTest(unittest.TestCase):
@@ -35,7 +35,7 @@ class AutocompleteTest(unittest.TestCase):
     result = words | autocomplete.TopPerPrefix('test', 5)
     # values must be hashable for now
     result = result | beam.Map(lambda (k, vs): (k, tuple(vs)))
-    assert_that(result, contains_in_any_order(
+    assert_that(result, equal_to(
         [
             ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
             ('to', ((3, 'to'), )),
