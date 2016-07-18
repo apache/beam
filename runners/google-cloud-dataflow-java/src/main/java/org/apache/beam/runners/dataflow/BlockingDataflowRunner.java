@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
  * A {@link PipelineRunner} that's like {@link DataflowRunner}
  * but that waits for the launched job to finish.
  *
- * <p>Prints out job status updates and console messages while it waits.
+ * <p>Logs job status updates and console messages while it waits.
  *
  * <p>Returns the final job state, or throws an exception if the job
  * fails or cannot be monitored.
@@ -117,8 +117,7 @@ public class BlockingDataflowRunner extends
       State result;
       try {
         result = job.waitToFinish(
-            BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS,
-            new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
+            BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS, new MonitoringUtil.LoggingHandler());
       } catch (IOException | InterruptedException ex) {
         if (ex instanceof InterruptedException) {
           Thread.currentThread().interrupt();

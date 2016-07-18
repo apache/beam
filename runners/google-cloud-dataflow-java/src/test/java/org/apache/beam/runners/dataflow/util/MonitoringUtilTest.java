@@ -23,15 +23,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.MonitoringUtil.LoggingHandler;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.TestCredential;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 
+import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.chrono.ISOChronology;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,6 +44,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -50,6 +55,7 @@ public class MonitoringUtilTest {
   private static final String PROJECT_ID = "someProject";
   private static final String JOB_ID = "1234";
 
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(LoggingHandler.class);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -146,5 +152,59 @@ public class MonitoringUtilTest {
         "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW=https://dataflow.googleapis.com/v0neverExisted/ "
         + "gcloud alpha dataflow jobs --project=someProject cancel 1234",
         cancelCommand);
+  }
+
+  @Test
+  public void testLoggingHandler() {
+    DateTime errorTime = new DateTime(1000L, ISOChronology.getInstanceUTC());
+    DateTime warningTime = new DateTime(2000L, ISOChronology.getInstanceUTC());
+    DateTime basicTime = new DateTime(3000L, ISOChronology.getInstanceUTC());
+    DateTime detailedTime = new DateTime(4000L, ISOChronology.getInstanceUTC());
+    DateTime debugTime = new DateTime(5000L, ISOChronology.getInstanceUTC());
+    DateTime unknownTime = new DateTime(6000L, ISOChronology.getInstanceUTC());
+    JobMessage errorJobMessage = new JobMessage();
+    errorJobMessage.setMessageImportance("JOB_MESSAGE_ERROR");
+    errorJobMessage.setMessageText("ERRORERROR");
+    errorJobMessage.setTime(TimeUtil.toCloudTime(errorTime));
+    JobMessage warningJobMessage = new JobMessage();
+    warningJobMessage.setMessageImportance("JOB_MESSAGE_WARNING");
+    warningJobMessage.setMessageText("WARNINGWARNING");
+    warningJobMessage.setTime(TimeUtil.toCloudTime(warningTime));
+    JobMessage basicJobMessage = new JobMessage();
+    basicJobMessage.setMessageImportance("JOB_MESSAGE_BASIC");
+    basicJobMessage.setMessageText("BASICBASIC");
+    basicJobMessage.setTime(TimeUtil.toCloudTime(basicTime));
+    JobMessage detailedJobMessage = new JobMessage();
+    detailedJobMessage.setMessageImportance("JOB_MESSAGE_DETAILED");
+    detailedJobMessage.setMessageText("DETAILEDDETAILED");
+    detailedJobMessage.setTime(TimeUtil.toCloudTime(detailedTime));
+    JobMessage debugJobMessage = new JobMessage();
+    debugJobMessage.setMessageImportance("JOB_MESSAGE_DEBUG");
+    debugJobMessage.setMessageText("DEBUGDEBUG");
+    debugJobMessage.setTime(TimeUtil.toCloudTime(debugTime));
+    JobMessage unknownJobMessage = new JobMessage();
+    unknownJobMessage.setMessageImportance("JOB_MESSAGE_UNKNOWN");
+    unknownJobMessage.setMessageText("UNKNOWNUNKNOWN");
+    unknownJobMessage.setTime("");
+    JobMessage emptyJobMessage = new JobMessage();
+    emptyJobMessage.setMessageImportance("JOB_MESSAGE_EMPTY");
+    emptyJobMessage.setTime(TimeUtil.toCloudTime(unknownTime));
+
+    new LoggingHandler().process(Arrays.asList(errorJobMessage, warningJobMessage, basicJobMessage,
+        detailedJobMessage, debugJobMessage, unknownJobMessage));
+
+    expectedLogs.verifyError("ERRORERROR");
+    expectedLogs.verifyError(errorTime.toString());
+    expectedLogs.verifyWarn("WARNINGWARNING");
+    expectedLogs.verifyWarn(warningTime.toString());
+    expectedLogs.verifyInfo("BASICBASIC");
+    expectedLogs.verifyInfo(basicTime.toString());
+    expectedLogs.verifyInfo("DETAILEDDETAILED");
+    expectedLogs.verifyInfo(detailedTime.toString());
+    expectedLogs.verifyDebug("DEBUGDEBUG");
+    expectedLogs.verifyDebug(debugTime.toString());
+    expectedLogs.verifyTrace("UNKNOWN TIMESTAMP");
+    expectedLogs.verifyTrace("UNKNOWNUNKNOWN");
+    expectedLogs.verifyNotLogged(unknownTime.toString());
   }
 }
