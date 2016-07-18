@@ -156,6 +156,7 @@ STR_TYPE = 3
 UNICODE_TYPE = 4
 LIST_TYPE = 5
 TUPLE_TYPE = 6
+DICT_TYPE = 7
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -177,13 +178,21 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(STR_TYPE)
       stream.write(value, nested)
     elif t is unicode:
+      unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
-      stream.write(value.encode('utf-8'), nested)
+      stream.write(unicode_value.encode('utf-8'), nested)
     elif t is list or t is tuple:
       stream.write_byte(LIST_TYPE if t is list else TUPLE_TYPE)
       stream.write_var_int64(len(value))
       for e in value:
         self.encode_to_stream(e, stream, True)
+    elif t is dict:
+      dict_value = value  # for typing
+      stream.write_byte(DICT_TYPE)
+      stream.write_var_int64(len(value))
+      for k, v in dict_value.iteritems():
+        self.encode_to_stream(k, stream, True)
+        self.encode_to_stream(v, stream, True)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -207,6 +216,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         return vlist
       else:
         return tuple(vlist)
+    elif t == DICT_TYPE:
+      vlen = stream.read_var_int64()
+      v = {}
+      for _ in range(vlen):
+        k = self.decode_from_stream(stream, True)
+        v[k] = self.decode_from_stream(stream, True)
+      return v
     else:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
 

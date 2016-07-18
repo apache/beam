@@ -116,6 +116,7 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coder, None, 1, -1, 1.5, 'str\0str', u'unicode\0\u0101')
     self.check_coder(coder, (), (1, 2, 3))
     self.check_coder(coder, [], [1, 2, 3])
+    self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
     self.check_coder(coder, len)
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
