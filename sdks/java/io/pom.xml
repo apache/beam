@@ -37,6 +37,7 @@
     <module>hdfs</module>
     <module>jms</module>
     <module>kafka</module>
+    <module>kinesis</module>
   </modules>
 
 </project>
