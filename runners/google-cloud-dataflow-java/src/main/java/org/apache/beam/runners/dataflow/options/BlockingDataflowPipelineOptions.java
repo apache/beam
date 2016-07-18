@@ -18,38 +18,11 @@
 package org.apache.beam.runners.dataflow.options;
 
 import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Hidden;
-import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import java.io.PrintStream;
 
 /**
  * Options that are used to configure the {@link BlockingDataflowRunner}.
  */
 @Description("Configure options on the BlockingDataflowRunner.")
 public interface BlockingDataflowPipelineOptions extends DataflowPipelineOptions {
-  /**
-   * Output stream for job status messages.
-   */
-  @Description("Where messages generated during execution of the Dataflow job will be output.")
-  @JsonIgnore
-  @Hidden
-  @Default.InstanceFactory(StandardOutputFactory.class)
-  PrintStream getJobMessageOutput();
-  void setJobMessageOutput(PrintStream value);
-
-  /**
-   * Returns a default of {@link System#out}.
-   */
-  public static class StandardOutputFactory implements DefaultValueFactory<PrintStream> {
-    @Override
-    public PrintStream create(PipelineOptions options) {
-      return System.out;
-    }
-  }
 }

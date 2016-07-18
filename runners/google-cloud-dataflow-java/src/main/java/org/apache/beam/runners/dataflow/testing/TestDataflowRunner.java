@@ -107,7 +107,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     assertThat(job, testPipelineOptions.getOnCreateMatcher());
 
     CancelWorkflowOnError messageHandler = new CancelWorkflowOnError(
-        job, new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
+        job, new MonitoringUtil.LoggingHandler());
 
     try {
       final Optional<Boolean> result;

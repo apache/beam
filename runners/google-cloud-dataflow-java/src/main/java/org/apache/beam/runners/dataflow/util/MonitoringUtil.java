@@ -27,12 +27,14 @@ import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -63,6 +65,11 @@ public final class MonitoringUtil {
           .put("JOB_STATE_CANCELLED", State.CANCELLED)
           .put("JOB_STATE_UPDATED", State.UPDATED)
           .build();
+  private static final String JOB_MESSAGE_ERROR = "JOB_MESSAGE_ERROR";
+  private static final String JOB_MESSAGE_WARNING = "JOB_MESSAGE_WARNING";
+  private static final String JOB_MESSAGE_BASIC = "JOB_MESSAGE_BASIC";
+  private static final String JOB_MESSAGE_DETAILED = "JOB_MESSAGE_DETAILED";
+  private static final String JOB_MESSAGE_DEBUG = "JOB_MESSAGE_DEBUG";
 
   private String projectId;
   private Messages messagesClient;
@@ -76,53 +83,38 @@ public final class MonitoringUtil {
     void process(List<JobMessage> messages);
   }
 
-  /** A handler that prints monitoring messages to a stream. */
-  public static class PrintHandler implements JobMessagesHandler {
-    private PrintStream out;
-
-    /**
-     * Construct the handler.
-     *
-     * @param stream The stream to write the messages to.
-     */
-    public PrintHandler(PrintStream stream) {
-      out = stream;
-    }
+  /** A handler that logs monitoring messages. */
+  public static class LoggingHandler implements JobMessagesHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(LoggingHandler.class);
 
     @Override
     public void process(List<JobMessage> messages) {
       for (JobMessage message : messages) {
-        if (message.getMessageText() == null || message.getMessageText().isEmpty()) {
+        if (Strings.isNullOrEmpty(message.getMessageText())) {
           continue;
         }
-        String importanceString = null;
-        if (message.getMessageImportance() == null) {
-          continue;
-        } else if (message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
-          importanceString = "Error:   ";
-        } else if (message.getMessageImportance().equals("JOB_MESSAGE_WARNING")) {
-          importanceString = "Warning: ";
-        } else if (message.getMessageImportance().equals("JOB_MESSAGE_BASIC")) {
-          importanceString = "Basic:  ";
-        } else if (message.getMessageImportance().equals("JOB_MESSAGE_DETAILED")) {
-          importanceString = "Detail:  ";
-        } else {
-          // TODO: Remove filtering here once getJobMessages supports minimum
-          // importance.
-          continue;
-        }
+
         @Nullable Instant time = TimeUtil.fromCloudTime(message.getTime());
-        if (time == null) {
-          out.print("UNKNOWN TIMESTAMP: ");
-        } else {
-          out.print(time + ": ");
+        String logMessage = (time == null ? "UNKNOWN TIMESTAMP: " : time + ": ")
+            + message.getMessageText();
+        switch (message.getMessageImportance()) {
+          case JOB_MESSAGE_ERROR:
+            LOG.error(logMessage);
+            break;
+          case JOB_MESSAGE_WARNING:
+            LOG.warn(logMessage);
+            break;
+          case JOB_MESSAGE_BASIC:
+          case JOB_MESSAGE_DETAILED:
+            LOG.info(logMessage);
+            break;
+          case JOB_MESSAGE_DEBUG:
+            LOG.debug(logMessage);
+            break;
+          default:
+            LOG.trace(logMessage);
         }
-        if (importanceString != null) {
-          out.print(importanceString);
-        }
-        out.println(message.getMessageText());
       }
-      out.flush();
     }
   }
 
