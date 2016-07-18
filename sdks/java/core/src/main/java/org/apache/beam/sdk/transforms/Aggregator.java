@@ -23,7 +23,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
  * to be combined across all bundles.
  *
- * <p>Aggregators are created by calling {@link DoFn#createAggregator},
+ * <p>Aggregators are created by calling {@link DoFn#createAggregator DoFn.createAggregator},
  * typically from the {@link DoFn} constructor. Elements can be added to the
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
