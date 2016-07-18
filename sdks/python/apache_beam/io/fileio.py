@@ -26,8 +26,10 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 import time
 import zlib
+import weakref
 
 from apache_beam import coders
 from apache_beam.io import iobase
@@ -535,6 +537,10 @@ class FileSink(iobase.Sink):
         return(None, e)
       return (final_name, None)
 
+    # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
+    # child thread. (http://bugs.python.org/issue10015)
+    if not hasattr(threading.current_thread(), "_children"):
+      threading.current_thread()._children = weakref.WeakKeyDictionary()
     rename_results = ThreadPool(num_threads).map(_rename_file, rename_ops)
 
     for final_name, err in rename_results:
