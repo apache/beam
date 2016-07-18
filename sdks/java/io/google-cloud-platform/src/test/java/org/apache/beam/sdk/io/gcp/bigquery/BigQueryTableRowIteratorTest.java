@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;

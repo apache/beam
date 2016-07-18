@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import org.apache.beam.sdk.options.BigQueryOptions;
 
@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
 /**
  * An interface for real, mock, or fake implementations of Cloud BigQuery services.
  */
-public interface BigQueryServices extends Serializable {
+interface BigQueryServices extends Serializable {
 
   /**
    * Returns a real, mock, or fake {@link JobService}.

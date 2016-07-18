@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+
+import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
@@ -68,7 +70,7 @@ import javax.annotation.Nullable;
 /**
  * Iterates over all rows in a table.
  */
-public class BigQueryTableRowIterator implements AutoCloseable {
+class BigQueryTableRowIterator implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableRowIterator.class);
 
   @Nullable private TableReference ref;
@@ -252,7 +254,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
     }
 
     if (fieldSchema.getType().equals("TIMESTAMP")) {
-      return AvroUtils.formatTimestamp((String) v);
+      return BigQueryAvroUtils.formatTimestamp((String) v);
     }
 
     return v;
