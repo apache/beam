@@ -601,6 +601,8 @@ class CallablePTransform(PTransform):
     # is called (and __call__ invoked) we will have all the information
     # needed to initialize the super class.
     self.fn = fn
+    self._args = ()
+    self._kwargs = {}
 
   def __call__(self, *args, **kwargs):
     if args and args[0] is None:
