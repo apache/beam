@@ -46,6 +46,7 @@ import java.util.Map;
 class ParDoEvaluator<T> implements TransformEvaluator<T> {
   public static <InputT, OutputT> ParDoEvaluator<InputT> create(
       EvaluationContext evaluationContext,
+      DirectStepContext stepContext,
       CommittedBundle<InputT> inputBundle,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
       DoFn<InputT, OutputT> fn,
@@ -55,9 +56,6 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
       Map<TupleTag<?>, PCollection<?>> outputs) {
     DirectExecutionContext executionContext =
         evaluationContext.getExecutionContext(application, inputBundle.getKey());
-    String stepName = evaluationContext.getStepName(application);
-    DirectStepContext stepContext =
-        executionContext.getOrCreateStepContext(stepName, stepName);
 
     CounterSet counters = evaluationContext.createCounterSet();
 

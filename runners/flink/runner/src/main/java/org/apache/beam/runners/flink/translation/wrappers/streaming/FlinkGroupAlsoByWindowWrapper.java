@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serializable;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
@@ -47,6 +48,8 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -262,12 +265,15 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
    */
   private <W extends BoundedWindow> DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> createGroupAlsoByWindowOperator() {
     if (this.operator == null) {
+
+      StateInternalsFactory<K> stateInternalsFactory = new GroupAlsoByWindowWrapperStateInternalsFactory();
+
       if (this.combineFn == null) {
         // Thus VOUT == Iterable<VIN>
         Coder<VIN> inputValueCoder = inputKvCoder.getValueCoder();
 
         this.operator = (DoFn) GroupAlsoByWindowViaWindowSetDoFn.create(
-            (WindowingStrategy<?, W>) this.windowingStrategy, SystemReduceFn.<K, VIN, W>buffering(inputValueCoder));
+            (WindowingStrategy<?, W>) this.windowingStrategy, stateInternalsFactory, SystemReduceFn.<K, VIN, W>buffering(inputValueCoder));
       } else {
         Coder<K> inputKeyCoder = inputKvCoder.getKeyCoder();
 
@@ -275,14 +281,14 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
             .withInputCoder(combineFn, coderRegistry, inputKvCoder);
 
         this.operator = GroupAlsoByWindowViaWindowSetDoFn.create(
-            (WindowingStrategy<?, W>) this.windowingStrategy, SystemReduceFn.<K, VIN, VACC, VOUT, W>combining(inputKeyCoder, appliedCombineFn));
+            (WindowingStrategy<?, W>) this.windowingStrategy, stateInternalsFactory, SystemReduceFn.<K, VIN, VACC, VOUT, W>combining(inputKeyCoder, appliedCombineFn));
       }
     }
     return this.operator;
   }
 
   private void processKeyedWorkItem(KeyedWorkItem<K, VIN> workItem) throws Exception {
-    context.setElement(workItem, getStateInternalsForKey(workItem.key()));
+    context.setElement(workItem);
     operator.processElement(context);
   }
 
@@ -438,8 +444,6 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
     private final TimestampedCollector<WindowedValue<KV<K, VOUT>>> collector;
 
-    private FlinkStateInternals<K> stateInternals;
-
     private KeyedWorkItem<K, VIN> element;
 
     public ProcessContext(DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> function,
@@ -452,10 +456,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       this.timerInternals = checkNotNull(timerInternals);
     }
 
-    public void setElement(KeyedWorkItem<K, VIN> element,
-                           FlinkStateInternals<K> stateForKey) {
+    public void setElement(KeyedWorkItem<K, VIN> element) {
       this.element = element;
-      this.stateInternals = stateForKey;
     }
 
     public void setCurrentInputWatermark(Instant watermark) {
@@ -509,8 +511,8 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       return new WindowingInternals<KeyedWorkItem<K, VIN>, KV<K, VOUT>>() {
 
         @Override
-        public org.apache.beam.sdk.util.state.StateInternals stateInternals() {
-          return stateInternals;
+        public StateInternals stateInternals() {
+          throw new UnsupportedOperationException("stateInternals() is not available");
         }
 
         @Override
@@ -627,5 +629,14 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
     // restore the timerInternals.
     this.timerInternals.restoreTimerInternals(reader, inputKvCoder, windowCoder);
+  }
+
+  private class GroupAlsoByWindowWrapperStateInternalsFactory implements
+      StateInternalsFactory<K>, Serializable {
+
+    @Override
+    public StateInternals<K> stateInternalsForKey(K key) {
+      return getStateInternalsForKey(key);
+    }
   }
 }

@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 
 /**
@@ -51,9 +52,12 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
    * @param windowingStrategy The window function and trigger to use for grouping
    * @param inputCoder the input coder to use
    */
-  public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
-      createDefault(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
+  public static <K, V, W extends BoundedWindow>
+      GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> createDefault(
+          WindowingStrategy<?, W> windowingStrategy,
+          StateInternalsFactory<K> stateInternalsFactory,
+          Coder<V> inputCoder) {
     return new GroupAlsoByWindowsViaOutputBufferDoFn<>(
-        windowingStrategy, SystemReduceFn.<K, V, W>buffering(inputCoder));
+        windowingStrategy, stateInternalsFactory, SystemReduceFn.<K, V, W>buffering(inputCoder));
   }
 }
