@@ -359,7 +359,7 @@ class FastPrimitivesCoder(FastCoder):
 
   For unknown types, falls back to another coder (e.g. PickleCoder).
   """
-  def __init__(self, fallback_coder):
+  def __init__(self, fallback_coder=PickleCoder()):
     self._fallback_coder = fallback_coder
 
   def _create_impl(self):
