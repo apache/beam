@@ -17,6 +17,7 @@
 
 """Test for the estimate_pi example."""
 
+import logging
 import unittest
 
 import apache_beam as beam
@@ -47,4 +48,5 @@ class EstimatePiTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()
