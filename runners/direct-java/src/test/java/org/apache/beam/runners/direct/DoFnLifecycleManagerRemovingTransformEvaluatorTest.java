@@ -25,8 +25,10 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,24 +38,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tests for {@link ThreadLocalInvalidatingTransformEvaluator}.
+ * Tests for {@link DoFnLifecycleManagerRemovingTransformEvaluator}.
  */
 @RunWith(JUnit4.class)
-public class ThreadLocalInvalidatingTransformEvaluatorTest {
-  private ThreadLocal<Object> threadLocal;
+public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
+  private DoFnLifecycleManager lifecycleManager;
 
   @Before
   public void setup() {
-    threadLocal = new ThreadLocal<>();
-    threadLocal.set(new Object());
+    lifecycleManager = DoFnLifecycleManager.of(new TestFn());
   }
 
   @Test
   public void delegatesToUnderlying() throws Exception {
     RecordingTransformEvaluator underlying = new RecordingTransformEvaluator();
-    Object original = threadLocal.get();
+    OldDoFn<?, ?> original = lifecycleManager.get();
     TransformEvaluator<Object> evaluator =
-        ThreadLocalInvalidatingTransformEvaluator.wrapping(underlying, threadLocal);
+        DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
     WindowedValue<Object> first = WindowedValue.valueInGlobalWindow(new Object());
     WindowedValue<Object> second = WindowedValue.valueInGlobalWindow(new Object());
     evaluator.processElement(first);
@@ -66,35 +67,36 @@ public class ThreadLocalInvalidatingTransformEvaluatorTest {
   }
 
   @Test
-  public void removesOnExceptionInProcessElement() {
+  public void removesOnExceptionInProcessElement() throws Exception {
     ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
-    Object original = threadLocal.get();
+    OldDoFn<?, ?> original = lifecycleManager.get();
     assertThat(original, not(nullValue()));
     TransformEvaluator<Object> evaluator =
-        ThreadLocalInvalidatingTransformEvaluator.wrapping(underlying, threadLocal);
+        DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
 
     try {
       evaluator.processElement(WindowedValue.valueInGlobalWindow(new Object()));
     } catch (Exception e) {
-      assertThat(threadLocal.get(), nullValue());
+      assertThat(lifecycleManager.get(), not(Matchers.<OldDoFn<?, ?>>theInstance(original)));
       return;
     }
     fail("Expected ThrowingTransformEvaluator to throw on method call");
   }
 
   @Test
-  public void removesOnExceptionInFinishBundle() {
+  public void removesOnExceptionInFinishBundle() throws Exception {
     ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
-    Object original = threadLocal.get();
-    // the ThreadLocal is set when the evaluator starts
+    OldDoFn<?, ?> original = lifecycleManager.get();
+    // the LifecycleManager is set when the evaluator starts
     assertThat(original, not(nullValue()));
     TransformEvaluator<Object> evaluator =
-        ThreadLocalInvalidatingTransformEvaluator.wrapping(underlying, threadLocal);
+        DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
 
     try {
       evaluator.finishBundle();
     } catch (Exception e) {
-      assertThat(threadLocal.get(), nullValue());
+      assertThat(lifecycleManager.get(),
+          Matchers.not(Matchers.<OldDoFn<?, ?>>theInstance(original)));
       return;
     }
     fail("Expected ThrowingTransformEvaluator to throw on method call");
@@ -130,6 +132,13 @@ public class ThreadLocalInvalidatingTransformEvaluatorTest {
     @Override
     public TransformResult finishBundle() throws Exception {
       throw new Exception();
+    }
+  }
+
+
+  private static class TestFn extends OldDoFn<Object, Object> {
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
     }
   }
 }

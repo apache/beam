@@ -20,25 +20,28 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.util.WindowedValue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A {@link TransformEvaluator} which delegates calls to an underlying {@link TransformEvaluator},
- * clearing the value of a {@link ThreadLocal} if any call throws an exception.
+ * clearing the value of a {@link DoFnLifecycleManager} if any call throws an exception.
  */
-class ThreadLocalInvalidatingTransformEvaluator<InputT>
-    implements TransformEvaluator<InputT> {
+class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements TransformEvaluator<InputT> {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(DoFnLifecycleManagerRemovingTransformEvaluator.class);
   private final TransformEvaluator<InputT> underlying;
-  private final ThreadLocal<?> threadLocal;
+  private final DoFnLifecycleManager lifecycleManager;
 
   public static <InputT> TransformEvaluator<InputT> wrapping(
-      TransformEvaluator<InputT> underlying,
-      ThreadLocal<?> threadLocal) {
-    return new ThreadLocalInvalidatingTransformEvaluator<>(underlying, threadLocal);
+      TransformEvaluator<InputT> underlying, DoFnLifecycleManager threadLocal) {
+    return new DoFnLifecycleManagerRemovingTransformEvaluator<>(underlying, threadLocal);
   }
 
-  private ThreadLocalInvalidatingTransformEvaluator(
-      TransformEvaluator<InputT> underlying, ThreadLocal<?> threadLocal) {
+  private DoFnLifecycleManagerRemovingTransformEvaluator(
+      TransformEvaluator<InputT> underlying, DoFnLifecycleManager threadLocal) {
     this.underlying = underlying;
-    this.threadLocal = threadLocal;
+    this.lifecycleManager = threadLocal;
   }
 
   @Override
@@ -46,7 +49,14 @@ class ThreadLocalInvalidatingTransformEvaluator<InputT>
     try {
       underlying.processElement(element);
     } catch (Exception e) {
-      threadLocal.remove();
+      try {
+        lifecycleManager.remove();
+      } catch (Exception removalException) {
+        LOG.error(
+            "Exception encountered while cleaning up after processing an element",
+            removalException);
+        e.addSuppressed(removalException);
+      }
       throw e;
     }
   }
@@ -56,7 +66,14 @@ class ThreadLocalInvalidatingTransformEvaluator<InputT>
     try {
       return underlying.finishBundle();
     } catch (Exception e) {
-      threadLocal.remove();
+      try {
+        lifecycleManager.remove();
+      } catch (Exception removalException) {
+        LOG.error(
+            "Exception encountered while cleaning up after finishing a bundle",
+            removalException);
+        e.addSuppressed(removalException);
+      }
       throw e;
     }
   }
