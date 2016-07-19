@@ -111,6 +111,15 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
         (1, cell_value))
 
+  def test_fast_primitives_coder(self):
+    coder = coders.FastPrimitivesCoder(coders.SingletonCoder(len))
+    self.check_coder(coder, None, 1, -1, 1.5, 'str\0str', u'unicode\0\u0101')
+    self.check_coder(coder, (), (1, 2, 3))
+    self.check_coder(coder, [], [1, 2, 3])
+    self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
+    self.check_coder(coder, len)
+    self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
+
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), 'a', '\0', 'z' * 1000)
 

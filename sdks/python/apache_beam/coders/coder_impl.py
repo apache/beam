@@ -26,6 +26,7 @@ coder_impl.pxd file for type hints.
 """
 
 import collections
+from types import NoneType
 
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -145,6 +146,85 @@ class DeterministicPickleCoderImpl(CoderImpl):
 
   def decode(self, encoded):
     return self._pickle_coder.decode(encoded)
+
+
+UNKNOWN_TYPE = 0xFF
+NONE_TYPE = 0
+INT_TYPE = 1
+FLOAT_TYPE = 2
+STR_TYPE = 3
+UNICODE_TYPE = 4
+LIST_TYPE = 5
+TUPLE_TYPE = 6
+DICT_TYPE = 7
+
+
+class FastPrimitivesCoderImpl(StreamCoderImpl):
+
+  def __init__(self, fallback_coder_impl):
+    self.fallback_coder_impl = fallback_coder_impl
+
+  def encode_to_stream(self, value, stream, nested):
+    t = type(value)
+    if t is NoneType:
+      stream.write_byte(NONE_TYPE)
+    elif t is int:
+      stream.write_byte(INT_TYPE)
+      stream.write_var_int64(value)
+    elif t is float:
+      stream.write_byte(FLOAT_TYPE)
+      stream.write_bigendian_double(value)
+    elif t is str:
+      stream.write_byte(STR_TYPE)
+      stream.write(value, nested)
+    elif t is unicode:
+      unicode_value = value  # for typing
+      stream.write_byte(UNICODE_TYPE)
+      stream.write(unicode_value.encode('utf-8'), nested)
+    elif t is list or t is tuple:
+      stream.write_byte(LIST_TYPE if t is list else TUPLE_TYPE)
+      stream.write_var_int64(len(value))
+      for e in value:
+        self.encode_to_stream(e, stream, True)
+    elif t is dict:
+      dict_value = value  # for typing
+      stream.write_byte(DICT_TYPE)
+      stream.write_var_int64(len(value))
+      for k, v in dict_value.iteritems():
+        self.encode_to_stream(k, stream, True)
+        self.encode_to_stream(v, stream, True)
+    else:
+      stream.write_byte(UNKNOWN_TYPE)
+      self.fallback_coder_impl.encode_to_stream(value, stream, nested)
+
+  def decode_from_stream(self, stream, nested):
+    t = stream.read_byte()
+    if t == NONE_TYPE:
+      return None
+    elif t == INT_TYPE:
+      return stream.read_var_int64()
+    elif t == FLOAT_TYPE:
+      return stream.read_bigendian_double()
+    elif t == STR_TYPE:
+      return stream.read_all(nested)
+    elif t == UNICODE_TYPE:
+      return stream.read_all(nested).decode('utf-8')
+    elif t == LIST_TYPE or t == TUPLE_TYPE:
+      vlen = stream.read_var_int64()
+      vlist = [self.decode_from_stream(stream, True) for _ in range(vlen)]
+      if t == LIST_TYPE:
+        return vlist
+      else:
+        return tuple(vlist)
+    elif t == DICT_TYPE:
+      vlen = stream.read_var_int64()
+      v = {}
+      for _ in range(vlen):
+        k = self.decode_from_stream(stream, True)
+        v[k] = self.decode_from_stream(stream, True)
+      return v
+    else:
+      return self.fallback_coder_impl.decode_from_stream(stream, nested)
 
 
 class BytesCoderImpl(CoderImpl):
