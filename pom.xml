@@ -206,7 +206,6 @@
             <plugin>
               <groupId>org.apache.rat</groupId>
               <artifactId>apache-rat-plugin</artifactId>
-              <version>0.11</version>
               <executions>
                 <execution>
                   <phase>verify</phase>
@@ -215,30 +214,6 @@
                   </goals>
                 </execution>
               </executions>
-              <configuration>
-                <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
-                <excludeSubProjects>false</excludeSubProjects>
-                <useDefaultExcludes>true</useDefaultExcludes>
-                <excludes>
-                  <!-- Keep exclude sync with .gitignore -->
-                  <exclude>**/target/**/*</exclude>
-                  <exclude>**/dependency-reduced-pom.xml</exclude>
-                  <exclude>.github/**/*</exclude>
-                  <exclude>**/*.iml</exclude>
-                  <exclude>**/package-list</exclude>
-                  <exclude>**/user.avsc</exclude>
-                  <exclude>**/test/resources/**/*.txt</exclude>
-                  <exclude>**/test/**/.placeholder</exclude>
-                  <exclude>.repository/**/*</exclude>
-
-                  <!-- Default eclipse excludes neglect subprojects -->
-                  <exclude>**/.checkstyle</exclude>
-                  <exclude>**/.classpath</exclude>
-                  <exclude>**/.factorypath</exclude>
-                  <exclude>**/.project</exclude>
-                  <exclude>**/.settings/**/*</exclude>
-                </excludes>
-              </configuration>
             </plugin>
           </plugins>
         </pluginManagement>
@@ -759,6 +734,36 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>2.10.3</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.rat</groupId>
+          <artifactId>apache-rat-plugin</artifactId>
+          <version>0.11</version>
+          <configuration>
+            <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
+            <excludeSubProjects>false</excludeSubProjects>
+            <useDefaultExcludes>true</useDefaultExcludes>
+            <excludes>
+              <!-- Keep exclude sync with .gitignore -->
+              <exclude>**/target/**/*</exclude>
+              <exclude>**/dependency-reduced-pom.xml</exclude>
+              <exclude>.github/**/*</exclude>
+              <exclude>**/*.iml</exclude>
+              <exclude>**/package-list</exclude>
+              <exclude>**/user.avsc</exclude>
+              <exclude>**/test/resources/**/*.txt</exclude>
+              <exclude>**/test/**/.placeholder</exclude>
+              <exclude>.repository/**/*</exclude>
+
+              <!-- Default eclipse excludes neglect subprojects -->
+              <exclude>**/.checkstyle</exclude>
+              <exclude>**/.classpath</exclude>
+              <exclude>**/.factorypath</exclude>
+              <exclude>**/.project</exclude>
+              <exclude>**/.settings/**/*</exclude>
+            </excludes>
+          </configuration>
         </plugin>
 
         <plugin>
