@@ -79,10 +79,8 @@ class PValue(object):
     optional first label and a transform/callable object. It will call the
     pipeline.apply() method with this modified argument list.
     """
-    if isinstance(args[0], str):
-      # TODO(robertwb): Make sure labels are properly passed during
-      # ptransform construction and drop this argument.
-      args = args[1:]
+    if isinstance(args[0], basestring):
+      kwargs['label'], args = args[0], args[1:]
     arglist = list(args)
     arglist.insert(1, self)
     return self.pipeline.apply(*arglist, **kwargs)

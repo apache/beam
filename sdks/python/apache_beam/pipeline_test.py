@@ -158,16 +158,16 @@ class PipelineTest(unittest.TestCase):
         cm.exception.message,
         'Transform "CustomTransform" does not have a stable unique label. '
         'This will prevent updating of pipelines. '
-        'To clone a transform with a new label use: '
-        'transform.clone("NEW LABEL").')
+        'To apply a transform with a specified label write '
+        'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll1 = pipeline | Create('pcoll1', [1, 2, 3])
-    pcoll2 = pipeline | Create('pcoll2', [4, 5, 6])
+    pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
+    pcoll2 = pipeline | 'pc2' >> Create([4, 5, 6])
     transform = PipelineTest.CustomTransform()
     result1 = pcoll1 | transform
-    result2 = pcoll2 | transform.clone('new label')
+    result2 = pcoll2 | 'new_label' >> transform
     assert_that(result1, equal_to([2, 3, 4]), label='r1')
     assert_that(result2, equal_to([5, 6, 7]), label='r2')
     pipeline.run()
