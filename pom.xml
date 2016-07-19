@@ -230,6 +230,13 @@
                   <exclude>**/test/resources/**/*.txt</exclude>
                   <exclude>**/test/**/.placeholder</exclude>
                   <exclude>.repository/**/*</exclude>
+
+                  <!-- Default eclipse excludes neglect subprojects -->
+                  <exclude>**/.checkstyle</exclude>
+                  <exclude>**/.classpath</exclude>
+                  <exclude>**/.factorypath</exclude>
+                  <exclude>**/.project</exclude>
+                  <exclude>**/.settings/**/*</exclude>
                 </excludes>
               </configuration>
             </plugin>
