@@ -25,8 +25,8 @@ from apache_beam.internal import util
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.transforms import core
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class FakeLogger(object):
@@ -188,3 +188,35 @@ class DoFnState(object):
     """Looks up the counter for this aggregator, creating one if necessary."""
     return self._counter_factory.get_aggregator_counter(
         self.step_name, aggregator)
+
+
+class DoFnContext(object):
+
+  def __init__(self, label, element=None, state=None):
+    self.label = label
+    self.state = state
+    if element is not None:
+      self.set_element(element)
+
+  def set_element(self, windowed_value):
+    self.windowed_value = windowed_value
+
+  @property
+  def element(self):
+    return self.windowed_value.value
+
+  @property
+  def timestamp(self):
+    return self.windowed_value.timestamp
+
+  @property
+  def windows(self):
+    return self.windowed_value.windows
+
+  def aggregate_to(self, aggregator, input_value):
+    self.state.counter_for(aggregator).update(input_value)
+
+
+class Receiver(object):
+  def receive(self, windowed_value):
+    raise NotImplementedError
