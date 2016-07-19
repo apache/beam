@@ -47,7 +47,6 @@ import logging
 import os
 import shutil
 import tempfile
-import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -187,20 +186,17 @@ class Pipeline(object):
     """Applies a custom transform using the pvalueish specified.
 
     Args:
-      transform: the PTranform (or callable) to apply.
+      transform: the PTranform to apply.
       pvalueish: the input for the PTransform (typically a PCollection).
 
     Raises:
       TypeError: if the transform object extracted from the argument list is
-        not a callable type or a descendant from PTransform.
+        not a PTransform.
       RuntimeError: if the transform object was already applied to this pipeline
         and needs to be cloned in order to apply again.
     """
     if not isinstance(transform, ptransform.PTransform):
-      if isinstance(transform, (type, types.ClassType)):
-        raise TypeError("%s is not a PTransform instance, did you mean %s()?"
-                        % (transform, transform.__name__))
-      transform = _CallableWrapperPTransform(transform)
+      raise TypeError("Expected a PTransform object, got %s" % transform)
 
     full_label = format_full_label(self._current_transform(), transform)
     if full_label in self.applied_labels:
@@ -284,18 +280,6 @@ class Pipeline(object):
     current.update_input_refcounts()
     self.transforms_stack.pop()
     return pvalueish_result
-
-
-class _CallableWrapperPTransform(ptransform.PTransform):
-
-  def __init__(self, callee):
-    assert callable(callee)
-    super(_CallableWrapperPTransform, self).__init__(
-        label=getattr(callee, '__name__', 'Callable'))
-    self._callee = callee
-
-  def apply(self, *args, **kwargs):
-    return self._callee(*args, **kwargs)
 
 
 class PipelineVisitor(object):
