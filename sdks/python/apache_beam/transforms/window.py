@@ -55,6 +55,7 @@ from apache_beam.transforms.timeutil import Duration
 from apache_beam.transforms.timeutil import MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.timeutil import Timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
@@ -183,42 +184,6 @@ class IntervalWindow(BoundedWindow):
   def union(self, other):
     return IntervalWindow(
         min(self.start, other.start), max(self.end, other.end))
-
-
-class WindowedValue(object):
-  """A windowed value having a value, a timestamp and set of windows.
-
-  Attributes:
-    value: The underlying value of a windowed value.
-    timestamp: Timestamp associated with the value as seconds since Unix epoch.
-    windows: A set (iterable) of window objects for the value. The window
-      object are descendants of the BoundedWindow class.
-  """
-
-  def __init__(self, value, timestamp, windows):
-    self.value = value
-    self.timestamp = Timestamp.of(timestamp)
-    self.windows = windows
-
-  def __repr__(self):
-    return '(%s, %s, %s)' % (
-        repr(self.value),
-        'MIN_TIMESTAMP' if self.timestamp == MIN_TIMESTAMP else
-        'MAX_TIMESTAMP' if self.timestamp == MAX_TIMESTAMP else
-        float(self.timestamp),
-        self.windows)
-
-  def __hash__(self):
-    return hash((self.value, self.timestamp, self.windows))
-
-  def __eq__(self, other):
-    return (type(self) == type(other)
-            and self.value == other.value
-            and self.timestamp == other.timestamp
-            and self.windows == other.windows)
-
-  def with_value(self, new_value):
-    return WindowedValue(new_value, self.timestamp, self.windows)
 
 
 class TimestampedValue(object):
