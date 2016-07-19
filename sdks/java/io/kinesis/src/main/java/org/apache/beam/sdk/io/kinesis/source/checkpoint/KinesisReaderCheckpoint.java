@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.kinesis.source.checkpoint;
 
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.kinesis.source.ShardRecordsIterator;
-import static com.google.api.client.util.Lists.newArrayList;
 import static com.google.common.collect.Iterables.transform;
+import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.partition;
 
 

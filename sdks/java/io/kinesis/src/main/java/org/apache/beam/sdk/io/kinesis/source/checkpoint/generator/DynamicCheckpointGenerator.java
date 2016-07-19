@@ -22,7 +22,7 @@ import org.apache.beam.sdk.io.kinesis.client.TransientKinesisException;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.KinesisReaderCheckpoint;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.ShardCheckpoint;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.StartingPoint;
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Lists.transform;
 
 
@@ -47,7 +47,8 @@ public class DynamicCheckpointGenerator implements CheckpointGenerator {
     }
 
     @Override
-    public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis) throws TransientKinesisException {
+    public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
+            throws TransientKinesisException {
         return new KinesisReaderCheckpoint(
                 transform(kinesis.listShards(streamName), new Function<Shard, ShardCheckpoint>() {
                     @Override

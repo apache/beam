@@ -43,7 +43,8 @@ public class KinesisRecord extends UserRecord {
         this.shardId = shardId;
     }
 
-    public KinesisRecord(Record record, long subSequenceNumber, Date readTime, String streamName, String shardId) {
+    public KinesisRecord(Record record, long subSequenceNumber, Date readTime,
+                         String streamName, String shardId) {
         super(false, record, subSequenceNumber, null);
         this.readTime = new Date(readTime.getTime());
         this.streamName = streamName;

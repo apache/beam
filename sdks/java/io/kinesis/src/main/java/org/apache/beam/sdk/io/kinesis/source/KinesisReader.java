@@ -26,11 +26,11 @@ import org.apache.beam.sdk.io.kinesis.source.checkpoint.KinesisReaderCheckpoint;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.ShardCheckpoint;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.generator.CheckpointGenerator;
 import org.apache.beam.sdk.io.kinesis.utils.RoundRobin;
-
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Lists.newArrayList;
-import com.google.api.client.repackaged.com.google.common.base.CustomOptional;
-import com.google.api.client.repackaged.com.google.common.base.Optional;
+
+import com.google.common.base.CustomOptional;
+import com.google.common.base.Optional;
 
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -72,7 +72,8 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         LOG.info("Starting reader using {}", initialCheckpointGenerator);
 
         try {
-            KinesisReaderCheckpoint initialCheckpoint = initialCheckpointGenerator.generate(kinesis);
+            KinesisReaderCheckpoint initialCheckpoint =
+                    initialCheckpointGenerator.generate(kinesis);
             List<ShardRecordsIterator> iterators = newArrayList();
             for (ShardCheckpoint checkpoint : initialCheckpoint) {
                 iterators.add(checkpoint.getShardRecordsIterator(kinesis));

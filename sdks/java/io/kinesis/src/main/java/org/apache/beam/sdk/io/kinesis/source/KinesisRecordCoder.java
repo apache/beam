@@ -63,7 +63,7 @@ public class KinesisRecordCoder extends StandardCoder<KinesisRecord> {
     }
 
     @Override
-    public KinesisRecord decode(InputStream inStream, Context context) throws CoderException, IOException {
+    public KinesisRecord decode(InputStream inStream, Context context) throws IOException {
         Context nested = context.nested();
         ByteBuffer data = ByteBuffer.wrap(byteArrayCoder.decode(inStream, nested));
         String sequenceNumber = stringCoder.decode(inStream, nested);

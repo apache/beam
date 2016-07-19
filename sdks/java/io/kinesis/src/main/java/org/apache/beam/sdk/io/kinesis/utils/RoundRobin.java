@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis.utils;
 
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Queues.newArrayDeque;
 
 

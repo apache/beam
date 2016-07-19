@@ -23,11 +23,12 @@ import org.apache.beam.sdk.io.kinesis.client.response.GetKinesisRecordsResult;
 import org.apache.beam.sdk.io.kinesis.client.response.KinesisRecord;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.ShardCheckpoint;
 
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Queues.newArrayDeque;
 
-import com.google.api.client.repackaged.com.google.common.base.CustomOptional;
-import com.google.api.client.repackaged.com.google.common.base.Optional;
+
+import com.google.common.base.CustomOptional;
+import com.google.common.base.Optional;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import org.slf4j.Logger;

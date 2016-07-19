@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.kinesis.source.checkpoint.generator;
 
 import org.apache.beam.sdk.io.kinesis.client.SimplifiedKinesisClient;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.KinesisReaderCheckpoint;
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Always returns the same instance of checkpoint.

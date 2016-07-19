@@ -15,20 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kinesis.source.checkpoint.generator;
+package com.google.common.base;
 
-
-import org.apache.beam.sdk.io.kinesis.client.SimplifiedKinesisClient;
-import org.apache.beam.sdk.io.kinesis.client.TransientKinesisException;
-import org.apache.beam.sdk.io.kinesis.source.checkpoint.KinesisReaderCheckpoint;
-
-import java.io.Serializable;
+import org.junit.Test;
+import java.util.NoSuchElementException;
 
 /**
- * Used to generate checkpoint object on demand.
- * How exactly the checkpoint is generated is up to implementing class.
+ * Created by ppastuszka on 12.12.15.
  */
-public interface CheckpointGenerator extends Serializable {
-    KinesisReaderCheckpoint generate(SimplifiedKinesisClient client)
-            throws TransientKinesisException;
+public class CustomOptionalTest {
+    @Test(expected = NoSuchElementException.class)
+    public void absentThrowsNoSuchElementExceptionOnGet() {
+        CustomOptional.absent().get();
+    }
 }

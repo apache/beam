@@ -19,7 +19,8 @@ package org.apache.beam.sdk.io.kinesis.source;
 
 import org.apache.beam.sdk.io.kinesis.client.response.KinesisRecord;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.ShardCheckpoint;
-import static com.google.api.client.util.Lists.newArrayList;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 import java.util.List;
 

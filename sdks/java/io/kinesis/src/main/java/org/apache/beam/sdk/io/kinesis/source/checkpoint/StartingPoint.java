@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.kinesis.source.checkpoint;
 
 
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
@@ -68,8 +68,7 @@ public class StartingPoint implements Serializable {
             return false;
         }
         StartingPoint that = (StartingPoint) o;
-        return position == that.position &&
-                Objects.equals(timestamp, that.timestamp);
+        return position == that.position && Objects.equals(timestamp, that.timestamp);
     }
 
     @Override

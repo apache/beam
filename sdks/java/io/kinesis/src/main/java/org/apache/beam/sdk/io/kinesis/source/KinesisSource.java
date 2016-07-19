@@ -29,9 +29,10 @@ import org.apache.beam.sdk.io.kinesis.source.checkpoint.generator.CheckpointGene
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.generator.DynamicCheckpointGenerator;
 import org.apache.beam.sdk.io.kinesis.source.checkpoint.generator.StaticCheckpointGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
-import static com.google.api.client.util.Lists.newArrayList;
 
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.Lists.newArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

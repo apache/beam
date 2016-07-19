@@ -22,8 +22,8 @@ import org.apache.beam.sdk.io.kinesis.client.SimplifiedKinesisClient;
 import org.apache.beam.sdk.io.kinesis.client.TransientKinesisException;
 import org.apache.beam.sdk.io.kinesis.client.response.KinesisRecord;
 import org.apache.beam.sdk.io.kinesis.source.ShardRecordsIterator;
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkArgument;
-import static com.google.api.client.repackaged.com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AFTER_SEQUENCE_NUMBER;
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_SEQUENCE_NUMBER;
@@ -81,16 +81,16 @@ public class ShardCheckpoint implements Serializable {
         checkNotNull(shardIteratorType);
         if (shardIteratorType == AT_SEQUENCE_NUMBER || shardIteratorType == AFTER_SEQUENCE_NUMBER) {
             checkNotNull(sequenceNumber,
-                    "You must provide sequence number for AT_SEQUENCE_NUMBER" +
-                            " or AFTER_SEQUENCE_NUMBER");
+                    "You must provide sequence number for AT_SEQUENCE_NUMBER"
+                            + " or AFTER_SEQUENCE_NUMBER");
         } else {
             checkArgument(sequenceNumber == null,
                     "Sequence number must be null for LATEST, TRIM_HORIZON or AT_TIMESTAMP");
         }
         if (shardIteratorType == AT_TIMESTAMP) {
             checkNotNull(timestamp,
-                    "You must provide timestamp for AT_SEQUENCE_NUMBER" +
-                            " or AFTER_SEQUENCE_NUMBER");
+                    "You must provide timestamp for AT_SEQUENCE_NUMBER"
+                            + " or AFTER_SEQUENCE_NUMBER");
         } else {
             checkArgument(timestamp == null,
                     "Timestamp must be null for an iterator type other than AT_TIMESTAMP");
@@ -143,7 +143,8 @@ public class ShardCheckpoint implements Serializable {
         return new ShardRecordsIterator(this, kinesis);
     }
 
-    public String getShardIterator(SimplifiedKinesisClient kinesisClient) throws TransientKinesisException {
+    public String getShardIterator(SimplifiedKinesisClient kinesisClient)
+            throws TransientKinesisException {
         if (checkpointIsInTheMiddleOfAUserRecord()) {
             return kinesisClient.getShardIterator(streamName,
                     shardId, AT_SEQUENCE_NUMBER,
