@@ -108,7 +108,8 @@ public class FileIOChannelFactory implements IOChannelFactory {
     File file = new File(spec);
     if (file.getAbsoluteFile().getParentFile() != null
         && !file.getAbsoluteFile().getParentFile().exists()
-        && !file.getAbsoluteFile().getParentFile().mkdirs()) {
+        && !file.getAbsoluteFile().getParentFile().mkdirs()
+        && !file.getAbsoluteFile().getParentFile().exists()) {
       throw new IOException("Unable to create parent directories for '" + spec + "'");
     }
     return Channels.newChannel(
