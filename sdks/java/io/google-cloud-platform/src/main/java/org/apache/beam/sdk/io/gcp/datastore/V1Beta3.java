@@ -437,7 +437,7 @@ public class V1Beta3 {
       if (namespace == null) {
         query.addKindBuilder().setName("__Stat_Kind__");
       } else {
-        query.addKindBuilder().setName("__Ns_Stat_Kind__");
+        query.addKindBuilder().setName("__Stat_Ns_Kind__");
       }
       query.setFilter(makeAndFilter(
           makeFilter("kind_name", EQUAL, makeValue(ourKind)).build(),
@@ -531,11 +531,17 @@ public class V1Beta3 {
 
     /**
      * Datastore system tables with statistics are periodically updated. This method fetches
-     * the latest timestamp of statistics update using the {@code __Stat_Total__} table.
+     * the latest timestamp of statistics update using the {@code __Stat_Total__} or
+     * {@code __Stat_Ns_Total__} table.
      */
     private long queryLatestStatisticsTimestamp(Datastore datastore) throws DatastoreException {
       Query.Builder query = Query.newBuilder();
-      query.addKindBuilder().setName("__Stat_Total__");
+      if (namespace == null) {
+        query.addKindBuilder().setName("__Stat_Total__");
+      } else {
+        query.addKindBuilder().setName("__Stat_Ns_Total__");
+      }
+
       query.addOrder(makeOrder("timestamp", DESCENDING));
       query.setLimit(Int32Value.newBuilder().setValue(1));
       RunQueryRequest request = makeRequest(query.build());
