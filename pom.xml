@@ -754,7 +754,6 @@
             </execution>
           </executions>
           <configuration>
-            <inherited>false</inherited>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
             <systemProperties>
               <systemProperty>
