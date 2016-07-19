@@ -384,9 +384,9 @@ class FastPrimitivesCoder(FastCoder):
 
     return value
 
-  # We allow .key_coder() and .value_coder() to be called on PickleCoder since
-  # we can't always infer the return values of lambdas in ParDo operations, the
-  # result of which may be used in a GroupBykey.
+  # We allow .key_coder() and .value_coder() to be called on FastPrimitivesCoder
+  # since we can't always infer the return values of lambdas in ParDo
+  # operations, the result of which may be used in a GroupBykey.
   def is_kv_coder(self):
     return True
 
