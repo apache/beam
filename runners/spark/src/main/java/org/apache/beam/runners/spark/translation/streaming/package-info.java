@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Internal utilities to translate Beam pipelines to Spark streaming.
+ */
+package org.apache.beam.runners.spark.translation.streaming;

@@ -16,5 +16,8 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Utilities for performing SQL-style joins of keyed {@link org.apache.beam.sdk.values.PCollection
+ * PCollections}.
+ */
+package org.apache.beam.sdk.extensions.joinlibrary;

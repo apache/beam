@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Transforms for reading and writing from Apache Kafka.
+ */
+package org.apache.beam.sdk.io.kafka;

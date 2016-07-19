@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Transforms used to read from the Hadoop file system (HDFS).
+ */
+package org.apache.beam.sdk.io.hdfs;

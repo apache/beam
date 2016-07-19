@@ -16,5 +16,9 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Provides utilities for integration testing and {@link
+ * org.apache.beam.sdk.testing.RunnableOnService} tests of the Google Cloud Dataflow
+ * runner.
+ */
+package org.apache.beam.runners.dataflow.testing;
