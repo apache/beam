@@ -330,6 +330,27 @@ class PTransform(WithTypeHints):
                 input_or_output.title(), self.label, at_context, hint,
                 pvalue_.element_type))
 
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    """Returns the output coder to use for output of this transform.
+
+    Note: this API is experimental and is subject to change; please do not rely
+    on behavior induced by this method.
+
+    The Coder returned here should not be wrapped in a WindowedValueCoder
+    wrapper.
+
+    Args:
+      input_type: An instance of an allowed built-in type, a custom class, or a
+        typehints.TypeConstraint for the input type, or None if not available.
+      input_coder: Coder object for encoding input to this PTransform, or None
+        if not available.
+
+    Returns:
+      Coder object for encoding output of this PTransform or None if unknown.
+    """
+    # TODO(ccy): further refine this API.
+    return None
+
   def clone(self, new_label):
     """Clones the current transform instance under a new label."""
     transform = copy.copy(self)
