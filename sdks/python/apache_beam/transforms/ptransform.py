@@ -690,6 +690,7 @@ def label_from_callable(fn):
   else:
     return str(fn)
 
+
 class _NamedPTransform(PTransform):
 
   def __init__(self, transform, label):
