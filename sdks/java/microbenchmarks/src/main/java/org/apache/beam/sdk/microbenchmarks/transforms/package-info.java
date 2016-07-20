@@ -17,6 +17,6 @@
  */
 
 /**
- * Benchmarks of various {@code PTransform} implementations.
+ * Provides microbenchmarks of various transforms.
  */
 package org.apache.beam.sdk.microbenchmarks.transforms;

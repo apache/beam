@@ -17,7 +17,8 @@
  */
 
 /**
- * Utilities for integration testing and runnable-on-service tests of the Google Cloud Dataflow
+ * Provides utilities for integration testing and {@link
+ * org.apache.beam.sdk.testing.RunnableOnService} tests of the Google Cloud Dataflow
  * runner.
  */
 package org.apache.beam.runners.dataflow.testing;

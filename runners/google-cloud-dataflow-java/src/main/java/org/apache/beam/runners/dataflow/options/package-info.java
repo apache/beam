@@ -17,6 +17,6 @@
  */
 
 /**
- * PipelineOptions specific to Google Cloud Dataflow.
+ * Provides {@link org.apache.beam.sdk.options.PipelineOptions} specific to Google Cloud Dataflow.
  */
 package org.apache.beam.runners.dataflow.options;

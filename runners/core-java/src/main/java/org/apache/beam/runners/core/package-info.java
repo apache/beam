@@ -17,6 +17,6 @@
  */
 
 /**
- * Implementations of key transforms that may be used by a Beam runner.
+ * Provides utilities for Beam runner authors.
  */
 package org.apache.beam.runners.core;

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Common utilities for a Beam runner.
- */
+/** Defines utilities shared by multiple PipelineRunner implementations. **/
 package org.apache.beam.sdk.util.common;
