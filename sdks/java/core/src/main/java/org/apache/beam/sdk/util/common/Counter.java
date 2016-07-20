@@ -461,7 +461,7 @@ public abstract class Counter<T> {
   /** The kind of aggregation function to apply to this counter. */
   protected final AggregationKind kind;
 
-  /** The commit state of this counter. **/
+  /** The commit state of this counter. */
   protected final AtomicReference<CommitState> commitState;
 
   protected Counter(CounterName name, AggregationKind kind) {

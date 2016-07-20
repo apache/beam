@@ -39,7 +39,7 @@ import java.util.Random;
  * {@code PTransform}s for taking samples of the elements in a
  * {@code PCollection}, or samples of the values associated with each
  * key in a {@code PCollection} of {@code KV}s.
- **/
+ */
 public class Sample {
 
   /**

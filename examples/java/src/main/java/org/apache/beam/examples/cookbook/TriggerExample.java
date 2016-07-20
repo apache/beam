@@ -491,7 +491,7 @@ public class TriggerExample {
   }
 
 
-  /**Sets the table reference. **/
+  /** Sets the table reference. */
   private static TableReference getTableReference(String project, String dataset, String table){
     TableReference tableRef = new TableReference();
     tableRef.setProjectId(project);
