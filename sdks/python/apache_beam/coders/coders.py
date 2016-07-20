@@ -77,6 +77,26 @@ class Coder(object):
     """
     return False
 
+  def estimate_size(self, value):
+    """Estimates the encoded size of the given value, in bytes.
+
+    Dataflow estimates the encoded size of a PCollection processed in a pipeline
+    step by using the estimated size of a random sample of elements in that
+    PCollection.
+
+    The default implementation encodes the given value and returns its byte
+    size.  If a coder can provide a fast estimate of the encoded size of a value
+    (e.g., if the encoding has a fixed size), it can provide its estimate here
+    to improve performance.
+
+    Arguments:
+      value: the value whose encoded size is to be estimated.
+
+    Returns:
+      The estimated encoded size of the given value.
+    """
+    return len(self.encode(value))
+
   # ===========================================================================
   # Methods below are internal SDK details that don't need to be modified for
   # user-defined coders.
@@ -85,7 +105,8 @@ class Coder(object):
   def _create_impl(self):
     """Creates a CoderImpl to do the actual encoding and decoding.
     """
-    return coder_impl.CallbackCoderImpl(self.encode, self.decode)
+    return coder_impl.CallbackCoderImpl(self.encode, self.decode,
+                                        self.estimate_size)
 
   def get_impl(self):
     if not hasattr(self, '_impl'):
@@ -191,7 +212,7 @@ class FastCoder(Coder):
   """Coder subclass used when a (faster) CoderImpl is supplied directly.
 
   The Coder class defines _create_impl in terms of encode() and decode();
-  this class inverts that defining encode() and decode() in terms of
+  this class inverts that by defining encode() and decode() in terms of
   _create_impl().
   """
 
@@ -202,6 +223,9 @@ class FastCoder(Coder):
   def decode(self, encoded):
     """Decodes the given byte string into the corresponding object."""
     return self.get_impl().decode(encoded)
+
+  def estimate_size(self, value):
+    return self.get_impl().estimate_size(value)
 
   def _create_impl(self):
     raise NotImplementedError
