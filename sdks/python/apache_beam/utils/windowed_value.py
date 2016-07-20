@@ -72,11 +72,16 @@ class WindowedValue(object):
   # We'd rather implement __eq__, but Cython supports that via __richcmp__
   # instead.  Fortunately __cmp__ is understood by both (but not by Python 3).
   def __cmp__(left, right):  # pylint: disable=no-self-argument
+    """Compares left and right for equality.
+
+    For performance reasons, doesn't actually impose an ordering
+    on unequal values (always returning 1).
+    """
     if type(left) is not type(right):
       return cmp(type(left), type(right))
     else:
-      # Don't bother paying the cost of a total ordering.
       # TODO(robertwb): Avoid the type checks?
+      # Returns False (0) if equal, and True (1) if not.
       return not WindowedValue._typed_eq(left, right)
 
   @staticmethod
@@ -111,4 +116,7 @@ def create(value, timestamp_micros, windows):
 try:
   WindowedValue.timestamp_object = None
 except TypeError:
-  pass  # Cythonized class already has this default value.
+  # When we're compiled, we can't dynamically add attributes to
+  # the cdef class, but in this case it's OK as it's already present
+  # on each instance.
+  pass
