@@ -279,10 +279,10 @@ public class RetryHttpRequestInitializerTest {
     Storage storage = new Storage.Builder(
         transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
 
-    Get g = storage.objects().get("gs://fake", "file");
+    Get getRequest = storage.objects().get("gs://fake", "file");
 
     try {
-      g.execute();
+      getRequest.execute();
       fail();
     } catch (Throwable e) {
       assertThat(e, Matchers.<Throwable>instanceOf(SocketTimeoutException.class));

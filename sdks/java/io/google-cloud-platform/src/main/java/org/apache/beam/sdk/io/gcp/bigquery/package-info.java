@@ -17,7 +17,7 @@
  */
 
 /**
- * Defines transforms for reading and writing from Google Bigquery.
+ * Defines transforms for reading and writing from Google BigQuery.
  *
  * @see org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
  */
