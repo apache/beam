@@ -100,6 +100,7 @@ public class TestPipeline extends Pipeline {
   }
 
   public static TestPipeline fromOptions(PipelineOptions options) {
+    System.out.println(options);
     return new TestPipeline(PipelineRunner.fromOptions(options), options);
   }
 
@@ -138,6 +139,7 @@ public class TestPipeline extends Pipeline {
       @Nullable String beamTestPipelineOptions =
           System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
 
+      System.out.println("options " + beamTestPipelineOptions);
       PipelineOptions options =
           Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()

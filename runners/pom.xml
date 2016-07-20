@@ -39,6 +39,17 @@
     <module>spark</module>
   </modules>
 
+  <profiles>
+    <profile>
+      <id>java8</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>gearpump</module>
+      </modules>
+    </profile>
+  </profiles>
   <build>
     <pluginManagement>
       <plugins>
