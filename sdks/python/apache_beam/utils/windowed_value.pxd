@@ -15,31 +15,24 @@
 # limitations under the License.
 #
 
-from apache_beam.utils.windowed_value cimport WindowedValue
-
-cdef type SideOutputValue, TimestampedValue
-
-
-cdef class DoFnRunner(object):
-
-  cdef object dofn
-  cdef object window_fn
-  cdef object context   # TODO(robertwb): Make this a DoFnContext
-  cdef object tagged_receivers
-  cdef object logger
-  cdef object step_name
-
-  cdef object main_receivers   # TODO(robertwb): Make this a Receiver
-
-  cpdef _process_outputs(self, element, results)
+cimport cython
+from libc.stdint cimport int64_t
 
 
-cdef class DoFnContext(object):
-  cdef object label
-  cdef object state
-  cdef WindowedValue windowed_value
-  cdef set_element(self, WindowedValue windowed_value)
+cdef type Timestamp
 
+@cython.final
+cdef class WindowedValue(object):
+  cdef public object value
+  cdef public object windows
+  cdef public int64_t timestamp_micros
+  cdef object timestamp_object
 
-cdef class Receiver(object):
-  cdef receive(self, WindowedValue windowed_value)
+  cpdef WindowedValue with_value(self, new_value)
+
+  @staticmethod
+  cdef inline bint _typed_eq(WindowedValue left, WindowedValue right) except? -2
+
+@cython.locals(wv=WindowedValue)
+cdef inline WindowedValue create(
+  object value, int64_t timestamp_micros, object windows)
