@@ -24,6 +24,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
@@ -80,6 +81,12 @@ interface BigQueryServices extends Serializable {
      * Start a BigQuery query job.
      */
     void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
+        throws IOException, InterruptedException;
+
+    /**
+     * Start a BigQuery copy job.
+     */
+    void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
         throws IOException, InterruptedException;
 
     /**

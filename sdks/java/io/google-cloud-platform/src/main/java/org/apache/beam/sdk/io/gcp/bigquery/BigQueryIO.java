@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -33,9 +34,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -44,6 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -52,7 +51,13 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FileIOChannelFactory;
+import org.apache.beam.sdk.util.GcsIOChannelFactory;
+import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -80,6 +85,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -93,6 +99,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.io.CountingOutputStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -110,6 +117,8 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -196,7 +205,8 @@ import javax.annotation.Nullable;
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
  * empty. Note that the dataset being written to must already exist. Unbounded PCollections can only
- * be written using {@link WriteDisposition#WRITE_EMPTY} or {@link WriteDisposition#WRITE_APPEND}.
+ * be written using {@link Write.WriteDisposition#WRITE_EMPTY} or
+ * {@link Write.WriteDisposition#WRITE_APPEND}.
  *
  * <h3>Sharding BigQuery output tables</h3>
  * <p>A common use case is to dynamically generate BigQuery table names based on
@@ -1412,6 +1422,19 @@ public class BigQueryIO {
      * {@link PCollection} of {@link TableRow TableRows} to a BigQuery table.
      */
     public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
+      // Maximum number of files in a single partition.
+      static final int MAX_NUM_FILES = 10000;
+
+      // Maximum number of bytes in a single partition.
+      static final long MAX_SIZE_BYTES = 3 * (1L << 40);
+
+      // The maximum number of retry jobs.
+      static final int MAX_RETRY_JOBS = 3;
+
+      // The maximum number of retries to poll the status of a job.
+      // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
+      static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
+
       @Nullable final String jsonTableRef;
 
       @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
@@ -1666,7 +1689,8 @@ public class BigQueryIO {
 
       @Override
       public PDone apply(PCollection<TableRow> input) {
-        BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+        Pipeline p = input.getPipeline();
+        BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
 
         // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
@@ -1680,13 +1704,13 @@ public class BigQueryIO {
         if (Strings.isNullOrEmpty(table.getProjectId())) {
           table.setProjectId(options.getProject());
         }
-        String jobIdToken = randomUUIDString();
+        String jobIdToken = "beam_job_" + randomUUIDString();
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
         try {
           IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
           tempFilePrefix = factory.resolve(
-                  factory.resolve(tempLocation, "BigQuerySinkTemp"),
+                  factory.resolve(tempLocation, "BigQueryWriteTemp"),
                   jobIdToken);
         } catch (IOException e) {
           throw new RuntimeException(
@@ -1694,16 +1718,120 @@ public class BigQueryIO {
               e);
         }
 
-        return input.apply("Write", org.apache.beam.sdk.io.Write.to(
-            new BigQuerySink(
+        PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
+
+        PCollection<TableRow> inputInGlobalWindow =
+            input.apply(
+                Window.<TableRow>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of())
+                    .discardingFiredPanes());
+
+        PCollection<KV<String, Long>> results = inputInGlobalWindow
+            .apply("WriteBundles",
+                ParDo.of(new WriteBundles(tempFilePrefix)));
+
+        TupleTag<KV<Long, List<String>>> multiPartitionsTag =
+            new TupleTag<KV<Long, List<String>>>("multiPartitionsTag") {};
+        TupleTag<KV<Long, List<String>>> singlePartitionTag =
+            new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
+
+        PCollectionView<Iterable<KV<String, Long>>> resultsView = results
+            .apply("ResultsView", View.<KV<String, Long>>asIterable());
+        PCollectionTuple partitions = singleton.apply(ParDo
+            .of(new WritePartition(
+                resultsView,
+                multiPartitionsTag,
+                singlePartitionTag))
+            .withSideInputs(resultsView)
+            .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
+
+        // Write multiple partitions to separate temporary tables
+        PCollection<String> tempTables = partitions.get(multiPartitionsTag)
+            .apply("MultiPartitionsGroupByKey", GroupByKey.<Long, List<String>>create())
+            .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
+                false,
+                bqServices,
                 jobIdToken,
-                table,
-                jsonSchema,
-                getWriteDisposition(),
-                getCreateDisposition(),
                 tempFilePrefix,
-                input.getCoder(),
-                bqServices)));
+                toJsonString(table),
+                jsonSchema,
+                WriteDisposition.WRITE_EMPTY,
+                CreateDisposition.CREATE_IF_NEEDED)));
+
+        PCollectionView<Iterable<String>> tempTablesView = tempTables
+            .apply("TempTablesView", View.<String>asIterable());
+        singleton.apply(ParDo
+            .of(new WriteRename(
+                bqServices,
+                jobIdToken,
+                toJsonString(table),
+                writeDisposition,
+                createDisposition,
+                tempTablesView))
+            .withSideInputs(tempTablesView));
+
+        // Write single partition to final table
+        partitions.get(singlePartitionTag)
+            .apply("SinglePartitionGroupByKey", GroupByKey.<Long, List<String>>create())
+            .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
+                true,
+                bqServices,
+                jobIdToken,
+                tempFilePrefix,
+                toJsonString(table),
+                jsonSchema,
+                writeDisposition,
+                createDisposition)));
+
+        return PDone.in(input.getPipeline());
+      }
+
+      private class WriteBundles extends OldDoFn<TableRow, KV<String, Long>> {
+        private TableRowWriter writer = null;
+        private final String tempFilePrefix;
+
+        WriteBundles(String tempFilePrefix) {
+          this.tempFilePrefix = tempFilePrefix;
+        }
+
+        @Override
+        public void processElement(ProcessContext c) throws Exception {
+          if (writer == null) {
+            writer = new TableRowWriter(tempFilePrefix);
+            writer.open(UUID.randomUUID().toString());
+            LOG.debug("Done opening writer {}", writer);
+          }
+          try {
+            writer.write(c.element());
+          } catch (Exception e) {
+            // Discard write result and close the write.
+            try {
+              writer.close();
+              // The writer does not need to be reset, as this OldDoFn cannot be reused.
+            } catch (Exception closeException) {
+              // Do not mask the exception that caused the write to fail.
+              e.addSuppressed(closeException);
+            }
+            throw e;
+          }
+        }
+
+        @Override
+        public void finishBundle(Context c) throws Exception {
+          if (writer != null) {
+            c.output(writer.close());
+            writer = null;
+          }
+        }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          super.populateDisplayData(builder);
+
+          builder
+              .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
+                  .withLabel("Temporary File Prefix"));
+        }
       }
 
       @Override
@@ -1784,192 +1912,361 @@ public class BigQueryIO {
       }
     }
 
-    /** Disallow construction of utility class. */
-    private Write() {}
-  }
+    static class TableRowWriter {
+      private static final Coder<TableRow> CODER = TableRowJsonCoder.of();
+      private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+      private final String tempFilePrefix;
+      private String id;
+      private String fileName;
+      private WritableByteChannel channel;
+      protected String mimeType = MimeTypes.TEXT;
+      private CountingOutputStream out;
 
-  /**
-   * {@link BigQuerySink} is implemented as a {@link FileBasedSink}.
-   *
-   * <p>It uses BigQuery load job to import files into BigQuery.
-   */
-  static class BigQuerySink extends FileBasedSink<TableRow> {
-    private final String jobIdToken;
-    @Nullable private final String jsonTable;
-    @Nullable private final String jsonSchema;
-    private final WriteDisposition writeDisposition;
-    private final CreateDisposition createDisposition;
-    private final Coder<TableRow> coder;
-    private final BigQueryServices bqServices;
-
-    public BigQuerySink(
-        String jobIdToken,
-        @Nullable TableReference table,
-        @Nullable String jsonSchema,
-        WriteDisposition writeDisposition,
-        CreateDisposition createDisposition,
-        String tempFile,
-        Coder<TableRow> coder,
-        BigQueryServices bqServices) {
-      super(tempFile, ".json");
-      this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
-      if (table == null) {
-        this.jsonTable = null;
-      } else {
-        checkArgument(!Strings.isNullOrEmpty(table.getProjectId()),
-            "Table %s should have a project specified", table);
-        this.jsonTable = toJsonString(table);
-      }
-      this.jsonSchema = jsonSchema;
-      this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
-      this.createDisposition = checkNotNull(createDisposition, "createDisposition");
-      this.coder = checkNotNull(coder, "coder");
-      this.bqServices = checkNotNull(bqServices, "bqServices");
-     }
-
-    @Override
-    public FileBasedSink.FileBasedWriteOperation<TableRow> createWriteOperation(
-        PipelineOptions options) {
-      return new BigQueryWriteOperation(this);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-
-      builder
-          .addIfNotNull(DisplayData.item("schema", jsonSchema)
-            .withLabel("Table Schema"))
-          .addIfNotNull(DisplayData.item("tableSpec", jsonTable)
-            .withLabel("Table Specification"));
-    }
-
-    private static class BigQueryWriteOperation extends FileBasedWriteOperation<TableRow> {
-      // The maximum number of retry load jobs.
-      private static final int MAX_RETRY_LOAD_JOBS = 3;
-
-      // The maximum number of retries to poll the status of a load job.
-      // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
-      private static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
-
-      private final BigQuerySink bigQuerySink;
-
-      private BigQueryWriteOperation(BigQuerySink sink) {
-        super(checkNotNull(sink, "sink"));
-        this.bigQuerySink = sink;
+      TableRowWriter(String basename) {
+        this.tempFilePrefix = basename;
       }
 
-      @Override
-      public FileBasedWriter<TableRow> createWriter(PipelineOptions options) throws Exception {
-        return new TableRowWriter(this, bigQuerySink.coder);
-      }
-
-      @Override
-      public void finalize(Iterable<FileResult> writerResults, PipelineOptions options)
-          throws IOException, InterruptedException {
+      public final void open(String uId) throws Exception {
+        id = uId;
+        fileName = tempFilePrefix + id;
+        LOG.debug("Opening {}.", fileName);
+        channel = IOChannelUtils.create(fileName, mimeType);
         try {
-          BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-          List<String> tempFiles = Lists.newArrayList();
-          for (FileResult result : writerResults) {
-            tempFiles.add(result.getFilename());
+          out = new CountingOutputStream(Channels.newOutputStream(channel));
+          LOG.debug("Writing header to {}.", fileName);
+        } catch (Exception e) {
+          try {
+            LOG.error("Writing header to {} failed, closing channel.", fileName);
+            channel.close();
+          } catch (IOException closeException) {
+            LOG.error("Closing channel for {} failed", fileName);
           }
-          if (!tempFiles.isEmpty()) {
-              load(
-                  bigQuerySink.bqServices.getJobService(bqOptions),
-                  bigQuerySink.jobIdToken,
-                  fromJsonString(bigQuerySink.jsonTable, TableReference.class),
-                  tempFiles,
-                  fromJsonString(bigQuerySink.jsonSchema, TableSchema.class),
-                  bigQuerySink.writeDisposition,
-                  bigQuerySink.createDisposition);
+          throw e;
+        }
+        LOG.debug("Starting write of bundle {} to {}.", this.id, fileName);
+      }
+
+      public void write(TableRow value) throws Exception {
+        CODER.encode(value, out, Context.OUTER);
+        out.write(NEWLINE);
+      }
+
+      public final KV<String, Long> close() throws IOException {
+        channel.close();
+        return KV.of(fileName, out.getCount());
+      }
+    }
+
+    /**
+     * Partitions temporary files based on number of files and file sizes.
+     */
+    static class WritePartition extends OldDoFn<String, KV<Long, List<String>>> {
+      private final PCollectionView<Iterable<KV<String, Long>>> resultsView;
+      private TupleTag<KV<Long, List<String>>> multiPartitionsTag;
+      private TupleTag<KV<Long, List<String>>> singlePartitionTag;
+
+      public WritePartition(
+          PCollectionView<Iterable<KV<String, Long>>> resultsView,
+          TupleTag<KV<Long, List<String>>> multiPartitionsTag,
+          TupleTag<KV<Long, List<String>>> singlePartitionTag) {
+        this.resultsView = resultsView;
+        this.multiPartitionsTag = multiPartitionsTag;
+        this.singlePartitionTag = singlePartitionTag;
+      }
+
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+        List<KV<String, Long>> results = Lists.newArrayList(c.sideInput(resultsView));
+        if (results.isEmpty()) {
+          TableRowWriter writer = new TableRowWriter(c.element());
+          writer.open(UUID.randomUUID().toString());
+          results.add(writer.close());
+        }
+
+        long partitionId = 0;
+        int currNumFiles = 0;
+        long currSizeBytes = 0;
+        List<String> currResults = Lists.newArrayList();
+        for (int i = 0; i < results.size(); ++i) {
+          KV<String, Long> fileResult = results.get(i);
+          if (currNumFiles + 1 > Bound.MAX_NUM_FILES
+              || currSizeBytes + fileResult.getValue() > Bound.MAX_SIZE_BYTES) {
+            c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
+            currResults = Lists.newArrayList();
+            currNumFiles = 0;
+            currSizeBytes = 0;
           }
-        } finally {
-          removeTemporaryFiles(options);
+          ++currNumFiles;
+          currSizeBytes += fileResult.getValue();
+          currResults.add(fileResult.getKey());
+        }
+        if (partitionId == 0) {
+          c.sideOutput(singlePartitionTag, KV.of(++partitionId, currResults));
+        } else {
+          c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
         }
       }
 
-      /**
-       * Import files into BigQuery with load jobs.
-       *
-       * <p>Returns if files are successfully loaded into BigQuery.
-       * Throws a RuntimeException if:
-       *     1. The status of one load job is UNKNOWN. This is to avoid duplicating data.
-       *     2. It exceeds {@code MAX_RETRY_LOAD_JOBS}.
-       *
-       * <p>If a load job failed, it will try another load job with a different job id.
-       */
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+      }
+    }
+
+    /**
+     * Writes partitions to BigQuery tables.
+     */
+    static class WriteTables extends OldDoFn<KV<Long, Iterable<List<String>>>, String> {
+      private final boolean singlePartition;
+      private final BigQueryServices bqServices;
+      private final String jobIdToken;
+      private final String tempFilePrefix;
+      private final String jsonTableRef;
+      private final String jsonSchema;
+      private final WriteDisposition writeDisposition;
+      private final CreateDisposition createDisposition;
+
+      public WriteTables(
+          boolean singlePartition,
+          BigQueryServices bqServices,
+          String jobIdToken,
+          String tempFilePrefix,
+          String jsonTableRef,
+          String jsonSchema,
+          WriteDisposition writeDisposition,
+          CreateDisposition createDisposition) {
+        this.singlePartition = singlePartition;
+        this.bqServices = bqServices;
+        this.jobIdToken = jobIdToken;
+        this.tempFilePrefix = tempFilePrefix;
+        this.jsonTableRef = jsonTableRef;
+        this.jsonSchema = jsonSchema;
+        this.writeDisposition = writeDisposition;
+        this.createDisposition = createDisposition;
+      }
+
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+        List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
+        String jobIdPrefix = String.format(jobIdToken + "_%05d", c.element().getKey());
+        TableReference ref = fromJsonString(jsonTableRef, TableReference.class);
+        if (!singlePartition) {
+          ref.setTableId(jobIdPrefix);
+        }
+
+        load(
+            bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+            jobIdPrefix,
+            ref,
+            fromJsonString(jsonSchema, TableSchema.class),
+            partition,
+            writeDisposition,
+            createDisposition);
+        c.output(toJsonString(ref));
+
+        removeTemporaryFiles(c.getPipelineOptions(), partition);
+      }
+
       private void load(
           JobService jobService,
           String jobIdPrefix,
           TableReference ref,
-          List<String> gcsUris,
           @Nullable TableSchema schema,
+          List<String> gcsUris,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition) throws InterruptedException, IOException {
         JobConfigurationLoad loadConfig = new JobConfigurationLoad()
-            .setSourceUris(gcsUris)
             .setDestinationTable(ref)
             .setSchema(schema)
+            .setSourceUris(gcsUris)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
 
-        boolean retrying = false;
         String projectId = ref.getProjectId();
-        for (int i = 0; i < MAX_RETRY_LOAD_JOBS; ++i) {
+        for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          if (retrying) {
-            LOG.info("Previous load jobs failed, retrying.");
-          }
-          LOG.info("Starting BigQuery load job: {}", jobId);
+          LOG.info("Starting BigQuery load job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startLoadJob(jobRef, loadConfig);
           Status jobStatus =
-              parseStatus(jobService.pollJob(jobRef, LOAD_JOB_POLL_MAX_RETRIES));
+              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              throw new RuntimeException("Failed to poll the load job status.");
+              throw new RuntimeException("Failed to poll the load job status of job " + jobId);
             case FAILED:
               LOG.info("BigQuery load job failed: {}", jobId);
-              retrying = true;
               continue;
             default:
-              throw new IllegalStateException("Unexpected job status: " + jobStatus);
+              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
+                  jobStatus, jobId));
           }
         }
-        throw new RuntimeException(
-            "Failed to create the load job, reached max retries: " + MAX_RETRY_LOAD_JOBS);
+        throw new RuntimeException(String.format("Failed to create the load job %s, reached max "
+            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
-    }
 
-    private static class TableRowWriter extends FileBasedWriter<TableRow> {
-      private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
-      private final Coder<TableRow> coder;
-      private OutputStream out;
-
-      public TableRowWriter(
-          FileBasedWriteOperation<TableRow> writeOperation, Coder<TableRow> coder) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.TEXT;
-        this.coder = coder;
+      private void removeTemporaryFiles(PipelineOptions options, Collection<String> matches)
+          throws IOException {
+        String pattern = tempFilePrefix + "*";
+        LOG.debug("Finding temporary files matching {}.", pattern);
+        IOChannelFactory factory = IOChannelUtils.getFactory(pattern);
+        if (factory instanceof GcsIOChannelFactory) {
+          GcsUtil gcsUtil = new GcsUtil.GcsUtilFactory().create(options);
+          gcsUtil.remove(matches);
+        } else if (factory instanceof FileIOChannelFactory) {
+          for (String filename : matches) {
+            LOG.debug("Removing file {}", filename);
+            boolean exists = Files.deleteIfExists(Paths.get(filename));
+            if (!exists) {
+              LOG.debug("{} does not exist.", filename);
+            }
+          }
+        } else {
+          throw new IOException("Unrecognized file system.");
+        }
       }
 
       @Override
-      protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        out = Channels.newOutputStream(channel);
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+
+        builder
+            .addIfNotNull(DisplayData.item("jobIdToken", jobIdToken)
+                .withLabel("Job ID Token"))
+            .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
+                .withLabel("Temporary File Prefix"))
+            .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
+                .withLabel("Table Reference"))
+            .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema)
+                .withLabel("Table Schema"));
+      }
+    }
+
+    /**
+     * Copies temporary tables to destination table.
+     */
+    static class WriteRename extends OldDoFn<String, Void> {
+      private final BigQueryServices bqServices;
+      private final String jobIdToken;
+      private final String jsonTableRef;
+      private final WriteDisposition writeDisposition;
+      private final CreateDisposition createDisposition;
+      private final PCollectionView<Iterable<String>> tempTablesView;
+
+      public WriteRename(
+          BigQueryServices bqServices,
+          String jobIdToken,
+          String jsonTableRef,
+          WriteDisposition writeDisposition,
+          CreateDisposition createDisposition,
+          PCollectionView<Iterable<String>> tempTablesView) {
+        this.bqServices = bqServices;
+        this.jobIdToken = jobIdToken;
+        this.jsonTableRef = jsonTableRef;
+        this.writeDisposition = writeDisposition;
+        this.createDisposition = createDisposition;
+        this.tempTablesView = tempTablesView;
       }
 
       @Override
-      public void write(TableRow value) throws Exception {
-        // Use Context.OUTER to encode and NEWLINE as the delimeter.
-        coder.encode(value, out, Context.OUTER);
-        out.write(NEWLINE);
+      public void processElement(ProcessContext c) throws Exception {
+        List<String> tempTablesJson = Lists.newArrayList(c.sideInput(tempTablesView));
+
+        // Do not copy if not temp tables are provided
+        if (tempTablesJson.size() == 0) {
+          return;
+        }
+
+        List<TableReference> tempTables = Lists.newArrayList();
+        for (String table : tempTablesJson) {
+          tempTables.add(fromJsonString(table, TableReference.class));
+        }
+        copy(
+            bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+            jobIdToken,
+            fromJsonString(jsonTableRef, TableReference.class),
+            tempTables,
+            writeDisposition,
+            createDisposition);
+
+        DatasetService tableService =
+            bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+        removeTemporaryTables(tableService, tempTables);
+      }
+
+      private void copy(
+          JobService jobService,
+          String jobIdPrefix,
+          TableReference ref,
+          List<TableReference> tempTables,
+          WriteDisposition writeDisposition,
+          CreateDisposition createDisposition) throws InterruptedException, IOException {
+        JobConfigurationTableCopy copyConfig = new JobConfigurationTableCopy()
+            .setSourceTables(tempTables)
+            .setDestinationTable(ref)
+            .setWriteDisposition(writeDisposition.name())
+            .setCreateDisposition(createDisposition.name());
+
+        String projectId = ref.getProjectId();
+        for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
+          String jobId = jobIdPrefix + "-" + i;
+          LOG.info("Starting BigQuery copy job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
+          JobReference jobRef = new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId);
+          jobService.startCopyJob(jobRef, copyConfig);
+          Status jobStatus =
+              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
+          switch (jobStatus) {
+            case SUCCEEDED:
+              return;
+            case UNKNOWN:
+              throw new RuntimeException("Failed to poll the copy job status of job " + jobId);
+            case FAILED:
+              LOG.info("BigQuery copy job failed: {}", jobId);
+              continue;
+            default:
+              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
+                  jobStatus, jobId));
+          }
+        }
+        throw new RuntimeException(String.format("Failed to create the copy job %s, reached max "
+            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
+      }
+
+      private void removeTemporaryTables(DatasetService tableService,
+          List<TableReference> tempTables) throws Exception {
+        for (TableReference tableRef : tempTables) {
+          tableService.deleteTable(
+              tableRef.getProjectId(),
+              tableRef.getDatasetId(),
+              tableRef.getTableId());
+        }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+
+        builder
+            .addIfNotNull(DisplayData.item("jobIdToken", jobIdToken)
+                .withLabel("Job ID Token"))
+            .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
+                .withLabel("Table Reference"))
+            .add(DisplayData.item("writeDisposition", writeDisposition.toString())
+                .withLabel("Write Disposition"))
+            .add(DisplayData.item("createDisposition", createDisposition.toString())
+                .withLabel("Create Disposition"));
       }
     }
+
+    /** Disallow construction of utility class. */
+    private Write() {}
   }
 
   private static void verifyDatasetPresence(DatasetService datasetService, TableReference table) {
@@ -2093,8 +2390,8 @@ public class BigQueryIO {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
             BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-            inserter.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
-                CreateDisposition.CREATE_IF_NEEDED, tableSchema);
+            inserter.getOrCreateTable(tableReference, Write.WriteDisposition.WRITE_APPEND,
+                Write.CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
           }
         }
