@@ -86,7 +86,7 @@ class BigQueryAvroUtils {
    * See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
    * "Avro format"</a> for more information.
    */
-  public static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
+  static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
     return convertGenericRecordToTableRow(record, schema.getFields());
   }
 

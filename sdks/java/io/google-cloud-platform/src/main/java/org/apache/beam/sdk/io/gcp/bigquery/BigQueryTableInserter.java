@@ -80,7 +80,6 @@ class BigQueryTableInserter {
   private static final long MAX_RATE_LIMIT_EXCEEDED_BACKOFF_MS = TimeUnit.MINUTES.toMillis(2);
 
   private final Bigquery client;
-  private final TableReference defaultRef;
   private final long maxRowsPerBatch;
 
   private ExecutorService executor;
@@ -91,26 +90,8 @@ class BigQueryTableInserter {
    * @param client a BigQuery client
    * @param options a PipelineOptions object
    */
-  public BigQueryTableInserter(Bigquery client, PipelineOptions options) {
+  BigQueryTableInserter(Bigquery client, PipelineOptions options) {
     this.client = client;
-    this.defaultRef = null;
-    this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
-    this.executor = options.as(GcsOptions.class).getExecutorService();
-  }
-
-  /**
-   * Constructs a new row inserter.
-   *
-   * @param client a BigQuery client
-   * @param options a PipelineOptions object
-   * @param defaultRef identifies the table to insert into
-   * @deprecated replaced by {@link #BigQueryTableInserter(Bigquery, PipelineOptions)}
-   */
-  @Deprecated
-  public BigQueryTableInserter(Bigquery client, PipelineOptions options,
-                               TableReference defaultRef) {
-    this.client = client;
-    this.defaultRef = defaultRef;
     this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
     this.executor = options.as(GcsOptions.class).getExecutorService();
   }
@@ -122,55 +103,17 @@ class BigQueryTableInserter {
    * @param options a PipelineOptions object
    * @param maxRowsPerBatch maximum number of rows to insert per call to BigQuery
    */
-  public BigQueryTableInserter(Bigquery client, PipelineOptions options,
+  BigQueryTableInserter(Bigquery client, PipelineOptions options,
                                int maxRowsPerBatch) {
     this.client = client;
-    this.defaultRef = null;
-    this.maxRowsPerBatch = maxRowsPerBatch;
-    this.executor = options.as(GcsOptions.class).getExecutorService();
-  }
-
-  /**
-   * Constructs a new row inserter.
-   *
-   * @param client a BigQuery client
-   * @param defaultRef identifies the default table to insert into
-   * @deprecated replaced by {@link #BigQueryTableInserter(Bigquery, PipelineOptions, int)}
-   */
-  @Deprecated
-  public BigQueryTableInserter(Bigquery client, PipelineOptions options,
-                               TableReference defaultRef, int maxRowsPerBatch) {
-    this.client = client;
-    this.defaultRef = defaultRef;
     this.maxRowsPerBatch = maxRowsPerBatch;
     this.executor = options.as(GcsOptions.class).getExecutorService();
   }
 
   /**
    * Insert all rows from the given list.
-   *
-   * @deprecated replaced by {@link #insertAll(TableReference, List)}
    */
-  @Deprecated
-  public void insertAll(List<TableRow> rowList) throws IOException {
-    insertAll(defaultRef, rowList, null, null);
-  }
-
-  /**
-   * Insert all rows from the given list using specified insertIds if not null.
-   *
-   * @deprecated replaced by {@link #insertAll(TableReference, List, List)}
-   */
-  @Deprecated
-  public void insertAll(List<TableRow> rowList,
-      @Nullable List<String> insertIdList) throws IOException {
-    insertAll(defaultRef, rowList, insertIdList, null);
-  }
-
-  /**
-   * Insert all rows from the given list.
-   */
-  public void insertAll(TableReference ref, List<TableRow> rowList) throws IOException {
+  void insertAll(TableReference ref, List<TableRow> rowList) throws IOException {
     insertAll(ref, rowList, null, null);
   }
 
@@ -178,7 +121,7 @@ class BigQueryTableInserter {
    * Insert all rows from the given list using specified insertIds if not null. Track count of
    * bytes written with the Aggregator.
    */
-  public void insertAll(TableReference ref, List<TableRow> rowList,
+  void insertAll(TableReference ref, List<TableRow> rowList,
       @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator)
       throws IOException {
     checkNotNull(ref, "ref");
@@ -255,7 +198,7 @@ class BigQueryTableInserter {
           strideIndices.add(strideIndex);
 
           if (byteCountAggregator != null) {
-            byteCountAggregator.addValue(Long.valueOf(dataSize));
+            byteCountAggregator.addValue((long) dataSize);
           }
           dataSize = 0;
           strideIndex = i + 1;
@@ -326,7 +269,7 @@ class BigQueryTableInserter {
    * the existing schema will be re-used.  If no schema is available, then an
    * {@code IOException} is thrown.
    */
-  public Table getOrCreateTable(
+  Table getOrCreateTable(
       TableReference ref,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
@@ -388,7 +331,7 @@ class BigQueryTableInserter {
   /**
    * Checks if a table is empty.
    */
-  public boolean isEmpty(TableReference ref) throws IOException {
+  private boolean isEmpty(TableReference ref) throws IOException {
     Bigquery.Tabledata.List list = client.tabledata()
         .list(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
     list.setMaxResults(1L);
@@ -417,7 +360,7 @@ class BigQueryTableInserter {
    * @throws IOException if other error than already existing table occurs.
    */
   @Nullable
-  public Table tryCreateTable(TableReference ref, TableSchema schema) throws IOException {
+  private Table tryCreateTable(TableReference ref, TableSchema schema) throws IOException {
     LOG.info("Trying to create BigQuery table: {}", BigQueryIO.toTableSpec(ref));
     BackOff backoff =
         new ExponentialBackOff.Builder()

@@ -43,11 +43,9 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
-import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.ImmutableList;
 
@@ -112,11 +110,6 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testJob));
 
-    TableReference ref = new TableReference();
-    ref.setProjectId("projectId");
-    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-    loadConfig.setDestinationTable(ref);
-
     Sleeper sleeper = new FastNanoClockAndSleeper();
     BackOff backoff = new AttemptBoundedExponentialBackOff(
         5 /* attempts */, 1000 /* initialIntervalMillis */);
@@ -140,11 +133,6 @@ public class BigQueryServicesImplTest {
     testJob.setJobReference(jobRef);
 
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
-
-    TableReference ref = new TableReference();
-    ref.setProjectId("projectId");
-    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-    loadConfig.setDestinationTable(ref);
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     BackOff backoff = new AttemptBoundedExponentialBackOff(
@@ -173,11 +161,6 @@ public class BigQueryServicesImplTest {
     when(response.getContent())
         .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
         .thenReturn(toStream(testJob));
-
-    TableReference ref = new TableReference();
-    ref.setProjectId("projectId");
-    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-    loadConfig.setDestinationTable(ref);
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     BackOff backoff = new AttemptBoundedExponentialBackOff(

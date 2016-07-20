@@ -257,12 +257,6 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
 
-    @VisibleForTesting
-    DatasetServiceImpl(Bigquery client) {
-      this.errorExtractor = new ApiErrorExtractor();
-      this.client = client;
-    }
-
     private DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = Transport.newBigQueryClient(bqOptions).build();
