@@ -22,7 +22,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -93,14 +92,6 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
     } catch (Exception e) {
       fnLocal.remove();
       throw e;
-    }
-  }
-
-  private static class BoundToFn
-      implements SerializableFunction<AppliedPTransform<?, ?, Bound<?, ?>>, DoFn<?, ?>> {
-    @Override
-    public DoFn<?, ?> apply(AppliedPTransform<?, ?, Bound<?, ?>> input) {
-      return input.getTransform().getFn();
     }
   }
 }
