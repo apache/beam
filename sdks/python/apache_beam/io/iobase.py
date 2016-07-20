@@ -938,6 +938,12 @@ class Read(ptransform.PTransform):
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
 
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    if isinstance(self.source, BoundedSource):
+      return self.source.default_output_coder()
+    else:
+      return self.source.coder
+
 
 class Write(ptransform.PTransform):
   """A ``PTransform`` that writes to a sink.

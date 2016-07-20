@@ -30,7 +30,6 @@ import time
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
-from apache_beam.io import iobase
 from apache_beam.pvalue import PCollectionView
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
@@ -326,7 +325,15 @@ class DataflowPipelineRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
   def apply_GroupByKey(self, transform, pcoll):
-    coder = self._get_coder(pcoll.element_type or typehints.Any, None)
+    # Infer coder of parent.
+    #
+    # TODO(ccy): make Coder inference and checking less specialized and more
+    # comprehensive.
+    parent = pcoll.producer
+    if parent:
+      coder = parent.transform._infer_output_coder()  # pylint: disable=protected-access
+    if not coder:
+      coder = self._get_coder(pcoll.element_type or typehints.Any, None)
     if not coder.is_kv_coder():
       raise ValueError(('Coder for the GroupByKey operation "%s" is not a '
                         'key-value coder: %s.') % (transform.label,
@@ -525,16 +532,11 @@ class DataflowPipelineRunner(PipelineRunner):
     else:
       step.add_property(PropertyNames.FORMAT, transform.source.format)
 
-    if isinstance(transform.source, iobase.BoundedSource):
-      coder = transform.source.default_output_coder()
-    else:
-      coder = transform.source.coder
-
     # Wrap coder in WindowedValueCoder: this is necessary as the encoding of a
     # step should be the type of value outputted by each step.  Read steps
     # automatically wrap output values in a WindowedValue wrapper, if necessary.
     # This is also necessary for proper encoding for size estimation.
-    coder = coders.WindowedValueCoder(coder)
+    coder = coders.WindowedValueCoder(transform._infer_output_coder())  # pylint: disable=protected-access
 
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
