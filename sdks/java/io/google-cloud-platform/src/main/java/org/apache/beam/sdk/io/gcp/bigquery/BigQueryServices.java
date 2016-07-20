@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import org.apache.beam.sdk.options.BigQueryOptions;
 
@@ -39,33 +39,33 @@ import javax.annotation.Nullable;
 /**
  * An interface for real, mock, or fake implementations of Cloud BigQuery services.
  */
-public interface BigQueryServices extends Serializable {
+interface BigQueryServices extends Serializable {
 
   /**
    * Returns a real, mock, or fake {@link JobService}.
    */
-  public JobService getJobService(BigQueryOptions bqOptions);
+  JobService getJobService(BigQueryOptions bqOptions);
 
   /**
    * Returns a real, mock, or fake {@link DatasetService}.
    */
-  public DatasetService getDatasetService(BigQueryOptions bqOptions);
+  DatasetService getDatasetService(BigQueryOptions bqOptions);
 
   /**
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to read tables.
    */
-  public BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
+  BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
 
   /**
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
    */
-  public BigQueryJsonReader getReaderFromQuery(
+  BigQueryJsonReader getReaderFromQuery(
       BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten);
 
   /**
    * An interface for the Cloud BigQuery load service.
    */
-  public interface JobService {
+  interface JobService {
     /**
      * Start a BigQuery load job.
      */
@@ -101,7 +101,7 @@ public interface BigQueryServices extends Serializable {
   /**
    * An interface to get, create and delete Cloud BigQuery datasets and tables.
    */
-  public interface DatasetService {
+  interface DatasetService {
     /**
      * Gets the specified {@link Table} resource by table ID.
      */
@@ -145,7 +145,7 @@ public interface BigQueryServices extends Serializable {
   /**
    * An interface to read the Cloud BigQuery directly.
    */
-  public interface BigQueryJsonReader {
+  interface BigQueryJsonReader {
     /**
      * Initializes the reader and advances the reader to the first record.
      */
