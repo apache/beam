@@ -207,11 +207,13 @@ class PipelineTest(unittest.TestCase):
       yield o
       yield SideOutputValue('side', o)
 
+    num_elements = 100000
+
     pipeline = Pipeline('DirectPipelineRunner')
 
     gc.collect()
     count_threshold = len(gc.get_objects()) + 10000
-    biglist = pipeline | Create('oom:create', ['x'] * 1000000)
+    biglist = pipeline | Create('oom:create', ['x'] * num_elements)
     dupes = (
         biglist
         | Map('oom:addone', lambda x: (x, 1))
@@ -223,17 +225,17 @@ class PipelineTest(unittest.TestCase):
         | CombinePerKey('oom:combine', sum)
         | Map('oom:check', check_memory, count_threshold))
 
-    assert_that(result, equal_to([('x', 3000000)]))
+    assert_that(result, equal_to([('x', 3 * num_elements)]))
     pipeline.run()
     self.assertEqual(
         pipeline.runner.debug_counters['element_counts'],
         {
-            'oom:flatten': 3000000,
-            ('oom:combine/GroupByKey/reify_windows', None): 3000000,
-            ('oom:dupes/oom:dupes', 'side'): 1000000,
-            ('oom:dupes/oom:dupes', None): 1000000,
-            'oom:create': 1000000,
-            ('oom:addone', None): 1000000,
+            'oom:flatten': 3 * num_elements,
+            ('oom:combine/GroupByKey/reify_windows', None): 3 * num_elements,
+            ('oom:dupes/oom:dupes', 'side'): num_elements,
+            ('oom:dupes/oom:dupes', None): num_elements,
+            'oom:create': num_elements,
+            ('oom:addone', None): num_elements,
             'oom:combine/GroupByKey/group_by_key': 1,
             ('oom:check', None): 1,
             'assert_that/singleton': 1,
