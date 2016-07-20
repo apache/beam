@@ -77,6 +77,7 @@ setuptools.setup(
         'apache_beam/runners/common.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
+        'apache_beam/utils/windowed_value.py',
     ]),
     install_requires=REQUIRED_PACKAGES,
     package_data={'': ['*.pyx', '*.pxd']},
