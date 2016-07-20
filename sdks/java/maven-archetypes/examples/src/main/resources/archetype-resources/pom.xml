@@ -101,17 +101,6 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
-    <extensions>
-      <!-- Use os-maven-plugin to initialize the "os.detected" properties for Bigtable
-           in beam-sdks-java-io-google-cloud-platform.
-           See: https://cloud.google.com/bigtable/docs/using-maven#encryption -->
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.4.0.Final</version>
-      </extension>
-    </extensions>
   </build>
 
   <dependencies>
