@@ -81,6 +81,8 @@ class CodersTest(unittest.TestCase):
     for v in values:
       self.assertEqual(v, coder.decode(coder.encode(v)))
       self.assertEqual(coder.estimate_size(v),
+                       len(coder.encode(v)))
+      self.assertEqual(coder.estimate_size(v),
                        coder.get_impl().estimate_size(v))
       self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
                        (coder.get_impl().estimate_size(v), []))

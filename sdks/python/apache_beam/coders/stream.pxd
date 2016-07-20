@@ -59,3 +59,5 @@ cdef class InputStream(object):
   cpdef libc.stdint.int32_t read_bigendian_int32(self) except? -1
   cpdef double read_bigendian_double(self) except? -1
   cpdef bytes read_all(self, bint nested=*)
+
+cpdef libc.stdint.int64_t get_varint_size(libc.stdint.int64_t value)

@@ -39,12 +39,17 @@ except ImportError:
   WindowedValue = collections.namedtuple(
       'WindowedValue', ('value', 'timestamp', 'windows'))
 
+
 try:
   from stream import InputStream as create_InputStream
   from stream import OutputStream as create_OutputStream
+  from stream import ByteCountingOutputStream
+  from stream import get_varint_size
 except ImportError:
   from slow_stream import InputStream as create_InputStream
   from slow_stream import OutputStream as create_OutputStream
+  from slow_stream import ByteCountingOutputStream
+  from slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -66,11 +71,17 @@ class CoderImpl(object):
     """Encodes an object to an unnested string."""
     raise NotImplementedError
 
-  def estimate_size(self, value):
+  def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
-    return len(self.encode(value))
+    return self._get_nested_size(len(self.encode(value)), nested)
 
-  def get_estimated_size_and_observables(self, value):
+  def _get_nested_size(self, inner_size, nested):
+    if not nested:
+      return inner_size
+    varint_size = get_varint_size(inner_size)
+    return varint_size + inner_size
+
+  def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables.
 
     The list of nested observables is returned as a list of 2-tuples of
@@ -80,12 +91,13 @@ class CoderImpl(object):
 
     Arguments:
       value: the value whose encoded size is to be estimated.
+      nested: whether the value is nested.
 
     Returns:
       The estimated encoded size of the given value and a list of observables
       whose elements are 2-tuples of (obj, coder_impl) as described above.
     """
-    return self.estimate_size(value), []
+    return self.estimate_size(value, nested), []
 
 
 class SimpleCoderImpl(CoderImpl):
@@ -110,6 +122,12 @@ class StreamCoderImpl(CoderImpl):
 
   def decode(self, encoded):
     return self.decode_from_stream(create_InputStream(encoded), False)
+
+  def estimate_size(self, value, nested=False):
+    """Estimates the encoded size of the given value, in bytes."""
+    out = ByteCountingOutputStream()
+    self.encode_to_stream(value, out, nested)
+    return out.get_count()
 
 
 class CallbackCoderImpl(CoderImpl):
@@ -139,8 +157,8 @@ class CallbackCoderImpl(CoderImpl):
   def decode(self, encoded):
     return self._decoder(encoded)
 
-  def estimate_size(self, value):
-    return self._size_estimator(value)
+  def estimate_size(self, value, nested=False):
+    return self._get_nested_size(self._size_estimator(value), nested)
 
 
 class DeterministicPickleCoderImpl(CoderImpl):
@@ -282,8 +300,8 @@ class FloatCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     return in_stream.read_bigendian_double()
 
-  def estimate_size(self, unused_value):
-    # A double is encoded as 8 bytes.
+  def estimate_size(self, unused_value, nested=False):
+    # A double is encoded as 8 bytes, regardless of nesting.
     return 8
 
 
@@ -298,8 +316,9 @@ class TimestampCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     return self.timestamp_class(micros=in_stream.read_bigendian_int64())
 
-  def estimate_size(self, unused_value):
-    # A Timestamp is encoded as a 64-bit integer in 8 bytes.
+  def estimate_size(self, unused_value, nested=False):
+    # A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of
+    # nesting.
     return 8
 
 
@@ -329,6 +348,10 @@ class VarIntCoderImpl(StreamCoderImpl):
         return i
     return StreamCoderImpl.decode(self, encoded)
 
+  def estimate_size(self, value, nested=False):
+    # Note that VarInts are encoded the same way regardless of nesting.
+    return get_varint_size(value)
+
 
 class SingletonCoderImpl(CoderImpl):
   """A coder that always encodes exactly one value."""
@@ -349,10 +372,8 @@ class SingletonCoderImpl(CoderImpl):
   def decode(self, encoded):
     return self._value
 
-
-# Number of bytes of overhead estimated for encoding the nested size of a
-# component as a VarInt64.
-ESTIMATED_NESTED_OVERHEAD = 2
+  def estimate_size(self, value, nested=False):
+    return 0
 
 
 class AbstractComponentCoderImpl(StreamCoderImpl):
@@ -382,13 +403,13 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     return self._construct_from_components(
         [c.decode_from_stream(in_stream, True) for c in self._coder_impls])
 
-  def estimate_size(self, value):
+  def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
     estimated_size, _ = (
         self.get_estimated_size_and_observables(value))
     return estimated_size
 
-  def get_estimated_size_and_observables(self, value):
+  def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
     values = self._extract_components(value)
     estimated_size = 0
@@ -400,8 +421,8 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
       else:
         c = self._coder_impls[i]  # type cast
         child_size, child_observables = (
-            c.get_estimated_size_and_observables(child_value))
-        estimated_size += child_size + ESTIMATED_NESTED_OVERHEAD
+            c.get_estimated_size_and_observables(child_value, nested=True))
+        estimated_size += child_size
         observables += child_observables
     return estimated_size, observables
 
@@ -437,6 +458,29 @@ class SequenceCoderImpl(StreamCoderImpl):
         [self._elem_coder.decode_from_stream(in_stream, True)
          for _ in range(size)])
 
+  def estimate_size(self, value, nested=False):
+    """Estimates the encoded size of the given value, in bytes."""
+    estimated_size, _ = (
+        self.get_estimated_size_and_observables(value))
+    return estimated_size
+
+  def get_estimated_size_and_observables(self, value, nested=False):
+    """Returns estimated size of value along with any nested observables."""
+    estimated_size = 0
+    observables = []
+    # Size of 32-bit integer storing number of elements.
+    estimated_size += 4
+    for elem in value:
+      if isinstance(elem, observable.ObservableMixin):
+        observables.append((elem, self._elem_coder))
+      else:
+        child_size, child_observables = (
+            self._elem_coder.get_estimated_size_and_observables(
+                elem, nested=True))
+        estimated_size += child_size
+        observables += child_observables
+    return estimated_size, observables
+
 
 class TupleSequenceCoderImpl(SequenceCoderImpl):
   """A coder for homogeneous tuple objects."""
@@ -464,7 +508,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         self._timestamp_coder.decode_from_stream(in_stream, True),
         self._windows_coder.decode_from_stream(in_stream, True))
 
-  def get_estimated_size_and_observables(self, value):
+  def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
     estimated_size = 0
     observables = []
@@ -473,9 +517,11 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     else:
       c = self._value_coder  # type cast
       value_estimated_size, value_observables = (
-          c.get_estimated_size_and_observables(value.value))
+          c.get_estimated_size_and_observables(value.value, nested=True))
       estimated_size += value_estimated_size
       observables += value_observables
-    estimated_size += self._timestamp_coder.estimate_size(value.timestamp)
-    estimated_size += self._windows_coder.estimate_size(value.windows)
+    estimated_size += (
+        self._timestamp_coder.estimate_size(value.timestamp, nested=True))
+    estimated_size += (
+        self._windows_coder.estimate_size(value.windows, nested=True))
     return estimated_size, observables

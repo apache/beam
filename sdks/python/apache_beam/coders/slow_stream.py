@@ -137,3 +137,18 @@ class InputStream(object):
 
   def read_bigendian_double(self):
     return struct.unpack('>d', self.read(8))[0]
+
+
+def get_varint_size(v):
+  """Returns the size of the given integer value when encode as a VarInt."""
+  if v < 0:
+    v += 1 << 64
+    if v <= 0:
+      raise ValueError('Value too large (negative).')
+  varint_size = 0
+  while True:
+    varint_size += 1
+    v >>= 7
+    if not v:
+      break
+  return varint_size
