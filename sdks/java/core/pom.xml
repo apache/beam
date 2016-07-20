@@ -304,6 +304,14 @@
       <artifactId>grpc-netty</artifactId>
     </dependency>
 
+    <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+         scope and depend on it at runtime. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-all</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
     <dependency>
       <groupId>com.google.auth</groupId>
       <artifactId>google-auth-library-oauth2-http</artifactId>
@@ -333,6 +341,12 @@
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+        <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+          scope and depend on it at runtime. -->
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-all</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
