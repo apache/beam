@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/** Provides internal utilities for implementing Beam aggregators using Spark accumulators. */
+package org.apache.beam.runners.spark.aggregators;

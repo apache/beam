@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Provides {@link org.apache.beam.sdk.options.PipelineOptions} specific to Google Cloud Dataflow.
+ */
+package org.apache.beam.runners.dataflow.options;

@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Defines internal utilities for interacting with pipeline state.
+ */
+package org.apache.beam.sdk.util.state;

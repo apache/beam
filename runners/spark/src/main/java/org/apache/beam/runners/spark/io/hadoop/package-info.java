@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Spark-specific transforms for reading from and writing to Hadoop file systems (HDFS).
+ */
+package org.apache.beam.runners.spark.io.hadoop;

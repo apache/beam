@@ -16,5 +16,7 @@
  * limitations under the License.
  */
 
-/** Defines utilities shared by multiple PipelineRunner implementations. */
-package org.apache.beam.sdk.util.common;
+/**
+ * Beam coders and coder-related utilities for running on Apache Spark.
+ */
+package org.apache.beam.runners.spark.coders;
