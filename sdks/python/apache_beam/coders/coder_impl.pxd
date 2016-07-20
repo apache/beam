@@ -28,7 +28,7 @@ cimport libc.string
 from .stream cimport InputStream, OutputStream
 
 
-cdef object loads, dumps, create_InputStream, create_OutputStream
+cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size
 # Temporarily untyped to allow monkeypatching on failed import.
 #cdef type WindowedValue
 
@@ -38,8 +38,11 @@ cdef class CoderImpl(object):
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cpdef bytes encode(self, value)
   cpdef decode(self, bytes encoded)
-  cpdef estimate_size(self, value)
-  cpdef get_estimated_size_and_observables(self, value)
+  cpdef estimate_size(self, value, bint nested=?)
+  @cython.locals(varint_size=int, bits=libc.stdint.uint64_t)
+  @cython.overflowcheck(False)
+  cpdef int _get_nested_size(self, int inner_size, bint nested)
+  cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
 
 cdef class SimpleCoderImpl(CoderImpl):
@@ -84,9 +87,6 @@ cdef class SingletonCoderImpl(CoderImpl):
   cdef object _value
 
 
-cpdef int ESTIMATED_NESTED_OVERHEAD
-
-
 cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   cdef tuple _coder_impls
 
@@ -99,7 +99,7 @@ cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   cpdef decode_from_stream(self, InputStream stream, bint nested)
 
   @cython.locals(c=CoderImpl)
-  cpdef get_estimated_size_and_observables(self, value)
+  cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
 
 cdef class TupleCoderImpl(AbstractComponentCoderImpl):
@@ -122,4 +122,4 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cdef CoderImpl _windows_coder
 
   @cython.locals(c=CoderImpl)
-  cpdef get_estimated_size_and_observables(self, value)
+  cpdef get_estimated_size_and_observables(self, value, bint nested=?)
