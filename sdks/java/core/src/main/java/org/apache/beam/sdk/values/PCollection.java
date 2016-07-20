@@ -72,7 +72,7 @@ public class PCollection<T> extends TypedPValue<T> {
      */
     BOUNDED,
     /**
-     * Indicates that a {@link PCollection} contains unboundedly many data elements.
+     * Indicates that a {@link PCollection} contains an unbounded number of elements.
      */
     UNBOUNDED;
 

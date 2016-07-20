@@ -122,7 +122,7 @@ class BigQueryTableInserter {
    * bytes written with the Aggregator.
    */
   void insertAll(TableReference ref, List<TableRow> rowList,
-      @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator)
+      @Nullable List<String> insertIdList, @Nullable Aggregator<Long, Long> byteCountAggregator)
       throws IOException {
     checkNotNull(ref, "ref");
     if (insertIdList != null && rowList.size() != insertIdList.size()) {
