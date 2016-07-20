@@ -190,6 +190,7 @@ class DoFnState(object):
         self.step_name, aggregator)
 
 
+# TODO(robertwb): Replace core.DoFnContext with this.
 class DoFnContext(object):
 
   def __init__(self, label, element=None, state=None):
