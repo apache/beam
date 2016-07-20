@@ -154,10 +154,10 @@ public class FilterExamples {
 
 
 
-  /*
+  /**
    * Finds the global mean of the mean_temp for each day/record, and outputs
    * only data that has a mean temp larger than this global mean.
-   **/
+   */
   static class BelowGlobalMean
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     Integer monthFilter;
