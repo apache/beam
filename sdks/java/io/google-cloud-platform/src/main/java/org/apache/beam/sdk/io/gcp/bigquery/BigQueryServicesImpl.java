@@ -39,6 +39,7 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -171,6 +172,24 @@ class BigQueryServicesImpl implements BigQueryServices {
           .setJobReference(jobRef)
           .setConfiguration(
               new JobConfiguration().setQuery(queryConfig));
+
+      startJob(job, errorExtractor, client);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC .
+     */
+    @Override
+    public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
+        throws IOException, InterruptedException {
+      Job job = new Job()
+          .setJobReference(jobRef)
+          .setConfiguration(
+              new JobConfiguration().setCopy(copyConfig));
 
       startJob(job, errorExtractor, client);
     }

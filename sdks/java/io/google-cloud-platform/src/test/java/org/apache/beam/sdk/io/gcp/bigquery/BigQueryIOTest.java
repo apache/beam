@@ -76,6 +76,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
@@ -270,6 +271,12 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
+        throws IOException, InterruptedException {
+      startJob(jobRef);
+    }
+
+    @Override
+    public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
         throws IOException, InterruptedException {
       startJob(jobRef);
     }
@@ -565,7 +572,8 @@ public class BigQueryIOTest implements Serializable {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
             .startJobReturns("done", "done", "done")
-            .pollJobReturns(Status.FAILED, Status.FAILED, Status.SUCCEEDED));
+            .pollJobReturns(Status.FAILED, Status.FAILED, Status.SUCCEEDED))
+        .withDatasetService(mockDatasetService);
 
     Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(
