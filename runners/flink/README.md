@@ -109,35 +109,40 @@ Next, let's run the classic WordCount example. It's semantically identically to
 the example provided with Apache Beam. Only this time, we chose the
 `FlinkRunner` to execute the WordCount on top of Flink.
 
-Here's an excerpt from the WordCount class file:
+Here's an excerpt from the [WordCount class file](examples/src/main/java/org/apache/beam/runners/flink/examples/WordCount.java):
 
 ```java
-Options options = PipelineOptionsFactory.fromArgs(args).as(Options.class);
+Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
 // yes, we want to run WordCount with Flink
 options.setRunner(FlinkRunner.class);
 
 Pipeline p = Pipeline.create(options);
 
-p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
-		.apply(new CountWords())
-		.apply(TextIO.Write.named("WriteCounts")
-				.to(options.getOutput())
-				.withNumShards(options.getNumShards()));
+p.apply("ReadLines", TextIO.Read.from(options.getInput()))
+    .apply(new CountWords())
+    .apply(MapElements.via(new FormatAsTextFn()))
+    .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
 
 p.run();
 ```
 
 To execute the example, let's first get some sample data:
 
-    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > examples/kinglear.txt
+    cd runners/flink/examples
+    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > kinglear.txt
 
 Then let's run the included WordCount locally on your machine:
 
-    cd examples
-    mvn exec:exec -Dinput=kinglear.txt -Doutput=wordcounts.txt
+    cd runners/flink/examples
+    mvn exec:java -Dexec.mainClass=org.apache.beam.runners.flink.examples.WordCount \
+                  -Dinput=kinglear.txt -Doutput=wordcounts.txt
 
 Congratulations, you have run your first Apache Beam program on top of Apache Flink!
 
+Note, that you will find a number of `wordcounts*` output files because Flink parallelizes the
+WordCount computation. You may pass an additional `-Dparallelism=1` to disable parallelization and
+get a single `wordcounts.txt` file.
 
 # Running Beam programs on a Flink cluster
 
