@@ -20,35 +20,24 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.util.SerializableUtils;
 
-import com.google.common.cache.CacheLoader;
-
 import java.io.Serializable;
 
 /**
- * A {@link CacheLoader} that loads {@link ThreadLocal ThreadLocals} with initial values equal to
- * the clone of the key.
+ * A {@link ThreadLocal} that obtains the initial value by cloning an original value.
  */
-class SerializableCloningThreadLocalCacheLoader<T extends Serializable>
-    extends CacheLoader<T, ThreadLocal<T>> {
-  public static <T extends Serializable> CacheLoader<T, ThreadLocal<T>> create() {
-    return new SerializableCloningThreadLocalCacheLoader<T>();
+class CloningThreadLocal<T extends Serializable> extends ThreadLocal<T> {
+  public static <T extends Serializable> CloningThreadLocal<T> of(T original) {
+    return new CloningThreadLocal<>(original);
+  }
+
+  private final T original;
+
+  private CloningThreadLocal(T original) {
+    this.original = original;
   }
 
   @Override
-  public ThreadLocal<T> load(T key) throws Exception {
-    return new CloningThreadLocal<>(key);
-  }
-
-  private static class CloningThreadLocal<T extends Serializable> extends ThreadLocal<T> {
-    private final T original;
-
-    public CloningThreadLocal(T value) {
-      this.original = value;
-    }
-
-    @Override
-    public T initialValue() {
-      return SerializableUtils.clone(original);
-    }
+  public T initialValue() {
+    return SerializableUtils.clone(original);
   }
 }
