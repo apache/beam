@@ -15,5 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Defines utilities used by the Dataflow SDK. **/
+
+/** Defines utilities that can be used by Beam runners. */
 package org.apache.beam.sdk.util;

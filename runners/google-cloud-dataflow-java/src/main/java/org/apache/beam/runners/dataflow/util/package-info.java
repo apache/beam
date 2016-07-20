@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Miscellaneous utilities used by the Google Cloud Dataflow runner.
- */
+/** Provides miscellaneous internal utilities used by the Google Cloud Dataflow runner. */
 package org.apache.beam.runners.dataflow.util;

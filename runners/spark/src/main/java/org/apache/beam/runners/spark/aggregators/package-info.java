@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Utilities for implementing Beam aggregators using Spark accumulators.
- */
+/** Provides internal utilities for implementing Beam aggregators using Spark accumulators. */
 package org.apache.beam.runners.spark.aggregators;

@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Various utilities that can be used by a Beam runner.
- */
+/** Defines utilities that can be used by Beam runners. */
 package org.apache.beam.sdk.util;
