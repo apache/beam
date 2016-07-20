@@ -32,7 +32,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <bigtable.version>0.9.0</bigtable.version>
+    <bigtable.version>0.9.1</bigtable.version>
   </properties>
 
   <build>
@@ -86,16 +86,6 @@
         </executions>
       </plugin>
     </plugins>
-
-    <extensions>
-      <!-- Use os-maven-plugin to initialize the "os.detected" properties for Bigtable.
-           See: https://cloud.google.com/bigtable/docs/using-maven#encryption -->
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${os-maven-plugin.version}</version>
-      </extension>
-    </extensions>
   </build>
 
   <dependencies>
@@ -133,7 +123,7 @@
 
     <dependency>
       <groupId>io.grpc</groupId>
-      <artifactId>grpc-all</artifactId>
+      <artifactId>grpc-core</artifactId>
     </dependency>
 
     <dependency>
@@ -208,8 +198,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
-      <version>1.1.33.Fork13</version>
-      <classifier>${os.detected.classifier}</classifier>
+      <version>1.1.33.Fork18</version>
       <scope>runtime</scope>
     </dependency>
 

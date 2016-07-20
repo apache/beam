@@ -291,7 +291,25 @@
   <dependencies>
     <dependency>
       <groupId>io.grpc</groupId>
+      <artifactId>grpc-auth</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
+    </dependency>
+
+    <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+         scope and depend on it at runtime. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -311,7 +329,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
-      <version>4.1.0.CR1</version>
     </dependency>
 
     <dependency>
@@ -324,6 +341,12 @@
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+        <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+          scope and depend on it at runtime. -->
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-all</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
