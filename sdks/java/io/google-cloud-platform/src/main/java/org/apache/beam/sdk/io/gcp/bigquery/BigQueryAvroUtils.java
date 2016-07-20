@@ -42,7 +42,7 @@ import javax.annotation.Nullable;
  * A set of utilities for working with Avro files.
  *
  * <p>These utilities are based on the <a
- * href="https://avro.apache.org/docs/1.7.7/spec.html">Avro 1.7.7</a> specification.
+ * href="https://avro.apache.org/docs/1.8.1/spec.html">Avro 1.8.1</a> specification.
  */
 class BigQueryAvroUtils {
 
