@@ -291,7 +291,17 @@
   <dependencies>
     <dependency>
       <groupId>io.grpc</groupId>
-      <artifactId>grpc-all</artifactId>
+      <artifactId>grpc-auth</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
     </dependency>
 
     <dependency>
@@ -311,7 +321,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
-      <version>4.1.0.CR1</version>
     </dependency>
 
     <dependency>
