@@ -27,7 +27,7 @@ cdef class DoFnRunner(object):
   cdef object window_fn
   cdef object context   # TODO(robertwb): Make this a DoFnContext
   cdef object tagged_receivers
-  cdef object logger
+  cdef object logging_context  # TODO(robertwb): Make this a LoggingContext
   cdef object step_name
 
   cdef object main_receivers   # TODO(robertwb): Make this a Receiver
@@ -44,3 +44,9 @@ cdef class DoFnContext(object):
 
 cdef class Receiver(object):
   cdef receive(self, WindowedValue windowed_value)
+
+
+cdef class LoggingContext(object):
+  # TODO(robertwb): Optimize "with [cdef class]"
+  cdef enter(self)
+  cdef exit(self)
