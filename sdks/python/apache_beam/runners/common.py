@@ -75,7 +75,7 @@ class DoFnRunner(object):
     self.context = context
     self.tagged_receivers = tagged_receivers
     self.logging_context = (logger.PerThreadLoggingContext(step_name=step_name)
-                             if logger else LoggingContext())
+                            if logger else LoggingContext())
     self.step_name = step_name
 
     # Optimize for the common case.
