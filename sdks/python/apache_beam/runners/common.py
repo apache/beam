@@ -95,9 +95,8 @@ class DoFnRunner(object):
 
   def process(self, element):
     try:
-      with self.logger.PerThreadLoggingContext(step_name=self.step_name):
-        self.context.set_element(element)
-        self._process_outputs(element, self.dofn.process(self.context))
+      self.context.set_element(element)
+      self._process_outputs(element, self.dofn.process(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
 
