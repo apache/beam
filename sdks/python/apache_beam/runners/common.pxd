@@ -48,5 +48,5 @@ cdef class Receiver(object):
 
 cdef class LoggingContext(object):
   # TODO(robertwb): Optimize "with [cdef class]"
-  cdef enter(self)
-  cdef exit(self)
+  cpdef enter(self)
+  cpdef exit(self)
