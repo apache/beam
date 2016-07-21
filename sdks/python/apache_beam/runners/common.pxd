@@ -23,6 +23,7 @@ cdef type SideOutputValue, TimestampedValue
 cdef class DoFnRunner(object):
 
   cdef object dofn
+  cdef object dofn_process
   cdef object window_fn
   cdef object context   # TODO(robertwb): Make this a DoFnContext
   cdef object tagged_receivers

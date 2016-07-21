@@ -56,6 +56,7 @@ class DoFnRunner(object):
                step_name=None):
     if not args and not kwargs:
       self.dofn = fn
+      self.dofn_process = fn.process
     else:
       args, kwargs = util.insert_values_in_args(args, kwargs, side_inputs)
 
@@ -70,6 +71,8 @@ class DoFnRunner(object):
         def finish_bundle(self, context):
           return fn.finish_bundle(context)
       self.dofn = CurriedFn()
+      self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
+
     self.window_fn = windowing.windowfn
     self.context = context
     self.tagged_receivers = tagged_receivers
@@ -96,7 +99,7 @@ class DoFnRunner(object):
   def process(self, element):
     try:
       self.context.set_element(element)
-      self._process_outputs(element, self.dofn.process(self.context))
+      self._process_outputs(element, self.dofn_process(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
 
