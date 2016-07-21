@@ -217,13 +217,13 @@ public class FileIOChannelFactoryTest {
 
   @Test
   public void testResolveOtherIsFullPath() throws Exception {
-    String expected = temporaryFolder.getRoot().getPath().toString();
+    String expected = temporaryFolder.getRoot().getPath();
     assertEquals(expected, factory.resolve(expected, expected));
   }
 
   @Test
   public void testResolveOtherIsEmptyPath() throws Exception {
-    String expected = temporaryFolder.getRoot().getPath().toString();
+    String expected = temporaryFolder.getRoot().getPath();
     assertEquals(expected, factory.resolve(expected, ""));
   }
 

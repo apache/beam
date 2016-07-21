@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
@@ -30,6 +32,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -38,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -51,14 +55,18 @@ public class FileIOChannelFactory implements IOChannelFactory {
 
   /**
    *  Converts the given file spec to a java {@link File}. If {@code spec} is actually a URI with
-   *  the {@code file://} prefix, then this function will ensure that the returned {@link File}
+   *  the {@code file} scheme, then this function will ensure that the returned {@link File}
    *  has the correct path.
    */
   private static File specToFile(String spec) {
-    // Strip the "file://" prefix from the spec, if present.
-    if (spec.toLowerCase().startsWith("file://")) {
-      return new File(spec.substring("file://".length()));
-    } else {
+    try {
+      // Handle URI.
+      URI uri = URI.create(spec);
+      checkArgument(
+          "file".equals(uri.getScheme()), "Expected a file:// scheme, but got %s", uri.getScheme());
+      return Paths.get(uri).toFile();
+    } catch (IllegalArgumentException e) {
+      // Fall back to assuming this is actually a file.
       return new File(spec);
     }
   }
