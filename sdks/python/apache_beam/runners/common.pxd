@@ -39,11 +39,11 @@ cdef class DoFnContext(object):
   cdef object label
   cdef object state
   cdef WindowedValue windowed_value
-  cdef set_element(self, WindowedValue windowed_value)
+  cpdef set_element(self, WindowedValue windowed_value)
 
 
 cdef class Receiver(object):
-  cdef receive(self, WindowedValue windowed_value)
+  cpdef receive(self, WindowedValue windowed_value)
 
 
 cdef class LoggingContext(object):
