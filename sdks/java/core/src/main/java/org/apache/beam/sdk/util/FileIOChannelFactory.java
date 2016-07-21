@@ -67,7 +67,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
       return Paths.get(uri).toFile();
     } catch (IllegalArgumentException e) {
       // Fall back to assuming this is actually a file.
-      return new File(spec);
+      return Paths.get(spec).toFile();
     }
   }
 
