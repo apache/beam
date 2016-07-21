@@ -42,4 +42,4 @@ cdef class DoFnContext(object):
 
 
 cdef class Receiver(object):
-  cdef receive(self, WindowedValue windowed_value)
+  cpdef receive(self, WindowedValue windowed_value)
