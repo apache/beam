@@ -62,8 +62,6 @@ public class FileIOChannelFactory implements IOChannelFactory {
     try {
       // Handle URI.
       URI uri = URI.create(spec);
-      checkArgument(
-          "file".equals(uri.getScheme()), "Expected a file:// scheme, but got %s", uri.getScheme());
       return Paths.get(uri).toFile();
     } catch (IllegalArgumentException e) {
       // Fall back to assuming this is actually a file.
