@@ -204,15 +204,24 @@ class DoFnContext(object):
 
   @property
   def element(self):
-    return self.windowed_value.value
+    if self.windowed_value is None:
+      raise AttributeError('element not accessible in this context')
+    else:
+      return self.windowed_value.value
 
   @property
   def timestamp(self):
-    return self.windowed_value.timestamp
+    if self.windowed_value is None:
+      raise AttributeError('timestamp not accessible in this context')
+    else:
+      return self.windowed_value.timestamp
 
   @property
   def windows(self):
-    return self.windowed_value.windows
+    if self.windowed_value is None:
+      raise AttributeError('windows not accessible in this context')
+    else:
+      return self.windowed_value.windows
 
   def aggregate_to(self, aggregator, input_value):
     self.state.counter_for(aggregator).update(input_value)
