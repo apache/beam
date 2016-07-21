@@ -24,7 +24,6 @@ import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.IsSame.theInstance;
 import static org.junit.Assert.assertThat;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,21 +33,14 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 /**
- * Tests for {@link SerializableCloningThreadLocalCacheLoader}.
+ * Tests for {@link CloningThreadLocalTest}.
  */
 @RunWith(JUnit4.class)
-public class SerializableCloningThreadLocalCacheLoaderTest {
-  private SerializableCloningThreadLocalCacheLoader<Record> loader;
-
-  @Before
-  public void setup() {
-    loader = new SerializableCloningThreadLocalCacheLoader();
-  }
-
+public class CloningThreadLocalTest {
   @Test
   public void returnsCopiesOfOriginal() throws Exception {
     Record original = new Record();
-    ThreadLocal<Record> loaded = loader.load(original);
+    ThreadLocal<Record> loaded = CloningThreadLocal.of(original);
     assertThat(loaded.get(), not(nullValue()));
     assertThat(loaded.get(), equalTo(original));
     assertThat(loaded.get(), not(theInstance(original)));
@@ -57,17 +49,18 @@ public class SerializableCloningThreadLocalCacheLoaderTest {
   @Test
   public void returnsDifferentCopiesInDifferentThreads() throws Exception {
     Record original = new Record();
-    final ThreadLocal<Record> loaded = loader.load(original);
+    final ThreadLocal<Record> loaded = CloningThreadLocal.of(original);
     assertThat(loaded.get(), not(nullValue()));
     assertThat(loaded.get(), equalTo(original));
     assertThat(loaded.get(), not(theInstance(original)));
 
-    Callable<Record> otherThread = new Callable<Record>() {
-      @Override
-      public Record call() throws Exception {
-        return loaded.get();
-      }
-    };
+    Callable<Record> otherThread =
+        new Callable<Record>() {
+          @Override
+          public Record call() throws Exception {
+            return loaded.get();
+          }
+        };
     Record sameThread = loaded.get();
     Record firstOtherThread = Executors.newSingleThreadExecutor().submit(otherThread).get();
     Record secondOtherThread = Executors.newSingleThreadExecutor().submit(otherThread).get();

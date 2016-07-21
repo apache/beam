@@ -18,7 +18,7 @@
 package org.apache.beam.examples.cookbook;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -154,10 +154,10 @@ public class FilterExamples {
 
 
 
-  /*
+  /**
    * Finds the global mean of the mean_temp for each day/record, and outputs
    * only data that has a mean temp larger than this global mean.
-   **/
+   */
   static class BelowGlobalMean
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     Integer monthFilter;

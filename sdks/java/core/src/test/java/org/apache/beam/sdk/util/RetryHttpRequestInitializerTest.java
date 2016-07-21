@@ -30,8 +30,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
@@ -46,11 +44,8 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.storage.Storage;
-import com.google.common.collect.ImmutableList;
+import com.google.api.services.storage.Storage.Objects.Get;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -279,21 +274,18 @@ public class RetryHttpRequestInitializerTest {
           }
         }).build();
 
-    // A sample HTTP request to BigQuery that uses both default Transport and default
+    // A sample HTTP request to Google Cloud Storage that uses both default Transport and default
     // RetryHttpInitializer.
-    Bigquery b = new Bigquery.Builder(
+    Storage storage = new Storage.Builder(
         transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(b, PipelineOptionsFactory.create());
-    TableReference t = new TableReference()
-        .setProjectId("project").setDatasetId("dataset").setTableId("table");
+    Get getRequest = storage.objects().get("gs://fake", "file");
 
     try {
-      inserter.insertAll(t, ImmutableList.of(new TableRow()));
+      getRequest.execute();
       fail();
     } catch (Throwable e) {
-      assertThat(e, Matchers.<Throwable>instanceOf(RuntimeException.class));
-      assertThat(e.getCause(), Matchers.<Throwable>instanceOf(SocketTimeoutException.class));
+      assertThat(e, Matchers.<Throwable>instanceOf(SocketTimeoutException.class));
       assertEquals(1 + defaultNumberOfRetries, executeCount.get());
     }
   }

@@ -393,6 +393,17 @@
         <artifactId>maven-shade-plugin</artifactId>
       </plugin>
     </plugins>
+    <extensions>
+      <!-- Use os-maven-plugin to initialize the "os.detected" properties for Bigtable
+           in beam-sdks-java-io-google-cloud-platform, which examples depend on, hence
+           the Spark runner depends upon.
+           See: https://cloud.google.com/bigtable/docs/using-maven#encryption -->
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
   </build>
 
 </project>

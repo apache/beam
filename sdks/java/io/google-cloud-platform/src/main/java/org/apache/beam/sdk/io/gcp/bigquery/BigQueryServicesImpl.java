@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.Transport;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
@@ -55,7 +57,7 @@ import javax.annotation.Nullable;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
-public class BigQueryServicesImpl implements BigQueryServices {
+class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
@@ -254,12 +256,6 @@ public class BigQueryServicesImpl implements BigQueryServices {
   static class DatasetServiceImpl implements DatasetService {
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
-
-    @VisibleForTesting
-    DatasetServiceImpl(Bigquery client) {
-      this.errorExtractor = new ApiErrorExtractor();
-      this.client = client;
-    }
 
     private DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();

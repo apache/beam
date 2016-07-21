@@ -46,7 +46,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * Evaluators are cached here to ensure that the reader is not restarted if the evaluator is
    * retriggered.
    */
-  private final ConcurrentMap<EvaluatorKey, Queue<? extends BoundedReadEvaluator<?>>>
+  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Queue<? extends BoundedReadEvaluator<?>>>
       sourceEvaluators = new ConcurrentHashMap<>();
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -79,12 +79,11 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       final EvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
-    EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
     Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue =
-        (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
+        (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(transform);
     if (evaluatorQueue == null) {
       evaluatorQueue = new ConcurrentLinkedQueue<>();
-      if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
+      if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
         BoundedSource<OutputT> source = transform.getTransform().getSource();
@@ -93,7 +92,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
-        evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
+        evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(transform);
       }
     }
     return evaluatorQueue;
@@ -132,7 +131,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult finishBundle() throws IOException {
       try (final BoundedReader<OutputT> reader =
-              source.createReader(evaluationContext.getPipelineOptions());) {
+              source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
             evaluationContext.createRootBundle(transform.getOutput());

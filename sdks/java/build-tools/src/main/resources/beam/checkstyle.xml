@@ -60,6 +60,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="checkFormat" value="$1"/>
   </module>
 
+  <!-- Check that every module has a package-info.java -->
+  <module name="JavadocPackage"/>
+
   <!-- All Java AST specific tests live under TreeWalker module. -->
   <module name="TreeWalker">
 

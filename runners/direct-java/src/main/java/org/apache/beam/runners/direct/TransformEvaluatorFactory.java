@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -28,6 +29,9 @@ import javax.annotation.Nullable;
 /**
  * A factory for creating instances of {@link TransformEvaluator} for the application of a
  * {@link PTransform}.
+ *
+ * <p>{@link TransformEvaluatorFactory TransformEvaluatorFactories} will be reused within a single
+ * execution of a {@link Pipeline} but will not be reused across executions.
  */
 public interface TransformEvaluatorFactory {
   /**

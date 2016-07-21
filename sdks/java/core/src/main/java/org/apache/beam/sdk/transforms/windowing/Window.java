@@ -209,7 +209,8 @@ public class Window {
   }
 
   /**
-   * Override the amount of lateness allowed for data elements in the pipeline. Like
+   * Override the amount of lateness allowed for data elements in the output {@link PCollection},
+   * and downstream {@link PCollection PCollections} until explicitly set again. Like
    * the other properties on this {@link Window} operation, this will be applied at
    * the next {@link GroupByKey}. Any elements that are later than this as decided by
    * the system-maintained watermark will be dropped.
@@ -221,6 +222,23 @@ public class Window {
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
     return new Unbound().withAllowedLateness(allowedLateness);
+  }
+
+  /**
+   * Override the amount of lateness allowed for data elements in the output {@link PCollection},
+   * and downstream {@link PCollection PCollections} until explicitly set again. Like
+   * the other properties on this {@link Window} operation, this will be applied at
+   * the next {@link GroupByKey}. Any elements that are later than this as decided by
+   * the system-maintained watermark will be dropped.
+   *
+   * <p>This value also determines how long state will be kept around for old windows.
+   * Once no elements will be added to a window (because this duration has passed) any state
+   * associated with the window will be cleaned up.
+   */
+  @Experimental(Kind.TRIGGER)
+  public static <T> Bound<T> withAllowedLateness(
+      Duration allowedLateness, ClosingBehavior closingBehavior) {
+    return new Unbound().withAllowedLateness(allowedLateness, closingBehavior);
   }
 
   /**
