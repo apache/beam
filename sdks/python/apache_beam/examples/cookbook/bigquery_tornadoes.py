@@ -56,8 +56,8 @@ def count_tornadoes(input_data):
           | beam.FlatMap(
               'months with tornadoes',
               lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
-          | beam.CombinePerKey('monthly count', sum)
-          | beam.Map('format', lambda (k, v): {'month': k, 'tornado_count': v}))
+          | 'monthly count' >> beam.CombinePerKey(sum)
+          | 'format' >> beam.Map(lambda (k, v): {'month': k, 'tornado_count': v}))
 
 
 def run(argv=None):
@@ -77,7 +77,7 @@ def run(argv=None):
   p = beam.Pipeline(argv=pipeline_args)
 
   # Read the table rows into a PCollection.
-  rows = p | beam.io.Read('read', beam.io.BigQuerySource(known_args.input))
+  rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
   counts = count_tornadoes(rows)
 
   # Write the output using a "Write" transform that has side effects.

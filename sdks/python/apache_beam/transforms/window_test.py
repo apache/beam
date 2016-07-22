@@ -127,14 +127,14 @@ class WindowTest(unittest.TestCase):
     self.assertEqual([IntervalWindow(2, 25)], merge(2, 15, 10))
 
   def timestamped_key_values(self, pipeline, key, *timestamps):
-    return (pipeline | Create('start', timestamps)
+    return (pipeline | 'start' >> Create(timestamps)
             | Map(lambda x: WindowedValue((key, x), x, [])))
 
   def test_sliding_windows(self):
     p = Pipeline('DirectPipelineRunner')
     pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3)
     result = (pcoll
-              | WindowInto('w', SlidingWindows(period=2, size=4))
+              | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
               | GroupByKey()
               | reify_windows)
     expected = [('key @ [-2.0, 2.0)', [1]),
@@ -147,7 +147,7 @@ class WindowTest(unittest.TestCase):
     p = Pipeline('DirectPipelineRunner')
     pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)
     result = (pcoll
-              | WindowInto('w', Sessions(10))
+              | 'w' >> WindowInto(Sessions(10))
               | GroupByKey()
               | sort_values
               | reify_windows)
@@ -159,9 +159,9 @@ class WindowTest(unittest.TestCase):
   def test_timestamped_value(self):
     p = Pipeline('DirectPipelineRunner')
     result = (p
-              | Create('start', [(k, k) for k in range(10)])
+              | 'start' >> Create([(k, k) for k in range(10)])
               | Map(lambda (x, t): TimestampedValue(x, t))
-              | WindowInto('w', FixedWindows(5))
+              | 'w' >> WindowInto(FixedWindows(5))
               | Map(lambda v: ('key', v))
               | GroupByKey())
     assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
@@ -172,13 +172,13 @@ class WindowTest(unittest.TestCase):
     p = Pipeline('DirectPipelineRunner')
     result = (p
               # Create some initial test values.
-              | Create('start', [(k, k) for k in range(10)])
+              | 'start' >> Create([(k, k) for k in range(10)])
               # The purpose of the WindowInto transform is to establish a
               # FixedWindows windowing function for the PCollection.
               # It does not bucket elements into windows since the timestamps
               # from Create are not spaced 5 ms apart and very likely they all
               # fall into the same window.
-              | WindowInto('w', FixedWindows(5))
+              | 'w' >> WindowInto(FixedWindows(5))
               # Generate timestamped values using the values as timestamps.
               # Now there are values 5 ms apart and since Map propagates the
               # windowing function from input to output the output PCollection

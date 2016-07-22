@@ -255,7 +255,7 @@ class TestFileBasedSource(unittest.TestCase):
     file_name, expected_data = _write_data(100)
     assert len(expected_data) == 100
     pipeline = beam.Pipeline('DirectPipelineRunner')
-    pcoll = pipeline | beam.Read('Read', LineSource(file_name))
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(file_name))
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 
@@ -263,7 +263,7 @@ class TestFileBasedSource(unittest.TestCase):
     pattern, expected_data = _write_pattern([34, 66, 40, 24, 24, 12])
     assert len(expected_data) == 200
     pipeline = beam.Pipeline('DirectPipelineRunner')
-    pcoll = pipeline | beam.Read('Read', LineSource(pattern))
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(pattern))
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 

@@ -50,7 +50,7 @@ def generate_julia_set_colors(pipeline, c, n, max_iterations):
         yield (x, y)
 
   julia_set_colors = (pipeline
-                      | beam.Create('add points', point_set(n))
+                      | 'add points' >> beam.Create(point_set(n))
                       | beam.Map(
                           get_julia_set_point_color, c, n, max_iterations))
 
@@ -105,11 +105,11 @@ def run(argv=None):  # pylint: disable=missing-docstring
   # Group each coordinate triplet by its x value, then write the coordinates to
   # the output file with an x-coordinate grouping per line.
   # pylint: disable=expression-not-assigned
-  (coordinates | beam.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
-   | beam.GroupByKey('x coord') | beam.Map(
+  (coordinates | 'x coord key' >> beam.Map(lambda (x, y, i): (x, (x, y, i)))
+   | 'x coord' >> beam.GroupByKey() | beam.Map(
        'format',
        lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
-   | beam.io.Write('write', beam.io.TextFileSink(known_args.coordinate_output)))
+   | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.coordinate_output)))
   # pylint: enable=expression-not-assigned
   p.run()
 

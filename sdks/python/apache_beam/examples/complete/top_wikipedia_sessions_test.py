@@ -50,7 +50,7 @@ class ComputeTopSessionsTest(unittest.TestCase):
 
   def test_compute_top_sessions(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    edits = p | beam.Create('create', self.EDITS)
+    edits = p | 'create' >> beam.Create(self.EDITS)
     result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 
     beam.assert_that(result, beam.equal_to(self.EXPECTED))

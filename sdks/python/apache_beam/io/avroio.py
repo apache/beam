@@ -43,7 +43,7 @@ class ReadFromAvro(PTransform):
     files, a ``PCollection`` for the records in these Avro files can be created
     in the following manner.
       p = df.Pipeline(argv=pipeline_args)
-      records = p | df.io.ReadFromAvro('Read', '/mypath/myavrofiles*')
+      records = p | 'Read' >> df.io.ReadFromAvro('/mypath/myavrofiles*')
 
     Each record of this ``PCollection`` will contain a single record read from a
     source. Records that are of simple types will be mapped into corresponding

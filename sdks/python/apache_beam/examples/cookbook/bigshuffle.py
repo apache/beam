@@ -59,30 +59,30 @@ def run(argv=None):
 
   # Count the occurrences of each word.
   output = (lines
-            | beam.Map('split', lambda x: (x[:10], x[10:99])
+            | 'split' >> beam.Map(lambda x: (x[:10], x[10:99])
                       ).with_output_types(beam.typehints.KV[str, str])
-            | beam.GroupByKey('group')
+            | 'group' >> beam.GroupByKey()
             | beam.FlatMap(
                 'format',
                 lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
   # Write the output using a "Write" transform that has side effects.
-  output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
+  output | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
 
   # Optionally write the input and output checksums.
   if known_args.checksum_output:
     input_csum = (lines
-                  | beam.Map('input-csum', crc32line)
-                  | beam.CombineGlobally('combine-input-csum', sum)
-                  | beam.Map('hex-format', lambda x: '%x' % x))
+                  | 'input-csum' >> beam.Map(crc32line)
+                  | 'combine-input-csum' >> beam.CombineGlobally(sum)
+                  | 'hex-format' >> beam.Map(lambda x: '%x' % x))
     input_csum | beam.io.Write(
         'write-input-csum',
         beam.io.TextFileSink(known_args.checksum_output + '-input'))
 
     output_csum = (output
-                   | beam.Map('output-csum', crc32line)
-                   | beam.CombineGlobally('combine-output-csum', sum)
-                   | beam.Map('hex-format-output', lambda x: '%x' % x))
+                   | 'output-csum' >> beam.Map(crc32line)
+                   | 'combine-output-csum' >> beam.CombineGlobally(sum)
+                   | 'hex-format-output' >> beam.Map(lambda x: '%x' % x))
     output_csum | beam.io.Write(
         'write-output-csum',
         beam.io.TextFileSink(known_args.checksum_output + '-output'))

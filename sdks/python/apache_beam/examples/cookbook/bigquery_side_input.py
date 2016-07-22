@@ -105,9 +105,9 @@ def run(argv=None):
                                beam.io.BigQuerySource(query=query_corpus))
   pcoll_word = p | beam.Read('read words',
                              beam.io.BigQuerySource(query=query_word))
-  pcoll_ignore_corpus = p | beam.Create('create_ignore_corpus', [ignore_corpus])
-  pcoll_ignore_word = p | beam.Create('create_ignore_word', [ignore_word])
-  pcoll_group_ids = p | beam.Create('create groups', group_ids)
+  pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create([ignore_corpus])
+  pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])
+  pcoll_group_ids = p | 'create groups' >> beam.Create(group_ids)
 
   pcoll_groups = create_groups(pcoll_group_ids, pcoll_corpus, pcoll_word,
                                pcoll_ignore_corpus, pcoll_ignore_word)

@@ -35,9 +35,9 @@ class CodersTest(unittest.TestCase):
 
   def test_compute_points(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    records = p | beam.Create('create', self.SAMPLE_RECORDS)
+    records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
     result = (records
-              | beam.FlatMap('points', coders.compute_points)
+              | 'points' >> beam.FlatMap(coders.compute_points)
               | beam.CombinePerKey(sum))
     assert_that(result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
     p.run()

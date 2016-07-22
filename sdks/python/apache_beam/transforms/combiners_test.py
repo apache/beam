@@ -39,16 +39,16 @@ class CombineTest(unittest.TestCase):
     size = len(vals)
 
     # First for global combines.
-    pcoll = pipeline | Create('start', vals)
-    result_mean = pcoll | combine.Mean.Globally('mean')
-    result_count = pcoll | combine.Count.Globally('count')
+    pcoll = pipeline | 'start' >> Create(vals)
+    result_mean = pcoll | 'mean' >> combine.Mean.Globally()
+    result_count = pcoll | 'count' >> combine.Count.Globally()
     assert_that(result_mean, equal_to([mean]), label='assert:mean')
     assert_that(result_count, equal_to([size]), label='assert:size')
 
     # Again for per-key combines.
-    pcoll = pipeline | Create('start-perkey', [('a', x) for x in vals])
-    result_key_mean = pcoll | combine.Mean.PerKey('mean-perkey')
-    result_key_count = pcoll | combine.Count.PerKey('count-perkey')
+    pcoll = pipeline | 'start-perkey' >> Create([('a', x) for x in vals])
+    result_key_mean = pcoll | 'mean-perkey' >> combine.Mean.PerKey()
+    result_key_count = pcoll | 'count-perkey' >> combine.Count.PerKey()
     assert_that(result_key_mean, equal_to([('a', mean)]), label='key:mean')
     assert_that(result_key_count, equal_to([('a', size)]), label='key:size')
     pipeline.run()
@@ -66,9 +66,9 @@ class CombineTest(unittest.TestCase):
              9: 'nniiinne'}
 
     # First for global combines.
-    pcoll = pipeline | Create('start', [6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-    result_top = pcoll | combine.Top.Largest('top', 5)
-    result_bot = pcoll | combine.Top.Smallest('bot', 4)
+    pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
+    result_top = pcoll | 'top' >> combine.Top.Largest(5)
+    result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
     result_cmp = pcoll | combine.Top.Of(
         'cmp',
         6,
@@ -81,8 +81,8 @@ class CombineTest(unittest.TestCase):
     # Again for per-key combines.
     pcoll = pipeline | Create(
         'start-perkey', [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-    result_key_top = pcoll | combine.Top.LargestPerKey('top-perkey', 5)
-    result_key_bot = pcoll | combine.Top.SmallestPerKey('bot-perkey', 4)
+    result_key_top = pcoll | 'top-perkey' >> combine.Top.LargestPerKey(5)
+    result_key_bot = pcoll | 'bot-perkey' >> combine.Top.SmallestPerKey(4)
     result_key_cmp = pcoll | combine.Top.PerKey(
         'cmp-perkey',
         6,
@@ -99,15 +99,15 @@ class CombineTest(unittest.TestCase):
   def test_top_shorthands(self):
     pipeline = Pipeline('DirectPipelineRunner')
 
-    pcoll = pipeline | Create('start', [6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
-    result_top = pcoll | beam.CombineGlobally('top', combine.Largest(5))
-    result_bot = pcoll | beam.CombineGlobally('bot', combine.Smallest(4))
+    pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
+    result_top = pcoll | 'top' >> beam.CombineGlobally(combine.Largest(5))
+    result_bot = pcoll | 'bot' >> beam.CombineGlobally(combine.Smallest(4))
     assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
     assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
 
     pcoll = pipeline | Create(
         'start-perkey', [('a', x) for x in [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]])
-    result_ktop = pcoll | beam.CombinePerKey('top-perkey', combine.Largest(5))
+    result_ktop = pcoll | 'top-perkey' >> beam.CombinePerKey(combine.Largest(5))
     result_kbot = pcoll | beam.CombinePerKey(
         'bot-perkey', combine.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
@@ -119,7 +119,7 @@ class CombineTest(unittest.TestCase):
     # First test global samples (lots of them).
     for ix in xrange(300):
       pipeline = Pipeline('DirectPipelineRunner')
-      pcoll = pipeline | Create('start', [1, 1, 2, 2])
+      pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
       result = pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3)
 
       def matcher():
@@ -141,7 +141,7 @@ class CombineTest(unittest.TestCase):
     pcoll = pipeline | Create(
         'start-perkey',
         sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(300)), []))
-    result = pcoll | combine.Sample.FixedSizePerKey('sample', 3)
+    result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
     def matcher():
       def match(actual):
@@ -158,7 +158,7 @@ class CombineTest(unittest.TestCase):
     p = Pipeline('DirectPipelineRunner')
     result = (
         p
-        | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
+        | 'a' >> Create([(100, 0.0), ('b', 10, -1), ('c', 1, 100)])
         | beam.CombineGlobally(combine.TupleCombineFn(max,
                                                       combine.MeanCombineFn(),
                                                       sum)).without_defaults())
@@ -179,8 +179,8 @@ class CombineTest(unittest.TestCase):
   def test_to_list_and_to_dict(self):
     pipeline = Pipeline('DirectPipelineRunner')
     the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
-    pcoll = pipeline | Create('start', the_list)
-    result = pcoll | combine.ToList('to list')
+    pcoll = pipeline | 'start' >> Create(the_list)
+    result = pcoll | 'to list' >> combine.ToList()
 
     def matcher(expected):
       def match(actual):
@@ -191,8 +191,8 @@ class CombineTest(unittest.TestCase):
 
     pipeline = Pipeline('DirectPipelineRunner')
     pairs = [(1, 2), (3, 4), (5, 6)]
-    pcoll = pipeline | Create('start-pairs', pairs)
-    result = pcoll | combine.ToDict('to dict')
+    pcoll = pipeline | 'start-pairs' >> Create(pairs)
+    result = pcoll | 'to dict' >> combine.ToDict()
 
     def matcher():
       def match(actual):
@@ -221,8 +221,8 @@ class CombineTest(unittest.TestCase):
         return main | Map(lambda _, s: s, side)
 
     p = Pipeline('DirectPipelineRunner')
-    result1 = p | Create('label1', []) | CombineWithSideInput('L1')
-    result2 = p | Create('label2', [1, 2, 3, 4]) | CombineWithSideInput('L2')
+    result1 = p | 'label1' >> Create([]) | 'L1' >> CombineWithSideInput()
+    result2 = p | 'label2' >> Create([1, 2, 3, 4]) | 'L2' >> CombineWithSideInput()
     assert_that(result1, equal_to([0]), label='r1')
     assert_that(result2, equal_to([10]), label='r2')
     p.run()
