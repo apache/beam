@@ -22,8 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -138,7 +138,9 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       return input
           .apply(
               ParDo.of(
-                  new DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<WindowedValue<V>>>>() {
+                  new OldDoFn<
+                      KV<K, Iterable<WindowedValue<V>>>,
+                      KV<K, Iterable<WindowedValue<V>>>>() {
                     @Override
                     public void processElement(ProcessContext c) {
                       KV<K, Iterable<WindowedValue<V>>> kvs = c.element();

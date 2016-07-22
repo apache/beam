@@ -26,8 +26,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableComparator;
@@ -85,7 +85,7 @@ public class TopWikipediaSessions {
   /**
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
    */
-  static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
+  static class ExtractUserAndTimestamp extends OldDoFn<TableRow, String> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -132,7 +132,7 @@ public class TopWikipediaSessions {
     }
   }
 
-  static class SessionsToStringsDoFn extends DoFn<KV<String, Long>, KV<String, Long>>
+  static class SessionsToStringsDoFn extends OldDoFn<KV<String, Long>, KV<String, Long>>
       implements RequiresWindowAccess {
 
     @Override
@@ -142,7 +142,7 @@ public class TopWikipediaSessions {
     }
   }
 
-  static class FormatOutputDoFn extends DoFn<List<KV<String, Long>>, String>
+  static class FormatOutputDoFn extends OldDoFn<List<KV<String, Long>>, String>
       implements RequiresWindowAccess {
     @Override
     public void processElement(ProcessContext c) {
@@ -168,7 +168,7 @@ public class TopWikipediaSessions {
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
 
           .apply("SampleUsers", ParDo.of(
-              new DoFn<String, String>() {
+              new OldDoFn<String, String>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * samplingThreshold) {

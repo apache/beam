@@ -20,11 +20,11 @@ package org.apache.beam.sdk.microbenchmarks.transforms;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnReflector;
 import org.apache.beam.sdk.transforms.DoFnReflector.DoFnInvoker;
 import org.apache.beam.sdk.transforms.DoFnWithContext;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -40,7 +40,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Benchmarks for {@link DoFn} and {@link DoFnWithContext} invocations, specifically
+ * Benchmarks for {@link OldDoFn} and {@link DoFnWithContext} invocations, specifically
  * for measuring the overhead of {@link DoFnReflector}.
  */
 @State(Scope.Benchmark)
@@ -50,7 +50,7 @@ public class DoFnReflectorBenchmark {
 
   private static final String ELEMENT = "some string to use for testing";
 
-  private DoFn<String, String> doFn = new UpperCaseDoFn();
+  private OldDoFn<String, String> doFn = new UpperCaseDoFn();
   private DoFnWithContext<String, String> doFnWithContext = new UpperCaseDoFnWithContext();
 
   private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(doFn, ELEMENT);
@@ -71,7 +71,7 @@ public class DoFnReflectorBenchmark {
   };
 
   private DoFnReflector doFnReflector;
-  private DoFn<String, String> adaptedDoFnWithContext;
+  private OldDoFn<String, String> adaptedDoFnWithContext;
 
   private DoFnInvoker<String, String> invoker;
 
@@ -100,7 +100,7 @@ public class DoFnReflectorBenchmark {
     return stubDoFnWithContextContext.output;
   }
 
-  private static class UpperCaseDoFn extends DoFn<String, String> {
+  private static class UpperCaseDoFn extends OldDoFn<String, String> {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
@@ -116,12 +116,12 @@ public class DoFnReflectorBenchmark {
     }
   }
 
-  private static class StubDoFnProcessContext extends DoFn<String, String>.ProcessContext {
+  private static class StubDoFnProcessContext extends OldDoFn<String, String>.ProcessContext {
 
     private final String element;
     private String output;
 
-    public StubDoFnProcessContext(DoFn<String, String> fn, String element) {
+    public StubDoFnProcessContext(OldDoFn<String, String> fn, String element) {
       fn.super();
       this.element = element;
     }

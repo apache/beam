@@ -49,7 +49,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -506,7 +506,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   /**
-   * Returns a Step for a DoFn by creating and translating a pipeline.
+   * Returns a Step for a OldDoFn by creating and translating a pipeline.
    */
   private static Step createPredefinedStep() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -530,7 +530,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     return step;
   }
 
-  private static class NoOpFn extends DoFn<String, String> {
+  private static class NoOpFn extends OldDoFn<String, String> {
     @Override public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
@@ -864,7 +864,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
 
-    DoFn<Integer, Integer> fn1 = new DoFn<Integer, Integer>() {
+    OldDoFn<Integer, Integer> fn1 = new OldDoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         c.output(c.element());
@@ -880,7 +880,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       }
     };
 
-    DoFn<Integer, Integer> fn2 = new DoFn<Integer, Integer>() {
+    OldDoFn<Integer, Integer> fn2 = new OldDoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         c.output(c.element());

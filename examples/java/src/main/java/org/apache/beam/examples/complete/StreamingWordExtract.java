@@ -28,7 +28,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -55,8 +55,8 @@ import java.util.ArrayList;
  */
 public class StreamingWordExtract {
 
-  /** A DoFn that tokenizes lines of text into individual words. */
-  static class ExtractWords extends DoFn<String, String> {
+  /** A OldDoFn that tokenizes lines of text into individual words. */
+  static class ExtractWords extends OldDoFn<String, String> {
     @Override
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z']+");
@@ -68,8 +68,8 @@ public class StreamingWordExtract {
     }
   }
 
-  /** A DoFn that uppercases a word. */
-  static class Uppercase extends DoFn<String, String> {
+  /** A OldDoFn that uppercases a word. */
+  static class Uppercase extends OldDoFn<String, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().toUpperCase());
@@ -79,7 +79,7 @@ public class StreamingWordExtract {
   /**
    * Converts strings into BigQuery rows.
    */
-  static class StringToRowConverter extends DoFn<String, TableRow> {
+  static class StringToRowConverter extends OldDoFn<String, TableRow> {
     /**
      * In this example, put the whole string into single BigQuery field.
      */

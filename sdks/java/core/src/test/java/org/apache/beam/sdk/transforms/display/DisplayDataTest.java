@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasName
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
@@ -40,7 +41,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -54,7 +55,6 @@ import com.google.common.testing.EqualsTester;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
@@ -1053,7 +1053,7 @@ public class DisplayDataTest implements Serializable {
   private static class IdentityTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      return input.apply(ParDo.of(new DoFn<T, T>() {
+      return input.apply(ParDo.of(new OldDoFn<T, T>() {
         @Override
         public void processElement(ProcessContext c) throws Exception {
           c.output(c.element());

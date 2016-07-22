@@ -26,7 +26,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -75,7 +75,7 @@ public final class PCollectionTupleTest implements Serializable {
         .apply(Create.of(inputs));
 
     PCollectionTuple outputs = mainInput.apply(ParDo
-        .of(new DoFn<Integer, Integer>() {
+        .of(new OldDoFn<Integer, Integer>() {
           @Override
           public void processElement(ProcessContext c) {
             c.sideOutput(sideOutputTag, c.element());

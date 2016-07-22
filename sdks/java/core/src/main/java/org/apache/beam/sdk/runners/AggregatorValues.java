@@ -19,14 +19,14 @@ package org.apache.beam.sdk.runners;
 
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 
 import java.util.Collection;
 import java.util.Map;
 
 /**
  * A collection of values associated with an {@link Aggregator}. Aggregators declared in a
- * {@link DoFn} are emitted on a per-{@code DoFn}-application basis.
+ * {@link OldDoFn} are emitted on a per-{@code OldDoFn}-application basis.
  *
  * @param <T> the output type of the aggregator
  */

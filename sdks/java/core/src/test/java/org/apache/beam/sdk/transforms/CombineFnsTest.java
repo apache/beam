@@ -461,7 +461,7 @@ public class  CombineFnsTest {
   }
 
   private static class ExtractResultDoFn
-      extends DoFn<KV<String, CoCombineResult>, KV<String, KV<Integer, String>>>{
+      extends OldDoFn<KV<String, CoCombineResult>, KV<String, KV<Integer, String>>> {
 
     private final TupleTag<Integer> maxIntTag;
     private final TupleTag<UserString> concatStringTag;

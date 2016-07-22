@@ -24,7 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -48,10 +48,10 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * {@link org.apache.beam.sdk.transforms.DoFn.ProcessContext} for our Flink Wrappers.
+ * {@link OldDoFn.ProcessContext} for our Flink Wrappers.
  */
 class FlinkProcessContext<InputT, OutputT>
-    extends DoFn<InputT, OutputT>.ProcessContext {
+    extends OldDoFn<InputT, OutputT>.ProcessContext {
 
   private final PipelineOptions pipelineOptions;
   private final RuntimeContext runtimeContext;
@@ -67,7 +67,7 @@ class FlinkProcessContext<InputT, OutputT>
   FlinkProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Collector<WindowedValue<OutputT>> collector,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
@@ -80,7 +80,7 @@ class FlinkProcessContext<InputT, OutputT>
     this.pipelineOptions = pipelineOptions;
     this.runtimeContext = runtimeContext;
     this.collector = collector;
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
+    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
 
@@ -90,7 +90,7 @@ class FlinkProcessContext<InputT, OutputT>
   FlinkProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
     doFn.super();
@@ -101,7 +101,7 @@ class FlinkProcessContext<InputT, OutputT>
     this.pipelineOptions = pipelineOptions;
     this.runtimeContext = runtimeContext;
     this.collector = null;
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
+    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
 
@@ -141,7 +141,7 @@ class FlinkProcessContext<InputT, OutputT>
   public BoundedWindow window() {
     if (!requiresWindowAccess) {
       throw new UnsupportedOperationException(
-          "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
+          "window() is only available in the context of a OldDoFn marked as RequiresWindowAccess.");
     }
     return Iterables.getOnlyElement(windowedValue.getWindows());
   }

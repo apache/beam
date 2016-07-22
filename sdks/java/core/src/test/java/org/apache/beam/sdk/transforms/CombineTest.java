@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -73,7 +74,6 @@ import com.google.common.collect.Sets;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -117,7 +117,7 @@ public class CombineTest implements Serializable {
     1, 1, 2, 3, 5, 8, 13, 21, 34, 55
   };
 
-  @Mock private DoFn<?, ?>.ProcessContext processContext;
+  @Mock private OldDoFn<?, ?>.ProcessContext processContext;
 
   PCollection<KV<String, Integer>> createInput(Pipeline p,
                                                KV<String, Integer>[] table) {
@@ -372,7 +372,7 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private static class FormatPaneInfo extends DoFn<Integer, String> {
+  private static class FormatPaneInfo extends OldDoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element() + ": " + c.pane().isLast());
@@ -560,7 +560,7 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private static class GetLast extends DoFn<Integer, Integer> {
+  private static class GetLast extends OldDoFn<Integer, Integer> {
     @Override
     public void processElement(ProcessContext c) {
       if (c.pane().isLast()) {
@@ -653,7 +653,7 @@ public class CombineTest implements Serializable {
 
     PCollection<Integer> output = pipeline
         .apply("CreateVoidMainInput", Create.of((Void) null))
-        .apply("OutputSideInput", ParDo.of(new DoFn<Void, Integer>() {
+        .apply("OutputSideInput", ParDo.of(new OldDoFn<Void, Integer>() {
                   @Override
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view));
@@ -1176,7 +1176,7 @@ public class CombineTest implements Serializable {
   }
 
   private static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
-    return pc.apply(ParDo.of(new DoFn<T, T>() {
+    return pc.apply(ParDo.of(new OldDoFn<T, T>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         for (int i = 0; i < n; i++) {

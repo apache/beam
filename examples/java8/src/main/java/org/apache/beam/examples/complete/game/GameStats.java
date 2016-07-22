@@ -27,10 +27,10 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -126,7 +126,7 @@ public class GameStats extends LeaderBoard {
           .apply("ProcessAndFilter", ParDo
               // use the derived mean total score as a side input
               .withSideInputs(globalMeanScore)
-              .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+              .of(new OldDoFn<KV<String, Integer>, KV<String, Integer>>() {
                 private final Aggregator<Long, Long> numSpammerUsers =
                   createAggregator("SpammerUsers", new Sum.SumLongFn());
                 @Override
@@ -149,7 +149,7 @@ public class GameStats extends LeaderBoard {
   /**
    * Calculate and output an element's session duration.
    */
-  private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer>
+  private static class UserSessionInfoFn extends OldDoFn<KV<String, Integer>, Integer>
       implements RequiresWindowAccess {
 
     @Override
@@ -281,7 +281,7 @@ public class GameStats extends LeaderBoard {
       // Filter out the detected spammer users, using the side input derived above.
       .apply("FilterOutSpammers", ParDo
               .withSideInputs(spammersView)
-              .of(new DoFn<GameActionInfo, GameActionInfo>() {
+              .of(new OldDoFn<GameActionInfo, GameActionInfo>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   // If the user is not in the spammers Map, output the data element.

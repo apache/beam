@@ -29,7 +29,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -92,7 +92,7 @@ public class AutoComplete {
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
-            new DoFn<KV<String, Long>, CompletionCandidate>() {
+            new OldDoFn<KV<String, Long>, CompletionCandidate>() {
               private static final long serialVersionUID = 0;
 
               @Override
@@ -182,7 +182,7 @@ public class AutoComplete {
     }
 
     private static class FlattenTops
-        extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
+        extends OldDoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
       private static final long serialVersionUID = 0;
 
       @Override
@@ -236,10 +236,10 @@ public class AutoComplete {
   }
 
   /**
-   * A DoFn that keys each candidate by all its prefixes.
+   * A OldDoFn that keys each candidate by all its prefixes.
    */
   private static class AllPrefixes
-      extends DoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
+      extends OldDoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
     private static final long serialVersionUID = 0;
 
     private final int minPrefix;
@@ -314,7 +314,7 @@ public class AutoComplete {
     }
   }
 
-  static class ExtractWordsFn extends DoFn<String, String> {
+  static class ExtractWordsFn extends OldDoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
             createAggregator("emptyLines", new Sum.SumLongFn());
 
@@ -340,8 +340,8 @@ public class AutoComplete {
    * Takes as input a the top candidates per prefix, and emits an entity
    * suitable for writing to Datastore.
    */
-  static class FormatForPerTaskLocalFile extends DoFn<KV<String, List<CompletionCandidate>>, String>
-          implements DoFn.RequiresWindowAccess{
+  static class FormatForPerTaskLocalFile extends OldDoFn<KV<String, List<CompletionCandidate>>, String>
+          implements OldDoFn.RequiresWindowAccess{
 
     private static final long serialVersionUID = 0;
 

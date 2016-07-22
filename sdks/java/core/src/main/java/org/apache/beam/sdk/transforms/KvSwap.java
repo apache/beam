@@ -62,7 +62,7 @@ public class KvSwap<K, V> extends PTransform<PCollection<KV<K, V>>,
   @Override
   public PCollection<KV<V, K>> apply(PCollection<KV<K, V>> in) {
     return
-        in.apply("KvSwap", ParDo.of(new DoFn<KV<K, V>, KV<V, K>>() {
+        in.apply("KvSwap", ParDo.of(new OldDoFn<KV<K, V>, KV<V, K>>() {
           @Override
           public void processElement(ProcessContext c) {
             KV<K, V> e = c.element();

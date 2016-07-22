@@ -17,18 +17,16 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 import org.joda.time.Instant;
 
-import java.util.Collection;
-
 /**
  * {@link WindowFn.AssignContext} for calling a {@link WindowFn} for elements emitted from
- * {@link org.apache.beam.sdk.transforms.DoFn#startBundle(DoFn.Context)}
- * or {@link DoFn#finishBundle(DoFn.Context)}.
+ * {@link OldDoFn#startBundle(OldDoFn.Context)}
+ * or {@link OldDoFn#finishBundle(OldDoFn.Context)}.
  *
  * <p>In those cases the {@code WindowFn} is not allowed to access any element information.
  */

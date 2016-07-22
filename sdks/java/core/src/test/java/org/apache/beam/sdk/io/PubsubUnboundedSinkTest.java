@@ -24,7 +24,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
@@ -58,7 +58,7 @@ public class PubsubUnboundedSinkTest {
   private static final String ID_LABEL = "id";
   private static final int NUM_SHARDS = 10;
 
-  private static class Stamp extends DoFn<String, String> {
+  private static class Stamp extends OldDoFn<String, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(c.element(), new Instant(TIMESTAMP));

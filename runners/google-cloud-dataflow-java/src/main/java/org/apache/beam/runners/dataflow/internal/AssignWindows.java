@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.internal;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -63,9 +63,9 @@ public class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>>
     } else {
       // If the windowFn didn't change, we just run a pass-through transform and then set the
       // new windowing strategy.
-      return input.apply("Identity", ParDo.of(new DoFn<T, T>() {
+      return input.apply("Identity", ParDo.of(new OldDoFn<T, T>() {
         @Override
-        public void processElement(DoFn<T, T>.ProcessContext c) throws Exception {
+        public void processElement(OldDoFn<T, T>.ProcessContext c) throws Exception {
           c.output(c.element());
         }
       })).setWindowingStrategyInternal(outputStrategy);

@@ -24,7 +24,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
@@ -99,7 +99,7 @@ public class JoinExamples {
     // country code 'key' -> string of <event info>, <country name>
     PCollection<KV<String, String>> finalResultCollection =
       kvpCollection.apply("Process", ParDo.of(
-        new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
+        new OldDoFn<KV<String, CoGbkResult>, KV<String, String>>() {
           @Override
           public void processElement(ProcessContext c) {
             KV<String, CoGbkResult> e = c.element();
@@ -116,7 +116,7 @@ public class JoinExamples {
 
     // write to GCS
     PCollection<String> formattedResults = finalResultCollection
-        .apply("Format", ParDo.of(new DoFn<KV<String, String>, String>() {
+        .apply("Format", ParDo.of(new OldDoFn<KV<String, String>, String>() {
           @Override
           public void processElement(ProcessContext c) {
             String outputstring = "Country code: " + c.element().getKey()
@@ -131,7 +131,7 @@ public class JoinExamples {
    * Examines each row (event) in the input table. Output a KV with the key the country
    * code of the event, and the value a string encoding event information.
    */
-  static class ExtractEventDataFn extends DoFn<TableRow, KV<String, String>> {
+  static class ExtractEventDataFn extends OldDoFn<TableRow, KV<String, String>> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -149,7 +149,7 @@ public class JoinExamples {
    * Examines each row (country info) in the input table. Output a KV with the key the country
    * code, and the value the country name.
    */
-  static class ExtractCountryInfoFn extends DoFn<TableRow, KV<String, String>> {
+  static class ExtractCountryInfoFn extends OldDoFn<TableRow, KV<String, String>> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();

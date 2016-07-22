@@ -142,9 +142,9 @@ public class DoFnWithContextTest implements Serializable {
   @Test
   public void testDoFnWithContextUsingAggregators() {
     NoOpDoFn<Object, Object> noOpFn = new NoOpDoFn<>();
-    DoFn<Object, Object>.Context context = noOpFn.context();
+    OldDoFn<Object, Object>.Context context = noOpFn.context();
 
-    DoFn<Object, Object> fn = spy(noOpFn);
+    OldDoFn<Object, Object> fn = spy(noOpFn);
     context = spy(context);
 
     @SuppressWarnings("unchecked")
@@ -225,7 +225,7 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   /**
-   * Initialize a test pipeline with the specified {@link DoFn}.
+   * Initialize a test pipeline with the specified {@link OldDoFn}.
    */
   private <InputT, OutputT> TestPipeline createTestPipeline(DoFnWithContext<InputT, OutputT> fn) {
     TestPipeline pipeline = TestPipeline.create();

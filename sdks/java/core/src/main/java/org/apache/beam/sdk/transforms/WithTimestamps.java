@@ -92,7 +92,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * Returns the allowed timestamp skew duration, which is the maximum
    * duration that timestamps can be shifted backwards from the timestamp of the input element.
    *
-   * @see DoFn#getAllowedTimestampSkew()
+   * @see OldDoFn#getAllowedTimestampSkew()
    */
   public Duration getAllowedTimestampSkew() {
     return allowedTimestampSkew;
@@ -105,7 +105,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
         .setTypeDescriptorInternal(input.getTypeDescriptor());
   }
 
-  private static class AddTimestampsDoFn<T> extends DoFn<T, T> {
+  private static class AddTimestampsDoFn<T> extends OldDoFn<T, T> {
     private final SerializableFunction<T, Instant> fn;
     private final Duration allowedTimestampSkew;
 

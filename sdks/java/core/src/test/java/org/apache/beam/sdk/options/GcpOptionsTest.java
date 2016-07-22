@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;

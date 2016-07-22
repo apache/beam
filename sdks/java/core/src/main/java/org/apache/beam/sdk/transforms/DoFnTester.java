@@ -49,12 +49,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A harness for unit-testing a {@link DoFn}.
+ * A harness for unit-testing a {@link OldDoFn}.
  *
  * <p>For example:
  *
  * <pre> {@code
- * DoFn<InputT, OutputT> fn = ...;
+ * OldDoFn<InputT, OutputT> fn = ...;
  *
  * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
  *
@@ -71,22 +71,22 @@ import java.util.Map;
  * Assert.assertThat(fnTester.processBundle(i1, i2, ...), Matchers.hasItems(...));
  * } </pre>
  *
- * @param <InputT> the type of the {@code DoFn}'s (main) input elements
- * @param <OutputT> the type of the {@code DoFn}'s (main) output elements
+ * @param <InputT> the type of the {@code OldDoFn}'s (main) input elements
+ * @param <OutputT> the type of the {@code OldDoFn}'s (main) output elements
  */
 public class DoFnTester<InputT, OutputT> {
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link DoFn}.
+   * {@link OldDoFn}.
    */
   @SuppressWarnings("unchecked")
-  public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+  public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
     return new DoFnTester<InputT, OutputT>(fn);
   }
 
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link DoFn}.
+   * {@link OldDoFn}.
    */
   @SuppressWarnings("unchecked")
   public static <InputT, OutputT> DoFnTester<InputT, OutputT>
@@ -96,12 +96,12 @@ public class DoFnTester<InputT, OutputT> {
 
   /**
    * Registers the tuple of values of the side input {@link PCollectionView}s to
-   * pass to the {@link DoFn} under test.
+   * pass to the {@link OldDoFn} under test.
    *
    * <p>Resets the state of this {@link DoFnTester}.
    *
    * <p>If this isn't called, {@code DoFnTester} assumes the
-   * {@link DoFn} takes no side inputs.
+   * {@link OldDoFn} takes no side inputs.
    */
   public void setSideInputs(Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
     this.sideInputs = sideInputs;
@@ -109,8 +109,8 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Registers the values of a side input {@link PCollectionView} to pass to the {@link DoFn} under
-   * test.
+   * Registers the values of a side input {@link PCollectionView} to pass to the {@link OldDoFn}
+   * under test.
    *
    * <p>The provided value is the final value of the side input in the specified window, not
    * the value of the input PCollection in that window.
@@ -128,7 +128,7 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Whether or not a {@link DoFnTester} should clone the {@link DoFn} under test.
+   * Whether or not a {@link DoFnTester} should clone the {@link OldDoFn} under test.
    */
   public enum CloningBehavior {
     CLONE,
@@ -136,14 +136,14 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Instruct this {@link DoFnTester} whether or not to clone the {@link DoFn} under test.
+   * Instruct this {@link DoFnTester} whether or not to clone the {@link OldDoFn} under test.
    */
   public void setCloningBehavior(CloningBehavior newValue) {
     this.cloningBehavior = newValue;
   }
 
   /**
-   *  Indicates whether this {@link DoFnTester} will clone the {@link DoFn} under test.
+   *  Indicates whether this {@link DoFnTester} will clone the {@link OldDoFn} under test.
    */
   public CloningBehavior getCloningBehavior() {
     return cloningBehavior;
@@ -165,7 +165,7 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * A convenience method for testing {@link DoFn DoFns} with bundles of elements.
+   * A convenience method for testing {@link OldDoFn DoFns} with bundles of elements.
    * Logic proceeds as follows:
    *
    * <ol>
@@ -181,9 +181,9 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Calls {@link DoFn#startBundle} on the {@code DoFn} under test.
+   * Calls {@link OldDoFn#startBundle} on the {@code OldDoFn} under test.
    *
-   * <p>If needed, first creates a fresh instance of the DoFn under test.
+   * <p>If needed, first creates a fresh instance of the OldDoFn under test.
    */
   public void startBundle() throws Exception {
     resetState();
@@ -195,14 +195,14 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Calls {@link DoFn#processElement} on the {@code DoFn} under test, in a
-   * context where {@link DoFn.ProcessContext#element} returns the
+   * Calls {@link OldDoFn#processElement} on the {@code OldDoFn} under test, in a
+   * context where {@link OldDoFn.ProcessContext#element} returns the
    * given element.
    *
    * <p>Will call {@link #startBundle} automatically, if it hasn't
    * already been called.
    *
-   * @throws IllegalStateException if the {@code DoFn} under test has already
+   * @throws IllegalStateException if the {@code OldDoFn} under test has already
    * been finished
    */
   public void processElement(InputT element) throws Exception {
@@ -216,12 +216,12 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Calls {@link DoFn#finishBundle} of the {@code DoFn} under test.
+   * Calls {@link OldDoFn#finishBundle} of the {@code OldDoFn} under test.
    *
    * <p>Will call {@link #startBundle} automatically, if it hasn't
    * already been called.
    *
-   * @throws IllegalStateException if the {@code DoFn} under test has already
+   * @throws IllegalStateException if the {@code OldDoFn} under test has already
    * been finished
    */
   public void finishBundle() throws Exception {
@@ -403,18 +403,18 @@ public class DoFnTester<InputT, OutputT> {
     return MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList());
   }
 
-  private TestContext<InputT, OutputT> createContext(DoFn<InputT, OutputT> fn) {
+  private TestContext<InputT, OutputT> createContext(OldDoFn<InputT, OutputT> fn) {
     return new TestContext<>(fn, options, mainOutputTag, outputs, accumulators);
   }
 
-  private static class TestContext<InT, OutT> extends DoFn<InT, OutT>.Context {
+  private static class TestContext<InT, OutT> extends OldDoFn<InT, OutT>.Context {
     private final PipelineOptions opts;
     private final TupleTag<OutT> mainOutputTag;
     private final Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
     private final Map<String, Object> accumulators;
 
     public TestContext(
-        DoFn<InT, OutT> fn,
+        OldDoFn<InT, OutT> fn,
         PipelineOptions opts,
         TupleTag<OutT> mainOutputTag,
         Map<TupleTag<?>, List<WindowedValue<?>>> outputs,
@@ -498,7 +498,7 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   private TestProcessContext<InputT, OutputT> createProcessContext(
-      DoFn<InputT, OutputT> fn,
+      OldDoFn<InputT, OutputT> fn,
       InputT elem) {
     return new TestProcessContext<>(fn,
         createContext(fn),
@@ -507,14 +507,14 @@ public class DoFnTester<InputT, OutputT> {
         sideInputs);
   }
 
-  private static class TestProcessContext<InT, OutT> extends DoFn<InT, OutT>.ProcessContext {
+  private static class TestProcessContext<InT, OutT> extends OldDoFn<InT, OutT>.ProcessContext {
     private final TestContext<InT, OutT> context;
     private final TupleTag<OutT> mainOutputTag;
     private final WindowedValue<InT> element;
     private final Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs;
 
     private TestProcessContext(
-        DoFn<InT, OutT> fn,
+        OldDoFn<InT, OutT> fn,
         TestContext<InT, OutT> context,
         WindowedValue<InT> element,
         TupleTag<OutT> mainOutputTag,
@@ -643,15 +643,15 @@ public class DoFnTester<InputT, OutputT> {
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
-          + "Instead, create an aggregator at DoFn construction time with createAggregatorForDoFn,"
-          + " and ensure they are set up by the time startBundle is called "
-          + "with setupDelegateAggregators.");
+          + "Instead, create an aggregator at OldDoFn construction time with"
+          + " createAggregatorForDoFn, and ensure they are set up by the time startBundle is"
+          + " called with setupDelegateAggregators.");
     }
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** The possible states of processing a DoFn. */
+  /** The possible states of processing a OldDoFn. */
   enum State {
     UNSTARTED,
     STARTED,
@@ -660,35 +660,35 @@ public class DoFnTester<InputT, OutputT> {
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
 
-  /** The original DoFn under test. */
-  private final DoFn<InputT, OutputT> origFn;
+  /** The original OldDoFn under test. */
+  private final OldDoFn<InputT, OutputT> origFn;
 
   /**
-   * Whether to clone the original {@link DoFn} or just use it as-is.
+   * Whether to clone the original {@link OldDoFn} or just use it as-is.
    *
-   * <p></p>Worker-side {@link DoFn DoFns} may not be serializable, and are not required to be.
+   * <p></p>Worker-side {@link OldDoFn DoFns} may not be serializable, and are not required to be.
    */
   private CloningBehavior cloningBehavior = CloningBehavior.CLONE;
 
-  /** The side input values to provide to the DoFn under test. */
+  /** The side input values to provide to the OldDoFn under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
 
   private Map<String, Object> accumulators;
 
-  /** The output tags used by the DoFn under test. */
+  /** The output tags used by the OldDoFn under test. */
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
-  /** The original DoFn under test, if started. */
-  DoFn<InputT, OutputT> fn;
+  /** The original OldDoFn under test, if started. */
+  OldDoFn<InputT, OutputT> fn;
 
   /** The ListOutputManager to examine the outputs. */
   private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
-  /** The state of processing of the DoFn under test. */
+  /** The state of processing of the OldDoFn under test. */
   private State state;
 
-  private DoFnTester(DoFn<InputT, OutputT> origFn) {
+  private DoFnTester(OldDoFn<InputT, OutputT> origFn) {
     this.origFn = origFn;
     resetState();
   }
@@ -705,7 +705,7 @@ public class DoFnTester<InputT, OutputT> {
     if (cloningBehavior.equals(CloningBehavior.DO_NOT_CLONE)) {
       fn = origFn;
     } else {
-      fn = (DoFn<InputT, OutputT>)
+      fn = (OldDoFn<InputT, OutputT>)
           SerializableUtils.deserializeFromByteArray(
               SerializableUtils.serializeToByteArray(origFn),
               origFn.toString());
