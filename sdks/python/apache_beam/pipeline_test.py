@@ -183,7 +183,7 @@ class PipelineTest(unittest.TestCase):
 
     self.assertEqual(
         ['a-x', 'b-x', 'c-x'],
-        sorted(['a', 'b', 'c'] | '-x' >> AddSuffix()))
+        sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
 
   def test_cached_pvalues_are_refcounted(self):
     """Test that cached PValues are refcounted and deleted.
@@ -218,7 +218,7 @@ class PipelineTest(unittest.TestCase):
         biglist
         | 'oom:addone' >> Map(lambda x: (x, 1))
         | 'oom:dupes' >> FlatMap(create_dupes,
-                  AsIter(biglist)).with_outputs('side', main='main'))
+            AsIter(biglist)).with_outputs('side', main='main'))
     result = (
         (dupes.side, dupes.main, dupes.side)
         | 'oom:flatten' >> Flatten()
@@ -232,8 +232,8 @@ class PipelineTest(unittest.TestCase):
         {
             'oom:flatten': 3 * num_elements,
             ('oom:combine/GroupByKey/reify_windows', None): 3 * num_elements,
-            ('oom:dupes/oom:dupes', 'side'): num_elements,
-            ('oom:dupes/oom:dupes', None): num_elements,
+            ('oom:dupes/FlatMap(create_dupes)', 'side'): num_elements,
+            ('oom:dupes/FlatMap(create_dupes)', None): num_elements,
             'oom:create': num_elements,
             ('oom:addone', None): num_elements,
             'oom:combine/GroupByKey/group_by_key': 1,
