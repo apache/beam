@@ -39,34 +39,46 @@
     <module>spark</module>
   </modules>
 
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <executions>
-            <execution>
-              <id>runnable-on-service-tests</id>
-              <phase>integration-test</phase>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-                <parallel>all</parallel>
-                <threadCount>4</threadCount>
-                <dependenciesToScan>
-                  <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-                </dependenciesToScan>
-                <systemPropertyVariables>
-                  <beamTestPipelineOptions>${runnableOnServicePipelineOptions}</beamTestPipelineOptions>
-                </systemPropertyVariables>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
+  <profiles>
+
+    <!-- A profile that adds an integration test phase if and only if
+         the runnableOnServicePipelineOptions maven property has been set.
+         It should be set to a valid PipelineOptions JSON string. -->
+    <profile>
+      <id>runnable-on-service-tests</id>
+      <activation>
+        <property><name>runnableOnServicePipelineOptions</name></property>
+      </activation>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>runnable-on-service-tests</id>
+                  <phase>integration-test</phase>
+                  <goals>
+                    <goal>test</goal>
+                  </goals>
+                  <configuration>
+                    <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                    <parallel>all</parallel>
+                    <threadCount>4</threadCount>
+                    <dependenciesToScan>
+                      <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                    </dependenciesToScan>
+                    <systemPropertyVariables>
+                      <beamTestPipelineOptions>${runnableOnServicePipelineOptions}</beamTestPipelineOptions>
+                    </systemPropertyVariables>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+  </profiles>
 </project>
