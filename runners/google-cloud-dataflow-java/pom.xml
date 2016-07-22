@@ -37,37 +37,6 @@
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
   </properties>
 
-  <profiles>
-    <profile>
-      <!-- This profile disables automatic execution of RunnableOnService
-           integration tests on Google Cloud Dataflow service. However,
-           the tests will be executed if runnableOnServicePipelineOptions
-           is specified. -->
-      <id>disable-runnable-on-service-tests</id>
-      <activation>
-        <property>
-          <name>!runnableOnServicePipelineOptions</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>runnable-on-service-tests</id>
-                <configuration>
-                  <skip>true</skip>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-
   <build>
     <resources>
       <resource>
