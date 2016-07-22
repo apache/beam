@@ -29,12 +29,14 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
 
 
-class LoggingContext(object):
+class FakeLogger(object):
+  def PerThreadLoggingContext(self, *unused_args, **unused_kwargs):
+    return self
 
-  def enter(self):
+  def __enter__(self):
     pass
 
-  def exit(self):
+  def __exit__(self, *unused_args):
     pass
 
 
@@ -74,8 +76,7 @@ class DoFnRunner(object):
     self.window_fn = windowing.windowfn
     self.context = context
     self.tagged_receivers = tagged_receivers
-    self.logging_context = (logger.PerThreadLoggingContext(step_name=step_name)
-                            if logger else LoggingContext())
+    self.logger = logger or FakeLogger()
     self.step_name = step_name
 
     # Optimize for the common case.
@@ -84,32 +85,23 @@ class DoFnRunner(object):
   def start(self):
     self.context.set_element(None)
     try:
-      self.logging_context.enter()
       self._process_outputs(None, self.dofn.start_bundle(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
-    finally:
-      self.logging_context.exit()
 
   def finish(self):
     self.context.set_element(None)
     try:
-      self.logging_context.enter()
       self._process_outputs(None, self.dofn.finish_bundle(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
-    finally:
-      self.logging_context.exit()
 
   def process(self, element):
     try:
-      self.logging_context.enter()
       self.context.set_element(element)
       self._process_outputs(element, self.dofn_process(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
-    finally:
-      self.logging_context.exit()
 
   def reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
