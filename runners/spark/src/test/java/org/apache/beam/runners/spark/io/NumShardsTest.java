@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.examples.WordCount;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
@@ -29,8 +28,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Charsets;
@@ -55,8 +57,7 @@ import java.util.Set;
 public class NumShardsTest {
 
   private static final String[] WORDS_ARRAY = {
-      "hi there", "hi", "hi sue bob",
-      "hi sue", "", "bob hi"};
+      "hi", "there", "hi", "hi", "sue", "bob", "hi", "sue", "", "bob", "hi"};
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
   private File outputDir;
@@ -70,14 +71,22 @@ public class NumShardsTest {
     outputDir.delete();
   }
 
+  /** A SimpleFunction that converts a Word and Count into a printable string. */
+  private static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
+    @Override
+    public String apply(KV<String, Long> input) {
+      return input.getKey() + ": " + input.getValue();
+    }
+  }
+
   @Test
   public void testText() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
-    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    PCollection<String> output = inputWords.apply(Count.<String>perElement())
+        .apply(MapElements.via(new FormatAsTextFn()));
     output.apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
     EvaluationResult res = SparkRunner.create().run(p);
     res.close();
@@ -97,5 +106,4 @@ public class NumShardsTest {
     assertEquals(3, count);
     assertTrue(expected.isEmpty());
   }
-
 }
