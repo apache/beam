@@ -32,18 +32,24 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryQuerySource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryWrite;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.WritePartition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.WriteRename;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.WriteTempTables;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -59,15 +65,21 @@ import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 import com.google.api.client.util.Data;
 import com.google.api.client.util.Strings;
@@ -111,6 +123,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -592,7 +605,9 @@ public class BigQueryIOTest implements Serializable {
     p.run();
 
     logged.verifyInfo("Starting BigQuery load job");
+    logged.verifyInfo("Starting BigQuery copy job");
     logged.verifyInfo("Previous load jobs failed, retrying.");
+    logged.verifyInfo("Previous copy jobs failed, retrying.");
     File tempDir = new File(bqOptions.getTempLocation());
     assertEquals(0, tempDir.listFiles(new FileFilter() {
       @Override
@@ -1235,5 +1250,148 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage("cleanup executed");
 
     p.run();
+  }
+
+  @Test
+  public void testWritePartitionManyFiles() throws Exception {
+    final long numFiles = BigQueryWrite.MAX_NUM_FILES * 3;
+    final long fileSize = 1;
+
+    // One partition is needed for each group of BigQueryWrite.MAX_NUM_FILES files
+    final long expectedNumPartitions = 3;
+    testWritePartition(numFiles, fileSize, expectedNumPartitions);
+  }
+
+  @Test
+  public void testWritePartitionLargeFileSize() throws Exception {
+    final long numFiles = 10;
+    final long fileSize = BigQueryWrite.MAX_SIZE_BYTES / 3;
+
+    // One partition is needed for each group of three files
+    final long expectedNumPartitions = 4;
+    testWritePartition(numFiles, fileSize, expectedNumPartitions);
+  }
+
+  private void testWritePartition(long numFiles, long fileSize, long expectedNumPartitions)
+      throws Exception {
+    final List<Long> expectedPartitionIds = Lists.newArrayList();
+    for (long i = 1; i <= expectedNumPartitions; ++i) {
+      expectedPartitionIds.add(i);
+    }
+
+    final List<KV<String, Long>> files = Lists.newArrayList();
+    final List<String> fileNames = Lists.newArrayList();
+    for (int i = 0; i < numFiles; ++i) {
+      String fileName = String.format("files%05d", i);
+      fileNames.add(fileName);
+      files.add(KV.of(fileName, fileSize));
+    }
+
+    final PCollectionView<Iterable<KV<String, Long>>> filesView = PCollectionViews.iterableView(
+        TestPipeline.create(),
+        WindowingStrategy.globalDefault(),
+        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+
+    WritePartition writePartition = new WritePartition(filesView);
+
+    DoFnTester<Integer, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
+    tester.setSideInput(filesView, GlobalWindow.INSTANCE, files);
+    tester.processElement(1);
+
+    List<KV<Long, List<String>>> partitions = tester.takeOutputElements();
+    List<Long> partitionIds = Lists.newArrayList();
+    List<String> partitionFileNames = Lists.newArrayList();
+    for (KV<Long, List<String>> partition : partitions) {
+      partitionIds.add(partition.getKey());
+      for (String name : partition.getValue()) {
+        partitionFileNames.add(name);
+      }
+    }
+
+    assertEquals(expectedPartitionIds, partitionIds);
+    assertEquals(fileNames, partitionFileNames);
+  }
+
+  @Test
+  public void testWriteTempTables() throws Exception {
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService()
+            .startJobReturns("done", "done", "done", "done")
+            .pollJobReturns(Status.FAILED, Status.SUCCEEDED, Status.SUCCEEDED, Status.SUCCEEDED))
+        .withDatasetService(mockDatasetService);
+
+    final long numPartitions = 3;
+    final long numFilesPerPartition = 10;
+    final String jobIdToken = "jobIdToken";
+    final String tempFilePrefix = "tempFilePrefix";
+    final String jsonTable = "{}";
+    final String jsonSchema = "{}";
+    final List<String> expectedTempTables = Lists.newArrayList();
+
+    final List<KV<Long, Iterable<List<String>>>> partitions = Lists.newArrayList();
+    for (long i = 0; i < numPartitions; ++i) {
+      List<String> filesPerPartition = Lists.newArrayList();
+      for (int j = 0; j < numFilesPerPartition; ++j) {
+        filesPerPartition.add(String.format("files%05d", j));
+      }
+      partitions.add(KV.of(i, (Iterable<List<String>>) Collections.singleton(filesPerPartition)));
+      expectedTempTables.add(String.format("{\"tableId\":\"%s_%05d\"}", jobIdToken, i));
+    }
+
+    WriteTempTables writeTempTables = new WriteTempTables(
+        fakeBqServices,
+        jobIdToken,
+        tempFilePrefix,
+        jsonTable,
+        jsonSchema);
+
+    DoFnTester<KV<Long, Iterable<List<String>>>, String> tester = DoFnTester.of(writeTempTables);
+    for (KV<Long, Iterable<List<String>>> partition : partitions) {
+      tester.processElement(partition);
+    }
+
+    List<String> tempTables = tester.takeOutputElements();
+
+    logged.verifyInfo("Starting BigQuery load job");
+    logged.verifyInfo("Previous load jobs failed, retrying.");
+
+    assertEquals(expectedTempTables, tempTables);
+  }
+
+  @Test
+  public void testWriteRename() throws Exception {
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService()
+            .startJobReturns("done", "done", "done", "done")
+            .pollJobReturns(Status.FAILED, Status.SUCCEEDED, Status.SUCCEEDED, Status.SUCCEEDED))
+        .withDatasetService(mockDatasetService);
+
+    final long numTempTables = 3;
+    final String jobIdToken = "jobIdToken";
+    final String jsonTable = "{}";
+    final List<String> tempTables = Lists.newArrayList();
+    for (long i = 0; i < numTempTables; ++i) {
+      tempTables.add(String.format("{\"tableId\":\"%s_%05d\"}", jobIdToken, i));
+    }
+
+    final PCollectionView<Iterable<String>> tempTablesView = PCollectionViews.iterableView(
+        TestPipeline.create(),
+        WindowingStrategy.globalDefault(),
+        StringUtf8Coder.of());
+
+    WriteRename writeRename = new WriteRename(
+        fakeBqServices,
+        jobIdToken,
+        jsonTable,
+        WriteDisposition.WRITE_EMPTY,
+        CreateDisposition.CREATE_IF_NEEDED,
+        tempTablesView);
+
+    DoFnTester<Integer, Void> tester = DoFnTester.of(writeRename);
+    tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
+    tester.processElement(1);
+
+    logged.verifyInfo("Starting BigQuery copy job");
+    logged.verifyInfo("Previous copy jobs failed, retrying.");
   }
 }

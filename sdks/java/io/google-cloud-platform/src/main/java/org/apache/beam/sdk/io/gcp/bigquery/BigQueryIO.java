@@ -1798,8 +1798,16 @@ public class BigQueryIO {
     private Write() {}
   }
 
+  /**
+   * A {@link PTransform} called by BigQueryIO.Write that performs the write of {@link PCollection}
+   * containing {@link TableRow TableRows} to a BigQuery table.
+   */
   public static class BigQueryWrite
       extends PTransform<PCollection<TableRow>, PDone> {
+    static final int MAX_NUM_FILES = 10000;
+    static final long MAX_SIZE_BYTES = 3 * (1L << 40);
+    static final int MAX_RETRY_JOBS = 3;
+    static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
     private static final String TEMPORARY_FILENAME_SEPARATOR = "-temp-";
     private BigQueryServices bqServices;
     private String jobIdToken;
@@ -1963,8 +1971,6 @@ public class BigQueryIO {
    * Partitions temporary files based on number of files and file sizes.
    */
   static class WritePartition extends DoFn<Integer, KV<Long, List<String>>> {
-    private static final int MAX_NUM_FILES = 1;
-    private static final long MAX_SIZE_BYTES = 3 * (1L << 40);
     private final PCollectionView<Iterable<KV<String, Long>>> resultsView;
 
     public WritePartition(PCollectionView<Iterable<KV<String, Long>>> resultsView) {
@@ -1983,8 +1989,8 @@ public class BigQueryIO {
         ++currNumFiles;
         currSizeBytes += fileResult.getValue();
         currResults.add(fileResult.getKey());
-        if (currNumFiles >= MAX_NUM_FILES
-            || currSizeBytes >= MAX_SIZE_BYTES
+        if (currNumFiles >= BigQueryWrite.MAX_NUM_FILES
+            || currSizeBytes >= BigQueryWrite.MAX_SIZE_BYTES
             || i == results.size() - 1) {
           c.output(KV.of(++partitionId, currResults));
           currResults = Lists.newArrayList();
@@ -1996,11 +2002,9 @@ public class BigQueryIO {
   }
 
   /**
-   * Writes partitions to separate temporary tables
+   * Writes partitions to separate temporary tables.
    */
   static class WriteTempTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
-    private static final int MAX_RETRY_LOAD_JOBS = 3;
-    private static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
     private BigQueryServices bqServices;
     private String jobIdToken;
     private String tempFilePrefix;
@@ -2056,7 +2060,7 @@ public class BigQueryIO {
 
       boolean retrying = false;
       String projectId = ref.getProjectId();
-      for (int i = 0; i < MAX_RETRY_LOAD_JOBS; ++i) {
+      for (int i = 0; i < BigQueryWrite.MAX_RETRY_JOBS; ++i) {
         String jobId = jobIdPrefix + "-" + i;
         if (retrying) {
           LOG.info("Previous load jobs failed, retrying.");
@@ -2067,7 +2071,7 @@ public class BigQueryIO {
             .setJobId(jobId);
         jobService.startLoadJob(jobRef, loadConfig);
         Status jobStatus =
-            parseStatus(jobService.pollJob(jobRef, LOAD_JOB_POLL_MAX_RETRIES));
+            parseStatus(jobService.pollJob(jobRef, BigQueryWrite.LOAD_JOB_POLL_MAX_RETRIES));
         switch (jobStatus) {
           case SUCCEEDED:
             return;
@@ -2082,7 +2086,7 @@ public class BigQueryIO {
         }
       }
       throw new RuntimeException(
-          "Failed to create the load job, reached max retries: " + MAX_RETRY_LOAD_JOBS);
+          "Failed to create the load job, reached max retries: " + BigQueryWrite.MAX_RETRY_JOBS);
     }
 
     private void removeTemporaryFiles(PipelineOptions options, Collection<String> matches)
@@ -2108,11 +2112,9 @@ public class BigQueryIO {
   }
 
   /**
-   * Copies temporary tables to destination table
+   * Copies temporary tables to destination table.
    */
   static class WriteRename extends DoFn<Integer, Void> {
-    private static final int MAX_RETRY_COPY_JOBS = 3;
-    private static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
     private BigQueryServices bqServices;
     private String jobIdToken;
     private String jsonTable;
@@ -2174,7 +2176,7 @@ public class BigQueryIO {
 
       boolean retrying = false;
       String projectId = ref.getProjectId();
-      for (int i = 0; i < MAX_RETRY_COPY_JOBS; ++i) {
+      for (int i = 0; i < BigQueryWrite.MAX_RETRY_JOBS; ++i) {
         String jobId = jobIdPrefix + "-" + i;
         if (retrying) {
           LOG.info("Previous copy jobs failed, retrying.");
@@ -2185,7 +2187,7 @@ public class BigQueryIO {
             .setJobId(jobId);
         jobService.startCopyJob(jobRef, copyConfig);
         Status jobStatus =
-            parseStatus(jobService.pollJob(jobRef, LOAD_JOB_POLL_MAX_RETRIES));
+            parseStatus(jobService.pollJob(jobRef, BigQueryWrite.LOAD_JOB_POLL_MAX_RETRIES));
         switch (jobStatus) {
           case SUCCEEDED:
             return;
@@ -2200,7 +2202,7 @@ public class BigQueryIO {
         }
       }
       throw new RuntimeException(
-          "Failed to create the copy job, reached max retries: " + MAX_RETRY_COPY_JOBS);
+          "Failed to create the copy job, reached max retries: " + BigQueryWrite.MAX_RETRY_JOBS);
     }
 
     private void removeTemporaryTables(DatasetService tableService,
