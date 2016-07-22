@@ -400,7 +400,7 @@ class PTransform(WithTypeHints):
     else:
       return NotImplemented
 
-  def __ror__(self, left):
+  def __ror__(self, left, label=None):
     """Used to apply this PTransform to non-PValues, e.g., a tuple."""
     pvalueish, pvalues = self._extract_input_pvalues(left)
     pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
@@ -434,7 +434,7 @@ class PTransform(WithTypeHints):
                     if not isinstance(v, pvalue.PValue) and v is not None}
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
     self.pipeline = p
-    result = p.apply(self, pvalueish)
+    result = p.apply(self, pvalueish, label)
     if deferred:
       return result
     else:
@@ -719,6 +719,9 @@ class _NamedPTransform(PTransform):
   def __init__(self, transform, label):
     super(_NamedPTransform, self).__init__(label)
     self.transform = transform
+
+  def __ror__(self, pvalueish):
+    return self.transform.__ror__(pvalueish, self.label)
 
   def apply(self, pvalue):
     raise RuntimeError("Should never be applied directly.")
