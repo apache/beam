@@ -55,7 +55,7 @@
     <profile>
       <!-- This profile adds execution of RunnableOnService integration tests 
            against a local Spark endpoint. -->
-      <id>runnable-on-service-tests</id>
+      <id>local-runnable-on-service-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <pluginManagement>
