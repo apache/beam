@@ -32,13 +32,12 @@ import com.google.api.services.bigquery.model.TableRow;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
-/**
- * An interface for real, mock, or fake implementations of Cloud BigQuery services.
- */
+/** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
 interface BigQueryServices extends Serializable {
 
   /**
@@ -139,6 +138,14 @@ interface BigQueryServices extends Serializable {
      * <p>Before you can delete a dataset, you must delete all its tables.
      */
     void deleteDataset(String projectId, String datasetId)
+        throws IOException, InterruptedException;
+
+    /**
+     * Inserts {@link TableRow TableRows} with the specified insertIds if not null.
+     *
+     * Returns the total bytes count of {@link TableRow TableRows}.
+     */
+    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException;
   }
 
