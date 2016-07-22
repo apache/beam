@@ -466,7 +466,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
-      | 'gs://my-bucket/counts.txt' >> beam.io.Write(beam.io.TextFileSink())
+      | beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
       # [END examples_wordcount_minimal_write]
   )
 
@@ -531,7 +531,7 @@ def examples_wordcount_wordcount(renames):
   formatted = counts | beam.ParDo(FormatAsTextFn())
   # [END examples_wordcount_wordcount_dofn]
 
-  formatted | 'gs://my-bucket/counts.txt' >> beam.io.Write(beam.io.TextFileSink())
+  formatted |  beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
 
@@ -702,8 +702,8 @@ def model_custom_source(count):
   # [START model_custom_source_new_ptransform]
   class ReadFromCountingSource(PTransform):
 
-    def __init__(self, label, count, **kwargs):
-      super(ReadFromCountingSource, self).__init__(label, **kwargs)
+    def __init__(self, count, **kwargs):
+      super(ReadFromCountingSource, self).__init__(**kwargs)
       self._count = count
 
     def apply(self, pcoll):
