@@ -54,28 +54,28 @@ class PTransformTest(unittest.TestCase):
 
     pa = Pipeline('DirectPipelineRunner')
     res = pa | 'a_label' >> beam.Create([1, 2])
-    self.assertEqual('<Create(PTransform) label=[a_label]>',
-                     str(res.producer.transform))
+    self.assertEqual('AppliedPTransform(a_label, Create)',
+                     str(res.producer))
 
     pc = Pipeline('DirectPipelineRunner')
-    res = pc | 'with_inputs' >> beam.Create([1, 2])
+    res = pc | beam.Create([1, 2])
     inputs_tr = res.producer.transform
     inputs_tr.inputs = ('ci',)
     self.assertEqual(
-        """<Create(PTransform) label=[with_inputs] inputs=('ci',)>""",
+        """<Create(PTransform) label=[Create] inputs=('ci',)>""",
         str(inputs_tr))
 
     pd = Pipeline('DirectPipelineRunner')
-    res = pd | 'with_sidei' >> beam.Create([1, 2])
+    res = pd | beam.Create([1, 2])
     side_tr = res.producer.transform
     side_tr.side_inputs = (4,)
     self.assertEqual(
-        '<Create(PTransform) label=[with_sidei] side_inputs=(4,)>',
+        '<Create(PTransform) label=[Create] side_inputs=(4,)>',
         str(side_tr))
 
     inputs_tr.side_inputs = ('cs',)
     self.assertEqual(
-        """<Create(PTransform) label=[with_inputs] """
+        """<Create(PTransform) label=[Create] """
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
