@@ -43,7 +43,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * regular intervals, with adjustment for scheduling delay.
  */
 @ThreadSafe
-public class StateSampler implements AutoCloseable {
+public class StateSampler implements Closeable {
 
   /**
    * An interface for scheduling state sampling.
@@ -359,7 +359,7 @@ public class StateSampler implements AutoCloseable {
   }
 
   /**
-   * Returns an AutoCloseable {@link ScopedState} that will perform a
+   * Returns an {@link Closeable} {@link ScopedState} that will perform a
    * state transition to the given state, and will automatically reset
    * the state to the prior state upon closing.
    *
@@ -390,9 +390,10 @@ public class StateSampler implements AutoCloseable {
    *
    * <p>Thread-safe.
    */
-  public class ScopedState implements AutoCloseable {
-    private StateSampler sampler;
-    private int previousState;
+  public class ScopedState implements Closeable {
+    private final StateSampler sampler;
+    private final int previousState;
+    private boolean closed = false;
 
     private ScopedState(StateSampler sampler, int previousState) {
       this.sampler = sampler;
@@ -401,7 +402,10 @@ public class StateSampler implements AutoCloseable {
 
     @Override
     public void close() {
-      sampler.setState(previousState);
+      if (!closed) {
+        closed = true;
+        sampler.setState(previousState);
+      }
     }
   }
 
