@@ -40,7 +40,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Provides multi-threading of {@link DoFn}s, using threaded execution to
+ * Provides multi-threading of {@link OldDoFn}s, using threaded execution to
  * process multiple elements concurrently within a bundle.
  *
  * <p>Note, that each Dataflow worker will already process multiple bundles
@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * share of the maximum write rate) will take at least 6 seconds to complete (there is additional
  * overhead in the extra parallelization).
  *
- * <p>To parallelize a {@link DoFn} to 10 threads:
+ * <p>To parallelize a {@link OldDoFn} to 10 threads:
  * <pre>{@code
  * PCollection<T> data = ...;
  * data.apply(
@@ -65,18 +65,18 @@ import java.util.concurrent.atomic.AtomicReference;
  *                             .withMaxParallelism(10)));
  * }</pre>
  *
- * <p>An uncaught exception from the wrapped {@link DoFn} will result in the exception
+ * <p>An uncaught exception from the wrapped {@link OldDoFn} will result in the exception
  * being rethrown in later calls to {@link MultiThreadedIntraBundleProcessingDoFn#processElement}
  * or a call to {@link MultiThreadedIntraBundleProcessingDoFn#finishBundle}.
  */
 public class IntraBundleParallelization {
   /**
    * Creates a {@link IntraBundleParallelization} {@link PTransform} for the given
-   * {@link DoFn} that processes elements using multiple threads.
+   * {@link OldDoFn} that processes elements using multiple threads.
    *
    * <p>Note that the specified {@code doFn} needs to be thread safe.
    */
-  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
+  public static <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> doFn) {
     return new Unbound().of(doFn);
   }
 
@@ -92,7 +92,7 @@ public class IntraBundleParallelization {
    * An incomplete {@code IntraBundleParallelization} transform, with unbound input/output types.
    *
    * <p>Before being applied, {@link IntraBundleParallelization.Unbound#of} must be
-   * invoked to specify the {@link DoFn} to invoke, which will also
+   * invoked to specify the {@link OldDoFn} to invoke, which will also
    * bind the input/output types of this {@code PTransform}.
    */
   public static class Unbound {
@@ -118,18 +118,18 @@ public class IntraBundleParallelization {
 
     /**
      * Returns a new {@link IntraBundleParallelization} {@link PTransform} like this one
-     * with the specified {@link DoFn}.
+     * with the specified {@link OldDoFn}.
      *
      * <p>Note that the specified {@code doFn} needs to be thread safe.
      */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
+    public <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);
     }
   }
 
   /**
    * A {@code PTransform} that, when applied to a {@code PCollection<InputT>},
-   * invokes a user-specified {@code DoFn<InputT, OutputT>} on all its elements,
+   * invokes a user-specified {@code OldDoFn<InputT, OutputT>} on all its elements,
    * with all its outputs collected into an output
    * {@code PCollection<OutputT>}.
    *
@@ -140,10 +140,10 @@ public class IntraBundleParallelization {
    */
   public static class Bound<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-    private final DoFn<InputT, OutputT> doFn;
+    private final OldDoFn<InputT, OutputT> doFn;
     private final int maxParallelism;
 
-    Bound(DoFn<InputT, OutputT> doFn, int maxParallelism) {
+    Bound(OldDoFn<InputT, OutputT> doFn, int maxParallelism) {
       checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
@@ -160,12 +160,12 @@ public class IntraBundleParallelization {
 
     /**
      * Returns a new {@link IntraBundleParallelization} {@link PTransform} like this one
-     * with the specified {@link DoFn}.
+     * with the specified {@link OldDoFn}.
      *
      * <p>Note that the specified {@code doFn} needs to be thread safe.
      */
     public <NewInputT, NewOutputT> Bound<NewInputT, NewOutputT>
-        of(DoFn<NewInputT, NewOutputT> doFn) {
+        of(OldDoFn<NewInputT, NewOutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);
     }
 
@@ -188,17 +188,19 @@ public class IntraBundleParallelization {
   }
 
   /**
-   * A multi-threaded {@code DoFn} wrapper.
+   * A multi-threaded {@code OldDoFn} wrapper.
    *
-   * @see IntraBundleParallelization#of(DoFn)
+   * @see IntraBundleParallelization#of(OldDoFn)
    *
    * @param <InputT> the type of the (main) input elements
    * @param <OutputT> the type of the (main) output elements
    */
   public static class MultiThreadedIntraBundleProcessingDoFn<InputT, OutputT>
-      extends DoFn<InputT, OutputT> {
+      extends OldDoFn<InputT, OutputT> {
 
-    public MultiThreadedIntraBundleProcessingDoFn(DoFn<InputT, OutputT> doFn, int maxParallelism) {
+    public MultiThreadedIntraBundleProcessingDoFn(
+        OldDoFn<InputT, OutputT> doFn,
+        int maxParallelism) {
       checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
@@ -267,7 +269,7 @@ public class IntraBundleParallelization {
     /////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Wraps a DoFn context, forcing single-thread output so that threads don't
+     * Wraps a OldDoFn context, forcing single-thread output so that threads don't
      * propagate through to downstream functions.
      */
     private class WrappedContext extends ProcessContext {
@@ -347,7 +349,7 @@ public class IntraBundleParallelization {
       }
     }
 
-    private final DoFn<InputT, OutputT> doFn;
+    private final OldDoFn<InputT, OutputT> doFn;
     private int maxParallelism;
 
     private transient ExecutorService executor;

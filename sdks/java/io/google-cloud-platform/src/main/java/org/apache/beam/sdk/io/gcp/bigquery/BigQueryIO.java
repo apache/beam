@@ -44,7 +44,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -324,7 +324,7 @@ public class BigQueryIO {
    * <p>Each {@link TableRow} contains values indexed by column name. Here is a
    * sample processing function that processes a "line" column from rows:
    * <pre>{@code
-   * static class ExtractWordsFn extends DoFn<TableRow, String> {
+   * static class ExtractWordsFn extends OldDoFn<TableRow, String> {
    *   public void processElement(ProcessContext c) {
    *     // Get the "line" field of the TableRow object, split it into words, and emit them.
    *     TableRow row = c.element();
@@ -696,7 +696,7 @@ public class BigQueryIO {
       input.getPipeline()
           .apply("Create(CleanupOperation)", Create.of(cleanupOperation))
           .apply("Cleanup", ParDo.of(
-              new DoFn<CleanupOperation, Void>() {
+              new OldDoFn<CleanupOperation, Void>() {
                 @Override
                 public void processElement(ProcessContext c)
                     throws Exception {
@@ -707,7 +707,7 @@ public class BigQueryIO {
       return outputs.get(mainOutput);
     }
 
-    private static class IdentityFn<T> extends DoFn<T, T> {
+    private static class IdentityFn<T> extends OldDoFn<T, T> {
       @Override
       public void processElement(ProcessContext c) {
         c.output(c.element());
@@ -1262,7 +1262,7 @@ public class BigQueryIO {
    * <p>Here is a sample transform that produces TableRow values containing
    * "word" and "count" columns:
    * <pre>{@code
-   * static class FormatCountsFn extends DoFn<KV<String, Long>, TableRow> {
+   * static class FormatCountsFn extends OldDoFn<KV<String, Long>, TableRow> {
    *   public void processElement(ProcessContext c) {
    *     TableRow row = new TableRow()
    *         .set("word", c.element().getKey())
@@ -2011,11 +2011,11 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Implementation of DoFn to perform streaming BigQuery write.
+   * Implementation of OldDoFn to perform streaming BigQuery write.
    */
   @SystemDoFnInternal
   private static class StreamingWriteFn
-      extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
+      extends OldDoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     /** TableSchema in JSON. Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
@@ -2248,8 +2248,8 @@ public class BigQueryIO {
    * id is created by concatenating this randomUUID with a sequential number.
    */
   private static class TagWithUniqueIdsAndTable
-      extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>>
-      implements DoFn.RequiresWindowAccess {
+      extends OldDoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>>
+      implements OldDoFn.RequiresWindowAccess {
     /** TableSpec to write to. */
     private final String tableSpec;
 

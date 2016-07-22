@@ -26,7 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -90,7 +90,7 @@ public class CombinePerKeyExamples {
    * Examines each row in the input table. If the word is greater than or equal to MIN_WORD_LENGTH,
    * outputs word, play_name.
    */
-  static class ExtractLargeWordsFn extends DoFn<TableRow, KV<String, String>> {
+  static class ExtractLargeWordsFn extends OldDoFn<TableRow, KV<String, String>> {
     private final Aggregator<Long, Long> smallerWords =
         createAggregator("smallerWords", new Sum.SumLongFn());
 
@@ -114,7 +114,7 @@ public class CombinePerKeyExamples {
    * Prepares the data for writing to BigQuery by building a TableRow object
    * containing a word with a string listing the plays in which it appeared.
    */
-  static class FormatShakespeareOutputFn extends DoFn<KV<String, String>, TableRow> {
+  static class FormatShakespeareOutputFn extends OldDoFn<KV<String, String>, TableRow> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()

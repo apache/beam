@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -28,9 +29,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
@@ -119,7 +120,7 @@ public class CountingInputTest {
     assertThat(endTime.isAfter(startTime.plus(expectedRuntimeMillis)), is(true));
   }
 
-  private static class ElementValueDiff extends DoFn<Long, Long> {
+  private static class ElementValueDiff extends OldDoFn<Long, Long> {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element() - c.timestamp().getMillis());

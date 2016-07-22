@@ -27,7 +27,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -59,7 +59,7 @@ public class WindowedWordCount {
   static final long WINDOW_SIZE = 10;  // Default window duration in seconds
   static final long SLIDE_SIZE = 5;  // Default window slide in seconds
 
-  static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
+  static class FormatAsStringFn extends OldDoFn<KV<String, Long>, String> {
     @Override
     public void processElement(ProcessContext c) {
       String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
@@ -67,7 +67,7 @@ public class WindowedWordCount {
     }
   }
 
-  static class ExtractWordsFn extends DoFn<String, String> {
+  static class ExtractWordsFn extends OldDoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.Matchers.empty;
@@ -55,7 +56,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -371,7 +371,7 @@ public class GroupByKeyTest {
     pipeline.run();
   }
 
-  private static class AssertTimestamp<K, V> extends DoFn<KV<K, V>, Void> {
+  private static class AssertTimestamp<K, V> extends OldDoFn<KV<K, V>, Void> {
     private final Instant timestamp;
 
     public AssertTimestamp(Instant timestamp) {
@@ -506,7 +506,7 @@ public class GroupByKeyTest {
    * Creates a KV that wraps the original KV together with a random key.
    */
   static class AssignRandomKey
-      extends DoFn<KV<BadEqualityKey, Long>, KV<Long, KV<BadEqualityKey, Long>>> {
+      extends OldDoFn<KV<BadEqualityKey, Long>, KV<Long, KV<BadEqualityKey, Long>>> {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {

@@ -158,7 +158,7 @@ public class DoFnReflectorTest {
 
   @Test
   public void testDoFnInvokersReused() throws Exception {
-    // Ensures that we don't create a new Invoker class for every instance of the DoFn.
+    // Ensures that we don't create a new Invoker class for every instance of the OldDoFn.
     IdentityParent fn1 = new IdentityParent();
     IdentityParent fn2 = new IdentityParent();
     DoFnReflector reflector1 = underTest(fn1);

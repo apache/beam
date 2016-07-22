@@ -27,7 +27,6 @@ import org.apache.beam.sdk.util.PropertyNames;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;

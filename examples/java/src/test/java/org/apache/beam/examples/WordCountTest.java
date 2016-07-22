@@ -46,7 +46,7 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class WordCountTest {
 
-  /** Example test that tests a specific DoFn. */
+  /** Example test that tests a specific OldDoFn. */
   @Test
   public void testExtractWordsFn() throws Exception {
     DoFnTester<String, String> extractWordsFn =

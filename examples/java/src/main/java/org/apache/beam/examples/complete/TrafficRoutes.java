@@ -29,8 +29,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -149,12 +149,12 @@ public class TrafficRoutes {
   /**
    * Extract the timestamp field from the input string, and use it as the element timestamp.
    */
-  static class ExtractTimestamps extends DoFn<String, String> {
+  static class ExtractTimestamps extends OldDoFn<String, String> {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
     @Override
-    public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {
       String[] items = c.element().split(",");
       String timestamp = tryParseTimestamp(items);
       if (timestamp != null) {
@@ -171,7 +171,7 @@ public class TrafficRoutes {
    * Filter out readings for the stations along predefined 'routes', and output
    * (station, speed info) keyed on route.
    */
-  static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
+  static class ExtractStationSpeedFn extends OldDoFn<String, KV<String, StationSpeed>> {
 
     @Override
     public void processElement(ProcessContext c) {
@@ -200,7 +200,7 @@ public class TrafficRoutes {
    * Note: these calculations are for example purposes only, and are unrealistic and oversimplified.
    */
   static class GatherStats
-      extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
+      extends OldDoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
     @Override
     public void processElement(ProcessContext c) throws IOException {
       String route = c.element().getKey();
@@ -243,7 +243,7 @@ public class TrafficRoutes {
   /**
    * Format the results of the slowdown calculations to a TableRow, to save to BigQuery.
    */
-  static class FormatStatsFn extends DoFn<KV<String, RouteInfo>, TableRow> {
+  static class FormatStatsFn extends OldDoFn<KV<String, RouteInfo>, TableRow> {
     @Override
     public void processElement(ProcessContext c) {
       RouteInfo routeInfo = c.element().getValue();

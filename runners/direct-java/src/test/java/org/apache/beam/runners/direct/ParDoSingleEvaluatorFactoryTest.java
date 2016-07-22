@@ -31,7 +31,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -73,7 +73,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     PCollection<Integer> collection =
         input.apply(
             ParDo.of(
-                new DoFn<String, Integer>() {
+                new OldDoFn<String, Integer>() {
                   @Override
                   public void processElement(ProcessContext c) {
                     c.output(c.element().length());
@@ -127,7 +127,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     PCollection<Integer> collection =
         input.apply(
             ParDo.of(
-                new DoFn<String, Integer>() {
+                new OldDoFn<String, Integer>() {
                   @Override
                   public void processElement(ProcessContext c) {
                     c.sideOutput(sideOutputTag, c.element().length());
@@ -179,7 +179,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
         StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
     ParDo.Bound<String, KV<String, Integer>> pardo =
         ParDo.of(
-            new DoFn<String, KV<String, Integer>>() {
+            new OldDoFn<String, KV<String, Integer>>() {
               @Override
               public void processElement(ProcessContext c) {
                 c.windowingInternals()
@@ -265,7 +265,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     ParDo.Bound<String, KV<String, Integer>> pardo =
         ParDo.of(
-            new DoFn<String, KV<String, Integer>>() {
+            new OldDoFn<String, KV<String, Integer>>() {
               @Override
               public void processElement(ProcessContext c) {
                 c.windowingInternals().stateInternals();

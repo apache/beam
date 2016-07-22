@@ -36,8 +36,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -199,7 +199,7 @@ public class WindowTest implements Serializable {
         .apply(GroupByKey.<Integer, String>create())
         .apply(
             ParDo.of(
-                new DoFn<KV<Integer, Iterable<String>>, Void>() {
+                new OldDoFn<KV<Integer, Iterable<String>>, Void>() {
                   @Override
                   public void processElement(ProcessContext c) throws Exception {
                     assertThat(
@@ -231,7 +231,7 @@ public class WindowTest implements Serializable {
         .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
             .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
         .apply(GroupByKey.<Integer, String>create())
-        .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
+        .apply(ParDo.of(new OldDoFn<KV<Integer, Iterable<String>>, Void>() {
           @Override
           public void processElement(ProcessContext c) throws Exception {
             assertThat(c.timestamp(), equalTo(new Instant(10 * 60 * 1000 - 1)));

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -35,7 +35,7 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * {@link DoFn.ProcessContext} for {@link FlinkMultiOutputDoFnFunction} that supports
+ * {@link OldDoFn.ProcessContext} for {@link FlinkMultiOutputDoFnFunction} that supports
  * side outputs.
  */
 class FlinkMultiOutputProcessContext<InputT, OutputT>
@@ -50,7 +50,7 @@ class FlinkMultiOutputProcessContext<InputT, OutputT>
   FlinkMultiOutputProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Collector<WindowedValue<RawUnionValue>> collector,
       Map<TupleTag<?>, Integer> outputMap,

@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
@@ -43,7 +44,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -59,7 +60,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -89,7 +89,9 @@ public class ParDoTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  private static class PrintingDoFn extends DoFn<String, String> implements RequiresWindowAccess {
+  private static class PrintingOldDoFn extends OldDoFn<String, String> implements
+      RequiresWindowAccess {
+
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element() + ":" + c.timestamp().getMillis()
@@ -97,17 +99,17 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestDoFn extends DoFn<Integer, String> {
+  static class TestOldDoFn extends OldDoFn<Integer, String> {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
     State state = State.UNSTARTED;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
     final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
 
-    public TestDoFn() {
+    public TestOldDoFn() {
     }
 
-    public TestDoFn(List<PCollectionView<Integer>> sideInputViews,
+    public TestOldDoFn(List<PCollectionView<Integer>> sideInputViews,
                     List<TupleTag<String>> sideOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
@@ -161,9 +163,9 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestNoOutputDoFn extends DoFn<Integer, String> {
+  static class TestNoOutputDoFn extends OldDoFn<Integer, String> {
     @Override
-    public void processElement(DoFn<Integer, String>.ProcessContext c) throws Exception {}
+    public void processElement(OldDoFn<Integer, String>.ProcessContext c) throws Exception {}
   }
 
   static class TestDoFnWithContext extends DoFnWithContext<Integer, String> {
@@ -229,7 +231,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestStartBatchErrorDoFn extends DoFn<Integer, String> {
+  static class TestStartBatchErrorDoFn extends OldDoFn<Integer, String> {
     @Override
     public void startBundle(Context c) {
       throw new RuntimeException("test error in initialize");
@@ -241,14 +243,14 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestProcessElementErrorDoFn extends DoFn<Integer, String> {
+  static class TestProcessElementErrorDoFn extends OldDoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
       throw new RuntimeException("test error in process");
     }
   }
 
-  static class TestFinishBatchErrorDoFn extends DoFn<Integer, String> {
+  static class TestFinishBatchErrorDoFn extends OldDoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
       // This has to be here.
@@ -260,13 +262,13 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  private static class StrangelyNamedDoer extends DoFn<Integer, String> {
+  private static class StrangelyNamedDoer extends OldDoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
     }
   }
 
-  static class TestOutputTimestampDoFn extends DoFn<Integer, Integer> {
+  static class TestOutputTimestampDoFn extends OldDoFn<Integer, Integer> {
     @Override
     public void processElement(ProcessContext c) {
       Integer value = c.element();
@@ -274,7 +276,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestShiftTimestampDoFn extends DoFn<Integer, Integer> {
+  static class TestShiftTimestampDoFn extends OldDoFn<Integer, Integer> {
     private Duration allowedTimestampSkew;
     private Duration durationToShift;
 
@@ -297,7 +299,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestFormatTimestampDoFn extends DoFn<Integer, String> {
+  static class TestFormatTimestampDoFn extends OldDoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
       checkNotNull(c.timestamp());
@@ -318,7 +320,7 @@ public class ParDoTest implements Serializable {
       return PCollectionTuple.of(BY2, by2).and(BY3, by3);
     }
 
-    static class FilterFn extends DoFn<Integer, Integer> {
+    static class FilterFn extends OldDoFn<Integer, Integer> {
       private final int divisor;
 
       FilterFn(int divisor) {
@@ -343,7 +345,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.of(new TestDoFn()));
+        .apply(ParDo.of(new TestOldDoFn()));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
@@ -377,7 +379,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs).withCoder(VarIntCoder.of()))
-        .apply("TestDoFn", ParDo.of(new TestDoFn()));
+        .apply("TestOldDoFn", ParDo.of(new TestOldDoFn()));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
@@ -395,7 +397,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs).withCoder(VarIntCoder.of()))
-        .apply("TestDoFn", ParDo.of(new TestNoOutputDoFn()));
+        .apply("TestOldDoFn", ParDo.of(new TestNoOutputDoFn()));
 
     PAssert.that(output).empty();
 
@@ -418,7 +420,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo
-               .of(new TestDoFn(
+               .of(new TestOldDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
                    Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
                .withOutputTags(
@@ -461,7 +463,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo
-               .of(new TestDoFn(
+               .of(new TestOldDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
                    Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
                .withOutputTags(
@@ -527,7 +529,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
-            .of(new DoFn<Integer, Void>(){
+            .of(new OldDoFn<Integer, Void>(){
                 @Override
                 public void processElement(ProcessContext c) {
                   c.sideOutput(sideOutputTag, c.element());
@@ -550,7 +552,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.of(new TestDoFn(
+        .apply(ParDo.of(new TestOldDoFn(
             Arrays.<PCollectionView<Integer>>asList(),
             Arrays.asList(sideTag))));
 
@@ -569,7 +571,7 @@ public class ParDoTest implements Serializable {
 
     // Success for a total of 1000 outputs.
     input
-        .apply("Success1000", ParDo.of(new DoFn<Integer, String>() {
+        .apply("Success1000", ParDo.of(new OldDoFn<Integer, String>() {
             @Override
             public void processElement(ProcessContext c) {
               TupleTag<String> specialSideTag = new TupleTag<String>(){};
@@ -585,7 +587,7 @@ public class ParDoTest implements Serializable {
 
     // Failure for a total of 1001 outputs.
     input
-        .apply("Failure1001", ParDo.of(new DoFn<Integer, String>() {
+        .apply("Failure1001", ParDo.of(new OldDoFn<Integer, String>() {
             @Override
             public void processElement(ProcessContext c) {
               for (int i = 0; i < 1000; i++) {
@@ -618,7 +620,7 @@ public class ParDoTest implements Serializable {
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo.withSideInputs(sideInput1, sideInputUnread, sideInput2)
-            .of(new TestDoFn(
+            .of(new TestOldDoFn(
                 Arrays.asList(sideInput1, sideInput2),
                 Arrays.<TupleTag<String>>asList())));
 
@@ -652,7 +654,7 @@ public class ParDoTest implements Serializable {
         .apply(ParDo.withSideInputs(sideInput1)
             .withSideInputs(sideInputUnread)
             .withSideInputs(sideInput2)
-            .of(new TestDoFn(
+            .of(new TestOldDoFn(
                 Arrays.asList(sideInput1, sideInput2),
                 Arrays.<TupleTag<String>>asList())));
 
@@ -690,7 +692,7 @@ public class ParDoTest implements Serializable {
             .withSideInputs(sideInputUnread)
             .withSideInputs(sideInput2)
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
-            .of(new TestDoFn(
+            .of(new TestOldDoFn(
                 Arrays.asList(sideInput1, sideInput2),
                 Arrays.<TupleTag<String>>asList())));
 
@@ -728,7 +730,7 @@ public class ParDoTest implements Serializable {
             .withSideInputs(sideInputUnread)
             .withSideInputs(sideInput2)
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
-            .of(new TestDoFn(
+            .of(new TestOldDoFn(
                 Arrays.asList(sideInput1, sideInput2),
                 Arrays.<TupleTag<String>>asList())));
 
@@ -752,7 +754,7 @@ public class ParDoTest implements Serializable {
         .apply(View.<Integer>asSingleton());
 
     pipeline.apply("CreateMain", Create.of(inputs))
-        .apply(ParDo.of(new TestDoFn(
+        .apply(ParDo.of(new TestOldDoFn(
             Arrays.<PCollectionView<Integer>>asList(sideView),
             Arrays.<TupleTag<String>>asList())));
 
@@ -815,18 +817,18 @@ public class ParDoTest implements Serializable {
         .setName("MyInput");
 
     {
-      PCollection<String> output1 = input.apply(ParDo.of(new TestDoFn()));
+      PCollection<String> output1 = input.apply(ParDo.of(new TestOldDoFn()));
       assertEquals("ParDo(Test).out", output1.getName());
     }
 
     {
-      PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestDoFn()));
+      PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestOldDoFn()));
       assertEquals("MyParDo.out", output2.getName());
     }
 
     {
-      PCollection<String> output4 = input.apply("TestDoFn", ParDo.of(new TestDoFn()));
-      assertEquals("TestDoFn.out", output4.getName());
+      PCollection<String> output4 = input.apply("TestOldDoFn", ParDo.of(new TestOldDoFn()));
+      assertEquals("TestOldDoFn.out", output4.getName());
     }
 
     {
@@ -835,7 +837,7 @@ public class ParDoTest implements Serializable {
           output5.getName());
     }
 
-    assertEquals("ParDo(Printing)", ParDo.of(new PrintingDoFn()).getName());
+    assertEquals("ParDo(Printing)", ParDo.of(new PrintingOldDoFn()).getName());
 
     assertEquals(
         "ParMultiDo(SideOutputDummy)",
@@ -855,7 +857,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = p
         .apply(Create.of(Arrays.asList(3, -42, 666))).setName("MyInput")
         .apply("MyParDo", ParDo
-               .of(new TestDoFn(
+               .of(new TestOldDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
                    Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
                .withOutputTags(
@@ -883,7 +885,7 @@ public class ParDoTest implements Serializable {
         .apply("CustomTransform", new PTransform<PCollection<Integer>, PCollection<String>>() {
             @Override
             public PCollection<String> apply(PCollection<Integer> input) {
-              return input.apply(ParDo.of(new TestDoFn()));
+              return input.apply(ParDo.of(new TestOldDoFn()));
             }
           });
 
@@ -920,7 +922,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testJsonEscaping() {
     // Declare an arbitrary function and make sure we can serialize it
-    DoFn<Integer, Integer> doFn = new DoFn<Integer, Integer>() {
+    OldDoFn<Integer, Integer> doFn = new OldDoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) {
         c.output(c.element() + 1);
@@ -973,7 +975,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  private static class SideOutputDummyFn extends DoFn<Integer, Integer> {
+  private static class SideOutputDummyFn extends OldDoFn<Integer, Integer> {
     private TupleTag<TestDummy> sideTag;
     public SideOutputDummyFn(TupleTag<TestDummy> sideTag) {
       this.sideTag = sideTag;
@@ -985,7 +987,7 @@ public class ParDoTest implements Serializable {
      }
   }
 
-  private static class MainOutputDummyFn extends DoFn<Integer, TestDummy> {
+  private static class MainOutputDummyFn extends OldDoFn<Integer, TestDummy> {
     private TupleTag<Integer> sideTag;
     public MainOutputDummyFn(TupleTag<Integer> sideTag) {
       this.sideTag = sideTag;
@@ -1167,7 +1169,7 @@ public class ParDoTest implements Serializable {
         .apply(ParDo
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(
-                new DoFn<TestDummy, TestDummy>() {
+                new OldDoFn<TestDummy, TestDummy>() {
                   @Override public void processElement(ProcessContext context) {
                     TestDummy element = context.element();
                     context.output(element);
@@ -1181,7 +1183,7 @@ public class ParDoTest implements Serializable {
     // on a missing coder.
     tuple.get(mainOutputTag)
         .setCoder(TestDummyCoder.of())
-        .apply("Output1", ParDo.of(new DoFn<TestDummy, Integer>() {
+        .apply("Output1", ParDo.of(new OldDoFn<TestDummy, Integer>() {
           @Override public void processElement(ProcessContext context) {
             context.output(1);
           }
@@ -1228,7 +1230,7 @@ public class ParDoTest implements Serializable {
     PCollection<String> output =
         input
         .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)).of(
-            new DoFn<Integer, Integer>() {
+            new OldDoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
                 c.sideOutputWithTimestamp(
@@ -1349,7 +1351,7 @@ public class ParDoTest implements Serializable {
     PCollection<String> output = pipeline
         .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
-        .apply(ParDo.of(new DoFn<String, String>() {
+        .apply(ParDo.of(new OldDoFn<String, String>() {
                   @Override
                   public void startBundle(Context c) {
                     c.outputWithTimestamp("start", new Instant(2));
@@ -1368,7 +1370,7 @@ public class ParDoTest implements Serializable {
                     System.out.println("Finish: 3");
                   }
                 }))
-        .apply(ParDo.of(new PrintingDoFn()));
+        .apply(ParDo.of(new PrintingOldDoFn()));
 
     PAssert.that(output).satisfies(new Checker());
 
@@ -1383,7 +1385,7 @@ public class ParDoTest implements Serializable {
     pipeline
         .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
-        .apply(ParDo.of(new DoFn<String, String>() {
+        .apply(ParDo.of(new OldDoFn<String, String>() {
                   @Override
                   public void startBundle(Context c) {
                     c.output("start");
@@ -1400,7 +1402,7 @@ public class ParDoTest implements Serializable {
   }
   @Test
   public void testDoFnDisplayData() {
-    DoFn<String, String> fn = new DoFn<String, String>() {
+    OldDoFn<String, String> fn = new OldDoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) {
       }

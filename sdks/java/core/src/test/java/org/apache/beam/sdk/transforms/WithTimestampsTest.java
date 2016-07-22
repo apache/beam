@@ -65,9 +65,9 @@ public class WithTimestampsTest implements Serializable {
          .apply(WithTimestamps.of(timestampFn));
 
     PCollection<KV<String, Instant>> timestampedVals =
-        timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
+        timestamped.apply(ParDo.of(new OldDoFn<String, KV<String, Instant>>() {
           @Override
-          public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
+          public void processElement(OldDoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));
           }
@@ -150,9 +150,9 @@ public class WithTimestampsTest implements Serializable {
              WithTimestamps.of(backInTimeFn).withAllowedTimestampSkew(skew.plus(100L)));
 
     PCollection<KV<String, Instant>> timestampedVals =
-        timestampedWithSkew.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
+        timestampedWithSkew.apply(ParDo.of(new OldDoFn<String, KV<String, Instant>>() {
           @Override
-          public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
+          public void processElement(OldDoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));
           }

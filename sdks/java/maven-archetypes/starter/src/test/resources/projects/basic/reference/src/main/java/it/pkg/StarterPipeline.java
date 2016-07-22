@@ -20,7 +20,7 @@ package it.pkg;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import org.slf4j.Logger;
@@ -50,13 +50,13 @@ public class StarterPipeline {
         PipelineOptionsFactory.fromArgs(args).withValidation().create());
 
     p.apply(Create.of("Hello", "World"))
-    .apply(ParDo.of(new DoFn<String, String>() {
+    .apply(ParDo.of(new OldDoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) {
         c.output(c.element().toUpperCase());
       }
     }))
-    .apply(ParDo.of(new DoFn<String, Void>() {
+    .apply(ParDo.of(new OldDoFn<String, Void>() {
       @Override
       public void processElement(ProcessContext c)  {
         LOG.info(c.element());

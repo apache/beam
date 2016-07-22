@@ -53,13 +53,13 @@ import java.util.UUID;
  * {@link org.apache.beam.sdk.values.PCollection}.
  *
  * <p>See {@link ParDo} for more explanation, examples of use, and
- * discussion of constraints on {@code DoFn}s, including their
+ * discussion of constraints on {@code OldDoFn}s, including their
  * serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p>{@code DoFn}s can be tested in the context of a particular
+ * <p>{@code OldDoFn}s can be tested in the context of a particular
  * {@code Pipeline} by running that {@code Pipeline} on sample input
- * and then checking its output.  Unit testing of a {@code DoFn},
+ * and then checking its output.  Unit testing of a {@code OldDoFn},
  * separately from any {@code ParDo} transform or {@code Pipeline},
  * can be done via the {@link DoFnTester} harness.
  *
@@ -73,10 +73,10 @@ import java.util.UUID;
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
  */
-public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
+public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   /**
-   * Information accessible to all methods in this {@code DoFn}.
+   * Information accessible to all methods in this {@code OldDoFn}.
    * Used primarily to output elements.
    */
   public abstract class Context {
@@ -84,7 +84,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     /**
      * Returns the {@code PipelineOptions} specified with the
      * {@link org.apache.beam.sdk.runners.PipelineRunner}
-     * invoking this {@code DoFn}.  The {@code PipelineOptions} will
+     * invoking this {@code OldDoFn}.  The {@code PipelineOptions} will
      * be the default running via {@link DoFnTester}.
      */
     public abstract PipelineOptions getPipelineOptions();
@@ -97,9 +97,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * by the Dataflow runtime or later steps in the pipeline, or used in
      * other unspecified ways.
      *
-     * <p>If invoked from {@link DoFn#processElement processElement}, the output
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the output
      * element will have the same timestamp and be in the same windows
-     * as the input element passed to {@link DoFn#processElement processElement}.
+     * as the input element passed to {@link OldDoFn#processElement processElement}.
      *
      * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
      * this will attempt to use the
@@ -118,9 +118,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code outputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p>If invoked from {@link DoFn#processElement processElement}, the timestamp
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
+     * {@link OldDoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
      * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
@@ -146,7 +146,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * need to be specified.
      *
      * <p>The output element will have the same timestamp and be in the same
-     * windows as the input element passed to {@link DoFn#processElement processElement}.
+     * windows as the input element passed to {@link OldDoFn#processElement processElement}.
      *
      * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
      * this will attempt to use the
@@ -167,9 +167,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code sideOutputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p>If invoked from {@link DoFn#processElement processElement}, the timestamp
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
+     * {@link OldDoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
      * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
@@ -186,7 +186,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
         TupleTag<T> tag, T output, Instant timestamp);
 
     /**
-     * Creates an {@link Aggregator} in the {@link DoFn} context with the
+     * Creates an {@link Aggregator} in the {@link OldDoFn} context with the
      * specified name and aggregation logic specified by {@link CombineFn}.
      *
      * <p>For internal use only.
@@ -201,10 +201,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
         createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
 
     /**
-     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are
+     * Sets up {@link Aggregator}s created by the {@link OldDoFn} so they are
      * usable within this context.
      *
-     * <p>This method should be called by runners before {@link DoFn#startBundle}
+     * <p>This method should be called by runners before {@link OldDoFn#startBundle}
      * is executed.
      */
     @Experimental(Kind.AGGREGATOR)
@@ -227,7 +227,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Information accessible when running {@link DoFn#processElement}.
+   * Information accessible when running {@link OldDoFn#processElement}.
    */
   public abstract class ProcessContext extends Context {
 
@@ -236,8 +236,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>The element should be considered immutable. The Dataflow runtime will not mutate the
      * element, so it is safe to cache, etc. The element should not be mutated by any of the
-     * {@link DoFn} methods, because it may be cached elsewhere, retained by the Dataflow runtime,
-     * or used in other unspecified ways.
+     * {@link OldDoFn} methods, because it may be cached elsewhere, retained by the Dataflow
+     * runtime, or used in other unspecified ways.
      */
     public abstract InputT element();
 
@@ -268,7 +268,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window}
      * for more information.
      *
-     * @throws UnsupportedOperationException if this {@link DoFn} does
+     * @throws UnsupportedOperationException if this {@link OldDoFn} does
      * not implement {@link RequiresWindowAccess}.
      */
     public abstract BoundedWindow window();
@@ -294,7 +294,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Returns the allowed timestamp skew duration, which is the maximum
    * duration that timestamps can be shifted backward in
-   * {@link DoFn.Context#outputWithTimestamp}.
+   * {@link OldDoFn.Context#outputWithTimestamp}.
    *
    * <p>The default value is {@code Duration.ZERO}, in which case
    * timestamps can only be shifted forward to future.  For infinite
@@ -313,17 +313,17 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Interface for signaling that a {@link DoFn} needs to access the window the
-   * element is being processed in, via {@link DoFn.ProcessContext#window}.
+   * Interface for signaling that a {@link OldDoFn} needs to access the window the
+   * element is being processed in, via {@link OldDoFn.ProcessContext#window}.
    */
   @Experimental
   public interface RequiresWindowAccess {}
 
-  public DoFn() {
+  public OldDoFn() {
     this(new HashMap<String, DelegatingAggregator<?, ?>>());
   }
 
-  DoFn(Map<String, DelegatingAggregator<?, ?>> aggregators) {
+  OldDoFn(Map<String, DelegatingAggregator<?, ?>> aggregators) {
     this.aggregators = aggregators;
   }
 
@@ -337,7 +337,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   private boolean aggregatorsAreFinal;
 
   /**
-   * Prepares this {@code DoFn} instance for processing a batch of elements.
+   * Prepares this {@code OldDoFn} instance for processing a batch of elements.
    *
    * <p>By default, does nothing.
    */
@@ -350,8 +350,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>The current element of the input {@code PCollection} is returned by
    * {@link ProcessContext#element() c.element()}. It should be considered immutable. The Dataflow
    * runtime will not mutate the element, so it is safe to cache, etc. The element should not be
-   * mutated by any of the {@link DoFn} methods, because it may be cached elsewhere, retained by the
-   * Dataflow runtime, or used in other unspecified ways.
+   * mutated by any of the {@link OldDoFn} methods, because it may be cached elsewhere, retained by
+   * the Dataflow runtime, or used in other unspecified ways.
    *
    * <p>A value is added to the main output {@code PCollection} by {@link ProcessContext#output}.
    * Once passed to {@code output} the element should be considered immutable and not be modified in
@@ -384,7 +384,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the input type of this {@code DoFn} instance's most-derived
+   * about the input type of this {@code OldDoFn} instance's most-derived
    * class.
    *
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
@@ -395,10 +395,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the output type of this {@code DoFn} instance's
+   * about the output type of this {@code OldDoFn} instance's
    * most-derived class.
    *
-   * <p>In the normal case of a concrete {@code DoFn} subclass with
+   * <p>In the normal case of a concrete {@code OldDoFn} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
    * for choosing a default output {@code Coder<OutputT>} for the output
@@ -411,13 +411,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the
    * {@link CombineFn} argument. The name provided must be unique across
-   * {@link Aggregator}s created within the DoFn. Aggregators can only be created
+   * {@link Aggregator}s created within the OldDoFn. Aggregators can only be created
    * during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link CombineFn} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this DoFn
+   *         this OldDoFn
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
@@ -432,7 +432,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
         + " An Aggregator with that name already exists within this scope.",
         name);
 
-    checkState(!aggregatorsAreFinal, "Cannot create an aggregator during DoFn processing."
+    checkState(!aggregatorsAreFinal, "Cannot create an aggregator during OldDoFn processing."
         + " Aggregators should be registered during pipeline construction.");
 
     DelegatingAggregator<AggInputT, AggOutputT> aggregator =
@@ -444,13 +444,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Returns an {@link Aggregator} with the aggregation logic specified by the
    * {@link SerializableFunction} argument. The name provided must be unique
-   * across {@link Aggregator}s created within the DoFn. Aggregators can only be
+   * across {@link Aggregator}s created within the OldDoFn. Aggregators can only be
    * created during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link SerializableFunction} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this DoFn
+   *         this OldDoFn
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
@@ -463,7 +463,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Returns the {@link Aggregator Aggregators} created by this {@code DoFn}.
+   * Returns the {@link Aggregator Aggregators} created by this {@code OldDoFn}.
    */
   Collection<Aggregator<?, ?>> getAggregators() {
     return Collections.<Aggregator<?, ?>>unmodifiableCollection(aggregators.values());
@@ -501,7 +501,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     public void addValue(AggInputT value) {
       if (delegate == null) {
         throw new IllegalStateException(
-            "addValue cannot be called on Aggregator outside of the execution of a DoFn.");
+            "addValue cannot be called on Aggregator outside of the execution of a OldDoFn.");
       } else {
         delegate.addValue(value);
       }

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.apache.beam.sdk.WindowMatchers.isWindowedValue;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;

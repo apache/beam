@@ -23,7 +23,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -50,17 +50,17 @@ import java.util.Map;
  * Spark runner process context.
  */
 public abstract class SparkProcessContext<InputT, OutputT, ValueT>
-    extends DoFn<InputT, OutputT>.ProcessContext {
+    extends OldDoFn<InputT, OutputT>.ProcessContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkProcessContext.class);
 
-  private final DoFn<InputT, OutputT> fn;
+  private final OldDoFn<InputT, OutputT> fn;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
   protected WindowedValue<InputT> windowedValue;
 
-  SparkProcessContext(DoFn<InputT, OutputT> fn,
+  SparkProcessContext(OldDoFn<InputT, OutputT> fn,
       SparkRuntimeContext runtime,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     fn.super();
@@ -135,9 +135,9 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
 
   @Override
   public BoundedWindow window() {
-    if (!(fn instanceof DoFn.RequiresWindowAccess)) {
+    if (!(fn instanceof OldDoFn.RequiresWindowAccess)) {
       throw new UnsupportedOperationException(
-          "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
+          "window() is only available in the context of a OldDoFn marked as RequiresWindowAccess.");
     }
     return Iterables.getOnlyElement(windowedValue.getWindows());
   }
@@ -200,7 +200,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   protected abstract Iterator<ValueT> getOutputIterator();
 
   protected Iterable<ValueT> getOutputIterable(final Iterator<WindowedValue<InputT>> iter,
-                                               final DoFn<InputT, OutputT> doFn) {
+                                               final OldDoFn<InputT, OutputT> doFn) {
     return new Iterable<ValueT>() {
       @Override
       public Iterator<ValueT> iterator() {
@@ -212,11 +212,11 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   private class ProcCtxtIterator extends AbstractIterator<ValueT> {
 
     private final Iterator<WindowedValue<InputT>> inputIterator;
-    private final DoFn<InputT, OutputT> doFn;
+    private final OldDoFn<InputT, OutputT> doFn;
     private Iterator<ValueT> outputIterator;
     private boolean calledFinish;
 
-    ProcCtxtIterator(Iterator<WindowedValue<InputT>> iterator, DoFn<InputT, OutputT> doFn) {
+    ProcCtxtIterator(Iterator<WindowedValue<InputT>> iterator, OldDoFn<InputT, OutputT> doFn) {
       this.inputIterator = iterator;
       this.doFn = doFn;
       this.outputIterator = getOutputIterator();

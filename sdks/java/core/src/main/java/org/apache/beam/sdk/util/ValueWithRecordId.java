@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 
 import com.google.common.base.MoreObjects;
 
@@ -139,8 +139,8 @@ public class ValueWithRecordId<ValueT> {
     ByteArrayCoder idCoder;
   }
 
-  /** {@link DoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
-  public static class StripIdsDoFn<T> extends DoFn<ValueWithRecordId<T>, T> {
+  /** {@link OldDoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
+  public static class StripIdsDoFn<T> extends OldDoFn<ValueWithRecordId<T>, T> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().getValue());

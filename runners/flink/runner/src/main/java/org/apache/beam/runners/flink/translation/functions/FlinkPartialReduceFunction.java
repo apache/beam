@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink.translation.functions;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -58,7 +58,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
   protected final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn;
 
-  protected final DoFn<KV<K, InputT>, KV<K, AccumT>> doFn;
+  protected final OldDoFn<KV<K, InputT>, KV<K, AccumT>> doFn;
 
   protected final WindowingStrategy<?, W> windowingStrategy;
 
@@ -77,8 +77,8 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
-    // dummy DoFn because we need one for ProcessContext
-    this.doFn = new DoFn<KV<K, InputT>, KV<K, AccumT>>() {
+    // dummy OldDoFn because we need one for ProcessContext
+    this.doFn = new OldDoFn<KV<K, InputT>, KV<K, AccumT>>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
 

@@ -105,7 +105,7 @@ public class SerializableUtils {
    */
   public static CloudObject ensureSerializable(Coder<?> coder) {
     // Make sure that Coders are java serializable as well since
-    // they are regularly captured within DoFn's.
+    // they are regularly captured within OldDoFn's.
     Coder<?> copy = (Coder<?>) ensureSerializable((Serializable) coder);
 
     CloudObject cloudObject = copy.asCloudObject();

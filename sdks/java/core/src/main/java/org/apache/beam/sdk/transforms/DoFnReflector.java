@@ -194,7 +194,7 @@ public abstract class DoFnReflector {
    */
   public abstract boolean usesSingleWindow();
 
-  /** Create an {@link DoFnInvoker} bound to the given {@link DoFn}. */
+  /** Create an {@link DoFnInvoker} bound to the given {@link OldDoFn}. */
   public abstract <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(
       DoFnWithContext<InputT, OutputT> fn);
 
@@ -217,9 +217,9 @@ public abstract class DoFnReflector {
   }
 
   /**
-   * Create a {@link DoFn} that the {@link DoFnWithContext}.
+   * Create a {@link OldDoFn} that the {@link DoFnWithContext}.
    */
-  public <InputT, OutputT> DoFn<InputT, OutputT> toDoFn(DoFnWithContext<InputT, OutputT> fn) {
+  public <InputT, OutputT> OldDoFn<InputT, OutputT> toDoFn(DoFnWithContext<InputT, OutputT> fn) {
     if (usesSingleWindow()) {
       return new WindowDoFnAdapter<InputT, OutputT>(this, fn);
     } else {
@@ -287,7 +287,7 @@ public abstract class DoFnReflector {
    * <li>Any generics on the extra context arguments match what is expected. Eg.,
    *     {@code WindowingInternals<InputT, OutputT>} either matches the
    *     {@code InputT} and {@code OutputT} parameters of the
-   *     {@code DoFn<InputT, OutputT>.ProcessContext}, or it uses a wildcard, etc.
+   *     {@code OldDoFn<InputT, OutputT>.ProcessContext}, or it uses a wildcard, etc.
    * </ol>
    *
    * @param m the method to verify
@@ -328,7 +328,7 @@ public abstract class DoFnReflector {
     AdditionalParameter[] contextInfos = new AdditionalParameter[params.length - 1];
 
     // Fill in the generics in the allExtraContextArgs interface from the types in the
-    // Context or ProcessContext DoFn.
+    // Context or ProcessContext OldDoFn.
     ParameterizedType pt = (ParameterizedType) contextToken.getType();
     // We actually want the owner, since ProcessContext and Context are owned by DoFnWithContext.
     pt = (ParameterizedType) pt.getOwnerType();
@@ -364,18 +364,18 @@ public abstract class DoFnReflector {
     return ImmutableList.copyOf(contextInfos);
   }
 
-  /** Interface for invoking the {@code DoFn} processing methods. */
+  /** Interface for invoking the {@code OldDoFn} processing methods. */
   public interface DoFnInvoker<InputT, OutputT>  {
-    /** Invoke {@link DoFn#startBundle} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#startBundle} on the bound {@code OldDoFn}. */
     void invokeStartBundle(
         DoFnWithContext<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
-    /** Invoke {@link DoFn#finishBundle} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#finishBundle} on the bound {@code OldDoFn}. */
     void invokeFinishBundle(
         DoFnWithContext<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
 
-    /** Invoke {@link DoFn#processElement} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */
     public void invokeProcessElement(
         DoFnWithContext<InputT, OutputT>.ProcessContext c,
         ExtraContextFactory<InputT, OutputT> extra);
@@ -565,10 +565,10 @@ public abstract class DoFnReflector {
       extends DoFnWithContext<InputT, OutputT>.Context
       implements DoFnWithContext.ExtraContextFactory<InputT, OutputT> {
 
-    private DoFn<InputT, OutputT>.Context context;
+    private OldDoFn<InputT, OutputT>.Context context;
 
     private ContextAdapter(
-        DoFnWithContext<InputT, OutputT> fn, DoFn<InputT, OutputT>.Context context) {
+        DoFnWithContext<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
       fn.super();
       this.context = context;
     }
@@ -618,11 +618,11 @@ public abstract class DoFnReflector {
       extends DoFnWithContext<InputT, OutputT>.ProcessContext
       implements DoFnWithContext.ExtraContextFactory<InputT, OutputT> {
 
-    private DoFn<InputT, OutputT>.ProcessContext context;
+    private OldDoFn<InputT, OutputT>.ProcessContext context;
 
     private ProcessContextAdapter(
         DoFnWithContext<InputT, OutputT> fn,
-        DoFn<InputT, OutputT>.ProcessContext context) {
+        OldDoFn<InputT, OutputT>.ProcessContext context) {
       fn.super();
       this.context = context;
     }
@@ -683,7 +683,7 @@ public abstract class DoFnReflector {
     }
   }
 
-  public static Class<?> getDoFnClass(DoFn<?, ?> fn) {
+  public static Class<?> getDoFnClass(OldDoFn<?, ?> fn) {
     if (fn instanceof SimpleDoFnAdapter) {
       return ((SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
     } else {
@@ -691,7 +691,7 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class SimpleDoFnAdapter<InputT, OutputT> extends DoFn<InputT, OutputT> {
+  private static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
 
     private final DoFnWithContext<InputT, OutputT> fn;
     private transient DoFnInvoker<InputT, OutputT> invoker;
@@ -703,19 +703,19 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public void startBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
+    public void startBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       invoker.invokeStartBundle(adapter, adapter);
     }
 
     @Override
-    public void finishBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
+    public void finishBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       invoker.invokeFinishBundle(adapter, adapter);
     }
 
     @Override
-    public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<InputT, OutputT>.ProcessContext c) throws Exception {
       ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
       invoker.invokeProcessElement(adapter, adapter);
     }
@@ -743,7 +743,7 @@ public abstract class DoFnReflector {
   }
 
   private static class WindowDoFnAdapter<InputT, OutputT>
-  extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresWindowAccess {
+  extends SimpleDoFnAdapter<InputT, OutputT> implements OldDoFn.RequiresWindowAccess {
 
     private WindowDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(reflector, fn);

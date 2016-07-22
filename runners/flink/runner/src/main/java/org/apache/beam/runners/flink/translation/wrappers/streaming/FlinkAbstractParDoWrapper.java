@@ -24,7 +24,7 @@ import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregat
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -52,13 +52,13 @@ import java.util.Collection;
  * */
 public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFlatMapFunction<WindowedValue<IN>, WindowedValue<OUTFL>> {
 
-  private final DoFn<IN, OUTDF> doFn;
+  private final OldDoFn<IN, OUTDF> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final SerializedPipelineOptions serializedPipelineOptions;
 
   private DoFnProcessContext context;
 
-  public FlinkAbstractParDoWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUTDF> doFn) {
+  public FlinkAbstractParDoWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, OldDoFn<IN, OUTDF> doFn) {
     checkNotNull(options);
     checkNotNull(windowingStrategy);
     checkNotNull(doFn);
@@ -104,15 +104,15 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
     doFn.processElement(this.context);
   }
 
-  private class DoFnProcessContext extends DoFn<IN, OUTDF>.ProcessContext {
+  private class DoFnProcessContext extends OldDoFn<IN, OUTDF>.ProcessContext {
 
-    private final DoFn<IN, OUTDF> fn;
+    private final OldDoFn<IN, OUTDF> fn;
 
     protected final Collector<WindowedValue<OUTFL>> collector;
 
     private WindowedValue<IN> element;
 
-    private DoFnProcessContext(DoFn<IN, OUTDF> function,
+    private DoFnProcessContext(OldDoFn<IN, OUTDF> function,
           Collector<WindowedValue<OUTFL>> outCollector) {
       function.super();
       super.setupDelegateAggregators();
@@ -137,9 +137,9 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
     @Override
     public BoundedWindow window() {
-      if (!(fn instanceof DoFn.RequiresWindowAccess)) {
+      if (!(fn instanceof OldDoFn.RequiresWindowAccess)) {
         throw new UnsupportedOperationException(
-            "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
+            "window() is only available in the context of a OldDoFn marked as RequiresWindowAccess.");
       }
 
       Collection<? extends BoundedWindow> windows = this.element.getWindows();
@@ -211,7 +211,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
       throw new IllegalArgumentException(String.format(
           "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
               + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
-              + "DoFn#getAllowedTimestmapSkew() Javadoc for details on changing the allowed skew.",
+              + "OldDoFn#getAllowedTimestmapSkew() Javadoc for details on changing the allowed skew.",
           timestamp, ref.getTimestamp(),
           PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod())));
     }

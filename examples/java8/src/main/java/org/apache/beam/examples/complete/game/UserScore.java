@@ -28,8 +28,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -123,7 +123,7 @@ public class UserScore {
    * user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
    * The human-readable time string is not used here.
    */
-  static class ParseEventFn extends DoFn<String, GameActionInfo> {
+  static class ParseEventFn extends OldDoFn<String, GameActionInfo> {
 
     // Log and count parse errors.
     private static final Logger LOG = LoggerFactory.getLogger(ParseEventFn.class);

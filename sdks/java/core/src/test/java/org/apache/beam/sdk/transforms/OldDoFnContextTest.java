@@ -29,25 +29,25 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /**
- * Tests for {@link DoFn.Context}.
+ * Tests for {@link OldDoFn.Context}.
  */
 @RunWith(JUnit4.class)
-public class DoFnContextTest {
+public class OldDoFnContextTest {
 
   @Mock
   private Aggregator<Long, Long> agg;
 
-  private DoFn<Object, Object> fn;
-  private DoFn<Object, Object>.Context context;
+  private OldDoFn<Object, Object> fn;
+  private OldDoFn<Object, Object>.Context context;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
 
     // Need to be real objects to call the constructor, and to reference the
-    // outer instance of DoFn
+    // outer instance of OldDoFn
     NoOpDoFn<Object, Object> noOpFn = new NoOpDoFn<>();
-    DoFn<Object, Object>.Context noOpContext = noOpFn.context();
+    OldDoFn<Object, Object>.Context noOpContext = noOpFn.context();
 
     fn = spy(noOpFn);
     context = spy(noOpContext);

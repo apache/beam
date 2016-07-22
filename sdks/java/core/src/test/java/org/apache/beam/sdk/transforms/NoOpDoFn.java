@@ -28,35 +28,35 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
- * A {@link DoFn} that does nothing with provided elements. Used for testing
- * methods provided by the DoFn abstract class.
+ * A {@link OldDoFn} that does nothing with provided elements. Used for testing
+ * methods provided by the OldDoFn abstract class.
  *
  * @param <InputT> unused.
  * @param <OutputT> unused.
  */
-class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+class NoOpDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
   @Override
-  public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
+  public void processElement(OldDoFn<InputT, OutputT>.ProcessContext c) throws Exception {
   }
 
   /**
    * Returns a new NoOp Context.
    */
-  public DoFn<InputT, OutputT>.Context context() {
+  public OldDoFn<InputT, OutputT>.Context context() {
     return new NoOpDoFnContext();
   }
 
   /**
    * Returns a new NoOp Process Context.
    */
-  public DoFn<InputT, OutputT>.ProcessContext processContext() {
+  public OldDoFn<InputT, OutputT>.ProcessContext processContext() {
     return new NoOpDoFnProcessContext();
   }
 
   /**
-   * A {@link DoFn.Context} that does nothing and returns exclusively null.
+   * A {@link OldDoFn.Context} that does nothing and returns exclusively null.
    */
-  private class NoOpDoFnContext extends DoFn<InputT, OutputT>.Context {
+  private class NoOpDoFnContext extends OldDoFn<InputT, OutputT>.Context {
     @Override
     public PipelineOptions getPipelineOptions() {
       return null;
@@ -82,10 +82,10 @@ class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
   }
 
   /**
-   * A {@link DoFn.ProcessContext} that does nothing and returns exclusively
+   * A {@link OldDoFn.ProcessContext} that does nothing and returns exclusively
    * null.
    */
-  private class NoOpDoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
+  private class NoOpDoFnProcessContext extends OldDoFn<InputT, OutputT>.ProcessContext {
     @Override
     public InputT element() {
       return null;

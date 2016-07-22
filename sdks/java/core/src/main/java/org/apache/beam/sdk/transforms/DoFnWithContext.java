@@ -24,7 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn.DelegatingAggregator;
+import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -127,7 +127,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
      *
      * <p>If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
+     * {@link OldDoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
@@ -176,7 +176,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
      *
      * <p>If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
+     * {@link OldDoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
@@ -194,7 +194,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
   }
 
   /**
-   * Information accessible when running {@link DoFn#processElement}.
+   * Information accessible when running {@link OldDoFn#processElement}.
    */
   public abstract class ProcessContext extends Context {
 
@@ -358,13 +358,13 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the
    * {@link CombineFn} argument. The name provided must be unique across
-   * {@link Aggregator}s created within the DoFn. Aggregators can only be created
+   * {@link Aggregator}s created within the OldDoFn. Aggregators can only be created
    * during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link CombineFn} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this DoFn
+   *         this OldDoFn
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
@@ -391,13 +391,13 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
   /**
    * Returns an {@link Aggregator} with the aggregation logic specified by the
    * {@link SerializableFunction} argument. The name provided must be unique
-   * across {@link Aggregator}s created within the DoFn. Aggregators can only be
+   * across {@link Aggregator}s created within the OldDoFn. Aggregators can only be
    * created during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link SerializableFunction} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this DoFn
+   *         this OldDoFn
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope

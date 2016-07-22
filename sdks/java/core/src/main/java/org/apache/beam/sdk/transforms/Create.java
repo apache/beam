@@ -486,7 +486,7 @@ public class Create<T> {
       this.elementCoder = elementCoder;
     }
 
-    private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
+    private static class ConvertTimestamps<T> extends OldDoFn<TimestampedValue<T>, T> {
       @Override
       public void processElement(ProcessContext c) {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());

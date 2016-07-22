@@ -24,8 +24,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Keys;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
@@ -101,7 +101,7 @@ public class TfIdfTest {
       // of the words in the document associated with that that URI.
       PCollection<KV<URI, String>> uriToWords = uriToContent
           .apply("SplitWords", ParDo.of(
-              new DoFn<KV<URI, String>, KV<URI, String>>() {
+              new OldDoFn<KV<URI, String>, KV<URI, String>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
@@ -144,7 +144,7 @@ public class TfIdfTest {
       // by the URI key.
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
           .apply("ShiftKeys", ParDo.of(
-              new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
+              new OldDoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey().getKey();
@@ -183,7 +183,7 @@ public class TfIdfTest {
       // divided by the total number of words in the document.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
           .apply("ComputeTermFrequencies", ParDo.of(
-              new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+              new OldDoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
@@ -208,7 +208,7 @@ public class TfIdfTest {
       PCollection<KV<String, Double>> wordToDf = wordToDocCount
           .apply("ComputeDocFrequencies", ParDo
               .withSideInputs(totalDocuments)
-              .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
+              .of(new OldDoFn<KV<String, Long>, KV<String, Double>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
@@ -237,7 +237,7 @@ public class TfIdfTest {
       // divided by the log of the document frequency.
       return wordToUriAndTfAndDf
           .apply("ComputeTfIdf", ParDo.of(
-              new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+              new OldDoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();

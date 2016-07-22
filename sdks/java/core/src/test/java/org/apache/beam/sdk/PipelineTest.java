@@ -36,8 +36,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -146,9 +146,9 @@ public class PipelineTest {
 
   private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
       final String suffix) {
-    return ParDo.of(new DoFn<String, String>() {
+    return ParDo.of(new OldDoFn<String, String>() {
       @Override
-      public void processElement(DoFn<String, String>.ProcessContext c) {
+      public void processElement(OldDoFn<String, String>.ProcessContext c) {
         c.output(c.element() + suffix);
       }
     });

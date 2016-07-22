@@ -30,9 +30,9 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.ApproximateUnique;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -103,9 +103,9 @@ public class MultiOutputWordCountTest {
   }
 
   /**
-   * A DoFn that tokenizes lines of text into individual words.
+   * A OldDoFn that tokenizes lines of text into individual words.
    */
-  static class ExtractWordsFn extends DoFn<String, String> {
+  static class ExtractWordsFn extends OldDoFn<String, String> {
 
     private final Aggregator<Integer, Integer> totalWords = createAggregator("totalWords",
         new Sum.SumIntegerFn());
@@ -170,7 +170,7 @@ public class MultiOutputWordCountTest {
     }
   }
 
-  private static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+  private static class FormatCountsFn extends OldDoFn<KV<String, Long>, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + ": " + c.element().getValue());

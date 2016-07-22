@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
@@ -59,7 +59,7 @@ public class Join {
         .apply(CoGroupByKey.<K>create());
 
     return coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
+      new OldDoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
         @Override
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
@@ -108,7 +108,7 @@ public class Join {
         .apply(CoGroupByKey.<K>create());
 
     return coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
+      new OldDoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
         @Override
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
@@ -161,7 +161,7 @@ public class Join {
         .apply(CoGroupByKey.<K>create());
 
     return coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
+      new OldDoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
         @Override
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();

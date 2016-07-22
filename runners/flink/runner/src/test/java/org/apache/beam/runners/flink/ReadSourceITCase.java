@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -72,7 +72,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
     PCollection<String> result = p
         .apply(CountingInput.upTo(10))
-        .apply(ParDo.of(new DoFn<Long, String>() {
+        .apply(ParDo.of(new OldDoFn<Long, String>() {
           @Override
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());

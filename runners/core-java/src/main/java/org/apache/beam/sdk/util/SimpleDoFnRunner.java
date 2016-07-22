@@ -19,21 +19,21 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
 import org.apache.beam.sdk.values.TupleTag;
 import java.util.List;
 
 /**
- * Runs a {@link DoFn} by constructing the appropriate contexts and passing them in.
+ * Runs a {@link OldDoFn} by constructing the appropriate contexts and passing them in.
  *
- * @param <InputT> the type of the DoFn's (main) input elements
- * @param <OutputT> the type of the DoFn's (main) output elements
+ * @param <InputT> the type of the OldDoFn's (main) input elements
+ * @param <OutputT> the type of the OldDoFn's (main) output elements
  */
 public class SimpleDoFnRunner<InputT, OutputT> extends DoFnRunnerBase<InputT, OutputT>{
 
-  protected SimpleDoFnRunner(PipelineOptions options, DoFn<InputT, OutputT> fn,
+  protected SimpleDoFnRunner(PipelineOptions options, OldDoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag, List<TupleTag<?>> sideOutputTags, StepContext stepContext,
@@ -44,7 +44,7 @@ public class SimpleDoFnRunner<InputT, OutputT> extends DoFnRunnerBase<InputT, Ou
 
   @Override
   protected void invokeProcessElement(WindowedValue<InputT> elem) {
-    final DoFn<InputT, OutputT>.ProcessContext processContext = createProcessContext(elem);
+    final OldDoFn<InputT, OutputT>.ProcessContext processContext = createProcessContext(elem);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(processContext);
