@@ -348,6 +348,10 @@ class AppliedPTransform(object):
     # root producer.
     self.refcounts = collections.defaultdict(int)
 
+  def __repr__(self):
+    return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
+                           type(self.transform).__name__)
+
   def update_input_refcounts(self):
     """Increment refcounts for all transforms providing inputs."""
 
