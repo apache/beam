@@ -39,7 +39,7 @@ class Count1(beam.PTransform):
   def apply(self, pcoll):
     return (
         pcoll
-        | beam.Map('Init', lambda v: (v, 1))
+        | 'Init' >> beam.Map(lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 
 
@@ -57,7 +57,7 @@ def Count2(pcoll):  # pylint: disable=invalid-name
   """Count as a decorated function."""
   return (
       pcoll
-      | beam.Map('Init', lambda v: (v, 1))
+      | 'Init' >> beam.Map(lambda v: (v, 1))
       | beam.CombinePerKey(sum))
 
 
@@ -84,7 +84,7 @@ def Count3(pcoll, factor=1):  # pylint: disable=invalid-name
   """
   return (
       pcoll
-      | beam.Map('Init', lambda v: (v, factor))
+      | 'Init' >> beam.Map(lambda v: (v, factor))
       | beam.CombinePerKey(sum))
 
 

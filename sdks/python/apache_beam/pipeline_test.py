@@ -69,7 +69,7 @@ class PipelineTest(unittest.TestCase):
 
   @staticmethod
   def custom_callable(pcoll):
-    return pcoll | FlatMap('+1', lambda x: [x + 1])
+    return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
 
   # Some of these tests designate a runner by name, others supply a runner.
   # This variation is just to verify that both means of runner specification
@@ -78,7 +78,7 @@ class PipelineTest(unittest.TestCase):
   class CustomTransform(PTransform):
 
     def apply(self, pcoll):
-      return pcoll | FlatMap('+1', lambda x: [x + 1])
+      return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
 
   class Visitor(PipelineVisitor):
 
@@ -98,33 +98,33 @@ class PipelineTest(unittest.TestCase):
 
   def test_create(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll = pipeline | Create('label1', [1, 2, 3])
+    pcoll = pipeline | 'label1' >> Create([1, 2, 3])
     assert_that(pcoll, equal_to([1, 2, 3]))
 
     # Test if initial value is an iterator object.
-    pcoll2 = pipeline | Create('label2', iter((4, 5, 6)))
-    pcoll3 = pcoll2 | FlatMap('do', lambda x: [x + 10])
+    pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
+    pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
     assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
     pipeline.run()
 
   def test_create_singleton_pcollection(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll = pipeline | Create('label', [[1, 2, 3]])
+    pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
     pipeline.run()
 
   def test_read(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll = pipeline | Read('read', FakeSource([1, 2, 3]))
+    pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
     pipeline.run()
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll1 = pipeline | Create('pcoll', [1, 2, 3])
-    pcoll2 = pcoll1 | FlatMap('do1', lambda x: [x + 1])
-    pcoll3 = pcoll2 | FlatMap('do2', lambda x: [x + 1])
-    pcoll4 = pcoll2 | FlatMap('do3', lambda x: [x + 1])
+    pcoll1 = pipeline | 'pcoll' >> Create([1, 2, 3])
+    pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
+    pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
+    pcoll4 = pcoll2 | 'do3' >> FlatMap(lambda x: [x + 1])
     transform = PipelineTest.CustomTransform()
     pcoll5 = pcoll4 | transform
 
@@ -140,15 +140,15 @@ class PipelineTest(unittest.TestCase):
 
   def test_apply_custom_transform(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll = pipeline | Create('pcoll', [1, 2, 3])
+    pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
     assert_that(result, equal_to([2, 3, 4]))
     pipeline.run()
 
   def test_reuse_custom_transform_instance(self):
     pipeline = Pipeline(self.runner_name)
-    pcoll1 = pipeline | Create('pcoll1', [1, 2, 3])
-    pcoll2 = pipeline | Create('pcoll2', [4, 5, 6])
+    pcoll1 = pipeline | 'pcoll1' >> Create([1, 2, 3])
+    pcoll2 = pipeline | 'pcoll2' >> Create([4, 5, 6])
     transform = PipelineTest.CustomTransform()
     pcoll1 | transform
     with self.assertRaises(RuntimeError) as cm:
@@ -183,7 +183,7 @@ class PipelineTest(unittest.TestCase):
 
     self.assertEqual(
         ['a-x', 'b-x', 'c-x'],
-        sorted(['a', 'b', 'c'] | AddSuffix('-x')))
+        sorted(['a', 'b', 'c'] | '-x' >> AddSuffix()))
 
   def test_cached_pvalues_are_refcounted(self):
     """Test that cached PValues are refcounted and deleted.
@@ -213,17 +213,17 @@ class PipelineTest(unittest.TestCase):
 
     gc.collect()
     count_threshold = len(gc.get_objects()) + 10000
-    biglist = pipeline | Create('oom:create', ['x'] * num_elements)
+    biglist = pipeline | 'oom:create' >> Create(['x'] * num_elements)
     dupes = (
         biglist
-        | Map('oom:addone', lambda x: (x, 1))
-        | FlatMap('oom:dupes', create_dupes,
+        | 'oom:addone' >> Map(lambda x: (x, 1))
+        | 'oom:dupes' >> FlatMap(create_dupes,
                   AsIter(biglist)).with_outputs('side', main='main'))
     result = (
         (dupes.side, dupes.main, dupes.side)
-        | Flatten('oom:flatten')
-        | CombinePerKey('oom:combine', sum)
-        | Map('oom:check', check_memory, count_threshold))
+        | 'oom:flatten' >> Flatten()
+        | 'oom:combine' >> CombinePerKey(sum)
+        | 'oom:check' >> Map(check_memory, count_threshold))
 
     assert_that(result, equal_to([('x', 3 * num_elements)]))
     pipeline.run()

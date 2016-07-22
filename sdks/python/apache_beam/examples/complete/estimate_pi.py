@@ -94,9 +94,9 @@ class EstimatePiTransform(beam.PTransform):
   def apply(self, pcoll):
     # A hundred work items of a hundred thousand tries each.
     return (pcoll
-            | beam.Create('Initialize', [100000] * 100).with_output_types(int)
-            | beam.Map('Run trials', run_trials)
-            | beam.CombineGlobally('Sum', combine_results).without_defaults())
+            | 'Initialize' >> beam.Create([100000] * 100).with_output_types(int)
+            | 'Run trials' >> beam.Map(run_trials)
+            | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
 
 
 def run(argv=None):
@@ -109,7 +109,7 @@ def run(argv=None):
 
   p = beam.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
-   | EstimatePiTransform('Estimate')
+   | 'Estimate' >> EstimatePiTransform()
    | beam.io.Write('Write',
                    beam.io.TextFileSink(known_args.output,
                                         coder=JsonCoder())))

@@ -49,7 +49,7 @@ def run(argv=None):
 
   # Capitalize the characters in each line.
   transformed = (lines
-                 | (beam.Map('capitalize', lambda x: x.upper())))
+                 | 'capitalize' >> (beam.Map(lambda x: x.upper())))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned

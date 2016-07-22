@@ -82,7 +82,7 @@ def run(argv=None):
   (p  # pylint: disable=expression-not-assigned
    | beam.io.Read('read',
                   beam.io.TextFileSource(known_args.input, coder=JsonCoder()))
-   | beam.FlatMap('points', compute_points)
+   | 'points' >> beam.FlatMap(compute_points)
    | beam.CombinePerKey(sum)
    | beam.io.Write('write',
                    beam.io.TextFileSink(known_args.output, coder=JsonCoder())))

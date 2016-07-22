@@ -160,9 +160,9 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing the unique elements of a PCollection."""
   return (pcoll
-          | Map('ToPairs', lambda v: (v, None))
-          | CombinePerKey('Group', lambda vs: None)
-          | Keys('RemoveDuplicates'))
+          | 'ToPairs' >> Map(lambda v: (v, None))
+          | 'Group' >> CombinePerKey(lambda vs: None)
+          | 'RemoveDuplicates' >> Keys())
 
 
 class DataflowAssertException(Exception):
@@ -220,7 +220,7 @@ def assert_that(actual, matcher, label='assert_that'):
   class AssertThat(PTransform):
 
     def apply(self, pipeline):
-      return pipeline | Create('singleton', [None]) | Map(match, AllOf(actual))
+      return pipeline | 'singleton' >> Create([None]) | Map(match, AllOf(actual))
 
     def default_label(self):
       return label

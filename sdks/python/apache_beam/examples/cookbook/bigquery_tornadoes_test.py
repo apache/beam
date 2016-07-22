@@ -28,7 +28,7 @@ class BigQueryTornadoesTest(unittest.TestCase):
 
   def test_basics(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    rows = (p | beam.Create('create', [
+    rows = (p | 'create' >> beam.Create([
         {'month': 1, 'day': 1, 'tornado': False},
         {'month': 1, 'day': 2, 'tornado': True},
         {'month': 1, 'day': 3, 'tornado': True},

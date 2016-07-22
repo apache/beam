@@ -40,12 +40,12 @@ def run(argv=None):
   p = beam.Pipeline(argv=pipeline_args)
 
   (p  # pylint: disable=expression-not-assigned
-   | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
-   | beam.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
-   | TopPerPrefix('TopPerPrefix', 5)
+   | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
+   | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+   | 'TopPerPrefix' >> TopPerPrefix(5)
    | beam.Map('format',
               lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
-   | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
+   | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 
