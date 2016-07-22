@@ -29,14 +29,12 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
 
 
-class FakeLogger(object):
-  def PerThreadLoggingContext(self, *unused_args, **unused_kwargs):
-    return self
+class LoggingContext(object):
 
-  def __enter__(self):
+  def enter(self):
     pass
 
-  def __exit__(self, *unused_args):
+  def exit(self):
     pass
 
 
@@ -56,6 +54,7 @@ class DoFnRunner(object):
                step_name=None):
     if not args and not kwargs:
       self.dofn = fn
+      self.dofn_process = fn.process
     else:
       args, kwargs = util.insert_values_in_args(args, kwargs, side_inputs)
 
@@ -70,10 +69,13 @@ class DoFnRunner(object):
         def finish_bundle(self, context):
           return fn.finish_bundle(context)
       self.dofn = CurriedFn()
+      self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
+
     self.window_fn = windowing.windowfn
     self.context = context
     self.tagged_receivers = tagged_receivers
-    self.logger = logger or FakeLogger()
+    self.logging_context = (logger.PerThreadLoggingContext(step_name=step_name)
+                            if logger else LoggingContext())
     self.step_name = step_name
 
     # Optimize for the common case.
@@ -82,24 +84,32 @@ class DoFnRunner(object):
   def start(self):
     self.context.set_element(None)
     try:
+      self.logging_context.enter()
       self._process_outputs(None, self.dofn.start_bundle(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
+    finally:
+      self.logging_context.exit()
 
   def finish(self):
     self.context.set_element(None)
     try:
+      self.logging_context.enter()
       self._process_outputs(None, self.dofn.finish_bundle(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
+    finally:
+      self.logging_context.exit()
 
   def process(self, element):
     try:
-      with self.logger.PerThreadLoggingContext(step_name=self.step_name):
-        self.context.set_element(element)
-        self._process_outputs(element, self.dofn.process(self.context))
+      self.logging_context.enter()
+      self.context.set_element(element)
+      self._process_outputs(element, self.dofn_process(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
+    finally:
+      self.logging_context.exit()
 
   def reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
