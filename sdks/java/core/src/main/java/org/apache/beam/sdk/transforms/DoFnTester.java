@@ -90,7 +90,7 @@ public class DoFnTester<InputT, OutputT> {
    */
   @SuppressWarnings("unchecked")
   public static <InputT, OutputT> DoFnTester<InputT, OutputT>
-      of(DoFnWithContext<InputT, OutputT> fn) {
+      of(DoFn<InputT, OutputT> fn) {
     return new DoFnTester<InputT, OutputT>(DoFnReflector.of(fn.getClass()).toDoFn(fn));
   }
 

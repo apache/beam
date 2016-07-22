@@ -52,13 +52,13 @@ import java.util.Map;
  * {@link org.apache.beam.sdk.values.PCollection}.
  *
  * <p>See {@link ParDo} for more explanation, examples of use, and
- * discussion of constraints on {@code DoFnWithContext}s, including their
+ * discussion of constraints on {@code DoFn}s, including their
  * serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p>{@code DoFnWithContext}s can be tested in a particular
+ * <p>{@code DoFn}s can be tested in a particular
  * {@code Pipeline} by running that {@code Pipeline} on sample input
- * and then checking its output.  Unit testing of a {@code DoFnWithContext},
+ * and then checking its output.  Unit testing of a {@code DoFn},
  * separately from any {@code ParDo} transform or {@code Pipeline},
  * can be done via the {@link DoFnTester} harness.
  *
@@ -73,7 +73,7 @@ import java.util.Map;
  * <pre> {@code
  * PCollection<String> lines = ... ;
  * PCollection<String> words =
- *     lines.apply(ParDo.of(new DoFnWithContext<String, String>() {
+ *     lines.apply(ParDo.of(new DoFn<String, String>() {
  *         @ProcessElement
  *         public void processElement(ProcessContext c, BoundedWindow window) {
  *
@@ -84,15 +84,15 @@ import java.util.Map;
  * @param <OutputT> the type of the (main) output elements
  */
 @Experimental
-public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, HasDisplayData {
+public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
-  /** Information accessible to all methods in this {@code DoFnWithContext}. */
+  /** Information accessible to all methods in this {@code DoFn}. */
   public abstract class Context {
 
     /**
      * Returns the {@code PipelineOptions} specified with the
      * {@link org.apache.beam.sdk.runners.PipelineRunner}
-     * invoking this {@code DoFnWithContext}.  The {@code PipelineOptions} will
+     * invoking this {@code DoFn}.  The {@code PipelineOptions} will
      * be the default running via {@link DoFnTester}.
      */
     public abstract PipelineOptions getPipelineOptions();
@@ -238,7 +238,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
   /**
    * Returns the allowed timestamp skew duration, which is the maximum
    * duration that timestamps can be shifted backward in
-   * {@link DoFnWithContext.Context#outputWithTimestamp}.
+   * {@link DoFn.Context#outputWithTimestamp}.
    *
    * <p>The default value is {@code Duration.ZERO}, in which case
    * timestamps can only be shifted forward to future.  For infinite
@@ -259,7 +259,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the input type of this {@code DoFnWithContext} instance's most-derived
+   * about the input type of this {@code DoFn} instance's most-derived
    * class.
    *
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
@@ -270,10 +270,10 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the output type of this {@code DoFnWithContext} instance's
+   * about the output type of this {@code DoFn} instance's
    * most-derived class.
    *
-   * <p>In the normal case of a concrete {@code DoFnWithContext} subclass with
+   * <p>In the normal case of a concrete {@code DoFn} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
    * for choosing a default output {@code Coder<O>} for the output
@@ -295,7 +295,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
    */
   public interface ExtraContextFactory<InputT, OutputT> {
     /**
-     * Construct the {@link BoundedWindow} to use within a {@link DoFnWithContext} that
+     * Construct the {@link BoundedWindow} to use within a {@link DoFn} that
      * needs it. This is called if the {@link ProcessElement} method has a parameter of type
      * {@link BoundedWindow}.
      *
@@ -304,7 +304,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
     BoundedWindow window();
 
     /**
-     * Construct the {@link WindowingInternals} to use within a {@link DoFnWithContext} that
+     * Construct the {@link WindowingInternals} to use within a {@link DoFn} that
      * needs it. This is called if the {@link ProcessElement} method has a parameter of type
      * {@link WindowingInternals}.
      */
@@ -318,7 +318,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
    * The method annotated with this must satisfy the following constraints:
    * <ul>
    *   <li>It must have at least one argument.
-   *   <li>Its first (and only) argument must be a {@link DoFnWithContext.Context}.
+   *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
    * </ul>
    */
   @Documented
@@ -328,11 +328,11 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
 
   /**
    * Annotation for the method to use for processing elements. A subclass of
-   * {@link DoFnWithContext} must have a method with this annotation satisfying
+   * {@link DoFn} must have a method with this annotation satisfying
    * the following constraints in order for it to be executable:
    * <ul>
    *   <li>It must have at least one argument.
-   *   <li>Its first argument must be a {@link DoFnWithContext.ProcessContext}.
+   *   <li>Its first argument must be a {@link DoFn.ProcessContext}.
    *   <li>Its remaining arguments must be {@link BoundedWindow}, or
    *   {@link WindowingInternals WindowingInternals&lt;InputT, OutputT&gt;}.
    * </ul>
@@ -347,7 +347,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
    * The method annotated with this must satisfy the following constraints:
    * <ul>
    *   <li>It must have at least one argument.
-   *   <li>Its first (and only) argument must be a {@link DoFnWithContext.Context}.
+   *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
    * </ul>
    */
   @Documented
@@ -410,10 +410,10 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, 
   }
 
   /**
-   * Finalize the {@link DoFnWithContext} construction to prepare for processing.
+   * Finalize the {@link DoFn} construction to prepare for processing.
    * This method should be called by runners before any processing methods.
    */
-  void prepareForProcessing() {
+  public void prepareForProcessing() {
     aggregatorsAreFinal = true;
   }
 

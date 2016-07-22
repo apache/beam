@@ -43,13 +43,13 @@ import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
 
-/** Tests for {@link DoFnWithContext}. */
+/** Tests for {@link DoFn}. */
 @RunWith(JUnit4.class)
-public class DoFnWithContextTest implements Serializable {
+public class DoFnTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  private class NoOpDoFnWithContext extends DoFnWithContext<Void, Void> {
+  private class NoOpDoFn extends DoFn<Void, Void> {
 
     /**
      * @param c context
@@ -64,7 +64,7 @@ public class DoFnWithContextTest implements Serializable {
     String name = "testAggregator";
     Sum.SumLongFn combiner = new Sum.SumLongFn();
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     Aggregator<Long, Long> aggregator = doFn.createAggregator(name, combiner);
 
@@ -77,7 +77,7 @@ public class DoFnWithContextTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("name cannot be null");
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator(null, new Sum.SumLongFn());
   }
@@ -89,7 +89,7 @@ public class DoFnWithContextTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -101,7 +101,7 @@ public class DoFnWithContextTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -111,7 +111,7 @@ public class DoFnWithContextTest implements Serializable {
     String name = "testAggregator";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     doFn.createAggregator(name, combiner);
 
@@ -129,7 +129,7 @@ public class DoFnWithContextTest implements Serializable {
     String nameTwo = "aggregatorPrime";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    DoFn<Void, Void> doFn = new NoOpDoFn();
 
     Aggregator<Double, Double> aggregatorOne =
         doFn.createAggregator(nameOne, combiner);
@@ -164,7 +164,7 @@ public class DoFnWithContextTest implements Serializable {
 
   @Test
   public void testDefaultPopulateDisplayDataImplementation() {
-    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
     };
     DisplayData displayData = DisplayData.from(fn);
     assertThat(displayData.items(), empty());
@@ -173,7 +173,7 @@ public class DoFnWithContextTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInStartBundleThrows() {
-    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
+    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @StartBundle
       public void startBundle(Context c) {
         createAggregator("anyAggregate", new MaxIntegerFn());
@@ -192,7 +192,7 @@ public class DoFnWithContextTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInProcessElementThrows() {
-    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
+    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
         createAggregator("anyAggregate", new MaxIntegerFn());
@@ -208,7 +208,7 @@ public class DoFnWithContextTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInFinishBundleThrows() {
-    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
+    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @FinishBundle
       public void finishBundle(Context c) {
         createAggregator("anyAggregate", new MaxIntegerFn());
@@ -227,7 +227,7 @@ public class DoFnWithContextTest implements Serializable {
   /**
    * Initialize a test pipeline with the specified {@link OldDoFn}.
    */
-  private <InputT, OutputT> TestPipeline createTestPipeline(DoFnWithContext<InputT, OutputT> fn) {
+  private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) {
     TestPipeline pipeline = TestPipeline.create();
     pipeline.apply(Create.of((InputT) null))
      .apply(ParDo.of(fn));

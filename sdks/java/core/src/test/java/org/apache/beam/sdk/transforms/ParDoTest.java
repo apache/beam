@@ -168,17 +168,17 @@ public class ParDoTest implements Serializable {
     public void processElement(OldDoFn<Integer, String>.ProcessContext c) throws Exception {}
   }
 
-  static class TestDoFnWithContext extends DoFnWithContext<Integer, String> {
+  static class TestDoFn extends DoFn<Integer, String> {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
     State state = State.UNSTARTED;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
     final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
 
-    public TestDoFnWithContext() {
+    public TestDoFn() {
     }
 
-    public TestDoFnWithContext(List<PCollectionView<Integer>> sideInputViews,
+    public TestDoFn(List<PCollectionView<Integer>> sideInputViews,
                     List<TupleTag<String>> sideOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
@@ -362,7 +362,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.of(new TestDoFnWithContext()));
+        .apply(ParDo.of(new TestDoFn()));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
@@ -1426,7 +1426,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   public void testDoFnWithContextDisplayData() {
-    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
       @ProcessElement
       public void proccessElement(ProcessContext c) {}
 
@@ -1445,7 +1445,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   public void testWithOutputTagsDisplayData() {
-    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
       @ProcessElement
       public void proccessElement(ProcessContext c) {}
 
