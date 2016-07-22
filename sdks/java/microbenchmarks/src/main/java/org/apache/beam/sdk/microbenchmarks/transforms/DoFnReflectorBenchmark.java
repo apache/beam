@@ -20,10 +20,10 @@ package org.apache.beam.sdk.microbenchmarks.transforms;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnReflector;
 import org.apache.beam.sdk.transforms.DoFnReflector.DoFnInvoker;
-import org.apache.beam.sdk.transforms.DoFnWithContext;
-import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -40,7 +40,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Benchmarks for {@link OldDoFn} and {@link DoFnWithContext} invocations, specifically
+ * Benchmarks for {@link OldDoFn} and {@link DoFn} invocations, specifically
  * for measuring the overhead of {@link DoFnReflector}.
  */
 @State(Scope.Benchmark)
@@ -50,12 +50,12 @@ public class DoFnReflectorBenchmark {
 
   private static final String ELEMENT = "some string to use for testing";
 
-  private OldDoFn<String, String> doFn = new UpperCaseDoFn();
-  private DoFnWithContext<String, String> doFnWithContext = new UpperCaseDoFnWithContext();
+  private OldDoFn<String, String> oldDoFn = new UpperCaseOldDoFn();
+  private DoFn<String, String> doFn = new UpperCaseDoFn();
 
-  private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(doFn, ELEMENT);
+  private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(oldDoFn, ELEMENT);
   private StubDoFnWithContextProcessContext stubDoFnWithContextContext =
-      new StubDoFnWithContextProcessContext(doFnWithContext, ELEMENT);
+      new StubDoFnWithContextProcessContext(doFn, ELEMENT);
   private ExtraContextFactory<String, String> extraContextFactory =
       new ExtraContextFactory<String, String>() {
 
@@ -77,14 +77,14 @@ public class DoFnReflectorBenchmark {
 
   @Setup
   public void setUp() {
-    doFnReflector = DoFnReflector.of(doFnWithContext.getClass());
-    adaptedDoFnWithContext = doFnReflector.toDoFn(doFnWithContext);
-    invoker = doFnReflector.bindInvoker(doFnWithContext);
+    doFnReflector = DoFnReflector.of(doFn.getClass());
+    adaptedDoFnWithContext = doFnReflector.toDoFn(doFn);
+    invoker = doFnReflector.bindInvoker(doFn);
   }
 
   @Benchmark
   public String invokeDoFn() throws Exception {
-    doFn.processElement(stubDoFnContext);
+    oldDoFn.processElement(stubDoFnContext);
     return stubDoFnContext.output;
   }
 
@@ -100,7 +100,7 @@ public class DoFnReflectorBenchmark {
     return stubDoFnWithContextContext.output;
   }
 
-  private static class UpperCaseDoFn extends OldDoFn<String, String> {
+  private static class UpperCaseOldDoFn extends OldDoFn<String, String> {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
@@ -108,7 +108,7 @@ public class DoFnReflectorBenchmark {
     }
   }
 
-  private static class UpperCaseDoFnWithContext extends DoFnWithContext<String, String> {
+  private static class UpperCaseDoFn extends DoFn<String, String> {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
@@ -187,11 +187,11 @@ public class DoFnReflectorBenchmark {
   }
 
   private static class StubDoFnWithContextProcessContext
-      extends DoFnWithContext<String, String>.ProcessContext {
+      extends DoFn<String, String>.ProcessContext {
     private final String element;
     private  String output;
 
-    public StubDoFnWithContextProcessContext(DoFnWithContext<String, String> fn, String element) {
+    public StubDoFnWithContextProcessContext(DoFn<String, String> fn, String element) {
       fn.super();
       this.element = element;
     }

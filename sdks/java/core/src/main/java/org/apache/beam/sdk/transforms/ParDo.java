@@ -527,13 +527,13 @@ public class ParDo {
   }
 
   private static <InputT, OutputT> OldDoFn<InputT, OutputT>
-      adapt(DoFnWithContext<InputT, OutputT> fn) {
+      adapt(DoFn<InputT, OutputT> fn) {
     return DoFnReflector.of(fn.getClass()).toDoFn(fn);
   }
 
   /**
    * Creates a {@link ParDo} {@link PTransform} that will invoke the
-   * given {@link DoFnWithContext} function.
+   * given {@link DoFn} function.
    *
    * <p>The resulting {@link PTransform PTransform's} types have been bound, with the
    * input being a {@code PCollection<InputT>} and the output a
@@ -541,11 +541,11 @@ public class ParDo {
    * {@code OldDoFn<InputT, OutputT>}. It is ready to be applied, or further
    * properties can be set on it first.
    *
-   * <p>{@link DoFnWithContext} is an experimental alternative to
+   * <p>{@link DoFn} is an experimental alternative to
    * {@link OldDoFn} which simplifies accessing the window of the element.
    */
   @Experimental
-  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
+  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     return of(adapt(fn), fn.getClass());
   }
 
@@ -633,13 +633,13 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * transform but which will invoke the given {@link DoFnWithContext}
+     * transform but which will invoke the given {@link DoFn}
      * function, and which has its input and output types bound. Does
      * not modify this transform. The resulting {@link PTransform} is
      * sufficiently specified to be applied, but more properties can
      * still be specified.
      */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
+    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
       return of(adapt(fn), fn.getClass());
     }
   }
@@ -845,12 +845,12 @@ public class ParDo {
     /**
      * Returns a new multi-output {@link ParDo} {@link PTransform}
      * that's like this transform but which will invoke the given
-     * {@link DoFnWithContext} function, and which has its input type bound.
+     * {@link DoFn} function, and which has its input type bound.
      * Does not modify this transform. The resulting
      * {@link PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.
      */
-    public <InputT> BoundMulti<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
+    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
       return of(adapt(fn), fn.getClass());
     }
   }

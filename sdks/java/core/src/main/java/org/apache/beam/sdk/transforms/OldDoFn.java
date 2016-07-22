@@ -63,7 +63,7 @@ import java.util.UUID;
  * separately from any {@code ParDo} transform or {@code Pipeline},
  * can be done via the {@link DoFnTester} harness.
  *
- * <p>{@link DoFnWithContext} (currently experimental) offers an alternative
+ * <p>{@link DoFn} (currently experimental) offers an alternative
  * mechanism for accessing {@link ProcessContext#window()} without the need
  * to implement {@link RequiresWindowAccess}.
  *
