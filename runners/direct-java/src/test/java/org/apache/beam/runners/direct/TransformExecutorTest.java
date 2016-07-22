@@ -61,6 +61,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+
 /**
  * Tests for {@link TransformExecutor}.
  */
@@ -516,7 +517,7 @@ public class TransformExecutorTest {
     }
 
     @Override
-    public void handleEmpty(CommittedBundle<?> inputBundle) {
+    public void handleEmpty(AppliedPTransform<?, ?, ?> transform, CommittedBundle<?> inputBundle) {
       handledEmpty = true;
       onMethod.countDown();
     }
