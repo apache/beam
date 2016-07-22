@@ -22,8 +22,8 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
@@ -89,12 +89,11 @@ public class MinimalWordCount {
     // the input text (a set of Shakespeare's texts).
     p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
      // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
-     // OldDoFn (defined in-line) on each element that tokenizes the text line into individua
-     // words.
+     // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
      // The ParDo returns a PCollection<String>, where each element is an individual word in
      // Shakespeare's collected texts.
-     .apply("ExtractWords", ParDo.of(new OldDoFn<String, String>() {
-                       @Override
+     .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
+                       @ProcessElement
                        public void processElement(ProcessContext c) {
                          for (String word : c.element().split("[^a-zA-Z']+")) {
                            if (!word.isEmpty()) {
