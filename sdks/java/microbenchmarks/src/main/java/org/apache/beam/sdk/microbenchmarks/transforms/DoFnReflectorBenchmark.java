@@ -53,9 +53,10 @@ public class DoFnReflectorBenchmark {
   private OldDoFn<String, String> oldDoFn = new UpperCaseOldDoFn();
   private DoFn<String, String> doFn = new UpperCaseDoFn();
 
-  private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(oldDoFn, ELEMENT);
-  private StubDoFnWithContextProcessContext stubDoFnWithContextContext =
-      new StubDoFnWithContextProcessContext(doFn, ELEMENT);
+  private StubOldDoFnProcessContext stubOldDoFnContext = new StubOldDoFnProcessContext(oldDoFn,
+      ELEMENT);
+  private StubDoFnProcessContext stubDoFnContext =
+      new StubDoFnProcessContext(doFn, ELEMENT);
   private ExtraContextFactory<String, String> extraContextFactory =
       new ExtraContextFactory<String, String>() {
 
@@ -83,21 +84,21 @@ public class DoFnReflectorBenchmark {
   }
 
   @Benchmark
-  public String invokeDoFn() throws Exception {
-    oldDoFn.processElement(stubDoFnContext);
+  public String invokeOldDoFn() throws Exception {
+    oldDoFn.processElement(stubOldDoFnContext);
     return stubDoFnContext.output;
   }
 
   @Benchmark
   public String invokeDoFnWithContextViaAdaptor() throws Exception {
-    adaptedDoFnWithContext.processElement(stubDoFnContext);
-    return stubDoFnContext.output;
+    adaptedDoFnWithContext.processElement(stubOldDoFnContext);
+    return stubOldDoFnContext.output;
   }
 
   @Benchmark
   public String invokeDoFnWithContext() throws Exception {
-    invoker.invokeProcessElement(stubDoFnWithContextContext, extraContextFactory);
-    return stubDoFnWithContextContext.output;
+    invoker.invokeProcessElement(stubDoFnContext, extraContextFactory);
+    return stubDoFnContext.output;
   }
 
   private static class UpperCaseOldDoFn extends OldDoFn<String, String> {
@@ -116,12 +117,12 @@ public class DoFnReflectorBenchmark {
     }
   }
 
-  private static class StubDoFnProcessContext extends OldDoFn<String, String>.ProcessContext {
+  private static class StubOldDoFnProcessContext extends OldDoFn<String, String>.ProcessContext {
 
     private final String element;
     private String output;
 
-    public StubDoFnProcessContext(OldDoFn<String, String> fn, String element) {
+    public StubOldDoFnProcessContext(OldDoFn<String, String> fn, String element) {
       fn.super();
       this.element = element;
     }
@@ -186,12 +187,12 @@ public class DoFnReflectorBenchmark {
     }
   }
 
-  private static class StubDoFnWithContextProcessContext
+  private static class StubDoFnProcessContext
       extends DoFn<String, String>.ProcessContext {
     private final String element;
     private  String output;
 
-    public StubDoFnWithContextProcessContext(DoFn<String, String> fn, String element) {
+    public StubDoFnProcessContext(DoFn<String, String> fn, String element) {
       fn.super();
       this.element = element;
     }
