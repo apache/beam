@@ -43,7 +43,7 @@ public class MapAggregatorValues<T> extends AggregatorValues<T> {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(MapAggregatorValues.class)
+    return MoreObjects.toStringHelper(this)
         .add("stepValues", stepValues)
         .toString();
   }
