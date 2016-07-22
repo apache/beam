@@ -88,11 +88,8 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
 
     self.assertEqual(
-        [names.PICKLED_MAIN_SESSION_FILE],
+        [],
         dependency.stage_job_resources(options))
-    self.assertTrue(
-        os.path.isfile(
-            os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
 
   def test_with_requirements_file(self):
     staging_dir = tempfile.mkdtemp()
@@ -106,7 +103,7 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
-        sorted([dependency.REQUIREMENTS_FILE, names.PICKLED_MAIN_SESSION_FILE,
+        sorted([dependency.REQUIREMENTS_FILE,
                 'abc.txt', 'def.txt']),
         sorted(dependency.stage_job_resources(
             options,
@@ -145,7 +142,7 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
-        sorted([dependency.REQUIREMENTS_FILE, names.PICKLED_MAIN_SESSION_FILE,
+        sorted([dependency.REQUIREMENTS_FILE,
                 'abc.txt', 'def.txt']),
         sorted(dependency.stage_job_resources(
             options,
@@ -169,8 +166,7 @@ class SetupTest(unittest.TestCase):
         source_dir, 'setup.py')
 
     self.assertEqual(
-        [dependency.WORKFLOW_TARBALL_FILE,
-         names.PICKLED_MAIN_SESSION_FILE],
+        [dependency.WORKFLOW_TARBALL_FILE],
         dependency.stage_job_resources(
             options,
             # We replace the build setup command because a realistic one would
@@ -265,8 +261,7 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = 'default'
 
     self.assertEqual(
-        [names.PICKLED_MAIN_SESSION_FILE,
-         names.DATAFLOW_SDK_TARBALL_FILE],
+        [names.DATAFLOW_SDK_TARBALL_FILE],
         dependency.stage_job_resources(
             options,
             file_copy=dependency._dependency_file_copy))
@@ -286,8 +281,7 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     self.assertEqual(
-        [names.PICKLED_MAIN_SESSION_FILE,
-         names.DATAFLOW_SDK_TARBALL_FILE],
+        [names.DATAFLOW_SDK_TARBALL_FILE],
         dependency.stage_job_resources(options))
     tarball_path = os.path.join(
         staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
@@ -321,8 +315,7 @@ class SetupTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     self.assertEqual(
-        [names.PICKLED_MAIN_SESSION_FILE,
-         names.DATAFLOW_SDK_TARBALL_FILE],
+        [names.DATAFLOW_SDK_TARBALL_FILE],
         dependency.stage_job_resources(options))
 
   def test_with_extra_packages(self):
@@ -363,8 +356,7 @@ class SetupTest(unittest.TestCase):
 
     self.assertEqual(
         ['abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'gcs.tar.gz',
-         dependency.EXTRA_PACKAGES_FILE,
-         names.PICKLED_MAIN_SESSION_FILE],
+         dependency.EXTRA_PACKAGES_FILE],
         dependency.stage_job_resources(options))
     with open(os.path.join(staging_dir, dependency.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n', 'xyz2.tar\n',
