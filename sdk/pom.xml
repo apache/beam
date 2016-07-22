@@ -370,6 +370,7 @@
                   <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.cloud.bigtable</shadedPattern>
                   <excludes>
                     <exclude>com.google.cloud.bigtable.config.BigtableOptions*</exclude>
+                    <exclude>com.google.cloud.bigtable.config.BulkOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.config.CredentialOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.config.RetryOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.grpc.BigtableClusterName</exclude>
