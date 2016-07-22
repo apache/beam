@@ -56,8 +56,8 @@ public class SimpleStreamingWordCountTest implements Serializable {
   public void testRun() throws Exception {
     SparkStreamingPipelineOptions options =
         PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
-    options.setAppName(this.getClass().getSimpleName());
     options.setRunner(SparkRunner.class);
+    options.setStreaming(true);
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
 
