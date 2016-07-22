@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -24,9 +25,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-import org.apache.beam.sdk.values.PCollectionView;
 
 import org.joda.time.Instant;
+
+import java.util.Set;
+
 import javax.annotation.Nullable;
 
 /**
@@ -82,9 +85,8 @@ public interface TransformResult {
   TimerUpdate getTimerUpdate();
 
   /**
-   * Returns whether output was produced by the evaluation of this transform. True if
-   * {@link #getOutputBundles()} is nonempty, or if pipeline-visible state has changed (for example,
-   * the contents of a {@link PCollectionView} were updated).
+   * Returns the types of output produced by this {@link PTransform}. This may not include
+   * {@link OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
    */
-  boolean producedOutput();
+  Set<OutputType> getOutputTypes();
 }

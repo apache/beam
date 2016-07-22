@@ -17,21 +17,22 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-import org.apache.beam.sdk.values.PCollectionView;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -64,17 +65,7 @@ public abstract class StepTransformResult implements TransformResult {
   public abstract TimerUpdate getTimerUpdate();
 
   @Override
-  public boolean producedOutput() {
-    return !Iterables.isEmpty(getOutputBundles()) || producedAdditionalOutput();
-  }
-
-  /**
-   * Returns {@code true} if the step produced output that is not reflected in the Output Bundles.
-   *
-   * <p>If a step modifies the contents of a {@link PCollectionView}, this should return {@code
-   * true}.
-   */
-  abstract boolean producedAdditionalOutput();
+  public abstract Set<OutputType> getOutputTypes();
 
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
@@ -94,13 +85,14 @@ public abstract class StepTransformResult implements TransformResult {
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private AggregatorContainer.Mutator aggregatorChanges;
-    private boolean producedAdditionalOutput;
+    private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
     private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
       this.transform = transform;
       this.watermarkHold = watermarkHold;
       this.bundlesBuilder = ImmutableList.builder();
+      this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
     }
@@ -114,7 +106,7 @@ public abstract class StepTransformResult implements TransformResult {
           watermarkHold,
           state,
           timerUpdate,
-          producedAdditionalOutput);
+          producedOutputs);
     }
 
     public Builder withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
@@ -149,8 +141,8 @@ public abstract class StepTransformResult implements TransformResult {
       return this;
     }
 
-    public Builder withAdditionalOutput(boolean producedAdditionalOutput) {
-      this.producedAdditionalOutput = producedAdditionalOutput;
+    public Builder withAdditionalOutput(OutputType producedAdditionalOutput) {
+      producedOutputs.add(producedAdditionalOutput);
       return this;
     }
   }
