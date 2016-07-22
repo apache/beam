@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.coders.ImmutablesRegistrator;
+import org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.sql.SparkSession;
@@ -63,7 +63,7 @@ public final class SparkSessionFactory {
     conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     // register immutable collections serializers because the SDK uses them and they will be
     // used by Dataset Encoders
-    conf.set("spark.kryo.registrator", ImmutablesRegistrator.class.getCanonicalName());
+    conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getCanonicalName());
     return conf;
   }
 }

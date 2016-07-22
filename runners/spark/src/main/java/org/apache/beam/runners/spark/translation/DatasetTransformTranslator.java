@@ -67,6 +67,7 @@ import org.apache.spark.sql.KeyValueGroupedDataset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -329,7 +330,7 @@ public class DatasetTransformTranslator {
                   multiWindowKey.add(KV.of(WindowedValue.of(key, boundedWindow.maxTimestamp(),
                       boundedWindow, kv.getPane()), value));
                 }
-                return multiWindowKey.iterator();
+                return Collections.unmodifiableList(multiWindowKey).iterator();
               }
             }, EncoderHelpers.<KV<WindowedValue<K>, InputT>>encoder());
 
