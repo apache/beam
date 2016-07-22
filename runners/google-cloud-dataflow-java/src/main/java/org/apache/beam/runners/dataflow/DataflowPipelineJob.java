@@ -29,7 +29,6 @@ import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.MapAggregatorValues;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
@@ -41,6 +40,7 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -369,7 +369,20 @@ public class DataflowPipelineJob implements PipelineResult {
   public <OutputT> AggregatorValues<OutputT> getAggregatorValues(Aggregator<?, OutputT> aggregator)
       throws AggregatorRetrievalException {
     try {
-      return new MapAggregatorValues<>(fromMetricUpdates(aggregator));
+      final Map<String, OutputT> stepValues = fromMetricUpdates(aggregator);
+      return new AggregatorValues<OutputT>() {
+        @Override
+        public Map<String, OutputT> getValuesAtSteps() {
+          return stepValues;
+        }
+
+        @Override
+        public String toString() {
+          return MoreObjects.toStringHelper(this)
+              .add("stepValues", stepValues)
+              .toString();
+        }
+      };
     } catch (IOException e) {
       throw new AggregatorRetrievalException(
           "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
