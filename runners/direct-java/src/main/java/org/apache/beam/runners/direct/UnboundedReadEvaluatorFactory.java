@@ -35,7 +35,6 @@ import com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -73,25 +72,17 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
-  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-      final EvaluationContext evaluationContext) {
-    return getTransformEvaluatorQueue(transform, evaluationContext).poll();
-  }
-
   /**
-   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
-   * provided application of {@link Unbounded Read.Unbounded}, initializing it if required.
+   * Get a {@link TransformEvaluator} that produces elements for the provided application of
+   * {@link Unbounded Read.Unbounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.
    */
-  @SuppressWarnings("unchecked")
   private <OutputT, CheckpointMarkT extends CheckpointMark>
-  Queue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> getTransformEvaluatorQueue(
-      final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-      final EvaluationContext evaluationContext) {
-    @SuppressWarnings("unchecked")
+      TransformEvaluator<?> getTransformEvaluator(
+          final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
+          final EvaluationContext evaluationContext) {
     ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue =
         (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
             sourceEvaluators.get(transform);
@@ -119,7 +110,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                 sourceEvaluators.get(transform);
       }
     }
-    return evaluatorQueue;
+    return evaluatorQueue.poll();
   }
 
   /**
