@@ -57,6 +57,67 @@
     </repository>
   </repositories>
 
+  <profiles>
+    <profile>
+      <id>local-runnable-on-service-tests</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>2.19.1</version>
+            <executions>
+              <execution>
+                <id>runnable-on-service-tests</id>
+                <configuration>
+                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <parallel>none</parallel>
+                  <failIfNoTests>true</failIfNoTests>
+                  <dependenciesToScan>
+                    <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                    <dependency>org.apache.beam:beam-runners-java-core</dependency>
+                  </dependenciesToScan>
+                  <excludes>
+                    <!-- side input is not supported in Gearpump -->
+                    <exclude>
+                      org.apache.beam.sdk.io.BigQueryIOTest,
+                      org.apache.beam.sdk.io.CountingInputTest,
+                      org.apache.beam.sdk.io.CountingSourceTest,
+                      org.apache.beam.sdk.testing.PAssertTest,
+                      org.apache.beam.sdk.transforms.ApproximateUniqueTest,
+                      org.apache.beam.sdk.transforms.CombineTest,
+                      org.apache.beam.sdk.transforms.CombineFnsTest,
+                      org.apache.beam.sdk.transforms.CountTest,
+                      org.apache.beam.sdk.transforms.FlattenTest,
+                      org.apache.beam.sdk.transforms.ParDoTest,
+                      org.apache.beam.sdk.transforms.SampleTest,
+                      org.apache.beam.sdk.transforms.ViewTest,
+                      org.apache.beam.sdk.transforms.join.CoGroupByKeyTest
+                    </exclude>
+                    <!-- merging windows is not supported in Gearpump -->
+                    <exclude>
+                      org.apache.beam.sdk.transforms.windowing.WindowingTest,
+                      org.apache.beam.sdk.util.ReshuffleTest
+                    </exclude>
+                  </excludes>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--runner=TestGearpumpRunner",
+                      "--streaming=true"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.gearpump</groupId>
@@ -228,52 +289,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.19.1</version>
-        <executions>
-          <execution>
-            <id>runnable-on-service-tests</id>
-            <configuration>
-              <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <parallel>none</parallel>
-              <failIfNoTests>true</failIfNoTests>
-              <dependenciesToScan>
-                <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-                <dependency>org.apache.beam:beam-runners-java-core</dependency>
-              </dependenciesToScan>
-              <excludes>
-                <!-- side input is not supported in Gearpump -->
-                <exclude>
-                  org.apache.beam.sdk.io.BigQueryIOTest,
-                  org.apache.beam.sdk.io.CountingInputTest,
-                  org.apache.beam.sdk.io.CountingSourceTest,
-                  org.apache.beam.sdk.testing.PAssertTest,
-                  org.apache.beam.sdk.transforms.ApproximateUniqueTest,
-                  org.apache.beam.sdk.transforms.CombineTest,
-                  org.apache.beam.sdk.transforms.CombineFnsTest,
-                  org.apache.beam.sdk.transforms.CountTest,
-                  org.apache.beam.sdk.transforms.FlattenTest,
-                  org.apache.beam.sdk.transforms.ParDoTest,
-                  org.apache.beam.sdk.transforms.SampleTest,
-                  org.apache.beam.sdk.transforms.ViewTest,
-                  org.apache.beam.sdk.transforms.join.CoGroupByKeyTest
-                </exclude>
-                <!-- merging windows is not supported in Gearpump -->
-                <exclude>
-                  org.apache.beam.sdk.transforms.windowing.WindowingTest,
-                  org.apache.beam.sdk.util.ReshuffleTest
-                </exclude>
-              </excludes>
-              <systemPropertyVariables>
-                <beamTestPipelineOptions>
-                  [
-                  "--runner=TestGearpumpRunner",
-                  "--streaming=true"
-                  ]
-                </beamTestPipelineOptions>
-              </systemPropertyVariables>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
       <!-- uber jar -->
