@@ -579,11 +579,10 @@ class GcsBufferedWriter(object):
     # a time, buffering writes until that size is reached.
     try:
       self.client.objects.Insert(self.insert_request, upload=self.upload)
-    except HttpError as http_error:
+    except Exception as e:  # pylint: disable=broad-except
       logging.error(
-          'HTTP error while inserting file %s: %s', self.path, http_error)
-      self.upload_thread.last_error = http_error
-      raise
+          'Error in _start_upload while inserting file %s: %s', self.path, e)
+      self.upload_thread.last_error = e
     finally:
       self.child_conn.close()
 
