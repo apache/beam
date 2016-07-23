@@ -62,7 +62,9 @@ class DoFnRunner(Receiver):
                context,
                tagged_receivers,
                logger=None,
-               step_name=None):
+               step_name=None,
+               # Preferred alternative to logger
+               logging_context=None):
     if not args and not kwargs:
       self.dofn = fn
       self.dofn_process = fn.process
@@ -85,8 +87,12 @@ class DoFnRunner(Receiver):
     self.window_fn = windowing.windowfn
     self.context = context
     self.tagged_receivers = tagged_receivers
-    self.logging_context = get_logging_context(logger, step_name=step_name)
     self.step_name = step_name
+
+    if logging_context:
+      self.logging_context = logging_context
+    else:
+      self.logging_context = get_logging_context(logger, step_name=step_name)
 
     # Optimize for the common case.
     self.main_receivers = as_receiver(tagged_receivers[None])
