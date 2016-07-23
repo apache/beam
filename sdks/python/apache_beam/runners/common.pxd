@@ -20,7 +20,11 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 cdef type SideOutputValue, TimestampedValue
 
 
-cdef class DoFnRunner(object):
+cdef class Receiver(object):
+  cpdef receive(self, WindowedValue windowed_value)
+
+
+cdef class DoFnRunner(Receiver):
 
   cdef object dofn
   cdef object dofn_process
@@ -40,10 +44,6 @@ cdef class DoFnContext(object):
   cdef object state
   cdef WindowedValue windowed_value
   cpdef set_element(self, WindowedValue windowed_value)
-
-
-cdef class Receiver(object):
-  cpdef receive(self, WindowedValue windowed_value)
 
 
 cdef class LoggingContext(object):

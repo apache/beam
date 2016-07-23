@@ -38,7 +38,18 @@ class LoggingContext(object):
     pass
 
 
-class DoFnRunner(object):
+class Receiver(object):
+  """An object that consumes a WindowedValue.
+
+  This class can be efficiently used to pass values between the
+  sdk and worker harnesses.
+  """
+
+  def receive(self, windowed_value):
+    raise NotImplementedError
+
+
+class DoFnRunner(Receiver):
   """A helper class for executing ParDo operations.
   """
 
@@ -80,6 +91,9 @@ class DoFnRunner(object):
 
     # Optimize for the common case.
     self.main_receivers = tagged_receivers[None]
+
+  def receive(self, windowed_value):
+    self.process(windowed_value)
 
   def start(self):
     self.context.set_element(None)
@@ -236,7 +250,3 @@ class DoFnContext(object):
   def aggregate_to(self, aggregator, input_value):
     self.state.counter_for(aggregator).update(input_value)
 
-
-class Receiver(object):
-  def receive(self, windowed_value):
-    raise NotImplementedError
