@@ -103,8 +103,8 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
                                pvalue.ListPCollectionView))
 
   def test_co_group_by_key(self):
-    emails = self.pipeline | Create('email', [('joe', 'joe@example.com')])
-    phones = self.pipeline | Create('phone', [('mary', '111-222-3333')])
+    emails = self.pipeline | 'email' >> Create([('joe', 'joe@example.com')])
+    phones = self.pipeline | 'phone' >> Create([('mary', '111-222-3333')])
     {'emails': emails, 'phones': phones} | CoGroupByKey()
 
     self.pipeline.visit(self.visitor)

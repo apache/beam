@@ -101,16 +101,17 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'A', 'C'}, set(all_capitals))
 
   def test_pardo_with_label(self):
+    # pylint: disable=line-too-long
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
-    result = words | beam.Map('CountUniqueLetters', lambda word: len(set(word)))
+    result = words | 'CountUniqueLetters' >> beam.Map(lambda word: len(set(word)))
     # [END model_pardo_with_label]
 
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    words = p | beam.Create('start', ['a', 'bb', 'ccc', 'dddd'])
+    words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
     # [START model_pardo_side_input]
     # Callable takes additional arguments.
@@ -124,13 +125,12 @@ class ParDoTest(unittest.TestCase):
                     | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
 
     # Call with explicit side inputs.
-    small_words = words | beam.FlatMap('small', filter_using_length, 0, 3)
+    small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
 
     # A single deferred side input.
-    larger_than_average = (words
-                           | beam.FlatMap('large', filter_using_length,
-                                          lower_bound=pvalue.AsSingleton(
-                                              avg_word_len)))
+    larger_than_average = (words | 'large' >> beam.FlatMap(
+        filter_using_length,
+        lower_bound=pvalue.AsSingleton(avg_word_len)))
 
     # Mix and match.
     small_but_nontrivial = words | beam.FlatMap(filter_using_length,
@@ -268,7 +268,7 @@ class TypeHintsTest(unittest.TestCase):
       evens = numbers | beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn]
 
-    words = p | beam.Create('words', ['a', 'bb', 'c'])
+    words = p | 'words' >> beam.Create(['a', 'bb', 'c'])
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]

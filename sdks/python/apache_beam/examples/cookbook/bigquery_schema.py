@@ -111,8 +111,8 @@ def run(argv=None):
            }
 
   # pylint: disable=expression-not-assigned
-  record_ids = p | beam.Create('CreateIDs', ['1', '2', '3', '4', '5'])
-  records = record_ids | beam.Map('CreateRecords', create_random_record)
+  record_ids = p | 'CreateIDs' >> beam.Create(['1', '2', '3', '4', '5'])
+  records = record_ids | 'CreateRecords' >> beam.Map(create_random_record)
   records | beam.io.Write(
       'write',
       beam.io.BigQuerySink(

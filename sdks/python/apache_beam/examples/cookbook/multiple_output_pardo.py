@@ -114,10 +114,10 @@ class CountWords(beam.PTransform):
 
   def apply(self, pcoll):
     return (pcoll
-            | beam.Map('pair_with_one', lambda x: (x, 1))
-            | beam.GroupByKey('group')
-            | beam.Map('count', lambda (word, ones): (word, sum(ones)))
-            | beam.Map('format', lambda (word, c): '%s: %s' % (word, c)))
+            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+            | 'group' >> beam.GroupByKey()
+            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c)))
 
 
 def run(argv=None):
@@ -137,7 +137,7 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
-  lines = p | beam.Read('read', beam.io.TextFileSource(known_args.input))
+  lines = p | beam.Read(beam.io.TextFileSource(known_args.input))
 
   # with_outputs allows accessing the side outputs of a DoFn.
   split_lines_result = (lines
@@ -155,23 +155,23 @@ def run(argv=None):
 
   # pylint: disable=expression-not-assigned
   (character_count
-   | beam.Map('pair_with_key', lambda x: ('chars_temp_key', x))
+   | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
    | beam.GroupByKey()
-   | beam.Map('count chars', lambda (_, counts): sum(counts))
-   | beam.Write('write chars',
-                beam.io.TextFileSink(known_args.output + '-chars')))
+   | 'count chars' >> beam.Map(lambda (_, counts): sum(counts))
+   | 'write chars' >> beam.Write(
+       beam.io.TextFileSink(known_args.output + '-chars')))
 
   # pylint: disable=expression-not-assigned
   (short_words
-   | CountWords('count short words')
-   | beam.Write('write short words',
-                beam.io.TextFileSink(known_args.output + '-short-words')))
+   | 'count short words' >> CountWords()
+   | 'write short words' >> beam.Write(
+       beam.io.TextFileSink(known_args.output + '-short-words')))
 
   # pylint: disable=expression-not-assigned
   (words
-   | CountWords('count words')
-   | beam.Write('write words',
-                beam.io.TextFileSink(known_args.output + '-words')))
+   | 'count words' >> CountWords()
+   | 'write words' >> beam.Write(
+       beam.io.TextFileSink(known_args.output + '-words')))
 
   p.run()
 

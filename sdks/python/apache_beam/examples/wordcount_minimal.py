@@ -93,22 +93,22 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+  lines = p | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
 
   # Count the occurrences of each word.
   counts = (lines
-            | (beam.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
-               .with_output_types(unicode))
-            | beam.Map('pair_with_one', lambda x: (x, 1))
-            | beam.GroupByKey('group')
-            | beam.Map('count', lambda (word, ones): (word, sum(ones))))
+            | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+                          .with_output_types(unicode))
+            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+            | 'group' >> beam.GroupByKey()
+            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
 
   # Format the counts into a PCollection of strings.
-  output = counts | beam.Map('format', lambda (word, c): '%s: %s' % (word, c))
+  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
+  output | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()

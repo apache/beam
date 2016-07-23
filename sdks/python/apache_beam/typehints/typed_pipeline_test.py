@@ -80,7 +80,7 @@ class MainInputTest(unittest.TestCase):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
     with self.assertRaises(typehints.TypeCheckError):
-      [1, 2, 3] | (beam.ParDo(MyDoFn()) | beam.ParDo('again', MyDoFn()))
+      [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_instance(self):
     class MyDoFn(beam.DoFn):
@@ -95,7 +95,7 @@ class MainInputTest(unittest.TestCase):
       ['a', 'b', 'c'] | beam.ParDo(my_do_fn)
 
     with self.assertRaises(typehints.TypeCheckError):
-      [1, 2, 3] | (beam.ParDo(my_do_fn) | beam.ParDo('again', my_do_fn))
+      [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
 
 class SideInputTest(unittest.TestCase):
@@ -170,14 +170,14 @@ class SideInputTest(unittest.TestCase):
       return s * times
     p = beam.Pipeline(options=PipelineOptions([]))
     main_input = p | beam.Create(['a', 'bb', 'c'])
-    side_input = p | beam.Create('side', [3])
+    side_input = p | 'side' >> beam.Create([3])
     result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
     assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
     p.run()
 
-    bad_side_input = p | beam.Create('bad_side', ['z'])
+    bad_side_input = p | 'bad_side' >> beam.Create(['z'])
     with self.assertRaises(typehints.TypeCheckError):
-      main_input | beam.Map('again', repeat, pvalue.AsSingleton(bad_side_input))
+      main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
     @typehints.with_input_types(str, typehints.Iterable[str])
@@ -185,14 +185,14 @@ class SideInputTest(unittest.TestCase):
       return glue.join(sorted(items))
     p = beam.Pipeline(options=PipelineOptions([]))
     main_input = p | beam.Create(['a', 'bb', 'c'])
-    side_input = p | beam.Create('side', ['x', 'y', 'z'])
+    side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
     result = main_input | beam.Map(concat, pvalue.AsIter(side_input))
     assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
     p.run()
 
-    bad_side_input = p | beam.Create('bad_side', [1, 2, 3])
+    bad_side_input = p | 'bad_side' >> beam.Create([1, 2, 3])
     with self.assertRaises(typehints.TypeCheckError):
-      main_input | beam.Map('fail', concat, pvalue.AsIter(bad_side_input))
+      main_input | 'fail' >> beam.Map(concat, pvalue.AsIter(bad_side_input))
 
 
 class CustomTransformTest(unittest.TestCase):
