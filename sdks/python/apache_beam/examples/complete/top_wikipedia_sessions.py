@@ -46,6 +46,9 @@ import logging
 import apache_beam as beam
 from apache_beam import combiners
 from apache_beam import window
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
+
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
@@ -158,8 +161,11 @@ def run(argv=None):
                       default=0.1,
                       help='Fraction of entries used for session tracking')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   (p  # pylint: disable=expression-not-assigned
    | beam.Read('read', beam.io.TextFileSource(known_args.input))

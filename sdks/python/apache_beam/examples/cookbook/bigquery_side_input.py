@@ -36,6 +36,8 @@ import apache_beam as beam
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
@@ -84,7 +86,11 @@ def run(argv=None):
   parser.add_argument('--num_groups')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   group_ids = []
   for i in xrange(0, int(known_args.num_groups)):

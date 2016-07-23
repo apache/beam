@@ -51,6 +51,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def run(argv=None):
@@ -68,7 +70,6 @@ def run(argv=None):
                       default='gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX',
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
   pipeline_args.extend([
       # CHANGE 2/5: (OPTIONAL) Change this to BlockingDataflowPipelineRunner to
       # run your pipeline on the Google Cloud Dataflow Service.
@@ -85,7 +86,11 @@ def run(argv=None):
       '--job_name=your-wordcount-job',
   ])
 
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
   lines = p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
