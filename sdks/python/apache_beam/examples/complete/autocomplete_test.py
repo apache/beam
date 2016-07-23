@@ -31,8 +31,8 @@ class AutocompleteTest(unittest.TestCase):
 
   def test_top_prefixes(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    words = p | 'create' >> beam.Create(self.WORDS)
-    result = words | 'test' >> autocomplete.TopPerPrefix(5)
+    words = p | beam.Create(self.WORDS)
+    result = words | autocomplete.TopPerPrefix(5)
     # values must be hashable for now
     result = result | beam.Map(lambda (k, vs): (k, tuple(vs)))
     assert_that(result, equal_to(

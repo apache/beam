@@ -43,8 +43,8 @@ def run(argv=None):
    | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
    | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
    | 'TopPerPrefix' >> TopPerPrefix(5)
-   | beam.Map('format',
-              lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
+   | 'format' >> beam.Map(
+       lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
    | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
