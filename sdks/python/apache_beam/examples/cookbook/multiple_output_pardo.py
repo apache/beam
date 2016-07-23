@@ -137,7 +137,7 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
-  lines = p | 'read' >> beam.Read(beam.io.TextFileSource(known_args.input))
+  lines = p | beam.Read(beam.io.TextFileSource(known_args.input))
 
   # with_outputs allows accessing the side outputs of a DoFn.
   split_lines_result = (lines
@@ -158,20 +158,20 @@ def run(argv=None):
    | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
    | beam.GroupByKey()
    | 'count chars' >> beam.Map(lambda (_, counts): sum(counts))
-   | beam.Write('write chars',
-                beam.io.TextFileSink(known_args.output + '-chars')))
+   | 'write chars' >> beam.Write(
+       beam.io.TextFileSink(known_args.output + '-chars')))
 
   # pylint: disable=expression-not-assigned
   (short_words
    | 'count short words' >> CountWords()
-   | beam.Write('write short words',
-                beam.io.TextFileSink(known_args.output + '-short-words')))
+   | 'write short words' >> beam.Write(
+       beam.io.TextFileSink(known_args.output + '-short-words')))
 
   # pylint: disable=expression-not-assigned
   (words
    | 'count words' >> CountWords()
-   | beam.Write('write words',
-                beam.io.TextFileSink(known_args.output + '-words')))
+   | 'write words' >> beam.Write(
+       beam.io.TextFileSink(known_args.output + '-words')))
 
   p.run()
 

@@ -67,8 +67,8 @@ def filter_cold_days(input_data, month_filter):
   return (
       fields_of_interest
       | 'desired month' >> beam.Filter(lambda row: row['month'] == month_filter)
-      | beam.Filter('below mean',
-                    lambda row, mean: row['mean_temp'] < mean, global_mean))
+      | 'below mean' >> beam.Filter(
+          lambda row, mean: row['mean_temp'] < mean, global_mean))
 
 
 def run(argv=None):

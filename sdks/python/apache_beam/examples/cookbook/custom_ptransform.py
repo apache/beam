@@ -39,7 +39,7 @@ class Count1(beam.PTransform):
   def apply(self, pcoll):
     return (
         pcoll
-        | 'Init' >> beam.Map(lambda v: (v, 1))
+        | 'ParWithOne' >> beam.Map(lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 
 
@@ -47,7 +47,8 @@ def run_count1(known_args, options):
   """Runs the first example pipeline."""
   logging.info('Running first pipeline')
   p = beam.Pipeline(options=options)
-  (p | beam.io.Read(beam.io.TextFileSource(known_args.input)) | Count1()
+  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
+   | Count1()
    | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
@@ -57,7 +58,7 @@ def Count2(pcoll):  # pylint: disable=invalid-name
   """Count as a decorated function."""
   return (
       pcoll
-      | 'Init' >> beam.Map(lambda v: (v, 1))
+      | 'PairWithOne' >> beam.Map(lambda v: (v, 1))
       | beam.CombinePerKey(sum))
 
 
@@ -84,7 +85,7 @@ def Count3(pcoll, factor=1):  # pylint: disable=invalid-name
   """
   return (
       pcoll
-      | 'Init' >> beam.Map(lambda v: (v, factor))
+      | 'PairWithOne' >> beam.Map(lambda v: (v, factor))
       | beam.CombinePerKey(sum))
 
 

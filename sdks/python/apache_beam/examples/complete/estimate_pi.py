@@ -112,9 +112,8 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   (p  # pylint: disable=expression-not-assigned
-   | 'Estimate' >> EstimatePiTransform()
-   | beam.io.Write('Write',
-                   beam.io.TextFileSink(known_args.output,
+   | EstimatePiTransform()
+   | beam.io.Write(beam.io.TextFileSink(known_args.output,
                                         coder=JsonCoder())))
 
   # Actually run the pipeline (all operations above are deferred).

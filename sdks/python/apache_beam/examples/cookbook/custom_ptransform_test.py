@@ -40,7 +40,7 @@ class CustomCountTest(unittest.TestCase):
 
   def run_pipeline(self, count_implementation, factor=1):
     p = beam.Pipeline('DirectPipelineRunner')
-    words = p | 'create' >> beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
+    words = p | beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
     result = words | count_implementation
     assert_that(
         result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))

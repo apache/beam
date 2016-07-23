@@ -105,9 +105,8 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_writing]
   filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
-  filtered_words | beam.io.Write('WriteMyFile',
-                                 beam.io.TextFileSink(
-                                     'gs://some/outputData.txt'))
+  filtered_words | 'WriteMyFile' >> beam.io.Write(
+      beam.io.TextFileSink('gs://some/outputData.txt'))
   # [END pipelines_constructing_writing]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -242,8 +241,8 @@ def pipeline_options_remote(argv):
   options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
   p = Pipeline(options=options)
 
-  lines = p | 'ReadFromText' >> beam.io.Read(beam.io.TextFileSource(my_input))
-  lines | 'WriteToText' >> beam.io.Write(beam.io.TextFileSink(my_output))
+  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
+  lines | beam.io.Write(beam.io.TextFileSink(my_output))
 
   p.run()
 
@@ -283,8 +282,8 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
-  lines = p | 'ReadFromText' >> beam.io.Read(beam.io.TextFileSource(my_input))
-  lines | 'WriteToText' >> beam.io.Write(beam.io.TextFileSink(my_output))
+  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
+  lines | beam.io.Write(beam.io.TextFileSink(my_output))
   p.run()
 
 
@@ -344,8 +343,8 @@ def pipeline_logging(lines, output):
   p = beam.Pipeline(options=PipelineOptions())
   (p
    | beam.Create(lines)
-   | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
-   | 'WriteToText' >> beam.io.Write(beam.io.TextFileSink(output)))
+   | beam.ParDo(ExtractWordsFn())
+   | beam.io.Write(beam.io.TextFileSink(output)))
 
   p.run()
 
@@ -1160,6 +1159,6 @@ class Count(beam.PTransform):
   def apply(self, pcoll):
     return (
         pcoll
-        | 'Init' >> beam.Map(lambda v: (v, 1))
+        | 'PairWithOne' >> beam.Map(lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]

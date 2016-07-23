@@ -98,19 +98,20 @@ def run(argv=sys.argv[1:]):
   coders.registry.register_coder(Player, PlayerCoder)
 
   (p  # pylint: disable=expression-not-assigned
-   | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
+   | beam.io.Read(beam.io.TextFileSource(known_args.input))
    # The get_players function is annotated with a type hint above, so the type
    # system knows the output type of the following operation is a key-value pair
    # of a Player and an int. Please see the documentation for details on
    # types that are inferred automatically as well as other ways to specify
    # type hints.
-   | 'get players' >> beam.Map(get_players)
+   | beam.Map(get_players)
    # The output type hint of the previous step is used to infer that the key
    # type of the following operation is the Player type. Since a custom coder
    # is registered for the Player class above, a PlayerCoder will be used to
    # encode Player objects as keys for this combine operation.
-   | beam.CombinePerKey(sum) | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
-   | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | beam.CombinePerKey(sum)
+   | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 

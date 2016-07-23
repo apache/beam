@@ -168,9 +168,9 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   (p  # pylint: disable=expression-not-assigned
-   | 'read' >> beam.Read(beam.io.TextFileSource(known_args.input))
+   | beam.Read(beam.io.TextFileSource(known_args.input))
    | ComputeTopSessions(known_args.sampling_threshold)
-   | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
 
   p.run()
 
