@@ -250,6 +250,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>0.2.0-incubating-SNAPSHOT</version>
+      <scope>test</scope>
     </dependency>
 
     <!-- Depend on test jar to scan for RunnableOnService tests -->
