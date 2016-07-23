@@ -193,7 +193,9 @@ public class ParDoTest implements Serializable {
 
     @StartBundle
     public void startBundle(Context c) {
-      assertEquals(State.UNSTARTED, state);
+      assertThat(state,
+          anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
+
       state = State.STARTED;
       outputToAll(c, "started");
     }
