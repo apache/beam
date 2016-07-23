@@ -82,7 +82,7 @@ def run(argv=None):
   # Count the occurrences of each word.
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-               .with_output_types(unicode))
+                          .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))

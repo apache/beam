@@ -307,7 +307,7 @@ def pipeline_options_command_line(argv):
   p = beam.Pipeline(argv=pipeline_args)
   lines = p | beam.io.Read('ReadFromText',
                            beam.io.TextFileSource(known_args.input))
-  lines | 'WriteToText' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
+  lines | beam.io.Write(beam.io.TextFileSink(known_args.output))
   # [END pipeline_options_command_line]
 
   p.run()

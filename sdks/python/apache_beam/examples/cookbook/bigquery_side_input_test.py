@@ -35,8 +35,8 @@ class BigQuerySideInputTest(unittest.TestCase):
                                     {'f': 'corpus2'},
                                     {'f': 'corpus3'}])
     words_pcoll = p | 'create_words' >> beam.Create([{'f': 'word1'},
-                                                   {'f': 'word2'},
-                                                   {'f': 'word3'}])
+                                                     {'f': 'word2'},
+                                                     {'f': 'word3'}])
     ignore_corpus_pcoll = p | 'create_ignore_corpus' >> beam.Create(['corpus1'])
     ignore_word_pcoll = p | 'create_ignore_word' >> beam.Create(['word1'])
 

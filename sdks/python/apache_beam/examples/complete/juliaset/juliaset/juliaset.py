@@ -105,11 +105,12 @@ def run(argv=None):  # pylint: disable=missing-docstring
   # Group each coordinate triplet by its x value, then write the coordinates to
   # the output file with an x-coordinate grouping per line.
   # pylint: disable=expression-not-assigned
-  (coordinates | 'x coord key' >> beam.Map(lambda (x, y, i): (x, (x, y, i)))
-   | 'x coord' >> beam.GroupByKey() | beam.Map(
-       'format',
+  (coordinates
+   | 'x coord key' >> beam.Map(lambda (x, y, i): (x, (x, y, i)))
+   | 'x coord' >> beam.GroupByKey()
+   | 'format' >> beam.Map(
        lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
-   | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.coordinate_output)))
+   | beam.io.Write(beam.io.TextFileSink(known_args.coordinate_output)))
   # pylint: enable=expression-not-assigned
   p.run()
 

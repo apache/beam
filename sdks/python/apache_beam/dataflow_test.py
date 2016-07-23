@@ -114,8 +114,8 @@ class DataflowTest(unittest.TestCase):
     words = pipeline | 'SomeWords' >> Create(words_list)
     prefix = 'zyx'
     suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
-    result = words | 'DecorateWordsDoFn' >> ParDo(SomeDoFn(), prefix,
-                           suffix=AsSingleton(suffix))
+    result = words | 'DecorateWordsDoFn' >> ParDo(
+        SomeDoFn(), prefix, suffix=AsSingleton(suffix))
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
     pipeline.run()
 
@@ -179,8 +179,7 @@ class DataflowTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     pcol = pipeline | 'start' >> Create([1, 2])
     side = pipeline | 'side' >> Create([])  # 0 values in side input.
-    result = (
-        pcol | 'compute' >> FlatMap(lambda x, s: [x * s], AsSingleton(side, 10)))
+    result = pcol | FlatMap(lambda x, s: [x * s], AsSingleton(side, 10))
     assert_that(result, equal_to([10, 20]))
     pipeline.run()
 

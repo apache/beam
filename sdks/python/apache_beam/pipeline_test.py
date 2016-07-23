@@ -217,8 +217,8 @@ class PipelineTest(unittest.TestCase):
     dupes = (
         biglist
         | 'oom:addone' >> Map(lambda x: (x, 1))
-        | 'oom:dupes' >> FlatMap(create_dupes,
-            AsIter(biglist)).with_outputs('side', main='main'))
+        | 'oom:dupes' >> FlatMap(
+            create_dupes, AsIter(biglist)).with_outputs('side', main='main'))
     result = (
         (dupes.side, dupes.main, dupes.side)
         | 'oom:flatten' >> Flatten()

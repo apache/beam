@@ -101,11 +101,12 @@ def run(argv=None):
   ignore_corpus = known_args.ignore_corpus
   ignore_word = known_args.ignore_word
 
-  pcoll_corpus = p | beam.Read('read corpus',
-                               beam.io.BigQuerySource(query=query_corpus))
-  pcoll_word = p | beam.Read('read words',
-                             beam.io.BigQuerySource(query=query_word))
-  pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create([ignore_corpus])
+  pcoll_corpus = p | 'read corpus' >> beam.io.Read(
+      beam.io.BigQuerySource(query=query_corpus))
+  pcoll_word = p | 'read_words' >> beam.Read(
+      beam.io.BigQuerySource(query=query_word))
+  pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create(
+      [ignore_corpus])
   pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])
   pcoll_group_ids = p | 'create groups' >> beam.Create(group_ids)
 
@@ -113,8 +114,7 @@ def run(argv=None):
                                pcoll_ignore_corpus, pcoll_ignore_word)
 
   # pylint:disable=expression-not-assigned
-  pcoll_groups | beam.io.Write('WriteToText',
-                               beam.io.TextFileSink(known_args.output))
+  pcoll_groups | beam.io.Write(beam.io.TextFileSink(known_args.output))
   p.run()
 
 
