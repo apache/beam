@@ -36,6 +36,8 @@ import apache_beam as beam
 from apache_beam.typehints import Any
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import Tuple
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])
@@ -106,8 +108,12 @@ def run(argv=None):
                       required=True,
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
-  p = beam.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
    | EstimatePiTransform('Estimate')
    | beam.io.Write('Write',

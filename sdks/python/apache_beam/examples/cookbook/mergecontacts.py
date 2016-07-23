@@ -36,6 +36,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def run(argv=None, assert_results=None):
@@ -60,8 +62,11 @@ def run(argv=None, assert_results=None):
                       required=True,
                       help='Output file for statistics about the input.')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   # Helper: read a tab-separated key-value mapping from a text file, escape all
   # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
