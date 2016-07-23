@@ -36,6 +36,9 @@ def run(argv=None):
                       required=True,
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_args.append('--save-main-session')
 
   p = beam.Pipeline(argv=pipeline_args)
 

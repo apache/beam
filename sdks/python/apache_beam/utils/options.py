@@ -412,7 +412,7 @@ class SetupOptions(PipelineOptions):
          'install the resulting package before running any custom code.'))
     parser.add_argument(
         '--save_main_session',
-        default=True,
+        default=False,
         action='store_true',
         help=
         ('Save the main session state so that pickled functions and classes '
