@@ -931,7 +931,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | beam.Create([1, 2, 3]).with_output_types(int)
-       | beam.GroupByKeyOnly())
+       | 'F' >> beam.GroupByKeyOnly())
 
     self.assertEqual("Input type hint violation at F: "
                      "expected Tuple[TypeVariable[K], TypeVariable[V]], "
@@ -945,7 +945,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       (self.p
        | (beam.Create(range(5))
           .with_output_types(typehints.Iterable[int]))
-       | beam.GroupByKey())
+       | 'T' >> beam.GroupByKey())
 
     self.assertEqual("Input type hint violation at T: "
                      "expected Tuple[TypeVariable[K], TypeVariable[V]], "
@@ -1563,7 +1563,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create([1, 1, 2, 3])
+       | 'f' >> beam.Create([1, 1, 2, 3])
        | 'count elems' >> combine.Count.PerElement())
 
     self.assertEqual('Pipeline type checking is enabled, however no output '
