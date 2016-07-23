@@ -54,33 +54,33 @@ class DataflowTest(unittest.TestCase):
   def Count(pcoll):  # pylint: disable=invalid-name, no-self-argument
     """A Count transform: v, ... => (v, n), ..."""
     return (pcoll
-            | Map('AddCount', lambda x: (x, 1))
-            | GroupByKey('GroupCounts')
-            | Map('AddCounts', lambda (x, ones): (x, sum(ones))))
+            | 'AddCount' >> Map(lambda x: (x, 1))
+            | 'GroupCounts' >> GroupByKey()
+            | 'AddCounts' >> Map(lambda (x, ones): (x, sum(ones))))
 
   def test_word_count(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    lines = pipeline | Create('SomeWords', DataflowTest.SAMPLE_DATA)
+    lines = pipeline | 'SomeWords' >> Create(DataflowTest.SAMPLE_DATA)
     result = (
-        (lines | FlatMap('GetWords', lambda x: re.findall(r'\w+', x)))
+        (lines | 'GetWords' >> FlatMap(lambda x: re.findall(r'\w+', x)))
         .apply('CountWords', DataflowTest.Count))
     assert_that(result, equal_to(DataflowTest.SAMPLE_RESULT))
     pipeline.run()
 
   def test_map(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    lines = pipeline | Create('input', ['a', 'b', 'c'])
+    lines = pipeline | 'input' >> Create(['a', 'b', 'c'])
     result = (lines
-              | Map('upper', str.upper)
-              | Map('prefix', lambda x, prefix: prefix + x, 'foo-'))
+              | 'upper' >> Map(str.upper)
+              | 'prefix' >> Map(lambda x, prefix: prefix + x, 'foo-'))
     assert_that(result, equal_to(['foo-A', 'foo-B', 'foo-C']))
     pipeline.run()
 
   def test_par_do_with_side_input_as_arg(self):
     pipeline = Pipeline('DirectPipelineRunner')
     words_list = ['aa', 'bb', 'cc']
-    words = pipeline | Create('SomeWords', words_list)
-    prefix = pipeline | Create('SomeString', ['xyz'])  # side in
+    words = pipeline | 'SomeWords' >> Create(words_list)
+    prefix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
     suffix = 'zyx'
     result = words | FlatMap(
         'DecorateWords',
@@ -92,9 +92,9 @@ class DataflowTest(unittest.TestCase):
   def test_par_do_with_side_input_as_keyword_arg(self):
     pipeline = Pipeline('DirectPipelineRunner')
     words_list = ['aa', 'bb', 'cc']
-    words = pipeline | Create('SomeWords', words_list)
+    words = pipeline | 'SomeWords' >> Create(words_list)
     prefix = 'zyx'
-    suffix = pipeline | Create('SomeString', ['xyz'])  # side in
+    suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
     result = words | FlatMap(
         'DecorateWords',
         lambda x, pfx, sfx: ['%s-%s-%s' % (pfx, x, sfx)],
@@ -111,11 +111,11 @@ class DataflowTest(unittest.TestCase):
 
     pipeline = Pipeline('DirectPipelineRunner')
     words_list = ['aa', 'bb', 'cc']
-    words = pipeline | Create('SomeWords', words_list)
+    words = pipeline | 'SomeWords' >> Create(words_list)
     prefix = 'zyx'
-    suffix = pipeline | Create('SomeString', ['xyz'])  # side in
-    result = words | ParDo('DecorateWordsDoFn', SomeDoFn(), prefix,
-                           suffix=AsSingleton(suffix))
+    suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
+    result = words | 'DecorateWordsDoFn' >> ParDo(
+        SomeDoFn(), prefix, suffix=AsSingleton(suffix))
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
     pipeline.run()
 
@@ -131,7 +131,7 @@ class DataflowTest(unittest.TestCase):
           yield SideOutputValue('odd', context.element)
 
     pipeline = Pipeline('DirectPipelineRunner')
-    nums = pipeline | Create('Some Numbers', [1, 2, 3, 4])
+    nums = pipeline | 'Some Numbers' >> Create([1, 2, 3, 4])
     results = nums | ParDo(
         'ClassifyNumbers', SomeDoFn()).with_outputs('odd', 'even', main='main')
     assert_that(results.main, equal_to([1, 2, 3, 4]))
@@ -147,7 +147,7 @@ class DataflowTest(unittest.TestCase):
         return [v, SideOutputValue('odd', v)]
 
     pipeline = Pipeline('DirectPipelineRunner')
-    nums = pipeline | Create('Some Numbers', [1, 2, 3, 4])
+    nums = pipeline | 'Some Numbers' >> Create([1, 2, 3, 4])
     results = nums | FlatMap(
         'ClassifyNumbers', some_fn).with_outputs('odd', 'even', main='main')
     assert_that(results.main, equal_to([1, 2, 3, 4]))
@@ -157,37 +157,36 @@ class DataflowTest(unittest.TestCase):
 
   def test_empty_singleton_side_input(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    pcol = pipeline | Create('start', [1, 2])
-    side = pipeline | Create('side', [])  # Empty side input.
+    pcol = pipeline | 'start' >> Create([1, 2])
+    side = pipeline | 'side' >> Create([])  # Empty side input.
 
     def my_fn(k, s):
       v = ('empty' if isinstance(s, EmptySideInput) else 'full')
       return [(k, v)]
-    result = pcol | FlatMap('compute', my_fn, AsSingleton(side))
+    result = pcol | 'compute' >> FlatMap(my_fn, AsSingleton(side))
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
   def test_multi_valued_singleton_side_input(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    pcol = pipeline | Create('start', [1, 2])
-    side = pipeline | Create('side', [3, 4])  # 2 values in side input.
-    pcol | FlatMap('compute', lambda x, s: [x * s], AsSingleton(side))  # pylint: disable=expression-not-assigned
+    pcol = pipeline | 'start' >> Create([1, 2])
+    side = pipeline | 'side' >> Create([3, 4])  # 2 values in side input.
+    pcol | 'compute' >> FlatMap(lambda x, s: [x * s], AsSingleton(side))  # pylint: disable=expression-not-assigned
     with self.assertRaises(ValueError):
       pipeline.run()
 
   def test_default_value_singleton_side_input(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    pcol = pipeline | Create('start', [1, 2])
-    side = pipeline | Create('side', [])  # 0 values in side input.
-    result = (
-        pcol | FlatMap('compute', lambda x, s: [x * s], AsSingleton(side, 10)))
+    pcol = pipeline | 'start' >> Create([1, 2])
+    side = pipeline | 'side' >> Create([])  # 0 values in side input.
+    result = pcol | FlatMap(lambda x, s: [x * s], AsSingleton(side, 10))
     assert_that(result, equal_to([10, 20]))
     pipeline.run()
 
   def test_iterable_side_input(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    pcol = pipeline | Create('start', [1, 2])
-    side = pipeline | Create('side', [3, 4])  # 2 values in side input.
+    pcol = pipeline | 'start' >> Create([1, 2])
+    side = pipeline | 'side' >> Create([3, 4])  # 2 values in side input.
     result = pcol | FlatMap('compute',
                             lambda x, s: [x * y for y in s], AllOf(side))
     assert_that(result, equal_to([3, 4, 6, 8]))
@@ -195,7 +194,7 @@ class DataflowTest(unittest.TestCase):
 
   def test_undeclared_side_outputs(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    nums = pipeline | Create('Some Numbers', [1, 2, 3, 4])
+    nums = pipeline | 'Some Numbers' >> Create([1, 2, 3, 4])
     results = nums | FlatMap(
         'ClassifyNumbers',
         lambda x: [x, SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
@@ -210,7 +209,7 @@ class DataflowTest(unittest.TestCase):
 
   def test_empty_side_outputs(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    nums = pipeline | Create('Some Numbers', [1, 3, 5])
+    nums = pipeline | 'Some Numbers' >> Create([1, 3, 5])
     results = nums | FlatMap(
         'ClassifyNumbers',
         lambda x: [x, SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
@@ -224,9 +223,9 @@ class DataflowTest(unittest.TestCase):
     a_list = [5, 1, 3, 2, 9]
     some_pairs = [('crouton', 17), ('supreme', None)]
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_list = pipeline | Create('side list', a_list)
-    side_pairs = pipeline | Create('side pairs', some_pairs)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_list = pipeline | 'side list' >> Create(a_list)
+    side_pairs = pipeline | 'side pairs' >> Create(some_pairs)
     results = main_input | FlatMap(
         'concatenate',
         lambda x, the_list, the_dict: [[x, the_list, the_dict]],
@@ -248,8 +247,8 @@ class DataflowTest(unittest.TestCase):
     # with the same defaults will return the same PCollectionView.
     a_list = [2]
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_list = pipeline | Create('side list', a_list)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_list = pipeline | 'side list' >> Create(a_list)
     results = main_input | FlatMap(
         'test',
         lambda x, s1, s2: [[x, s1, s2]],
@@ -271,8 +270,8 @@ class DataflowTest(unittest.TestCase):
     # distinct PCollectionViews with the same full_label.
     a_list = [2]
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_list = pipeline | Create('side list', a_list)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_list = pipeline | 'side list' >> Create(a_list)
 
     with self.assertRaises(RuntimeError) as e:
       _ = main_input | FlatMap(
@@ -287,8 +286,8 @@ class DataflowTest(unittest.TestCase):
   def test_as_singleton_with_different_defaults_with_unique_labels(self):
     a_list = []
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_list = pipeline | Create('side list', a_list)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_list = pipeline | 'side list' >> Create(a_list)
     results = main_input | FlatMap(
         'test',
         lambda x, s1, s2: [[x, s1, s2]],
@@ -311,8 +310,8 @@ class DataflowTest(unittest.TestCase):
     # return the same PCollectionView.
     a_list = [1, 2, 3]
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_list = pipeline | Create('side list', a_list)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_list = pipeline | 'side list' >> Create(a_list)
     results = main_input | FlatMap(
         'test',
         lambda x, ls1, ls2: [[x, ls1, ls2]],
@@ -332,8 +331,8 @@ class DataflowTest(unittest.TestCase):
   def test_as_list_with_unique_labels(self):
     a_list = [1, 2, 3]
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_list = pipeline | Create('side list', a_list)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_list = pipeline | 'side list' >> Create(a_list)
     results = main_input | FlatMap(
         'test',
         lambda x, ls1, ls2: [[x, ls1, ls2]],
@@ -353,8 +352,8 @@ class DataflowTest(unittest.TestCase):
   def test_as_dict_with_unique_labels(self):
     some_kvs = [('a', 1), ('b', 2)]
     pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_kvs = pipeline | Create('side kvs', some_kvs)
+    main_input = pipeline | 'main input' >> Create([1])
+    side_kvs = pipeline | 'side kvs' >> Create(some_kvs)
     results = main_input | FlatMap(
         'test',
         lambda x, dct1, dct2: [[x, dct1, dct2]],
@@ -383,10 +382,10 @@ class DataflowTest(unittest.TestCase):
         return existing_windows
 
     pipeline = Pipeline('DirectPipelineRunner')
-    numbers = pipeline | Create('KVs', [(1, 10), (2, 20), (3, 30)])
+    numbers = pipeline | 'KVs' >> Create([(1, 10), (2, 20), (3, 30)])
     result = (numbers
-              | WindowInto('W', windowfn=TestWindowFn())
-              | GroupByKey('G'))
+              | 'W' >> WindowInto(windowfn=TestWindowFn())
+              | 'G' >> GroupByKey())
     assert_that(
         result, equal_to([(1, [10]), (1, [10]), (2, [20]),
                           (2, [20]), (3, [30]), (3, [30])]))

@@ -201,6 +201,15 @@ class Pipeline(object):
     if not isinstance(transform, ptransform.PTransform):
       raise TypeError("Expected a PTransform object, got %s" % transform)
 
+    if label:
+      # Fix self.label as it is inspected by some PTransform operations
+      # (e.g. to produce error messages for type hint violations).
+      try:
+        old_label, transform.label = transform.label, label
+        return self.apply(transform, pvalueish)
+      finally:
+        transform.label = old_label
+
     full_label = '/'.join([self._current_transform().full_label,
                            label or transform.label]).lstrip('/')
     if full_label in self.applied_labels:
@@ -338,6 +347,10 @@ class AppliedPTransform(object):
     # Per tag refcount dictionary for PValues for which this node is a
     # root producer.
     self.refcounts = collections.defaultdict(int)
+
+  def __repr__(self):
+    return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
+                           type(self.transform).__name__)
 
   def update_input_refcounts(self):
     """Increment refcounts for all transforms providing inputs."""

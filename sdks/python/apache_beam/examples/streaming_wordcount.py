@@ -55,11 +55,11 @@ def run(argv=None):
                  | (beam.FlatMap('split',
                                  lambda x: re.findall(r'[A-Za-z\']+', x))
                     .with_output_types(unicode))
-                 | beam.Map('pair_with_one', lambda x: (x, 1))
+                 | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
                  | beam.WindowInto(window.FixedWindows(15, 0))
-                 | beam.GroupByKey('group')
-                 | beam.Map('count', lambda (word, ones): (word, sum(ones)))
-                 | beam.Map('format', lambda tup: '%s: %d' % tup))
+                 | 'group' >> beam.GroupByKey()
+                 | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                 | 'format' >> beam.Map(lambda tup: '%s: %d' % tup))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned

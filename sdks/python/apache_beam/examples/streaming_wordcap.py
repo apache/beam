@@ -45,16 +45,16 @@ def run(argv=None):
 
   # Read the text file[pattern] into a PCollection.
   lines = p | beam.io.Read(
-      'read', beam.io.PubSubSource(known_args.input_topic))
+      beam.io.PubSubSource(known_args.input_topic))
 
   # Capitalize the characters in each line.
   transformed = (lines
-                 | (beam.Map('capitalize', lambda x: x.upper())))
+                 | 'capitalize' >> (beam.Map(lambda x: x.upper())))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
   transformed | beam.io.Write(
-      'pubsub_write', beam.io.PubSubSink(known_args.output_topic))
+      beam.io.PubSubSink(known_args.output_topic))
 
   p.run()
 

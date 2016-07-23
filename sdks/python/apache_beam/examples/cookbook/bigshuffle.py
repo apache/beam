@@ -54,37 +54,36 @@ def run(argv=None):
 
   # Read the text file[pattern] into a PCollection.
   lines = p | beam.io.Read(
-      'read', beam.io.TextFileSource(known_args.input,
-                                     coder=beam.coders.BytesCoder()))
+      beam.io.TextFileSource(known_args.input,
+                             coder=beam.coders.BytesCoder()))
 
   # Count the occurrences of each word.
   output = (lines
-            | beam.Map('split', lambda x: (x[:10], x[10:99])
-                      ).with_output_types(beam.typehints.KV[str, str])
-            | beam.GroupByKey('group')
+            | 'split' >> beam.Map(
+                lambda x: (x[:10], x[10:99]))
+            .with_output_types(beam.typehints.KV[str, str])
+            | 'group' >> beam.GroupByKey()
             | beam.FlatMap(
                 'format',
                 lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
   # Write the output using a "Write" transform that has side effects.
-  output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
+  output | beam.io.Write(beam.io.TextFileSink(known_args.output))
 
   # Optionally write the input and output checksums.
   if known_args.checksum_output:
     input_csum = (lines
-                  | beam.Map('input-csum', crc32line)
-                  | beam.CombineGlobally('combine-input-csum', sum)
-                  | beam.Map('hex-format', lambda x: '%x' % x))
-    input_csum | beam.io.Write(
-        'write-input-csum',
+                  | 'input-csum' >> beam.Map(crc32line)
+                  | 'combine-input-csum' >> beam.CombineGlobally(sum)
+                  | 'hex-format' >> beam.Map(lambda x: '%x' % x))
+    input_csum | 'write-input-csum' >> beam.io.Write(
         beam.io.TextFileSink(known_args.checksum_output + '-input'))
 
     output_csum = (output
-                   | beam.Map('output-csum', crc32line)
-                   | beam.CombineGlobally('combine-output-csum', sum)
-                   | beam.Map('hex-format-output', lambda x: '%x' % x))
-    output_csum | beam.io.Write(
-        'write-output-csum',
+                   | 'output-csum' >> beam.Map(crc32line)
+                   | 'combine-output-csum' >> beam.CombineGlobally(sum)
+                   | 'hex-format-output' >> beam.Map(lambda x: '%x' % x))
+    output_csum | 'write-output-csum' >> beam.io.Write(
         beam.io.TextFileSink(known_args.checksum_output + '-output'))
 
   # Actually run the pipeline (all operations above are deferred).

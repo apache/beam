@@ -814,12 +814,12 @@ class CombineGlobally(PTransform):
         return transform
 
     combined = (pcoll
-                | add_input_types(Map('KeyWithVoid', lambda v: (None, v))
-                                  .with_output_types(
-                                      KV[None, pcoll.element_type]))
+                | 'KeyWithVoid' >> add_input_types(
+                    Map(lambda v: (None, v)).with_output_types(
+                        KV[None, pcoll.element_type]))
                 | CombinePerKey(
                     'CombinePerKey', self.fn, *self.args, **self.kwargs)
-                | Map('UnKey', lambda (k, v): v))
+                | 'UnKey' >> Map(lambda (k, v): v))
 
     if not self.has_defaults and not self.as_view:
       return combined
@@ -851,8 +851,8 @@ class CombineGlobally(PTransform):
         else:
           return transform
       return (pcoll.pipeline
-              | Create('DoOnce', [None])
-              | typed(Map('InjectDefault', lambda _, s: s, view)))
+              | 'DoOnce' >> Create([None])
+              | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
 
 
 class CombinePerKey(PTransformWithSideInputs):
@@ -1044,10 +1044,11 @@ class GroupByKey(PTransform):
           KV[key_type, Iterable[typehints.WindowedValue[value_type]]])
       gbk_output_type = KV[key_type, Iterable[value_type]]
 
+      # pylint: disable=bad-continuation
       return (pcoll
-              | (ParDo('reify_windows', self.ReifyWindows())
+              | 'reify_windows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))
-              | (GroupByKeyOnly('group_by_key')
+              | 'group_by_key' >> (GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
               | (ParDo('group_by_window',
@@ -1056,8 +1057,8 @@ class GroupByKey(PTransform):
                  .with_output_types(gbk_output_type)))
     else:
       return (pcoll
-              | ParDo('reify_windows', self.ReifyWindows())
-              | GroupByKeyOnly('group_by_key')
+              | 'reify_windows' >> ParDo(self.ReifyWindows())
+              | 'group_by_key' >> GroupByKeyOnly()
               | ParDo('group_by_window',
                       self.GroupAlsoByWindow(pcoll.windowing)))
 
