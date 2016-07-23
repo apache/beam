@@ -111,6 +111,7 @@ class TransformExecutor<T> implements Runnable {
       TransformEvaluator<T> evaluator =
           evaluatorFactory.forApplication(transform, inputBundle, evaluationContext);
       if (evaluator == null) {
+        onComplete.handleEmpty(inputBundle);
         // Nothing to do
         return;
       }

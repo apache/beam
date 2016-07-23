@@ -134,6 +134,26 @@ public class TransformExecutorTest {
   }
 
   @Test
+  public void nullTransformEvaluatorTerminates() throws Exception {
+    when(registry.forApplication(created.getProducingTransformInternal(),
+        null,
+        evaluationContext)).thenReturn(null);
+
+    TransformExecutor<Object> executor = TransformExecutor.create(registry,
+        Collections.<ModelEnforcementFactory>emptyList(),
+        evaluationContext,
+        null,
+        created.getProducingTransformInternal(),
+        completionCallback,
+        transformEvaluationState);
+    executor.run();
+
+    assertThat(completionCallback.handledResult, is(nullValue()));
+    assertThat(completionCallback.handledEmpty, equalTo(true));
+    assertThat(completionCallback.handledThrowable, is(nullValue()));
+  }
+
+  @Test
   public void inputBundleProcessesEachElementFinishesAndCompletes() throws Exception {
     final TransformResult result =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
@@ -471,6 +491,7 @@ public class TransformExecutorTest {
 
   private static class RegisteringCompletionCallback implements CompletionCallback {
     private TransformResult handledResult = null;
+    private boolean handledEmpty = false;
     private Throwable handledThrowable = null;
     private final CountDownLatch onMethod;
 
@@ -493,6 +514,12 @@ public class TransformExecutorTest {
       return CommittedResult.create(result,
           unprocessedBundle,
           Collections.<CommittedBundle<?>>emptyList());
+    }
+
+    @Override
+    public void handleEmpty(CommittedBundle<?> inputBundle) {
+      handledEmpty = true;
+      onMethod.countDown();
     }
 
     @Override

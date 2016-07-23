@@ -122,7 +122,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     this.visibleUpdates = new ArrayBlockingQueue<>(20);
 
     parallelExecutorService = TransformExecutorServices.parallel(executorService);
-    defaultCompletionCallback = new DefaultCompletionCallback();
+    defaultCompletionCallback =
+        new TimerIterableCompletionCallback(Collections.<TimerData>emptyList());
   }
 
   private CacheLoader<StepAndKey, TransformExecutorService>
@@ -217,18 +218,19 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   /**
    * The base implementation of {@link CompletionCallback} that provides implementations for
    * {@link #handleResult(CommittedBundle, TransformResult)} and
-   * {@link #handleThrowable(CommittedBundle, Throwable)}, given an implementation of
-   * {@link #getCommittedResult(CommittedBundle, TransformResult)}.
+   * {@link #handleThrowable(CommittedBundle, Throwable)}.
    */
-  private abstract class CompletionCallbackBase implements CompletionCallback {
-    protected abstract CommittedResult getCommittedResult(
-        CommittedBundle<?> inputBundle,
-        TransformResult result);
+  private class TimerIterableCompletionCallback implements CompletionCallback {
+    private final Iterable<TimerData> timers;
+
+    protected TimerIterableCompletionCallback(Iterable<TimerData> timers) {
+      this.timers = timers;
+    }
 
     @Override
     public final CommittedResult handleResult(
         CommittedBundle<?> inputBundle, TransformResult result) {
-      CommittedResult committedResult = getCommittedResult(inputBundle, result);
+      CommittedResult committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle,
             valueToConsumers.get(outputBundle.getPCollection())));
@@ -242,43 +244,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     @Override
+    public void handleEmpty(CommittedBundle<?> inputBundle) {
+    }
+
+    @Override
     public final void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
       allUpdates.offer(ExecutorUpdate.fromThrowable(t));
-    }
-  }
-
-  /**
-   * The default {@link CompletionCallback}. The default completion callback is used to complete
-   * transform evaluations that are triggered due to the arrival of elements from an upstream
-   * transform, or for a source transform.
-   */
-  private class DefaultCompletionCallback extends CompletionCallbackBase {
-    @Override
-    public CommittedResult getCommittedResult(
-        CommittedBundle<?> inputBundle, TransformResult result) {
-      return evaluationContext.handleResult(inputBundle,
-          Collections.<TimerData>emptyList(),
-          result);
-    }
-  }
-
-  /**
-   * A {@link CompletionCallback} where the completed bundle was produced to deliver some collection
-   * of {@link TimerData timers}. When the evaluator completes successfully, reports all of the
-   * timers used to create the input to the {@link EvaluationContext evaluation context}
-   * as part of the result.
-   */
-  private class TimerCompletionCallback extends CompletionCallbackBase {
-    private final Iterable<TimerData> timers;
-
-    private TimerCompletionCallback(Iterable<TimerData> timers) {
-      this.timers = timers;
-    }
-
-    @Override
-    public CommittedResult getCommittedResult(
-        CommittedBundle<?> inputBundle, TransformResult result) {
-          return evaluationContext.handleResult(inputBundle, timers, result);
     }
   }
 
@@ -424,7 +395,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
                           null, keyTimers.getKey(), (PCollection) transform.getInput())
                       .add(WindowedValue.valueInEmptyWindows(work))
                       .commit(Instant.now());
-              scheduleConsumption(transform, bundle, new TimerCompletionCallback(delivery));
+              scheduleConsumption(transform, bundle, new TimerIterableCompletionCallback(delivery));
               firedTimers = true;
             }
           }

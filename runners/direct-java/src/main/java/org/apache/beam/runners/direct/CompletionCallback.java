@@ -30,6 +30,11 @@ interface CompletionCallback {
       CommittedBundle<?> inputBundle, TransformResult result);
 
   /**
+   * Handle an input bundle that did not require processing.
+   */
+  void handleEmpty(CommittedBundle<?> inputBundle);
+
+  /**
    * Handle a result that terminated abnormally due to the provided {@link Throwable}.
    */
   void handleThrowable(CommittedBundle<?> inputBundle, Throwable t);
