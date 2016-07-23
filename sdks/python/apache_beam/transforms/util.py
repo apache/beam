@@ -220,7 +220,8 @@ def assert_that(actual, matcher, label='assert_that'):
   class AssertThat(PTransform):
 
     def apply(self, pipeline):
-      return pipeline | 'singleton' >> Create([None]) | Map(match, AllOf(actual))
+      return pipeline | 'singleton' >> Create([None]) | Map(match,
+                                                            AllOf(actual))
 
     def default_label(self):
       return label

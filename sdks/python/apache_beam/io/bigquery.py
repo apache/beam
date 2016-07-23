@@ -45,8 +45,8 @@ Map transform will get on each call *one* row of the main table and *all* rows
 of the side table. The execution framework may use some caching techniques to
 share the side inputs between calls in order to avoid excessive reading::
 
-  main_table = pipeline | 'very_big_table' >> beam.io.Read(beam.io.BigQuerySource()
-  side_table = pipeline | 'not_big_table' >> beam.io.Read(beam.io.BigQuerySource()
+  main_table = pipeline | 'very_big' >> beam.io.Read(beam.io.BigQuerySource()
+  side_table = pipeline | 'not_big' >> beam.io.Read(beam.io.BigQuerySource()
   results = (
       main_table
       | beam.Map('process data',

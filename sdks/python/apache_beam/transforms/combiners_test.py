@@ -219,8 +219,8 @@ class CombineTest(unittest.TestCase):
         return main | Map(lambda _, s: s, side)
 
     p = Pipeline('DirectPipelineRunner')
-    result1 = p | 'label1' >> Create([]) | 'L1' >> CombineWithSideInput()
-    result2 = p | 'label2' >> Create([1, 2, 3, 4]) | 'L2' >> CombineWithSideInput()
+    result1 = p | 'i1' >> Create([]) | 'c1' >> CombineWithSideInput()
+    result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> CombineWithSideInput()
     assert_that(result1, equal_to([0]), label='r1')
     assert_that(result2, equal_to([10]), label='r2')
     p.run()

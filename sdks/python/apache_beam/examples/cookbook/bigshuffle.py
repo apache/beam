@@ -54,8 +54,9 @@ def run(argv=None):
 
   # Count the occurrences of each word.
   output = (lines
-            | 'split' >> beam.Map(lambda x: (x[:10], x[10:99])
-                      ).with_output_types(beam.typehints.KV[str, str])
+            | 'split' >> beam.Map(
+                lambda x: (x[:10], x[10:99]))
+            .with_output_types(beam.typehints.KV[str, str])
             | 'group' >> beam.GroupByKey()
             | beam.FlatMap(
                 'format',

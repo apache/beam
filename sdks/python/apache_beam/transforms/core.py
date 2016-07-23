@@ -814,9 +814,9 @@ class CombineGlobally(PTransform):
         return transform
 
     combined = (pcoll
-                | 'KeyWithVoid' >> add_input_types(Map(lambda v: (None, v))
-                                  .with_output_types(
-                                      KV[None, pcoll.element_type]))
+                | 'KeyWithVoid' >> add_input_types(
+                    Map(lambda v: (None, v)).with_output_types(
+                        KV[None, pcoll.element_type]))
                 | CombinePerKey(
                     'CombinePerKey', self.fn, *self.args, **self.kwargs)
                 | 'UnKey' >> Map(lambda (k, v): v))
@@ -1044,6 +1044,7 @@ class GroupByKey(PTransform):
           KV[key_type, Iterable[typehints.WindowedValue[value_type]]])
       gbk_output_type = KV[key_type, Iterable[value_type]]
 
+      # pylint: disable=bad-continuation
       return (pcoll
               | 'reify_windows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))

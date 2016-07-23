@@ -177,7 +177,7 @@ class SideInputTest(unittest.TestCase):
 
     bad_side_input = p | 'bad_side' >> beam.Create(['z'])
     with self.assertRaises(typehints.TypeCheckError):
-      main_input | 'again' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
+      main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
     @typehints.with_input_types(str, typehints.Iterable[str])
