@@ -179,7 +179,7 @@ public class BlockingDataflowRunnerTest {
     DataflowPipelineJob mockJob = mock(DataflowPipelineJob.class);
     when(mockJob.getProjectId()).thenReturn(projectId);
     when(mockJob.getJobId()).thenReturn(jobId);
-    when(mockJob.waitToFinish(any(Duration.class)))
+    when(mockJob.waitUntilFinish(any(Duration.class)))
         .thenReturn(terminalState);
     return mockJob;
   }

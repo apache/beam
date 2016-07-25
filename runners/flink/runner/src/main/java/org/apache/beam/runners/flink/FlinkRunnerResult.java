@@ -34,16 +34,12 @@ import java.util.Map;
  * {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class FlinkRunnerResult implements PipelineResult {
-
   private final Map<String, Object> aggregators;
-
   private final long runtime;
-
   public FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
     this.aggregators = (aggregators == null || aggregators.isEmpty()) ?
         Collections.<String, Object>emptyMap() :
         Collections.unmodifiableMap(aggregators);
-
     this.runtime = runtime;
   }
 
@@ -83,7 +79,7 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   @Override
-  public State waitToFinish(Duration duration) {
-    throw new UnsupportedOperationException("FlinkRunnerResult does not support waitToFinish.");
+  public State waitUntilFinish(Duration duration) {
+    throw new UnsupportedOperationException("FlinkRunnerResult does not support waitUntilFinish.");
   }
 }

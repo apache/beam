@@ -116,7 +116,7 @@ public class BlockingDataflowRunner extends
       @Nullable
       State result;
       try {
-        result = job.waitToFinish(Duration.standardSeconds(BUILTIN_JOB_TIMEOUT_SEC));
+        result = job.waitUntilFinish(Duration.standardSeconds(BUILTIN_JOB_TIMEOUT_SEC));
       } catch (IOException | InterruptedException ex) {
         if (ex instanceof InterruptedException) {
           Thread.currentThread().interrupt();

@@ -310,12 +310,12 @@ public class DataflowExampleUtils {
         addShutdownHook(jobsToCancel);
       }
       try {
-        job.waitToFinish(Duration.standardSeconds(-1));
+        job.waitUntilFinish(Duration.standardSeconds(-1));
       } catch (Exception e) {
         throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
       }
     } else {
-      // Do nothing if the given PipelineResult doesn't support waitToFinish(),
+      // Do nothing if the given PipelineResult doesn't support waitUtilFinish(),
       // such as EvaluationResults returned by DirectRunner.
     }
   }

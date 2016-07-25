@@ -159,9 +159,9 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   @Nullable
-  public State waitToFinish(Duration duration)
+  public State waitUntilFinish(Duration duration)
           throws IOException, InterruptedException {
-    return waitToFinish(duration, new MonitoringUtil.LoggingHandler());
+    return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
   }
 
   /**
@@ -180,7 +180,7 @@ public class DataflowPipelineJob implements PipelineResult {
    */
   @Nullable
   @VisibleForTesting
-  public State waitToFinish(
+  public State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler) throws IOException, InterruptedException {
     return waitToFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);

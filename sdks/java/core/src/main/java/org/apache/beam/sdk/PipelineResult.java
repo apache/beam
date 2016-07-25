@@ -44,7 +44,7 @@ public interface PipelineResult {
   State cancel() throws IOException;
 
   /**
-   * Waits for the job to finish and returns the final status.
+   * Waits until the job finishes and returns the final status.
    *
    * @param duration The time to wait for the job to finish.
    *     Provide a value less than 1 ms for an infinite wait.
@@ -55,7 +55,7 @@ public interface PipelineResult {
    *   information.
    * @throws InterruptedException
    */
-  State waitToFinish(Duration duration) throws IOException, InterruptedException;
+  State waitUntilFinish(Duration duration) throws IOException, InterruptedException;
 
   /**
    * Retrieves the current value of the provided {@link Aggregator}.
