@@ -66,6 +66,10 @@
     </plugins>
   </build>
 
+  <properties>
+    <aws.version>1.11.18</aws.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -75,7 +79,7 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-kinesis</artifactId>
-      <version>1.11.18</version>
+      <version>${aws.version}</version>
     </dependency>
 
     <dependency>
@@ -108,7 +112,7 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
-      <version>1.11.18</version>
+      <version>${aws.version}</version>
     </dependency>
 
     <dependency>
