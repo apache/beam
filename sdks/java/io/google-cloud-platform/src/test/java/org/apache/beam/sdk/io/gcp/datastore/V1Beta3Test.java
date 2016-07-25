@@ -39,9 +39,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreReader;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreSource;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriter;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3Source.V1Beta3Reader;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -112,7 +111,7 @@ public class V1Beta3Test {
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
 
-  @Rule public final ExpectedLogs logged = ExpectedLogs.none(DatastoreSource.class);
+  @Rule public final ExpectedLogs logged = ExpectedLogs.none(V1Beta3Source.class);
 
   @Before
   public void setUp() {
@@ -287,17 +286,17 @@ public class V1Beta3Test {
     when(splitter.getSplits(any(Query.class), eq(partition), eq(8), any(Datastore.class)))
         .thenReturn(mockSplits);
 
-    DatastoreSource io = initialRead
+    V1Beta3Source io = initialRead
         .withNamespace(null)
         .withQuery(query)
         .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
-    List<DatastoreSource> bundles = io.splitIntoBundles(1024, testPipelineOptions());
+    List<V1Beta3Source> bundles = io.splitIntoBundles(1024, testPipelineOptions());
     assertEquals(8, bundles.size());
     for (int i = 0; i < 8; ++i) {
-      DatastoreSource bundle = bundles.get(i);
+      V1Beta3Source bundle = bundles.get(i);
       Query bundleQuery = bundle.getQuery();
       assertEquals("mykind", bundleQuery.getKind(0).getName());
       assertEquals(i, bundleQuery.getFilter().getPropertyFilter().getValue().getIntegerValue());
@@ -310,7 +309,7 @@ public class V1Beta3Test {
   @Test
   public void testSourceWithNamespace() throws Exception {
     QuerySplitter splitter = mock(QuerySplitter.class);
-    DatastoreSource io = initialRead
+    V1Beta3Source io = initialRead
         .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
@@ -336,17 +335,17 @@ public class V1Beta3Test {
     when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class)))
         .thenReturn(mockSplits);
 
-    DatastoreSource io = initialRead
+    V1Beta3Source io = initialRead
         .withQuery(query)
         .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(0L);
 
-    List<DatastoreSource> bundles = io.splitIntoBundles(1024, testPipelineOptions());
+    List<V1Beta3Source> bundles = io.splitIntoBundles(1024, testPipelineOptions());
     assertEquals(1, bundles.size());
     verify(splitter, never())
         .getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class));
-    DatastoreSource bundle = bundles.get(0);
+    V1Beta3Source bundle = bundles.get(0);
     Query bundleQuery = bundle.getQuery();
     assertEquals("mykind", bundleQuery.getKind(0).getName());
     assertFalse(bundleQuery.hasFilter());
@@ -366,7 +365,7 @@ public class V1Beta3Test {
     when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(2), any(Datastore.class)))
         .thenThrow(new AssertionError("Splitter should not be invoked"));
 
-    List<DatastoreSource> bundles =
+    List<V1Beta3Source> bundles =
         initialRead
             .withQuery(query)
             .getSource()
@@ -394,7 +393,7 @@ public class V1Beta3Test {
         .thenThrow(exception);
 
     Query query = Query.newBuilder().addKind(KindExpression.newBuilder().setName("myKind")).build();
-    List<DatastoreSource> bundles =
+    List<V1Beta3Source> bundles =
         initialRead
             .withQuery(query)
             .getSource()
@@ -421,21 +420,21 @@ public class V1Beta3Test {
     when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(12), any(Datastore.class)))
         .thenReturn(mockSplits);
 
-    DatastoreSource io = initialRead
+    V1Beta3Source io = initialRead
         .withQuery(query)
         .getSource()
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
-    DatastoreSource spiedIo = spy(io);
+    V1Beta3Source spiedIo = spy(io);
     when(spiedIo.getEstimatedSizeBytes(any(PipelineOptions.class)))
         .thenThrow(new NoSuchElementException());
 
-    List<DatastoreSource> bundles = spiedIo.splitIntoBundles(1024, testPipelineOptions());
+    List<V1Beta3Source> bundles = spiedIo.splitIntoBundles(1024, testPipelineOptions());
     assertEquals(1, bundles.size());
     verify(splitter, never())
         .getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class));
-    DatastoreSource bundle = bundles.get(0);
+    V1Beta3Source bundle = bundles.get(0);
     Query bundleQuery = bundle.getQuery();
     assertEquals("mykind", bundleQuery.getKind(0).getName());
     assertFalse(bundleQuery.hasFilter());
@@ -583,7 +582,7 @@ public class V1Beta3Test {
             });
 
     // Actually instantiate the reader.
-    DatastoreReader reader = new DatastoreReader(read.getSource(), mockDatastore);
+    V1Beta3Reader reader = new V1Beta3Reader(read.getSource(), mockDatastore);
 
     // Simply count the number of results returned by the reader.
     assertTrue(reader.start());
