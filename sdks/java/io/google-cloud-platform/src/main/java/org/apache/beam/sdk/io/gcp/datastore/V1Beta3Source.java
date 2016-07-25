@@ -69,7 +69,7 @@ import javax.annotation.Nullable;
 /**
  * A Datstore Source for v1beta3 API.
  */
-public class V1Beta3Source extends BoundedSource<Entity>{
+class V1Beta3Source extends BoundedSource<Entity>{
   private static final Logger LOG = LoggerFactory.getLogger(V1Beta3Source.class);
   private final String projectId;
   private final Query query;
