@@ -28,10 +28,5 @@ public interface SparkStreamingPipelineOptions extends SparkPipelineOptions {
           + "execution is stopped")
   @Default.Long(-1)
   Long getTimeout();
-
   void setTimeout(Long batchInterval);
-
-  @Override
-  @Default.Boolean(true)
-  boolean isStreaming();
 }
