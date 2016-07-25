@@ -1362,8 +1362,8 @@ public class BigQueryIOTest implements Serializable {
   public void testWriteRename() throws Exception {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
-            .startJobReturns("done", "done", "done", "done")
-            .pollJobReturns(Status.FAILED, Status.SUCCEEDED, Status.SUCCEEDED, Status.SUCCEEDED))
+            .startJobReturns("done", "done")
+            .pollJobReturns(Status.FAILED, Status.SUCCEEDED))
         .withDatasetService(mockDatasetService);
 
     final long numTempTables = 3;
