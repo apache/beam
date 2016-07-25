@@ -28,6 +28,8 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -115,9 +117,18 @@ interface BigQueryServices extends Serializable {
   interface DatasetService {
     /**
      * Gets the specified {@link Table} resource by table ID.
+     *
+     * Returns null if the table is not found.
      */
     Table getTable(String projectId, String datasetId, String tableId)
         throws InterruptedException, IOException;
+
+    /**
+     * Create the given {@link Table}.
+     *
+     * <p>{@link TableReference} and {@link TableSchema} are required fields.
+     */
+    void createTable(Table table) throws InterruptedException, IOException;
 
     /**
      * Deletes the table specified by tableId from the dataset.
