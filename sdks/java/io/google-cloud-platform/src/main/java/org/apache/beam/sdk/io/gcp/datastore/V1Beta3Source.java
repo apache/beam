@@ -76,11 +76,15 @@ public class V1Beta3Source extends BoundedSource<Entity>{
   @Nullable
   private final String namespace;
 
-  /** For testing only. TODO: This could be much cleaner with dependency injection. */
-  @Nullable
-  private QuerySplitter mockSplitter;
-  @Nullable
-  private Long mockEstimateSizeBytes;
+  /**
+   * These classes do not extend {@link java.io.Serializable}. Hence they need to be created
+   * every time a this source is instantiated from its serialized form.
+   *
+   * They need to be accessed through {@link V1Beta3Source#getDatastoreFactory()} and
+   * {@link V1Beta3Source#getQuerySplitter()}
+   */
+  private transient DatastoreFactory datastoreFactory;
+  private transient QuerySplitter querySplitter;
 
   V1Beta3Source(String projectId, Query query, @Nullable String namespace) {
     this.projectId = projectId;
@@ -100,7 +104,23 @@ public class V1Beta3Source extends BoundedSource<Entity>{
     if (credential != null) {
       builder.credential(credential);
     }
-    return DatastoreFactory.get().create(builder.build());
+    return getDatastoreFactory().get().create(builder.build());
+  }
+
+  // Creates (if not already) and returns a datastore factory.
+  private DatastoreFactory getDatastoreFactory() {
+    if (datastoreFactory == null) {
+      datastoreFactory = DatastoreFactory.get();
+    }
+    return datastoreFactory;
+  }
+
+  // Creates (if not already) and returns a query splitter.
+  private QuerySplitter getQuerySplitter() {
+    if (querySplitter == null) {
+      querySplitter = DatastoreHelper.getQuerySplitter();
+    }
+    return querySplitter;
   }
 
   /**
@@ -147,10 +167,6 @@ public class V1Beta3Source extends BoundedSource<Entity>{
     // is specified in the query.
     //
     // See https://cloud.google.com/datastore/docs/concepts/stats
-    if (mockEstimateSizeBytes != null) {
-      return mockEstimateSizeBytes;
-    }
-
     Datastore datastore = getDatastore(options);
     if (query.getKindCount() != 1) {
       throw new UnsupportedOperationException(
@@ -194,12 +210,7 @@ public class V1Beta3Source extends BoundedSource<Entity>{
       partitionBuilder.setNamespaceId(namespace);
     }
 
-    if (mockSplitter != null) {
-      // For testing.
-      return mockSplitter.getSplits(query, partitionBuilder.build(), numSplits, null);
-    }
-
-    return DatastoreHelper.getQuerySplitter().getSplits(
+    return getQuerySplitter().getSplits(
         query, partitionBuilder.build(), numSplits, getDatastore(options));
   }
 
@@ -281,22 +292,6 @@ public class V1Beta3Source extends BoundedSource<Entity>{
         .add("query", query)
         .add("namespace", namespace)
         .toString();
-  }
-
-  /** For testing only. */
-  V1Beta3Source withMockSplitter(QuerySplitter splitter) {
-    V1Beta3Source res = new V1Beta3Source(projectId, query, namespace);
-    res.mockSplitter = splitter;
-    res.mockEstimateSizeBytes = mockEstimateSizeBytes;
-    return res;
-  }
-
-  /** For testing only. */
-  V1Beta3Source withMockEstimateSizeBytes(Long estimateSizeBytes) {
-    V1Beta3Source res = new V1Beta3Source(projectId, query, namespace);
-    res.mockSplitter = mockSplitter;
-    res.mockEstimateSizeBytes = estimateSizeBytes;
-    return res;
   }
 
   @VisibleForTesting
