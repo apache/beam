@@ -53,6 +53,16 @@ import java.util.List;
 
 /**
  * End-to-end tests of WordCount.
+ *
+ * <p>Input text document is available from the following sources:
+ * <ul>
+ * <li>Using GCS (default):
+ *   gs://dataflow-samples/shakespeare/kinglear.tx
+ * </li>
+ * <li>Using local fs:
+ *   curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt
+ * </li>
+ * </ul>
  */
 @RunWith(JUnit4.class)
 public class WordCountIT {
