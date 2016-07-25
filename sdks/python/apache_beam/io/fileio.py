@@ -745,10 +745,12 @@ class NativeTextFileSink(iobase.NativeSink):
 # TextFileReader, TextMultiFileReader.
 
 
-class TextFileReader(iobase.NativeSourceReader):
+class TextFileReader(iobase.NativeSourceReader,
+                     coders.observable.ObservableMixin):
   """A reader for a text file source."""
 
   def __init__(self, source):
+    super(TextFileReader, self).__init__()
     self.source = source
     self.start_offset = self.source.start_offset or 0
     self.end_offset = self.source.end_offset
@@ -778,6 +780,7 @@ class TextFileReader(iobase.NativeSourceReader):
       self._file.seek(self.start_offset - 1)
       self.current_offset -= 1
       line = self._file.readline()
+      self.notify_observers(line, is_encoded=True)
       self.current_offset += len(line)
     else:
       self._file.seek(self.start_offset)
@@ -801,6 +804,7 @@ class TextFileReader(iobase.NativeSourceReader):
         # a dynamic split request from the service.
         return
       line = self._file.readline()
+      self.notify_observers(line, is_encoded=True)
       self.current_offset += len(line)
       if self.source.strip_trailing_newlines:
         line = line.rstrip('\n')
