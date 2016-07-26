@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -439,7 +440,7 @@ def get_required_container_version():
 
 
 def get_sdk_name_and_version():
-  """Returns the name and version of the SDK reported to Cloud Dataflow."""
+  """Returns name and version of SDK reported to Google Cloud Dataflow."""
   # TODO(ccy): Make this check cleaner.
   container_version = get_required_container_version()
   if container_version == 'beamhead':
