@@ -40,16 +40,15 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryQuerySource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryWrite;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.WritePartition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.WriteRename;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.WriteTempTables;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WritePartition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteRename;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteTempTables;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -1254,7 +1253,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWritePartitionManyFiles() throws Exception {
-    final long numFiles = BigQueryWrite.MAX_NUM_FILES * 3;
+    final long numFiles = BigQueryIO.Write.Bound.MAX_NUM_FILES * 3;
     final long fileSize = 1;
 
     // One partition is needed for each group of BigQueryWrite.MAX_NUM_FILES files
@@ -1265,7 +1264,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testWritePartitionLargeFileSize() throws Exception {
     final long numFiles = 10;
-    final long fileSize = BigQueryWrite.MAX_SIZE_BYTES / 3;
+    final long fileSize = BigQueryIO.Write.Bound.MAX_SIZE_BYTES / 3;
 
     // One partition is needed for each group of three files
     final long expectedNumPartitions = 4;
@@ -1294,9 +1293,9 @@ public class BigQueryIOTest implements Serializable {
 
     WritePartition writePartition = new WritePartition(filesView);
 
-    DoFnTester<Integer, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
+    DoFnTester<Void, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
     tester.setSideInput(filesView, GlobalWindow.INSTANCE, files);
-    tester.processElement(1);
+    tester.processElement(null);
 
     List<KV<Long, List<String>>> partitions = tester.takeOutputElements();
     List<Long> partitionIds = Lists.newArrayList();
@@ -1387,9 +1386,9 @@ public class BigQueryIOTest implements Serializable {
         CreateDisposition.CREATE_IF_NEEDED,
         tempTablesView);
 
-    DoFnTester<Integer, Void> tester = DoFnTester.of(writeRename);
+    DoFnTester<Void, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
-    tester.processElement(1);
+    tester.processElement(null);
 
     logged.verifyInfo("Starting BigQuery copy job");
     logged.verifyInfo("Previous copy jobs failed, retrying.");
