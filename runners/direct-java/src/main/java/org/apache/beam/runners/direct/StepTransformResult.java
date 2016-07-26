@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -27,7 +25,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
-import com.google.common.base.MoreObjects;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
@@ -39,67 +37,30 @@ import javax.annotation.Nullable;
 /**
  * An immutable {@link TransformResult}.
  */
-public class StepTransformResult implements TransformResult {
-  private final AppliedPTransform<?, ?, ?> transform;
-  private final Iterable<? extends UncommittedBundle<?>> bundles;
-  private final Iterable<? extends WindowedValue<?>> unprocessedElements;
-  @Nullable private final CopyOnAccessInMemoryStateInternals<?> state;
-  private final TimerUpdate timerUpdate;
-  @Nullable private final CounterSet counters;
-  private final Instant watermarkHold;
-
-  private StepTransformResult(
-      AppliedPTransform<?, ?, ?> transform,
-      Iterable<? extends UncommittedBundle<?>> outputBundles,
-      Iterable<? extends WindowedValue<?>> unprocessedElements,
-      CopyOnAccessInMemoryStateInternals<?> state,
-      TimerUpdate timerUpdate,
-      CounterSet counters,
-      Instant watermarkHold) {
-    this.transform = checkNotNull(transform);
-    this.bundles = checkNotNull(outputBundles);
-    this.unprocessedElements = checkNotNull(unprocessedElements);
-    this.state = state;
-    this.timerUpdate = checkNotNull(timerUpdate);
-    this.counters = counters;
-    this.watermarkHold = checkNotNull(watermarkHold);
-  }
+@AutoValue
+public abstract class StepTransformResult implements TransformResult {
+  @Override
+  public abstract AppliedPTransform<?, ?, ?> getTransform();
 
   @Override
-  public Iterable<? extends UncommittedBundle<?>> getOutputBundles() {
-    return bundles;
-  }
+  public abstract Iterable<? extends UncommittedBundle<?>> getOutputBundles();
 
   @Override
-  public Iterable<? extends WindowedValue<?>> getUnprocessedElements() {
-    return unprocessedElements;
-  }
+  public abstract Iterable<? extends WindowedValue<?>> getUnprocessedElements();
 
   @Override
-  public CounterSet getCounters() {
-    return counters;
-  }
+  @Nullable
+  public abstract CounterSet getCounters();
 
   @Override
-  public AppliedPTransform<?, ?, ?> getTransform() {
-    return transform;
-  }
-
-  @Override
-  public Instant getWatermarkHold() {
-    return watermarkHold;
-  }
+  public abstract Instant getWatermarkHold();
 
   @Nullable
   @Override
-  public CopyOnAccessInMemoryStateInternals<?> getState() {
-    return state;
-  }
+  public abstract CopyOnAccessInMemoryStateInternals<?> getState();
 
   @Override
-  public TimerUpdate getTimerUpdate() {
-    return timerUpdate;
-  }
+  public abstract TimerUpdate getTimerUpdate();
 
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
@@ -107,13 +68,6 @@ public class StepTransformResult implements TransformResult {
 
   public static Builder withoutHold(AppliedPTransform<?, ?, ?> transform) {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
-  }
-
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(StepTransformResult.class)
-        .add("transform", transform)
-        .toString();
   }
 
   /**
@@ -137,14 +91,14 @@ public class StepTransformResult implements TransformResult {
     }
 
     public StepTransformResult build() {
-      return new StepTransformResult(
+      return new AutoValue_StepTransformResult(
           transform,
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
-          state,
-          timerUpdate,
           counters,
-          watermarkHold);
+          watermarkHold,
+          state,
+          timerUpdate);
     }
 
     public Builder withCounters(CounterSet counters) {
