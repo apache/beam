@@ -75,12 +75,12 @@ import javax.annotation.Nullable;
  *       of {@link CoderProviders#fromStaticMethods}.
  *   <li>Fallback: A fallback {@link CoderProvider} is used to attempt to provide a {@link Coder}
  *       for any type. By default, there are two chained fallback coders:
- *       {@link ProtoCoder#coderProvider}, which can efficiently serialize any Protocol Buffers
- *       message, and then {@link SerializableCoder#PROVIDER}, which can provide a {@link Coder} for
- *       any type that is serializable via Java serialization. The fallback {@link CoderProvider}
- *       can be get and set respectively using {@link #getFallbackCoderProvider()} and
- *       {@link #setFallbackCoderProvider}. Multiple fallbacks can be chained together using
- *       {@link CoderProviders#firstOf}.
+ *       {@link ProtoCoder#coderProvider}, which can provide a coder to efficiently serialize any
+ *       Protocol Buffers message, and then {@link SerializableCoder#PROVIDER}, which can provide a
+ *       {@link Coder} for any type that is serializable via Java serialization. The fallback
+ *       {@link CoderProvider} can be get and set respectively using
+ *       {@link #getFallbackCoderProvider()} and {@link #setFallbackCoderProvider}. Multiple
+ *       fallbacks can be chained together using {@link CoderProviders#firstOf}.
  * </ol>
  */
 public class CoderRegistry implements CoderProvider {
@@ -369,7 +369,7 @@ public class CoderRegistry implements CoderProvider {
    * providing a {@code Coder<T>} for a type {@code T}, then the registry will attempt to create
    * a {@link Coder} using this {@link CoderProvider}.
    *
-   * <p>By default, this is set to a the chain of {@link ProtoCoder#coderProvider()} and
+   * <p>By default, this is set to the chain of {@link ProtoCoder#coderProvider()} and
    * {@link SerializableCoder#PROVIDER}.
    *
    * <p>See {@link #getFallbackCoderProvider}.
