@@ -32,14 +32,5 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
   @Default.String("local[1]")
   String getSparkMaster();
-
   void setSparkMaster(String master);
-
-  @Override
-  @Default.Boolean(false)
-  boolean isStreaming();
-
-  @Override
-  @Default.String("spark dataflow pipeline job")
-  String getAppName();
 }
