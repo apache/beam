@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -59,6 +60,7 @@ import tempfile
 
 
 from apache_beam import utils
+from apache_beam import version as beam_version
 from apache_beam.internal import pickler
 from apache_beam.utils import names
 from apache_beam.utils import processes
@@ -435,6 +437,16 @@ def get_required_container_version():
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
     return 'beamhead'
+
+
+def get_sdk_name_and_version():
+  """Returns name and version of SDK reported to Google Cloud Dataflow."""
+  # TODO(ccy): Make this check cleaner.
+  container_version = get_required_container_version()
+  if container_version == 'beamhead':
+    return ('Apache Beam SDK for Python', beam_version.__version__)
+  else:
+    return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
 def _download_pypi_sdk_package(temp_dir):
