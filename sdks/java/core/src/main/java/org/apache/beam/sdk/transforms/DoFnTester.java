@@ -33,15 +33,12 @@ import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -646,8 +643,8 @@ public class DoFnTester<InputT, OutputT> {
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
-          + "Instead, create an aggregator at DoFn construction time with createAggregator, and "
-          + "ensure they are set up by the time startBundle is called "
+          + "Instead, create an aggregator at DoFn construction time with createAggregatorForDoFn,"
+          + " and ensure they are set up by the time startBundle is called "
           + "with setupDelegateAggregators.");
     }
   }

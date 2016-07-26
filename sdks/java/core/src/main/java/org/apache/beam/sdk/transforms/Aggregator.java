@@ -18,12 +18,13 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.util.ExecutionContext;
 
 /**
  * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
  * to be combined across all bundles.
  *
- * <p>Aggregators are created by calling {@link DoFn#createAggregator DoFn.createAggregator},
+ * <p>Aggregators are created by calling {@link DoFn#createAggregator DoFn.createAggregatorForDoFn},
  * typically from the {@link DoFn} constructor. Elements can be added to the
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
@@ -39,7 +40,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  *   private Aggregator<Integer, Integer> myAggregator;
  *
  *   public MyDoFn() {
- *     myAggregator = createAggregator("myAggregator", new Sum.SumIntegerFn());
+ *     myAggregator = createAggregatorForDoFn("myAggregator", new Sum.SumIntegerFn());
  *   }
  *
  *   @Override
@@ -70,10 +71,25 @@ public interface Aggregator<InputT, OutputT> {
    */
   CombineFn<InputT, ?, OutputT> getCombineFn();
 
+  /**
+   * A factory for creating aggregators.
+   */
+  interface AggregatorFactory {
+    /**
+     * Create an aggregator with the given {@code name} and {@link CombineFn}.
+     *
+     *  <p>This method is called to create an aggregator for a {@link DoFn}. It receives the class
+     *  of the {@link DoFn} being executed and the context of the step it is being executed in.
+     */
+    <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
+        Class<?> fnClass, ExecutionContext.StepContext stepContext,
+        String aggregatorName, CombineFn<InputT, AccumT, OutputT> combine);
+  }
+
   // TODO: Consider the following additional API conveniences:
-  // - In addition to createAggregator(), consider adding getAggregator() to
+  // - In addition to createAggregatorForDoFn(), consider adding getAggregator() to
   //   avoid the need to store the aggregator locally in a DoFn, i.e., create
   //   if not already present.
   // - Add a shortcut for the most common aggregator:
-  //   c.createAggregator("name", new Sum.SumIntegerFn()).
+  //   c.createAggregatorForDoFn("name", new Sum.SumIntegerFn()).
 }

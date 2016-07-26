@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
@@ -33,19 +34,15 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -75,7 +72,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator,
+      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.context = new DoFnContext<>(
@@ -86,13 +83,13 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
         mainOutputTag,
         sideOutputTags,
         stepContext,
-        addCounterMutator,
+        aggregatorFactory,
         windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
   /**
    * An implementation of {@code OutputManager} using simple lists, for testing and in-memory
-   * contexts such as the {@link DirectRunner}.
+   * contexts such as the {@code DirectRunner}.
    */
   public static class ListOutputManager implements OutputManager {
 
@@ -180,7 +177,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final CounterSet.AddCounterMutator addCounterMutator;
+    final AggregatorFactory aggregatorFactory;
     final WindowFn<?, ?> windowFn;
 
     /**
@@ -196,7 +193,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
                        TupleTag<OutputT> mainOutputTag,
                        List<TupleTag<?>> sideOutputTags,
                        StepContext stepContext,
-                       CounterSet.AddCounterMutator addCounterMutator,
+                       AggregatorFactory aggregatorFactory,
                        WindowFn<?, ?> windowFn) {
       fn.super();
       this.options = options;
@@ -212,7 +209,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       }
 
       this.stepContext = stepContext;
-      this.addCounterMutator = addCounterMutator;
+      this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
       super.setupDelegateAggregators();
     }
@@ -344,18 +341,11 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
-    private String generateInternalAggregatorName(String userName) {
-      boolean system = fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
-      return (system ? "" : "user-") + stepContext.getStepName() + "-" + userName;
-    }
-
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner,
-          "Combiner passed to createAggregator cannot be null");
-      return new CounterAggregator<>(generateInternalAggregatorName(name),
-          combiner, addCounterMutator);
+      checkNotNull(combiner, "Combiner passed to createAggregatorForDoFn cannot be null");
+      return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
   }
 

@@ -23,11 +23,8 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-
 import org.joda.time.Instant;
-
 import javax.annotation.Nullable;
 
 /**
@@ -52,10 +49,10 @@ public interface TransformResult {
   Iterable<? extends WindowedValue<?>> getUnprocessedElements();
 
   /**
-   * Returns the {@link CounterSet} used by this {@link PTransform}, or null if this transform did
-   * not use a {@link CounterSet}.
+   * Returns the {@link AggregatorContainer.Mutator} used by this {@link PTransform}, or null if
+   * this transform did not use an {@link AggregatorContainer.Mutator}.
    */
-  @Nullable CounterSet getCounters();
+  @Nullable AggregatorContainer.Mutator getAggregatorChanges();
 
   /**
    * Returns the Watermark Hold for the transform at the time this result was produced.

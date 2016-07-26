@@ -18,18 +18,24 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
+import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -38,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Tests for DoFn.
@@ -203,5 +210,33 @@ public class DoFnTest implements Serializable {
 
     DisplayData data = DisplayData.from(usesDefault);
     assertThat(data.items(), empty());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregators() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    CountOddsFn countOdds = new CountOddsFn();
+    pipeline
+        .apply(Create.of(1, 3, 5, 7, 2, 4, 6, 8, 10, 12, 14, 20, 42, 68, 100))
+        .apply(ParDo.of(countOdds));
+    PipelineResult result = pipeline.run();
+
+    AggregatorValues<Integer> values = result.getAggregatorValues(countOdds.aggregator);
+    assertThat(values.getValuesAtSteps(),
+        equalTo((Map<String, Integer>) ImmutableMap.<String, Integer>of("ParDo(CountOdds)", 4)));
+  }
+
+  private static class CountOddsFn extends DoFn<Integer, Void> {
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      if (c.element() % 2 == 1) {
+        aggregator.addValue(1);
+      }
+    }
+
+    Aggregator<Integer, Integer> aggregator =
+        createAggregator("odds", new SumIntegerFn());
   }
 }

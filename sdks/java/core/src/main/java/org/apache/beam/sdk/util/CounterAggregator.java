@@ -25,6 +25,8 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.util.common.CounterProvider;
 import org.apache.beam.sdk.util.common.CounterSet;
+import org.apache.beam.sdk.util.common.CounterSet.AddCounterMutator;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * An implementation of the {@code Aggregator} interface that uses a
@@ -35,10 +37,38 @@ import org.apache.beam.sdk.util.common.CounterSet;
  * @param <AccumT> the type of accumulator values
  * @param <OutputT> the type of output value
  */
-public class CounterAggregator<InputT, AccumT, OutputT> implements Aggregator<InputT, OutputT> {
+public class CounterAggregator<InputT, AccumT, OutputT>
+    implements Aggregator<InputT, OutputT> {
+
+  private static class CounterAggregatorFactory implements AggregatorFactory {
+    private final AddCounterMutator addCounterMutator;
+
+    private CounterAggregatorFactory(CounterSet.AddCounterMutator addCounterMutator) {
+      this.addCounterMutator = addCounterMutator;
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
+        Class<?> fnClass, ExecutionContext.StepContext stepContext,
+        String userName, CombineFn<InputT, AccumT, OutputT> combine) {
+      boolean isSystem = fnClass.isAnnotationPresent(SystemDoFnInternal.class);
+      String mangledName = (isSystem ? "" : "user-") + stepContext.getStepName() + "-" + userName;
+
+      return new CounterAggregator<>(mangledName, combine, addCounterMutator);
+    }
+  }
 
   private final Counter<InputT> counter;
   private final CombineFn<InputT, AccumT, OutputT> combiner;
+
+  /**
+   * Create a factory for producing {@link CounterAggregator CounterAggregators} backed by the given
+   * {@link CounterSet.AddCounterMutator}.
+   */
+  public static AggregatorFactory factoryFor(
+      CounterSet.AddCounterMutator addCounterMutator) {
+    return new CounterAggregatorFactory(addCounterMutator);
+  }
 
   /**
    * Constructs a new aggregator with the given name and aggregation logic
@@ -48,7 +78,8 @@ public class CounterAggregator<InputT, AccumT, OutputT> implements Aggregator<In
    *  <p>If a counter with the same name already exists, it will be reused, as
    * long as it has the same type.
    */
-  public CounterAggregator(String name, CombineFn<? super InputT, AccumT, OutputT> combiner,
+  @VisibleForTesting CounterAggregator(
+      String name, CombineFn<? super InputT, AccumT, OutputT> combiner,
       CounterSet.AddCounterMutator addCounterMutator) {
     // Safe contravariant cast
     this(constructCounter(name, combiner), addCounterMutator,
