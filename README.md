@@ -17,10 +17,22 @@
     under the License.
 -->
 
-# Apache Beam
+# Apache Beam (incubating)
 
 [Apache Beam](http://beam.incubator.apache.org) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends like [Apache Spark](http://spark.apache.org/), [Apache Flink](http://flink.apache.org), and [Google Cloud Dataflow](http://cloud.google.com/dataflow).
 
+```
+Apache Beam is an effort undergoing incubation at the Apache Software
+Foundation (ASF), sponsored by the Apache Incubator PMC.
+
+Incubation is required of all newly accepted projects until a further review
+indicates that the infrastructure, communications, and decision making process
+have stabilized in a manner consistent with other successful ASF projects.
+
+While incubation status is not necessarily a reflection of the completeness
+or stability of the code, it does indicate that the project has yet to be
+fully endorsed by the ASF.
+```
 
 ## Status
 
@@ -59,7 +71,7 @@ Beam supports multiple language specific SDKs for writing pipelines against the 
 
 Currently, this repository contains the Beam Java SDK, which is in the process of evolving from the [Dataflow Java SDK](https://github.com/GoogleCloudPlatform/DataflowJavaSDK). The [Dataflow Python SDK](https://github.com/GoogleCloudPlatform/DataflowPythonSDK) will also become part of Beam in the near future.
 
-Have ideas for new SDKs or DSLs? See the [Jira](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
+Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
 
 
 ### Runners
@@ -67,11 +79,11 @@ Have ideas for new SDKs or DSLs? See the [Jira](https://issues.apache.org/jira/b
 Beam supports executing programs on multiple distributed processing backends through PipelineRunners. Currently, the following PipelineRunners are available:
 
 - The `DirectRunner` runs the pipeline on your local machine.
-- The `DataflowPipelineRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
+- The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
 - The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
 - The `SparkRunner` runs the pipeline on an Apache Spark cluster. The code has been donated from [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow) and is now part of Beam.
 
-Have ideas for new Runners? See the [Jira](https://issues.apache.org/jira/browse/BEAM/component/12328916/).
+Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328916/).
 
 
 ## Getting Started
@@ -92,7 +104,7 @@ To get involved in Apache Beam:
 
 * [Subscribe](mailto:user-subscribe@beam.incubator.apache.org) or [mail](mailto:user@beam.incubator.apache.org) the [user@beam.incubator.apache.org](http://mail-archives.apache.org/mod_mbox/incubator-beam-user/) list.
 * [Subscribe](mailto:dev-subscribe@beam.incubator.apache.org) or [mail](mailto:dev@beam.incubator.apache.org) the [dev@beam.incubator.apache.org](http://mail-archives.apache.org/mod_mbox/incubator-beam-dev/) list.
-* Report issues on [Jira](https://issues.apache.org/jira/browse/BEAM).
+* Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
 
 
 ## More Information
