@@ -29,7 +29,6 @@ from apitools.base.py import encoding
 from apitools.base.py import exceptions
 
 from apache_beam import utils
-from apache_beam import version
 from apache_beam.internal import pickler
 from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.json_value import to_json_value
@@ -39,6 +38,7 @@ from apache_beam.utils import dependency
 from apache_beam.utils import names
 from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
+from apache_beam.utils.dependency import get_sdk_name_and_version
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
@@ -191,12 +191,12 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
 
-    version_string = version.__version__
+    sdk_name, version_string = get_sdk_name_and_version()
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value('Google Cloud Dataflow SDK for Python')),
+            value=to_json_value(sdk_name)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(version_string))])
     # Version information.
