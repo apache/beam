@@ -29,7 +29,6 @@ import org.apache.beam.sdk.util.PushbackSideInputDoFnRunner;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -57,7 +56,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     DirectExecutionContext executionContext =
         evaluationContext.getExecutionContext(application, inputBundle.getKey());
 
-    CounterSet counters = evaluationContext.createCounterSet();
+    AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
@@ -77,7 +76,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
             mainOutputTag,
             sideOutputTags,
             stepContext,
-            counters.getAddCounterMutator(),
+            aggregatorChanges,
             application.getInput().getWindowingStrategy());
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
@@ -89,14 +88,14 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     }
 
     return new ParDoEvaluator<>(
-        runner, application, counters, outputBundles.values(), stepContext);
+        runner, application, aggregatorChanges, outputBundles.values(), stepContext);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final PushbackSideInputDoFnRunner<T, ?> fnRunner;
   private final AppliedPTransform<PCollection<T>, ?, ?> transform;
-  private final CounterSet counters;
+  private final AggregatorContainer.Mutator aggregatorChanges;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final DirectStepContext stepContext;
 
@@ -105,15 +104,14 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
   private ParDoEvaluator(
       PushbackSideInputDoFnRunner<T, ?> fnRunner,
       AppliedPTransform<PCollection<T>, ?, ?> transform,
-      CounterSet counters,
+      AggregatorContainer.Mutator aggregatorChanges,
       Collection<UncommittedBundle<?>> outputBundles,
       DirectStepContext stepContext) {
     this.fnRunner = fnRunner;
     this.transform = transform;
-    this.counters = counters;
     this.outputBundles = outputBundles;
     this.stepContext = stepContext;
-
+    this.aggregatorChanges = aggregatorChanges;
     this.unprocessedElements = ImmutableList.builder();
   }
 
@@ -146,7 +144,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     return resultBuilder
         .addOutput(outputBundles)
         .withTimerUpdate(stepContext.getTimerUpdate())
-        .withCounters(counters)
+        .withAggregatorChanges(aggregatorChanges)
         .addUnprocessedElements(unprocessedElements.build())
         .build();
   }

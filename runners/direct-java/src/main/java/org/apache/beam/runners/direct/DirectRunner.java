@@ -40,8 +40,6 @@ import org.apache.beam.sdk.util.MapAggregatorValues;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -319,7 +317,7 @@ public class DirectRunner
     @Override
     public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
         throws AggregatorRetrievalException {
-      CounterSet counters = evaluationContext.getCounters();
+      AggregatorContainer aggregators = evaluationContext.getAggregatorContainer();
       Collection<PTransform<?, ?>> steps = aggregatorSteps.get(aggregator);
       Map<String, T> stepValues = new HashMap<>();
       for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
@@ -327,9 +325,9 @@ public class DirectRunner
           String stepName =
               String.format(
                   "user-%s-%s", evaluationContext.getStepName(transform), aggregator.getName());
-          Counter<T> counter = (Counter<T>) counters.getExistingCounter(stepName);
-          if (counter != null) {
-            stepValues.put(transform.getFullName(), counter.getAggregate());
+          T aggregate = aggregators.getAggregate(stepName);
+          if (aggregate != null) {
+            stepValues.put(transform.getFullName(), aggregate);
           }
         }
       }

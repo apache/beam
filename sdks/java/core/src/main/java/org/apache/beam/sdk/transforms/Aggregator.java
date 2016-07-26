@@ -70,6 +70,15 @@ public interface Aggregator<InputT, OutputT> {
    */
   CombineFn<InputT, ?, OutputT> getCombineFn();
 
+  /**
+   * A factory for creating aggregators.
+   */
+  interface AggregatorFactory {
+    /** Create an aggregator with the given {@code name} and {@link CombineFn}. */
+    <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregator(
+        String name, CombineFn<InputT, AccumT, OutputT> combine);
+  }
+
   // TODO: Consider the following additional API conveniences:
   // - In addition to createAggregator(), consider adding getAggregator() to
   //   avoid the need to store the aggregator locally in a DoFn, i.e., create
