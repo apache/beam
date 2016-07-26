@@ -370,7 +370,7 @@ public class CoderRegistry implements CoderProvider {
    *
    * <p>See {@link #getFallbackCoderProvider}.
    */
-  public void setFallbackCoderProvider(CoderProvider coderProvider) {
+  void setFallbackCoderProvider(CoderProvider coderProvider) {
     fallbackCoderProvider = coderProvider;
   }
 
@@ -379,7 +379,7 @@ public class CoderRegistry implements CoderProvider {
    *
    * <p>See {@link #setFallbackCoderProvider}.
    */
-  public CoderProvider getFallbackCoderProvider() {
+  private CoderProvider getFallbackCoderProvider() {
     return fallbackCoderProvider;
   }
 
@@ -413,11 +413,8 @@ public class CoderRegistry implements CoderProvider {
    * @param baseClass the base type, a parameterized class
    * @param knownCoders a map corresponding to the set of known {@link Coder Coders} indexed by
    * parameter name
-   *
-   * @deprecated this method is not part of the public interface and will be made private
    */
-  @Deprecated
-  public <T> Map<Type, Coder<?>> getDefaultCoders(
+  private <T> Map<Type, Coder<?>> getDefaultCoders(
       Class<? extends T> subClass,
       Class<T> baseClass,
       Map<Type, ? extends Coder<?>> knownCoders) {
@@ -535,13 +532,13 @@ public class CoderRegistry implements CoderProvider {
     private Coder<?> coder;
     private Type type;
 
-    public IncompatibleCoderException(String message, Coder<?> coder, Type type) {
+    IncompatibleCoderException(String message, Coder<?> coder, Type type) {
       super(message);
       this.coder = coder;
       this.type = type;
     }
 
-    public IncompatibleCoderException(String message, Coder<?> coder, Type type, Throwable cause) {
+    IncompatibleCoderException(String message, Coder<?> coder, Type type, Throwable cause) {
       super(message, cause);
       this.coder = coder;
       this.type = type;
