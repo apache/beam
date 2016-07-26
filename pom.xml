@@ -696,7 +696,6 @@
           </dependencies>
           <configuration>
             <configLocation>beam/checkstyle.xml</configLocation>
-            <headerLocation>beam/header-file.txt</headerLocation>
             <suppressionsLocation>beam/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
             <failOnViolation>true</failOnViolation>
