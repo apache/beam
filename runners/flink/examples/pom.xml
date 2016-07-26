@@ -33,11 +33,10 @@
   <packaging>jar</packaging>
 
   <properties>
-    <!-- Default parameters for mvn exec:exec -->
-    <clazz>org.apache.beam.runners.flink.examples.WordCount</clazz>
+    <!-- Default parameters for mvn exec:java -->
     <input>kinglear.txt</input>
     <output>wordcounts.txt</output>
-    <parallelism>1</parallelism>
+    <parallelism>-1</parallelism>
   </properties>
 
   <profiles>
@@ -131,12 +130,10 @@
         <configuration>
           <executable>java</executable>
           <arguments>
-            <argument>-classpath</argument>
-            <classpath />
-            <argument>${clazz}</argument>
+            <argument>--runner=org.apache.beam.runners.flink.FlinkRunner</argument>
+            <argument>--parallelism=${parallelism}</argument>
             <argument>--input=${input}</argument>
             <argument>--output=${output}</argument>
-            <argument>--parallelism=${parallelism}</argument>
           </arguments>
         </configuration>
       </plugin>
