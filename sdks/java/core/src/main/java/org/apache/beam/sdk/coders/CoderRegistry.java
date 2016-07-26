@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -73,11 +74,13 @@ import javax.annotation.Nullable;
  *       the default {@code Coder} type. The {@link Coder} class must satisfy the requirements
  *       of {@link CoderProviders#fromStaticMethods}.
  *   <li>Fallback: A fallback {@link CoderProvider} is used to attempt to provide a {@link Coder}
- *       for any type. By default, this is {@link SerializableCoder#PROVIDER}, which can provide
- *       a {@link Coder} for any type that is serializable via Java serialization. The fallback
- *       {@link CoderProvider} can be get and set via {@link #getFallbackCoderProvider()}
- *       and {@link #setFallbackCoderProvider}. Multiple fallbacks can be chained together using
- *       {@link CoderProviders#firstOf}.
+ *       for any type. By default, there are two chained fallback coders:
+ *       {@link ProtoCoder#coderProvider}, which can provide a coder to efficiently serialize any
+ *       Protocol Buffers message, and then {@link SerializableCoder#PROVIDER}, which can provide a
+ *       {@link Coder} for any type that is serializable via Java serialization. The fallback
+ *       {@link CoderProvider} can be get and set respectively using
+ *       {@link #getFallbackCoderProvider()} and {@link #setFallbackCoderProvider}. Multiple
+ *       fallbacks can be chained together using {@link CoderProviders#firstOf}.
  * </ol>
  */
 public class CoderRegistry implements CoderProvider {
@@ -366,7 +369,8 @@ public class CoderRegistry implements CoderProvider {
    * providing a {@code Coder<T>} for a type {@code T}, then the registry will attempt to create
    * a {@link Coder} using this {@link CoderProvider}.
    *
-   * <p>By default, this is set to {@link SerializableCoder#PROVIDER}.
+   * <p>By default, this is set to the chain of {@link ProtoCoder#coderProvider()} and
+   * {@link SerializableCoder#PROVIDER}.
    *
    * <p>See {@link #getFallbackCoderProvider}.
    */
@@ -382,6 +386,8 @@ public class CoderRegistry implements CoderProvider {
   public CoderProvider getFallbackCoderProvider() {
     return fallbackCoderProvider;
   }
+
+  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Returns a {@code Map} from each of {@code baseClass}'s type parameters to the {@link Coder} to
@@ -413,11 +419,8 @@ public class CoderRegistry implements CoderProvider {
    * @param baseClass the base type, a parameterized class
    * @param knownCoders a map corresponding to the set of known {@link Coder Coders} indexed by
    * parameter name
-   *
-   * @deprecated this method is not part of the public interface and will be made private
    */
-  @Deprecated
-  public <T> Map<Type, Coder<?>> getDefaultCoders(
+  private <T> Map<Type, Coder<?>> getDefaultCoders(
       Class<? extends T> subClass,
       Class<T> baseClass,
       Map<Type, ? extends Coder<?>> knownCoders) {
@@ -525,8 +528,6 @@ public class CoderRegistry implements CoderProvider {
   }
 
 
-  /////////////////////////////////////////////////////////////////////////////
-
   /**
    * Thrown when a {@link Coder} cannot possibly encode a type, yet has been proposed as a
    * {@link Coder} for that type.
@@ -535,13 +536,13 @@ public class CoderRegistry implements CoderProvider {
     private Coder<?> coder;
     private Type type;
 
-    public IncompatibleCoderException(String message, Coder<?> coder, Type type) {
+    IncompatibleCoderException(String message, Coder<?> coder, Type type) {
       super(message);
       this.coder = coder;
       this.type = type;
     }
 
-    public IncompatibleCoderException(String message, Coder<?> coder, Type type, Throwable cause) {
+    IncompatibleCoderException(String message, Coder<?> coder, Type type, Throwable cause) {
       super(message, cause);
       this.coder = coder;
       this.type = type;
