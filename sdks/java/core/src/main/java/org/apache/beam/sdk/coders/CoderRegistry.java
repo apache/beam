@@ -387,6 +387,8 @@ public class CoderRegistry implements CoderProvider {
     return fallbackCoderProvider;
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+
   /**
    * Returns a {@code Map} from each of {@code baseClass}'s type parameters to the {@link Coder} to
    * use by default for it, in the context of {@code subClass}'s specialization of
@@ -525,8 +527,6 @@ public class CoderRegistry implements CoderProvider {
     return result;
   }
 
-
-  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Thrown when a {@link Coder} cannot possibly encode a type, yet has been proposed as a
