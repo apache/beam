@@ -141,7 +141,7 @@ public class DoFnWithContextTest implements Serializable {
 
   @Test
   public void testDoFnWithContextUsingAggregators() {
-    NoOpDoFn<Object, Object> noOpFn = new NoOpDoFn<>();
+    NoOpOldDoFn<Object, Object> noOpFn = new NoOpOldDoFn<>();
     OldDoFn<Object, Object>.Context context = noOpFn.context();
 
     OldDoFn<Object, Object> fn = spy(noOpFn);

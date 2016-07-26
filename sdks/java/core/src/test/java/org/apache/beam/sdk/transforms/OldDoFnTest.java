@@ -60,7 +60,7 @@ public class OldDoFnTest implements Serializable {
     String name = "testAggregator";
     Sum.SumLongFn combiner = new Sum.SumLongFn();
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     Aggregator<Long, Long> aggregator = doFn.createAggregator(name, combiner);
 
@@ -73,7 +73,7 @@ public class OldDoFnTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("name cannot be null");
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator(null, new Sum.SumLongFn());
   }
@@ -85,7 +85,7 @@ public class OldDoFnTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -97,7 +97,7 @@ public class OldDoFnTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -107,7 +107,7 @@ public class OldDoFnTest implements Serializable {
     String name = "testAggregator";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator(name, combiner);
 
@@ -125,7 +125,7 @@ public class OldDoFnTest implements Serializable {
     String nameTwo = "aggregatorPrime";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     Aggregator<Double, Double> aggregatorOne =
         doFn.createAggregator(nameOne, combiner);

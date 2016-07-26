@@ -34,7 +34,7 @@ import org.joda.time.Instant;
  * @param <InputT> unused.
  * @param <OutputT> unused.
  */
-class NoOpDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
+class NoOpOldDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
   @Override
   public void processElement(OldDoFn<InputT, OutputT>.ProcessContext c) throws Exception {
   }
