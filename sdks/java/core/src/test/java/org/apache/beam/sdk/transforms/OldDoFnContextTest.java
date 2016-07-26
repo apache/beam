@@ -46,7 +46,7 @@ public class OldDoFnContextTest {
 
     // Need to be real objects to call the constructor, and to reference the
     // outer instance of OldDoFn
-    NoOpDoFn<Object, Object> noOpFn = new NoOpDoFn<>();
+    NoOpOldDoFn<Object, Object> noOpFn = new NoOpOldDoFn<>();
     OldDoFn<Object, Object>.Context noOpContext = noOpFn.context();
 
     fn = spy(noOpFn);

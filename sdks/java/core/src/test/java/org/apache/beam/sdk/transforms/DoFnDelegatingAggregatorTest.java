@@ -54,7 +54,7 @@ public class DoFnDelegatingAggregatorTest {
 
   @Test
   public void testAddValueWithoutDelegateThrowsException() {
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
@@ -74,7 +74,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Long, ?, Long> combiner = mockCombineFn(Long.class);
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Long, Long> aggregator =
         (DelegatingAggregator<Long, Long>) doFn.createAggregator(name, combiner);
@@ -91,7 +91,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Double, Double> aggregator =
         (DelegatingAggregator<Double, Double>) doFn.createAggregator(name, combiner);
@@ -114,7 +114,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Double, Double> aggregator =
         (DelegatingAggregator<Double, Double>) doFn.createAggregator(name, combiner);
@@ -127,7 +127,7 @@ public class DoFnDelegatingAggregatorTest {
     String name = "agg";
     CombineFn<Double, ?, Double> combiner = mockCombineFn(Double.class);
 
-    OldDoFn<Void, Void> doFn = new NoOpDoFn<>();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     DelegatingAggregator<Double, Double> aggregator =
         (DelegatingAggregator<Double, Double>) doFn.createAggregator(name, combiner);
