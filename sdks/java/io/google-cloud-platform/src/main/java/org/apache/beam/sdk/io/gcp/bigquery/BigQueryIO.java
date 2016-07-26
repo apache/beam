@@ -1960,9 +1960,7 @@ public class BigQueryIO {
 
       public final KV<String, Long> close() throws IOException {
         channel.close();
-        KV<String, Long> result = KV.of(fileName, out.getCount());
-        LOG.info("Result for bundle {}: {}, {}", this.id, fileName, result.getValue());
-        return result;
+        return KV.of(fileName, out.getCount());
       }
     }
   }
