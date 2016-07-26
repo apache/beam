@@ -192,11 +192,11 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
-                  <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.common</shadedPattern>
+                  <shadedPattern>${project.groupId}.${project.artifactId}.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.thirdparty</shadedPattern>
+                  <shadedPattern>${project.groupId}.${project.artifactId}.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
