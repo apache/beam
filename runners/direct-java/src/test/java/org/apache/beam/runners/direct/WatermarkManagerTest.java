@@ -57,6 +57,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -1421,8 +1422,10 @@ public class WatermarkManagerTest implements Serializable {
       AppliedPTransform<?, ?, ?> transform,
       @Nullable CommittedBundle<?> unprocessedBundle,
       Iterable<? extends CommittedBundle<?>> bundles) {
-    return CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+    return CommittedResult.create(
+        StepTransformResult.withoutHold(transform).build(),
         unprocessedBundle,
-        bundles);
+        bundles,
+        !Iterables.isEmpty(bundles));
   }
 }

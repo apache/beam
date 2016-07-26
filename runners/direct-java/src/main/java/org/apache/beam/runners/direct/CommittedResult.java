@@ -49,12 +49,16 @@ abstract class CommittedResult {
    */
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
+  public abstract boolean producedOutputs();
+
   public static CommittedResult create(
       TransformResult original,
       CommittedBundle<?> unprocessedElements,
-      Iterable<? extends CommittedBundle<?>> outputs) {
+      Iterable<? extends CommittedBundle<?>> outputs,
+      boolean producedOutputs) {
     return new AutoValue_CommittedResult(original.getTransform(),
         unprocessedElements,
-        outputs);
+        outputs,
+        producedOutputs);
   }
 }

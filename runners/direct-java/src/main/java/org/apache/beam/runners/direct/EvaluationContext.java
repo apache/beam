@@ -159,7 +159,8 @@ class EvaluationContext {
         completedBundle == null
             ? null
             : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
-        committedBundles);
+        committedBundles,
+        result.producedOutput());
     watermarkManager.updateWatermarks(
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
