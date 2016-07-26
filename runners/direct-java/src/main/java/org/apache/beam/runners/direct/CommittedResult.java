@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 
 import com.google.auto.value.AutoValue;
 
@@ -49,12 +50,23 @@ abstract class CommittedResult {
    */
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
+  /**
+   * Returns if the transform that produced this result produced outputs.
+   *
+   * <p>Transforms that produce output via modifying the state of the runner (e.g.
+   * {@link CreatePCollectionView}) should explicitly set this to true. If {@link #getOutputs()}
+   * returns a nonempty iterable, this will also return true.
+   */
+  public abstract boolean producedOutputs();
+
   public static CommittedResult create(
       TransformResult original,
       CommittedBundle<?> unprocessedElements,
-      Iterable<? extends CommittedBundle<?>> outputs) {
+      Iterable<? extends CommittedBundle<?>> outputs,
+      boolean producedOutputs) {
     return new AutoValue_CommittedResult(original.getTransform(),
         unprocessedElements,
-        outputs);
+        outputs,
+        producedOutputs);
   }
 }

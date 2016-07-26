@@ -62,9 +62,11 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getTransformExtractsFromResult() {
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createRootBundle(created).commit(Instant.now()),
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList());
+            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            false);
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
   }
@@ -76,9 +78,11 @@ public class CommittedResultTest implements Serializable {
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             bundle,
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList());
+            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            false);
 
     assertThat(result.getUnprocessedInputs(),
         Matchers.<DirectRunner.CommittedBundle<?>>equalTo(bundle));
@@ -87,9 +91,11 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getUncommittedElementsNull() {
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             null,
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList());
+            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            false);
 
     assertThat(result.getUnprocessedInputs(), nullValue());
   }
@@ -104,9 +110,11 @@ public class CommittedResultTest implements Serializable {
                 WindowingStrategy.globalDefault(),
                 PCollection.IsBounded.UNBOUNDED)).commit(Instant.now()));
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createRootBundle(created).commit(Instant.now()),
-            outputs);
+            outputs,
+            true);
 
     assertThat(result.getOutputs(), Matchers.containsInAnyOrder(outputs.toArray()));
   }
