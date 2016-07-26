@@ -750,6 +750,7 @@ class TextFileReader(iobase.NativeSourceReader,
   """A reader for a text file source."""
 
   def __init__(self, source):
+    super(TextFileReader, self).__init__()
     self.source = source
     self.start_offset = self.source.start_offset or 0
     self.end_offset = self.source.end_offset
