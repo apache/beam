@@ -132,6 +132,9 @@ class CountCombineFn(core.CombineFn):
   def create_accumulator(self):
     return 0
 
+  def add_input(self, accumulator, element):
+    return accumulator + 1
+
   def add_inputs(self, accumulator, elements):
     return accumulator + len(elements)
 
@@ -425,9 +428,9 @@ class _TupleCombineFnBase(core.CombineFn):
 
 class TupleCombineFn(_TupleCombineFnBase):
 
-  def add_inputs(self, accumulator, elements):
-    return [c.add_inputs(a, e)
-            for c, a, e in zip(self._combiners, accumulator, zip(*elements))]
+  def add_input(self, accumulator, element):
+    return [c.add_input(a, e)
+            for c, a, e in zip(self._combiners, accumulator, element)]
 
   def with_common_input(self):
     return SingleInputTupleCombineFn(*self._combiners)
@@ -435,8 +438,8 @@ class TupleCombineFn(_TupleCombineFnBase):
 
 class SingleInputTupleCombineFn(_TupleCombineFnBase):
 
-  def add_inputs(self, accumulator, elements):
-    return [c.add_inputs(a, elements)
+  def add_input(self, accumulator, element):
+    return [c.add_input(a, element)
             for c, a in zip(self._combiners, accumulator)]
 
 
@@ -521,9 +524,6 @@ def curry_combine_fn(fn, args, kwargs):
 
       def add_input(self, accumulator, element):
         return fn.add_input(accumulator, element, *args, **kwargs)
-
-      def add_inputs(self, accumulator, elements):
-        return fn.add_inputs(accumulator, elements, *args, **kwargs)
 
       def merge_accumulators(self, accumulators):
         return fn.merge_accumulators(accumulators, *args, **kwargs)
