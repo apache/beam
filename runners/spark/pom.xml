@@ -83,7 +83,8 @@
                           "--streaming=false"
                         ]
                       </beamTestPipelineOptions>
-                      <dataflow.spark.test.reuseSparkContext>true</dataflow.spark.test.reuseSparkContext>
+                      <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
+                      <spark.ui.enabled>false</spark.ui.enabled>
                     </systemPropertyVariables>
                   </configuration>
                 </execution>
@@ -279,6 +280,10 @@
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
+            <systemPropertyVariables>
+              <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
+              <spark.ui.enabled>false</spark.ui.enabled>
+            </systemPropertyVariables>
           </configuration>
         </plugin>
         <plugin>
