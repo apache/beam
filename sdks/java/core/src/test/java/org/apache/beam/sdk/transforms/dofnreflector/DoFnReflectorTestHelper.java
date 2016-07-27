@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.dofnreflector;
 
+import org.apache.beam.sdk.transforms.DoFnReflectorTest.Invocations;
 import org.apache.beam.sdk.transforms.DoFnWithContext;
-import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
 
 /**
  * Test helper for DoFnReflectorTest, which needs to test package-private access
@@ -27,52 +27,82 @@ import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
 public class DoFnReflectorTestHelper {
 
   private static class StaticPrivateDoFn extends DoFnWithContext<String, String> {
+    final Invocations invocations;
+    public StaticPrivateDoFn(Invocations invocations) {
+      this.invocations = invocations;
+    }
     @ProcessElement
-    public void process(ProcessContext c) {}
+    public void process(ProcessContext c) {
+      invocations.wasProcessElementInvoked = true;
+    }
   }
 
-  private class NestedPrivateDoFn extends DoFnWithContext<String, String> {
+  private class InnerPrivateDoFn extends DoFnWithContext<String, String> {
+    final Invocations invocations;
+    public InnerPrivateDoFn(Invocations invocations) {
+      this.invocations = invocations;
+    }
     @ProcessElement
-    public void process(ProcessContext c) {}
+    public void process(ProcessContext c) {
+      invocations.wasProcessElementInvoked = true;
+    }
   }
 
   static class StaticPackagePrivateDoFn extends DoFnWithContext<String, String> {
+    final Invocations invocations;
+    public StaticPackagePrivateDoFn(Invocations invocations) {
+      this.invocations = invocations;
+    }
     @ProcessElement
-    public void process(ProcessContext c) {}
+    public void process(ProcessContext c) {
+      invocations.wasProcessElementInvoked = true;
+    }
   }
 
-  class NestedPackagePrivateDoFn extends DoFnWithContext<String, String> {
+  class InnerPackagePrivateDoFn extends DoFnWithContext<String, String> {
+    final Invocations invocations;
+    public InnerPackagePrivateDoFn(Invocations invocations) {
+      this.invocations = invocations;
+    }
     @ProcessElement
-    public void process(ProcessContext c) {}
+    public void process(ProcessContext c) {
+      invocations.wasProcessElementInvoked = true;
+    }
   }
 
-  public static DoFnWithContext<String, String> newStaticPackagePrivateDoFn() {
-    return new StaticPackagePrivateDoFn();
+  public static DoFnWithContext<String, String> newStaticPackagePrivateDoFn(
+      Invocations invocations) {
+    return new StaticPackagePrivateDoFn(invocations);
   }
 
-  public DoFnWithContext<String, String> newNestedPackagePrivateDoFn() {
-    return new NestedPackagePrivateDoFn();
+  public DoFnWithContext<String, String> newInnerPackagePrivateDoFn(Invocations invocations) {
+    return new InnerPackagePrivateDoFn(invocations);
   }
 
-  public static DoFnWithContext<String, String> newStaticPrivateDoFn() {
-    return new StaticPrivateDoFn();
+  public static DoFnWithContext<String, String> newStaticPrivateDoFn(Invocations invocations) {
+    return new StaticPrivateDoFn(invocations);
   }
 
-  public DoFnWithContext<String, String> newNestedPrivateDoFn() {
-    return new NestedPrivateDoFn();
+  public DoFnWithContext<String, String> newInnerPrivateDoFn(Invocations invocations) {
+    return new InnerPrivateDoFn(invocations);
   }
 
-  public DoFnWithContext<String, String> newNestedAnonymousDoFn() {
+  public DoFnWithContext<String, String> newInnerAnonymousDoFn(final Invocations invocations) {
     return new DoFnWithContext<String, String>() {
       @ProcessElement
-      public void process(ProcessContext c) {}
+      public void process(ProcessContext c) {
+        invocations.wasProcessElementInvoked = true;
+      }
     };
   }
 
-  public static DoFnWithContext<String, String> newStaticAnonymousDoFn() {
+  public static DoFnWithContext<String, String> newStaticAnonymousDoFn(
+      final Invocations invocations) {
     return new DoFnWithContext<String, String>() {
       @ProcessElement
-      public void process(ProcessContext c) {}
+      public void process(ProcessContext c) {
+        invocations.wasProcessElementInvoked = true;
+      }
     };
   }
 }
