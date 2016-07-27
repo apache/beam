@@ -42,7 +42,6 @@ import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.NamingStrategy.SuffixingRandom;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
@@ -54,7 +53,6 @@ import net.bytebuddy.description.type.TypeDescription.Generic;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.MethodCall.MethodLocator;
@@ -74,7 +72,6 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -93,7 +90,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 
