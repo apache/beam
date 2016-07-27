@@ -2134,14 +2134,14 @@ public class Combine {
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
-          .apply("StripNonce", ParDo.of(
-              new DoFn<KV<KV<K, Integer>, AccumT>,
-                                     KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(
-                      c.element().getKey().getKey(),
-                      InputOrAccum.<InputT, AccumT>accum(c.element().getValue())));
+          .apply("StripNonce", MapElements.via(
+              new SimpleFunction<KV<KV<K, Integer>, AccumT>,
+                       KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<KV<K, Integer>, AccumT> elem) {
+                  return KV.of(
+                      elem.getKey().getKey(),
+                      InputOrAccum.<InputT, AccumT>accum(elem.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
@@ -2150,12 +2150,12 @@ public class Combine {
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply("PrepareCold", ParDo.of(
-              new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(c.element().getKey(),
-                                 InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
+          .apply("PrepareCold", MapElements.via(
+              new SimpleFunction<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<K, InputT> element) {
+                  return KV.of(element.getKey(),
+                                 InputOrAccum.<InputT, AccumT>input(element.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));

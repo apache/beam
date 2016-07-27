@@ -34,9 +34,11 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.values.KV;
@@ -1314,10 +1316,10 @@ public class KafkaIO {
     public PDone apply(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
-          ParDo.of(new DoFn<V, KV<Void, V>>() {
-            @ProcessElement
-            public void processElement(ProcessContext ctx) throws Exception {
-              ctx.output(KV.<Void, V>of(null, ctx.element()));
+          MapElements.via(new SimpleFunction<V, KV<Void, V>>() {
+            @Override
+            public KV<Void, V> apply(V element) {
+              return KV.<Void, V>of(null, element);
             }
           }))
         .setCoder(KvCoder.of(VoidCoder.of(), kvWriteTransform.valueCoder))

@@ -90,7 +90,9 @@ public class WriteTest {
   // Static counts of the number of records per shard.
   private static List<Integer> recordsPerShard = new ArrayList<>();
 
-  private static final MapElements<String, String> IDENTITY_MAP =
+  @SuppressWarnings("unchecked") // covariant cast
+  private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
+      (PTransform)
       MapElements.via(new SimpleFunction<String, String>() {
         @Override
         public String apply(String input) {
