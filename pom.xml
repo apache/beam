@@ -48,7 +48,7 @@
     <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
     <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
     <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
-    <tag>release-0.1.0-incubating</tag>
+    <tag>release-0.2.0-incubating</tag>
   </scm>
 
   <issueManagement>
@@ -98,7 +98,7 @@
     <skipITs>true</skipITs>
 
     <!-- Do not add additional surefire arguments by default -->
-    <beamSurefireArgline></beamSurefireArgline>
+    <beamSurefireArgline />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.8.1</avro.version>

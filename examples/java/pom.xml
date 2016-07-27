@@ -45,7 +45,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <beamUseDummyRunner></beamUseDummyRunner>
+            <beamUseDummyRunner />
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
