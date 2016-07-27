@@ -112,7 +112,7 @@ public class KafkaStreamingTest {
 
     PAssertStreaming.assertContents(formattedKV, EXPECTED);
 
-    EvaluationResult res = SparkRunner.create(options).run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 

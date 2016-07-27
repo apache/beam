@@ -70,7 +70,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
         .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssertStreaming.assertContents(output, EXPECTED_COUNTS);
-    EvaluationResult res = SparkRunner.create(options).run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 }

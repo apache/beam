@@ -72,7 +72,7 @@ public class TfIdfTest {
 
     PAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
 
-    EvaluationResult res = SparkRunner.create().run(pipeline);
+    EvaluationResult res = (EvaluationResult) pipeline.run();
     res.close();
   }
 

@@ -77,7 +77,7 @@ public class FlattenStreamingTest {
 
     PAssertStreaming.assertContents(union, EXPECTED_UNION);
 
-    EvaluationResult res = SparkRunner.create(options).run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 
