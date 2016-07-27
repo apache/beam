@@ -233,7 +233,7 @@ public class MapElementsTest implements Serializable {
   }
   @Test
   public void testSimpleFunctionDisplayData() {
-    SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
+    SimpleFunction<Integer, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
       @Override
       public Integer apply(Integer input) {
         return input;
@@ -255,17 +255,17 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testPrimitiveDisplayData() {
-    SimpleFunction<?, ?> mapFn = new SimpleFunction<Integer, Integer>() {
+    SimpleFunction<Integer, ?> mapFn = new SimpleFunction<Integer, Integer>() {
       @Override
       public Integer apply(Integer input) {
         return input;
       }
     };
 
-    MapElements<?, ?> map = MapElements.via(mapFn);
+    MapElements<Integer, ?> map = MapElements.via(mapFn);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(map);
+    Set<DisplayData> displayData = evaluator.<Integer>displayDataForPrimitiveTransforms(map);
     assertThat("MapElements should include the mapFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("mapFn", mapFn.getClass())));
   }
