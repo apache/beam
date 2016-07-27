@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -387,7 +386,7 @@ public class CombineTest implements Serializable {
 
     PCollection<String> output = input
         .apply(Window.<Integer>into(new GlobalWindows())
-            .triggering(AfterPane.elementCountAtLeast(1))
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
             .accumulatingFiredPanes()
             .withAllowedLateness(new Duration(0)))
         .apply(Sum.integersGlobally())
@@ -583,7 +582,13 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
         .apply(ParDo.of(new GetLast()));
 
-    PAssert.that(output).containsInAnyOrder(15);
+    PAssert.that(output).satisfies(new SerializableFunction<Iterable<Integer>, Void>() {
+      @Override
+      public Void apply(Iterable<Integer> input) {
+        assertThat(input, hasItem(15));
+        return null;
+      }
+    });
 
     pipeline.run();
   }
