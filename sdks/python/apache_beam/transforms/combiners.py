@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import heapq
 import itertools
+import operator
 import random
 
 from apache_beam.transforms import core
@@ -148,7 +149,7 @@ class Top(object):
   # pylint: disable=no-self-argument
 
   @ptransform.ptransform_fn
-  def Of(pcoll, n, compare, *args, **kwargs):
+  def Of(pcoll, n, compare=None, *args, **kwargs):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
@@ -157,7 +158,11 @@ class Top(object):
 
     compare should be an implementation of "a < b" taking at least two arguments
     (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.
+    become additional arguments to the comparator.  Defaults to the natural
+    ordering of the elements.
+
+    The arguments 'key' and 'reverse' may instead be passed as keyword
+    arguments, and have the same meaning as for Python's sort functions.
 
     Args:
       pcoll: PCollection to process.
@@ -166,11 +171,13 @@ class Top(object):
       *args: as described above.
       **kwargs: as described above.
     """
+    key = kwargs.pop('key', None)
+    reverse = kwargs.pop('reverse', False)
     return pcoll | core.CombineGlobally(
-        TopCombineFn(n, compare), *args, **kwargs)
+        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
   @ptransform.ptransform_fn
-  def PerKey(pcoll, n, compare, *args, **kwargs):
+  def PerKey(pcoll, n, compare=None, *args, **kwargs):
     """Identifies the compare-most N elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
@@ -180,7 +187,11 @@ class Top(object):
 
     compare should be an implementation of "a < b" taking at least two arguments
     (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.
+    become additional arguments to the comparator.  Defaults to the natural
+    ordering of the elements.
+
+    The arguments 'key' and 'reverse' may instead be passed as keyword
+    arguments, and have the same meaning as for Python's sort functions.
 
     Args:
       pcoll: PCollection to process.
@@ -193,28 +204,30 @@ class Top(object):
       TypeCheckError: If the output type of the input PCollection is not
         compatible with KV[A, B].
     """
+    key = kwargs.pop('key', None)
+    reverse = kwargs.pop('reverse', False)
     return pcoll | core.CombinePerKey(
-        TopCombineFn(n, compare), *args, **kwargs)
+        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
   @ptransform.ptransform_fn
   def Largest(pcoll, n):
     """Obtain a list of the greatest N elements in a PCollection."""
-    return pcoll | Top.Of(n, lambda a, b: a < b)
+    return pcoll | Top.Of(n)
 
   @ptransform.ptransform_fn
   def Smallest(pcoll, n):
     """Obtain a list of the least N elements in a PCollection."""
-    return pcoll | Top.Of(n, lambda a, b: b < a)
+    return pcoll | Top.Of(n, reverse=True)
 
   @ptransform.ptransform_fn
   def LargestPerKey(pcoll, n):
     """Identifies the N greatest elements associated with each key."""
-    return pcoll | Top.PerKey(n, lambda a, b: a < b)
+    return pcoll | Top.PerKey(n)
 
   @ptransform.ptransform_fn
-  def SmallestPerKey(pcoll, n):
+  def SmallestPerKey(pcoll, n, reverse=True):
     """Identifies the N least elements associated with each key."""
-    return pcoll | Top.PerKey(n, lambda a, b: b < a)
+    return pcoll | Top.PerKey(n, reverse=True)
 
 
 @with_input_types(T)
@@ -222,17 +235,52 @@ class Top(object):
 class TopCombineFn(core.CombineFn):
   """CombineFn doing the combining for all of the Top transforms.
 
-  The comparator function supplied as an argument to the apply call invoking
-  TopCombineFn should be an implementation of "a < b" taking at least two
-  arguments (a and b). Additional arguments and side inputs specified in the
-  apply call become additional arguments to the comparator.
+  This CombineFn uses a key or comparison operator to rank the elements.
+
+  Args:
+    compare: (optional) an implementation of "a < b" taking at least two
+        arguments (a and b). Additional arguments and side inputs specified
+        in the apply call become additional arguments to the comparator.
+    key: (optional) a mapping of elements to a comparable key, similar to
+        the key argument of Python's sorting methods.
+    reverse: (optional) whether to order things smallest to largest, rather
+        than largest to smallest
   """
 
+  _MIN_BUFFER_OVERSIZE = 100
+  _MAX_BUFFER_OVERSIZE = 1000
+
   # TODO(robertwb): Allow taking a key rather than a compare.
-  def __init__(self, n, compare):
+  def __init__(self, n, compare=None, key=None, reverse=False):
     self._n = n
-    self._buffer_size = min(2 * n, n + 1000)
-    self._compare = compare
+    self._buffer_size = max(
+        min(2 * n, n + TopCombineFn._MAX_BUFFER_OVERSIZE),
+        n + TopCombineFn._MIN_BUFFER_OVERSIZE)
+
+    if compare is operator.lt:
+      compare = None
+    elif compare is operator.gt:
+      compare = None
+      reverse = not reverse
+
+    if compare and key:
+        raise ValueError("Must specify at most one of compare or key.")
+    elif compare:
+      self._compare = (
+          (lambda a, b, *args, **kwards: not compare(a, b, *args, **kwargs))
+          if reverse
+          else compare)
+    else:
+      self._compare = operator.gt if reverse else operator.lt
+
+    self._key_fn = key
+    self._reverse = reverse
+
+  def _sort_buffer(self, buffer, lt):
+    if self._key_fn or lt in (operator.gt, operator.lt):
+      buffer.sort(key=self._key_fn, reverse=self._reverse)
+    else:
+      buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)))
 
   def create_accumulator(self, *args, **kwargs):
     return None, []
@@ -244,22 +292,26 @@ class TopCombineFn(core.CombineFn):
       lt = self._compare
 
     threshold, buffer = accumulator
+    element_key = self._key_fn(element) if self._key_fn else element
+
     if len(buffer) < self._n:
       if not buffer:
-        return element, [element]
+        return element_key, [element]
       else:
         buffer.append(element)
-        if lt(element, threshold):  # element < threshold
-          return element, buffer
+        if lt(element_key, threshold):  # element_key < threshold
+          return element_key, buffer
         else:
           return accumulator  # with mutated buffer
-    elif lt(threshold, element):  # threshold < element
+    elif lt(threshold, element_key):  # threshold < element_key
       buffer.append(element)
       if len(buffer) < self._buffer_size:
         return accumulator
       else:
-        buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)))
-        return buffer[-self._n], buffer[-self._n:]
+        self._sort_buffer(buffer, lt)
+        min_element = buffer[-self._n]
+        threshold = self._key_fn(min_element) if self._key_fn else min_element
+        return threshold, buffer[-self._n:]
     else:
       return accumulator
 
@@ -287,14 +339,14 @@ class TopCombineFn(core.CombineFn):
       lt = self._compare
 
     _, buffer = accumulator
-    buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)))
-    return buffer[:-self._n-1:-1]
+    self._sort_buffer(buffer, lt)
+    return buffer[:-self._n-1:-1]  # tail, reversed
 
 
 class Largest(TopCombineFn):
 
   def __init__(self, n):
-    super(Largest, self).__init__(n, lambda a, b: a < b)
+    super(Largest, self).__init__(n)
 
   def default_label(self):
     return 'Largest(%s)' % self._n
@@ -303,7 +355,7 @@ class Largest(TopCombineFn):
 class Smallest(TopCombineFn):
 
   def __init__(self, n):
-    super(Smallest, self).__init__(n, lambda a, b: b < a)
+    super(Smallest, self).__init__(n, reverse=True)
 
   def default_label(self):
     return 'Smallest(%s)' % self._n
@@ -333,7 +385,7 @@ class SampleCombineFn(core.CombineFn):
     # subclass TopCombineFn to make this class, but since sampling is not
     # really a kind of Top operation, we use a TopCombineFn instance as a
     # helper instead.
-    self._top_combiner = TopCombineFn(n, lambda a, b: a < b)
+    self._top_combiner = TopCombineFn(n)
 
   def create_accumulator(self):
     return self._top_combiner.create_accumulator()
