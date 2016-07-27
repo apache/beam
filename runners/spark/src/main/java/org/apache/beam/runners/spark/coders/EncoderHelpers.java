@@ -16,30 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.runners.spark.coders;
 
-import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
+import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.Encoders;
 
+import scala.Tuple2;
 
 /**
- * Evaluation context generic interface for all sorts of implementations.
+ * {@link Encoders} utility class.
  */
-public interface EvaluationContext extends EvaluationResult {
+public class EncoderHelpers {
 
-  Pipeline getPipeline();
+  @SuppressWarnings("unchecked")
+  public static <T> Encoder<T> encoder() {
+    return Encoders.kryo((Class<T>) Object.class);
+  }
 
-  void setCurrentTransform(AppliedPTransform<?, ?, ?> transform);
-
-  AppliedPTransform<?, ?, ?> getCurrentTransform();
-
-  <T extends PInput> T getInput(PTransform<T, ?> transform);
-
-  <T extends POutput> T getOutput(PTransform<?, T> transform);
-
-  void computeOutputs();
+  public static <T1, T2> Encoder<Tuple2<T1, T2>> tuple2Encoder() {
+    return Encoders.tuple(EncoderHelpers.<T1>encoder(), EncoderHelpers.<T2>encoder());
+  }
 }

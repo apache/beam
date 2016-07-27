@@ -18,23 +18,23 @@
 
 package org.apache.beam.runners.spark;
 
+import org.apache.beam.runners.spark.translation.DatasetEvaluationContext;
+import org.apache.beam.runners.spark.translation.DatasetTransformTranslator;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineEvaluator;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkProcessContext;
+import org.apache.beam.runners.spark.translation.SparkSessionFactory;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingEvaluationContext;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingWindowPipelineDetector;
-import org.apache.beam.runners.spark.util.SinglePrimitiveOutputPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.POutput;
 
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.slf4j.Logger;
@@ -117,17 +118,14 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   /**
    * Overrides for this runner.
    */
-  @SuppressWarnings("rawtypes")
   @Override
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
 
     if (transform instanceof GroupByKey) {
       return (OutputT) ((PCollection) input).apply(
           new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
-    } else if (transform instanceof Create.Values) {
-      return (OutputT) super.apply(
-        new SinglePrimitiveOutputPTransform((Create.Values) transform), input);
     } else {
       return super.apply(transform, input);
     }
@@ -152,9 +150,9 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
             + SparkStreamingPipelineOptions.class.getSimpleName() + ", found "
             + mOptions.getClass().getSimpleName());
       }
-      LOG.info("Executing pipeline using the SparkRunner.");
-      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
-              .getSparkMaster(), mOptions.getAppName());
+      LOG.info("Executing pipeline using the SparkPipelineRunner.");
+      SparkSession session = SparkSessionFactory.createSparkSession(mOptions.getSparkMaster(),
+          mOptions.getAppName());
 
       if (mOptions.isStreaming()) {
         SparkPipelineTranslator translator =
@@ -169,7 +167,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
         Duration batchInterval = streamingWindowPipelineDetector.getBatchDuration();
         LOG.info("Setting Spark streaming batchInterval to {} msec", batchInterval.milliseconds());
-        EvaluationContext ctxt = createStreamingEvaluationContext(jsc, pipeline, batchInterval);
+        EvaluationContext ctxt = createStreamingEvaluationContext(session, pipeline, batchInterval);
 
         pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
         ctxt.computeOutputs();
@@ -179,8 +177,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
         return ctxt;
       } else {
-        EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
-        SparkPipelineTranslator translator = new TransformTranslator.Translator();
+        EvaluationContext ctxt = new DatasetEvaluationContext(session, pipeline);
+        SparkPipelineTranslator translator = new DatasetTransformTranslator.Translator();
         pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
         ctxt.computeOutputs();
 
@@ -208,11 +206,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   }
 
   private EvaluationContext
-      createStreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
+      createStreamingEvaluationContext(SparkSession session, Pipeline pipeline,
       Duration batchDuration) {
     SparkStreamingPipelineOptions streamingOptions = (SparkStreamingPipelineOptions) mOptions;
-    JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
-    return new StreamingEvaluationContext(jsc, pipeline, jssc, streamingOptions.getTimeout());
+    JavaStreamingContext jssc =
+        new JavaStreamingContext(new JavaSparkContext(session.sparkContext()), batchDuration);
+    return new StreamingEvaluationContext(session, pipeline, jssc, streamingOptions.getTimeout());
   }
 
   /**

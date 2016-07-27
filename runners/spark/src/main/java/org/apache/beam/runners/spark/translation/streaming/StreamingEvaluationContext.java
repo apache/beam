@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 
-import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.BatchEvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,6 +33,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -46,18 +47,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 
 /**
- * Streaming evaluation context helps to handle streaming.
+ * Evaluation context for streaming using {@link org.apache.spark.streaming.dstream.DStream}s.
  */
-public class StreamingEvaluationContext extends EvaluationContext {
+public class StreamingEvaluationContext extends BatchEvaluationContext {
 
   private final JavaStreamingContext jssc;
   private final long timeout;
   private final Map<PValue, DStreamHolder<?>> pstreams = new LinkedHashMap<>();
   private final Set<DStreamHolder<?>> leafStreams = new LinkedHashSet<>();
 
-  public StreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
+  public StreamingEvaluationContext(SparkSession session, Pipeline pipeline,
       JavaStreamingContext jssc, long timeout) {
-    super(jsc, pipeline);
+    super(session, pipeline);
     this.jssc = jssc;
     this.timeout = timeout;
   }
@@ -160,10 +161,14 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   @Override
   public void close() {
-    if (timeout > 0) {
-      jssc.awaitTerminationOrTimeout(timeout);
-    } else {
-      jssc.awaitTermination();
+    try {
+      if (timeout > 0) {
+        jssc.awaitTerminationOrTimeout(timeout);
+      } else {
+        jssc.awaitTermination();
+      }
+    } catch (InterruptedException e) {
+      LOG.error("Failed to wait for Spark streaming execution to stop.", e);
     }
     //TODO: stop gracefully ?
     jssc.stop(false, false);
@@ -180,11 +185,11 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   //---------------- override in order to expose in package
   @Override
-  protected <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
+  public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
     return super.getInput(transform);
   }
   @Override
-  protected <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
+  public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
     return super.getOutput(transform);
   }
 
@@ -199,12 +204,12 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   @Override
-  protected void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
     super.setCurrentTransform(transform);
   }
 
   @Override
-  protected AppliedPTransform<?, ?, ?> getCurrentTransform() {
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
     return super.getCurrentTransform();
   }
 

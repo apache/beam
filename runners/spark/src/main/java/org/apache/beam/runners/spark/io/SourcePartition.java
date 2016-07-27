@@ -16,30 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.runners.spark.io;
 
-import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-
+import org.apache.beam.sdk.io.Source;
+import org.apache.spark.Partition;
 
 /**
- * Evaluation context generic interface for all sorts of implementations.
+ * An input partition wrapping the sharded {@link Source}.
  */
-public interface EvaluationContext extends EvaluationResult {
+public class SourcePartition<T> implements Partition {
 
-  Pipeline getPipeline();
+  final int rddId;
+  final int index;
+  final Source<T> source;
 
-  void setCurrentTransform(AppliedPTransform<?, ?, ?> transform);
+  public SourcePartition(int rddId, int index, Source<T> source) {
+    this.rddId = rddId;
+    this.index = index;
+    this.source = source;
+  }
 
-  AppliedPTransform<?, ?, ?> getCurrentTransform();
+  @Override
+  public int index() {
+    return index;
+  }
 
-  <T extends PInput> T getInput(PTransform<T, ?> transform);
+  @Override
+  public int hashCode() {
+    return 31 * (31 + rddId) + index;
+  }
 
-  <T extends POutput> T getOutput(PTransform<?, T> transform);
-
-  void computeOutputs();
+  @Override
+  public boolean equals(Object other) {
+    return super.equals(other);
+  }
 }

@@ -81,6 +81,10 @@ public final class StreamingTransformTranslator {
   private StreamingTransformTranslator() {
   }
 
+  private static StreamingEvaluationContext streamingEvaluationContext(EvaluationContext context) {
+    return (StreamingEvaluationContext) context;
+  }
+
   private static <T> TransformEvaluator<ConsoleIO.Write.Unbound<T>> print() {
     return new TransformEvaluator<ConsoleIO.Write.Unbound<T>>() {
       @Override
@@ -88,7 +92,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStreamLike<WindowedValue<T>, ?, JavaRDD<WindowedValue<T>>> dstream =
             (JavaDStreamLike<WindowedValue<T>, ?, JavaRDD<WindowedValue<T>>>)
-            ((StreamingEvaluationContext) context).getStream(transform);
+            streamingEvaluationContext(context).getStream(transform);
         dstream.map(WindowingHelpers.<T>unwindowFunction()).print(transform.getNum());
       }
     };
@@ -98,7 +102,7 @@ public final class StreamingTransformTranslator {
     return new TransformEvaluator<KafkaIO.Read.Unbound<K, V>>() {
       @Override
       public void evaluate(KafkaIO.Read.Unbound<K, V> transform, EvaluationContext context) {
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         JavaStreamingContext jssc = sec.getStreamingContext();
         Class<K> keyClazz = transform.getKeyClass();
         Class<V> valueClazz = transform.getValueClass();
@@ -125,7 +129,7 @@ public final class StreamingTransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Create.Values<T> transform, EvaluationContext context) {
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         Iterable<T> elems = transform.getElements();
         Coder<T> coder = sec.getOutput(transform).getCoder();
         sec.setDStreamFromQueue(transform, Collections.singletonList(elems), coder);
@@ -137,7 +141,7 @@ public final class StreamingTransformTranslator {
     return new TransformEvaluator<CreateStream.QueuedValues<T>>() {
       @Override
       public void evaluate(CreateStream.QueuedValues<T> transform, EvaluationContext context) {
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         Iterable<Iterable<T>> values = transform.getQueuedValues();
         Coder<T> coder = sec.getOutput(transform).getCoder();
         sec.setDStreamFromQueue(transform, values, coder);
@@ -150,7 +154,7 @@ public final class StreamingTransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context) {
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         PCollectionList<T> pcs = sec.getInput(transform);
         JavaDStream<WindowedValue<T>> first =
             (JavaDStream<WindowedValue<T>>) sec.getStream(pcs.get(0));
@@ -173,14 +177,14 @@ public final class StreamingTransformTranslator {
         TransformEvaluator<TransformT> rddEvaluator =
             rddTranslator.translate((Class<TransformT>) transform.getClass());
 
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         if (sec.hasStream(transform)) {
           JavaDStreamLike<WindowedValue<Object>, ?, JavaRDD<WindowedValue<Object>>> dStream =
               (JavaDStreamLike<WindowedValue<Object>, ?, JavaRDD<WindowedValue<Object>>>)
               sec.getStream(transform);
 
           sec.setStream(transform, dStream
-              .transform(new RDDTransform<>(sec, rddEvaluator, transform)));
+                  .transform(new RDDTransform<>(sec, rddEvaluator, transform)));
         } else {
           // if the transformation requires direct access to RDD (not in stream)
           // this is used for "fake" transformations like with PAssert
@@ -243,7 +247,7 @@ public final class StreamingTransformTranslator {
         TransformEvaluator<TransformT> rddEvaluator =
             rddTranslator.translate((Class<TransformT>) transform.getClass());
 
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         if (sec.hasStream(transform)) {
           JavaDStreamLike<WindowedValue<Object>, ?, JavaRDD<WindowedValue<Object>>> dStream =
               (JavaDStreamLike<WindowedValue<Object>, ?, JavaRDD<WindowedValue<Object>>>)
@@ -297,7 +301,7 @@ public final class StreamingTransformTranslator {
     return new TransformEvaluator<Window.Bound<T>>() {
       @Override
       public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
-        StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
+        StreamingEvaluationContext sec = streamingEvaluationContext(context);
         //--- first we apply windowing to the stream
         WindowFn<? super T, W> windowFn = WINDOW_FG.get("windowFn", transform);
         @SuppressWarnings("unchecked")

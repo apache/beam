@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.MapFunction;
 
 /**
  * Helper functions for working with windows.
@@ -46,6 +47,23 @@ public final class WindowingHelpers {
   }
 
   /**
+   * A Spark {@link MapFunction} for converting a value to a {@link WindowedValue}. The resulting
+   * {@link WindowedValue} will be in a global windows, and will have the default timestamp == MIN
+   * and pane.
+   *
+   * @param <T>   The type of the object.
+   * @return A {@link MapFunction} that accepts an object and returns its {@link WindowedValue}.
+   */
+  public static <T> MapFunction<T, WindowedValue<T>> windowMapFunction() {
+    return new MapFunction<T, WindowedValue<T>>() {
+      @Override
+      public WindowedValue<T> call(T t) {
+        return WindowedValue.valueInGlobalWindow(t);
+      }
+    };
+  }
+
+  /**
    * A Spark function for extracting the value from a {@link WindowedValue}.
    *
    * @param <T>   The type of the object.
@@ -53,6 +71,21 @@ public final class WindowingHelpers {
    */
   public static <T> Function<WindowedValue<T>, T> unwindowFunction() {
     return new Function<WindowedValue<T>, T>() {
+      @Override
+      public T call(WindowedValue<T> t) {
+        return t.getValue();
+      }
+    };
+  }
+
+  /**
+   * A Spark {@link MapFunction} for extracting the value from a {@link WindowedValue}.
+   *
+   * @param <T>   The type of the object.
+   * @return A {@link MapFunction} that accepts a {@link WindowedValue} and returns its value.
+   */
+  public static <T> MapFunction<WindowedValue<T>, T> unwindowMapFunction() {
+    return new MapFunction<WindowedValue<T>, T>() {
       @Override
       public T call(WindowedValue<T> t) {
         return t.getValue();

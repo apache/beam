@@ -27,6 +27,8 @@ public class AggAccumParam implements AccumulatorParam<NamedAggregators> {
 
   @Override
   public NamedAggregators addAccumulator(NamedAggregators current, NamedAggregators added) {
+    added = ifNullNewInstance(added);
+    current = ifNullNewInstance(current);
     return current.merge(added);
   }
 
@@ -37,6 +39,13 @@ public class AggAccumParam implements AccumulatorParam<NamedAggregators> {
 
   @Override
   public NamedAggregators zero(NamedAggregators initialValue) {
-    return new NamedAggregators();
+    return null;
+  }
+
+  private static NamedAggregators ifNullNewInstance(NamedAggregators namedAggregators) {
+    if (namedAggregators == null) {
+      namedAggregators = new NamedAggregators();
+    }
+    return namedAggregators;
   }
 }
