@@ -34,7 +34,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <spark.version>2.0.0-SNAPSHOT</spark.version>
+    <spark.version>2.0.0</spark.version>
     <hadoop.version>2.2.0</hadoop.version>
     <kafka.version>0.8.2.1</kafka.version>
   </properties>
@@ -81,6 +81,7 @@
                         ]
                       </beamTestPipelineOptions>
                       <dataflow.spark.test.reuseSparkContext>true</dataflow.spark.test.reuseSparkContext>
+                      <spark.sql.shuffle.partitions>8</spark.sql.shuffle.partitions>
                     </systemPropertyVariables>
                   </configuration>
                 </execution>
@@ -120,7 +121,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-streaming-kafka_2.11</artifactId>
+      <artifactId>spark-streaming-kafka-0-8_2.11</artifactId>
       <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -375,6 +376,9 @@
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
+            <systemPropertyVariables>
+              <spark.sql.shuffle.partitions>8</spark.sql.shuffle.partitions>
+            </systemPropertyVariables>
           </configuration>
         </plugin>
         <plugin>
