@@ -49,7 +49,7 @@ public class EmptyInputTest {
     PCollection<String> inputWords = p.apply(Create.of(empty).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = inputWords.apply(Combine.globally(new ConcatWords()));
 
-    EvaluationResult res = SparkRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     assertEquals("", Iterables.getOnlyElement(res.get(output)));
     res.close();
   }

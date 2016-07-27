@@ -69,8 +69,6 @@ import org.slf4j.LoggerFactory;
  * options.setSparkMaster("spark://host:port");
  * EvaluationResult result = SparkRunner.create(options).run(p);
  * }
- *
- * To create a Spark streaming pipeline runner use {@link SparkStreamingPipelineOptions}
  */
 public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
@@ -146,12 +144,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   @Override
   public EvaluationResult run(Pipeline pipeline) {
     try {
-      // validate streaming configuration
-      if (mOptions.isStreaming() && !(mOptions instanceof SparkStreamingPipelineOptions)) {
-        throw new RuntimeException("A streaming job must be configured with "
-            + SparkStreamingPipelineOptions.class.getSimpleName() + ", found "
-            + mOptions.getClass().getSimpleName());
-      }
       LOG.info("Executing pipeline using the SparkRunner.");
       JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
               .getSparkMaster(), mOptions.getAppName());
@@ -179,6 +171,9 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
         return ctxt;
       } else {
+        if (mOptions.getTimeout() > 0) {
+          LOG.info("Timeout is ignored by the SparkRunner in batch.");
+        }
         EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
         SparkPipelineTranslator translator = new TransformTranslator.Translator();
         pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
@@ -210,9 +205,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   private EvaluationContext
       createStreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
       Duration batchDuration) {
-    SparkStreamingPipelineOptions streamingOptions = (SparkStreamingPipelineOptions) mOptions;
     JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
-    return new StreamingEvaluationContext(jsc, pipeline, jssc, streamingOptions.getTimeout());
+    return new StreamingEvaluationContext(jsc, pipeline, jssc, mOptions.getTimeout());
   }
 
   /**

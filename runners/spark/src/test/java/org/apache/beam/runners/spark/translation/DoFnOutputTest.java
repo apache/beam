@@ -41,9 +41,9 @@ public class DoFnOutputTest implements Serializable {
   public void test() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline p = Pipeline.create(options);
 
-    PCollection<String> strings = pipeline.apply(Create.of("a"));
+    PCollection<String> strings = p.apply(Create.of("a"));
     // Test that values written from startBundle() and finishBundle() are written to
     // the output
     PCollection<String> output = strings.apply(ParDo.of(new OldDoFn<String, String>() {
@@ -63,7 +63,7 @@ public class DoFnOutputTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("start", "a", "finish");
 
-    EvaluationResult res = SparkRunner.create().run(pipeline);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 }
