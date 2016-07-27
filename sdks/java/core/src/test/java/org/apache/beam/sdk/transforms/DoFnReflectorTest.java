@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.DoFnWithContext.Context;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessContext;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
+import org.apache.beam.sdk.transforms.dofnreflector.DoFnReflectorTestHelper;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -355,6 +356,36 @@ public class DoFnReflectorTest {
       @FinishBundle
       public void baz() {}
     });
+  }
+
+  private static class PrivateDoFnClass extends DoFnWithContext<String, String> {
+    @ProcessElement
+    public void processThis(ProcessContext c) {}
+  }
+
+  @Test
+  public void testLocalPrivateDoFnClass() throws Exception {
+    underTest(new PrivateDoFnClass());
+  }
+
+  @Test
+  public void testStaticPackagePrivateDoFnClass() throws Exception {
+    underTest(DoFnReflectorTestHelper.newStaticPackagePrivateDoFn());
+  }
+
+  @Test
+  public void testNestedPackagePrivateDoFnClass() throws Exception {
+    underTest(new DoFnReflectorTestHelper().newNestedPackagePrivateDoFn());
+  }
+
+  @Test
+  public void testStaticPrivateDoFnClass() throws Exception {
+    underTest(DoFnReflectorTestHelper.newStaticPrivateDoFn());
+  }
+
+  @Test
+  public void testNestedPrivateDoFnClass() throws Exception {
+    underTest(new DoFnReflectorTestHelper().newNestedPrivateDoFn());
   }
 
   @Test

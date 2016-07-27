@@ -42,6 +42,7 @@ import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.ParameterList;
@@ -499,7 +500,18 @@ public abstract class DoFnReflector {
      */
     private Constructor<? extends DoFnInvoker<?, ?>> createInvokerConstructor(
         @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> clazz) {
+
+      final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
+
       DynamicType.Builder<?> builder = new ByteBuddy()
+          // Create subclasses inside the target class's package
+          .with(new NamingStrategy.SuffixingRandom("auxiliary") {
+                @Override
+                public String subclass(TypeDescription.Generic superClass) {
+                  return super.name(clazzDescription);
+                }
+              })
+          // Create a subclass of DoFnInvoker
           .subclass(DoFnInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
           .defineField(FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
           // Define a constructor to populate fields appropriately.
