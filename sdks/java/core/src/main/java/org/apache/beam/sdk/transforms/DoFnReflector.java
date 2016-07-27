@@ -43,16 +43,19 @@ import com.google.common.reflect.TypeToken;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
+import net.bytebuddy.NamingStrategy.SuffixingRandom;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.ParameterList;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.Generic;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.MethodCall.MethodLocator;
 import net.bytebuddy.implementation.StubMethod;
@@ -504,15 +507,16 @@ public abstract class DoFnReflector {
       final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
 
       DynamicType.Builder<?> builder = new ByteBuddy()
-          // Create subclasses inside the target class's package
-          .with(new NamingStrategy.SuffixingRandom("auxiliary") {
+          // Create subclasses inside the target class, to have access to
+          // private and package-private bits
+          .with(new SuffixingRandom("auxiliary") {
                 @Override
-                public String subclass(TypeDescription.Generic superClass) {
+                public String subclass(Generic superClass) {
                   return super.name(clazzDescription);
                 }
               })
           // Create a subclass of DoFnInvoker
-          .subclass(DoFnInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
+          .subclass(DoFnInvoker.class, Default.NO_CONSTRUCTORS)
           .defineField(FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
           // Define a constructor to populate fields appropriately.
           .defineConstructor(Visibility.PUBLIC)
