@@ -19,8 +19,6 @@
 
 from __future__ import absolute_import
 
-import heapq
-import itertools
 import operator
 import random
 
@@ -264,7 +262,7 @@ class TopCombineFn(core.CombineFn):
       reverse = not reverse
 
     if compare and key:
-        raise ValueError("Must specify at most one of compare or key.")
+      raise ValueError("Must specify at most one of compare or key.")
     elif compare:
       self._compare = (
           (lambda a, b, *args, **kwards: not compare(a, b, *args, **kwargs))
