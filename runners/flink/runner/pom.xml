@@ -42,6 +42,9 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
+
+              <!-- This configures the inherited runnable-on-service-tests
+                   execution to execute with a local Flink instance. -->
               <execution>
                 <id>runnable-on-service-tests</id>
                 <phase>integration-test</phase>
@@ -54,6 +57,32 @@
                       [
                         "--runner=TestFlinkRunner",
                         "--streaming=false"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+
+              <!-- This second execution runs the tests in streaming mode -->
+              <execution>
+                <id>streaming-runnable-on-service-tests</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <skip>true</skip>
+                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <parallel>none</parallel>
+                  <failIfNoTests>true</failIfNoTests>
+                  <dependenciesToScan>
+                    <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                  </dependenciesToScan>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                        "--runner=TestFlinkRunner",
+                        "--streaming=true"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
@@ -225,34 +254,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>streaming-runnable-on-service-tests</id>
-            <phase>integration-test</phase>
-            <goals>
-              <goal>test</goal>
-            </goals>
-            <configuration>
-              <skip>true</skip>
-              <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <parallel>none</parallel>
-              <failIfNoTests>true</failIfNoTests>
-              <dependenciesToScan>
-                <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-              </dependenciesToScan>
-              <systemPropertyVariables>
-                <beamTestPipelineOptions>
-                  [
-                    "--runner=TestFlinkRunner",
-                    "--streaming=true"
-                  ]
-                </beamTestPipelineOptions>
-              </systemPropertyVariables>
-              <excludes>
-              </excludes>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
     </plugins>
