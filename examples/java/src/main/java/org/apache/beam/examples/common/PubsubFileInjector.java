@@ -17,12 +17,12 @@
  */
 package org.apache.beam.examples.common;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.IntraBundleParallelization;
@@ -85,7 +85,7 @@ public class PubsubFileInjector {
     @Override
     public void startBundle(Context context) {
       this.pubsub =
-          Transport.newPubsubClient(context.getPipelineOptions().as(DataflowPipelineOptions.class))
+          Transport.newPubsubClient(context.getPipelineOptions().as(PubsubOptions.class))
               .build();
     }
 
