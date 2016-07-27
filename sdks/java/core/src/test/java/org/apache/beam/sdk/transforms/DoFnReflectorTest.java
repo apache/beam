@@ -47,6 +47,9 @@ import java.lang.reflect.Method;
 @RunWith(JUnit4.class)
 public class DoFnReflectorTest {
 
+  /**
+   * A convenience struct holding flags that indicate whether a particular method was invoked.
+   */
   public static class Invocations {
     public boolean wasProcessElementInvoked = false;
     public boolean wasStartBundleInvoked = false;
