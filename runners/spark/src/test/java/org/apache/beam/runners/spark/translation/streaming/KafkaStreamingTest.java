@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
 import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -89,8 +89,8 @@ public class KafkaStreamingTest {
   @Test
   public void testRun() throws Exception {
     // test read from Kafka
-    SparkStreamingPipelineOptions options =
-        PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     options.setStreaming(true);
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
