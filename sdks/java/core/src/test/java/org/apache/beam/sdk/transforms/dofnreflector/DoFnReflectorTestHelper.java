@@ -18,10 +18,11 @@
 package org.apache.beam.sdk.transforms.dofnreflector;
 
 import org.apache.beam.sdk.transforms.DoFnWithContext;
+import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
 
 /**
  * Test helper for DoFnReflectorTest, which needs to test package-private access
- * in other packages}.
+ * to DoFns in other packages.
  */
 public class DoFnReflectorTestHelper {
 
@@ -59,5 +60,19 @@ public class DoFnReflectorTestHelper {
 
   public DoFnWithContext<String, String> newNestedPrivateDoFn() {
     return new NestedPrivateDoFn();
+  }
+
+  public DoFnWithContext<String, String> newNestedAnonymousDoFn() {
+    return new DoFnWithContext<String, String>() {
+      @ProcessElement
+      public void process(ProcessContext c) {}
+    };
+  }
+
+  public static DoFnWithContext<String, String> newStaticAnonymousDoFn() {
+    return new DoFnWithContext<String, String>() {
+      @ProcessElement
+      public void process(ProcessContext c) {}
+    };
   }
 }

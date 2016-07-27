@@ -389,6 +389,16 @@ public class DoFnReflectorTest {
   }
 
   @Test
+  public void testAnonymousNestedDoFnInOtherPackage() throws Exception {
+    underTest(new DoFnReflectorTestHelper().newNestedAnonymousDoFn());
+  }
+
+  @Test
+  public void testStaticAnonymousDoFnInOtherPackage() throws Exception {
+    underTest(new DoFnReflectorTestHelper().newStaticAnonymousDoFn());
+  }
+
+  @Test
   public void testPrivateProcessElement() throws Exception {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("process() must be public");
