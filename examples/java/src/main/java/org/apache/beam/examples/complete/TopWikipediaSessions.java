@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.TextIO;
@@ -207,9 +206,8 @@ public class TopWikipediaSessions {
     Options options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
         .as(Options.class);
-    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
 
-    Pipeline p = Pipeline.create(dataflowOptions);
+    Pipeline p = Pipeline.create(options);
 
     double samplingThreshold = 0.1;
 
