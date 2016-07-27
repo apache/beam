@@ -360,6 +360,7 @@ public class DoFnReflectorTest {
 
   private static class PrivateDoFnClass extends DoFnWithContext<String, String> {
     final Invocations invocations = new Invocations(getClass().getName());
+
     @ProcessElement
     public void processThis(ProcessContext c) {
       invocations.wasProcessElementInvoked = true;
@@ -376,16 +377,16 @@ public class DoFnReflectorTest {
   @Test
   public void testStaticPackagePrivateDoFnClass() throws Exception {
     Invocations invocations = new Invocations("StaticPackagePrivateDoFn");
-    DoFnReflector reflector = underTest(DoFnReflectorTestHelper
-        .newStaticPackagePrivateDoFn(invocations));
+    DoFnReflector reflector =
+        underTest(DoFnReflectorTestHelper.newStaticPackagePrivateDoFn(invocations));
     checkInvokeProcessElementWorks(reflector, invocations);
   }
 
   @Test
   public void testInnerPackagePrivateDoFnClass() throws Exception {
     Invocations invocations = new Invocations("InnerPackagePrivateDoFn");
-    DoFnReflector reflector = underTest(new DoFnReflectorTestHelper()
-        .newInnerPackagePrivateDoFn(invocations));
+    DoFnReflector reflector =
+        underTest(new DoFnReflectorTestHelper().newInnerPackagePrivateDoFn(invocations));
     checkInvokeProcessElementWorks(reflector, invocations);
   }
 
@@ -399,24 +400,24 @@ public class DoFnReflectorTest {
   @Test
   public void testInnerPrivateDoFnClass() throws Exception {
     Invocations invocations = new Invocations("StaticInnerDoFn");
-    DoFnReflector reflector = underTest(new DoFnReflectorTestHelper()
-        .newInnerPrivateDoFn(invocations));
+    DoFnReflector reflector =
+        underTest(new DoFnReflectorTestHelper().newInnerPrivateDoFn(invocations));
     checkInvokeProcessElementWorks(reflector, invocations);
   }
 
   @Test
   public void testAnonymousInnerDoFnInOtherPackage() throws Exception {
     Invocations invocations = new Invocations("AnonymousInnerDoFnInOtherPackage");
-    DoFnReflector reflector = underTest(new DoFnReflectorTestHelper()
-        .newInnerAnonymousDoFn(invocations));
+    DoFnReflector reflector =
+        underTest(new DoFnReflectorTestHelper().newInnerAnonymousDoFn(invocations));
     checkInvokeProcessElementWorks(reflector, invocations);
   }
 
   @Test
   public void testStaticAnonymousDoFnInOtherPackage() throws Exception {
     Invocations invocations = new Invocations("AnonymousStaticDoFnInOtherPackage");
-    DoFnReflector reflector = underTest(DoFnReflectorTestHelper
-        .newStaticAnonymousDoFn(invocations));
+    DoFnReflector reflector =
+        underTest(DoFnReflectorTestHelper.newStaticAnonymousDoFn(invocations));
     checkInvokeProcessElementWorks(reflector, invocations);
   }
 

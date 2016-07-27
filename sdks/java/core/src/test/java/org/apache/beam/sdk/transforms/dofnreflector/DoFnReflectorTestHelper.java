@@ -28,9 +28,11 @@ public class DoFnReflectorTestHelper {
 
   private static class StaticPrivateDoFn extends DoFnWithContext<String, String> {
     final Invocations invocations;
+
     public StaticPrivateDoFn(Invocations invocations) {
       this.invocations = invocations;
     }
+
     @ProcessElement
     public void process(ProcessContext c) {
       invocations.wasProcessElementInvoked = true;
@@ -39,9 +41,11 @@ public class DoFnReflectorTestHelper {
 
   private class InnerPrivateDoFn extends DoFnWithContext<String, String> {
     final Invocations invocations;
+
     public InnerPrivateDoFn(Invocations invocations) {
       this.invocations = invocations;
     }
+
     @ProcessElement
     public void process(ProcessContext c) {
       invocations.wasProcessElementInvoked = true;
@@ -50,9 +54,11 @@ public class DoFnReflectorTestHelper {
 
   static class StaticPackagePrivateDoFn extends DoFnWithContext<String, String> {
     final Invocations invocations;
+
     public StaticPackagePrivateDoFn(Invocations invocations) {
       this.invocations = invocations;
     }
+
     @ProcessElement
     public void process(ProcessContext c) {
       invocations.wasProcessElementInvoked = true;
@@ -61,9 +67,11 @@ public class DoFnReflectorTestHelper {
 
   class InnerPackagePrivateDoFn extends DoFnWithContext<String, String> {
     final Invocations invocations;
+
     public InnerPackagePrivateDoFn(Invocations invocations) {
       this.invocations = invocations;
     }
+
     @ProcessElement
     public void process(ProcessContext c) {
       invocations.wasProcessElementInvoked = true;
