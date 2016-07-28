@@ -79,6 +79,11 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   @Override
+  public State waitUntilFinish() {
+    return waitUntilFinish(Duration.millis(-1));
+  }
+
+  @Override
   public State waitUntilFinish(Duration duration) {
     throw new UnsupportedOperationException("FlinkRunnerResult does not support waitUntilFinish.");
   }

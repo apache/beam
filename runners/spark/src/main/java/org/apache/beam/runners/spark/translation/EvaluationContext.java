@@ -296,6 +296,12 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   @Override
+  public State waitUntilFinish()
+      throws IOException, InterruptedException {
+    return waitUntilFinish(Duration.millis(-1));
+  }
+
+  @Override
   public State waitUntilFinish(Duration duration)
       throws IOException, InterruptedException {
     throw new UnsupportedOperationException(

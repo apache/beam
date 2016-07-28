@@ -315,7 +315,7 @@ public class DataflowExampleUtils {
         throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
       }
     } else {
-      // Do nothing if the given PipelineResult doesn't support waitUtilFinish(),
+      // Do nothing if the given PipelineResult doesn't support waitUntilFinish(),
       // such as EvaluationResults returned by DirectRunner.
     }
   }

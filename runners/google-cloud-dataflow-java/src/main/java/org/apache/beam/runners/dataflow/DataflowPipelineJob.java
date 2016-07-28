@@ -159,13 +159,19 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   @Nullable
+  public State waitUntilFinish() throws IOException, InterruptedException {
+    return waitUntilFinish(Duration.millis(-1));
+  }
+
+  @Override
+  @Nullable
   public State waitUntilFinish(Duration duration)
           throws IOException, InterruptedException {
     return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
   }
 
   /**
-   * Waits for the job to finish and return the final status.
+   * Waits until the pipeline finishes and returns the final status.
    *
    * @param duration The time to wait for the job to finish.
    *     Provide a value less than 1 ms for an infinite wait.
@@ -183,11 +189,11 @@ public class DataflowPipelineJob implements PipelineResult {
   public State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler) throws IOException, InterruptedException {
-    return waitToFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+    return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
   }
 
   /**
-   * Wait for the job to finish and return the final status.
+   * Waits until the pipeline finishes and returns the final status.
    *
    * @param duration The time to wait for the job to finish.
    *     Provide a value less than 1 ms for an infinite wait.
@@ -196,15 +202,14 @@ public class DataflowPipelineJob implements PipelineResult {
    *   batch of messages received.
    * @param sleeper A sleeper to use to sleep between attempts.
    * @param nanoClock A nanoClock used to time the total time taken.
-   * @return The final state of the job or null on timeout or if the
-   *   thread is interrupted.
+   * @return The final state of the job or null on timeout.
    * @throws IOException If there is a persistent problem getting job
    *   information.
-   * @throws InterruptedException
+   * @throws InterruptedException if the thread is interrupted.
    */
   @Nullable
   @VisibleForTesting
-  State waitToFinish(
+  State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,

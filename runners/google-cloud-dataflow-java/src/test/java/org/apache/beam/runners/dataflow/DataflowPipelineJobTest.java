@@ -97,6 +97,7 @@ public class DataflowPipelineJobTest {
   public ExpectedException thrown = ExpectedException.none();
 
   private TestDataflowPipelineOptions options;
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
@@ -155,7 +156,8 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(
         PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
 
-    State state = job.waitToFinish(Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
+    State state = job.waitUntilFinish(
+        Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
     assertEquals(null, state);
   }
 
@@ -173,7 +175,7 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(
         PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
 
-    return job.waitToFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
+    return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
   }
 
   /**
@@ -225,7 +227,7 @@ public class DataflowPipelineJobTest {
         PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
 
     long startTime = fastClock.nanoTime();
-    State state = job.waitToFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
+    State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(DataflowPipelineJob.MESSAGES_POLLING_INTERVAL,
@@ -244,7 +246,7 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(
         PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
     long startTime = fastClock.nanoTime();
-    State state = job.waitToFinish(Duration.millis(4), null, fastClock, fastClock);
+    State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     // Should only sleep for the 4 ms remaining.

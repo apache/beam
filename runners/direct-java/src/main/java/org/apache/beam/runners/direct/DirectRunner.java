@@ -375,8 +375,12 @@ public class DirectRunner
     }
 
     @Override
-    public State waitUntilFinish(Duration duration)
-        throws IOException, InterruptedException {
+    public State waitUntilFinish() throws IOException {
+      return waitUntilFinish(Duration.millis(-1));
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) throws IOException {
       throw new UnsupportedOperationException(
           "DirectPipelineResult does not support waitUntilFinish.");
     }

@@ -38,24 +38,38 @@ public interface PipelineResult {
   State getState();
 
   /**
-   * Cancels the pipeline.
+   * Cancels the pipeline execution.
+   *
    * @throws IOException if there is a problem executing the cancel request.
+   * @throws UnsupportedOperationException if the runner does not support cancellation.
    */
   State cancel() throws IOException;
 
   /**
-   * Waits until the job finishes and returns the final status.
+   * Waits until the pipeline finishes and returns the final status.
+   * It times out after the given duration.
    *
-   * @param duration The time to wait for the job to finish.
+   * @param duration The time to wait for the pipeline to finish.
    *     Provide a value less than 1 ms for an infinite wait.
    *
-   * @return The final state of the job or null on timeout or if the
-   *   thread is interrupted.
+   * @return The final state of the pipeline or null on timeout.
    * @throws IOException If there is a persistent problem getting job
    *   information.
-   * @throws InterruptedException
+   * @throws InterruptedException if the thread is interrupted.
+   * @throws UnsupportedOperationException if the runner does not support cancellation.
    */
   State waitUntilFinish(Duration duration) throws IOException, InterruptedException;
+
+  /**
+   * Waits until the pipeline finishes and returns the final status.
+   *
+   * @return The final state of the pipeline.
+   * @throws IOException If there is a persistent problem getting job
+   *   information.
+   * @throws InterruptedException if the thread is interrupted.
+   * @throws UnsupportedOperationException if the runner does not support cancellation.
+   */
+  State waitUntilFinish() throws IOException, InterruptedException;
 
   /**
    * Retrieves the current value of the provided {@link Aggregator}.
