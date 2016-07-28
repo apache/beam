@@ -48,9 +48,13 @@ public class CounterAggregator<InputT, AccumT, OutputT>
     }
 
     @Override
-    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregator(String name,
-        CombineFn<InputT, AccumT, OutputT> combine) {
-      return new CounterAggregator<>(name, combine, addCounterMutator);
+    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
+        Class<?> fnClass, ExecutionContext.StepContext stepContext,
+        String userName, CombineFn<InputT, AccumT, OutputT> combine) {
+      boolean isSystem = fnClass.isAnnotationPresent(SystemDoFnInternal.class);
+      String mangledName = (isSystem ? "" : "user-") + stepContext.getStepName() + "-" + userName;
+
+      return new CounterAggregator<>(mangledName, combine, addCounterMutator);
     }
   }
 

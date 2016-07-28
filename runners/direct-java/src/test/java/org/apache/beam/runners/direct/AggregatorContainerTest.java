@@ -19,12 +19,17 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
+import org.apache.beam.sdk.util.ExecutionContext.StepContext;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -38,21 +43,33 @@ public class AggregatorContainerTest {
   public final ExpectedException thrown = ExpectedException.none();
   private final AggregatorContainer container = AggregatorContainer.create();
 
+  private static final String STEP_NAME = "step";
+  private final Class<?> fn = getClass();
+
+  @Mock
+  private StepContext stepContext;
+
+  @Before
+  public void setUp() {
+    MockitoAnnotations.initMocks(this);
+    when(stepContext.getStepName()).thenReturn(STEP_NAME);
+  }
+
   @Test
   public void addsAggregatorsOnCommit() {
     AggregatorContainer.Mutator mutator = container.createMutator();
-    mutator.createAggregator("sum_int", new SumIntegerFn()).addValue(5);
+    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn()).addValue(5);
     mutator.commit();
 
-    assertThat((Integer) container.getAggregate("sum_int"), equalTo(5));
+    assertThat((Integer) container.getAggregate(STEP_NAME, "sum_int"), equalTo(5));
 
     mutator = container.createMutator();
-    mutator.createAggregator("sum_int", new SumIntegerFn()).addValue(8);
+    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn()).addValue(8);
 
     assertThat("Shouldn't update value until commit",
-        (Integer) container.getAggregate("sum_int"), equalTo(5));
+        (Integer) container.getAggregate(STEP_NAME, "sum_int"), equalTo(5));
     mutator.commit();
-    assertThat((Integer) container.getAggregate("sum_int"), equalTo(13));
+    assertThat((Integer) container.getAggregate(STEP_NAME, "sum_int"), equalTo(13));
   }
 
   @Test
@@ -61,13 +78,14 @@ public class AggregatorContainerTest {
     mutator.commit();
 
     thrown.expect(IllegalStateException.class);
-    mutator.createAggregator("sum_int", new SumIntegerFn()).addValue(5);
+    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn()).addValue(5);
   }
 
   @Test
   public void failToAddValueAfterCommit() {
     AggregatorContainer.Mutator mutator = container.createMutator();
-    Aggregator<Integer, ?> aggregator = mutator.createAggregator("sum_int", new SumIntegerFn());
+    Aggregator<Integer, ?> aggregator =
+        mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn());
     mutator.commit();
 
     thrown.expect(IllegalStateException.class);
@@ -77,11 +95,13 @@ public class AggregatorContainerTest {
   @Test
   public void failToAddValueAfterCommitWithPrevious() {
     AggregatorContainer.Mutator mutator = container.createMutator();
-    mutator.createAggregator("sum_int", new SumIntegerFn()).addValue(5);
+    mutator.createAggregatorForDoFn(
+        fn, stepContext, "sum_int", new SumIntegerFn()).addValue(5);
     mutator.commit();
 
     mutator = container.createMutator();
-    Aggregator<Integer, ?> aggregator = mutator.createAggregator("sum_int", new SumIntegerFn());
+    Aggregator<Integer, ?> aggregator = mutator.createAggregatorForDoFn(
+        fn, stepContext, "sum_int", new SumIntegerFn());
     mutator.commit();
 
     thrown.expect(IllegalStateException.class);
@@ -99,7 +119,8 @@ public class AggregatorContainerTest {
       executor.submit(new Runnable() {
         @Override
         public void run() {
-          mutator.createAggregator("sum_int", new SumIntegerFn()).addValue(value);
+          mutator.createAggregatorForDoFn(
+              fn, stepContext, "sum_int", new SumIntegerFn()).addValue(value);
           mutator.commit();
         }
       });
@@ -108,6 +129,6 @@ public class AggregatorContainerTest {
     assertThat("Expected all threads to complete after 5 seconds",
         executor.awaitTermination(5, TimeUnit.SECONDS), equalTo(true));
 
-    assertThat((Integer) container.getAggregate("sum_int"), equalTo(sum));
+    assertThat((Integer) container.getAggregate(STEP_NAME, "sum_int"), equalTo(sum));
   }
 }

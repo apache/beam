@@ -239,19 +239,24 @@ public class EvaluationContextTest {
 
   @Test
   public void handleResultCommitsAggregators() {
+    Class<?> fn = getClass();
+    DirectExecutionContext fooContext =
+        context.getExecutionContext(created.getProducingTransformInternal(), null);
+    DirectExecutionContext.StepContext stepContext = fooContext.createStepContext(
+        "STEP", created.getProducingTransformInternal().getTransform().getName());
     AggregatorContainer container = context.getAggregatorContainer();
     AggregatorContainer.Mutator mutator = container.createMutator();
-    mutator.createAggregator("foo", new SumLongFn()).addValue(4L);
+    mutator.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(4L);
 
     TransformResult result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
             .withAggregatorChanges(mutator)
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), result);
-    assertThat((Long) context.getAggregatorContainer().getAggregate("foo"), equalTo(4L));
+    assertThat((Long) context.getAggregatorContainer().getAggregate("STEP", "foo"), equalTo(4L));
 
     AggregatorContainer.Mutator mutatorAgain = container.createMutator();
-    mutatorAgain.createAggregator("foo", new SumLongFn()).addValue(12L);
+    mutatorAgain.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(12L);
 
     TransformResult secondResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
@@ -261,7 +266,7 @@ public class EvaluationContextTest {
         context.createRootBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         secondResult);
-    assertThat((Long) context.getAggregatorContainer().getAggregate("foo"), equalTo(16L));
+    assertThat((Long) context.getAggregatorContainer().getAggregate("STEP", "foo"), equalTo(16L));
   }
 
   @Test

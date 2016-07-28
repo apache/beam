@@ -20,6 +20,8 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.util.ExecutionContext;
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,13 +38,16 @@ public class AggregatorContainer {
 
   private static class AggregatorInfo<InputT, AccumT, OutputT>
       implements Aggregator<InputT, OutputT> {
+    private final String stepName;
     private final String name;
     private final CombineFn<InputT, AccumT, OutputT> combiner;
     @GuardedBy("this")
     private AccumT accumulator = null;
     private boolean committed = false;
 
-    private AggregatorInfo(String name, CombineFn<InputT, AccumT, OutputT> combiner) {
+    private AggregatorInfo(
+        String stepName, String name, CombineFn<InputT, AccumT, OutputT> combiner) {
+      this.stepName = stepName;
       this.name = name;
       this.combiner = combiner;
     }
@@ -76,6 +81,10 @@ public class AggregatorContainer {
       }
     }
 
+    public String getStepName() {
+      return name;
+    }
+
     @Override
     public String getName() {
       return name;
@@ -87,7 +96,7 @@ public class AggregatorContainer {
     }
   }
 
-  private final ConcurrentMap<String, AggregatorInfo<?, ?, ?>> accumulators =
+  private final ConcurrentMap<AggregatorKey, AggregatorInfo<?, ?, ?>> accumulators =
       new ConcurrentHashMap<>();
 
   private AggregatorContainer() {
@@ -98,9 +107,10 @@ public class AggregatorContainer {
   }
 
   @Nullable
-  <OutputT> OutputT getAggregate(String name) {
+  <OutputT> OutputT getAggregate(String stepName, String aggregatorName) {
     AggregatorInfo<?, ?, OutputT> aggregatorInfo =
-        (AggregatorInfo<?, ?, OutputT>) accumulators.get(name);
+        (AggregatorInfo<?, ?, OutputT>) accumulators.get(
+            AggregatorKey.create(stepName, aggregatorName));
     return aggregatorInfo == null ? null : aggregatorInfo.getOutput();
   }
 
@@ -113,7 +123,7 @@ public class AggregatorContainer {
    */
   public static class Mutator implements AggregatorFactory {
 
-    private final Map<String, AggregatorInfo<?, ?, ?>> accumulatorDeltas = new HashMap<>();
+    private final Map<AggregatorKey, AggregatorInfo<?, ?, ?>> accumulatorDeltas = new HashMap<>();
     private final AggregatorContainer container;
     private boolean committed = false;
 
@@ -125,7 +135,7 @@ public class AggregatorContainer {
       Preconditions.checkState(!committed, "Should not be already committed");
       committed = true;
 
-      for (Map.Entry<String, AggregatorInfo<?, ?, ?>> entry : accumulatorDeltas.entrySet()) {
+      for (Map.Entry<AggregatorKey, AggregatorInfo<?, ?, ?>> entry : accumulatorDeltas.entrySet()) {
         AggregatorInfo<?, ?, ?> previous = container.accumulators.get(entry.getKey());
         entry.getValue().committed = true;
         if (previous == null) {
@@ -139,22 +149,35 @@ public class AggregatorContainer {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregator(
-        String name,
-        CombineFn<InputT, AccumT, OutputT> combine) {
+    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
+        Class<?> fnClass, ExecutionContext.StepContext step,
+        String name, CombineFn<InputT, AccumT, OutputT> combine) {
       Preconditions.checkState(!committed, "Cannot create aggregators after committing");
-      AggregatorInfo<?, ?, ?> aggregatorInfo = accumulatorDeltas.get(name);
+      AggregatorKey key = AggregatorKey.create(step.getStepName(), name);
+      AggregatorInfo<?, ?, ?> aggregatorInfo = accumulatorDeltas.get(key);
       if (aggregatorInfo != null) {
-        // TODO: Verify compatibility
         AggregatorInfo<InputT, ?, OutputT> typedAggregatorInfo =
             (AggregatorInfo<InputT, ?, OutputT>) aggregatorInfo;
         return typedAggregatorInfo;
       } else {
         AggregatorInfo<InputT, ?, OutputT> typedAggregatorInfo =
-            new AggregatorInfo<>(name, combine);
-        accumulatorDeltas.put(name, typedAggregatorInfo);
+            new AggregatorInfo<>(step.getStepName(), name, combine);
+        accumulatorDeltas.put(key, typedAggregatorInfo);
         return typedAggregatorInfo;
       }
     }
+  }
+
+  /**
+   * Aggregators are identified by a step name and an aggregator name.
+   */
+  @AutoValue
+  public abstract static class AggregatorKey {
+    public static AggregatorKey create(String stepName, String aggregatorName)  {
+      return new AutoValue_AggregatorContainer_AggregatorKey(stepName, aggregatorName);
+    }
+
+    public abstract String getStepName();
+    public abstract String aggregatorName();
   }
 }

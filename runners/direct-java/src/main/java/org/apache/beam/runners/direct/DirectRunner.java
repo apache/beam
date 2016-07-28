@@ -322,10 +322,8 @@ public class DirectRunner
       Map<String, T> stepValues = new HashMap<>();
       for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
         if (steps.contains(transform.getTransform())) {
-          String stepName =
-              String.format(
-                  "user-%s-%s", evaluationContext.getStepName(transform), aggregator.getName());
-          T aggregate = aggregators.getAggregate(stepName);
+          T aggregate = aggregators.getAggregate(
+              evaluationContext.getStepName(transform), aggregator.getName());
           if (aggregate != null) {
             stepValues.put(transform.getFullName(), aggregate);
           }

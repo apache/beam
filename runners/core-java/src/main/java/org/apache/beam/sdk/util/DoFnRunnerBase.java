@@ -341,16 +341,12 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
-    private String generateInternalAggregatorName(String userName) {
-      boolean system = fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
-      return (system ? "" : "user-") + stepContext.getStepName() + "-" + userName;
-    }
-
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return aggregatorFactory.createAggregator(name, combiner);
+      checkNotNull(combiner, "Combiner passed to createAggregatorForDoFn cannot be null");
+      boolean isSystemDoFn = fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
+      return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
   }
 
