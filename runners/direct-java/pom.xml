@@ -88,7 +88,8 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=DirectRunner"
+                    "--runner=DirectRunner",
+                    "--tempRoot=${project.build.directory}/runnableOnServiceTests/tempRoot"
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
