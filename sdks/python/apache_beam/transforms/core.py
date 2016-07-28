@@ -226,7 +226,6 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
-    # pylint: disable=method-hidden
     if _fn_takes_side_inputs(fn):
       self.process = lambda context, *args, **kwargs: fn(
           context.element, *args, **kwargs)
@@ -254,9 +253,6 @@ class CallableWrapperDoFn(DoFn):
   def infer_output_type(self, input_type):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self._fn, [input_type]))
-
-  def process(self, context, *args, **kwargs):
-    return self._fn(context.element, *args, **kwargs)
 
   def process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
