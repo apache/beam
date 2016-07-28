@@ -226,6 +226,7 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
+    # pylint: disable=method-hidden
     if _fn_takes_side_inputs(fn):
       self.process = lambda context, *args, **kwargs: fn(
           context.element, *args, **kwargs)
