@@ -73,8 +73,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   /**
-   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
-   * provided application of {@link Unbounded Read.Unbounded}, initializing it if required.
+   * Get a {@link TransformEvaluator} that produces elements for the provided application of
+   * {@link Unbounded Read.Unbounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.

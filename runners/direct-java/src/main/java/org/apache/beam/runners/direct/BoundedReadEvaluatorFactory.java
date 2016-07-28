@@ -60,6 +60,13 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
+  /**
+   * Get a {@link TransformEvaluator} that produces elements for the provided application of
+   * {@link Bounded Read.Bounded}, initializing the queue of evaluators if required.
+   *
+   * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
+   * already done so.
+   */
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
       final EvaluationContext evaluationContext) {
