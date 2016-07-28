@@ -26,7 +26,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>jms</artifactId>
+  <artifactId>beam-sdks-java-io-jms</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: JMS</name>
   <description>IO to read and write to JMS (Java Messaging Service)
     destinations (queues and topics). </description>
