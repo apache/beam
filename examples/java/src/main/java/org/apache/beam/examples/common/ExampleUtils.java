@@ -52,8 +52,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import org.joda.time.Duration;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -308,7 +306,7 @@ public class ExampleUtils {
         addShutdownHook(jobsToCancel);
       }
       try {
-        job.waitUntilFinish(Duration.standardSeconds(-1));
+        job.waitUntilFinish();
       } catch (Exception e) {
         throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
       }
