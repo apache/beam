@@ -19,8 +19,7 @@
 
 from __future__ import absolute_import
 
-import heapq
-import itertools
+import operator
 import random
 
 from apache_beam.transforms import core
@@ -148,7 +147,7 @@ class Top(object):
   # pylint: disable=no-self-argument
 
   @ptransform.ptransform_fn
-  def Of(pcoll, n, compare, *args, **kwargs):
+  def Of(pcoll, n, compare=None, *args, **kwargs):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
@@ -157,7 +156,11 @@ class Top(object):
 
     compare should be an implementation of "a < b" taking at least two arguments
     (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.
+    become additional arguments to the comparator.  Defaults to the natural
+    ordering of the elements.
+
+    The arguments 'key' and 'reverse' may instead be passed as keyword
+    arguments, and have the same meaning as for Python's sort functions.
 
     Args:
       pcoll: PCollection to process.
@@ -166,11 +169,13 @@ class Top(object):
       *args: as described above.
       **kwargs: as described above.
     """
+    key = kwargs.pop('key', None)
+    reverse = kwargs.pop('reverse', False)
     return pcoll | core.CombineGlobally(
-        TopCombineFn(n, compare), *args, **kwargs)
+        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
   @ptransform.ptransform_fn
-  def PerKey(pcoll, n, compare, *args, **kwargs):
+  def PerKey(pcoll, n, compare=None, *args, **kwargs):
     """Identifies the compare-most N elements associated with each key.
 
     This transform will produce a PCollection mapping unique keys in the input
@@ -180,7 +185,11 @@ class Top(object):
 
     compare should be an implementation of "a < b" taking at least two arguments
     (a and b). Additional arguments and side inputs specified in the apply call
-    become additional arguments to the comparator.
+    become additional arguments to the comparator.  Defaults to the natural
+    ordering of the elements.
+
+    The arguments 'key' and 'reverse' may instead be passed as keyword
+    arguments, and have the same meaning as for Python's sort functions.
 
     Args:
       pcoll: PCollection to process.
@@ -193,28 +202,30 @@ class Top(object):
       TypeCheckError: If the output type of the input PCollection is not
         compatible with KV[A, B].
     """
+    key = kwargs.pop('key', None)
+    reverse = kwargs.pop('reverse', False)
     return pcoll | core.CombinePerKey(
-        TopCombineFn(n, compare), *args, **kwargs)
+        TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
   @ptransform.ptransform_fn
   def Largest(pcoll, n):
     """Obtain a list of the greatest N elements in a PCollection."""
-    return pcoll | Top.Of(n, lambda a, b: a < b)
+    return pcoll | Top.Of(n)
 
   @ptransform.ptransform_fn
   def Smallest(pcoll, n):
     """Obtain a list of the least N elements in a PCollection."""
-    return pcoll | Top.Of(n, lambda a, b: b < a)
+    return pcoll | Top.Of(n, reverse=True)
 
   @ptransform.ptransform_fn
   def LargestPerKey(pcoll, n):
     """Identifies the N greatest elements associated with each key."""
-    return pcoll | Top.PerKey(n, lambda a, b: a < b)
+    return pcoll | Top.PerKey(n)
 
   @ptransform.ptransform_fn
-  def SmallestPerKey(pcoll, n):
+  def SmallestPerKey(pcoll, n, reverse=True):
     """Identifies the N least elements associated with each key."""
-    return pcoll | Top.PerKey(n, lambda a, b: b < a)
+    return pcoll | Top.PerKey(n, reverse=True)
 
 
 @with_input_types(T)
@@ -222,88 +233,122 @@ class Top(object):
 class TopCombineFn(core.CombineFn):
   """CombineFn doing the combining for all of the Top transforms.
 
-  The comparator function supplied as an argument to the apply call invoking
-  TopCombineFn should be an implementation of "a < b" taking at least two
-  arguments (a and b). Additional arguments and side inputs specified in the
-  apply call become additional arguments to the comparator.
+  This CombineFn uses a key or comparison operator to rank the elements.
+
+  Args:
+    compare: (optional) an implementation of "a < b" taking at least two
+        arguments (a and b). Additional arguments and side inputs specified
+        in the apply call become additional arguments to the comparator.
+    key: (optional) a mapping of elements to a comparable key, similar to
+        the key argument of Python's sorting methods.
+    reverse: (optional) whether to order things smallest to largest, rather
+        than largest to smallest
   """
 
-  # Actually pickling the comparison operators (including, often, their
-  # entire globals) can be very expensive.  Instead refer to them by index
-  # in this dictionary, which is populated on construction (including
-  # unpickling).
-  compare_by_id = {}
+  _MIN_BUFFER_OVERSIZE = 100
+  _MAX_BUFFER_OVERSIZE = 1000
 
-  def __init__(self, n, compare, _compare_id=None):  # pylint: disable=invalid-name
+  # TODO(robertwb): Allow taking a key rather than a compare.
+  def __init__(self, n, compare=None, key=None, reverse=False):
     self._n = n
-    self._compare = compare
-    self._compare_id = _compare_id or id(compare)
-    TopCombineFn.compare_by_id[self._compare_id] = self._compare
+    self._buffer_size = max(
+        min(2 * n, n + TopCombineFn._MAX_BUFFER_OVERSIZE),
+        n + TopCombineFn._MIN_BUFFER_OVERSIZE)
 
-  def __reduce_ex__(self, _):
-    return TopCombineFn, (self._n, self._compare, self._compare_id)
+    if compare is operator.lt:
+      compare = None
+    elif compare is operator.gt:
+      compare = None
+      reverse = not reverse
 
-  class _HeapItem(object):
-    """A wrapper for values supporting arbitrary comparisons.
+    if compare:
+      self._compare = (
+          (lambda a, b, *args, **kwargs: not compare(a, b, *args, **kwargs))
+          if reverse
+          else compare)
+    else:
+      self._compare = operator.gt if reverse else operator.lt
 
-    The heap implementation supplied by Python is a min heap that always uses
-    the __lt__ operator if one is available. This wrapper overloads __lt__,
-    letting us specify arbitrary precedence for elements in the PCollection.
-    """
+    self._key_fn = key
+    self._reverse = reverse
 
-    def __init__(self, item, compare_id, *args, **kwargs):
-      # item:         wrapped item.
-      # compare:      an implementation of the pairwise < operator.
-      # args, kwargs: extra arguments supplied to the compare function.
-      self.item = item
-      self.compare_id = compare_id
-      self.args = args
-      self.kwargs = kwargs
+  def _sort_buffer(self, buffer, lt):
+    if lt in (operator.gt, operator.lt):
+      buffer.sort(key=self._key_fn, reverse=self._reverse)
+    else:
+      buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)),
+                  key=self._key_fn)
 
-    def __lt__(self, other):
-      return TopCombineFn.compare_by_id[self.compare_id](
-          self.item, other.item, *self.args, **self.kwargs)
+  # The accumulator type is a tuple (threshold, buffer), where threshold
+  # is the smallest element [key] that could possibly be in the top n based
+  # on the elements observed so far, and buffer is a (periodically sorted)
+  # list of candidates of bounded size.
 
   def create_accumulator(self, *args, **kwargs):
-    return []  # Empty heap.
+    return None, []
 
-  def add_input(self, heap, element, *args, **kwargs):
-    # Note that because heap is a min heap, heappushpop will discard incoming
-    # elements that are lesser (according to compare) than those in the heap
-    # (since that's what you would get if you pushed a small element on and
-    # popped the smallest element off). So, filtering a collection with a
-    # min-heap gives you the largest elements in the collection.
-    item = self._HeapItem(element, self._compare_id, *args, **kwargs)
-    if len(heap) < self._n:
-      heapq.heappush(heap, item)
+  def add_input(self, accumulator, element, *args, **kwargs):
+    if args or kwargs:
+      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
     else:
-      heapq.heappushpop(heap, item)
-    return heap
+      lt = self._compare
 
-  def merge_accumulators(self, heaps, *args, **kwargs):
-    heap = []
-    for e in itertools.chain(*heaps):
-      if len(heap) < self._n:
-        heapq.heappush(heap, e)
+    threshold, buffer = accumulator
+    element_key = self._key_fn(element) if self._key_fn else element
+
+    if len(buffer) < self._n:
+      if not buffer:
+        return element_key, [element]
       else:
-        heapq.heappushpop(heap, e)
-    return heap
+        buffer.append(element)
+        if lt(element_key, threshold):  # element_key < threshold
+          return element_key, buffer
+        else:
+          return accumulator  # with mutated buffer
+    elif lt(threshold, element_key):  # threshold < element_key
+      buffer.append(element)
+      if len(buffer) < self._buffer_size:
+        return accumulator
+      else:
+        self._sort_buffer(buffer, lt)
+        min_element = buffer[-self._n]
+        threshold = self._key_fn(min_element) if self._key_fn else min_element
+        return threshold, buffer[-self._n:]
+    else:
+      return accumulator
 
-  def extract_output(self, heap, *args, **kwargs):
-    # Items in the heap are heap-ordered. We put them in sorted order, but we
-    # have to use the reverse order because the result is expected to go
-    # from greatest to least (as defined by the supplied comparison function).
-    return [e.item for e in sorted(heap, reverse=True)]
+  def merge_accumulators(self, accumulators, *args, **kwargs):
+    accumulators = list(accumulators)
+    if args or kwargs:
+      add_input = lambda accumulator, element: self.add_input(
+          accumulator, element, *args, **kwargs)
+    else:
+      add_input = self.add_input
 
+    total_accumulator = None
+    for accumulator in accumulators:
+      if total_accumulator is None:
+        total_accumulator = accumulator
+      else:
+        for element in accumulator[1]:
+          total_accumulator = add_input(total_accumulator, element)
+    return total_accumulator
 
-# Python's pickling is broken for nested classes.
-_HeapItem = TopCombineFn._HeapItem  # pylint: disable=protected-access
+  def extract_output(self, accumulator, *args, **kwargs):
+    if args or kwargs:
+      lt = lambda a, b: self._compare(a, b, *args, **kwargs)
+    else:
+      lt = self._compare
+
+    _, buffer = accumulator
+    self._sort_buffer(buffer, lt)
+    return buffer[:-self._n-1:-1]  # tail, reversed
 
 
 class Largest(TopCombineFn):
 
   def __init__(self, n):
-    super(Largest, self).__init__(n, lambda a, b: a < b)
+    super(Largest, self).__init__(n)
 
   def default_label(self):
     return 'Largest(%s)' % self._n
@@ -312,7 +357,7 @@ class Largest(TopCombineFn):
 class Smallest(TopCombineFn):
 
   def __init__(self, n):
-    super(Smallest, self).__init__(n, lambda a, b: b < a)
+    super(Smallest, self).__init__(n, reverse=True)
 
   def default_label(self):
     return 'Smallest(%s)' % self._n
@@ -342,7 +387,7 @@ class SampleCombineFn(core.CombineFn):
     # subclass TopCombineFn to make this class, but since sampling is not
     # really a kind of Top operation, we use a TopCombineFn instance as a
     # helper instead.
-    self._top_combiner = TopCombineFn(n, lambda a, b: a < b)
+    self._top_combiner = TopCombineFn(n)
 
   def create_accumulator(self):
     return self._top_combiner.create_accumulator()

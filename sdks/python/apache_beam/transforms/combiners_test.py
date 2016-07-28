@@ -69,14 +69,21 @@ class CombineTest(unittest.TestCase):
     pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
     result_top = pcoll | 'top' >> combine.Top.Largest(5)
     result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
-    result_cmp = pcoll | combine.Top.Of(
+    result_cmp = pcoll | 'cmp' >> combine.Top.Of(
         'cmp',
         6,
         lambda a, b, names: len(names[a]) < len(names[b]),
         names)  # Note parameter passed to comparator.
+    result_cmp_rev = pcoll | 'cmp_rev' >> combine.Top.Of(
+        'cmp',
+        3,
+        lambda a, b, names: len(names[a]) < len(names[b]),
+        names,  # Note parameter passed to comparator.
+        reverse=True)
     assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
     assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
     assert_that(result_cmp, equal_to([[9, 6, 6, 5, 3, 2]]), label='assert:cmp')
+    assert_that(result_cmp_rev, equal_to([[0, 1, 1]]), label='assert:cmp_rev')
 
     # Again for per-key combines.
     pcoll = pipeline | 'start-perkye' >> Create(
@@ -94,6 +101,37 @@ class CombineTest(unittest.TestCase):
     assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
                 label='key:cmp')
     pipeline.run()
+
+  def test_top_key(self):
+    self.assertEqual(
+        ['aa', 'bbb', 'c', 'dddd'] | combine.Top.Of(3, key=len),
+        [['dddd', 'bbb', 'aa']])
+    self.assertEqual(
+        ['aa', 'bbb', 'c', 'dddd'] | combine.Top.Of(3, key=len, reverse=True),
+        [['c', 'aa', 'bbb']])
+
+    # The largest elements compared by their length mod 5.
+    self.assertEqual(
+        ['aa', 'bbbb', 'c', 'ddddd', 'eee', 'ffffff'] | combine.Top.Of(
+            3,
+            compare=lambda len_a, len_b, m: len_a % m > len_b % m,
+            key=len,
+            reverse=True,
+            m=5),
+        [['bbbb', 'eee', 'aa']])
+
+  def test_sharded_top_combine_fn(self):
+    def test_combine_fn(combine_fn, shards, expected):
+      accumulators = [
+          combine_fn.add_inputs(combine_fn.create_accumulator(), shard)
+          for shard in shards]
+      final_accumulator = combine_fn.merge_accumulators(accumulators)
+      self.assertEqual(combine_fn.extract_output(final_accumulator), expected)
+
+    test_combine_fn(combine.TopCombineFn(3), [range(10), range(10)], [9, 9, 8])
+    test_combine_fn(combine.TopCombineFn(5),
+                    [range(1000), range(100), range(1001)],
+                    [1000, 999, 999, 998, 998])
 
   def test_top_shorthands(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -227,4 +265,6 @@ class CombineTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  # Sort more often for more rigorous testing on small data sets.
+  combiners.TopCombineFn._MIN_BUFFER_OVERSIZE = 1
   unittest.main()
