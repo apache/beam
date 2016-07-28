@@ -261,11 +261,9 @@ class TopCombineFn(core.CombineFn):
       compare = None
       reverse = not reverse
 
-    if compare and key:
-      raise ValueError("Must specify at most one of compare or key.")
-    elif compare:
+    if compare:
       self._compare = (
-          (lambda a, b, *args, **kwards: not compare(a, b, *args, **kwargs))
+          (lambda a, b, *args, **kwargs: not compare(a, b, *args, **kwargs))
           if reverse
           else compare)
     else:
@@ -275,10 +273,16 @@ class TopCombineFn(core.CombineFn):
     self._reverse = reverse
 
   def _sort_buffer(self, buffer, lt):
-    if self._key_fn or lt in (operator.gt, operator.lt):
+    if lt in (operator.gt, operator.lt):
       buffer.sort(key=self._key_fn, reverse=self._reverse)
     else:
-      buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)))
+      buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)),
+                  key=self._key_fn)
+
+  # The accumulator type is a tuple (threshold, buffer), where threshold
+  # is the smallest element [key] that could possibly be in the top n based
+  # on the elements observed so far, and buffer is a (periodically sorted)
+  # list of candidates of bounded size.
 
   def create_accumulator(self, *args, **kwargs):
     return None, []
