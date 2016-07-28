@@ -296,7 +296,7 @@ class _CompressionType(object):
     return '_CompressionType(%s)' % self.identifier
 
 
- CompressionTypes(object):
+  class CompressionTypes(object):
   """Enum-like class representing known compression types."""
   NO_COMPRESSION = _CompressionType(1)  # No compression.
   DEFLATE = _CompressionType(2)  # 'Deflate' compression (without headers).
