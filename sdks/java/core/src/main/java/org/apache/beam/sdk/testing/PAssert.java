@@ -357,7 +357,7 @@ public class PAssert {
     private final SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor;
 
     public PCollectionContentsAssert(PCollection<T> actual) {
-      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>onlyPane());
+      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>allPanes());
     }
 
     public PCollectionContentsAssert(
