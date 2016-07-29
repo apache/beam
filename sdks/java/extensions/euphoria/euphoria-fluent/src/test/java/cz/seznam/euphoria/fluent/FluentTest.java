@@ -18,7 +18,7 @@ import static java.util.Arrays.asList;
 public class FluentTest {
 
   @Test
-  public void testBasics() {
+  public void testBasics() throws Exception {
     final long READ_DELAY_MS = 100L;
     ListDataSink<Set<String>> out = ListDataSink.get(1);
     Fluent.flow("Test")
