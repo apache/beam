@@ -49,7 +49,6 @@ import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -736,10 +735,6 @@ public class Combine {
       return new int[] { value };
     }
 
-    public Counter<Integer> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineIntegerFn does not support getCounter");
-    }
-
     private static final class ToIntegerCodingFunction
         implements DelegateCoder.CodingFunction<int[], Integer> {
       @Override
@@ -837,10 +832,6 @@ public class Combine {
 
     private static long[] wrap(long value) {
       return new long[] { value };
-    }
-
-    public Counter<Long> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineLongFn does not support getCounter");
     }
 
     private static final class ToLongCodingFunction
@@ -942,10 +933,6 @@ public class Combine {
 
     private static double[] wrap(double value) {
       return new double[] { value };
-    }
-
-    public Counter<Double> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
     }
 
     private static final class ToDoubleCodingFunction
