@@ -31,6 +31,10 @@ from apache_beam.transforms.util import assert_that, equal_to
 
 class CombineTest(unittest.TestCase):
 
+  def setUp(self):
+    # Sort more often for more rigorous testing on small data sets.
+    combine.TopCombineFn._MIN_BUFFER_OVERSIZE = 1
+
   def test_builtin_combines(self):
     pipeline = Pipeline('DirectPipelineRunner')
 
@@ -265,6 +269,4 @@ class CombineTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  # Sort more often for more rigorous testing on small data sets.
-  combiners.TopCombineFn._MIN_BUFFER_OVERSIZE = 1
   unittest.main()
