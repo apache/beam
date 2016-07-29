@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
@@ -54,14 +53,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.io.Serializable;
 
 /**
@@ -116,8 +113,10 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         new DirectExecutionContext(null, null, null, null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
         inputBundle.getKey())).thenReturn(executionContext);
-    CounterSet counters = new CounterSet();
-    when(evaluationContext.createCounterSet()).thenReturn(counters);
+    AggregatorContainer container = AggregatorContainer.create();
+    AggregatorContainer.Mutator mutator = container.createMutator();
+    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
+    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
@@ -136,7 +135,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(
             lengthOutputBundle, mainOutputBundle, elementOutputBundle));
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    assertThat(result.getCounters(), equalTo(counters));
+    assertThat(result.getAggregatorChanges(), equalTo(mutator));
 
     assertThat(
         mainOutputBundle.commit(Instant.now()).getElements(),
@@ -201,8 +200,10 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         new DirectExecutionContext(null, null, null, null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
         inputBundle.getKey())).thenReturn(executionContext);
-    CounterSet counters = new CounterSet();
-    when(evaluationContext.createCounterSet()).thenReturn(counters);
+    AggregatorContainer container = AggregatorContainer.create();
+    AggregatorContainer.Mutator mutator = container.createMutator();
+    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
+    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
@@ -220,7 +221,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         result.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(mainOutputBundle, elementOutputBundle));
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    assertThat(result.getCounters(), equalTo(counters));
+    assertThat(result.getAggregatorChanges(), equalTo(mutator));
 
     assertThat(
         mainOutputBundle.commit(Instant.now()).getElements(),
@@ -293,8 +294,10 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
         inputBundle.getKey())).thenReturn(executionContext);
-    CounterSet counters = new CounterSet();
-    when(evaluationContext.createCounterSet()).thenReturn(counters);
+    AggregatorContainer container = AggregatorContainer.create();
+    AggregatorContainer.Mutator mutator = container.createMutator();
+    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
+    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
@@ -404,8 +407,10 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         null, null);
     when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(),
         inputBundle.getKey())).thenReturn(executionContext);
-    CounterSet counters = new CounterSet();
-    when(evaluationContext.createCounterSet()).thenReturn(counters);
+    AggregatorContainer container = AggregatorContainer.create();
+    AggregatorContainer.Mutator mutator = container.createMutator();
+    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
+    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
