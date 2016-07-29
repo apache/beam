@@ -8,10 +8,14 @@ class FlatMapTranslator implements OperatorTranslator<FlatMap> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public DataStream<?> translate(FlatMap operator, ExecutorContext context) {
+  public DataStream<?> translate(FlatMap operator,
+                                 ExecutorContext context,
+                                 int parallelism)
+  {
     DataStream<?> input = context.getInputStream(operator);
 
     return input.flatMap(new UnaryFunctorWrapper(operator.getFunctor()))
+            .setParallelism(parallelism)
             .name(operator.getName());
   }
 }

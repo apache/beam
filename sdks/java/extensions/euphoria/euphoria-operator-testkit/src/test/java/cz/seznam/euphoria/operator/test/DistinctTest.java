@@ -22,8 +22,6 @@ public class DistinctTest extends OperatorTest {
         testSimpleDuplicatesWithSinglePartitionBatch(),
         testSimpleDuplicatesWithSinglePartitionStream(),
         testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions()
-        // FIXME
-        // testWithAggregatingWindow()
     );
   }
 
@@ -133,7 +131,7 @@ public class DistinctTest extends OperatorTest {
 
       @Override
       protected DataSource<Integer> getDataSource() {
-        return ListDataSource.unbounded(
+        return ListDataSource.bounded(
             Arrays.asList(1, 2, 3, 3, 2, 1),
             Arrays.asList(1, 2, 3, 3, 2, 1));
       }
