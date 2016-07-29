@@ -194,7 +194,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     settings.put("appName", "DataflowPipelineTranslatorTest");
     settings.put("project", "some-project");
     settings.put("pathValidatorClass",
-        "org.apache.beam.runners.dataflow.util.DataflowPathValidator");
+        "org.apache.beam.sdk.util.GcsPathValidator");
     settings.put("runner", "org.apache.beam.runners.dataflow.DataflowRunner");
     settings.put("jobName", "some-job-name");
     settings.put("tempLocation", "gs://somebucket/some/path");
