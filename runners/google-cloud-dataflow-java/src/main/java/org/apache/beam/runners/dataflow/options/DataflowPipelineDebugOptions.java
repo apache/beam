@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import org.apache.beam.runners.dataflow.util.DataflowPathValidator;
+import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
@@ -108,7 +108,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   @Description("The class of the validator that should be created and used to validate paths. "
       + "If pathValidator has not been set explicitly, an instance of this class will be "
       + "constructed and used as the path validator.")
-  @Default.Class(DataflowPathValidator.class)
+  @Default.Class(GcsPathValidator.class)
   Class<? extends PathValidator> getPathValidatorClass();
   void setPathValidatorClass(Class<? extends PathValidator> validatorClass);
 
