@@ -39,7 +39,7 @@ public abstract class OperatorTest implements Serializable {
    * Run all tests with given executor.
    */
   @SuppressWarnings("unchecked")
-  public void runTests(Executor executor) {
+  public void runTests(Executor executor) throws Exception {
     for (TestCase tc : getTestCases()) {
       ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
       Flow flow = Flow.create(tc.toString());

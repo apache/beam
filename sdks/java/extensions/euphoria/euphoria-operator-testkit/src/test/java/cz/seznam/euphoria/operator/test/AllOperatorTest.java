@@ -35,73 +35,73 @@ public abstract class AllOperatorTest {
   }
 
   @Test
-  public void testDistinct() {
+  public void testDistinct() throws Exception {
     DistinctTest t = new DistinctTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testCountByKey() {
+  public void testCountByKey() throws Exception {
     CountByKeyTest t = new CountByKeyTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testFilter() {
+  public void testFilter() throws Exception {
     FilterTest t = new FilterTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testFlatMap() {
+  public void testFlatMap() throws Exception {
     FlatMapTest t = new FlatMapTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testMapElements() {
+  public void testMapElements() throws Exception {
     MapElementsTest t = new MapElementsTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testRepartition() {
+  public void testRepartition() throws Exception {
     RepartitionTest t = new RepartitionTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testSumByKey() {
+  public void testSumByKey() throws Exception {
     SumByKeyTest t = new SumByKeyTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testUnion() {
+  public void testUnion() throws Exception {
     UnionTest t = new UnionTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testJoin() {
+  public void testJoin() throws Exception {
     JoinTest t = new JoinTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testGroupBy() {
+  public void testGroupBy() throws Exception {
     GroupByKeyTest t = new GroupByKeyTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testReduceByKey() {
+  public void testReduceByKey() throws Exception {
     ReduceByKeyTest t = new ReduceByKeyTest();
     t.runTests(executor);
   }
 
   @Test
-  public void testReduceStateByKey() {
+  public void testReduceStateByKey() throws Exception {
     ReduceStateByKeyTest t = new ReduceStateByKeyTest();
     t.runTests(executor);
   }
