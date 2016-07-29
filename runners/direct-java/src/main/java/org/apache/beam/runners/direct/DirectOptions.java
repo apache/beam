@@ -80,6 +80,7 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
 
   void setShutdownUnboundedProducersWithMaxWatermark(boolean shutdown);
 
+  @Override
   @Default.Boolean(true)
   @Description(
       "If the pipeline should block awaiting completion of the pipeline. If set to true, "
@@ -87,7 +88,7 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
           + "the Pipeline will execute asynchronously. If set to false, the completion of the "
           + "pipeline can be awaited on by use of DirectPipelineResult#awaitCompletion().")
   boolean isBlockOnRun();
-
+  @Override
   void setBlockOnRun(boolean b);
 
   @Default.Boolean(true)
