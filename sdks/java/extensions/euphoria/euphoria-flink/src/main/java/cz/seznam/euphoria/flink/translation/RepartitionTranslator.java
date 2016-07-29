@@ -10,7 +10,8 @@ class RepartitionTranslator implements OperatorTranslator<Repartition> {
   @Override
   @SuppressWarnings("unchecked")
   public DataStream<?> translate(Repartition operator,
-                                 ExecutorContext context)
+                                 ExecutorContext context,
+                                 int parallelism)
   {
     DataStream input = context.getInputStream(operator);
     Partitioning partitioning = operator.getPartitioning();
@@ -18,7 +19,8 @@ class RepartitionTranslator implements OperatorTranslator<Repartition> {
     FlinkPartitioner flinkPartitioner =
             new FlinkPartitioner<>(partitioning.getPartitioner());
 
-    // TODO not sure how to change number of output partitions
+    // ~ parallelism is not set directly to partitionCustom() transformation
+    // but instead it's set on downstream operations
     // http://apache-flink-mailing-list-archive.1008284.n3.nabble.com/DataStream-partitionCustom-define-parallelism-td12597.html
 
     return input.partitionCustom(flinkPartitioner, elem -> elem);

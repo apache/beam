@@ -3,9 +3,14 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
+import cz.seznam.euphoria.core.util.Settings;
+
 import java.io.Serializable;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,13 +44,19 @@ public abstract class OperatorTest implements Serializable {
    * Run all tests with given executor.
    */
   @SuppressWarnings("unchecked")
-  public void runTests(Executor executor) throws Exception {
+  public void runTests(Executor executor, Settings settings) throws Exception {
     for (TestCase tc : getTestCases()) {
-      ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
-      Flow flow = Flow.create(tc.toString());
-      tc.getOutput(flow).persist(sink);
+      Flow flow = Flow.create(tc.toString(), settings);
+      tc.getOutput(flow).persist(URI.create("inmem:///tmp/output"));
       executor.waitForCompletion(flow);
-      tc.validate(sink.getOutputs());
+
+      // load output from InMemFileSystem
+      List<List> outputs = new ArrayList<>(tc.getNumOutputPartitions());
+      for (int i = 0; i < tc.getNumOutputPartitions(); i++) {
+        outputs.add(Arrays.asList(
+                InMemFileSystem.get().getFile("/tmp/output/" + i).toArray()));
+      }
+      tc.validate(outputs);
     }
   }
 
