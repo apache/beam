@@ -238,10 +238,18 @@ public class MapElementsTest implements Serializable {
       public Integer apply(Integer input) {
         return input;
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "baz"));
+      }
     };
+
+
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("foo", "baz"));
   }
 
   @Test

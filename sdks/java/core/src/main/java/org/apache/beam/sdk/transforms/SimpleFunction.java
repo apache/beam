@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -25,7 +27,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@link org.apache.beam.sdk.coders.Coder Coder} inference.
  */
 public abstract class SimpleFunction<InputT, OutputT>
-    implements SerializableFunction<InputT, OutputT> {
+    implements SerializableFunction<InputT, OutputT>, HasDisplayData {
 
   public static <InputT, OutputT>
       SimpleFunction<InputT, OutputT> fromSerializableFunctionWithOutputType(
@@ -60,6 +62,15 @@ public abstract class SimpleFunction<InputT, OutputT>
   }
 
   /**
+    * {@inheritDoc}
+    *
+    * <p>By default, does not register any display data. Implementors may override this method
+    * to provide their own display data.
+    */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {}
+
+  /**
    * A {@link SimpleFunction} built from a {@link SerializableFunction}, having
    * a known output type that is explicitly set.
    */
@@ -75,6 +86,7 @@ public abstract class SimpleFunction<InputT, OutputT>
       this.fn = fn;
       this.outputType = outputType;
     }
+
 
     @Override
     public OutputT apply(InputT input) {
