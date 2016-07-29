@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Getting started with Apache Beam</title>
+  <title>Apache Beam (incubating)</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
 
@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/getting_started/">
+  <link rel="canonical" href="http://beam.incubator.apache.org/docs/learn/">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -115,50 +115,75 @@
     <div class="container" role="main">
 
       <div class="container">
-        <article class="post">
+        <p>
+  <div class="alert alert-info alert-dismissible" role="alert">
+  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
+  </div>
+</p>
 
-  <header class="post-header">
-    <h1 class="post-title">Getting started with Apache Beam</h1>
-  </header>
+<h1 id="learn-about-the-beam-model">Learn about the Beam Model</h1>
 
-  <div class="post-content">
-    <p>The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. Until the project is fully initialized, this page contains useful resources to learn more about the model and tools which comprise Apache Beam.</p>
+<p>Get in-depth conceptual information and reference material for the Beam SDKs and Runners:</p>
 
-<h2 id="articles--slides">Articles &amp; slides</h2>
-<ul>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">The world beyond batch: Streaming 101</a></li>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">The world beyong batch: Streaming 102</a></li>
-  <li><a href="https://cloud.google.com/dataflow/blog/dataflow-beam-and-spark-comparison">Dataflow/Beam &amp; Spark: A Programming Model Comparison</a></li>
-  <li><a href="http://blog.nanthrax.net/2016/01/introducing-apache-dataflow/">Introducing Apache Beam</a></li>
-  <li><a href="http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html">Dataflow and open source - proposal to join the Apache Incubator</a></li>
-</ul>
+<h4 id="beam-programming-guidedocslearnprogramming-guide"><a href="/docs/learn/programming-guide/">Beam Programming Guide</a></h4>
+<p>Learn about the Beam Programming Model and the concepts common to all Beam SDKs and Runners.</p>
 
-<h2 id="current-code">Current code</h2>
-<p>The following GitHub repositories contain code which will be incorporated into Apache Beam.</p>
+<h4 id="beam-sdks">Beam SDKs</h4>
+<p>Find status and reference information on all of the available Beam SDKs.</p>
 
 <ul>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK">Dataflow Java SDK</a></li>
-  <li><a href="https://github.com/dataArtisans/flink-dataflow">Flink Dataflow runner</a></li>
-  <li><a href="https://github.com/cloudera/spark-dataflow">Spark Dataflow runner</a></li>
-</ul>
-
-<p>These code repositories will be refactored and managed together (along with other code and new contributions) into a single repository.</p>
-
-<h2 id="documentation">Documentation</h2>
-<ul>
-  <li><a href="https://goo.gl/KJrEl7">Apache Beam incubation proposal</a></li>
-  <li><em>Apache Beam technical vision</em>
+  <li>SDK for Java
     <ul>
-      <li><a href="https://goo.gl/5qZt3d">Detailed</a></li>
-      <li><a href="https://goo.gl/nk5OM0">Summary</a></li>
+      <li>Status</li>
+      <li>Supported I/O Connectors</li>
+      <li>API Reference</li>
     </ul>
   </li>
-  <li><a href="https://goo.gl/ps8twC">Apache Beam technical documentation</a></li>
+  <li>SDK for Python
+    <ul>
+      <li>Status</li>
+      <li>Supported I/O Connectors</li>
+      <li>API Reference</li>
+    </ul>
+  </li>
 </ul>
 
-  </div>
+<h4 id="pipeline-runners">Pipeline Runners</h4>
+<p>Find status and reference information on all of the available Beam Pipeline Runners.</p>
 
-</article>
+<ul>
+  <li><a href="/capability-matrix/">Capability Matrix</a></li>
+  <li>Spark Runner
+    <ul>
+      <li>Status</li>
+      <li>Pipeline Options for Spark</li>
+    </ul>
+  </li>
+  <li>Flink Runner
+    <ul>
+      <li>Status</li>
+      <li>Pipeline Options for Flink</li>
+    </ul>
+  </li>
+  <li>Google Cloud Dataflow
+    <ul>
+      <li>Status</li>
+      <li>Pipeline Options for Google Cloud Dataflow</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="additional-resources">Additional Resources</h4>
+<p>More information to help you learn about Beam.</p>
+
+<ul>
+  <li><a href="https://goo.gl/ps8twC">Additional Technical Documentation</a></li>
+  <li>Tech Talks</li>
+  <li>Dataflow Paper</li>
+  <li>Streaming 101/102</li>
+</ul>
 
       </div>
 

@@ -6,9 +6,9 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 12 Jul 2016 08:21:30 -0700</pubDate>
-    <lastBuildDate>Tue, 12 Jul 2016 08:21:30 -0700</lastBuildDate>
-    <generator>Jekyll v3.1.6</generator>
+    <pubDate>Thu, 28 Jul 2016 17:02:16 -0700</pubDate>
+    <lastBuildDate>Thu, 28 Jul 2016 17:02:16 -0700</lastBuildDate>
+    <generator>Jekyll v3.1.2</generator>
     
       <item>
         <title>The first release of Apache Beam!</title>

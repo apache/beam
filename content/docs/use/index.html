@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Getting started with Apache Beam</title>
+  <title>Apache Beam (incubating)</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
 
@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/getting_started/">
+  <link rel="canonical" href="http://beam.incubator.apache.org/docs/use/">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -115,50 +115,43 @@
     <div class="container" role="main">
 
       <div class="container">
-        <article class="post">
-
-  <header class="post-header">
-    <h1 class="post-title">Getting started with Apache Beam</h1>
-  </header>
-
-  <div class="post-content">
-    <p>The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. Until the project is fully initialized, this page contains useful resources to learn more about the model and tools which comprise Apache Beam.</p>
-
-<h2 id="articles--slides">Articles &amp; slides</h2>
-<ul>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">The world beyond batch: Streaming 101</a></li>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">The world beyong batch: Streaming 102</a></li>
-  <li><a href="https://cloud.google.com/dataflow/blog/dataflow-beam-and-spark-comparison">Dataflow/Beam &amp; Spark: A Programming Model Comparison</a></li>
-  <li><a href="http://blog.nanthrax.net/2016/01/introducing-apache-dataflow/">Introducing Apache Beam</a></li>
-  <li><a href="http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html">Dataflow and open source - proposal to join the Apache Incubator</a></li>
-</ul>
-
-<h2 id="current-code">Current code</h2>
-<p>The following GitHub repositories contain code which will be incorporated into Apache Beam.</p>
-
-<ul>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK">Dataflow Java SDK</a></li>
-  <li><a href="https://github.com/dataArtisans/flink-dataflow">Flink Dataflow runner</a></li>
-  <li><a href="https://github.com/cloudera/spark-dataflow">Spark Dataflow runner</a></li>
-</ul>
-
-<p>These code repositories will be refactored and managed together (along with other code and new contributions) into a single repository.</p>
-
-<h2 id="documentation">Documentation</h2>
-<ul>
-  <li><a href="https://goo.gl/KJrEl7">Apache Beam incubation proposal</a></li>
-  <li><em>Apache Beam technical vision</em>
-    <ul>
-      <li><a href="https://goo.gl/5qZt3d">Detailed</a></li>
-      <li><a href="https://goo.gl/nk5OM0">Summary</a></li>
-    </ul>
-  </li>
-  <li><a href="https://goo.gl/ps8twC">Apache Beam technical documentation</a></li>
-</ul>
-
+        <p>
+  <div class="alert alert-info alert-dismissible" role="alert">
+  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
   </div>
+</p>
 
-</article>
+<h1 id="using-beam">Using Beam</h1>
+<p>Learn to use Beam to create data processing pipelines that run on supported processing back-ends:</p>
+
+<h4 id="beam-overviewdocsusebeam-overview"><a href="/docs/use/beam-overview">Beam Overview</a></h4>
+<p>Learn about the Beam model, the currently available Beam SDKs and Runners, and Beam’s native I/O connectors.</p>
+
+<h4 id="quickstartgettingstarted"><a href="/getting_started/">Quickstart</a></h4>
+<p>Learn how to set up a Beam project and run a simple example Beam pipeline on your local machine.</p>
+
+<h4 id="example-walkthroughs">Example Walkthroughs</h4>
+<p>See detailed walkthroughs of complete Beam pipelines.</p>
+
+<ul>
+  <li><a href="/docs/use/walkthroughs">WordCount</a>: Simple example pipelines that demonstrate basic Beam programming, including debugging and testing</li>
+  <li><a href="/docs/use/walkthroughs">Mobile Gaming</a>: A series of more advanced pipelines that demonstrate use cases in the mobile gaming domain</li>
+</ul>
+
+<h4 id="release-information"><a href="">Release Information</a></h4>
+<p>Find information on the latest Beam releases, including versioning and release notes.</p>
+
+<h4 id="support-resources">Support Resources</h4>
+<p>Find resources to help you use Beam.</p>
+
+<ul>
+  <li><a href="/mailing_lists/">Mailing Lists</a></li>
+  <li><a href="/issue_tracking/">Issue Tracking</a></li>
+  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on Stack Overflow</a></li>
+  <li><a href="http://apachebeam.slack.com">Slack Channel</a></li>
+</ul>
 
       </div>
 
