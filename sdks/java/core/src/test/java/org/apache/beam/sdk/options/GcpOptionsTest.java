@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.util.NoopPathValidator;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
@@ -117,6 +118,7 @@ public class GcpOptionsTest {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
     String tempLocation = "gs://bucket";
     options.setTempLocation(tempLocation);
+    options.as(GcsOptions.class).setPathValidatorClass(NoopPathValidator.class);
     assertEquals(tempLocation, options.getGcpTempLocation());
   }
 

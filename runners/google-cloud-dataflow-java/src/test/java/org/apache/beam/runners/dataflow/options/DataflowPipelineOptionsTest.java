@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.NoopPathValidator;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -109,6 +110,7 @@ public class DataflowPipelineOptionsTest {
   public void testDefaultToTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerStandardIOFactories(options);
+    options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://temp_location/staging", options.getStagingLocation());
@@ -118,6 +120,7 @@ public class DataflowPipelineOptionsTest {
   public void testDefaultToGcpTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerStandardIOFactories(options);
+    options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     options.setGcpTempLocation("gs://gcp_temp_location");
     assertEquals("gs://gcp_temp_location/staging", options.getStagingLocation());
