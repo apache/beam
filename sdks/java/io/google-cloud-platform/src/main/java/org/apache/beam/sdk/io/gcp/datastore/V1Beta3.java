@@ -23,13 +23,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3Helper.ApplyRandomIntegerKey;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3Helper.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3Helper.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3Helper.V1Beta3Options;
@@ -41,10 +38,10 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -90,7 +87,8 @@ import javax.annotation.Nullable;
  * <p>To read a {@link PCollection} from a query to Datastore, use {@link V1Beta3#read} and
  * its methods {@link V1Beta3.Read#withProjectId} and {@link V1Beta3.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
- * to query within using {@link V1Beta3.Read#withNamespace}.
+ * to query within using {@link V1Beta3.Read#withNamespace}. You could also optionally specify
+ * how many splits you want for the query using {@link V1Beta3.Read#withNumQuerySplits}.
  *
  * <p>For example:
  *
@@ -159,8 +157,9 @@ public class V1Beta3 {
 
   /**
    * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
-   * {@code query}, and optionally {@code namespace} using {@link V1Beta3.Read#withProjectId},
-   * {@link V1Beta3.Read#withQuery}, and {@link V1Beta3.Read#withNamespace}.
+   * {@code query}, and optionally {@code namespace} and {@code numQuerySplits} using
+   * {@link V1Beta3.Read#withProjectId}, {@link V1Beta3.Read#withQuery},
+   * {@link V1Beta3.Read#withNamespace}, {@link V1Beta3.Read#withNumQuerySplits}
    */
   public V1Beta3.Read read() {
     return new V1Beta3.Read(null, null, null, 0);
@@ -173,6 +172,10 @@ public class V1Beta3 {
    * @see DatastoreIO
    */
   public static class Read extends PTransform<PBegin, PCollection<Entity>> {
+
+    /** An upper bound on the number of splits for a query. */
+    public static final int NUM_QUERY_SPLITS_MAX = 50000;
+
     @Nullable
     private final String projectId;
 
@@ -182,7 +185,6 @@ public class V1Beta3 {
     @Nullable
     private final String namespace;
 
-    @Nullable
     private final int numQuerySplits;
 
     /**
@@ -230,11 +232,24 @@ public class V1Beta3 {
 
     /**
      * Returns a new {@link V1Beta3.Read} that reads by splitting the given {@code query} into
-     * {@param numQuerySplits}.
+     * {@code numQuerySplits}.
      *
+     * <p>The semantics for the query splitting is defined below,
+     * <ul>
+     *   <li>Any value <= 0 will be ignored, and the number of splits will be chosen dynamically at
+     *   runtime based on the query data size.
+     *   <li>Any value > {@link Read#NUM_QUERY_SPLITS_MAX} will be capped at
+     *   {@code NUM_QUERY_SPLITS_MAX}
+     *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be
+     *   ignored and no split will be performed.
+     * </ul>
      */
-    @Experimental(Kind.SOURCE_SINK)
-    V1Beta3.Read withNumQuerySplits(int numQuerySplits) {
+    public V1Beta3.Read withNumQuerySplits(int numQuerySplits) {
+      if (numQuerySplits < 0) {
+        numQuerySplits = 0;
+      } else if (numQuerySplits > NUM_QUERY_SPLITS_MAX) {
+        numQuerySplits = NUM_QUERY_SPLITS_MAX;
+      }
       return new V1Beta3.Read(projectId, query, namespace, numQuerySplits);
     }
 
@@ -256,39 +271,40 @@ public class V1Beta3 {
     /**
      * The composite {@link PTransform} for reading from datastore.
      *
-     * It involves the following steps,
-     * 1. Create a Singleton of the user provided {@code query} and apply a {@link ParDo}
-     *    that splits the query into {@code numQuerySplits}. If {@code numQuerySplits} is 0 then
-     *    datastore is queried to get the estimated size, and use a default bundle size
-     *    to determine the number of splits.
-     * 2. The resulting {@link PCollection<Query>} is randomly distributed into buckets through a
-     *    {@link GroupByKey} operation.
-     * 3. Apply a {@link ParDo} that reads {@link Entity} from datastore for each of the above
-     *    generated queries.
+     * <p>It involves the following steps,
+     * <ul>
+     *   <li>Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
+     *   splits the query into {@code numQuerySplits} and assign each split query a unique
+     *   {@code Integer} as the key. The resulting output of the type
+     *   {@link PCollection<KV<Integer, Query>>}.
      *
-     * Note: This allows for dynamic rebalancing to happen after the {@link GroupByKey} operation,
-     * and avoids the complexity of implementing a {@link org.apache.beam.sdk.io.BoundedSource}
-     * to support dynamic splitting.
+     *   <p>If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
+     *   splits will be computed dynamically based on the size of the data for the {@code query}.
+     *
+     *   <li>The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
+     *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
+     *   output a {@code PCollection<Query>}.
+     *
+     *   <li>In the third step, a {@code ParDo} reads entities for each query and outputs
+     *   a {@code PCollection<Entity>}.
+     * </ul>
      */
     @Override
     public PCollection<Entity> apply(PBegin input) {
       V1Beta3Options v1Beta3Options = V1Beta3Options.from(getProjectId(), getQuery(),
           getNamespace());
 
-      PCollection<Query> queries = input
+      PCollection<KV<Integer, Query>> queries = input
           .apply(Create.of(query))
-          .apply(ParDo.of(new SplitQueryFn(v1Beta3Options, numQuerySplits)))
-          .setCoder(ProtoCoder.of(Query.class));
+          .apply(ParDo.of(new SplitQueryFn(v1Beta3Options, numQuerySplits)));
 
       PCollection<Query> shardedQueries = queries
-          .apply(WithKeys.of(new ApplyRandomIntegerKey<Query>()))
           .apply(GroupByKey.<Integer, Query>create())
           .apply(Values.<Iterable<Query>>create())
           .apply(Flatten.<Query>iterables());
 
       PCollection<Entity> entities = shardedQueries
-          .apply(ParDo.of(new ReadFn(v1Beta3Options)))
-          .setCoder(ProtoCoder.of(Entity.class));
+          .apply(ParDo.of(new ReadFn(v1Beta3Options)));
 
       return entities;
     }
@@ -297,6 +313,7 @@ public class V1Beta3 {
     public void validate(PBegin input) {
       checkNotNull(projectId, "projectId");
       checkNotNull(query, "query");
+
     }
 
     @Override
