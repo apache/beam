@@ -1,27 +1,26 @@
 ---
 layout: default
 ---
-<div class="alert alert-info alert-dismissible" role="alert">
-<span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
-<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
-</div>
+<p>
+  <div class="alert alert-info alert-dismissible" role="alert">
+  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
+  </div>
+</p>
 
-# Apache Beam Documentation
+# Beam Documentation
 
-Welcome to the Apache Beam project documentation! The following resources can help you use, integrate with, and contribute to Apache Beam.
+Welcome to the Beam documentation! Here you'll find resources to help you use, learn about, and contribute to Beam.
 
-## Using Beam
+### [Use](/docs/use/index.html)
 
-These resources help you build and run Beam pipelines for your data processing tasks.
+Learn how to use Beam to create data processing pipelines.
 
-* [Beam Programming Guide](/coming-soon.html) - Learn how to use the Beam SDKs to define your data processing workflows.
-* [Beam Example Walkthroughs](/coming-soon.html) - Check out detailed walkthroughs of runnable Beam pipelines that use the Beam SDKs to tackle a variety of use cases.
+### [Learn](/docs/learn/index.html)
 
-## Integrating your Distribured Processing Back-end with Beam
+Find conceptual information on the Beam programming model as well as detailed reference information on the Beam SDKs and Pipeline Runners.
 
-* [Beam Runner Developer's Guide](/coming-soon.html) - Learn how to build a Beam Runner to help Beam pipelines work with your distributed processing back-end.
+### [Contribute](/docs/contribute/index.html)
 
-## Contributing to Beam
-
-* [Beam Contribution Guide](/contribution-guide/) - Learn how to contribute to the various open-source Beam SDKs.
+Discover how you can contribute to the Beam project.
