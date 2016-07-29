@@ -331,7 +331,7 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testDistinctOnBatchWithoutWindowingLabels() {
+  public void testDistinctOnBatchWithoutWindowingLabels() throws Exception {
     Flow flow = Flow.create("Test");
     Dataset<String> lines = flow.createInput(ListDataSource.bounded(
         asList("one two three four", "one two three", "one two", "one")));
@@ -354,7 +354,7 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testDistinctOnStreamWithoutWindowingLabels() {
+  public void testDistinctOnStreamWithoutWindowingLabels() throws Exception {
     Flow flow = Flow.create("Test");
     Dataset<String> lines = flow.createInput(
         ListDataSource.unbounded(asList(
@@ -387,7 +387,7 @@ public class BasicOperatorTest {
   }
 
   @Test
-  public void testDistinctOnStreamUsingWindowingLabels() {
+  public void testDistinctOnStreamUsingWindowingLabels() throws Exception {
     Flow flow = Flow.create("Test");
     Dataset<String> lines = flow.createInput(
         ListDataSource.unbounded(asList(

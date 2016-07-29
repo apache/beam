@@ -260,7 +260,7 @@ public class InMemExecutor implements Executor {
   public int waitForCompletion(Flow flow) {
 
 
-    // transform the given flow to DAG of basic dag
+    // transform the given flow to DAG of basic operators
     DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
 
     final List<Future> runningTasks = new ArrayList<>();
