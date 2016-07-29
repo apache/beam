@@ -43,6 +43,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -358,22 +359,21 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       String oldName = Thread.currentThread().getName();
       Thread.currentThread().setName(runnableName);
       try {
-        ExecutorUpdate update = allUpdates.poll();
-        int numUpdates = 0;
-        // pull all of the pending work off of the queue
-        long updatesStart = System.nanoTime();
-        while (update != null) {
+        Collection<ExecutorUpdate> updates = new ArrayList<>();
+        // Pull all available updates off of the queue before adding additional work. This ensures
+        // both loops terminate.
+        ExecutorUpdate pendingUpdate = allUpdates.poll();
+        while (pendingUpdate != null) {
+          updates.add(pendingUpdate);
+          pendingUpdate = allUpdates.poll();
+        }
+        for (ExecutorUpdate update : updates) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
             scheduleConsumers(update);
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
             exceptionThrown = true;
-          }
-          if (System.nanoTime() - updatesStart > maxTimeProcessingUpdatesNanos) {
-            break;
-          } else {
-            update = allUpdates.poll();
           }
         }
         boolean timersFired = fireTimers();
