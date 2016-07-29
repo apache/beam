@@ -811,6 +811,19 @@ public class BigtableIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add(DisplayData.item("tableId", tableId)
+          .withLabel("Table ID"));
+
+      if (filter != null) {
+        builder.add(DisplayData.item("rowFilter", filter.toString())
+            .withLabel("Table Row Filter"));
+      }
+    }
+
+    @Override
     public Coder<Row> getDefaultOutputCoder() {
       return ProtoCoder.of(Row.class);
     }
