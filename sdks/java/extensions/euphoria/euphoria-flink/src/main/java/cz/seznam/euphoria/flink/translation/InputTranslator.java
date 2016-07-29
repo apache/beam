@@ -2,9 +2,8 @@ package cz.seznam.euphoria.flink.translation;
 
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import cz.seznam.euphoria.flink.translation.io.DataSourceWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
-
-import java.util.Arrays;
 
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
 
@@ -15,8 +14,7 @@ class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> 
     // get original datasource from operator
     DataSource<?> ds = operator.output().getSource();
 
-    // TODO dummy input
-    return context.getExecutionEnvironment().fromCollection(
-            Arrays.asList("flink", "test"));
+    return context.getExecutionEnvironment().addSource(
+            new DataSourceWrapper<>(ds));
   }
 }
