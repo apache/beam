@@ -73,7 +73,7 @@ public class Dataset<T> {
     return this;
   }
 
-  public void execute(Executor exec) {
+  public void execute(Executor exec) throws Exception {
     exec.waitForCompletion(this.wrap.getFlow());
   }
 }
