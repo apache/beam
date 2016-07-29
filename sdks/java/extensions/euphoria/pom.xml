@@ -76,6 +76,7 @@
     <module>euphoria-hadoop</module>
     <module>euphoria-testapps</module>
     <module>euphoria-operator-testkit</module>
+    <module>euphoria-flink</module>
   </modules>
 
   <!-- make a few things differently when building under jdk8 -->

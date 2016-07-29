@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class FlowUnfolder {
 
   /**
-   * Node added as a producer of inputs. This is fake "operator"
+   * Node added as a producer of inputs. This is dummy "operator"
    * with the same input as output.
    */
   public static final class InputOperator<T> extends Operator<T, T> {
@@ -49,8 +49,10 @@ public class FlowUnfolder {
   }
 
   /**
-   * Unfold the flow so that it contains only allowed operators.
-   * Exception is thrown when this is not possible.
+   * Unfolds the flow so that it contains only allowed operators.
+   * @param flow original flow
+   * @param operatorClasses allowed operators
+   * @throws IllegalArgumentException when the transformation is not possible.
    */
   @SuppressWarnings("unchecked")
   public static DAG<Operator<?, ?>> unfold(Flow flow,
@@ -63,7 +65,9 @@ public class FlowUnfolder {
 
 
   /**
-   * Get rid of unwanted operators in a DAG.
+   * Translates given DAG to DAG of allowed operators.
+   * @param dag Original DAG
+   * @param allowed set of allowed operators
    */
   @SuppressWarnings("unchecked")
   private static DAG<Operator<?, ?>> translate(DAG<Operator<?, ?>> dag,
@@ -84,7 +88,7 @@ public class FlowUnfolder {
     // filter the dag to contain only specified operators
     dag.traverse().forEach(n -> {
       if (n.get() instanceof InputOperator) {
-        // this is added 'fake' operator node, the operator has by definition no
+        // this is added 'dummy' operator node, the operator has by definition no
         // parents
         ret.add(n.get());
       } else if (allowed.contains((Class) n.get().getClass())) {

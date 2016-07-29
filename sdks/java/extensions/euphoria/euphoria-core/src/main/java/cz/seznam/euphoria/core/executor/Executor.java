@@ -20,7 +20,7 @@ public interface Executor {
   Future<Integer> submit(Flow flow);
 
   /** Submit flow and wait for completion synchronously. */
-  int waitForCompletion(Flow flow);
+  int waitForCompletion(Flow flow) throws Exception;
 
   /**
    * Operators that are considered to be basic and each executor has to
