@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow;
 import javax.annotation.Nullable;
 
 /**
- * Signals that a job run by a {@link BlockingDataflowRunner} fails during execution, and
+ * Signals that a job run by a {@link DataflowRunner} failed during execution, and
  * provides access to the failed job.
  */
 public class DataflowJobExecutionException extends DataflowJobException {
