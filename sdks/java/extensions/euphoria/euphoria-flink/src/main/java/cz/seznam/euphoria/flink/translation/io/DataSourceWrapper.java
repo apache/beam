@@ -86,7 +86,9 @@ public class DataSourceWrapper<T>
 
   @Override
   public void cancel() {
-    executor.shutdownNow();
+    if (executor != null) {
+      executor.shutdownNow();
+    }
     this.isRunning = false;
   }
 

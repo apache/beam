@@ -9,12 +9,14 @@ class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> 
 
   @Override
   public DataStream<?> translate(FlowUnfolder.InputOperator operator,
-                                 ExecutorContext context)
+                                 ExecutorContext context,
+                                 int parallelism)
   {
     // get original datasource from operator
     DataSource<?> ds = operator.output().getSource();
 
-    return context.getExecutionEnvironment().addSource(
-            new DataSourceWrapper<>(ds));
+    return context.getExecutionEnvironment()
+            .addSource(new DataSourceWrapper<>(ds))
+            .setParallelism(parallelism);
   }
 }

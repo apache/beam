@@ -1,10 +1,12 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.flink.translation.FlowTranslator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.List;
 import java.util.concurrent.Future;
 
 /**
@@ -30,9 +32,20 @@ public class FlinkExecutor implements Executor {
   @Override
   public int waitForCompletion(Flow flow) throws Exception {
     FlowTranslator translator = new FlowTranslator();
-    translator.translateInto(flow, flinkStreamEnv);
+    List<DataSink<?>> sinks = translator.translateInto(flow, flinkStreamEnv);
 
-    flinkStreamEnv.execute();
+    try {
+      flinkStreamEnv.execute(); // blocking operation
+    } catch (Exception e) {
+      // when exception thrown rollback all sinks
+      sinks.stream().forEach(DataSink::rollback);
+      throw e;
+    }
+
+    // when the execution is successful commit all sinks
+    for (DataSink s : sinks) {
+      s.commit();
+    }
 
     return 0;
   }
