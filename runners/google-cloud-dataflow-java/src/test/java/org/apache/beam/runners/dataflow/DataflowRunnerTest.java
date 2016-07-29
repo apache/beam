@@ -229,7 +229,7 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject(PROJECT_ID);
-    options.setGcpTempLocation("gs://somebucket/some/path");
+    options.setTempLocation("gs://somebucket/some/path");
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(jobCaptor));
@@ -617,6 +617,7 @@ public class DataflowRunnerTest {
     GcsUtil mockGcsUtil =
         buildMockGcsUtil(true /* temp bucket exists */, false /* staging bucket exists */);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcpTempLocation(options.getTempLocation()); // bypass validation for GcpTempLocation
     options.setGcsUtil(mockGcsUtil);
     options.setStagingLocation("gs://non-existent-bucket/location");
 

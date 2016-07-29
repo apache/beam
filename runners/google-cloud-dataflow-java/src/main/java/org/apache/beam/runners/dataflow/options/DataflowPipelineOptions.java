@@ -33,7 +33,6 @@ import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import com.google.common.base.MoreObjects;
 
