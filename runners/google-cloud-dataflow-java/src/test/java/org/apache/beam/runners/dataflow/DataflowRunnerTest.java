@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -62,6 +63,7 @@ import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -70,6 +72,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.NoopCredentialFactory;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
@@ -88,6 +91,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -232,6 +236,38 @@ public class DataflowRunnerTest {
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
     return options;
+  }
+
+  @Test
+  public void testPathValidation() {
+    String[] args = new String[] {
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/not/a/gs/path",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
+    };
+
+    try {
+      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      fail();
+    } catch (RuntimeException e) {
+      assertThat(
+          Throwables.getStackTraceAsString(e),
+          containsString("DataflowRunner requires gcpTempLocation"));
+    }
+  }
+
+  @Test
+  public void testPathValidatorOverride() {
+    String[] args = new String[] {
+        "--runner=DataflowRunner",
+        "--tempLocation=/tmp/testing",
+        "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
+        "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
+    };
+    // Should not crash, because gcpTempLocation should get set from tempLocation
+    TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
   }
 
   @Test
