@@ -17,23 +17,19 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,7 +38,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IllegalMutationException;
@@ -336,32 +331,5 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectMessage("Input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
-  }
-
-  @Test
-  public void testAggregators() throws Exception {
-    Pipeline pipeline = getPipeline();
-
-    CountOddsFn countOdds = new CountOddsFn();
-    pipeline
-        .apply(Create.of(1, 3, 5, 7, 2, 4, 6, 8, 10, 12, 14, 20, 42, 68, 100))
-        .apply(ParDo.of(countOdds));
-    PipelineResult result = pipeline.run();
-
-    AggregatorValues<Integer> values = result.getAggregatorValues(countOdds.aggregator);
-    assertThat(values.getValuesAtSteps(),
-        equalTo((Map<String, Integer>) ImmutableMap.<String, Integer>of("ParDo(CountOdds)", 4)));
-  }
-
-  private static class CountOddsFn extends DoFn<Integer, Void> {
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      if (c.element() % 2 == 1) {
-        aggregator.addValue(1);
-      }
-    }
-
-    Aggregator<Integer, Integer> aggregator =
-        createAggregator("odds", new SumIntegerFn());
   }
 }

@@ -345,7 +345,6 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       checkNotNull(combiner, "Combiner passed to createAggregatorForDoFn cannot be null");
-      boolean isSystemDoFn = fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
       return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
   }
