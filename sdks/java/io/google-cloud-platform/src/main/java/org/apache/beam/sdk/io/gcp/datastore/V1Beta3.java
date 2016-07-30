@@ -174,7 +174,7 @@ public class V1Beta3 {
    * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
    * {@code query}, and optionally {@code namespace} and {@code numQuerySplits} using
    * {@link V1Beta3.Read#withProjectId}, {@link V1Beta3.Read#withQuery},
-   * {@link V1Beta3.Read#withNamespace}, {@link V1Beta3.Read#withNumQuerySplits}
+   * {@link V1Beta3.Read#withNamespace}, {@link V1Beta3.Read#withNumQuerySplits}.
    */
   public V1Beta3.Read read() {
     return new V1Beta3.Read(null, null, null, 0);
@@ -192,11 +192,11 @@ public class V1Beta3 {
     /** An upper bound on the number of splits for a query. */
     public static final int NUM_QUERY_SPLITS_MAX = 50000;
 
-    /** Default bundle size of 64MB. */
-    static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024;
-
     /** A lower bound on the number of splits for a query. */
     static final int NUM_QUERY_SPLITS_MIN = 12;
+
+    /** Default bundle size of 64MB. */
+    static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024;
 
     /**
      * Maximum number of results to request per query.
@@ -220,7 +220,7 @@ public class V1Beta3 {
      * Computes the number of splits to be performed on the given query by querying the estimated
      * size from Datastore.
      */
-    static int getEstimatedNumSplits(Datastore datastore, Query query, String namespace) {
+    static int getEstimatedNumSplits(Datastore datastore, Query query, @Nullable String namespace) {
       int numSplits;
       try {
         long estimatedSizeBytes = getEstimatedSizeBytes(datastore, query, namespace);
@@ -243,7 +243,7 @@ public class V1Beta3 {
      *
      * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
      */
-    static long getEstimatedSizeBytes(Datastore datastore, Query query, String namespace)
+    static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
         throws DatastoreException {
       String ourKind = query.getKind(0).getName();
       Query.Builder queryBuilder = Query.newBuilder();
@@ -274,7 +274,7 @@ public class V1Beta3 {
     }
 
     /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
-    static RunQueryRequest makeRequest(Query query, String namespace) {
+    static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
       if (namespace != null) {
         requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
@@ -286,8 +286,8 @@ public class V1Beta3 {
      * A helper function to get the split queries, taking into account the optional
      * {@code namespace}.
      */
-    private static List<Query> splitQuery(Query query, String namespace, Datastore datastore,
-        QuerySplitter querySplitter, int numSplits) throws DatastoreException {
+    private static List<Query> splitQuery(Query query, @Nullable String namespace,
+        Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
       PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
       if (namespace != null) {
@@ -344,23 +344,21 @@ public class V1Beta3 {
      * Returns a new {@link V1Beta3.Read} that reads by splitting the given {@code query} into
      * {@code numQuerySplits}.
      *
-     * <p>The semantics for the query splitting is defined below,
+     * <p>The semantics for the query splitting is defined below:
      * <ul>
      *   <li>Any value less than or equal to 0 will be ignored, and the number of splits will be
      *   chosen dynamically at runtime based on the query data size.
      *   <li>Any value greater than {@link Read#NUM_QUERY_SPLITS_MAX} will be capped at
-     *   {@code NUM_QUERY_SPLITS_MAX}
+     *   {@code NUM_QUERY_SPLITS_MAX}.
      *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be
      *   ignored and no split will be performed.
+     *   <li>Under certain cases Cloud Datastore is unable to split query to the requested number of
+     *   splits. In such cases we just use whatever the Datastore returns.
      * </ul>
      */
     public V1Beta3.Read withNumQuerySplits(int numQuerySplits) {
-      if (numQuerySplits < 0) {
-        numQuerySplits = 0;
-      } else if (numQuerySplits > NUM_QUERY_SPLITS_MAX) {
-        numQuerySplits = NUM_QUERY_SPLITS_MAX;
-      }
-      return new V1Beta3.Read(projectId, query, namespace, numQuerySplits);
+      return new V1Beta3.Read(projectId, query, namespace,
+          Math.min(Math.max(numQuerySplits, 0), NUM_QUERY_SPLITS_MAX));
     }
 
     @Nullable
@@ -378,32 +376,32 @@ public class V1Beta3 {
       return namespace;
     }
 
+
     /**
-     * The composite {@link PTransform} for reading from datastore.
-     *
-     * <p>It involves the following steps,
-     * <ul>
-     *   <li>Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
-     *   splits the query into {@code numQuerySplits} and assign each split query a unique
-     *   {@code Integer} as the key. The resulting output is of the type
-     *   {@code PCollection<KV<Integer, Query>>}.
-     *
-     *   <p>If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
-     *   splits will be computed dynamically based on the size of the data for the {@code query}.
-     *
-     *   <li>The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
-     *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
-     *   output a {@code PCollection<Query>}.
-     *
-     *   <li>In the third step, a {@code ParDo} reads entities for each query and outputs
-     *   a {@code PCollection<Entity>}.
-     * </ul>
+     * {@inheritDoc}
      */
     @Override
     public PCollection<Entity> apply(PBegin input) {
       V1Beta3Options v1Beta3Options = V1Beta3Options.from(getProjectId(), getQuery(),
           getNamespace());
 
+      /*
+       * This composite transform involves the following steps:
+       *   1. Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
+       *   splits the query into {@code numQuerySplits} and assign each split query a unique
+       *   {@code Integer} as the key. The resulting output is of the type
+       *   {@code PCollection<KV<Integer, Query>>}.
+       *
+       *   If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
+       *   splits will be computed dynamically based on the size of the data for the {@code query}.
+       *
+       *   2. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
+       *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
+       *   output a {@code PCollection<Query>}.
+       *
+       *   3. In the third step, a {@code ParDo} reads entities for each query and outputs
+       *   a {@code PCollection<Entity>}.
+       */
       PCollection<KV<Integer, Query>> queries = input
           .apply(Create.of(query))
           .apply(ParDo.of(new SplitQueryFn(v1Beta3Options, numQuerySplits)));
@@ -456,13 +454,13 @@ public class V1Beta3 {
       @Nullable
       private final String namespace;
 
-      public V1Beta3Options(String projectId, Query query, String namespace) {
+      private V1Beta3Options(String projectId, Query query, @Nullable String namespace) {
         this.projectId = checkNotNull(projectId, "projectId");
         this.query = checkNotNull(query, "query");
         this.namespace = namespace;
       }
 
-      public static V1Beta3Options from(String projectId, Query query, String namespace) {
+      public static V1Beta3Options from(String projectId, Query query, @Nullable String namespace) {
         return new V1Beta3Options(projectId, query, namespace);
       }
 
@@ -587,8 +585,10 @@ public class V1Beta3 {
       }
 
       /** Read and output entities for the given query. */
-      private void processQuery(ProcessContext context,
-          Query query, String namespace, Datastore datastore) throws Exception {
+      @Override
+      public void processElement(ProcessContext context) throws Exception {
+        Query query = context.element();
+        String namespace = options.getNamespace();
         int userLimit = query.hasLimit()
             ? query.getLimit().getValue() : Integer.MAX_VALUE;
 
@@ -621,7 +621,7 @@ public class V1Beta3 {
           }
 
           // output all the entities from the current batch.
-          for (EntityResult entityResult: currentBatch.getEntityResultsList()) {
+          for (EntityResult entityResult : currentBatch.getEntityResultsList()) {
             context.output(entityResult.getEntity());
           }
 
@@ -633,11 +633,6 @@ public class V1Beta3 {
                   && ((numFetch == QUERY_BATCH_LIMIT)
                   || (currentBatch.getMoreResults() == NOT_FINISHED));
         }
-      }
-
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-        processQuery(c, c.element(), options.getNamespace(), datastore);
       }
     }
 

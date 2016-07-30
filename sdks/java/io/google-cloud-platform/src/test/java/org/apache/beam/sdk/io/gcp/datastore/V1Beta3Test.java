@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.getEstimatedSizeBytes;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.makeRequest;
@@ -404,9 +405,8 @@ public class V1Beta3Test {
   public void testSplitQueryFnWithoutNumSplits() throws Exception {
     // Force SplitQueryFn to compute the number of query splits
     int numSplits = 0;
-    // 1280 MB
-    long entityBytes = 1280 * 1024 * 1024L;
     int expectedNumSplits = 20;
+    long entityBytes = expectedNumSplits * DEFAULT_BUNDLE_SIZE_BYTES;
 
     // Per Kind statistics request and response
     RunQueryRequest statRequest = makeRequest(makeStatKindQuery(NAMESPACE), NAMESPACE);
@@ -542,6 +542,8 @@ public class V1Beta3Test {
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<Entity> entities = doFnTester.processBundle(query);
 
+    int expectedNumCallsToRunQuery = (int) Math.ceil((double) numEntities / QUERY_BATCH_LIMIT);
+    verify(mockDatastore, times(expectedNumCallsToRunQuery)).runQuery(any(RunQueryRequest.class));
     // Validate the number of results.
     assertEquals(numEntities, entities.size());
   }
