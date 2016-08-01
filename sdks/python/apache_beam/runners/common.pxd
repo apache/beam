@@ -15,17 +15,52 @@
 # limitations under the License.
 #
 
-cdef type SideOutputValue, TimestampedValue, WindowedValue
+cimport cython
 
-cdef class DoFnRunner(object):
+from apache_beam.utils.windowed_value cimport WindowedValue
+
+
+cdef type SideOutputValue, TimestampedValue
+
+
+cdef class Receiver(object):
+  cpdef receive(self, WindowedValue windowed_value)
+
+
+cdef class DoFnRunner(Receiver):
 
   cdef object dofn
+  cdef object dofn_process
   cdef object window_fn
-  cdef object context
+  cdef object context   # TODO(robertwb): Make this a DoFnContext
   cdef object tagged_receivers
-  cdef object logger
+  cdef LoggingContext logging_context
   cdef object step_name
 
-  cdef object main_receivers
+  cdef Receiver main_receivers
 
-  cpdef _process_outputs(self, element, results)
+  cpdef process(self, WindowedValue element)
+
+  @cython.locals(windowed_value=WindowedValue)
+  cpdef _process_outputs(self, WindowedValue element, results)
+
+
+cdef class DoFnContext(object):
+  cdef object label
+  cdef object state
+  cdef WindowedValue windowed_value
+  cpdef set_element(self, WindowedValue windowed_value)
+
+
+cdef class LoggingContext(object):
+  # TODO(robertwb): Optimize "with [cdef class]"
+  cpdef enter(self)
+  cpdef exit(self)
+
+
+cdef class _LoggingContextAdapter(LoggingContext):
+  cdef object underlying
+
+
+cdef class _ReceiverAdapter(Receiver):
+  cdef object underlying

@@ -104,10 +104,9 @@ def construct_pipeline(renames):
   # [END pipelines_constructing_applying]
 
   # [START pipelines_constructing_writing]
-  filtered_words = reversed_words | beam.Filter('FilterWords', filter_words)
-  filtered_words | beam.io.Write('WriteMyFile',
-                                 beam.io.TextFileSink(
-                                     'gs://some/outputData.txt'))
+  filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
+  filtered_words | 'WriteMyFile' >> beam.io.Write(
+      beam.io.TextFileSink('gs://some/outputData.txt'))
   # [END pipelines_constructing_writing]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -242,8 +241,8 @@ def pipeline_options_remote(argv):
   options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
   p = Pipeline(options=options)
 
-  lines = p | beam.io.Read('ReadFromText', beam.io.TextFileSource(my_input))
-  lines | beam.io.Write('WriteToText', beam.io.TextFileSink(my_output))
+  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
+  lines | beam.io.Write(beam.io.TextFileSink(my_output))
 
   p.run()
 
@@ -283,8 +282,8 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
-  lines = p | beam.io.Read('ReadFromText', beam.io.TextFileSource(my_input))
-  lines | beam.io.Write('WriteToText', beam.io.TextFileSink(my_output))
+  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
+  lines | beam.io.Write(beam.io.TextFileSink(my_output))
   p.run()
 
 
@@ -307,7 +306,7 @@ def pipeline_options_command_line(argv):
   p = beam.Pipeline(argv=pipeline_args)
   lines = p | beam.io.Read('ReadFromText',
                            beam.io.TextFileSource(known_args.input))
-  lines | beam.io.Write('WriteToText', beam.io.TextFileSink(known_args.output))
+  lines | beam.io.Write(beam.io.TextFileSink(known_args.output))
   # [END pipeline_options_command_line]
 
   p.run()
@@ -344,8 +343,8 @@ def pipeline_logging(lines, output):
   p = beam.Pipeline(options=PipelineOptions())
   (p
    | beam.Create(lines)
-   | beam.ParDo('ExtractWords', ExtractWordsFn())
-   | beam.io.Write('WriteToText', beam.io.TextFileSink(output)))
+   | beam.ParDo(ExtractWordsFn())
+   | beam.io.Write(beam.io.TextFileSink(output)))
 
   p.run()
 
@@ -391,11 +390,11 @@ def pipeline_monitoring(renames):
     def apply(self, pcoll):
       return (pcoll
               # Convert lines of text into individual words.
-              | beam.ParDo('ExtractWords', ExtractWordsFn())
+              | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
               # Count the number of times each word occurs.
               | beam.combiners.Count.PerElement()
               # Format each word and count into a printable string.
-              | beam.ParDo('FormatCounts', FormatCountsFn()))
+              | 'FormatCounts' >> beam.ParDo(FormatCountsFn()))
   # [END pipeline_monitoring_composite]
 
   pipeline_options = PipelineOptions()
@@ -405,11 +404,11 @@ def pipeline_monitoring(renames):
   # [START pipeline_monitoring_execution]
   (p
    # Read the lines of the input text.
-   | beam.io.Read('ReadLines', beam.io.TextFileSource(options.input))
+   | 'ReadLines' >> beam.io.Read(beam.io.TextFileSource(options.input))
    # Count the words.
    | CountWords()
    # Write the formatted word counts to output.
-   | beam.io.Write('WriteCounts', beam.io.TextFileSink(options.output)))
+   | 'WriteCounts' >> beam.io.Write(beam.io.TextFileSink(options.output)))
   # [END pipeline_monitoring_execution]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -454,7 +453,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_read]
 
       # [START examples_wordcount_minimal_pardo]
-      | beam.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
       # [END examples_wordcount_minimal_pardo]
 
       # [START examples_wordcount_minimal_count]
@@ -531,7 +530,7 @@ def examples_wordcount_wordcount(renames):
   formatted = counts | beam.ParDo(FormatAsTextFn())
   # [END examples_wordcount_wordcount_dofn]
 
-  formatted | beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
+  formatted |  beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
 
@@ -591,9 +590,9 @@ def examples_wordcount_debugging(renames):
       p
       | beam.io.Read(beam.io.TextFileSource(
           'gs://dataflow-samples/shakespeare/kinglear.txt'))
-      | beam.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+      | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
       | beam.combiners.Count.PerElement()
-      | beam.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
+      | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
   # [START example_wordcount_debugging_assert]
   beam.assert_that(
@@ -601,11 +600,258 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_assert]
 
   output = (filtered_words
-            | beam.Map('format', lambda (word, c): '%s: %s' % (word, c))
+            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
             | beam.io.Write(
                 'write', beam.io.TextFileSink('gs://my-bucket/counts.txt')))
 
   p.visit(SnippetUtils.RenameFiles(renames))
+  p.run()
+
+
+def model_custom_source(count):
+  """Demonstrates creating a new custom source and using it in a pipeline.
+
+  Defines a new source ``CountingSource`` that produces integers starting from 0
+  up to a given size.
+
+  Uses the new source in an example pipeline.
+
+  Additionally demonstrates how a source should be implemented using a
+  ``PTransform``. This is the recommended way to develop sources that are to
+  distributed to a large number of end users.
+
+  This method runs two pipelines.
+  (1) A pipeline that uses ``CountingSource`` directly using the ``df.Read``
+      transform.
+  (2) A pipeline that uses a custom ``PTransform`` that wraps
+      ``CountingSource``.
+
+  Args:
+    count: the size of the counting source to be used in the pipeline
+           demonstrated in this method.
+  """
+
+  import apache_beam as beam
+  from apache_beam.io import iobase
+  from apache_beam.io.range_trackers import OffsetRangeTracker
+  from apache_beam.transforms.core import PTransform
+  from apache_beam.utils.options import PipelineOptions
+
+  # Defining a new source.
+  # [START model_custom_source_new_source]
+  class CountingSource(iobase.BoundedSource):
+
+    def __init__(self, count):
+      self._count = count
+
+    def estimate_size(self):
+      return self._count
+
+    def get_range_tracker(self, start_position, stop_position):
+      if start_position is None:
+        start_position = 0
+      if stop_position is None:
+        stop_position = self._count
+
+      return OffsetRangeTracker(start_position, stop_position)
+
+    def read(self, range_tracker):
+      for i in range(self._count):
+        if not range_tracker.try_claim(i):
+          return
+        yield i
+
+    def split(self, desired_bundle_size, start_position=None,
+              stop_position=None):
+      if start_position is None:
+        start_position = 0
+      if stop_position is None:
+        stop_position = self._count
+
+      bundle_start = start_position
+      while bundle_start < self._count:
+        bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+        yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                  source=self,
+                                  start_position=bundle_start,
+                                  stop_position=bundle_stop)
+        bundle_start = bundle_stop
+  # [END model_custom_source_new_source]
+
+  # Using the source in an example pipeline.
+  # [START model_custom_source_use_new_source]
+  p = beam.Pipeline(options=PipelineOptions())
+  numbers = p | 'ProduceNumbers' >> beam.io.Read(CountingSource(count))
+  # [END model_custom_source_use_new_source]
+
+  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+  beam.assert_that(
+      lines, beam.equal_to(
+          ['line ' + str(number) for number in range(0, count)]))
+
+  p.run()
+
+  # We recommend users to start Source classes with an underscore to discourage
+  # using the Source class directly when a PTransform for the source is
+  # available. We simulate that here by simply extending the previous Source
+  # class.
+  class _CountingSource(CountingSource):
+    pass
+
+  # [START model_custom_source_new_ptransform]
+  class ReadFromCountingSource(PTransform):
+
+    def __init__(self, count, **kwargs):
+      super(ReadFromCountingSource, self).__init__(**kwargs)
+      self._count = count
+
+    def apply(self, pcoll):
+      return pcoll | iobase.Read(_CountingSource(count))
+  # [END model_custom_source_new_ptransform]
+
+  # [START model_custom_source_use_ptransform]
+  p = beam.Pipeline(options=PipelineOptions())
+  numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
+  # [END model_custom_source_use_ptransform]
+
+  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+  beam.assert_that(
+      lines, beam.equal_to(
+          ['line ' + str(number) for number in range(0, count)]))
+
+  p.run()
+
+
+def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
+                      final_table_name_with_ptransform):
+  """Demonstrates creating a new custom sink and using it in a pipeline.
+
+  Defines a new sink ``SimpleKVSink`` that demonstrates writing to a simple
+  key-value based storage system which has following API.
+
+    simplekv.connect(url) -
+        connects to the storage system and returns an access token which can be
+        used to perform further operations
+    simplekv.open_table(access_token, table_name) -
+        creates a table named 'table_name'. Returns a table object.
+    simplekv.write_to_table(access_token, table, key, value) -
+        writes a key-value pair to the given table.
+    simplekv.rename_table(access_token, old_name, new_name) -
+        renames the table named 'old_name' to 'new_name'.
+
+  Uses the new sink in an example pipeline.
+
+  Additionally demonstrates how a sink should be implemented using a
+  ``PTransform``. This is the recommended way to develop sinks that are to be
+  distributed to a large number of end users.
+
+  This method runs two pipelines.
+  (1) A pipeline that uses ``SimpleKVSink`` directly using the ``df.Write``
+      transform.
+  (2) A pipeline that uses a custom ``PTransform`` that wraps
+      ``SimpleKVSink``.
+
+  Args:
+    simplekv: an object that mocks the key-value storage.
+    KVs: the set of key-value pairs to be written in the example pipeline.
+    final_table_name_no_ptransform: the prefix of final set of tables to be
+                                    created by the example pipeline that uses
+                                    ``SimpleKVSink`` directly.
+    final_table_name_with_ptransform: the prefix of final set of tables to be
+                                      created by the example pipeline that uses
+                                      a ``PTransform`` that wraps
+                                      ``SimpleKVSink``.
+  """
+
+  import apache_beam as beam
+  from apache_beam.io import iobase
+  from apache_beam.transforms.core import PTransform
+  from apache_beam.utils.options import PipelineOptions
+
+  # Defining the new sink.
+  # [START model_custom_sink_new_sink]
+  class SimpleKVSink(iobase.Sink):
+
+    def __init__(self, url, final_table_name):
+      self._url = url
+      self._final_table_name = final_table_name
+
+    def initialize_write(self):
+      access_token = simplekv.connect(self._url)
+      return access_token
+
+    def open_writer(self, access_token, uid):
+      table_name = 'table' + uid
+      return SimpleKVWriter(access_token, table_name)
+
+    def finalize_write(self, access_token, table_names):
+      for i, table_name in enumerate(table_names):
+        simplekv.rename_table(
+            access_token, table_name, self._final_table_name + str(i))
+  # [END model_custom_sink_new_sink]
+
+  # Defining a writer for the new sink.
+  # [START model_custom_sink_new_writer]
+  class SimpleKVWriter(iobase.Writer):
+
+    def __init__(self, access_token, table_name):
+      self._access_token = access_token
+      self._table_name = table_name
+      self._table = simplekv.open_table(access_token, table_name)
+
+    def write(self, record):
+      key, value = record
+
+      simplekv.write_to_table(self._access_token, self._table, key, value)
+
+    def close(self):
+      return self._table_name
+  # [END model_custom_sink_new_writer]
+
+  final_table_name = final_table_name_no_ptransform
+
+  # Using the new sink in an example pipeline.
+  # [START model_custom_sink_use_new_sink]
+  p = beam.Pipeline(options=PipelineOptions())
+  kvs = p | beam.core.Create(
+      'CreateKVs', KVs)
+
+  kvs | beam.io.Write('WriteToSimpleKV',
+                      SimpleKVSink('http://url_to_simple_kv/',
+                                   final_table_name))
+  # [END model_custom_sink_use_new_sink]
+
+  p.run()
+
+  # We recommend users to start Sink class names with an underscore to
+  # discourage using the Sink class directly when a PTransform for the sink is
+  # available. We simulate that here by simply extending the previous Sink
+  # class.
+  class _SimpleKVSink(SimpleKVSink):
+    pass
+
+  # [START model_custom_sink_new_ptransform]
+  class WriteToKVSink(PTransform):
+
+    def __init__(self, label, url, final_table_name, **kwargs):
+      super(WriteToKVSink, self).__init__(label, **kwargs)
+      self._url = url
+      self._final_table_name = final_table_name
+
+    def apply(self, pcoll):
+      return pcoll | iobase.Write(_SimpleKVSink(self._url,
+                                                self._final_table_name))
+  # [END model_custom_sink_new_ptransform]
+
+  final_table_name = final_table_name_with_ptransform
+
+  # [START model_custom_sink_use_ptransform]
+  p = beam.Pipeline(options=PipelineOptions())
+  kvs = p | 'CreateKVs' >> beam.core.Create(KVs)
+  kvs | WriteToKVSink('WriteToSimpleKV',
+                      'http://url_to_simple_kv/', final_table_name)
+  # [END model_custom_sink_use_ptransform]
+
   p.run()
 
 
@@ -633,7 +879,7 @@ def model_textio(renames):
   # [END model_textio_read]
 
   # [START model_textio_write]
-  filtered_words = lines | beam.FlatMap('FilterWords', filter_words)
+  filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
   # [START model_pipelineio_write]
   filtered_words | beam.io.Write(
       'WriteToText', beam.io.TextFileSink('gs://my_bucket/path/to/numbers',
@@ -806,7 +1052,7 @@ def model_group_by_key(contents, output_path):
       p
       | beam.Create(contents)
       | beam.FlatMap(lambda x: re.findall(r'\w+', x))
-      | beam.Map('one word', lambda w: (w, 1)))
+      | 'one word' >> beam.Map(lambda w: (w, 1)))
   # GroupByKey accepts a PCollection of (w, 1) and
   # outputs a PCollection of (w, (1, 1, ...)).
   # (A key/value pair is just a tuple in Python.)
@@ -816,7 +1062,7 @@ def model_group_by_key(contents, output_path):
   grouped_words = words_and_counts | beam.GroupByKey()
   # [END model_group_by_key_transform]
   (grouped_words
-   | beam.Map('count words', lambda (word, counts): (word, len(counts)))
+   | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
    | beam.io.Write(beam.io.TextFileSink(output_path)))
   p.run()
 
@@ -836,8 +1082,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   # multiple possible values for each key.
   # The phone_list contains values such as: ('mary': '111-222-3333') with
   # multiple possible values for each key.
-  emails = p | beam.Create('email', email_list)
-  phones = p | beam.Create('phone', phone_list)
+  emails = p | 'email' >> beam.Create(email_list)
+  phones = p | 'phone' >> beam.Create(phone_list)
   # The result PCollection contains one key-value element for each key in the
   # input PCollections. The key of the pair will be the key from the input and
   # the value will be a dictionary with two entries: 'emails' - an iterable of
@@ -859,11 +1105,50 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   p.run()
 
 
+def model_join_using_side_inputs(
+    name_list, email_list, phone_list, output_path):
+  """Joining PCollections using side inputs."""
+
+  import apache_beam as beam
+  from apache_beam.pvalue import AsIter
+  from apache_beam.utils.options import PipelineOptions
+
+  p = beam.Pipeline(options=PipelineOptions())
+  # [START model_join_using_side_inputs]
+  # This code performs a join by receiving the set of names as an input and
+  # passing PCollections that contain emails and phone numbers as side inputs
+  # instead of using CoGroupByKey.
+  names = p | 'names' >> beam.Create(name_list)
+  emails = p | 'email' >> beam.Create(email_list)
+  phones = p | 'phone' >> beam.Create(phone_list)
+
+  def join_info(name, emails, phone_numbers):
+    filtered_emails = []
+    for name_in_list, email in emails:
+      if name_in_list == name:
+        filtered_emails.append(email)
+
+    filtered_phone_numbers = []
+    for name_in_list, phone_number in phone_numbers:
+      if name_in_list == name:
+        filtered_phone_numbers.append(phone_number)
+
+    return '; '.join(['%s' % name,
+                      '%s' % ','.join(filtered_emails),
+                      '%s' % ','.join(filtered_phone_numbers)])
+
+  contact_lines = names | beam.core.Map(
+      "CreateContacts", join_info, AsIter(emails), AsIter(phones))
+  # [END model_join_using_side_inputs]
+  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
+  p.run()
+
+
 # [START model_library_transforms_keys]
 class Keys(beam.PTransform):
 
   def apply(self, pcoll):
-    return pcoll | beam.Map('Keys', lambda (k, v): k)
+    return pcoll | 'Keys' >> beam.Map(lambda (k, v): k)
 # [END model_library_transforms_keys]
 # pylint: enable=invalid-name
 
@@ -874,6 +1159,6 @@ class Count(beam.PTransform):
   def apply(self, pcoll):
     return (
         pcoll
-        | beam.Map('Init', lambda v: (v, 1))
+        | 'PairWithOne' >> beam.Map(lambda v: (v, 1))
         | beam.CombinePerKey(sum))
 # [END model_library_transforms_count]

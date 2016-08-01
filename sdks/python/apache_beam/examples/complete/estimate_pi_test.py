@@ -17,31 +17,34 @@
 
 """Test for the estimate_pi example."""
 
-import json
 import logging
-import tempfile
 import unittest
 
+import apache_beam as beam
 from apache_beam.examples.complete import estimate_pi
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import DataflowAssertException
+
+
+def in_between(lower, upper):
+  def _in_between(actual):
+    _, _, estimate = actual[0]
+    if estimate < lower or estimate > upper:
+      raise DataflowAssertException(
+          'Failed assert: %f not in [%f, %f]' % (estimate, lower, upper))
+  return _in_between
 
 
 class EstimatePiTest(unittest.TestCase):
 
-  def create_temp_file(self, contents):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
-      return f.name
-
   def test_basics(self):
-    temp_path = self.create_temp_file('result')
-    estimate_pi.run([
-        '--output=%s' % temp_path])
-    # Parse result file and compare.
-    with open(temp_path + '-00000-of-00001') as result_file:
-      estimated_pi = json.loads(result_file.readline())[2]
-      # Note: Probabilistically speaking this test can fail with a probability
-      # that is very small (VERY) given that we run at least 10 million trials.
-      self.assertTrue(estimated_pi > 3.13 and estimated_pi < 3.15)
+    p = beam.Pipeline('DirectPipelineRunner')
+    result = p | 'Estimate' >> estimate_pi.EstimatePiTransform()
+
+    # Note: Probabilistically speaking this test can fail with a probability
+    # that is very small (VERY) given that we run at least 10 million trials.
+    assert_that(result, in_between(3.13, 3.15))
+    p.run()
 
 
 if __name__ == '__main__':

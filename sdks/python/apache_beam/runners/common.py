@@ -25,22 +25,31 @@ from apache_beam.internal import util
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.transforms import core
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.windowed_value import WindowedValue
 
 
-class FakeLogger(object):
-  def PerThreadLoggingContext(self, *unused_args, **unused_kwargs):
-    return self
+class LoggingContext(object):
 
-  def __enter__(self):
+  def enter(self):
     pass
 
-  def __exit__(self, *unused_args):
+  def exit(self):
     pass
 
 
-class DoFnRunner(object):
+class Receiver(object):
+  """An object that consumes a WindowedValue.
+
+  This class can be efficiently used to pass values between the
+  sdk and worker harnesses.
+  """
+
+  def receive(self, windowed_value):
+    raise NotImplementedError
+
+
+class DoFnRunner(Receiver):
   """A helper class for executing ParDo operations.
   """
 
@@ -53,53 +62,73 @@ class DoFnRunner(object):
                context,
                tagged_receivers,
                logger=None,
-               step_name=None):
+               step_name=None,
+               # Preferred alternative to logger
+               logging_context=None):
     if not args and not kwargs:
       self.dofn = fn
+      self.dofn_process = fn.process
     else:
       args, kwargs = util.insert_values_in_args(args, kwargs, side_inputs)
 
       class CurriedFn(core.DoFn):
 
         def start_bundle(self, context):
-          return fn.start_bundle(context, *args, **kwargs)
+          return fn.start_bundle(context)
 
         def process(self, context):
           return fn.process(context, *args, **kwargs)
 
         def finish_bundle(self, context):
-          return fn.finish_bundle(context, *args, **kwargs)
+          return fn.finish_bundle(context)
       self.dofn = CurriedFn()
+      self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
+
     self.window_fn = windowing.windowfn
     self.context = context
     self.tagged_receivers = tagged_receivers
-    self.logger = logger or FakeLogger()
     self.step_name = step_name
 
+    if logging_context:
+      self.logging_context = logging_context
+    else:
+      self.logging_context = get_logging_context(logger, step_name=step_name)
+
     # Optimize for the common case.
-    self.main_receivers = tagged_receivers[None]
+    self.main_receivers = as_receiver(tagged_receivers[None])
+
+  def receive(self, windowed_value):
+    self.process(windowed_value)
 
   def start(self):
     self.context.set_element(None)
     try:
+      self.logging_context.enter()
       self._process_outputs(None, self.dofn.start_bundle(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
+    finally:
+      self.logging_context.exit()
 
   def finish(self):
     self.context.set_element(None)
     try:
+      self.logging_context.enter()
       self._process_outputs(None, self.dofn.finish_bundle(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
+    finally:
+      self.logging_context.exit()
 
   def process(self, element):
     try:
-      with self.logger.PerThreadLoggingContext(step_name=self.step_name):
-        self.context.set_element(element)
-        self._process_outputs(element, self.dofn.process(self.context))
+      self.logging_context.enter()
+      self.context.set_element(element)
+      self._process_outputs(element, self.dofn_process(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
+    finally:
+      self.logging_context.exit()
 
   def reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
@@ -151,7 +180,7 @@ class DoFnRunner(object):
       else:
         windowed_value = element.with_value(result)
       if tag is None:
-        self.main_receivers.output(windowed_value)
+        self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].output(windowed_value)
 
@@ -188,3 +217,82 @@ class DoFnState(object):
     """Looks up the counter for this aggregator, creating one if necessary."""
     return self._counter_factory.get_aggregator_counter(
         self.step_name, aggregator)
+
+
+# TODO(robertwb): Replace core.DoFnContext with this.
+class DoFnContext(object):
+
+  def __init__(self, label, element=None, state=None):
+    self.label = label
+    self.state = state
+    if element is not None:
+      self.set_element(element)
+
+  def set_element(self, windowed_value):
+    self.windowed_value = windowed_value
+
+  @property
+  def element(self):
+    if self.windowed_value is None:
+      raise AttributeError('element not accessible in this context')
+    else:
+      return self.windowed_value.value
+
+  @property
+  def timestamp(self):
+    if self.windowed_value is None:
+      raise AttributeError('timestamp not accessible in this context')
+    else:
+      return self.windowed_value.timestamp
+
+  @property
+  def windows(self):
+    if self.windowed_value is None:
+      raise AttributeError('windows not accessible in this context')
+    else:
+      return self.windowed_value.windows
+
+  def aggregate_to(self, aggregator, input_value):
+    self.state.counter_for(aggregator).update(input_value)
+
+
+# TODO(robertwb): Remove all these adapters once service is updated out.
+
+
+class _LoggingContextAdapter(LoggingContext):
+
+  def __init__(self, underlying):
+    self.underlying = underlying
+
+  def enter(self):
+    self.underlying.enter()
+
+  def exit(self):
+    self.underlying.exit()
+
+
+def get_logging_context(maybe_logger, **kwargs):
+  if maybe_logger:
+    maybe_context = maybe_logger.PerThreadLoggingContext(**kwargs)
+    if isinstance(maybe_context, LoggingContext):
+      return maybe_context
+    else:
+      return _LoggingContextAdapter(maybe_context)
+  else:
+    return LoggingContext()
+
+
+class _ReceiverAdapter(Receiver):
+
+  def __init__(self, underlying):
+    self.underlying = underlying
+
+  def receive(self, windowed_value):
+    self.underlying.output(windowed_value)
+
+
+def as_receiver(maybe_receiver):
+  if isinstance(maybe_receiver, Receiver):
+    return maybe_receiver
+  else:
+    return _ReceiverAdapter(maybe_receiver)

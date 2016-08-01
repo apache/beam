@@ -49,6 +49,7 @@ except ImportError:
 
 
 DEFAULT_READ_BUFFER_SIZE = 1024 * 1024
+WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 
 
 def parse_gcs_path(gcs_path):
@@ -235,6 +236,21 @@ class GcsIO(object):
       return True
     except IOError:
       return False
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def size(self, path):
+    """Returns the size of a single GCS object.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single GCS object.
+
+    Returns: size of the GCS object in bytes.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(bucket=bucket,
+                                               object=object_path)
+    return self.client.objects.Get(request).size
 
 
 class GcsBufferedReader(object):
@@ -531,8 +547,13 @@ class GcsBufferedWriter(object):
     self.closed = False
     self.position = 0
 
+    # A small buffer to avoid CPU-heavy per-write pipe calls.
+    self.write_buffer = bytearray()
+    self.write_buffer_size = 128 * 1024
+
     # Set up communication with uploading thread.
     parent_conn, child_conn = multiprocessing.Pipe()
+    self.child_conn = child_conn
     self.conn = parent_conn
 
     # Set up uploader.
@@ -541,12 +562,13 @@ class GcsBufferedWriter(object):
             bucket=self.bucket,
             name=self.name))
     self.upload = transfer.Upload(GcsBufferedWriter.PipeStream(child_conn),
-                                  mime_type)
+                                  mime_type, chunksize=WRITE_CHUNK_SIZE)
     self.upload.strategy = transfer.RESUMABLE_UPLOAD
 
     # Start uploading thread.
     self.upload_thread = threading.Thread(target=self._start_upload)
     self.upload_thread.daemon = True
+    self.upload_thread.last_error = None
     self.upload_thread.start()
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
@@ -560,7 +582,14 @@ class GcsBufferedWriter(object):
     #
     # The uploader by default transfers data in chunks of 1024 * 1024 bytes at
     # a time, buffering writes until that size is reached.
-    self.client.objects.Insert(self.insert_request, upload=self.upload)
+    try:
+      self.client.objects.Insert(self.insert_request, upload=self.upload)
+    except Exception as e:  # pylint: disable=broad-except
+      logging.error(
+          'Error in _start_upload while inserting file %s: %s', self.path, e)
+      self.upload_thread.last_error = e
+    finally:
+      self.child_conn.close()
 
   def write(self, data):
     """Write data to a GCS file.
@@ -574,7 +603,9 @@ class GcsBufferedWriter(object):
     self._check_open()
     if not data:
       return
-    self.conn.send_bytes(data)
+    self.write_buffer.extend(data)
+    if len(self.write_buffer) > self.write_buffer_size:
+      self._flush_write_buffer()
     self.position += len(data)
 
   def tell(self):
@@ -583,6 +614,8 @@ class GcsBufferedWriter(object):
 
   def close(self):
     """Close the current GCS file."""
+    self._flush_write_buffer()
+    self.closed = True
     self.conn.close()
     self.upload_thread.join()
 
@@ -604,3 +637,13 @@ class GcsBufferedWriter(object):
 
   def writable(self):
     return True
+
+  def _flush_write_buffer(self):
+    try:
+      self.conn.send_bytes(buffer(self.write_buffer))
+      self.write_buffer = bytearray()
+    except IOError:
+      if self.upload_thread.last_error:
+        raise self.upload_thread.last_error  # pylint: disable=raising-bad-type
+      else:
+        raise

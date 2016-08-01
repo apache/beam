@@ -100,7 +100,7 @@ class WriteTest(unittest.TestCase):
     write_to_test_sink = WriteToTestSink(return_init_result,
                                          return_write_results)
     p = Pipeline(options=PipelineOptions([]))
-    result = p | beam.Create('start', data) | write_to_test_sink
+    result = p | 'start' >> beam.Create(data) | write_to_test_sink
 
     assert_that(result, is_empty())
     p.run()

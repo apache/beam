@@ -19,12 +19,12 @@
 
 import logging
 import math
-import sys
 import unittest
 
 import dill
 
 import coders
+import observable
 
 
 # Defined out of line for picklability.
@@ -80,6 +80,12 @@ class CodersTest(unittest.TestCase):
     self._observe(coder)
     for v in values:
       self.assertEqual(v, coder.decode(coder.encode(v)))
+      self.assertEqual(coder.estimate_size(v),
+                       len(coder.encode(v)))
+      self.assertEqual(coder.estimate_size(v),
+                       coder.get_impl().estimate_size(v))
+      self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
+                       (coder.get_impl().estimate_size(v), []))
     copy1 = dill.loads(dill.dumps(coder))
     copy2 = dill.loads(dill.dumps(coder))
     for v in values:
@@ -112,6 +118,15 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
         (1, cell_value))
 
+  def test_fast_primitives_coder(self):
+    coder = coders.FastPrimitivesCoder(coders.SingletonCoder(len))
+    self.check_coder(coder, None, 1, -1, 1.5, 'str\0str', u'unicode\0\u0101')
+    self.check_coder(coder, (), (1, 2, 3))
+    self.check_coder(coder, [], [1, 2, 3])
+    self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
+    self.check_coder(coder, len)
+    self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
+
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), 'a', '\0', 'z' * 1000)
 
@@ -121,9 +136,10 @@ class CodersTest(unittest.TestCase):
     # Multi-byte encoding starts at 128
     self.check_coder(coders.VarIntCoder(), *range(120, 140))
     # Large values
+    MAX_64_BIT_INT = 0x7fffffffffffffff
     self.check_coder(coders.VarIntCoder(),
                      *[int(math.pow(-1, k) * math.exp(k))
-                       for k in range(0, int(math.log(sys.maxint)))])
+                       for k in range(0, int(math.log(MAX_64_BIT_INT)))])
 
   def test_float_coder(self):
     self.check_coder(coders.FloatCoder(),
@@ -176,6 +192,35 @@ class CodersTest(unittest.TestCase):
 
   def test_utf8_coder(self):
     self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
+
+  def test_nested_observables(self):
+    class FakeObservableIterator(observable.ObservableMixin):
+
+      def __iter__(self):
+        return iter([1, 2, 3])
+
+    # Coder for elements from the observable iterator.
+    iter_coder = coders.VarIntCoder()
+
+    # Test nested WindowedValue observable.
+    coder = coders.WindowedValueCoder(iter_coder)
+    observ = FakeObservableIterator()
+    try:
+      value = coders.coder_impl.WindowedValue(observ)
+    except TypeError:
+      # We are running tests with a fake WindowedValue implementation so as to
+      # not pull in the rest of the SDK.
+      value = coders.coder_impl.WindowedValue(observ, 0, [])
+    self.assertEqual(
+        coder.get_impl().get_estimated_size_and_observables(value)[1],
+        [(observ, iter_coder.get_impl())])
+
+    # Test nested tuple observable.
+    coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
+    value = (u'123', observ)
+    self.assertEqual(
+        coder.get_impl().get_estimated_size_and_observables(value)[1],
+        [(observ, iter_coder.get_impl())])
 
 
 if __name__ == '__main__':

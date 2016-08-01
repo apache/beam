@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -29,7 +30,7 @@ and a --setup_file option.
 If --setup_file is present then it is assumed that the folder containing the
 file specified by the option has the typical layout required by setuptools and
 it will run 'python setup.py sdist' to produce a source distribution. The
-resulting tarball (a file ending in .tar.gz) will be staged at the GCS staging
+resulting tarball (a .tar or .tar.gz file) will be staged at the GCS staging
 location specified as job option. When a worker starts it will check for the
 presence of this file and will run 'easy_install tarball' to install the
 package in the worker.
@@ -59,6 +60,7 @@ import tempfile
 
 from apache_beam.version import __version__
 from apache_beam import utils
+from apache_beam import version as beam_version
 from apache_beam.internal import pickler
 from apache_beam.utils import names
 from apache_beam.utils import processes
@@ -136,10 +138,11 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   staging_temp_dir = None
   local_packages = []
   for package in extra_packages:
-    if not os.path.basename(package).endswith('.tar.gz'):
+    if not (os.path.basename(package).endswith('.tar') or
+            os.path.basename(package).endswith('.tar.gz')):
       raise RuntimeError(
           'The --extra_packages option expects a full path ending with '
-          '\'.tar.gz\' instead of %s' % package)
+          '\'.tar\' or \'.tar.gz\' instead of %s' % package)
 
     if not os.path.isfile(package):
       if package.startswith('gs://'):
@@ -433,6 +436,16 @@ def get_required_container_version():
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
     return 'beamhead'
+
+
+def get_sdk_name_and_version():
+  """Returns name and version of SDK reported to Google Cloud Dataflow."""
+  # TODO(ccy): Make this check cleaner.
+  container_version = get_required_container_version()
+  if container_version == 'beamhead':
+    return ('Apache Beam SDK for Python', beam_version.__version__)
+  else:
+    return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
 def _download_pypi_sdk_package(temp_dir):

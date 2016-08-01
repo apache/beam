@@ -86,9 +86,9 @@ class CoderRegistry(object):
     self._register_coder_internal(bytes, coders.BytesCoder)
     self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
+    self._fallback_coder = fallback_coder or coders.FastPrimitivesCoder
     self._register_coder_internal(typehints.AnyTypeConstraint,
-                                  coders.PickleCoder)
-    self._fallback_coder = fallback_coder or coders.PickleCoder
+                                  self._fallback_coder)
 
   def _register_coder_internal(self, typehint_type, typehint_coder_class):
     self._coders[typehint_type] = typehint_coder_class

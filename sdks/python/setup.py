@@ -15,14 +15,33 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK setup configuration."""
+"""Apache Beam SDK for Python setup file."""
 
 import os
 import platform
 import setuptools
 
 
-# Currently all compiled modules are optional (for performance only).
+def get_version():
+  global_names = {}
+  execfile(os.path.normpath('./apache_beam/version.py'),
+           global_names)
+  return global_names['__version__']
+
+PACKAGE_NAME = 'apache-beam-sdk'
+PACKAGE_VERSION = get_version()
+PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
+PACKAGE_URL = 'https://beam.incubator.apache.org'
+PACKAGE_DOWNLOAD_URL = 'TBD'
+PACKAGE_AUTHOR = 'Apache Software Foundation'
+PACKAGE_EMAIL = 'dev@beam.incubator.apache.org'
+PACKAGE_KEYWORDS = 'apache beam'
+PACKAGE_LONG_DESCRIPTION = '''
+TBD
+'''
+
+
+# Currently all compiled modules are optional  (for performance only).
 if platform.system() == 'Windows':
   # Windows doesn't always provide int64_t.
   cythonize = lambda *args, **kwargs: []
@@ -34,14 +53,11 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 
-# Read the current version
 def get_version():
   global_names = {}
-  execfile(os.path.normpath('./apache_beam/version.py'), global_names)
+  execfile(os.path.normpath('./apache_beam/version.py'),
+           global_names)
   return global_names['__version__']
-
-
-version = get_version()
 
 
 # Configure the required packages and scripts to install.
@@ -62,26 +78,30 @@ REQUIRED_PACKAGES = [
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
     'pyyaml>=3.10',
-]
+    ]
+
 
 setuptools.setup(
-    name='apache-beam-sdk',
-    version=version,
-    description='Apache Beam SDK for Python',
-    long_description='',
-    url='https://beam.incubator.apache.org',
-    download_url='TBD',
-    author='Apache Beam (incubating)',
-    author_email='dev@beam.incubator.apache.org',
+    name=PACKAGE_NAME,
+    version=PACKAGE_VERSION,
+    description=PACKAGE_DESCRIPTION,
+    long_description=PACKAGE_LONG_DESCRIPTION,
+    url=PACKAGE_URL,
+    download_url=PACKAGE_DOWNLOAD_URL,
+    author=PACKAGE_AUTHOR,
+    author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
+    package_data={'apache_beam': ['**/*.pyx', '**/*.pxd']},
     ext_modules=cythonize([
         '**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/runners/common.py',
+        'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
+        'apache_beam/utils/windowed_value.py',
     ]),
+    setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
-    package_data={'apache_beam': ['*.pyx', '*.pxd', 'pom.xml']},
     test_suite='nose.collector',
     zip_safe=False,
     # PyPI package information.
@@ -92,7 +112,7 @@ setuptools.setup(
         'Programming Language :: Python :: 2.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
-    ],
-    license='Apache License, 2.0',
-    keywords='apache beam',
-)
+        ],
+    license='Apache License, Version 2.0',
+    keywords=PACKAGE_KEYWORDS,
+    )

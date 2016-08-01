@@ -26,8 +26,10 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 import time
 import zlib
+import weakref
 
 from apache_beam import coders
 from apache_beam.io import iobase
@@ -70,6 +72,9 @@ class TextFileSource(iobase.NativeSource):
 
   Parses a text file as newline-delimited elements, by default assuming
   UTF-8 encoding.
+
+  This implementation has only been tested to read text encoded using UTF-8 or
+  ASCII. This has not been tested for other encodings such as UTF-16 or UTF-32.
   """
 
   def __init__(self, file_path, start_offset=None, end_offset=None,
@@ -89,6 +94,7 @@ class TextFileSource(iobase.NativeSource):
           is 'AUTO'.
       strip_trailing_newlines: Indicates whether this source should remove
           the newline char in each line it reads before decoding that line.
+          This feature only works for ASCII and UTF-8 encoded input.
       coder: Coder used to decode each line.
 
     Raises:
@@ -254,6 +260,20 @@ class ChannelFactory(object):
       return gcsio.GcsIO().glob(path)
     else:
       return glob.glob(path)
+
+  @staticmethod
+  def size_in_bytes(path):
+    """Returns the size of a file in bytes.
+
+    Args:
+      path: a string that gives the path of a single file.
+    """
+    if path.startswith('gs://'):
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.io import gcsio
+      return gcsio.GcsIO().size(path)
+    else:
+      return os.path.getsize(path)
 
 
 class _CompressionType(object):
@@ -521,6 +541,10 @@ class FileSink(iobase.Sink):
         return(None, e)
       return (final_name, None)
 
+    # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
+    # child thread. (http://bugs.python.org/issue10015)
+    if not hasattr(threading.current_thread(), "_children"):
+      threading.current_thread()._children = weakref.WeakKeyDictionary()
     rename_results = ThreadPool(num_threads).map(_rename_file, rename_ops)
 
     for final_name, err in rename_results:
@@ -721,10 +745,12 @@ class NativeTextFileSink(iobase.NativeSink):
 # TextFileReader, TextMultiFileReader.
 
 
-class TextFileReader(iobase.NativeSourceReader):
+class TextFileReader(iobase.NativeSourceReader,
+                     coders.observable.ObservableMixin):
   """A reader for a text file source."""
 
   def __init__(self, source):
+    super(TextFileReader, self).__init__()
     self.source = source
     self.start_offset = self.source.start_offset or 0
     self.end_offset = self.source.end_offset
@@ -754,6 +780,7 @@ class TextFileReader(iobase.NativeSourceReader):
       self._file.seek(self.start_offset - 1)
       self.current_offset -= 1
       line = self._file.readline()
+      self.notify_observers(line, is_encoded=True)
       self.current_offset += len(line)
     else:
       self._file.seek(self.start_offset)
@@ -777,6 +804,7 @@ class TextFileReader(iobase.NativeSourceReader):
         # a dynamic split request from the service.
         return
       line = self._file.readline()
+      self.notify_observers(line, is_encoded=True)
       self.current_offset += len(line)
       if self.source.strip_trailing_newlines:
         line = line.rstrip('\n')

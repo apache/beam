@@ -236,6 +236,7 @@ class GoogleCloudOptions(PipelineOptions):
                         help='GCS path for staging code packages needed by '
                         'workers.')
     # Remote execution must check that this option is not None.
+    # If temp_location is not set, it defaults to staging_location.
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
@@ -254,7 +255,9 @@ class GoogleCloudOptions(PipelineOptions):
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
       errors.extend(validator.validate_gcs_path(self, 'staging_location'))
-      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+      if getattr(self, 'temp_location',
+                 None) or getattr(self, 'staging_location', None) is None:
+        errors.extend(validator.validate_gcs_path(self, 'temp_location'))
     return errors
 
 
@@ -409,7 +412,7 @@ class SetupOptions(PipelineOptions):
          'install the resulting package before running any custom code.'))
     parser.add_argument(
         '--save_main_session',
-        default=True,
+        default=False,
         action='store_true',
         help=
         ('Save the main session state so that pickled functions and classes '

@@ -202,3 +202,14 @@ cdef class InputStream(object):
   cpdef double read_bigendian_double(self) except? -1:
     cdef libc.stdint.int64_t as_long = self.read_bigendian_int64()
     return (<double*><char*>&as_long)[0]
+
+cpdef libc.stdint.int64_t get_varint_size(libc.stdint.int64_t value):
+  """Returns the size of the given integer value when encode as a VarInt."""
+  cdef libc.stdint.int64_t varint_size = 0
+  cdef libc.stdint.uint64_t bits = value
+  while True:
+    varint_size += 1
+    bits >>= 7
+    if not bits:
+      break
+  return varint_size

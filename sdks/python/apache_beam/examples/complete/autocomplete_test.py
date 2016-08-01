@@ -15,53 +15,27 @@
 # limitations under the License.
 #
 
-"""Test for the wordcount example."""
+"""Test for the autocomplete example."""
 
-import collections
 import unittest
-
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
-from apache_beam.pvalue import AsIter
-
-# TODO(robertwb): Move to testing utilities.
-
-
-def assert_that(pcoll, matcher):
-  """Asserts that the give PCollection satisfies the constraints of the matcher
-  in a way that is runnable locally or on a remote service.
-  """
-  singleton = pcoll.pipeline | beam.Create('create_singleton', [None])
-
-  def check_matcher(_, side_value):
-    assert matcher(side_value)
-    return []
-  singleton | beam.FlatMap(check_matcher, AsIter(pcoll))  # pylint: disable=expression-not-assigned
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 
 
-def contains_in_any_order(expected):
-  def matcher(value):
-    vs = collections.Counter(value)
-    es = collections.Counter(expected)
-    if vs != es:
-      raise ValueError(
-          'extra: %s, missing: %s' % (vs - es, es - vs))
-    return True
-  return matcher
-
-
-class WordCountTest(unittest.TestCase):
+class AutocompleteTest(unittest.TestCase):
 
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
 
   def test_top_prefixes(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    words = p | beam.Create('create', self.WORDS)
-    result = words | autocomplete.TopPerPrefix('test', 5)
+    words = p | beam.Create(self.WORDS)
+    result = words | autocomplete.TopPerPrefix(5)
     # values must be hashable for now
     result = result | beam.Map(lambda (k, vs): (k, tuple(vs)))
-    assert_that(result, contains_in_any_order(
+    assert_that(result, equal_to(
         [
             ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
             ('to', ((3, 'to'), )),

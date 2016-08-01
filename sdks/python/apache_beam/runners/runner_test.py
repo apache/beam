@@ -24,6 +24,8 @@ caching and clearing values that are not tested elsewhere.
 
 import unittest
 
+import apache_beam as beam
+
 from apache_beam.internal import apiclient
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners import create_runner
@@ -44,7 +46,7 @@ class RunnerTest(unittest.TestCase):
     self.assertTrue(
         isinstance(create_runner('BlockingDataflowPipelineRunner'),
                    DataflowPipelineRunner))
-    self.assertRaises(RuntimeError, create_runner, 'xyz')
+    self.assertRaises(ValueError, create_runner, 'xyz')
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowPipelineRunner()
@@ -58,11 +60,30 @@ class RunnerTest(unittest.TestCase):
                      '--no_auth=True'
                  ]))
 
-    (p | ptransform.Create('create', [1, 2, 3])  # pylint: disable=expression-not-assigned
-     | ptransform.FlatMap('do', lambda x: [(x, x)])
-     | ptransform.GroupByKey('gbk'))
+    (p | 'create' >> ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+     | 'do' >> ptransform.FlatMap(lambda x: [(x, x)])
+     | 'gbk' >> ptransform.GroupByKey())
     remote_runner.job = apiclient.Job(p.options)
     super(DataflowPipelineRunner, remote_runner).run(p)
+
+  def test_no_group_by_key_directly_after_bigquery(self):
+    remote_runner = DataflowPipelineRunner()
+    p = Pipeline(remote_runner,
+                 options=PipelineOptions([
+                     '--dataflow_endpoint=ignored',
+                     '--job_name=test-job',
+                     '--project=test-project',
+                     '--staging_location=ignored',
+                     '--temp_location=/dev/null',
+                     '--no_auth=True'
+                 ]))
+    rows = p | beam.io.Read('read',
+                            beam.io.BigQuerySource('dataset.faketable'))
+    with self.assertRaises(ValueError,
+                           msg=('Coder for the GroupByKey operation'
+                                '"GroupByKey" is not a key-value coder: '
+                                'RowAsDictJsonCoder')):
+      unused_invalid = rows | beam.GroupByKey()
 
 
 if __name__ == '__main__':

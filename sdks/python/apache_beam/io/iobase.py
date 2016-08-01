@@ -938,6 +938,12 @@ class Read(ptransform.PTransform):
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
 
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    if isinstance(self.source, BoundedSource):
+      return self.source.default_output_coder()
+    else:
+      return self.source.coder
+
 
 class Write(ptransform.PTransform):
   """A ``PTransform`` that writes to a sink.
@@ -984,7 +990,7 @@ class Write(ptransform.PTransform):
     from apache_beam.io import iobase
     if isinstance(self.sink, iobase.NativeSink):
       # A native sink
-      return pcoll | _NativeWrite('native_write', self.sink)
+      return pcoll | 'native_write' >> _NativeWrite(self.sink)
     elif isinstance(self.sink, iobase.Sink):
       # A custom sink
       return pcoll | WriteImpl(self.sink)
@@ -1004,7 +1010,7 @@ class WriteImpl(ptransform.PTransform):
     self.sink = sink
 
   def apply(self, pcoll):
-    do_once = pcoll.pipeline | core.Create('DoOnce', [None])
+    do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | core.Map(
         'initialize_write', lambda _, sink: sink.initialize_write(), self.sink)
     if getattr(self.sink, 'num_shards', 0):

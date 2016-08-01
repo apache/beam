@@ -36,6 +36,8 @@ import apache_beam as beam
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
@@ -84,7 +86,11 @@ def run(argv=None):
   parser.add_argument('--num_groups')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   group_ids = []
   for i in xrange(0, int(known_args.num_groups)):
@@ -95,20 +101,20 @@ def run(argv=None):
   ignore_corpus = known_args.ignore_corpus
   ignore_word = known_args.ignore_word
 
-  pcoll_corpus = p | beam.Read('read corpus',
-                               beam.io.BigQuerySource(query=query_corpus))
-  pcoll_word = p | beam.Read('read words',
-                             beam.io.BigQuerySource(query=query_word))
-  pcoll_ignore_corpus = p | beam.Create('create_ignore_corpus', [ignore_corpus])
-  pcoll_ignore_word = p | beam.Create('create_ignore_word', [ignore_word])
-  pcoll_group_ids = p | beam.Create('create groups', group_ids)
+  pcoll_corpus = p | 'read corpus' >> beam.io.Read(
+      beam.io.BigQuerySource(query=query_corpus))
+  pcoll_word = p | 'read_words' >> beam.Read(
+      beam.io.BigQuerySource(query=query_word))
+  pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create(
+      [ignore_corpus])
+  pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])
+  pcoll_group_ids = p | 'create groups' >> beam.Create(group_ids)
 
   pcoll_groups = create_groups(pcoll_group_ids, pcoll_corpus, pcoll_word,
                                pcoll_ignore_corpus, pcoll_ignore_word)
 
   # pylint:disable=expression-not-assigned
-  pcoll_groups | beam.io.Write('WriteToText',
-                               beam.io.TextFileSink(known_args.output))
+  pcoll_groups | beam.io.Write(beam.io.TextFileSink(known_args.output))
   p.run()
 
 

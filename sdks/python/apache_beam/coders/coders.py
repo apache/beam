@@ -77,6 +77,26 @@ class Coder(object):
     """
     return False
 
+  def estimate_size(self, value):
+    """Estimates the encoded size of the given value, in bytes.
+
+    Dataflow estimates the encoded size of a PCollection processed in a pipeline
+    step by using the estimated size of a random sample of elements in that
+    PCollection.
+
+    The default implementation encodes the given value and returns its byte
+    size.  If a coder can provide a fast estimate of the encoded size of a value
+    (e.g., if the encoding has a fixed size), it can provide its estimate here
+    to improve performance.
+
+    Arguments:
+      value: the value whose encoded size is to be estimated.
+
+    Returns:
+      The estimated encoded size of the given value.
+    """
+    return len(self.encode(value))
+
   # ===========================================================================
   # Methods below are internal SDK details that don't need to be modified for
   # user-defined coders.
@@ -85,7 +105,8 @@ class Coder(object):
   def _create_impl(self):
     """Creates a CoderImpl to do the actual encoding and decoding.
     """
-    return coder_impl.CallbackCoderImpl(self.encode, self.decode)
+    return coder_impl.CallbackCoderImpl(self.encode, self.decode,
+                                        self.estimate_size)
 
   def get_impl(self):
     if not hasattr(self, '_impl'):
@@ -191,7 +212,7 @@ class FastCoder(Coder):
   """Coder subclass used when a (faster) CoderImpl is supplied directly.
 
   The Coder class defines _create_impl in terms of encode() and decode();
-  this class inverts that defining encode() and decode() in terms of
+  this class inverts that by defining encode() and decode() in terms of
   _create_impl().
   """
 
@@ -202,6 +223,9 @@ class FastCoder(Coder):
   def decode(self, encoded):
     """Decodes the given byte string into the corresponding object."""
     return self.get_impl().decode(encoded)
+
+  def estimate_size(self, value):
+    return self.get_impl().estimate_size(value)
 
   def _create_impl(self):
     raise NotImplementedError
@@ -344,6 +368,49 @@ class DeterministicPickleCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def is_kv_coder(self):
+    return True
+
+  def key_coder(self):
+    return self
+
+  def value_coder(self):
+    return self
+
+
+class FastPrimitivesCoder(FastCoder):
+  """Encodes simple primitives (e.g. str, int) efficiently.
+
+  For unknown types, falls back to another coder (e.g. PickleCoder).
+  """
+  def __init__(self, fallback_coder=PickleCoder()):
+    self._fallback_coder = fallback_coder
+
+  def _create_impl(self):
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._fallback_coder.get_impl())
+
+  def is_deterministic(self):
+    return self._fallback_coder.is_deterministic()
+
+  def as_cloud_object(self, is_pair_like=True):
+    value = super(FastCoder, self).as_cloud_object()
+    # We currently use this coder in places where we cannot infer the coder to
+    # use for the value type in a more granular way.  In places where the
+    # service expects a pair, it checks for the "is_pair_like" key, in which
+    # case we would fail without the hack below.
+    if is_pair_like:
+      value['is_pair_like'] = True
+      value['component_encodings'] = [
+          self.as_cloud_object(is_pair_like=False),
+          self.as_cloud_object(is_pair_like=False)
+      ]
+
+    return value
+
+  # We allow .key_coder() and .value_coder() to be called on FastPrimitivesCoder
+  # since we can't always infer the return values of lambdas in ParDo
+  # operations, the result of which may be used in a GroupBykey.
   def is_kv_coder(self):
     return True
 

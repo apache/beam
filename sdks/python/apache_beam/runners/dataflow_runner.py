@@ -30,7 +30,6 @@ import time
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
-from apache_beam.io import iobase
 from apache_beam.pvalue import PCollectionView
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
@@ -42,6 +41,10 @@ from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.names import TransformNames
 from apache_beam.utils.options import StandardOptions
 from apache_beam.internal.clients import dataflow as dataflow_api
+
+
+def BlockingDataflowPipelineRunner(*args, **kwargs):
+  return DataflowPipelineRunner(*args, blocking=True, **kwargs)
 
 
 class DataflowPipelineRunner(PipelineRunner):
@@ -190,7 +193,8 @@ class DataflowPipelineRunner(PipelineRunner):
     return self._get_cloud_encoding(self._get_coder(typehint,
                                                     window_coder=window_coder))
 
-  def _get_coder(self, typehint, window_coder):
+  @staticmethod
+  def _get_coder(typehint, window_coder):
     """Returns a coder based on a typehint object."""
     if window_coder:
       return coders.WindowedValueCoder(
@@ -321,7 +325,15 @@ class DataflowPipelineRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
   def apply_GroupByKey(self, transform, pcoll):
-    coder = self._get_coder(pcoll.element_type or typehints.Any, None)
+    # Infer coder of parent.
+    #
+    # TODO(ccy): make Coder inference and checking less specialized and more
+    # comprehensive.
+    parent = pcoll.producer
+    if parent:
+      coder = parent.transform._infer_output_coder()  # pylint: disable=protected-access
+    if not coder:
+      coder = self._get_coder(pcoll.element_type or typehints.Any, None)
     if not coder.is_kv_coder():
       raise ValueError(('Coder for the GroupByKey operation "%s" is not a '
                         'key-value coder: %s.') % (transform.label,
@@ -360,27 +372,24 @@ class DataflowPipelineRunner(PipelineRunner):
 
     # Attach side inputs.
     si_dict = {}
-    si_tags_and_types = []
+    # We must call self._cache.get_pvalue exactly once due to refcounting.
+    si_labels = {}
+    for side_pval in transform_node.side_inputs:
+      si_labels[side_pval] = self._cache.get_pvalue(side_pval).step_name
+    lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, PCollectionView)
-      side_input_step = self._cache.get_pvalue(side_pval)
-      si_label = side_input_step.step_name
+      si_label = lookup_label(side_pval)
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: si_label,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
-      # The label for the side input step will appear as a 'tag' property for
-      # the side input source specification. Its type (singleton or iterator)
-      # will also be used to read the entire source or just first element.
-      si_tags_and_types.append((si_label, side_pval.__class__,
-                                side_pval._view_options()))  # pylint: disable=protected-access
 
     # Now create the step for the ParDo transform being handled.
     step = self._add_step(
         TransformNames.DO, transform_node.full_label, transform_node,
         transform_node.transform.side_output_tags)
-    fn_data = (transform.fn, transform.args, transform.kwargs,
-               si_tags_and_types, transform_node.inputs[0].windowing)
+    fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
@@ -414,6 +423,15 @@ class DataflowPipelineRunner(PipelineRunner):
            PropertyNames.OUTPUT_NAME: (
                '%s_%s' % (PropertyNames.OUT, side_tag))})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
+
+  @staticmethod
+  def _pardo_fn_data(transform_node, get_label):
+    transform = transform_node.transform
+    si_tags_and_types = [  # pylint: disable=protected-access
+        (get_label(side_pval), side_pval.__class__, side_pval._view_options())
+        for side_pval in transform_node.side_inputs]
+    return (transform.fn, transform.args, transform.kwargs, si_tags_and_types,
+            transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll):
     return pvalue.PCollection(pcoll.pipeline)
@@ -514,10 +532,11 @@ class DataflowPipelineRunner(PipelineRunner):
     else:
       step.add_property(PropertyNames.FORMAT, transform.source.format)
 
-    if isinstance(transform.source, iobase.BoundedSource):
-      coder = transform.source.default_output_coder()
-    else:
-      coder = transform.source.coder
+    # Wrap coder in WindowedValueCoder: this is necessary as the encoding of a
+    # step should be the type of value outputted by each step.  Read steps
+    # automatically wrap output values in a WindowedValue wrapper, if necessary.
+    # This is also necessary for proper encoding for size estimation.
+    coder = coders.WindowedValueCoder(transform._infer_output_coder())  # pylint: disable=protected-access
 
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
@@ -584,7 +603,11 @@ class DataflowPipelineRunner(PipelineRunner):
           'Sink %r has unexpected format %s.' % (
               transform.sink, transform.sink.format))
     step.add_property(PropertyNames.FORMAT, transform.sink.format)
-    step.encoding = self._get_cloud_encoding(transform.sink.coder)
+
+    # Wrap coder in WindowedValueCoder: this is necessary for proper encoding
+    # for size estimation.
+    coder = coders.WindowedValueCoder(transform.sink.coder)
+    step.encoding = self._get_cloud_encoding(coder)
     step.add_property(PropertyNames.ENCODING, step.encoding)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,

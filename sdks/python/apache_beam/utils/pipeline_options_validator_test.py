@@ -74,12 +74,14 @@ class SetupTest(unittest.TestCase):
         [])
 
   def test_gcs_path(self):
-    def get_validator(temp_location):
-      options = ['--project=example:example', '--job_name=job',
-                 '--staging_location=gs://foo/bar']
+    def get_validator(temp_location, staging_location):
+      options = ['--project=example:example', '--job_name=job']
 
       if temp_location is not None:
         options.append('--temp_location=' + temp_location)
+
+      if staging_location is not None:
+        options.append('--staging_location=' + staging_location)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.DataflowPipelineRunner()
@@ -87,18 +89,44 @@ class SetupTest(unittest.TestCase):
       return validator
 
     test_cases = [
-        {'temp_location': None, 'errors': ['temp_location']},
-        {'temp_location': 'gcs:/foo/bar', 'errors': ['temp_location']},
-        {'temp_location': 'gs:/foo/bar', 'errors': ['temp_location']},
-        {'temp_location': 'gs://ABC/bar', 'errors': ['temp_location']},
-        {'temp_location': 'gs://ABC/bar', 'errors': ['temp_location']},
-        {'temp_location': 'gs://foo', 'errors': ['temp_location']},
-        {'temp_location': 'gs://foo/', 'errors': []},
-        {'temp_location': 'gs://foo/bar', 'errors': []},
+        {'temp_location': None,
+         'staging_location': 'gs://foo/bar',
+         'errors': []},
+        {'temp_location': None,
+         'staging_location': None,
+         'errors': ['staging_location', 'temp_location']},
+        {'temp_location': 'gs://foo/bar',
+         'staging_location': None,
+         'errors': ['staging_location']},
+        {'temp_location': 'gs://foo/bar',
+         'staging_location': 'gs://ABC/bar',
+         'errors': ['staging_location']},
+        {'temp_location': 'gcs:/foo/bar',
+         'staging_location': 'gs://foo/bar',
+         'errors': ['temp_location']},
+        {'temp_location': 'gs:/foo/bar',
+         'staging_location': 'gs://foo/bar',
+         'errors': ['temp_location']},
+        {'temp_location': 'gs://ABC/bar',
+         'staging_location': 'gs://foo/bar',
+         'errors': ['temp_location']},
+        {'temp_location': 'gs://ABC/bar',
+         'staging_location': 'gs://foo/bar',
+         'errors': ['temp_location']},
+        {'temp_location': 'gs://foo',
+         'staging_location': 'gs://foo/bar',
+         'errors': ['temp_location']},
+        {'temp_location': 'gs://foo/',
+         'staging_location': 'gs://foo/bar',
+         'errors': []},
+        {'temp_location': 'gs://foo/bar',
+         'staging_location': 'gs://foo/bar',
+         'errors': []},
     ]
 
     for case in test_cases:
-      errors = get_validator(case['temp_location']).validate()
+      errors = get_validator(case['temp_location'],
+                             case['staging_location']).validate()
       self.assertEqual(
           self.check_errors_for_arguments(errors, case['errors']), [])
 

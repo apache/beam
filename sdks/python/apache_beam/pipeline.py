@@ -47,14 +47,12 @@ import logging
 import os
 import shutil
 import tempfile
-import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
-from apache_beam.transforms import format_full_label
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.options import PipelineOptions
@@ -183,32 +181,43 @@ class Pipeline(object):
     visited = set()
     self._root_transform().visit(visitor, self, visited)
 
-  def apply(self, transform, pvalueish=None):
+  def apply(self, transform, pvalueish=None, label=None):
     """Applies a custom transform using the pvalueish specified.
 
     Args:
-      transform: the PTranform (or callable) to apply.
+      transform: the PTranform to apply.
       pvalueish: the input for the PTransform (typically a PCollection).
 
     Raises:
       TypeError: if the transform object extracted from the argument list is
-        not a callable type or a descendant from PTransform.
+        not a PTransform.
       RuntimeError: if the transform object was already applied to this pipeline
         and needs to be cloned in order to apply again.
     """
-    if not isinstance(transform, ptransform.PTransform):
-      if isinstance(transform, (type, types.ClassType)):
-        raise TypeError("%s is not a PTransform instance, did you mean %s()?"
-                        % (transform, transform.__name__))
-      transform = _CallableWrapperPTransform(transform)
+    if isinstance(transform, ptransform._NamedPTransform):
+      return self.apply(transform.transform, pvalueish,
+                        label or transform.label)
 
-    full_label = format_full_label(self._current_transform(), transform)
+    if not isinstance(transform, ptransform.PTransform):
+      raise TypeError("Expected a PTransform object, got %s" % transform)
+
+    if label:
+      # Fix self.label as it is inspected by some PTransform operations
+      # (e.g. to produce error messages for type hint violations).
+      try:
+        old_label, transform.label = transform.label, label
+        return self.apply(transform, pvalueish)
+      finally:
+        transform.label = old_label
+
+    full_label = '/'.join([self._current_transform().full_label,
+                           label or transform.label]).lstrip('/')
     if full_label in self.applied_labels:
       raise RuntimeError(
           'Transform "%s" does not have a stable unique label. '
           'This will prevent updating of pipelines. '
-          'To clone a transform with a new label use: '
-          'transform.clone("NEW LABEL").'
+          'To apply a transform with a specified label write '
+          'pvalue | "label" >> transform'
           % full_label)
     self.applied_labels.add(full_label)
 
@@ -286,18 +295,6 @@ class Pipeline(object):
     return pvalueish_result
 
 
-class _CallableWrapperPTransform(ptransform.PTransform):
-
-  def __init__(self, callee):
-    assert callable(callee)
-    super(_CallableWrapperPTransform, self).__init__(
-        label=getattr(callee, '__name__', 'Callable'))
-    self._callee = callee
-
-  def apply(self, *args, **kwargs):
-    return self._callee(*args, **kwargs)
-
-
 class PipelineVisitor(object):
   """Visitor pattern class used to traverse a DAG of transforms.
 
@@ -350,6 +347,10 @@ class AppliedPTransform(object):
     # Per tag refcount dictionary for PValues for which this node is a
     # root producer.
     self.refcounts = collections.defaultdict(int)
+
+  def __repr__(self):
+    return "%s(%s, %s)" % (self.__class__.__name__, self.full_label,
+                           type(self.transform).__name__)
 
   def update_input_refcounts(self):
     """Increment refcounts for all transforms providing inputs."""

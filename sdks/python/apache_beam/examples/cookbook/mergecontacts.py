@@ -36,6 +36,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def run(argv=None, assert_results=None):
@@ -60,8 +62,11 @@ def run(argv=None, assert_results=None):
                       required=True,
                       help='Output file for statistics about the input.')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   # Helper: read a tab-separated key-value mapping from a text file, escape all
   # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
@@ -83,7 +88,7 @@ def run(argv=None, assert_results=None):
       known_args.input_snailmail))
 
   # Group together all entries under the same name.
-  grouped = (email, phone, snailmail) | beam.CoGroupByKey('group_by_name')
+  grouped = (email, phone, snailmail) | 'group_by_name' >> beam.CoGroupByKey()
 
   # Prepare tab-delimited output; something like this:
   # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
@@ -102,9 +107,9 @@ def run(argv=None, assert_results=None):
   nomads = grouped | beam.Filter(    # People without addresses.
       lambda (name, (email, phone, snailmail)): not next(iter(snailmail), None))
 
-  num_luddites = luddites | beam.combiners.Count.Globally('luddites')
-  num_writers = writers | beam.combiners.Count.Globally('writers')
-  num_nomads = nomads | beam.combiners.Count.Globally('nomads')
+  num_luddites = luddites | 'luddites' >> beam.combiners.Count.Globally()
+  num_writers = writers | 'writers' >> beam.combiners.Count.Globally()
+  num_nomads = nomads | 'nomads' >> beam.combiners.Count.Globally()
 
   # Write tab-delimited output.
   # pylint: disable=expression-not-assigned

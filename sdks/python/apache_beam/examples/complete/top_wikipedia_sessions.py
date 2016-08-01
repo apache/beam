@@ -42,14 +42,17 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
-import sys
 
 import apache_beam as beam
 from apache_beam import combiners
 from apache_beam import window
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
+
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
+MAX_TIMESTAMP = 0x7fffffffffffffff
 
 
 class ExtractUserAndTimestampDoFn(beam.DoFn):
@@ -128,12 +131,12 @@ class ComputeTopSessions(beam.PTransform):
     return (pcoll
             | beam.ParDo('ExtractUserAndTimestamp',
                          ExtractUserAndTimestampDoFn())
-            | beam.Filter(
-                lambda x: abs(hash(x)) <= sys.maxint * self.sampling_threshold)
+            | beam.Filter(lambda x: (abs(hash(x)) <=
+                                     MAX_TIMESTAMP * self.sampling_threshold))
             | ComputeSessions()
-            | beam.ParDo('SessionsToStrings', SessionsToStringsDoFn())
+            | 'SessionsToStrings' >> beam.ParDo(SessionsToStringsDoFn())
             | TopPerMonth()
-            | beam.ParDo('FormatOutput', FormatOutputDoFn()))
+            | 'FormatOutput' >> beam.ParDo(FormatOutputDoFn()))
 
 
 def run(argv=None):
@@ -158,13 +161,16 @@ def run(argv=None):
                       default=0.1,
                       help='Fraction of entries used for session tracking')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   (p  # pylint: disable=expression-not-assigned
-   | beam.Read('read', beam.io.TextFileSource(known_args.input))
+   | beam.Read(beam.io.TextFileSource(known_args.input))
    | ComputeTopSessions(known_args.sampling_threshold)
-   | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
 
   p.run()
 

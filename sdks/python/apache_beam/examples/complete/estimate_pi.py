@@ -36,6 +36,8 @@ import apache_beam as beam
 from apache_beam.typehints import Any
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import Tuple
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])
@@ -85,6 +87,17 @@ class JsonCoder(object):
     return json.dumps(x)
 
 
+class EstimatePiTransform(beam.PTransform):
+  """Runs 10M trials, and combine the results to estimate pi."""
+
+  def apply(self, pcoll):
+    # A hundred work items of a hundred thousand tries each.
+    return (pcoll
+            | 'Initialize' >> beam.Create([100000] * 100).with_output_types(int)
+            | 'Run trials' >> beam.Map(run_trials)
+            | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
+
+
 def run(argv=None):
 
   parser = argparse.ArgumentParser()
@@ -92,15 +105,15 @@ def run(argv=None):
                       required=True,
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
-  p = beam.Pipeline(argv=pipeline_args)
-  # A thousand work items of a million tries each.
   (p  # pylint: disable=expression-not-assigned
-   | beam.Create('Initialize', [100000] * 100).with_output_types(int)
-   | beam.Map('Run trials', run_trials)
-   | beam.CombineGlobally('Sum', combine_results).without_defaults()
-   | beam.io.Write('Write',
-                   beam.io.TextFileSink(known_args.output,
+   | EstimatePiTransform()
+   | beam.io.Write(beam.io.TextFileSink(known_args.output,
                                         coder=JsonCoder())))
 
   # Actually run the pipeline (all operations above are deferred).

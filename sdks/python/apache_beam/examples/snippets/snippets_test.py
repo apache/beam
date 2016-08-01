@@ -17,7 +17,9 @@
 
 """Tests for all code snippets used in public docs."""
 
+import glob
 import logging
+import os
 import sys
 import tempfile
 import unittest
@@ -99,16 +101,17 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'A', 'C'}, set(all_capitals))
 
   def test_pardo_with_label(self):
+    # pylint: disable=line-too-long
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
-    result = words | beam.Map('CountUniqueLetters', lambda word: len(set(word)))
+    result = words | 'CountUniqueLetters' >> beam.Map(lambda word: len(set(word)))
     # [END model_pardo_with_label]
 
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
     p = beam.Pipeline('DirectPipelineRunner')
-    words = p | beam.Create('start', ['a', 'bb', 'ccc', 'dddd'])
+    words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
     # [START model_pardo_side_input]
     # Callable takes additional arguments.
@@ -122,13 +125,12 @@ class ParDoTest(unittest.TestCase):
                     | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
 
     # Call with explicit side inputs.
-    small_words = words | beam.FlatMap('small', filter_using_length, 0, 3)
+    small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
 
     # A single deferred side input.
-    larger_than_average = (words
-                           | beam.FlatMap('large', filter_using_length,
-                                          lower_bound=pvalue.AsSingleton(
-                                              avg_word_len)))
+    larger_than_average = (words | 'large' >> beam.FlatMap(
+        filter_using_length,
+        lower_bound=pvalue.AsSingleton(avg_word_len)))
 
     # Mix and match.
     small_but_nontrivial = words | beam.FlatMap(filter_using_length,
@@ -234,6 +236,8 @@ class TypeHintsTest(unittest.TestCase):
     # [END type_hints_missing_define_numbers]
 
     # Consider the following code.
+    # pylint: disable=expression-not-assigned
+    # pylint: disable=unused-variable
     # [START type_hints_missing_apply]
     evens = numbers | beam.Filter(lambda x: x % 2 == 0)
     # [END type_hints_missing_apply]
@@ -264,7 +268,7 @@ class TypeHintsTest(unittest.TestCase):
       evens = numbers | beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn]
 
-    words = p | beam.Create('words', ['a', 'bb', 'c'])
+    words = p | 'words' >> beam.Create(['a', 'bb', 'c'])
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
@@ -279,11 +283,13 @@ class TypeHintsTest(unittest.TestCase):
     words_with_lens = words | MyTransform()
     # [END type_hints_transform]
 
+    # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
       words_with_lens | beam.Map(lambda x: x).with_input_types(
           beam.typehints.Tuple[int, int])
 
   def test_runtime_checks_off(self):
+    # pylint: disable=expression-not-assigned
     p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     # [START type_hints_runtime_off]
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
@@ -291,6 +297,7 @@ class TypeHintsTest(unittest.TestCase):
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
+    # pylint: disable=expression-not-assigned
     p = beam.Pipeline('DirectPipelineRunner', argv=sys.argv)
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
@@ -378,6 +385,76 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual(
         self.get_output(result_path),
         ['cba', 'fed', 'ihg', 'lkj', 'onm', 'rqp', 'uts', 'xwv', 'zy'])
+
+  def test_model_custom_source(self):
+    snippets.model_custom_source(100)
+
+  def test_model_custom_sink(self):
+    tempdir_name = tempfile.mkdtemp()
+
+    class SimpleKV(object):
+
+      def __init__(self, tmp_dir):
+        self._dummy_token = 'dummy_token'
+        self._tmp_dir = tmp_dir
+
+      def connect(self, url):
+        return self._dummy_token
+
+      def open_table(self, access_token, table_name):
+        assert access_token == self._dummy_token
+        file_name = self._tmp_dir + os.sep + table_name
+        assert not os.path.exists(file_name)
+        open(file_name, 'wb').close()
+        return table_name
+
+      def write_to_table(self, access_token, table_name, key, value):
+        assert access_token == self._dummy_token
+        file_name = self._tmp_dir + os.sep + table_name
+        assert os.path.exists(file_name)
+        with open(file_name, 'ab') as f:
+          f.write(key + ':' + value + os.linesep)
+
+      def rename_table(self, access_token, old_name, new_name):
+        assert access_token == self._dummy_token
+        old_file_name = self._tmp_dir + os.sep + old_name
+        new_file_name = self._tmp_dir + os.sep + new_name
+        assert os.path.isfile(old_file_name)
+        assert not os.path.exists(new_file_name)
+
+        os.rename(old_file_name, new_file_name)
+
+    snippets.model_custom_sink(
+        SimpleKV(tempdir_name),
+        [('key' + str(i), 'value' + str(i)) for i in range(100)],
+        'final_table_no_ptransform', 'final_table_with_ptransform')
+
+    expected_output = [
+        'key' + str(i) + ':' + 'value' + str(i) for i in range(100)]
+
+    glob_pattern = tempdir_name + os.sep + 'final_table_no_ptransform*'
+    output_files = glob.glob(glob_pattern)
+    assert output_files
+
+    received_output = []
+    for file_name in output_files:
+      with open(file_name) as f:
+        for line in f:
+          received_output.append(line.rstrip(os.linesep))
+
+    self.assertItemsEqual(expected_output, received_output)
+
+    glob_pattern = tempdir_name + os.sep + 'final_table_with_ptransform*'
+    output_files = glob.glob(glob_pattern)
+    assert output_files
+
+    received_output = []
+    for file_name in output_files:
+      with open(file_name) as f:
+        for line in f:
+          received_output.append(line.rstrip(os.linesep))
+
+    self.assertItemsEqual(expected_output, received_output)
 
   def test_model_textio(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
@@ -477,6 +554,16 @@ class SnippetsTest(unittest.TestCase):
     phone_list = [['a', 'x4312'], ['b', 'x8452']]
     result_path = self.create_temp_file()
     snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
+    expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
+    self.assertEqual(expect, self.get_output(result_path))
+
+  def test_model_join_using_side_inputs(self):
+    name_list = ['a', 'b']
+    email_list = [['a', 'a@example.com'], ['b', 'b@example.com']]
+    phone_list = [['a', 'x4312'], ['b', 'x8452']]
+    result_path = self.create_temp_file()
+    snippets.model_join_using_side_inputs(
+        name_list, email_list, phone_list, result_path)
     expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
     self.assertEqual(expect, self.get_output(result_path))
 

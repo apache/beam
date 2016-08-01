@@ -25,6 +25,8 @@ import logging
 
 
 import apache_beam as beam
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def crc32line(line):
@@ -42,41 +44,47 @@ def run(argv=None):
                       required=True,
                       help='Output file pattern to write results to.')
   parser.add_argument('--checksum_output',
-                      required=True,
                       help='Checksum output file pattern.')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+  lines = p | beam.io.Read(
+      beam.io.TextFileSource(known_args.input,
+                             coder=beam.coders.BytesCoder()))
 
   # Count the occurrences of each word.
   output = (lines
-            | beam.Map('split', lambda x: (x[:10], x[10:99]))
-            | beam.GroupByKey('group')
+            | 'split' >> beam.Map(
+                lambda x: (x[:10], x[10:99]))
+            .with_output_types(beam.typehints.KV[str, str])
+            | 'group' >> beam.GroupByKey()
             | beam.FlatMap(
                 'format',
                 lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
-  input_csum = (lines
-                | beam.Map('input-csum', crc32line)
-                | beam.CombineGlobally('combine-input-csum', sum)
-                | beam.Map('hex-format', lambda x: '%x' % x))
-  input_csum | beam.io.Write(
-      'write-input-csum',
-      beam.io.TextFileSink(known_args.checksum_output + '-input'))
-
   # Write the output using a "Write" transform that has side effects.
-  output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
-  # Write the output checksum
-  output_csum = (output
-                 | beam.Map('output-csum', crc32line)
-                 | beam.CombineGlobally('combine-output-csum', sum)
-                 | beam.Map('hex-format-output', lambda x: '%x' % x))
-  output_csum | beam.io.Write(
-      'write-output-csum',
-      beam.io.TextFileSink(known_args.checksum_output + '-output'))
+  output | beam.io.Write(beam.io.TextFileSink(known_args.output))
+
+  # Optionally write the input and output checksums.
+  if known_args.checksum_output:
+    input_csum = (lines
+                  | 'input-csum' >> beam.Map(crc32line)
+                  | 'combine-input-csum' >> beam.CombineGlobally(sum)
+                  | 'hex-format' >> beam.Map(lambda x: '%x' % x))
+    input_csum | 'write-input-csum' >> beam.io.Write(
+        beam.io.TextFileSink(known_args.checksum_output + '-input'))
+
+    output_csum = (output
+                   | 'output-csum' >> beam.Map(crc32line)
+                   | 'combine-output-csum' >> beam.CombineGlobally(sum)
+                   | 'hex-format-output' >> beam.Map(lambda x: '%x' % x))
+    output_csum | 'write-output-csum' >> beam.io.Write(
+        beam.io.TextFileSink(known_args.checksum_output + '-output'))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()

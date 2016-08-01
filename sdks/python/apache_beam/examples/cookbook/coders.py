@@ -35,6 +35,8 @@ import json
 import logging
 
 import apache_beam as beam
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 class JsonCoder(object):
@@ -77,12 +79,17 @@ def run(argv=None):
                       required=True,
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   p = beam.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
    | beam.io.Read('read',
                   beam.io.TextFileSource(known_args.input, coder=JsonCoder()))
-   | beam.FlatMap('points', compute_points)
+   | 'points' >> beam.FlatMap(compute_points)
    | beam.CombinePerKey(sum)
    | beam.io.Write('write',
                    beam.io.TextFileSink(known_args.output, coder=JsonCoder())))

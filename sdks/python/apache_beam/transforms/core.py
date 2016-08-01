@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import copy
+import inspect
+import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -28,7 +30,6 @@ from apache_beam.internal import util
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
 from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import OutputTimeFn
@@ -52,8 +53,13 @@ K = typehints.TypeVariable('K')
 V = typehints.TypeVariable('V')
 
 
-class DoFnProcessContext(object):
-  """A processing context passed to DoFn methods during execution.
+class DoFnContext(object):
+  """A context available to all methods of DoFn instance."""
+  pass
+
+
+class DoFnProcessContext(DoFnContext):
+  """A processing context passed to DoFn process() during execution.
 
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
@@ -133,7 +139,7 @@ class DoFn(WithTypeHints):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self.process, [input_type]))
 
-  def start_bundle(self, context, *args, **kwargs):
+  def start_bundle(self, context):
     """Called before a bundle of elements is processed on a worker.
 
     Elements to be processed are split into bundles and distributed
@@ -141,20 +147,15 @@ class DoFn(WithTypeHints):
     of its bundle, it calls this method.
 
     Args:
-      context: a DoFnProcessContext object
-      *args: side inputs
-      **kwargs: keyword side inputs
-
+      context: a DoFnContext object
     """
     pass
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self, context):
     """Called after a bundle of elements is processed on a worker.
 
     Args:
-      context: a DoFnProcessContext object
-      *args: side inputs
-      **kwargs: keyword side inputs
+      context: a DoFnContext object
     """
     pass
 
@@ -195,6 +196,16 @@ class DoFn(WithTypeHints):
       return type_hint
 
 
+def _fn_takes_side_inputs(fn):
+  try:
+    argspec = inspect.getargspec(fn)
+  except TypeError:
+    # We can't tell; maybe it does.
+    return True
+  is_bound = isinstance(fn, types.MethodType) and fn.im_self is not None
+  return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
+
+
 class CallableWrapperDoFn(DoFn):
   """A DoFn (function) object wrapping a callable object.
 
@@ -215,6 +226,11 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
+    if _fn_takes_side_inputs(fn):
+      self.process = lambda context, *args, **kwargs: fn(
+          context.element, *args, **kwargs)
+    else:
+      self.process = lambda context: fn(context.element)
 
     super(CallableWrapperDoFn, self).__init__()
 
@@ -237,9 +253,6 @@ class CallableWrapperDoFn(DoFn):
   def infer_output_type(self, input_type):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self._fn, [input_type]))
-
-  def process(self, context, *args, **kwargs):
-    return self._fn(context.element, *args, **kwargs)
 
   def process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
@@ -677,7 +690,10 @@ def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
         'Map can be used only with callable objects. '
         'Received %r instead for %s argument.'
         % (fn, 'first' if label is None else 'second'))
-  wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
+  if _fn_takes_side_inputs(fn):
+    wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
+  else:
+    wrapper = lambda x: [fn(x)]
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
@@ -815,12 +831,12 @@ class CombineGlobally(PTransform):
         return transform
 
     combined = (pcoll
-                | add_input_types(Map('KeyWithVoid', lambda v: (None, v))
-                                  .with_output_types(
-                                      KV[None, pcoll.element_type]))
+                | 'KeyWithVoid' >> add_input_types(
+                    Map(lambda v: (None, v)).with_output_types(
+                        KV[None, pcoll.element_type]))
                 | CombinePerKey(
                     'CombinePerKey', self.fn, *self.args, **self.kwargs)
-                | Map('UnKey', lambda (k, v): v))
+                | 'UnKey' >> Map(lambda (k, v): v))
 
     if not self.has_defaults and not self.as_view:
       return combined
@@ -852,12 +868,11 @@ class CombineGlobally(PTransform):
         else:
           return transform
       return (pcoll.pipeline
-              | Create('DoOnce', [None])
-              | typed(Map('InjectDefault', lambda _, s: s, view)))
+              | 'DoOnce' >> Create([None])
+              | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
 
 
-@ptransform_fn
-def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
+class CombinePerKey(PTransformWithSideInputs):
   """A per-key Combine transform.
 
   Identifies sets of values associated with the same key in the input
@@ -876,7 +891,22 @@ def CombinePerKey(pcoll, fn, *args, **kwargs):  # pylint: disable=invalid-name
   Returns:
     A PObject holding the result of the combine operation.
   """
-  return pcoll | GroupByKey() | CombineValues('Combine', fn, *args, **kwargs)
+
+  def make_fn(self, fn):
+    self._fn_label = ptransform.label_from_callable(fn)
+    return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
+
+  def default_label(self):
+    return '%s(%s)' % (self.__class__.__name__, self._fn_label)
+
+  def process_argspec_fn(self):
+    return self.fn._fn  # pylint: disable=protected-access
+
+  def apply(self, pcoll):
+    args, kwargs = util.insert_values_in_args(
+        self.args, self.kwargs, self.side_inputs)
+    return pcoll | GroupByKey() | CombineValues('Combine',
+                                                self.fn, *args, **kwargs)
 
 
 # TODO(robertwb): Rename to CombineGroupedValues?
@@ -995,21 +1025,24 @@ class GroupByKey(PTransform):
       value_type = windowed_value_iter_type.inner_type.inner_type
       return Iterable[KV[key_type, Iterable[value_type]]]
 
-    def process(self, context):
-      k, vs = context.element
+    def start_bundle(self, context):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.transforms.trigger import InMemoryUnmergedState
       from apache_beam.transforms.trigger import create_trigger_driver
       # pylint: enable=wrong-import-order, wrong-import-position
-      driver = create_trigger_driver(self.windowing, True)
-      state = InMemoryUnmergedState()
+      self.driver = create_trigger_driver(self.windowing, True)
+      self.state_type = InMemoryUnmergedState
+
+    def process(self, context):
+      k, vs = context.element
+      state = self.state_type()
       # TODO(robertwb): Conditionally process in smaller chunks.
-      for wvalue in driver.process_elements(state, vs, MIN_TIMESTAMP):
+      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
         yield wvalue.with_value((k, wvalue.value))
       while state.timers:
         fired = state.get_and_clear_timers()
         for timer_window, (name, time_domain, fire_time) in fired:
-          for wvalue in driver.process_timer(
+          for wvalue in self.driver.process_timer(
               timer_window, name, time_domain, fire_time, state):
             yield wvalue.with_value((k, wvalue.value))
 
@@ -1031,10 +1064,11 @@ class GroupByKey(PTransform):
           KV[key_type, Iterable[typehints.WindowedValue[value_type]]])
       gbk_output_type = KV[key_type, Iterable[value_type]]
 
+      # pylint: disable=bad-continuation
       return (pcoll
-              | (ParDo('reify_windows', self.ReifyWindows())
+              | 'reify_windows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))
-              | (GroupByKeyOnly('group_by_key')
+              | 'group_by_key' >> (GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
               | (ParDo('group_by_window',
@@ -1043,8 +1077,8 @@ class GroupByKey(PTransform):
                  .with_output_types(gbk_output_type)))
     else:
       return (pcoll
-              | ParDo('reify_windows', self.ReifyWindows())
-              | GroupByKeyOnly('group_by_key')
+              | 'reify_windows' >> ParDo(self.ReifyWindows())
+              | 'group_by_key' >> GroupByKeyOnly()
               | ParDo('group_by_window',
                       self.GroupAlsoByWindow(pcoll.windowing)))
 

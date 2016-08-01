@@ -18,96 +18,18 @@
 
 import unittest
 
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
 from apache_beam.internal import apiclient
-from apache_beam.io import iobase
-
-import apache_beam.internal.clients.dataflow as dataflow
 
 
 class UtilTest(unittest.TestCase):
 
-  def test_reader_progress_to_cloud_progress_position(self):
-    reader_position = iobase.ReaderPosition(byte_offset=9999)
-    reader_progress = iobase.ReaderProgress(position=reader_position)
-
-    cloud_progress = apiclient.reader_progress_to_cloud_progress(
-        reader_progress)
-    self.assertIsNotNone(cloud_progress)
-    self.assertIsInstance(cloud_progress, dataflow.ApproximateProgress)
-    self.assertIsNotNone(cloud_progress.position)
-    self.assertIsInstance(cloud_progress.position, dataflow.Position)
-    self.assertEquals(9999, cloud_progress.position.byteOffset)
-
-  def test_reader_progress_to_cloud_progress_percent_complete(self):
-    reader_progress = iobase.ReaderProgress(percent_complete=0.123)
-
-    cloud_progress = apiclient.reader_progress_to_cloud_progress(
-        reader_progress)
-    self.assertIsNotNone(cloud_progress)
-    self.assertIsInstance(cloud_progress, dataflow.ApproximateProgress)
-    self.assertIsNotNone(cloud_progress.percentComplete)
-    self.assertEquals(0.123, cloud_progress.percentComplete)
-
-  def test_reader_position_to_cloud_position(self):
-    reader_position = iobase.ReaderPosition(byte_offset=9999)
-
-    cloud_position = apiclient.reader_position_to_cloud_position(
-        reader_position)
-    self.assertIsNotNone(cloud_position)
-
-  def test_dynamic_split_result_with_position_to_cloud_stop_position(self):
-    position = iobase.ReaderPosition(byte_offset=9999)
-    dynamic_split_result = iobase.DynamicSplitResultWithPosition(position)
-
-    approximate_position = (
-        apiclient.dynamic_split_result_with_position_to_cloud_stop_position(
-            dynamic_split_result))
-    self.assertIsNotNone(approximate_position)
-    self.assertIsInstance(approximate_position, dataflow.Position)
-    self.assertEqual(9999, approximate_position.byteOffset)
-
-  def test_cloud_progress_to_reader_progress_index_position(self):
-    cloud_progress = dataflow.ApproximateProgress()
-    cloud_progress.position = dataflow.Position()
-    cloud_progress.position.byteOffset = 9999
-
-    reader_progress = apiclient.cloud_progress_to_reader_progress(
-        cloud_progress)
-    self.assertIsNotNone(reader_progress.position)
-    self.assertIsInstance(reader_progress.position, iobase.ReaderPosition)
-    self.assertEqual(9999, reader_progress.position.byte_offset)
-
-  def test_cloud_progress_to_reader_progress_percent_complete(self):
-    cloud_progress = dataflow.ApproximateProgress()
-    cloud_progress.percentComplete = 0.123
-
-    reader_progress = apiclient.cloud_progress_to_reader_progress(
-        cloud_progress)
-    self.assertIsNotNone(reader_progress.percent_complete)
-    self.assertEqual(0.123, reader_progress.percent_complete)
-
-  def test_cloud_position_to_reader_position_byte_offset(self):
-    cloud_position = dataflow.Position()
-    cloud_position.byteOffset = 9999
-
-    reader_position = apiclient.cloud_position_to_reader_position(
-        cloud_position)
-    self.assertIsNotNone(reader_position)
-    self.assertIsInstance(reader_position, iobase.ReaderPosition)
-    self.assertEqual(9999, reader_position.byte_offset)
-
-  def test_approximate_progress_to_dynamic_split_request(self):
-    approximate_progress = dataflow.ApproximateProgress()
-    approximate_progress.percentComplete = 0.123
-
-    dynamic_split_request = (
-        apiclient.approximate_progress_to_dynamic_split_request(
-            approximate_progress))
-    self.assertIsNotNone(dynamic_split_request)
-    self.assertIsInstance(dynamic_split_request.progress, iobase.ReaderProgress)
-    self.assertIsNotNone(dynamic_split_request.progress.percent_complete)
-    self.assertEqual(dynamic_split_request.progress.percent_complete, 0.123)
-
+  def test_create_application_client(self):
+    pipeline_options = PipelineOptions()
+    apiclient.DataflowApplicationClient(
+        pipeline_options,
+        DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
 
 if __name__ == '__main__':
   unittest.main()

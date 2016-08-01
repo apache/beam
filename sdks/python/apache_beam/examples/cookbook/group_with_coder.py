@@ -35,6 +35,8 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import with_output_types
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 class Player(object):
@@ -85,27 +87,31 @@ def run(argv=sys.argv[1:]):
                       required=True,
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   # Register the custom coder for the Player class, so that it will be used in
   # the computation.
   coders.registry.register_coder(Player, PlayerCoder)
 
   (p  # pylint: disable=expression-not-assigned
-   | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+   | beam.io.Read(beam.io.TextFileSource(known_args.input))
    # The get_players function is annotated with a type hint above, so the type
    # system knows the output type of the following operation is a key-value pair
    # of a Player and an int. Please see the documentation for details on
    # types that are inferred automatically as well as other ways to specify
    # type hints.
-   | beam.Map('get players', get_players)
+   | beam.Map(get_players)
    # The output type hint of the previous step is used to infer that the key
    # type of the following operation is the Player type. Since a custom coder
    # is registered for the Player class above, a PlayerCoder will be used to
    # encode Player objects as keys for this combine operation.
-   | beam.CombinePerKey(sum) | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
-   | beam.io.Write('write', beam.io.TextFileSink(known_args.output)))
+   | beam.CombinePerKey(sum)
+   | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
+   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
   p.run()
 
 

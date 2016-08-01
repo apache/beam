@@ -330,6 +330,27 @@ class PTransform(WithTypeHints):
                 input_or_output.title(), self.label, at_context, hint,
                 pvalue_.element_type))
 
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    """Returns the output coder to use for output of this transform.
+
+    Note: this API is experimental and is subject to change; please do not rely
+    on behavior induced by this method.
+
+    The Coder returned here should not be wrapped in a WindowedValueCoder
+    wrapper.
+
+    Args:
+      input_type: An instance of an allowed built-in type, a custom class, or a
+        typehints.TypeConstraint for the input type, or None if not available.
+      input_coder: Coder object for encoding input to this PTransform, or None
+        if not available.
+
+    Returns:
+      Coder object for encoding output of this PTransform or None if unknown.
+    """
+    # TODO(ccy): further refine this API.
+    return None
+
   def clone(self, new_label):
     """Clones the current transform instance under a new label."""
     transform = copy.copy(self)
@@ -369,6 +390,9 @@ class PTransform(WithTypeHints):
     # TODO(robertwb): Assert all input WindowFns compatible.
     return inputs[0].windowing
 
+  def __rrshift__(self, label):
+    return _NamedPTransform(self, label)
+
   def __or__(self, right):
     """Used to compose PTransforms, e.g., ptransform1 | ptransform2."""
     if isinstance(right, PTransform):
@@ -376,7 +400,7 @@ class PTransform(WithTypeHints):
     else:
       return NotImplemented
 
-  def __ror__(self, left):
+  def __ror__(self, left, label=None):
     """Used to apply this PTransform to non-PValues, e.g., a tuple."""
     pvalueish, pvalues = self._extract_input_pvalues(left)
     pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
@@ -410,7 +434,7 @@ class PTransform(WithTypeHints):
                     if not isinstance(v, pvalue.PValue) and v is not None}
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
     self.pipeline = p
-    result = p.apply(self, pvalueish)
+    result = p.apply(self, pvalueish, label)
     if deferred:
       return result
     else:
@@ -601,6 +625,8 @@ class CallablePTransform(PTransform):
     # is called (and __call__ invoked) we will have all the information
     # needed to initialize the super class.
     self.fn = fn
+    self._args = ()
+    self._kwargs = {}
 
   def __call__(self, *args, **kwargs):
     if args and args[0] is None:
@@ -665,31 +691,13 @@ def ptransform_fn(fn):
   With either method the custom PTransform can be used in pipelines as if
   it were one of the "native" PTransforms::
 
-    result_pcoll = input_pcoll | CustomMapper('label', somefn)
+    result_pcoll = input_pcoll | 'label' >> CustomMapper(somefn)
 
   Note that for both solutions the underlying implementation of the pipe
   operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
   """
   return CallablePTransform(fn)
-
-
-def format_full_label(applied_transform, pending_transform):
-  """Returns a fully formatted cumulative PTransform label.
-
-  Args:
-    applied_transform: An instance of an AppliedPTransform that has been fully
-      applied prior to 'pending_transform'.
-    pending_transform: An instance of PTransform that has yet to be applied to
-      the Pipeline.
-
-  Returns:
-    A fully formatted PTransform label. Example: '/foo/bar/baz'.
-  """
-  label = '/'.join([applied_transform.full_label, pending_transform.label])
-  # Remove leading backslash because the monitoring UI expects names that do not
-  # start with such a character.
-  return label if not label.startswith('/') else label[1:]
 
 
 def label_from_callable(fn):
@@ -704,3 +712,16 @@ def label_from_callable(fn):
       return fn.__name__
   else:
     return str(fn)
+
+
+class _NamedPTransform(PTransform):
+
+  def __init__(self, transform, label):
+    super(_NamedPTransform, self).__init__(label)
+    self.transform = transform
+
+  def __ror__(self, pvalueish):
+    return self.transform.__ror__(pvalueish, self.label)
+
+  def apply(self, pvalue):
+    raise RuntimeError("Should never be applied directly.")

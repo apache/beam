@@ -29,16 +29,15 @@ from apitools.base.py import encoding
 from apitools.base.py import exceptions
 
 from apache_beam import utils
-from apache_beam.version import __version__
+from apache_beam import version
 from apache_beam.internal import pickler
 from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.json_value import to_json_value
-from apache_beam.io import iobase
 from apache_beam.transforms import cy_combiners
 from apache_beam.utils import dependency
-from apache_beam.utils import names
 from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
+from apache_beam.utils.dependency import get_sdk_name_and_version
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
@@ -51,77 +50,6 @@ import apache_beam.internal.clients.dataflow as dataflow
 BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'
 COMPUTE_API_SERVICE = 'compute.googleapis.com'
 STORAGE_API_SERVICE = 'storage.googleapis.com'
-
-
-def append_counter(status_object, counter, tentative):
-  """Appends a counter to the status.
-
-  Args:
-    status_object: a work_item_status to which to add this counter
-    counter: a counters.Counter object to append
-    tentative: whether the value should be reported as tentative
-  """
-  logging.debug('Appending counter%s %s',
-                ' (tentative)' if tentative else '',
-                counter)
-  kind, setter = metric_translations[counter.combine_fn.__class__]
-  append_metric(
-      status_object, counter.name, kind, counter.accumulator,
-      setter, tentative=tentative)
-
-
-def append_metric(status_object, metric_name, kind, value, setter=None,
-                  step=None, output_user_name=None, tentative=False,
-                  worker_id=None, cumulative=True):
-  """Creates and adds a MetricUpdate field to the passed-in protobuf.
-
-  Args:
-    status_object: a work_item_status to which to add this metric
-    metric_name: a string naming this metric
-    kind: dataflow counter kind (e.g. 'sum')
-    value: accumulator value to encode
-    setter: if not None, a lambda to use to update metric_update with value
-    step: the name of the associated step
-    output_user_name: the user-visible name to use
-    tentative: whether this should be labeled as a tentative metric
-    worker_id: the id of this worker.  Specifying a worker_id also
-      causes this to be encoded as a metric, not a counter.
-    cumulative: Whether this metric is cumulative, default True.
-      Set to False for a delta value.
-  """
-  # Does this look like a counter or like a metric?
-  is_counter = not worker_id
-
-  metric_update = dataflow.MetricUpdate()
-  metric_update.name = dataflow.MetricStructuredName()
-  metric_update.name.name = metric_name
-  # Handle attributes stored in the name context
-  if step or output_user_name or tentative or worker_id:
-    metric_update.name.context = dataflow.MetricStructuredName.ContextValue()
-
-    def append_to_context(key, value):
-      metric_update.name.context.additionalProperties.append(
-          dataflow.MetricStructuredName.ContextValue.AdditionalProperty(
-              key=key, value=value))
-    if step:
-      append_to_context('step', step)
-    if output_user_name:
-      append_to_context('output_user_name', output_user_name)
-    if tentative:
-      append_to_context('tentative', 'true')
-    if worker_id:
-      append_to_context('workerId', worker_id)
-  if cumulative and is_counter:
-    metric_update.cumulative = cumulative
-  if is_counter:
-    # Counters are distinguished by having a kind; metrics do not.
-    metric_update.kind = kind
-  if setter:
-    setter(value, metric_update)
-  else:
-    metric_update.scalar = to_json_value(value, with_type=True)
-  logging.debug('Appending metric_update: %s', metric_update)
-  status_object.metricUpdates.append(metric_update)
 
 
 class Step(object):
@@ -191,12 +119,12 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
 
-    version_string = __version__
+    version_string = version.__version__
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value('Google Cloud Dataflow SDK for Python')),
+            value=to_json_value(sdk_name)),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(version_string))])
     # Version information.
@@ -339,16 +267,20 @@ class Job(object):
   def __init__(self, options):
     self.options = options
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
-    required_google_cloud_options = ['project',
-                                     'job_name',
-                                     'staging_location',
-                                     'temp_location']
+    required_google_cloud_options = ['project', 'job_name', 'staging_location']
     missing = [
         option for option in required_google_cloud_options
         if not getattr(self.google_cloud_options, option)]
     if missing:
       raise ValueError(
           'Missing required configuration parameters: %s' % missing)
+
+    if not self.google_cloud_options.temp_location:
+      logging.info('Defaulting to the staging_location as temp_location: %s',
+                   self.google_cloud_options.staging_location)
+      (self.google_cloud_options
+       .temp_location) = self.google_cloud_options.staging_location
+
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
     # area or team members using same job names. This method is not entirely
@@ -462,7 +394,7 @@ class DataflowApplicationClient(object):
     # The response is a Job proto with the id for the new job.
     logging.info('Created job with id: [%s]', response.id)
     logging.info(
-        'To accesss the Dataflow monitoring console, please navigate to '
+        'To access the Dataflow monitoring console, please navigate to '
         'https://console.developers.google.com/project/%s/dataflow/job/%s',
         self.google_cloud_options.project, response.id)
 
@@ -611,238 +543,6 @@ class DataflowApplicationClient(object):
     return response.jobMessages, response.nextPageToken
 
 
-class DataflowWorkerClient(object):
-  """A Dataflow API client used by worker code to lease work items."""
-
-  def __init__(self, worker, skip_get_credentials=False):
-    """Initializes a Dataflow API client object with worker functionality.
-
-    Args:
-      worker: A Worker instance.
-      skip_get_credentials: If true disables credentials loading logic.
-    """
-    self._client = (
-        dataflow.DataflowV1b3(
-            url=worker.service_path,
-            get_credentials=(not skip_get_credentials)))
-
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def lease_work(self, worker_info, desired_lease_duration):
-    """Leases a work item from the service."""
-    work_request = dataflow.LeaseWorkItemRequest()
-    work_request.workerId = worker_info.worker_id
-    work_request.requestedLeaseDuration = desired_lease_duration
-    work_request.currentWorkerTime = worker_info.formatted_current_time
-    work_request.workerCapabilities.append(worker_info.worker_id)
-    for value in worker_info.capabilities:
-      work_request.workerCapabilities.append(value)
-    for value in worker_info.work_types:
-      work_request.workItemTypes.append(value)
-    request = dataflow.DataflowProjectsJobsWorkItemsLeaseRequest()
-    request.jobId = worker_info.job_id
-    request.projectId = worker_info.project_id
-    try:
-      request.leaseWorkItemRequest = work_request
-    except AttributeError:
-      request.lease_work_item_request = work_request
-    logging.debug('lease_work: %s', request)
-    response = self._client.projects_jobs_workItems.Lease(request)
-    logging.debug('lease_work: %s', response)
-    return response
-
-  def report_status(self,
-                    worker_info,
-                    desired_lease_duration,
-                    work_item,
-                    completed,
-                    progress,
-                    dynamic_split_result_to_report=None,
-                    source_operation_response=None,
-                    exception_details=None):
-    """Reports status for a work item (success or failure).
-
-    This is an integration point. The @retry decorator is used on callers
-    of this method defined in apache_beam/worker/worker.py because
-    there are different retry strategies for a completed versus in progress
-    work item.
-
-    Args:
-      worker_info: A batchworker.BatchWorkerInfo that contains
-        information about the Worker instance executing the work
-        item.
-      desired_lease_duration: The duration for which the worker would like to
-        extend the lease of the work item. Should be in seconds formatted as a
-        string.
-      work_item: The work item for which to report status.
-      completed: True if there is no further work to be done on this work item
-        either because it succeeded or because it failed. False if this is a
-        progress report.
-      progress: A SourceReaderProgress that gives the progress of worker
-        handling the work item.
-      dynamic_split_result_to_report: A successful dynamic split result that
-        should be sent to the Dataflow service along with the status report.
-      source_operation_response: Response to a source operation request from
-        the service. This will be sent to the service along with the status
-        report.
-      exception_details: A string representation of the stack trace for an
-        exception raised while executing the work item. The string is the
-        output of the standard traceback.format_exc() function.
-
-    Returns:
-      A protobuf containing the response from the service for the status
-      update (WorkItemServiceState).
-
-    Raises:
-      TypeError: if progress is of an unknown type
-      RuntimeError: if dynamic split request is of an unknown type.
-    """
-    work_item_status = dataflow.WorkItemStatus()
-    work_item_status.completed = completed
-
-    if not completed:
-      work_item_status.requestedLeaseDuration = desired_lease_duration
-
-    if progress is not None:
-      work_item_progress = dataflow.ApproximateProgress()
-      work_item_status.progress = work_item_progress
-
-      if progress.position is not None:
-        work_item_progress.position = (
-            reader_position_to_cloud_position(progress.position))
-      elif progress.percent_complete is not None:
-        work_item_progress.percentComplete = progress.percent_complete
-      elif progress.remaining_time is not None:
-        work_item_progress.remainingTime = progress.remaining_time
-      else:
-        raise TypeError('Unknown type of progress')
-
-    if dynamic_split_result_to_report is not None:
-      assert isinstance(dynamic_split_result_to_report,
-                        iobase.DynamicSplitResult)
-
-      if isinstance(dynamic_split_result_to_report,
-                    iobase.DynamicSplitResultWithPosition):
-        work_item_status.stopPosition = (
-            dynamic_split_result_with_position_to_cloud_stop_position(
-                dynamic_split_result_to_report))
-      else:
-        raise RuntimeError('Unknown type of dynamic split result.')
-
-    # The service keeps track of the report indexes in order to handle lost
-    # and duplicate message.
-    work_item_status.reportIndex = work_item.next_report_index
-    work_item_status.workItemId = str(work_item.proto.id)
-
-    # Add exception information if any.
-    if exception_details is not None:
-      status = dataflow.Status()
-      # TODO(silviuc): Replace Code.UNKNOWN with a generated definition.
-      status.code = 2
-      # TODO(silviuc): Attach the stack trace as exception details.
-      status.message = exception_details
-      work_item_status.errors.append(status)
-
-    if source_operation_response is not None:
-      work_item_status.sourceOperationResponse = source_operation_response
-
-    # Look through the work item for metrics to send.
-    if work_item.map_task:
-      for counter in work_item.map_task.itercounters():
-        append_counter(work_item_status, counter, tentative=not completed)
-
-    report_request = dataflow.ReportWorkItemStatusRequest()
-    report_request.currentWorkerTime = worker_info.formatted_current_time
-    report_request.workerId = worker_info.worker_id
-    report_request.workItemStatuses.append(work_item_status)
-
-    request = dataflow.DataflowProjectsJobsWorkItemsReportStatusRequest()
-    request.jobId = worker_info.job_id
-    request.projectId = worker_info.project_id
-    try:
-      request.reportWorkItemStatusRequest = report_request
-    except AttributeError:
-      request.report_work_item_status_request = report_request
-    logging.debug('report_status: %s', request)
-    response = self._client.projects_jobs_workItems.ReportStatus(request)
-    logging.debug('report_status: %s', response)
-    return response
-
-# Utility functions for translating cloud reader objects to corresponding SDK
-# reader objects and vice versa.
-
-
-def reader_progress_to_cloud_progress(reader_progress):
-  """Converts a given 'ReaderProgress' to corresponding cloud format."""
-
-  cloud_progress = dataflow.ApproximateProgress()
-  if reader_progress.position is not None:
-    cloud_progress.position = reader_position_to_cloud_position(
-        reader_progress.position)
-  if reader_progress.percent_complete is not None:
-    cloud_progress.percentComplete = reader_progress.percent_complete
-  if reader_progress.remaining_time is not None:
-    cloud_progress.remainingTime = reader_progress.remaining_time
-
-  return cloud_progress
-
-
-def reader_position_to_cloud_position(reader_position):
-  """Converts a given 'ReaderPosition' to corresponding cloud format."""
-
-  cloud_position = dataflow.Position()
-  if reader_position.end is not None:
-    cloud_position.end = reader_position.end
-  if reader_position.key is not None:
-    cloud_position.key = reader_position.key
-  if reader_position.byte_offset is not None:
-    cloud_position.byteOffset = reader_position.byte_offset
-  if reader_position.record_index is not None:
-    cloud_position.recordIndex = reader_position.record_index
-  if reader_position.shuffle_position is not None:
-    cloud_position.shufflePosition = reader_position.shuffle_position
-  if reader_position.concat_position is not None:
-    concat_position = dataflow.ConcatPosition()
-    concat_position.index = reader_position.concat_position.index
-    concat_position.position = reader_position_to_cloud_position(
-        reader_position.concat_position.position)
-    cloud_position.concatPosition = concat_position
-
-  return cloud_position
-
-
-def dynamic_split_result_with_position_to_cloud_stop_position(split_result):
-  """Converts a given 'DynamicSplitResultWithPosition' to cloud format."""
-
-  return reader_position_to_cloud_position(split_result.stop_position)
-
-
-def cloud_progress_to_reader_progress(cloud_progress):
-  reader_position = None
-  if cloud_progress.position is not None:
-    reader_position = cloud_position_to_reader_position(cloud_progress.position)
-  return iobase.ReaderProgress(reader_position, cloud_progress.percentComplete,
-                               cloud_progress.remainingTime)
-
-
-def cloud_position_to_reader_position(cloud_position):
-  concat_position = None
-  if cloud_position.concatPosition is not None:
-    inner_position = cloud_position_to_reader_position(
-        cloud_position.concatPosition.position)
-    concat_position = iobase.ConcatPosition(cloud_position.index,
-                                            inner_position)
-
-  return iobase.ReaderPosition(cloud_position.end, cloud_position.key,
-                               cloud_position.byteOffset,
-                               cloud_position.recordIndex,
-                               cloud_position.shufflePosition, concat_position)
-
-
-def approximate_progress_to_dynamic_split_request(approximate_progress):
-  return iobase.DynamicSplitRequest(cloud_progress_to_reader_progress(
-      approximate_progress))
-
-
 def set_scalar(accumulator, metric_update):
   metric_update.scalar = to_json_value(accumulator.value, with_type=True)
 
@@ -871,44 +571,3 @@ metric_translations = {
     cy_combiners.AllCombineFn: ('and', set_scalar),
     cy_combiners.AnyCombineFn: ('or', set_scalar),
 }
-
-
-def splits_to_split_response(bundles):
-  """Generates a response to a custom source split request.
-
-  Args:
-    bundles: a set of bundles generated by a BoundedSource.split() invocation.
-  Returns:
-   a SourceOperationResponse object.
-  """
-  derived_sources = []
-  for bundle in bundles:
-    derived_source = dataflow.DerivedSource()
-    derived_source.derivationMode = (
-        dataflow.DerivedSource.DerivationModeValueValuesEnum
-        .SOURCE_DERIVATION_MODE_INDEPENDENT)
-    derived_source.source = dataflow.Source()
-    derived_source.source.doesNotNeedSplitting = True
-
-    derived_source.source.spec = dataflow.Source.SpecValue()
-    derived_source.source.spec.additionalProperties.append(
-        dataflow.Source.SpecValue.AdditionalProperty(
-            key=names.SERIALIZED_SOURCE_KEY,
-            value=to_json_value(pickler.dumps(
-                (bundle.source, bundle.start_position, bundle.stop_position)),
-                                with_type=True)))
-    derived_source.source.spec.additionalProperties.append(
-        dataflow.Source.SpecValue.AdditionalProperty(key='@type',
-                                                     value=to_json_value(
-                                                         names.SOURCE_TYPE)))
-    derived_sources.append(derived_source)
-
-  split_response = dataflow.SourceSplitResponse()
-  split_response.bundles = derived_sources
-  split_response.outcome = (
-      dataflow.SourceSplitResponse.OutcomeValueValuesEnum
-      .SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED)
-
-  response = dataflow.SourceOperationResponse()
-  response.split = split_response
-  return response

@@ -45,9 +45,9 @@ class PValueTest(unittest.TestCase):
 
   def test_pcollectionview_not_recreated(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    value = pipeline | Create('create1', [1, 2, 3])
-    value2 = pipeline | Create('create2', [(1, 1), (2, 2), (3, 3)])
-    value3 = pipeline | Create('create3', [(1, 1), (2, 2), (3, 3)])
+    value = pipeline | 'create1' >> Create([1, 2, 3])
+    value2 = pipeline | 'create2' >> Create([(1, 1), (2, 2), (3, 3)])
+    value3 = pipeline | 'create3' >> Create([(1, 1), (2, 2), (3, 3)])
     self.assertEqual(AsSingleton(value), AsSingleton(value))
     self.assertEqual(AsSingleton('new', value, default_value=1),
                      AsSingleton('new', value, default_value=1))

@@ -58,15 +58,15 @@ class PValue(object):
     self.producer = None
 
   def __str__(self):
-    return '<%s>' % self._str_internal()
+    return self._str_internal()
 
   def __repr__(self):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return '%s transform=%s' % (
-        self.__class__.__name__,
-        self.producer.transform if self.producer else 'n/a')
+    return "%s[%s.%s]" % (self.__class__.__name__,
+                          self.producer.full_label if self.producer else None,
+                          self.tag)
 
   def apply(self, *args, **kwargs):
     """Applies a transform or callable to a PValue.
@@ -79,10 +79,8 @@ class PValue(object):
     optional first label and a transform/callable object. It will call the
     pipeline.apply() method with this modified argument list.
     """
-    if isinstance(args[0], str):
-      # TODO(robertwb): Make sure labels are properly passed during
-      # ptransform construction and drop this argument.
-      args = args[1:]
+    if isinstance(args[0], basestring):
+      kwargs['label'], args = args[0], args[1:]
     arglist = list(args)
     arglist.insert(1, self)
     return self.pipeline.apply(*arglist, **kwargs)
@@ -191,13 +189,20 @@ class DoOutputsTuple(object):
     # Check if we accessed this tag before.
     if tag in self._pcolls:
       return self._pcolls[tag]
+
     if tag is not None:
       self._transform.side_output_tags.add(tag)
-    pcoll = PCollection(self._pipeline, tag=tag)
-    # Transfer the producer from the DoOutputsTuple to the resulting
-    # PCollection.
-    pcoll.producer = self.producer
-    self.producer.add_output(pcoll, tag)
+      pcoll = PCollection(self._pipeline, tag=tag)
+      # Transfer the producer from the DoOutputsTuple to the resulting
+      # PCollection.
+      pcoll.producer = self.producer
+      # Add this as an output to both the inner ParDo and the outer _MultiParDo
+      # PTransforms.
+      self.producer.parts[0].add_output(pcoll, tag)
+      self.producer.add_output(pcoll, tag)
+    else:
+      # Main output is output of inner ParDo.
+      pcoll = self.producer.parts[0].outputs[0]
     self._pcolls[tag] = pcoll
     return pcoll
 

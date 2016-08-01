@@ -51,6 +51,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.options import SetupOptions
 
 
 def run(argv=None):
@@ -68,7 +70,6 @@ def run(argv=None):
                       default='gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX',
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
-
   pipeline_args.extend([
       # CHANGE 2/5: (OPTIONAL) Change this to BlockingDataflowPipelineRunner to
       # run your pipeline on the Google Cloud Dataflow Service.
@@ -85,25 +86,29 @@ def run(argv=None):
       '--job_name=your-wordcount-job',
   ])
 
-  p = beam.Pipeline(argv=pipeline_args)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read('read', beam.io.TextFileSource(known_args.input))
+  lines = p | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
 
   # Count the occurrences of each word.
   counts = (lines
-            | (beam.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
-               .with_output_types(unicode))
-            | beam.Map('pair_with_one', lambda x: (x, 1))
-            | beam.GroupByKey('group')
-            | beam.Map('count', lambda (word, ones): (word, sum(ones))))
+            | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+                          .with_output_types(unicode))
+            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+            | 'group' >> beam.GroupByKey()
+            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
 
   # Format the counts into a PCollection of strings.
-  output = counts | beam.Map('format', lambda (word, c): '%s: %s' % (word, c))
+  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | beam.io.Write('write', beam.io.TextFileSink(known_args.output))
+  output | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
