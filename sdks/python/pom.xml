@@ -93,6 +93,7 @@
             <configuration>
               <executable>mkdir</executable>
               <arguments>
+                <argument>-p</argument>
                 <argument>${python.user.base}</argument>
               </arguments>
             </configuration>
