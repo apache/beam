@@ -10,7 +10,7 @@ class UnionTranslator implements OperatorTranslator<Union> {
   @Override
   @SuppressWarnings("unchecked")
   public DataStream<?> translate(Union operator,
-                                 TranslationContext context)
+                                 ExecutorContext context)
   {
     List<DataStream<?>> inputs = context.getInputStreams(operator);
     if (inputs.size() != 2) {

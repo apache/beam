@@ -9,11 +9,11 @@ import java.util.Arrays;
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
 
   @Override
-  public DataStream translate(FlowUnfolder.InputOperator operator,
-                                 TranslationContext context)
+  public DataStream<?> translate(FlowUnfolder.InputOperator operator,
+                                 ExecutorContext context)
   {
     // get original datasource from operator
-    DataSource ds = operator.output().getSource();
+    DataSource<?> ds = operator.output().getSource();
 
     // TODO dummy input
     return context.getExecutionEnvironment().fromCollection(

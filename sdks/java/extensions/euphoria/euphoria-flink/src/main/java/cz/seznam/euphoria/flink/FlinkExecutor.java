@@ -15,7 +15,11 @@ public class FlinkExecutor implements Executor {
   private StreamExecutionEnvironment flinkStreamEnv;
 
   public FlinkExecutor() {
-    this.flinkStreamEnv = createStreamExecutionEnv();
+    this(StreamExecutionEnvironment.getExecutionEnvironment());
+  }
+
+  public FlinkExecutor(StreamExecutionEnvironment flinkStreamEnv) {
+    this.flinkStreamEnv = flinkStreamEnv;
   }
 
   @Override
@@ -25,17 +29,11 @@ public class FlinkExecutor implements Executor {
 
   @Override
   public int waitForCompletion(Flow flow) throws Exception {
-    FlowTranslator translator = new FlowTranslator(flinkStreamEnv);
-    translator.translate(flow);
+    FlowTranslator translator = new FlowTranslator();
+    translator.translateInto(flow, flinkStreamEnv);
 
     flinkStreamEnv.execute();
 
     return 0;
   }
-
-  protected StreamExecutionEnvironment createStreamExecutionEnv() {
-    return StreamExecutionEnvironment.getExecutionEnvironment();
-  }
-
-
 }

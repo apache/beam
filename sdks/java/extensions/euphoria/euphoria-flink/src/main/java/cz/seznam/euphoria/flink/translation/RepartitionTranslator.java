@@ -9,8 +9,8 @@ class RepartitionTranslator implements OperatorTranslator<Repartition> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public DataStream translate(Repartition operator,
-                                 TranslationContext context)
+  public DataStream<?> translate(Repartition operator,
+                                 ExecutorContext context)
   {
     DataStream input = context.getInputStream(operator);
     Partitioning partitioning = operator.getPartitioning();

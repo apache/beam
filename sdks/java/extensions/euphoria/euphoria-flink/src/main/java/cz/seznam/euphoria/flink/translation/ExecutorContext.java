@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.translation;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
@@ -8,7 +9,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,14 +17,14 @@ import java.util.Map;
  * Keeps track of mapping between Euphoria {@link Dataset} and
  * Flink {@link DataStream}
  */
-class TranslationContext {
+public class ExecutorContext {
 
   private final Map<Dataset<?>, DataStream<?>> datasetMapping
           = new IdentityHashMap<>();
 
   private final StreamExecutionEnvironment executionEnvironment;
 
-  public TranslationContext(StreamExecutionEnvironment executionEnvironment) {
+  public ExecutorContext(StreamExecutionEnvironment executionEnvironment) {
     this.executionEnvironment = executionEnvironment;
   }
 
@@ -37,7 +37,7 @@ class TranslationContext {
     for (Dataset<?> dataset : inputDatasets) {
       DataStream ds = datasetMapping.get(dataset);
       if (ds == null) {
-        throw new NullPointerException("Matching DataStream missing for Dataset produced by "
+        throw new IllegalArgumentException("Matching DataStream missing for Dataset produced by "
                 + dataset.getProducer().getName());
       }
       out.add(ds);
@@ -52,15 +52,20 @@ class TranslationContext {
   }
 
   public DataStream<?> getInputStream(SingleInputOperator<?, ?> operator) {
-    return getInputStreams(operator).get(0);
+    return Iterables.getOnlyElement(getInputStreams(operator));
   }
 
   public Dataset<?> getInput(SingleInputOperator<?, ?> operator) {
-    return getInputs(operator).get(0);
+    return Iterables.getOnlyElement(getInputs(operator));
   }
 
   public DataStream<?> getOutputStream(Operator<?, ?> operator) {
-    return datasetMapping.get(operator.output());
+    DataStream<?> out = datasetMapping.get(operator.output());
+    if (out == null) {
+      throw new IllegalArgumentException("Output stream doesn't exists for operator " +
+              operator.getName());
+    }
+    return out;
   }
 
   public StreamExecutionEnvironment getExecutionEnvironment() {

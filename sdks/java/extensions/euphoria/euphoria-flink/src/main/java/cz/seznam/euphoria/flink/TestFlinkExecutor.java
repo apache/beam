@@ -10,8 +10,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  */
 public class TestFlinkExecutor extends FlinkExecutor {
 
-  @Override
-  protected StreamExecutionEnvironment createStreamExecutionEnv() {
-    return StreamExecutionEnvironment.createLocalEnvironment();
+  public TestFlinkExecutor() {
+    super(StreamExecutionEnvironment.createLocalEnvironment());
   }
 }
