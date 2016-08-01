@@ -242,7 +242,7 @@ public class DataflowRunnerTest {
     String[] args = new String[] {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/not/a/gs/path",
-        "--projectId=test-project",
+        "--project=test-project",
     };
 
     try {
@@ -261,7 +261,7 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/testing",
         "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
-        "--projectId=test-project",
+        "--project=test-project",
     };
     // Should not crash, because gcpTempLocation should get set from tempLocation
     TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
