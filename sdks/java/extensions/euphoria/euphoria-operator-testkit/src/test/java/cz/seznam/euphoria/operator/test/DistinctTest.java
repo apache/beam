@@ -131,7 +131,7 @@ public class DistinctTest extends OperatorTest {
 
       @Override
       protected DataSource<Integer> getDataSource() {
-        return ListDataSource.bounded(
+        return ListDataSource.unbounded(
             Arrays.asList(1, 2, 3, 3, 2, 1),
             Arrays.asList(1, 2, 3, 3, 2, 1));
       }
