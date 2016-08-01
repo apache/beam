@@ -46,6 +46,15 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
+          </execution>
+          <execution>
             <id>setuptools-clean</id>
             <phase>clean</phase>
             <goals>
