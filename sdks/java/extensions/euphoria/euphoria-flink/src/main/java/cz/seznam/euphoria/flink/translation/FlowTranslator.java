@@ -5,14 +5,12 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -32,19 +30,16 @@ public class FlowTranslator {
     TRANSLATORS.put((Class) Union.class, new UnionTranslator());
   }
 
-  private final StreamExecutionEnvironment streamExecutionEnvironment;
-  private final TranslationContext translationContext;
-
-  public FlowTranslator(StreamExecutionEnvironment streamExecutionEnvironment) {
-    this.streamExecutionEnvironment = streamExecutionEnvironment;
-    this.translationContext = new TranslationContext(streamExecutionEnvironment);
-  }
-
   /**
-   * Translates given flow to Flink specific API
+   * Translates given flow to Flink execution environment
    */
   @SuppressWarnings("unchecked")
-  public void translate(Flow flow) {
+  public void translateInto(Flow flow,
+                          StreamExecutionEnvironment streamExecutionEnvironment)
+  {
+    ExecutorContext executorContext =
+            new ExecutorContext(streamExecutionEnvironment);
+
     // transform flow to acyclic graph of supported operators
     DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, TRANSLATORS.keySet());
 
@@ -53,19 +48,19 @@ public class FlowTranslator {
       OperatorTranslator translator = TRANSLATORS.get(op.getClass());
       if (translator == null) {
         throw new UnsupportedOperationException(
-                "Operator " + op.getClass().getSimpleName() + "not supported");
+                "Operator " + op.getClass().getSimpleName() + " not supported");
       }
 
-      DataStream<?> out = translator.translate(op, translationContext);
+      DataStream<?> out = translator.translate(op, executorContext);
 
       // save output of current operator to context
-      translationContext.setOutputStream(op, out);
+      executorContext.setOutputStream(op, out);
     });
 
     // process all sinks in the DAG (leaf nodes)
     dag.getLeafs().stream().map(Node::get).forEach(op -> {
       DataStream<?> flinkOutput =
-              Objects.requireNonNull(translationContext.getOutputStream(op));
+              Objects.requireNonNull(executorContext.getOutputStream(op));
 
 
       // TODO sink wrapper
