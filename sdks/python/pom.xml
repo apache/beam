@@ -47,13 +47,8 @@
         <executions>
           <execution>
             <id>beam-exec-java</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-            <configuration>
-              <skip>true</skip>
-            </configuration>
+            <!-- ugly trick to actually get skipped exec:java goal here -->
+            <phase>dont-execute</phase>
           </execution>
           <execution>
             <id>setuptools-clean</id>
