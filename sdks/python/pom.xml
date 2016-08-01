@@ -46,6 +46,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
+            <id>beam-exec-java</id>
             <phase>verify</phase>
             <goals>
               <goal>java</goal>

@@ -747,6 +747,7 @@
           <version>1.4.0</version>
           <executions>
             <execution>
+              <id>beam-exec-java</id>
               <phase>verify</phase>
               <goals>
                 <goal>java</goal>
