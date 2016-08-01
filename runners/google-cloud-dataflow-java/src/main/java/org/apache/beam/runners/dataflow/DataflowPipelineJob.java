@@ -271,9 +271,17 @@ public class DataflowPipelineJob implements PipelineResult {
     content.setProjectId(projectId);
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
-    dataflowOptions.getDataflowClient().projects().jobs()
-        .update(projectId, jobId, content)
-        .execute();
+    try {
+      dataflowOptions.getDataflowClient().projects().jobs()
+          .update(projectId, jobId, content)
+          .execute();
+    } catch (IOException e) {
+      String errorMsg = String.format(
+          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
+          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+      LOG.warn(errorMsg);
+      throw new IOException(errorMsg, e);
+    }
     return State.CANCELLED;
   }
 
