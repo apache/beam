@@ -30,14 +30,12 @@ from apitools.base.py import exceptions
 
 from apache_beam import utils
 from apache_beam import version
-from apache_beam.internal import pickler
 from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.transforms import cy_combiners
 from apache_beam.utils import dependency
 from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
-from apache_beam.utils.dependency import get_sdk_name_and_version
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
