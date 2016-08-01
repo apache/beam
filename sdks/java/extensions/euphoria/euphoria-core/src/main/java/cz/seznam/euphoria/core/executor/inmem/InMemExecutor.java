@@ -294,7 +294,13 @@ public class InMemExecutor implements Executor {
         break;
       } catch (ExecutionException e) {
         // when any one of the tasks fails rollback all sinks and fail
-        sinks.forEach(DataSink::rollback);
+        for (DataSink s : sinks) {
+          try {
+            s.rollback();
+          } catch (Exception ex) {
+            LOG.error("Exception during DataSink rollback", ex);
+          }
+        }
         throw new RuntimeException(e);
       }
     }

@@ -24,5 +24,5 @@ public interface DataSink<T> extends Serializable {
   void commit() throws IOException;
 
   /** Rollback all partitions. */
-  void rollback();
+  void rollback() throws IOException;
 }
