@@ -1,15 +1,11 @@
 ---
 layout: default
+title: "Beam Programming Guide"
+permalink: /learn/programming-guide/
+redirect_from: /docs/learn/programming-guide/
 ---
-<p>
-  <div class="alert alert-info alert-dismissible" role="alert">
-  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
-  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
-  </div>
-</p>
 
-# Beam Programming Guide
+# Apache Beam Programming Guide
 
 The **Beam Programming Guide** is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. It provides guidance for using the Beam SDK classes to build and test your pipeline. It is not intended as an exhaustive reference, but as a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your programs.
 
@@ -25,7 +21,7 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
     * [Random Access](#pcrandomaccess)
     * [Size and Boundedness](#pcsizebound)
     * [Element Timestamps](#pctimestamps)
-* [Applying Transforms](#transform)
+* [Applying Transforms](#transforms)
   * [Using ParDo](#transforms-pardo)
   * [Using GroupByKey](#transforms-gbk)
   * [Using Combine](#transforms-combine)
@@ -37,7 +33,7 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
 * [Working with Windowing](#windowing)
 * [Working with Triggers](#triggers)
 
-## <a name="#overview"></a>Overview
+## <a name="overview"></a>Overview
 
 To use Beam, you need to first create a driver program using the classes in one of the Beam SDKs. Your driver program *defines* your pipeline, including all of the inputs, transforms, and outputs; it also sets execution options for your pipeline (typically passed in using command-line options). These include the Pipeline Runner, which, in turn, determines what back-end your pipeline will run on.
 
@@ -61,7 +57,7 @@ A typical Beam driver program works as follows:
 
 When you run your Beam driver program, the Pipeline Runner that you designate constructs a **workflow graph** of your pipeline based on the `PCollection` objects you've created and transforms that you've applied. That graph is then executed using the appropriate distributed processing back-end, becoming an asynchronous "job" (or equivalent) on that back-end.
 
-## <a name="#pipeline"></a>Creating the Pipeline
+## <a name="pipeline"></a>Creating the Pipeline
 
 The `Pipeline` abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a [Pipeline](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/Pipeline.java) object, and then using that object as the basis for creating the pipeline's data sets as `PCollection`s and its operations as `Transform`s.
 
@@ -84,13 +80,13 @@ public static void main(String[] args) {
 
 The Beam SDKs contain various subclasses of `PipelineOptions` that correspond to different Runners. For example, `DirectPipelineOptions` contains options for the Direct (local) pipeline runner, while `DataflowPipelineOptions` contains options for using the runner for Google Cloud Dataflow. You can also define your own custom `PipelineOptions` by creating an interface that extends the Beam SDKs' `PipelineOptions` class.
 
-## <a name="#pcollection"></a>Working with PCollections
+## <a name="pcollection"></a>Working with PCollections
 
 The [PCollection](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/values/PCollection.java) abstraction represents a potentially distributed, multi-element data set. You can think of a `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a `PCollection`.
 
 After you've created your `Pipeline`, you'll need to begin by creating at least one `PCollection` in some form. The `PCollection` you create serves as the input for the first operation in your pipeline.
 
-### <a name="#pccreate"></a>Creating a PCollection
+### <a name="pccreate"></a>Creating a PCollection
 
 You create a `PCollection` by either reading data from an external source using Beam's [Source API](#io), or you can create a `PCollection` of data stored in an in-memory collection class in your driver program. The former is typically how a production pipeline would ingest data; Beam's Source APIs contain adapters to help you read from external sources like large cloud-based files, databases, or subscription services. The latter is primarily useful for testing and debugging purposes.
 
@@ -140,23 +136,23 @@ public static void main(String[] args) {
     p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of())
 }
 ```
-### <a name="#pccharacteristics">PCollection Characteristics
+### <a name="pccharacteristics">PCollection Characteristics
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is created; multiple pipelines cannot share a `PCollection`. In some respects, a `PCollection` functions like a collection class. However, a `PCollection` can differ in a few key ways:
 
-#### <a name="#pcelementtype"></a>Element Type
+#### <a name="pcelementtype"></a>Element Type
 
 The elements of a `PCollection` may be of any type, but must all be of the same type. However, to support distributed processing, Beam needs to be able to encode each individual element as a byte string (so elements can be passed around to distributed workers). The Beam SDKs provide a data encoding mechanism that includes built-in encoding for commonly-used types as well as support for specifying custom encodings as needed.
 
-#### <a name="#pcimmutability"></a>Immutability
+#### <a name="pcimmutability"></a>Immutability
 
 A `PCollection` is immutable. Once created, you cannot add, remove, or change individual elements. A Beam Transform might process each element of a `PCollection` and generate new pipeline data (as a new `PCollection`), *but it does not consume or modify the original input collection*.
 
-#### <a name="#pcrandomaccess"></a>Random Access
+#### <a name="pcrandomaccess"></a>Random Access
 
 A `PCollection` does not support random access to individual elements. Instead, Beam Transforms consider every element in a `PCollection` individually.
 
-#### <a name="#pcsizebound"></a>Size and Boundedness
+#### <a name="pcsizebound"></a>Size and Boundedness
 
 A `PCollection` is a large, immutable "bag" of elements. There is no upper limit on how many elements a `PCollection` can contain; any given `PCollection` might fit in memory on a single machine, or it might represent a very large distributed data set backed by a persistent data store.
 
@@ -166,7 +162,7 @@ The bounded (or unbounded) nature The bounded (or unbounded) nature of your `PCo
 
 When performing an operation that groups elements in an unbounded `PCollection`, Beam requires a concept called **Windowing** to divide a continuously updating data set into logical windows of finite size.  Beam processes each window as a bundle, and processing continues as the data set is generated. These logical windows are determined by some characteristic associated with a data element, such as a **timestamp**.
 
-#### <a name="#pctimestamps"></a>Element Timestamps
+#### <a name="pctimestamps"></a>Element Timestamps
 
 Each element in a `PCollection` has an associated intrinsic **timestamp**. The timestamp for each element is initially assigned by the [Source](#io) that creates the `PCollection`. Sources that create an unbounded `PCollection` often assign each new element a timestamp that corresponds to when the element was read or added.
 
@@ -174,9 +170,9 @@ Each element in a `PCollection` has an associated intrinsic **timestamp**. The t
 
 Timestamps are useful for a `PCollection` that contains elements with an inherent notion of time. If your pipeline is reading a stream of events, like Tweets or other social media messages, each element might use the time the event was posted as the element timestamp.
 
-You can manually assign timestamps to the elements of a `PCollection` if the source doesn't do it for you. You'll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a "time" field in a server log entry). Beam has [Transforms](#transforms) that take a `PCollection` as input and output an identical `PCollection` with timestamps attached; see [Assigning Timestamps](#windowing) for more information on how to do so.
+You can manually assign timestamps to the elements of a `PCollection` if the source doesn't do it for you. You'll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a "time" field in a server log entry). Beam has [Transforms](#transform) that take a `PCollection` as input and output an identical `PCollection` with timestamps attached; see [Assigning Timestamps](#windowing) for more information on how to do so.
 
-## <a name="#transform"></a>Applying Transforms
+## <a name="transforms"></a>Applying Transforms
 
 In the Beam SDKs, **transforms** are the operations in your pipeline. A transform takes a `PCollection` (or more than one `PCollection`) as input, performs an operation that you specify on each element in that collection, and produces a new output `PCollection`. To invoke a transform, you must **apply** it to the input `PCollection`.
 
@@ -211,7 +207,7 @@ The resulting workflow graph from the branching pipeline abouve looks like this:
 
 [Branching Graph Graphic]
 
-You can also build your own [composite transforms](#transform-composite) that nest multiple sub-steps inside a single, larger transform. Composite transforms are particularly useful for building a reusable sequence of simple steps that get used in a lot of different places.
+You can also build your own [composite transforms](#transforms-composite) that nest multiple sub-steps inside a single, larger transform. Composite transforms are particularly useful for building a reusable sequence of simple steps that get used in a lot of different places.
 
 ### Transforms in the Beam SDK
 
@@ -226,7 +222,7 @@ Beam provides the following transforms, each of which represents a different pro
 * `Combine`
 * `Flatten`
 
-#### <a name="#transforms-pardo"></a>ParDo
+#### <a name="transforms-pardo"></a>ParDo
 
 `ParDo` is a Beam transform for generic parallel processing. The `ParDo` processing paradigm is similar to the "Map" phase of a Map/Shuffle/Reduce-style algorithm: a `ParDo` transform considers each element in the input `PCollection`, performs some processing function (your user code) on that element, and emits zero, one, or multiple elements to an output `PCollection`.
 
@@ -338,7 +334,7 @@ PCollection&lt;Integer&gt; wordLengths = words.apply(
 
 > **Note:** You can use Java 8 lambda functions with several other Beam transforms, including `Filter`, `FlatMapElements`, and `Partition`.
 
-#### <a name="#transforms-gbk"></a>Using GroupByKey
+#### <a name="transforms-gbk"></a>Using GroupByKey
 
 `GroupByKey` is a Beam transform for processing collections of key/value pairs. It's a parallel reduction operation, analagous to the Shuffle phase of a Map/Shuffle/Reduce-style algorithm. The input to `GroupByKey` is a collection of key/value pairs that represents a *multimap*, where the collection contains multiple pairs that have the same key, but different values. Given such a collection, you use `GroupByKey` to collect all of the values associated with each unique key.
 
@@ -378,9 +374,9 @@ Thus, `GroupByKey` represents a transform from a multimap (multiple keys to indi
 > **A Note on Key/Value Pairs:** Beam represents key/value pairs slightly differently depending on the language and SDK you're using. In the Beam SDK for Java, you represent a key/value pair with an object of type `KV<K, V>`. In Python, you represent key/value pairs with 2-tuples.
      
 
-#### <a name="#transforms-combine"></a>Using Combine
+#### <a name="transforms-combine"></a>Using Combine
 
-#### <a name="#transforms-usercodereqs"></a>General Requirements for Writing User Code for Beam Transforms
+#### <a name="transforms-usercodereqs"></a>General Requirements for Writing User Code for Beam Transforms
 
 When you build user code for a Beam transform, you should keep in mind the distributed nature of execution. For example, there might be many copies of your function running on a lot of different machines in parallel, and those copies function independently, without communicating or sharing state with any of the other copies. Depending on the Pipeline Runner and processing back-end you choose for your pipeline, each copy of your user code function may be retried or run multiple times. As such, you should be cautious about including things like state dependency in your user code.
 
@@ -412,5 +408,13 @@ Your function object should be thread-compatible. Each instance of your function
 ##### Idempotence
 
 It's recommended that you make your function object idempotent--that is, that it can be repeated or retried as often as necessary without causing unintended side effects. The Beam model provides no guarantees as to the number of times your user code might be invoked or retried; as such, keeping your function object idempotent keeps your pipeline's output deterministic, and your transforms' behavior more predictable and easier to debug.
+
+<a name="io"></a>
+<a name="running"></a>
+<a name="transforms-composite"></a>
+<a name="transforms-sideio"></a>
+<a name="coders"></a>
+<a name="windowing"></a>
+<a name="triggers"></a>
 
 > **Note:** This guide is still in progress. There is an open issue to finish the guide ([BEAM-193](https://issues.apache.org/jira/browse/BEAM-193))

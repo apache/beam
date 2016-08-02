@@ -1,10 +1,11 @@
 ---
 layout: default
-title: "Apache Beam Contribution Guide"
-permalink: /contribution-guide/
+title: "Beam Contribution Guide"
+permalink: /contribute/contribution-guide/
+redirect_from: /contribution-guide/
 ---
 
-# How to Contribute
+# Apache Beam Contribution Guide
 
 * TOC
 {:toc}

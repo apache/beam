@@ -1,8 +1,11 @@
 ---
-layout: page
-title: "Issue Tracking"
-permalink: /issue_tracking/
+layout: default
+title: "Beam Issue Tracking"
+permalink: /use/issue-tracking/
+redirect_from: /issue_tracking/
 ---
+
+# Apache Beam Issue Tracking
 
 This project uses [JIRA](http://www.atlassian.com/software/jira) for issue tracking.
 
