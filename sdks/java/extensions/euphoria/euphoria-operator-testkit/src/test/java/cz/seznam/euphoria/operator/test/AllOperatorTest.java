@@ -3,7 +3,6 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
 import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -33,11 +32,6 @@ public abstract class AllOperatorTest {
   @Before
   public void setup() {
     executor = executorFactory.apply(settings);
-
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-            InMemFileSystem.SinkFactory.class);
-
-    InMemFileSystem.get().reset();
   }
 
   @Test
