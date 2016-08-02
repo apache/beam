@@ -1,8 +1,11 @@
 ---
-layout: page
-title: "Project Mailing Lists"
-permalink: /mailing_lists/
+layout: default
+title: "Beam Mailing Lists"
+permalink: /use/mailing-lists/
+redirect_from: /mailing_lists/
 ---
+
+# Apache Beam Mailing Lists
 
 These are the mailing lists that have been established for this project. For each list, there is a subscribe, unsubscribe, and an archive link.
 
