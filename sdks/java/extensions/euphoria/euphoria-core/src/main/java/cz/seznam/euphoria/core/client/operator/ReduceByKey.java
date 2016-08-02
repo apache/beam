@@ -391,6 +391,10 @@ public class ReduceByKey<
     return reducer;
   }
 
+  public UnaryFunction<KIN, VALUE> getValueExtractor() {
+    return valueExtractor;
+  }
+
   public boolean isGrouped() {
     return this.grouped;
   }
