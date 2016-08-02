@@ -31,8 +31,6 @@ twitter_username: apachebeam
 # Build settings
 markdown: kramdown
 
-# Includes
-include: ['_pages']
 
 collections:
 - beam_team
@@ -42,3 +40,7 @@ exclude: ['README.md', 'Gemfile.lock', 'Gemfile', 'Rakefile']
 
 # Downloads directory
 downloads: downloads
+
+gems:
+  - jekyll-redirect-from
+  

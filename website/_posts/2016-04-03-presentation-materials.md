@@ -9,7 +9,7 @@ authors:
   - takidau
 ---
 
-Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of [Apache Beam presentation materials]({{ site.baseurl }}/presentation-materials/) which anyone can use to give a presentation about Apache Beam.
+Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of [Apache Beam presentation materials]({{ site.baseurl }}/learn/presentation-materials/) which anyone can use to give a presentation about Apache Beam.
 
 <!--more-->
 
@@ -21,4 +21,4 @@ As a community, we want to build a shared collection of high quality presentatio
 * Using Apache Beam with runners
     * [Google Cloud Dataflow](https://goo.gl/2ay8mi)
 
-As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the [Apache Beam presentation materials]({{ site.baseurl }}/presentation-materials/) page or email the [`user@beam.incubator.apache.org`](mailto:user@beam.incubator.apache.org) mailing list with your ideas or questions.
+As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the [Apache Beam presentation materials]({{ site.baseurl }}/learn/presentation-materials/) page or email the [`user@beam.incubator.apache.org`](mailto:user@beam.incubator.apache.org) mailing list with your ideas or questions.
