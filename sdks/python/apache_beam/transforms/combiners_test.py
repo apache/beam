@@ -269,4 +269,6 @@ class CombineTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  # Sort more often for more rigorous testing on small data sets.
+  combiners.TopCombineFn._MIN_BUFFER_OVERSIZE = 1
   unittest.main()
