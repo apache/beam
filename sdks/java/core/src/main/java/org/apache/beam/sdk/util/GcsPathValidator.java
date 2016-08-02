@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.util;
+package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import java.io.IOException;
@@ -29,16 +28,16 @@ import java.io.IOException;
 /**
  * GCP implementation of {@link PathValidator}. Only GCS paths are allowed.
  */
-public class DataflowPathValidator implements PathValidator {
+public class GcsPathValidator implements PathValidator {
 
-  private DataflowPipelineOptions dataflowOptions;
+  private GcsOptions gcpOptions;
 
-  DataflowPathValidator(DataflowPipelineOptions options) {
-    this.dataflowOptions = options;
+  private GcsPathValidator(GcsOptions options) {
+    this.gcpOptions = options;
   }
 
-  public static DataflowPathValidator fromOptions(PipelineOptions options) {
-    return new DataflowPathValidator(options.as(DataflowPipelineOptions.class));
+  public static GcsPathValidator fromOptions(PipelineOptions options) {
+    return new GcsPathValidator(options.as(GcsOptions.class));
   }
 
   /**
@@ -48,7 +47,7 @@ public class DataflowPathValidator implements PathValidator {
   @Override
   public String validateInputFilePatternSupported(String filepattern) {
     GcsPath gcsPath = getGcsPath(filepattern);
-    checkArgument(dataflowOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
+    checkArgument(gcpOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
     String returnValue = verifyPath(filepattern);
     verifyPathIsAccessible(filepattern, "Could not find file %s");
     return returnValue;
@@ -77,7 +76,7 @@ public class DataflowPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      checkArgument(dataflowOptions.getGcsUtil().bucketExists(gcsPath),
+      checkArgument(gcpOptions.getGcsUtil().bucketExists(gcsPath),
         errorMessage, path);
     } catch (IOException e) {
       throw new RuntimeException(
@@ -92,7 +91,7 @@ public class DataflowPathValidator implements PathValidator {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(String.format(
           "%s expected a valid 'gs://' path but was given '%s'",
-          dataflowOptions.getRunner().getSimpleName(), path), e);
+          gcpOptions.getRunner().getSimpleName(), path), e);
     }
   }
 }
