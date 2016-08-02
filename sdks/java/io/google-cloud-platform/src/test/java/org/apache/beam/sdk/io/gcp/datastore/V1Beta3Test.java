@@ -17,10 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.DEFAULT_BUNDLE_SIZE_BYTES;
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.getEstimatedSizeBytes;
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.makeRequest;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
+import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
+import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -31,26 +38,25 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreReader;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreSource;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriter;
-import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.ReadFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.SplitQueryFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3DatastoreFactory;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3Options;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
-import org.apache.beam.sdk.util.TestCredential;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -59,16 +65,12 @@ import com.google.common.collect.Lists;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
 import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.KindExpression;
 import com.google.datastore.v1beta3.PartitionId;
-import com.google.datastore.v1beta3.PropertyFilter;
 import com.google.datastore.v1beta3.Query;
 import com.google.datastore.v1beta3.QueryResultBatch;
 import com.google.datastore.v1beta3.RunQueryRequest;
 import com.google.datastore.v1beta3.RunQueryResponse;
-import com.google.datastore.v1beta3.Value;
 import com.google.datastore.v1beta3.client.Datastore;
-import com.google.datastore.v1beta3.client.DatastoreHelper;
 import com.google.datastore.v1beta3.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
 
@@ -86,8 +88,9 @@ import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
 /**
@@ -99,20 +102,24 @@ public class V1Beta3Test {
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
+  private static final V1Beta3Options v1Beta3Options;
   static {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName(KIND);
     QUERY = q.build();
+    v1Beta3Options = V1Beta3Options.from(PROJECT_ID, QUERY, NAMESPACE);
   }
   private V1Beta3.Read initialRead;
 
   @Mock
   Datastore mockDatastore;
+  @Mock
+  QuerySplitter mockQuerySplitter;
+  @Mock
+  V1Beta3DatastoreFactory mockDatastoreFactory;
 
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
-
-  @Rule public final ExpectedLogs logged = ExpectedLogs.none(DatastoreSource.class);
 
   @Before
   public void setUp() {
@@ -120,15 +127,11 @@ public class V1Beta3Test {
 
     initialRead = DatastoreIO.v1beta3().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
-  }
 
-  /**
-   * Helper function to create a test {@code DataflowPipelineOptions}.
-   */
-  static final GcpOptions testPipelineOptions() {
-    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
-    options.setGcpCredential(new TestCredential());
-    return options;
+    when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class)))
+        .thenReturn(mockDatastore);
+    when(mockDatastoreFactory.getQuerySplitter())
+        .thenReturn(mockQuerySplitter);
   }
 
   @Test
@@ -265,182 +268,6 @@ public class V1Beta3Test {
         displayData, hasItem(hasDisplayItem("projectId")));
   }
 
-  @Test
-  public void testQuerySplitBasic() throws Exception {
-    KindExpression mykind = KindExpression.newBuilder().setName("mykind").build();
-    Query query = Query.newBuilder().addKind(mykind).build();
-
-    List<Query> mockSplits = new ArrayList<>();
-    for (int i = 0; i < 8; ++i) {
-      mockSplits.add(
-          Query.newBuilder()
-              .addKind(mykind)
-              .setFilter(
-                  DatastoreHelper.makeFilter("foo", PropertyFilter.Operator.EQUAL,
-                      Value.newBuilder().setIntegerValue(i).build()))
-              .build());
-    }
-
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    /* No namespace */
-    PartitionId partition = PartitionId.newBuilder().build();
-    when(splitter.getSplits(any(Query.class), eq(partition), eq(8), any(Datastore.class)))
-        .thenReturn(mockSplits);
-
-    DatastoreSource io = initialRead
-        .withNamespace(null)
-        .withQuery(query)
-        .getSource()
-        .withMockSplitter(splitter)
-        .withMockEstimateSizeBytes(8 * 1024L);
-
-    List<DatastoreSource> bundles = io.splitIntoBundles(1024, testPipelineOptions());
-    assertEquals(8, bundles.size());
-    for (int i = 0; i < 8; ++i) {
-      DatastoreSource bundle = bundles.get(i);
-      Query bundleQuery = bundle.getQuery();
-      assertEquals("mykind", bundleQuery.getKind(0).getName());
-      assertEquals(i, bundleQuery.getFilter().getPropertyFilter().getValue().getIntegerValue());
-    }
-  }
-
-  /**
-   * Verifies that when namespace is set in the source, the split request includes the namespace.
-   */
-  @Test
-  public void testSourceWithNamespace() throws Exception {
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    DatastoreSource io = initialRead
-        .getSource()
-        .withMockSplitter(splitter)
-        .withMockEstimateSizeBytes(8 * 1024L);
-
-    io.splitIntoBundles(1024, testPipelineOptions());
-
-    PartitionId partition = PartitionId.newBuilder().setNamespaceId(NAMESPACE).build();
-    verify(splitter).getSplits(eq(QUERY), eq(partition), eq(8), any(Datastore.class));
-    verifyNoMoreInteractions(splitter);
-  }
-
-  @Test
-  public void testQuerySplitWithZeroSize() throws Exception {
-    KindExpression mykind = KindExpression.newBuilder().setName("mykind").build();
-    Query query = Query.newBuilder().addKind(mykind).build();
-
-    List<Query> mockSplits = Lists.newArrayList(
-        Query.newBuilder()
-            .addKind(mykind)
-            .build());
-
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class)))
-        .thenReturn(mockSplits);
-
-    DatastoreSource io = initialRead
-        .withQuery(query)
-        .getSource()
-        .withMockSplitter(splitter)
-        .withMockEstimateSizeBytes(0L);
-
-    List<DatastoreSource> bundles = io.splitIntoBundles(1024, testPipelineOptions());
-    assertEquals(1, bundles.size());
-    verify(splitter, never())
-        .getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class));
-    DatastoreSource bundle = bundles.get(0);
-    Query bundleQuery = bundle.getQuery();
-    assertEquals("mykind", bundleQuery.getKind(0).getName());
-    assertFalse(bundleQuery.hasFilter());
-  }
-
-  /**
-   * Tests that a query with a user-provided limit field does not split, and does not even
-   * interact with a query splitter.
-   */
-  @Test
-  public void testQueryDoesNotSplitWithLimitSet() throws Exception {
-    // Minimal query with a limit
-    Query query = Query.newBuilder().setLimit(Int32Value.newBuilder().setValue(5)).build();
-
-    // Mock query splitter, should not be invoked.
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(2), any(Datastore.class)))
-        .thenThrow(new AssertionError("Splitter should not be invoked"));
-
-    List<DatastoreSource> bundles =
-        initialRead
-            .withQuery(query)
-            .getSource()
-            .withMockSplitter(splitter)
-            .splitIntoBundles(1024, testPipelineOptions());
-
-    assertEquals(1, bundles.size());
-    assertEquals(query, bundles.get(0).getQuery());
-    verifyNoMoreInteractions(splitter);
-  }
-
-  /**
-   * Tests that when {@link QuerySplitter} cannot split a query, {@link V1Beta3} falls back to
-   * a single split.
-   */
-  @Test
-  public void testQuerySplitterThrows() throws Exception {
-    // Mock query splitter that throws IllegalArgumentException
-    IllegalArgumentException exception =
-        new IllegalArgumentException("query not supported by splitter");
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    when(
-            splitter.getSplits(
-                any(Query.class), any(PartitionId.class), any(Integer.class), any(Datastore.class)))
-        .thenThrow(exception);
-
-    Query query = Query.newBuilder().addKind(KindExpression.newBuilder().setName("myKind")).build();
-    List<DatastoreSource> bundles =
-        initialRead
-            .withQuery(query)
-            .getSource()
-            .withMockSplitter(splitter)
-            .withMockEstimateSizeBytes(10240L)
-            .splitIntoBundles(1024, testPipelineOptions());
-
-    assertEquals(1, bundles.size());
-    assertEquals(query, bundles.get(0).getQuery());
-    verify(splitter, times(1))
-        .getSplits(
-            any(Query.class), any(PartitionId.class), any(Integer.class), any(Datastore.class));
-    logged.verifyWarn("Unable to parallelize the given query", exception);
-  }
-
-  @Test
-  public void testQuerySplitSizeUnavailable() throws Exception {
-    KindExpression mykind = KindExpression.newBuilder().setName("mykind").build();
-    Query query = Query.newBuilder().addKind(mykind).build();
-
-    List<Query> mockSplits = Lists.newArrayList(Query.newBuilder().addKind(mykind).build());
-
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(12), any(Datastore.class)))
-        .thenReturn(mockSplits);
-
-    DatastoreSource io = initialRead
-        .withQuery(query)
-        .getSource()
-        .withMockSplitter(splitter)
-        .withMockEstimateSizeBytes(8 * 1024L);
-
-    DatastoreSource spiedIo = spy(io);
-    when(spiedIo.getEstimatedSizeBytes(any(PipelineOptions.class)))
-        .thenThrow(new NoSuchElementException());
-
-    List<DatastoreSource> bundles = spiedIo.splitIntoBundles(1024, testPipelineOptions());
-    assertEquals(1, bundles.size());
-    verify(splitter, never())
-        .getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class));
-    DatastoreSource bundle = bundles.get(0);
-    Query bundleQuery = bundle.getQuery();
-    assertEquals("mykind", bundleQuery.getKind(0).getName());
-    assertFalse(bundleQuery.hasFilter());
-  }
-
   /**
    * Test building a Write using builder methods.
    */
@@ -525,22 +352,146 @@ public class V1Beta3Test {
     assertThat(writer.entities, containsInAnyOrder(expected.toArray()));
   }
 
-  /** Datastore batch API limit in number of records per query. */
-  private static final int DATASTORE_QUERY_BATCH_LIMIT = 500;
+  /**
+   * Tests {@link V1Beta3.Read#getEstimatedSizeBytes} to fetch and return estimated size for a
+   * query.
+   */
+  @Test
+  public void testEstimatedSizeBytes() throws Exception {
+    long entityBytes = 100L;
+    // Per Kind statistics request and response
+    RunQueryRequest statRequest = makeRequest(makeStatKindQuery(NAMESPACE), NAMESPACE);
+    RunQueryResponse statResponse = makeStatKindResponse(entityBytes);
+
+    when(mockDatastore.runQuery(statRequest))
+        .thenReturn(statResponse);
+
+    assertEquals(entityBytes, getEstimatedSizeBytes(mockDatastore, QUERY, NAMESPACE));
+    verify(mockDatastore, times(1)).runQuery(statRequest);
+  }
+
+  /**
+   * Tests {@link SplitQueryFn} when number of query splits is specified.
+   */
+  @Test
+  public void testSplitQueryFnWithNumSplits() throws Exception {
+    int numSplits = 100;
+    when(mockQuerySplitter.getSplits(
+        eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
+        .thenReturn(splitQuery(QUERY, numSplits));
+
+    SplitQueryFn splitQueryFn = new SplitQueryFn(v1Beta3Options, numSplits, mockDatastoreFactory);
+    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    /**
+     * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
+     * mock factory using a when clause for unit testing purposes, it is not serializable
+     * because it doesn't have a no-arg constructor. Thus disabling the cloning to prevent the
+     * doFn from being serialized.
+     */
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+
+    assertEquals(queries.size(), numSplits);
+    verifyUniqueKeys(queries);
+    verify(mockQuerySplitter, times(1)).getSplits(
+        eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
+    verifyZeroInteractions(mockDatastore);
+  }
+
+  /**
+   * Tests {@link SplitQueryFn} when no query splits is specified.
+   */
+  @Test
+  public void testSplitQueryFnWithoutNumSplits() throws Exception {
+    // Force SplitQueryFn to compute the number of query splits
+    int numSplits = 0;
+    int expectedNumSplits = 20;
+    long entityBytes = expectedNumSplits * DEFAULT_BUNDLE_SIZE_BYTES;
+
+    // Per Kind statistics request and response
+    RunQueryRequest statRequest = makeRequest(makeStatKindQuery(NAMESPACE), NAMESPACE);
+    RunQueryResponse statResponse = makeStatKindResponse(entityBytes);
+
+    when(mockDatastore.runQuery(statRequest))
+        .thenReturn(statResponse);
+    when(mockQuerySplitter.getSplits(
+        eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
+        .thenReturn(splitQuery(QUERY, expectedNumSplits));
+
+    SplitQueryFn splitQueryFn = new SplitQueryFn(v1Beta3Options, numSplits, mockDatastoreFactory);
+    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+
+    assertEquals(queries.size(), expectedNumSplits);
+    verifyUniqueKeys(queries);
+    verify(mockQuerySplitter, times(1)).getSplits(
+        eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
+    verify(mockDatastore, times(1)).runQuery(statRequest);
+  }
+
+  /**
+   * Tests {@link V1Beta3.Read.SplitQueryFn} when the query has a user specified limit.
+   */
+  @Test
+  public void testSplitQueryFnWithQueryLimit() throws Exception {
+    Query queryWithLimit = QUERY.toBuilder().clone()
+        .setLimit(Int32Value.newBuilder().setValue(1))
+        .build();
+
+    SplitQueryFn splitQueryFn = new SplitQueryFn(v1Beta3Options, 10, mockDatastoreFactory);
+    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
+
+    assertEquals(queries.size(), 1);
+    verifyUniqueKeys(queries);
+    verifyNoMoreInteractions(mockDatastore);
+    verifyNoMoreInteractions(mockQuerySplitter);
+  }
+
+  /** Tests {@link ReadFn} with a query limit less than one batch. */
+  @Test
+  public void testReadFnWithOneBatch() throws Exception {
+    readFnTest(5);
+  }
+
+  /** Tests {@link ReadFn} with a query limit more than one batch, and not a multiple. */
+  @Test
+  public void testReadFnWithMultipleBatches() throws Exception {
+    readFnTest(QUERY_BATCH_LIMIT + 5);
+  }
+
+  /** Tests {@link ReadFn} for several batches, using an exact multiple of batch size results. */
+  @Test
+  public void testReadFnWithBatchesExactMultiple() throws Exception {
+    readFnTest(5 * QUERY_BATCH_LIMIT);
+  }
+
+  /** Helper Methods */
+
+  /** A helper function that verifies if all the queries have unique keys. */
+  private void verifyUniqueKeys(List<KV<Integer, Query>> queries) {
+    Set<Integer> keys = new HashSet<>();
+    for (KV<Integer, Query> kv: queries) {
+      keys.add(kv.getKey());
+    }
+    assertEquals(keys.size(), queries.size());
+  }
 
   /**
    * A helper function that creates mock {@link Entity} results in response to a query. Always
    * indicates that more results are available, unless the batch is limited to fewer than
-   * {@link #DATASTORE_QUERY_BATCH_LIMIT} results.
+   * {@link V1Beta3.Read#QUERY_BATCH_LIMIT} results.
    */
   private static RunQueryResponse mockResponseForQuery(Query q) {
     // Every query V1Beta3 sends should have a limit.
     assertTrue(q.hasLimit());
 
-    // The limit should be in the range [1, DATASTORE_QUERY_BATCH_LIMIT]
+    // The limit should be in the range [1, QUERY_BATCH_LIMIT]
     int limit = q.getLimit().getValue();
     assertThat(limit, greaterThanOrEqualTo(1));
-    assertThat(limit, lessThanOrEqualTo(DATASTORE_QUERY_BATCH_LIMIT));
+    assertThat(limit, lessThanOrEqualTo(QUERY_BATCH_LIMIT));
 
     // Create the requested number of entities.
     List<EntityResult> entities = new ArrayList<>(limit);
@@ -557,61 +508,80 @@ public class V1Beta3Test {
         .addAllEntityResults(entities)
         .setEntityResultType(EntityResult.ResultType.FULL)
         .setMoreResults(
-            limit == DATASTORE_QUERY_BATCH_LIMIT
+            limit == QUERY_BATCH_LIMIT
                 ? QueryResultBatch.MoreResultsType.NOT_FINISHED
                 : QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
 
     return ret.build();
   }
 
-  /** Helper function to run a test reading from a limited-result query. */
-  private void runQueryLimitReadTest(int numEntities) throws Exception {
+  /** Helper function to run a test reading from a {@link ReadFn}. */
+  private void readFnTest(int numEntities) throws Exception {
     // An empty query to read entities.
     Query query = Query.newBuilder().setLimit(
         Int32Value.newBuilder().setValue(numEntities)).build();
-    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withQuery(query).withProjectId("mockProject");
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
-        .thenAnswer(
-            new Answer<RunQueryResponse>() {
-              @Override
-              public RunQueryResponse answer(InvocationOnMock invocation) throws Throwable {
-                Query q = ((RunQueryRequest) invocation.getArguments()[0]).getQuery();
-                return mockResponseForQuery(q);
-              }
-            });
+        .thenAnswer(new Answer<RunQueryResponse>() {
+          @Override
+          public RunQueryResponse answer(InvocationOnMock invocationOnMock) throws Throwable {
+            Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+            return mockResponseForQuery(q);
+          }
+        });
 
-    // Actually instantiate the reader.
-    DatastoreReader reader = new DatastoreReader(read.getSource(), mockDatastore);
+    ReadFn readFn = new ReadFn(v1Beta3Options, mockDatastoreFactory);
+    DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
+    /**
+     * Although Datastore client is marked transient in {@link ReadFn}, when injected through
+     * mock factory using a when clause for unit testing purposes, it is not serializable
+     * because it doesn't have a no-arg constructor. Thus disabling the cloning to prevent the
+     * test object from being serialized.
+     */
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    List<Entity> entities = doFnTester.processBundle(query);
 
-    // Simply count the number of results returned by the reader.
-    assertTrue(reader.start());
-    int resultCount = 1;
-    while (reader.advance()) {
-      resultCount++;
-    }
-    reader.close();
-
+    int expectedNumCallsToRunQuery = (int) Math.ceil((double) numEntities / QUERY_BATCH_LIMIT);
+    verify(mockDatastore, times(expectedNumCallsToRunQuery)).runQuery(any(RunQueryRequest.class));
     // Validate the number of results.
-    assertEquals(numEntities, resultCount);
+    assertEquals(numEntities, entities.size());
   }
 
-  /** Tests reading with a query limit less than one batch. */
-  @Test
-  public void testReadingWithLimitOneBatch() throws Exception {
-    runQueryLimitReadTest(5);
+  /** Builds a per-kind statistics response with the given entity size. */
+  private static RunQueryResponse makeStatKindResponse(long entitySizeInBytes) {
+    RunQueryResponse.Builder timestampResponse = RunQueryResponse.newBuilder();
+    Entity.Builder entity = Entity.newBuilder();
+    entity.setKey(makeKey("dummyKind", "dummyId"));
+    entity.getMutableProperties().put("entity_bytes", makeValue(entitySizeInBytes).build());
+    EntityResult.Builder entityResult = EntityResult.newBuilder();
+    entityResult.setEntity(entity);
+    QueryResultBatch.Builder batch = QueryResultBatch.newBuilder();
+    batch.addEntityResults(entityResult);
+    timestampResponse.setBatch(batch);
+    return timestampResponse.build();
   }
 
-  /** Tests reading with a query limit more than one batch, and not a multiple. */
-  @Test
-  public void testReadingWithLimitMultipleBatches() throws Exception {
-    runQueryLimitReadTest(DATASTORE_QUERY_BATCH_LIMIT + 5);
+  /** Builds a per-kind statistics query for the given timestamp and namespace. */
+  private static Query makeStatKindQuery(String namespace) {
+    Query.Builder statQuery = Query.newBuilder();
+    if (namespace == null) {
+      statQuery.addKindBuilder().setName("__Stat_Kind__");
+    } else {
+      statQuery.addKindBuilder().setName("__Ns_Stat_Kind__");
+    }
+    statQuery.setFilter(makeFilter("kind_name", EQUAL, makeValue(KIND)).build());
+    statQuery.addOrder(makeOrder("timestamp", DESCENDING));
+    statQuery.setLimit(Int32Value.newBuilder().setValue(1));
+    return statQuery.build();
   }
 
-  /** Tests reading several batches, using an exact multiple of batch size results. */
-  @Test
-  public void testReadingWithLimitMultipleBatchesExactMultiple() throws Exception {
-    runQueryLimitReadTest(5 * DATASTORE_QUERY_BATCH_LIMIT);
+  /** Generate dummy query splits. */
+  private List<Query> splitQuery(Query query, int numSplits) {
+    List<Query> queries = new LinkedList<>();
+    for (int i = 0; i < numSplits; i++) {
+      queries.add(query.toBuilder().clone().build());
+    }
+    return queries;
   }
 }
