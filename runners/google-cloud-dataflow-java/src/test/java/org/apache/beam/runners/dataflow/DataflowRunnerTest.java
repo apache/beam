@@ -72,6 +72,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.NoopCredentialFactory;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
@@ -243,6 +244,7 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/not/a/gs/path",
         "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class,
     };
 
     try {
@@ -260,8 +262,9 @@ public class DataflowRunnerTest {
     String[] args = new String[] {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/testing",
-        "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
         "--project=test-project",
+        "--credentialFactoryClass=" + NoopCredentialFactory.class,
+        "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
     };
     // Should not crash, because gcpTempLocation should get set from tempLocation
     TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
