@@ -80,6 +80,7 @@
 			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">SDKs</li>
 			  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+			  <li><a href="/learn/sdks/javadoc/">Java SDK API Reference</a></li>
 			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Runners</li>
 			  <li><a href="/learn/runners/capability-matrix/">Capability Matrix</a></li>
@@ -313,7 +314,7 @@
 
 <p>Timestamps are useful for a <code class="highlighter-rouge">PCollection</code> that contains elements with an inherent notion of time. If your pipeline is reading a stream of events, like Tweets or other social media messages, each element might use the time the event was posted as the element timestamp.</p>
 
-<p>You can manually assign timestamps to the elements of a <code class="highlighter-rouge">PCollection</code> if the source doesn’t do it for you. You’ll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a “time” field in a server log entry). Beam has <a href="#transform">Transforms</a> that take a <code class="highlighter-rouge">PCollection</code> as input and output an identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#windowing">Assigning Timestamps</a> for more information on how to do so.</p>
+<p>You can manually assign timestamps to the elements of a <code class="highlighter-rouge">PCollection</code> if the source doesn’t do it for you. You’ll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a “time” field in a server log entry). Beam has <a href="#transforms">Transforms</a> that take a <code class="highlighter-rouge">PCollection</code> as input and output an identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#windowing">Assigning Timestamps</a> for more information on how to do so.</p>
 
 <h2 id="a-nametransformsaapplying-transforms"><a name="transforms"></a>Applying Transforms</h2>
 
