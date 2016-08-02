@@ -53,27 +53,12 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 
-def get_version():
-  global_names = {}
-  execfile(os.path.normpath('./apache_beam/version.py'),
-           global_names)
-  return global_names['__version__']
-
-
-# Configure the required packages and scripts to install.
 REQUIRED_PACKAGES = [
     'avro>=1.7.7',
     'dill>=0.2.5',
     'google-apitools>=0.5.2',
-    # TODO(silviuc): Reenable api client package dependencies when we can
-    # update the packages to the latest version without affecting previous
-    # SDK releases.
-    # 'google-apitools-bigquery-v2',
-    # 'google-apitools-dataflow-v1b3>=0.4.20160217',
-    # 'google-apitools-storage-v1',
     'httplib2>=0.8',
     'mock>=1.0.1',
-    'nose>=1.0',
     'oauth2client>=2.0.1',
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
@@ -113,6 +98,6 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],
-    license='Apache License, Version 2.0',
+    license='Apache License, 2.0',
     keywords=PACKAGE_KEYWORDS,
     )
