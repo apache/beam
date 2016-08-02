@@ -6,6 +6,7 @@ import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
@@ -32,6 +33,8 @@ public class FlowTranslator {
     TRANSLATORS.put((Class) Repartition.class, new RepartitionTranslator());
     //TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     TRANSLATORS.put((Class) Union.class, new UnionTranslator());
+
+    TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
   }
 
 
