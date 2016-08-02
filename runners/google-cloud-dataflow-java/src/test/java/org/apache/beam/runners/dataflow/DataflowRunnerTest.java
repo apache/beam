@@ -244,7 +244,7 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/not/a/gs/path",
         "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class,
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
     };
 
     try {
@@ -263,7 +263,7 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/testing",
         "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class,
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
         "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
     };
     // Should not crash, because gcpTempLocation should get set from tempLocation
