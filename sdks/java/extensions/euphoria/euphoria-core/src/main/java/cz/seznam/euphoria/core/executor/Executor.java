@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.executor;
 
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;

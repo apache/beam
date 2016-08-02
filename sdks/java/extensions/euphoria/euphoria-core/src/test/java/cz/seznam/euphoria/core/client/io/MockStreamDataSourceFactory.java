@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.io;
 
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.util.Settings;
 
 import java.io.IOException;
