@@ -390,6 +390,12 @@ page at http://checkstyle.sourceforge.net/config.html -->
         NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>
     </module>
 
+    <module name="OperatorWrap">
+      <!-- Checks that assignment operators are at the end of the line. -->
+      <property name="option" value="eol"/>
+      <property name="tokens" value="ASSIGN"/>
+    </module>
+
     <module name="ParenPad">
       <!-- Checks that there is no whitespace before close parens or after
            open parens.
