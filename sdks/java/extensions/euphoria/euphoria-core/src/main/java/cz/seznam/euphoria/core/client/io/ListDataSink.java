@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -12,17 +14,23 @@ import java.util.stream.Collectors;
  */
 public class ListDataSink<T> implements DataSink<T> {
 
-  
+  // global storage for all existing ListDataSinks
+  private static final Map<ListDataSink, List> storage =
+          Collections.synchronizedMap(new WeakHashMap<>());
+
   public static <T> ListDataSink<T> get(int numPartitions) {
     return new ListDataSink<>(numPartitions);
   }
 
   class ListWriter implements Writer<T> {
+    final List<List<T>> sinkOutputs;
+
     final List<T> output = new ArrayList<>();
     final int partitionId;
 
-    ListWriter(int partitionId) {
+    ListWriter(int partitionId, List<List<T>> sinkOutputs) {
       this.partitionId = partitionId;
+      this.sinkOutputs = sinkOutputs;
     }
 
     @Override
@@ -32,7 +40,7 @@ public class ListDataSink<T> implements DataSink<T> {
 
     @Override
     public void commit() throws IOException{
-      outputs.set(partitionId, output);
+      sinkOutputs.set(partitionId, output);
     }
 
     @Override
@@ -43,18 +51,24 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
 
-  final List<List<T>> outputs = new ArrayList<>();
-  final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
+  private final long sinkId = System.identityHashCode(this);
+  private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
   private ListDataSink(int numPartitions) {
+    List<List<T>> outputs = new ArrayList<>();
+
     for (int i = 0; i < numPartitions; i++) {
       outputs.add(null);
     }
+
+    // save outputs to static storage
+    storage.put(this, outputs);
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Writer<T> openWriter(int partitionId) {
-    ListWriter w = new ListWriter(partitionId);
+    ListWriter w = new ListWriter(partitionId, getOutputs());
     writers.add(w);
     return w;
   }
@@ -69,17 +83,33 @@ public class ListDataSink<T> implements DataSink<T> {
     // nop
   }
 
+  @SuppressWarnings("unchecked")
   public List<List<T>> getOutputs() {
-    return outputs;
+    return storage.get(this);
   }
 
   public List<T> getOutput(int partition) {
-    return outputs.get(partition);
+    return getOutputs().get(partition);
   }
 
   public List<List<T>> getUncommittedOutputs() {
     return writers.stream()
-        .map(w -> (List<T>) w.output)
+        .map(w -> w.output)
         .collect(Collectors.toList());
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof ListDataSink)) return false;
+
+    ListDataSink<?> that = (ListDataSink<?>) o;
+
+    return sinkId == that.sinkId;
+  }
+
+  @Override
+  public int hashCode() {
+    return (int) (sinkId ^ (sinkId >>> 32));
   }
 }
