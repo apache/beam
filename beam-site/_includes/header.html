@@ -16,18 +16,20 @@
         <li class="dropdown">
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Use <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
-			  <li><a href="{{ site.baseurl }}/docs/use/">User Hub</a></li>
+			  <li><a href="{{ site.baseurl }}/use">User Hub</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="{{ site.baseurl }}/docs/use/beam-overview">Beam Overview</a></li>
-			  <li><a href="{{ site.baseurl }}/getting_started/">Quickstart</a></li>
+			  <li class="dropdown-header">General</li>
+			  <li><a href="{{ site.baseurl }}/use/beam-overview/">Beam Overview</a></li>
+			  <li><a href="{{ site.baseurl }}/use/quickstart/">Quickstart</a></li>  
+			  <li><a href="{{ site.baseurl }}/use/releases">Release Information</a></li>
+			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Example Walkthroughs</li>
-			  <li><a href="{{ site.baseurl }}/docs/use/walkthroughs">WordCount</a></li>
-			  <li><a href="{{ site.baseurl }}/docs/use/walkthroughs">Mobile Gaming</a></li>
+			  <li><a href="{{ site.baseurl }}/use/walkthroughs/">WordCount</a></li>
+			  <li><a href="{{ site.baseurl }}/use/walkthroughs/">Mobile Gaming</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="{{ site.baseurl }}">Release Information</a></li>
-			  <li class="dropdown-header">Support Resources</li>
-			  <li><a href="{{ site.baseurl }}/mailing_lists/">Mailing Lists</a></li>
-              <li><a href="{{ site.baseurl }}/issue_tracking/">Issue Tracking</a></li>
+			  <li class="dropdown-header">Support</li>
+			  <li><a href="{{ site.baseurl }}/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="{{ site.baseurl }}/use/issue-tracking/">Issue Tracking</a></li>
 			  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on StackOverflow</a></li>
               <li><a href="http://apachebeam.slack.com">Beam Slack Channel</a></li>
 		  </ul>
@@ -35,37 +37,46 @@
         <li class="dropdown">
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Learn <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
-			  <li><a href="{{ site.baseurl }}/docs/learn/">Learner Hub</a></li>
+			  <li><a href="{{ site.baseurl }}/learn">Learner Hub</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="{{ site.baseurl }}/docs/learn/programming-guide/">Beam Programming Guide</a></li>
-			  <li><a href="{{ site.baseurl }}/capability-matrix/">Capability Matrix</a></li>
-			  <li><a href="https://goo.gl/ps8twC">Additional Technical Docs</a></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="{{ site.baseurl }}/learn/programming-guide/">Programming Guide</a></li>
+			  <li><a href="{{ site.baseurl }}/learn/presentation-materials/">Presentation Materials</a></li>
+			  <li><a href="{{ site.baseurl }}/learn/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="{{ site.baseurl }}/learn/sdks/java/">Java SDK</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="{{ site.baseurl }}/learn/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="{{ site.baseurl }}/learn/runners/direct/">Direct Runner</a></li>
+			  <li><a href="{{ site.baseurl }}/learn/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="{{ site.baseurl }}/learn/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="{{ site.baseurl }}/learn/runners/dataflow/">Cloud Dataflow Runner</a></li>
 		  </ul>
 	    </li>
         <li class="dropdown">
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
-			  <li><a href="{{ site.baseurl }}/docs/contribute/">Contributor Hub</a></li>
+			  <li><a href="{{ site.baseurl }}/contribute">Contributor Hub</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="{{ site.baseurl }}/contribution-guide/">Contribution Guide</a></li>
+			  <li class="dropdown-header">Basics</li>
+			  <li><a href="{{ site.baseurl }}/contribute/contribution-guide/">Contribution Guide</a></li>
+			  <li><a href="{{ site.baseurl }}/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="{{ site.baseurl }}/contribute/source-repository/">Source Repository</a></li>
+              <li><a href="{{ site.baseurl }}/use/issue-tracking/">Issue Tracking</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Technical Resources</li>
 			  <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
-			  <li class="dropdown-header">Resources</li>
-			  <li><a href="{{ site.baseurl }}/mailing_lists/">Mailing Lists</a></li>
-              <li><a href="{{ site.baseurl }}/source_repository/">Source Repository</a></li>
-              <li><a href="{{ site.baseurl }}/issue_tracking/">Issue Tracking</a></li>
-			  <li class="dropdown-header">Project Materials</li>
-			  <li><a href="{{ site.baseurl }}/presentation-materials/">Presentation Materials</a></li>
-			  <li><a href="{{ site.baseurl }}/public-meetings/">Public Meetings</a></li>
-			  <li role="separator" class="divider"></li>
-			  <li><a href="{{ site.baseurl }}/team/">Apache Beam Team</a></li>
 		  </ul>
 	    </li>
         <li><a href="{{ site.baseurl }}/blog">Blog</a></li>
         <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project <span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project<span class="caret"></span></a>
           <ul class="dropdown-menu">
-            <li><a href="{{ site.baseurl }}/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="{{ site.baseurl }}/material/">Logos and design</a></li>
+            <li><a href="{{ site.baseurl }}/project/logos/">Logos and design</a></li>
+            <li><a href="{{ site.baseurl }}/project/public-meetings/">Public Meetings</a></li>
+			<li><a href="{{ site.baseurl }}/project/team/">Team</a></li>
             <li><a href="http://apache.org/licenses/LICENSE-2.0.html">License</a></li>
           </ul>
         </li>

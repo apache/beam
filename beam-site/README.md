@@ -25,6 +25,8 @@ Beam website.
 Before working with the Jekyll code, you will need to install Jekyll:
 
     $ gem install jekyll
+    $ gem install jekyll-redirect-from
+    $ gem install html-proofer
 
 *If you are on a Mac, you may need to install
 [Ruby Gems](https://rubygems.org/pages/download).*
@@ -38,6 +40,10 @@ following command in the root folder of the website:
 Jekyll will start a webserver on port `4000`. As you make changes to the
 content, Jekyll will rebuild it automatically. This is helpful if you want to see
 how your changes will render in realtime.
+
+In addition, you can run the tests via:
+
+    $ rake test
 
 ### Generating the static website
 Once you are done with your changes, you need to compile the static
