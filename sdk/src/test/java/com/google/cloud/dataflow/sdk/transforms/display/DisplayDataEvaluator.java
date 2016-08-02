@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -91,6 +92,28 @@ public class DisplayDataEvaluator {
       .apply(input)
       .apply(root);
 
+    PrimitiveDisplayDataPTransformVisitor visitor = new PrimitiveDisplayDataPTransformVisitor(root);
+    pipeline.traverseTopologically(visitor);
+    return visitor.getPrimitivesDisplayData();
+  }
+
+  /**
+   * Traverse the specified source {@link PTransform}, collecting {@link DisplayData} registered
+   * on the inner primitive {@link PTransform PTransforms}.
+   *
+   * @param root The source root {@link PTransform} to traverse
+   * @return the set of {@link DisplayData} for primitive source {@link PTransform PTransforms}.
+   */
+  public Set<DisplayData> displayDataForPrimitiveSourceTransforms(
+      final PTransform<? super PBegin, ? extends POutput> root) {
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(root);
+
+    return displayDataForPipeline(pipeline, root);
+  }
+
+  private static Set<DisplayData> displayDataForPipeline(Pipeline pipeline, PTransform root) {
     PrimitiveDisplayDataPTransformVisitor visitor = new PrimitiveDisplayDataPTransformVisitor(root);
     pipeline.traverseTopologically(visitor);
     return visitor.getPrimitivesDisplayData();
