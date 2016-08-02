@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSinkFactory;
 import cz.seznam.euphoria.core.client.io.DataSource;

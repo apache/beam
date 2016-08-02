@@ -347,6 +347,12 @@
 
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>guava-shaded</artifactId>
+        <version>19.0-SZN-1-SNAPSHOT</version>
+      </dependency>
+
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
         <artifactId>euphoria-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -394,18 +400,6 @@
         <artifactId>logback-classic</artifactId>
         <version>1.1.2</version>
         <scope>runtime</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>11.0.2</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
