@@ -503,8 +503,8 @@ public class CombineFns {
       this.extractInputFns = castedExtractInputFns;
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts
-          = (List) combineFnWithContexts;
+      List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts =
+          (List) combineFnWithContexts;
       this.combineFnWithContexts = castedCombineFnWithContexts;
 
       this.outputTags = outputTags;
