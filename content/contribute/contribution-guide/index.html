@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Beam Contribution Guide</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <link rel="canonical" href="http://beam.incubator.apache.org/contribute/contribution-guide/" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Use <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/use">User Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">General</li>
+			  <li><a href="/use/beam-overview/">Beam Overview</a></li>
+			  <li><a href="/use/quickstart/">Quickstart</a></li>  
+			  <li><a href="/use/releases">Release Information</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Example Walkthroughs</li>
+			  <li><a href="/use/walkthroughs/">WordCount</a></li>
+			  <li><a href="/use/walkthroughs/">Mobile Gaming</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Support</li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+			  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on StackOverflow</a></li>
+              <li><a href="http://apachebeam.slack.com">Beam Slack Channel</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Learn <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/learn">Learner Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="/learn/programming-guide/">Programming Guide</a></li>
+			  <li><a href="/learn/presentation-materials/">Presentation Materials</a></li>
+			  <li><a href="/learn/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="/learn/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="/learn/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/learn/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="/learn/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="/learn/runners/dataflow/">Cloud Dataflow Runner</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/contribute">Contributor Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Basics</li>
+			  <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/contribute/source-repository/">Source Repository</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Technical Resources</li>
+			  <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+		  </ul>
+	    </li>
+        <li><a href="/blog">Blog</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/project/logos/">Logos and design</a></li>
+            <li><a href="/project/public-meetings/">Public Meetings</a></li>
+			<li><a href="/project/team/">Team</a></li>
+            <li><a href="http://apache.org/licenses/LICENSE-2.0.html">License</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="container">
+        <h1 id="apache-beam-contribution-guide">Apache Beam Contribution Guide</h1>
+
+<ul id="markdown-toc">
+  <li><a href="#apache-beam-contribution-guide" id="markdown-toc-apache-beam-contribution-guide">Apache Beam Contribution Guide</a>    <ul>
+      <li><a href="#engage" id="markdown-toc-engage">Engage</a>        <ul>
+          <li><a href="#mailing-lists" id="markdown-toc-mailing-lists">Mailing list(s)</a></li>
+          <li><a href="#apache-jira" id="markdown-toc-apache-jira">Apache JIRA</a></li>
+        </ul>
+      </li>
+      <li><a href="#design" id="markdown-toc-design">Design</a></li>
+      <li><a href="#code" id="markdown-toc-code">Code</a>        <ul>
+          <li><a href="#one-time-setup" id="markdown-toc-one-time-setup">One-time Setup</a>            <ul>
+              <li><a href="#potentially-submit-contributor-license-agreement" id="markdown-toc-potentially-submit-contributor-license-agreement">[Potentially] Submit Contributor License Agreement</a></li>
+              <li><a href="#obtain-a-github-account" id="markdown-toc-obtain-a-github-account">Obtain a GitHub account</a></li>
+              <li><a href="#fork-the-repository-on-github" id="markdown-toc-fork-the-repository-on-github">Fork the repository on GitHub</a></li>
+              <li><a href="#clone-the-repository-locally" id="markdown-toc-clone-the-repository-locally">Clone the repository locally</a></li>
+            </ul>
+          </li>
+          <li><a href="#create-a-branch-in-your-fork" id="markdown-toc-create-a-branch-in-your-fork">Create a branch in your fork</a></li>
+          <li><a href="#syncing-and-pushing-your-branch" id="markdown-toc-syncing-and-pushing-your-branch">Syncing and pushing your branch</a></li>
+          <li><a href="#testing" id="markdown-toc-testing">Testing</a></li>
+        </ul>
+      </li>
+      <li><a href="#review" id="markdown-toc-review">Review</a>        <ul>
+          <li><a href="#create-a-pull-request" id="markdown-toc-create-a-pull-request">Create a pull request</a></li>
+          <li><a href="#code-review-and-revision" id="markdown-toc-code-review-and-revision">Code Review and Revision</a></li>
+          <li><a href="#lgtm" id="markdown-toc-lgtm">LGTM</a></li>
+          <li><a href="#deleting-your-branch" id="markdown-toc-deleting-your-branch">Deleting your branch</a></li>
+        </ul>
+      </li>
+      <li><a href="#commit-committers-only" id="markdown-toc-commit-committers-only">Commit (committers only)</a>        <ul>
+          <li><a href="#one-time-setup-1" id="markdown-toc-one-time-setup-1">One-time Setup</a></li>
+          <li><a href="#contributor-license-agreement" id="markdown-toc-contributor-license-agreement">Contributor License Agreement</a></li>
+          <li><a href="#tests" id="markdown-toc-tests">Tests</a></li>
+          <li><a href="#finishing-touches" id="markdown-toc-finishing-touches">Finishing touches</a></li>
+          <li><a href="#merge-process" id="markdown-toc-merge-process">Merge process</a></li>
+        </ul>
+      </li>
+      <li><a href="#additional-projects" id="markdown-toc-additional-projects">Additional Projects</a>        <ul>
+          <li><a href="#website" id="markdown-toc-website">Website</a>            <ul>
+              <li><a href="#editing-the-website" id="markdown-toc-editing-the-website">Editing the website</a></li>
+              <li><a href="#committing-website-changes" id="markdown-toc-committing-website-changes">Committing website changes</a></li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<p>The Apache Beam community welcomes contributions from anyone with a passion for data processing! Beam has many different opportunities for contributions – write new examples, add new user-facing libraries (new statistical libraries, new IO connectors, etc), work on the core programming model, build specific runners (Apache Flink, Apache Spark, Google Cloud Dataflow, etc), or participate on the documentation effort.</p>
+
+<p>We use a review-then-commit workflow in Beam for all contributions.</p>
+
+<p><img src="/images/contribution-guide-1.png" alt="Alt text" title="Workflow image" /></p>
+
+<p><strong>For larger contributions or those that affect multiple components:</strong></p>
+
+<ol>
+  <li><strong>Engage</strong>: We encourage you to work with the Beam community on the <a href="https://issues.apache.org/jira/browse/BEAM">Apache JIRA issue tracker</a> and <a href="http://beam.incubator.apache.org/mailing_lists/">developer’s mailing list</a> to identify good areas for contribution.</li>
+  <li><strong>Design:</strong> More complicated contributions will likely benefit from some early discussion in order to scope and design them well.</li>
+</ol>
+
+<p><strong>For all contributions:</strong></p>
+
+<ol>
+  <li><strong>Code:</strong> The best part ;-)</li>
+  <li><strong>Review:</strong> Submit a pull request with your contribution to our <a href="https://github.com/apache/incubator-beam/">GitHub mirror</a>. Work with a committer to review and iterate on the code, if needed.</li>
+  <li><strong>Commit:</strong> A Beam committer merges the pull request into our <a href="https://git-wip-us.apache.org/repos/asf/incubator-beam.git">Apache repository</a>.</li>
+</ol>
+
+<p>We look forward to working with you!</p>
+
+<h2 id="engage">Engage</h2>
+
+<h3 id="mailing-lists">Mailing list(s)</h3>
+<p>We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-dev/">here</a>. Join by emailing <a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#100;&#101;&#118;&#045;&#115;&#117;&#098;&#115;&#099;&#114;&#105;&#098;&#101;&#064;&#098;&#101;&#097;&#109;&#046;&#105;&#110;&#099;&#117;&#098;&#097;&#116;&#111;&#114;&#046;&#097;&#112;&#097;&#099;&#104;&#101;&#046;&#111;&#114;&#103;"><code class="highlighter-rouge">dev-subscribe@beam.incubator.apache.org</code></a>.</p>
+
+<p>If interested, you can also join <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-user/"><code class="highlighter-rouge">user@beam.incubator.apache.org</code></a> and <a href="http://mail-archives.apache.org/mod_mbox/incubator-beam-commits/"><code class="highlighter-rouge">commits@beam.incubator.apache.org</code></a> too.</p>
+
+<h3 id="apache-jira">Apache JIRA</h3>
+<p>We use <a href="https://issues.apache.org/jira/browse/BEAM">Apache JIRA</a> as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.</p>
+
+<p>If you do not already have an Apache JIRA account, sign up <a href="https://issues.apache.org/jira/">here</a>.</p>
+
+<p>If a quick <a href="https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20text%20~%20%22the%20thing%20I%20want%20to%20contribute%22">search</a> doesn’t turn up an existing JIRA issue for the work you want to contribute, create it. Please discuss your proposal with a committer or the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel">component lead</a> in JIRA or, alternatively, on the developer mailing list.</p>
+
+<p>If there’s an existing JIRA issue for your intended contribution, please comment about your intended work. Once the work is understood, a committer will assign the issue to you. (If you don’t have a JIRA role yet, you’ll be added to the “contributor” role.) If an issue is currently assigned, please check with the current assignee before reassigning.</p>
+
+<p>For moderate or large contributions, you should not start coding or writing a design doc unless there is a corresponding JIRA issue assigned to you for that work. Simple changes, like fixing typos, do not require an associated issue.</p>
+
+<h2 id="design">Design</h2>
+<p>To avoid potential frustration during the code review cycle, we encourage you to clearly scope and design non-trivial contributions with the Beam community before you start coding.</p>
+
+<p>Generally, the JIRA issue is the best place to gather relevant design docs, comments, or references. It’s great to explicitly include relevant stakeholders early in the conversation. For designs that may be generally interesting, we also encourage conversations on the developer’s mailing list.</p>
+
+<p>We suggest using <a href="https://docs.google.com/">Google Docs</a> for sharing designs that may benefit from diagrams or comments. Please remember to make the document world-commentable and add a link to it from the relevant JIRA issue. We also track Beam-related documents in <a href="https://drive.google.com/folderview?id=0B-IhJZh9Ab52OFBVZHpsNjc4eXc&amp;usp=sharing">this shared folder</a>.</p>
+
+<h2 id="code">Code</h2>
+<p>To contribute code to Apache Beam, you’ll have to do a few administrative steps once, and then follow a few guidelines for each contribution.</p>
+
+<h3 id="one-time-setup">One-time Setup</h3>
+
+<h4 id="potentially-submit-contributor-license-agreement">[Potentially] Submit Contributor License Agreement</h4>
+<p>Apache Software Foundation (ASF) desires that all contributors of ideas, code, or documentation to the Apache projects complete, sign, and submit an <a href="https://www.apache.org/licenses/icla.txt">Individual Contributor License Agreement</a> (ICLA). The purpose of this agreement is to clearly define the terms under which intellectual property has been contributed to the ASF and thereby allow us to defend the project should there be a legal dispute regarding the software at some future time.</p>
+
+<p>We require you to have an ICLA on file with the Apache Secretary for larger contributions only. For smaller ones, however, we rely on  <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions and do not require an ICLA in that case.</p>
+
+<h4 id="obtain-a-github-account">Obtain a GitHub account</h4>
+<p>We use GitHub’s pull request functionality to review proposed code changes.</p>
+
+<p>If you do not already have a personal GitHub account, sign up <a href="https://github.com/join">here</a>.</p>
+
+<h4 id="fork-the-repository-on-github">Fork the repository on GitHub</h4>
+<p>Go to the <a href="https://github.com/apache/incubator-beam/">Beam GitHub mirror</a> and fork the repository to your own private account. This will be your private workspace for staging changes.</p>
+
+<p>We recommend enabling Travis-CI continuous integration coverage on your private fork in order to easily test your changes before proposing a pull request. Go to <a href="https://travis-ci.org">Travis-CI</a>, log in with your GitHub account, and enable coverage for your repository.</p>
+
+<h4 id="clone-the-repository-locally">Clone the repository locally</h4>
+<p>You are now ready to create the development environment on your local machine. Feel free to repeat these steps on all machines that you want to use for development.</p>
+
+<p>We assume you are using SSH-based authentication with GitHub. If necessary, exchange SSH keys with GitHub by following <a href="https://help.github.com/articles/generating-an-ssh-key/">their instructions</a>.</p>
+
+<p>Clone Beam’s read-only GitHub mirror.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git clone https://github.com/apache/incubator-beam.git
+$ cd incubator-beam
+</code></pre>
+</div>
+
+<p>Add your forked repository as an additional Git remote, where you’ll push your changes.</p>
+
+<pre><code>$ git remote add <b>&lt;GitHub_user&gt;</b> git@github.com:<b>&lt;GitHub_user&gt;</b>/incubator-beam.git</code></pre>
+
+<p>You are now ready to start developing!</p>
+
+<h3 id="create-a-branch-in-your-fork">Create a branch in your fork</h3>
+<p>You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including <code class="highlighter-rouge">master</code>, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the <code class="highlighter-rouge">master</code> branch.</p>
+
+<pre><code>$ git fetch --all
+$ git checkout -b <b>&lt;my-branch&gt;</b> origin/master</code></pre>
+
+<p>At this point, you can start making and committing changes to this branch in a standard way.</p>
+
+<h3 id="syncing-and-pushing-your-branch">Syncing and pushing your branch</h3>
+<p>Periodically while you work, and certainly before submitting a pull request, you should update your branch with the most recent changes to the target branch.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git pull --rebase
+</code></pre>
+</div>
+
+<p>Remember to always use <code class="highlighter-rouge">--rebase</code> parameter to avoid extraneous merge commits.</p>
+
+<p>To push your local, committed changes to your (forked) repository on GitHub, run:</p>
+
+<pre><code>$ git push <b>&lt;GitHub_user&gt; &lt;my-branch&gt;</b></code></pre>
+
+<h3 id="testing">Testing</h3>
+<p>All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.</p>
+
+<p>For contributions to the Java code, run unit tests locally via Maven. Alternatively, you can use Travis-CI.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn clean verify
+</code></pre>
+</div>
+
+<h2 id="review">Review</h2>
+<p>Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.</p>
+
+<h3 id="create-a-pull-request">Create a pull request</h3>
+<p>Organize your commits to make your reviewer’s job easier. Use the following command to re-order, squash, edit, or change description of individual commits.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git rebase -i origin/master
+</code></pre>
+</div>
+
+<p>Navigate to the <a href="https://github.com/apache/incubator-beam">Beam GitHub mirror</a> to create a pull request. The title of the pull request should be strictly in the following format:</p>
+
+<pre><code>[BEAM-<b>&lt;JIRA-issue-#&gt;</b>] Title of the pull request</code></pre>
+
+<p>Please include a descriptive pull request message to help make the reviewer’s job easier. It’s fine to refer to existing design docs or the contents of the associated JIRA as appropriate.</p>
+
+<p>If you know a good committer to review your pull request, please make a comment like the following. If not, don’t worry – a committer will pick it up.</p>
+
+<pre><code>Hi @<b>&lt;GitHub-reviewer-username&gt;</b>, can you please take a look?</code></pre>
+
+<p>When choosing a reviewer, think about who is the expert on the relevant code, who the stakeholders are for this change, and who else would benefit from becoming familiar with the code. If you’d appreciate comments from additional folks but already have a main reviewer, you can explicitly cc them using <code>@<b>&lt;GitHub-reviewer-username&gt;</b></code>.</p>
+
+<h3 id="code-review-and-revision">Code Review and Revision</h3>
+<p>During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the reviewer. When you make a revision, always push it in a new commit.</p>
+
+<p>Our GitHub mirror automatically provides pre-commit testing coverage using Jenkins and Travis-CI. Please make sure those tests pass; the contribution cannot be merged otherwise.</p>
+
+<h3 id="lgtm">LGTM</h3>
+<p>Once the reviewer is happy with the change, they’ll respond with an LGTM (“<em>looks good to me!</em>”). At this point, the committer will take over, possibly make some additional touch ups, and merge your changes into the codebase.</p>
+
+<p>In the case both the author and the reviewer are committers, either can merge the pull request. Just be sure to communicate clearly whose responsibility it is in this particular case.</p>
+
+<p>Thank you for your contribution to Beam!</p>
+
+<h3 id="deleting-your-branch">Deleting your branch</h3>
+<p>Once the pull request is merged into the Beam repository, you can safely delete the branch locally and purge it from your forked repository.</p>
+
+<p>From another local branch, run:</p>
+
+<pre><code>$ git fetch --all
+$ git branch -d <b>&lt;my-branch&gt;</b>
+$ git push <b>&lt;GitHub_user&gt;</b> --delete <b>&lt;my-branch&gt;</b></code></pre>
+
+<h2 id="commit-committers-only">Commit (committers only)</h2>
+<p>Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the <a href="https://git-wip-us.apache.org/repos/asf/incubator-beam.git">authoritative Apache repository</a>, not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author or reviewer to do the merge. Just be explicit about whose job it is!)</p>
+
+<p>Pull requests should not be merged before the review has received an explicit LGTM from another committer. Exceptions to this rule may be made rarely, on a case-by-case basis only, in the committer’s discretion for situations such as build breakages.</p>
+
+<p>Committers should never commit anything without going through a pull request, since that would bypass test coverage and potentially cause the build to fail due to checkstyle, etc. In addition, pull requests ensure that changes are communicated properly and potential flaws or improvements can be spotted. <strong>Always go through the pull request, even if you won’t wait for the code review.</strong> Even then, comments can be provided in the pull requests after it has been merged to work on follow-ups.</p>
+
+<p>Committing is currently a manual process, but we are investigating tools to automate pieces of this process.</p>
+
+<h3 id="one-time-setup-1">One-time Setup</h3>
+<p>Add the Apache Git remote in your local clone, by running:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-beam.git
+</code></pre>
+</div>
+
+<p>We recommend renaming the <code class="highlighter-rouge">origin</code> remote to <code class="highlighter-rouge">github</code>, to avoid confusion when dealing with this many remotes.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git remote rename origin github
+</code></pre>
+</div>
+
+<p>For the <code class="highlighter-rouge">github</code> remote, add an additional fetch reference, which will cause every pull request to be made available as a remote branch in your workspace.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git config --local --add remote.github.fetch \
+    '+refs/pull/*/head:refs/remotes/github/pr/*'
+</code></pre>
+</div>
+
+<p>You can confirm your configuration by running the following command.</p>
+
+<pre><code>$ git remote -v
+apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (fetch)
+apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (push)
+github	https://github.com/apache/incubator-beam.git (fetch)
+github	https://github.com/apache/incubator-beam.git (push)
+<b>&lt;username&gt;</b>	git@github.com:<b>&lt;username&gt;</b>/beam.git (fetch)
+<b>&lt;username&gt;</b>	git@github.com:<b>&lt;username&gt;</b>/beam.git (push)</code></pre>
+
+<h3 id="contributor-license-agreement">Contributor License Agreement</h3>
+<p>If you are merging a larger contribution, please make sure that the contributor has an ICLA on file with the Apache Secretary. You can view the list of committers <a href="http://home.apache.org/phonebook.html?unix=committers">here</a>, as well as <a href="http://home.apache.org/unlistedclas.html">ICLA-signers who aren’t yet committers</a>.</p>
+
+<p>For smaller contributions, however, this is not required. In this case, we rely on <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions.</p>
+
+<h3 id="tests">Tests</h3>
+<p>Before merging, please make sure both Travis-CI and Jenkins tests pass, as visible in the GitHub pull request. Do not merge the pull request otherwise.</p>
+
+<h3 id="finishing-touches">Finishing touches</h3>
+<p>At some point in the review process, you should take the pull request over and complete any outstanding work that is either minor, stylistic, or otherwise outside the expertise of the contributor.</p>
+
+<p>Fetch references from all remote repositories, and checkout the specific pull request branch.</p>
+
+<pre>
+&lt;/code&gt;$ git fetch --all
+$ git checkout -b finish-pr-<b>&lt;pull-request-#&gt;</b> github/pr/<b>&lt;pull-request-#&gt;</b>&lt;/code&gt;</pre>
+
+<p>At this point, you can commit any final touches to the pull request. For example, you should:</p>
+
+<ul>
+  <li>Rebase on current state of the target branch.</li>
+  <li>Fix typos.</li>
+  <li>Reorganize commits that are part of the pull request, such as squash them into fewer commits that make sense for a historical perspective.</li>
+</ul>
+
+<p>You will often need the following command, assuming you’ll be merging changes into the <code class="highlighter-rouge">master</code> branch:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git rebase -i apache/master
+</code></pre>
+</div>
+
+<p>Please make sure to retain authorship of original commits to give proper credit to the contributor. You are welcome to change their commits slightly (e.g., fix a typo) and squash them, but more substantive changes should be a separate commit and review.</p>
+
+<h3 id="merge-process">Merge process</h3>
+<p>Once you are ready to merge, fetch all remotes, checkout the destination branch and merge the changes.</p>
+
+<pre><code>$ git fetch --all
+$ git checkout apache/master
+$ git merge --no-ff \
+&nbsp;&nbsp;&nbsp;&nbsp;-m $'[BEAM-<b>&lt;JIRA-issue-#&gt;</b>] <b>&lt;Title&gt;</b>\n\nThis closes #<b>&lt;pull-request-#&gt;</b>' \
+&nbsp;&nbsp;&nbsp;&nbsp;finish-pr-<b>&lt;pull-request-#&gt;</b></code></pre>
+
+<p>Always use <code class="highlighter-rouge">--no-ff</code> option and the specific commit message “This closes #<b>&lt;pull request #&gt;</b>”” – it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.</p>
+
+<p>At this point, you want to ensure everything is right. Test it with <code class="highlighter-rouge">mvn verify</code>. Run <code class="highlighter-rouge">gitk</code> or <code class="highlighter-rouge">git log --graph,</code> etc. When you are happy with how it looks, push it. This is the point of no return – proceed with caution.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git push apache HEAD:master
+</code></pre>
+</div>
+
+<p>Done. You can delete the local <code>finish-pr-<b>&lt;pull-request-#&gt;</b></code> branch if you like.</p>
+
+<h2 id="additional-projects">Additional Projects</h2>
+
+<h3 id="website">Website</h3>
+<p>We use the same general review-then-commit process for changes to the Beam website, which uses <a href="https://github.com/apache/incubator-beam-site">this GitHub Mirror</a>. The website uses the <a href="http://jekyllrb.com">Jekyll</a> framework to make website development easier. The <a href="https://github.com/apache/incubator-beam-site/blob/asf-site/README.md">README file</a> in the website repository has more information on how to:</p>
+
+<ul>
+  <li>Install Jekyll</li>
+  <li>Make changes to the website</li>
+  <li>Test your changes</li>
+</ul>
+
+<h4 id="editing-the-website">Editing the website</h4>
+<p>You can checkout the website repository with the following commands. This will allow you to edit the website in a local environment provided you have installed <a href="http://jekyllrb.com">Jekyll</a> and understand how to use it.</p>
+
+<pre><code>git clone -b asf-site https://github.com/apache/incubator-beam-site.git
+cd incubator-beam-site
+git remote add <b>&lt;GitHub_user&gt;</b> git@github.com:<b>&lt;GitHub_user&gt;</b>/incubator-beam-site.git
+git fetch --all
+git checkout -b <b>&lt;my-branch&gt;</b> origin/asf-site</code></pre>
+
+<h4 id="committing-website-changes">Committing website changes</h4>
+
+<p>Committers can commit website changes with the following commands. <strong>Changes to the website must follow the same process outlined above</strong> for changes to the Apache Beam code base.</p>
+
+<pre><code>git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-beam-site.git
+git remote rename origin github
+git config --local --add remote.github.fetch \
+&nbsp;&nbsp;&nbsp;&nbsp;'+refs/pull/*/head:refs/remotes/github/pr/*'</code></pre>
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">&copy; Copyright 2016
+                <a href="http://www.apache.org">The Apache Software Foundation.</a> All Rights Reserved.</p>
+                <p class="text-center"><a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a></p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>

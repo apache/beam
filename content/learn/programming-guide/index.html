@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Apache Beam (incubating)</title>
+  <title>Beam Programming Guide</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
 
@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/docs/learn/programming-guide.html">
+  <link rel="canonical" href="http://beam.incubator.apache.org/learn/programming-guide/" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -50,18 +50,20 @@
         <li class="dropdown">
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Use <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
-			  <li><a href="/docs/use/">User Hub</a></li>
+			  <li><a href="/use">User Hub</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="/docs/use/beam-overview">Beam Overview</a></li>
-			  <li><a href="/getting_started/">Quickstart</a></li>
+			  <li class="dropdown-header">General</li>
+			  <li><a href="/use/beam-overview/">Beam Overview</a></li>
+			  <li><a href="/use/quickstart/">Quickstart</a></li>  
+			  <li><a href="/use/releases">Release Information</a></li>
+			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Example Walkthroughs</li>
-			  <li><a href="/docs/use/walkthroughs">WordCount</a></li>
-			  <li><a href="/docs/use/walkthroughs">Mobile Gaming</a></li>
+			  <li><a href="/use/walkthroughs/">WordCount</a></li>
+			  <li><a href="/use/walkthroughs/">Mobile Gaming</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="">Release Information</a></li>
-			  <li class="dropdown-header">Support Resources</li>
-			  <li><a href="/mailing_lists/">Mailing Lists</a></li>
-              <li><a href="/issue_tracking/">Issue Tracking</a></li>
+			  <li class="dropdown-header">Support</li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
 			  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on StackOverflow</a></li>
               <li><a href="http://apachebeam.slack.com">Beam Slack Channel</a></li>
 		  </ul>
@@ -69,37 +71,46 @@
         <li class="dropdown">
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Learn <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
-			  <li><a href="/docs/learn/">Learner Hub</a></li>
+			  <li><a href="/learn">Learner Hub</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="/docs/learn/programming-guide/">Beam Programming Guide</a></li>
-			  <li><a href="/capability-matrix/">Capability Matrix</a></li>
-			  <li><a href="https://goo.gl/ps8twC">Additional Technical Docs</a></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="/learn/programming-guide/">Programming Guide</a></li>
+			  <li><a href="/learn/presentation-materials/">Presentation Materials</a></li>
+			  <li><a href="/learn/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="/learn/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="/learn/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/learn/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="/learn/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="/learn/runners/dataflow/">Cloud Dataflow Runner</a></li>
 		  </ul>
 	    </li>
         <li class="dropdown">
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
-			  <li><a href="/docs/contribute/">Contributor Hub</a></li>
+			  <li><a href="/contribute">Contributor Hub</a></li>
 			  <li role="separator" class="divider"></li>
-			  <li><a href="/contribution-guide/">Contribution Guide</a></li>
+			  <li class="dropdown-header">Basics</li>
+			  <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/contribute/source-repository/">Source Repository</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Technical Resources</li>
 			  <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
-			  <li class="dropdown-header">Resources</li>
-			  <li><a href="/mailing_lists/">Mailing Lists</a></li>
-              <li><a href="/source_repository/">Source Repository</a></li>
-              <li><a href="/issue_tracking/">Issue Tracking</a></li>
-			  <li class="dropdown-header">Project Materials</li>
-			  <li><a href="/presentation-materials/">Presentation Materials</a></li>
-			  <li><a href="/public-meetings/">Public Meetings</a></li>
-			  <li role="separator" class="divider"></li>
-			  <li><a href="/team/">Apache Beam Team</a></li>
 		  </ul>
 	    </li>
         <li><a href="/blog">Blog</a></li>
         <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project <span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project<span class="caret"></span></a>
           <ul class="dropdown-menu">
-            <li><a href="/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="/material/">Logos and design</a></li>
+            <li><a href="/project/logos/">Logos and design</a></li>
+            <li><a href="/project/public-meetings/">Public Meetings</a></li>
+			<li><a href="/project/team/">Team</a></li>
             <li><a href="http://apache.org/licenses/LICENSE-2.0.html">License</a></li>
           </ul>
         </li>
@@ -115,15 +126,7 @@
     <div class="container" role="main">
 
       <div class="container">
-        <p>
-  <div class="alert alert-info alert-dismissible" role="alert">
-  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
-  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting_started/">getting started page</a>.
-  </div>
-</p>
-
-<h1 id="beam-programming-guide">Beam Programming Guide</h1>
+        <h1 id="apache-beam-programming-guide">Apache Beam Programming Guide</h1>
 
 <p>The <strong>Beam Programming Guide</strong> is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. It provides guidance for using the Beam SDK classes to build and test your pipeline. It is not intended as an exhaustive reference, but as a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your programs.</p>
 
@@ -146,7 +149,7 @@
       </li>
     </ul>
   </li>
-  <li><a href="#transform">Applying Transforms</a>
+  <li><a href="#transforms">Applying Transforms</a>
     <ul>
       <li><a href="#transforms-pardo">Using ParDo</a></li>
       <li><a href="#transforms-gbk">Using GroupByKey</a></li>
@@ -162,7 +165,7 @@
   <li><a href="#triggers">Working with Triggers</a></li>
 </ul>
 
-<h2 id="a-nameoverviewaoverview"><a name="#overview"></a>Overview</h2>
+<h2 id="a-nameoverviewaoverview"><a name="overview"></a>Overview</h2>
 
 <p>To use Beam, you need to first create a driver program using the classes in one of the Beam SDKs. Your driver program <em>defines</em> your pipeline, including all of the inputs, transforms, and outputs; it also sets execution options for your pipeline (typically passed in using command-line options). These include the Pipeline Runner, which, in turn, determines what back-end your pipeline will run on.</p>
 
@@ -195,7 +198,7 @@
 
 <p>When you run your Beam driver program, the Pipeline Runner that you designate constructs a <strong>workflow graph</strong> of your pipeline based on the <code class="highlighter-rouge">PCollection</code> objects you’ve created and transforms that you’ve applied. That graph is then executed using the appropriate distributed processing back-end, becoming an asynchronous “job” (or equivalent) on that back-end.</p>
 
-<h2 id="a-namepipelineacreating-the-pipeline"><a name="#pipeline"></a>Creating the Pipeline</h2>
+<h2 id="a-namepipelineacreating-the-pipeline"><a name="pipeline"></a>Creating the Pipeline</h2>
 
 <p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/Pipeline.java">Pipeline</a> object, and then using that object as the basis for creating the pipeline’s data sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
 
@@ -205,7 +208,7 @@
 
 <p>To set your pipeline’s configuration options and create the pipeline, create an object of type <a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/options/PipelineOptions.java">PipelineOptions</a> and pass it to <code class="highlighter-rouge">Pipeline.Create()</code>. The most common way to do this is by parsing arguments from the command-line:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="p">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
    <span class="c1">// Will parse the arguments passed into the application and construct a PipelineOptions</span>
    <span class="c1">// Note that --help will print registered options, and --help=PipelineOptionsClassName</span>
    <span class="c1">// will print out usage for the specific class.</span>
@@ -218,13 +221,13 @@
 
 <p>The Beam SDKs contain various subclasses of <code class="highlighter-rouge">PipelineOptions</code> that correspond to different Runners. For example, <code class="highlighter-rouge">DirectPipelineOptions</code> contains options for the Direct (local) pipeline runner, while <code class="highlighter-rouge">DataflowPipelineOptions</code> contains options for using the runner for Google Cloud Dataflow. You can also define your own custom <code class="highlighter-rouge">PipelineOptions</code> by creating an interface that extends the Beam SDKs’ <code class="highlighter-rouge">PipelineOptions</code> class.</p>
 
-<h2 id="a-namepcollectionaworking-with-pcollections"><a name="#pcollection"></a>Working with PCollections</h2>
+<h2 id="a-namepcollectionaworking-with-pcollections"><a name="pcollection"></a>Working with PCollections</h2>
 
 <p>The <a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/values/PCollection.java">PCollection</a> abstraction represents a potentially distributed, multi-element data set. You can think of a <code class="highlighter-rouge">PCollection</code> as “pipeline” data; Beam transforms use <code class="highlighter-rouge">PCollection</code> objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a <code class="highlighter-rouge">PCollection</code>.</p>
 
 <p>After you’ve created your <code class="highlighter-rouge">Pipeline</code>, you’ll need to begin by creating at least one <code class="highlighter-rouge">PCollection</code> in some form. The <code class="highlighter-rouge">PCollection</code> you create serves as the input for the first operation in your pipeline.</p>
 
-<h3 id="a-namepccreateacreating-a-pcollection"><a name="#pccreate"></a>Creating a PCollection</h3>
+<h3 id="a-namepccreateacreating-a-pcollection"><a name="pccreate"></a>Creating a PCollection</h3>
 
 <p>You create a <code class="highlighter-rouge">PCollection</code> by either reading data from an external source using Beam’s <a href="#io">Source API</a>, or you can create a <code class="highlighter-rouge">PCollection</code> of data stored in an in-memory collection class in your driver program. The former is typically how a production pipeline would ingest data; Beam’s Source APIs contain adapters to help you read from external sources like large cloud-based files, databases, or subscription services. The latter is primarily useful for testing and debugging purposes.</p>
 
@@ -234,7 +237,7 @@
 
 <p>Each data source adapter has a <code class="highlighter-rouge">Read</code> transform; to read, you must apply that transform to the <code class="highlighter-rouge">Pipeline</code> object itself. <code class="highlighter-rouge">TextIO.Read</code>, for example, reads from an external text file and returns a <code class="highlighter-rouge">PCollection</code> whose elements are of type <code class="highlighter-rouge">String</code>; each <code class="highlighter-rouge">String</code> represents one line from the text file. Here’s how you would apply <code class="highlighter-rouge">TextIO.Read</code> to your <code class="highlighter-rouge">Pipeline</code> to create a <code class="highlighter-rouge">PCollection</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="p">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create the pipeline.</span>
     <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> 
         <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">create</span><span class="o">();</span>
@@ -256,7 +259,7 @@
 
 <p>The following example code shows how to create a <code class="highlighter-rouge">PCollection</code> from an in-memory Java <code class="highlighter-rouge">List</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="p">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create a Java Collection, in this case a List of Strings.</span>
     <span class="kd">static</span> <span class="kd">final</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">LINES</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
       <span class="s">"To be, or not to be: that is the question: "</span><span class="o">,</span>
@@ -274,23 +277,23 @@
 <span class="o">}</span>
 </code></pre>
 </div>
-<p>### <a name="#pccharacteristics">PCollection Characteristics</a></p>
+<p>### <a name="pccharacteristics">PCollection Characteristics</a></p>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is owned by the specific <code class="highlighter-rouge">Pipeline</code> object for which it is created; multiple pipelines cannot share a <code class="highlighter-rouge">PCollection</code>. In some respects, a <code class="highlighter-rouge">PCollection</code> functions like a collection class. However, a <code class="highlighter-rouge">PCollection</code> can differ in a few key ways:</p>
 
-<h4 id="a-namepcelementtypeaelement-type"><a name="#pcelementtype"></a>Element Type</h4>
+<h4 id="a-namepcelementtypeaelement-type"><a name="pcelementtype"></a>Element Type</h4>
 
 <p>The elements of a <code class="highlighter-rouge">PCollection</code> may be of any type, but must all be of the same type. However, to support distributed processing, Beam needs to be able to encode each individual element as a byte string (so elements can be passed around to distributed workers). The Beam SDKs provide a data encoding mechanism that includes built-in encoding for commonly-used types as well as support for specifying custom encodings as needed.</p>
 
-<h4 id="a-namepcimmutabilityaimmutability"><a name="#pcimmutability"></a>Immutability</h4>
+<h4 id="a-namepcimmutabilityaimmutability"><a name="pcimmutability"></a>Immutability</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is immutable. Once created, you cannot add, remove, or change individual elements. A Beam Transform might process each element of a <code class="highlighter-rouge">PCollection</code> and generate new pipeline data (as a new <code class="highlighter-rouge">PCollection</code>), <em>but it does not consume or modify the original input collection</em>.</p>
 
-<h4 id="a-namepcrandomaccessarandom-access"><a name="#pcrandomaccess"></a>Random Access</h4>
+<h4 id="a-namepcrandomaccessarandom-access"><a name="pcrandomaccess"></a>Random Access</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> does not support random access to individual elements. Instead, Beam Transforms consider every element in a <code class="highlighter-rouge">PCollection</code> individually.</p>
 
-<h4 id="a-namepcsizeboundasize-and-boundedness"><a name="#pcsizebound"></a>Size and Boundedness</h4>
+<h4 id="a-namepcsizeboundasize-and-boundedness"><a name="pcsizebound"></a>Size and Boundedness</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is a large, immutable “bag” of elements. There is no upper limit on how many elements a <code class="highlighter-rouge">PCollection</code> can contain; any given <code class="highlighter-rouge">PCollection</code> might fit in memory on a single machine, or it might represent a very large distributed data set backed by a persistent data store.</p>
 
@@ -300,7 +303,7 @@
 
 <p>When performing an operation that groups elements in an unbounded <code class="highlighter-rouge">PCollection</code>, Beam requires a concept called <strong>Windowing</strong> to divide a continuously updating data set into logical windows of finite size.  Beam processes each window as a bundle, and processing continues as the data set is generated. These logical windows are determined by some characteristic associated with a data element, such as a <strong>timestamp</strong>.</p>
 
-<h4 id="a-namepctimestampsaelement-timestamps"><a name="#pctimestamps"></a>Element Timestamps</h4>
+<h4 id="a-namepctimestampsaelement-timestamps"><a name="pctimestamps"></a>Element Timestamps</h4>
 
 <p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated intrinsic <strong>timestamp</strong>. The timestamp for each element is initially assigned by the <a href="#io">Source</a> that creates the <code class="highlighter-rouge">PCollection</code>. Sources that create an unbounded <code class="highlighter-rouge">PCollection</code> often assign each new element a timestamp that corresponds to when the element was read or added.</p>
 
@@ -310,15 +313,15 @@
 
 <p>Timestamps are useful for a <code class="highlighter-rouge">PCollection</code> that contains elements with an inherent notion of time. If your pipeline is reading a stream of events, like Tweets or other social media messages, each element might use the time the event was posted as the element timestamp.</p>
 
-<p>You can manually assign timestamps to the elements of a <code class="highlighter-rouge">PCollection</code> if the source doesn’t do it for you. You’ll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a “time” field in a server log entry). Beam has <a href="#transforms">Transforms</a> that take a <code class="highlighter-rouge">PCollection</code> as input and output an identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#windowing">Assigning Timestamps</a> for more information on how to do so.</p>
+<p>You can manually assign timestamps to the elements of a <code class="highlighter-rouge">PCollection</code> if the source doesn’t do it for you. You’ll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a “time” field in a server log entry). Beam has <a href="#transform">Transforms</a> that take a <code class="highlighter-rouge">PCollection</code> as input and output an identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#windowing">Assigning Timestamps</a> for more information on how to do so.</p>
 
-<h2 id="a-nametransformaapplying-transforms"><a name="#transform"></a>Applying Transforms</h2>
+<h2 id="a-nametransformsaapplying-transforms"><a name="transforms"></a>Applying Transforms</h2>
 
 <p>In the Beam SDKs, <strong>transforms</strong> are the operations in your pipeline. A transform takes a <code class="highlighter-rouge">PCollection</code> (or more than one <code class="highlighter-rouge">PCollection</code>) as input, performs an operation that you specify on each element in that collection, and produces a new output <code class="highlighter-rouge">PCollection</code>. To invoke a transform, you must <strong>apply</strong> it to the input <code class="highlighter-rouge">PCollection</code>.</p>
 
 <p>In Beam SDK for Java, each transform has a generic <code class="highlighter-rouge">apply</code> method. In the Beam SDK for Python, you use the pipe operator (<code class="highlighter-rouge">|</code>) to apply a transform. Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one slight difference: You apply the transform to the input <code class="highlighter-rouge">PCollection</code>, passing the transform itself as an argument, and the operation returns the output <code class="highlighter-rouge">PCollection</code>. This takes the general form:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span><span class="o">])</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span><span class="o">])</span>
 </code></pre>
 </div>
 
@@ -326,7 +329,7 @@
 
 <p>How you apply your pipeline’s transforms determines the structure of your pipeline. The best way to think of your pipeline is as a directed acyclic graph, where the nodes are <code class="highlighter-rouge">PCollection</code>s and the edges are transforms. For example, you can chain transforms to create a sequential pipeline, like this one:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">First</span> <span class="n">Transform</span><span class="o">])</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">First</span> <span class="n">Transform</span><span class="o">])</span>
 							<span class="o">.</span><span class="na">apply</span><span class="o">([</span><span class="n">Second</span> <span class="n">Transform</span><span class="o">])</span>
 							<span class="o">.</span><span class="na">apply</span><span class="o">([</span><span class="n">Third</span> <span class="n">Transform</span><span class="o">])</span>
 </code></pre>
@@ -338,7 +341,7 @@
 
 <p>However, note that a transform <em>does not consume or otherwise alter</em> the input collection–remember that a <code class="highlighter-rouge">PCollection</code> is immutable by definition. This means that you can apply multiple transforms to the same input <code class="highlighter-rouge">PCollection</code> to create a branching pipeline, like so:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span> <span class="mi">1</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="mi">1</span><span class="o">])</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span> <span class="mi">1</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="mi">1</span><span class="o">])</span>
 <span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span> <span class="mi">2</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="mi">2</span><span class="o">])</span>
 </code></pre>
 </div>
@@ -347,7 +350,7 @@
 
 <p>[Branching Graph Graphic]</p>
 
-<p>You can also build your own <a href="#transform-composite">composite transforms</a> that nest multiple sub-steps inside a single, larger transform. Composite transforms are particularly useful for building a reusable sequence of simple steps that get used in a lot of different places.</p>
+<p>You can also build your own <a href="#transforms-composite">composite transforms</a> that nest multiple sub-steps inside a single, larger transform. Composite transforms are particularly useful for building a reusable sequence of simple steps that get used in a lot of different places.</p>
 
 <h3 id="transforms-in-the-beam-sdk">Transforms in the Beam SDK</h3>
 
@@ -364,7 +367,7 @@
   <li><code class="highlighter-rouge">Flatten</code></li>
 </ul>
 
-<h4 id="a-nametransforms-pardoapardo"><a name="#transforms-pardo"></a>ParDo</h4>
+<h4 id="a-nametransforms-pardoapardo"><a name="transforms-pardo"></a>ParDo</h4>
 
 <p><code class="highlighter-rouge">ParDo</code> is a Beam transform for generic parallel processing. The <code class="highlighter-rouge">ParDo</code> processing paradigm is similar to the “Map” phase of a Map/Shuffle/Reduce-style algorithm: a <code class="highlighter-rouge">ParDo</code> transform considers each element in the input <code class="highlighter-rouge">PCollection</code>, performs some processing function (your user code) on that element, and emits zero, one, or multiple elements to an output <code class="highlighter-rouge">PCollection</code>.</p>
 
@@ -389,7 +392,7 @@
 
 <p>Like all Beam transforms, you apply <code class="highlighter-rouge">ParDo</code> by calling the <code class="highlighter-rouge">apply</code> method on the input <code class="highlighter-rouge">PCollection</code> and passing <code class="highlighter-rouge">ParDo</code> as an argument, as shown in the following example code:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection of Strings.</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection of Strings.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="c1">// The DoFn to perform on each element in the input PCollection.</span>
@@ -415,15 +418,15 @@
 
 <p>A <code class="highlighter-rouge">DoFn</code> processes one element at a time from the input <code class="highlighter-rouge">PCollection</code>. When you create a subclass of <code class="highlighter-rouge">DoFn</code>, you’ll need to provide type paraemters that match the types of the input and output elements. If your <code class="highlighter-rouge">DoFn</code> processes incoming <code class="highlighter-rouge">String</code> elements and produces <code class="highlighter-rouge">Integer</code> elements for the output collection (like our previous example, <code class="highlighter-rouge">ComputeWordLengthFn</code>), your class declaration would look like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 </code></pre>
 </div>
 
 <p>Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll need to override the method <code class="highlighter-rouge">processElement</code>, where you provide the actual processing logic. You don’t need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your override of <code class="highlighter-rouge">processElement</code> should accept an object of type <code class="highlighter-rouge">ProcessContext</code>. The <code class="highlighter-rouge">ProcessContext</code> object gives you access to an input element and a method for emitting an output element:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="nd">@Override</span>
-  <span class="kd">public</span> <span class="kt">void</span> <span class="n">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Get the input element from ProcessContext.</span>
     <span class="n">String</span> <span class="n">word</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
     <span class="c1">// Use ProcessContext.output to emit the output element.</span>
@@ -452,7 +455,7 @@
 
 <p>Here’s the previous example, <code class="highlighter-rouge">ParDo</code> with <code class="highlighter-rouge">ComputeLengthWordsFn</code>, with the <code class="highlighter-rouge">DoFn</code> specified as an anonymous inner class instance:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="c1">// Apply a ParDo with an anonymous DoFn to the PCollection words.</span>
@@ -462,7 +465,7 @@
     <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ComputeWordLengths"</span><span class="o">)</span>            <span class="c1">// the transform name</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>       <span class="c1">// a DoFn as an anonymous inner class instance</span>
       <span class="nd">@Override</span>
-      <span class="kd">public</span> <span class="kt">void</span> <span class="n">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
         <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">length</span><span class="o">());</span>
       <span class="o">}</span>
     <span class="o">}));</span>
@@ -473,7 +476,7 @@
 
 <p>Here’s the previous example using <code class="highlighter-rouge">MapElements</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span><span class="n">String</span><span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="c1">// Apply a MapElements with an anonymous lambda function to the PCollection words.</span>
@@ -488,7 +491,7 @@
   <p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam transforms, including <code class="highlighter-rouge">Filter</code>, <code class="highlighter-rouge">FlatMapElements</code>, and <code class="highlighter-rouge">Partition</code>.</p>
 </blockquote>
 
-<h4 id="a-nametransforms-gbkausing-groupbykey"><a name="#transforms-gbk"></a>Using GroupByKey</h4>
+<h4 id="a-nametransforms-gbkausing-groupbykey"><a name="transforms-gbk"></a>Using GroupByKey</h4>
 
 <p><code class="highlighter-rouge">GroupByKey</code> is a Beam transform for processing collections of key/value pairs. It’s a parallel reduction operation, analagous to the Shuffle phase of a Map/Shuffle/Reduce-style algorithm. The input to <code class="highlighter-rouge">GroupByKey</code> is a collection of key/value pairs that represents a <em>multimap</em>, where the collection contains multiple pairs that have the same key, but different values. Given such a collection, you use <code class="highlighter-rouge">GroupByKey</code> to collect all of the values associated with each unique key.</p>
 
@@ -529,9 +532,9 @@ tree, [2]
   <p><strong>A Note on Key/Value Pairs:</strong> Beam represents key/value pairs slightly differently depending on the language and SDK you’re using. In the Beam SDK for Java, you represent a key/value pair with an object of type <code class="highlighter-rouge">KV&lt;K, V&gt;</code>. In Python, you represent key/value pairs with 2-tuples.</p>
 </blockquote>
 
-<h4 id="a-nametransforms-combineausing-combine"><a name="#transforms-combine"></a>Using Combine</h4>
+<h4 id="a-nametransforms-combineausing-combine"><a name="transforms-combine"></a>Using Combine</h4>
 
-<h4 id="a-nametransforms-usercodereqsageneral-requirements-for-writing-user-code-for-beam-transforms"><a name="#transforms-usercodereqs"></a>General Requirements for Writing User Code for Beam Transforms</h4>
+<h4 id="a-nametransforms-usercodereqsageneral-requirements-for-writing-user-code-for-beam-transforms"><a name="transforms-usercodereqs"></a>General Requirements for Writing User Code for Beam Transforms</h4>
 
 <p>When you build user code for a Beam transform, you should keep in mind the distributed nature of execution. For example, there might be many copies of your function running on a lot of different machines in parallel, and those copies function independently, without communicating or sharing state with any of the other copies. Depending on the Pipeline Runner and processing back-end you choose for your pipeline, each copy of your user code function may be retried or run multiple times. As such, you should be cautious about including things like state dependency in your user code.</p>
 
@@ -569,6 +572,14 @@ tree, [2]
 <h5 id="idempotence">Idempotence</h5>
 
 <p>It’s recommended that you make your function object idempotent–that is, that it can be repeated or retried as often as necessary without causing unintended side effects. The Beam model provides no guarantees as to the number of times your user code might be invoked or retried; as such, keeping your function object idempotent keeps your pipeline’s output deterministic, and your transforms’ behavior more predictable and easier to debug.</p>
+
+<p><a name="io"></a>
+<a name="running"></a>
+<a name="transforms-composite"></a>
+<a name="transforms-sideio"></a>
+<a name="coders"></a>
+<a name="windowing"></a>
+<a name="triggers"></a></p>
 
 <blockquote>
   <p><strong>Note:</strong> This guide is still in progress. There is an open issue to finish the guide (<a href="https://issues.apache.org/jira/browse/BEAM-193">BEAM-193</a>)</p>
