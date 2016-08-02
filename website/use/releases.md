@@ -1,10 +1,11 @@
 ---
 layout: default
-title: "Apache Beam Releases"
-permalink: /releases/
+title: "Beam Releases"
+permalink: /use/releases/
+redirect_from: /releases/
 ---
 
-# Apache Beam releases
+# Apache Beam Releases
 
 The easiest way to use Apache Beam is via one of the released versions in the
 [Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22).
