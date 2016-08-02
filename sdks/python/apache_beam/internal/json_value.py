@@ -50,7 +50,7 @@ def to_json_value(obj, with_type=False):
   """Converts Python objects into extra_types.JsonValue objects.
 
   Args:
-    obj: Python object to be converted.
+    obj: Python object to be converted. Can be 'None'.
     with_type: If true then the basic types (string, int, float, bool) will
       be wrapped in @type/value dictionaries. Otherwise the straight value is
       encoded into a JsonValue.
@@ -62,11 +62,13 @@ def to_json_value(obj, with_type=False):
   Raises:
     TypeError: if the Python object contains a type that is not supported.
 
-  The types supported are str, bool, list, tuple, dict. The Dataflow API
-  requires JsonValue(s) in many places, and it is quite convenient to be able
-  to specify these hierarchical objects using Python syntax.
+  The types supported are str, bool, list, tuple, dict, and None. The Dataflow
+  API requires JsonValue(s) in many places, and it is quite convenient to be
+  able to specify these hierarchical objects using Python syntax.
   """
-  if isinstance(obj, (list, tuple)):
+  if obj is None:
+    return extra_types.JsonValue(is_null=True)
+  elif isinstance(obj, (list, tuple)):
     return extra_types.JsonValue(
         array_value=extra_types.JsonArray(
             entries=[to_json_value(o, with_type=with_type) for o in obj]))
@@ -104,9 +106,9 @@ def from_json_value(v):
   Raises:
     TypeError: if the JsonValue object contains a type that is not supported.
 
-  The types supported are str, bool, list, dict. The Dataflow API returns
-  JsonValue(s) in many places and it is quite convenient to be able to convert
-  these hierarchical objects to much simpler Python objects.
+  The types supported are str, bool, list, dict, and None. The Dataflow API
+  returns JsonValue(s) in many places and it is quite convenient to be able to
+  convert these hierarchical objects to much simpler Python objects.
   """
   if isinstance(v, extra_types.JsonValue):
     if v.string_value is not None:
@@ -122,7 +124,7 @@ def from_json_value(v):
     elif v.object_value is not None:
       return from_json_value(v.object_value)
     elif v.is_null:
-      return []
+      return None
   elif isinstance(v, extra_types.JsonArray):
     return [from_json_value(e) for e in v.entries]
   elif isinstance(v, extra_types.JsonObject):
