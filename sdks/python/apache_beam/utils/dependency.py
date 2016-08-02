@@ -58,7 +58,7 @@ import os
 import shutil
 import tempfile
 
-from apache_beam.version import __version__
+
 from apache_beam import utils
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
