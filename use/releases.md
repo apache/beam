@@ -8,7 +8,7 @@ redirect_from: /releases/
 # Apache Beam Releases
 
 The easiest way to use Apache Beam is via one of the released versions in the
-[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22).
+[Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22).
 
 For example, if you are developing using Maven and want to use the SDK for
 Java with the `DirectRunner`, add the following dependencies to your
@@ -33,6 +33,6 @@ at scale.
 ## Release Notes
 
 ### 0.1.0-incubating
-[Source code download](https://dist.apache.org/repos/dist/release/incubator/beam/0.1.0-incubating/apache-beam-0.1.0-incubating-source-release.zip)
+[Source code download](https://www.apache.org/dyn/closer.cgi?filename=incubator/beam/0.1.0-incubating/apache-beam-0.1.0-incubating-source-release.zip&action=download)
 
 * The first incubating release of Apache Beam.
