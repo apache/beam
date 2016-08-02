@@ -144,8 +144,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
               boundedSource);
           return ImmutableList.of(this);
         }
-        List<? extends BoundedSource<T>> splits
-            = boundedSource.splitIntoBundles(desiredBundleSize, options);
+        List<? extends BoundedSource<T>> splits =
+            boundedSource.splitIntoBundles(desiredBundleSize, options);
         if (splits == null) {
           LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
           return ImmutableList.of(this);
