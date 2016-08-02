@@ -1,8 +1,8 @@
 package cz.seznam.euphoria.core.client.dataset;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionInterval;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionWindow;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;

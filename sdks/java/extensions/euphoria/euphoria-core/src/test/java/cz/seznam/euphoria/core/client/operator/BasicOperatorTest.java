@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;

@@ -1,9 +1,9 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ArrayListMultimap;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimap;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimaps;
+import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;

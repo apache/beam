@@ -1,8 +1,8 @@
 package cz.seznam.euphoria.kafka;
 
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;

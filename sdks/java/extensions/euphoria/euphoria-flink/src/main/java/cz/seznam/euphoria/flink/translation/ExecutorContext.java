@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.flink.translation;
 
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;

@@ -32,7 +32,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
-import static com.google.common.collect.Lists.newArrayListWithCapacity;
+import static cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
 
 class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscriber {

@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.graph;
 
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
