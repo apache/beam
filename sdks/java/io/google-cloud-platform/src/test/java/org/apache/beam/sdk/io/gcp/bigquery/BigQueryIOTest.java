@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Bound.MAX_RETRY_JOBS;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.fromJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -605,8 +606,6 @@ public class BigQueryIOTest implements Serializable {
 
     logged.verifyInfo("Starting BigQuery load job");
     logged.verifyInfo("Starting BigQuery copy job");
-    logged.verifyInfo("Previous load jobs failed, retrying.");
-    logged.verifyInfo("Previous copy jobs failed, retrying.");
     File tempDir = new File(bqOptions.getTempLocation());
     assertEquals(0, tempDir.listFiles(new FileFilter() {
       @Override
@@ -635,7 +634,7 @@ public class BigQueryIOTest implements Serializable {
         .withoutValidation());
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Failed to poll the load job status.");
+    thrown.expectMessage("Failed to poll the load job status");
     p.run();
 
     File tempDir = new File(bqOptions.getTempLocation());
@@ -1352,7 +1351,6 @@ public class BigQueryIOTest implements Serializable {
     List<String> tempTables = tester.takeOutputElements();
 
     logged.verifyInfo("Starting BigQuery load job");
-    logged.verifyInfo("Previous load jobs failed, retrying.");
 
     assertEquals(expectedTempTables, tempTables);
   }
@@ -1391,6 +1389,5 @@ public class BigQueryIOTest implements Serializable {
     tester.processElement(null);
 
     logged.verifyInfo("Starting BigQuery copy job");
-    logged.verifyInfo("Previous copy jobs failed, retrying.");
   }
 }

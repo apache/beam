@@ -1437,8 +1437,6 @@ public class BigQueryIO {
       // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
       static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
-      private static final String TEMPORARY_FILENAME_SEPARATOR = "-temp-";
-
       @Nullable final String jsonTableRef;
 
       @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
@@ -1458,6 +1456,8 @@ public class BigQueryIO {
       final boolean validate;
 
       @Nullable private BigQueryServices bigQueryServices;
+
+      private static Coder<TableRow> coder;
 
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
@@ -1696,6 +1696,7 @@ public class BigQueryIO {
         Pipeline p = input.getPipeline();
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
+        coder = input.getCoder();
 
         // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
         // and BigQuery's streaming import API.
@@ -1708,7 +1709,7 @@ public class BigQueryIO {
         if (Strings.isNullOrEmpty(table.getProjectId())) {
           table.setProjectId(options.getProject());
         }
-        final String jobIdToken = "beam_job_" + randomUUIDString();
+        String jobIdToken = "beam_job_" + randomUUIDString();
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
         try {
@@ -1732,10 +1733,10 @@ public class BigQueryIO {
 
         PCollection<KV<String, Long>> results = inputInGlobalWindow
             .apply("WriteBundles",
-                ParDo.of(new WriteBundles(input.getCoder(), tempFilePrefix)));
+                ParDo.of(new WriteBundles(tempFilePrefix)));
 
-        PCollectionView<Iterable<KV<String, Long>>> resultsView
-            = results.apply("ResultsView", View.<KV<String, Long>>asIterable());
+        PCollectionView<Iterable<KV<String, Long>>> resultsView = results
+            .apply("ResultsView", View.<KV<String, Long>>asIterable());
         PCollection<KV<Long, List<String>>> partitions = singleton
             .apply(ParDo.of(new WritePartition(resultsView)).withSideInputs(resultsView));
 
@@ -1748,8 +1749,8 @@ public class BigQueryIO {
                 toJsonString(table),
                 jsonSchema)));
 
-        PCollectionView<Iterable<String>> tempTablesView
-            = tempTables.apply("TempTablesView", View.<String>asIterable());
+        PCollectionView<Iterable<String>> tempTablesView = tempTables
+            .apply("TempTablesView", View.<String>asIterable());
         singleton.apply(ParDo
             .of(new WriteRename(
                 bqServices,
@@ -1765,18 +1766,16 @@ public class BigQueryIO {
 
       private class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
         private TableRowWriter writer = null;
-        private Coder coder;
-        private String tempFilePrefix;
+        private final String tempFilePrefix;
 
-        WriteBundles(Coder coder, String tempFilePrefix) {
-          this.coder = coder;
+        WriteBundles(String tempFilePrefix) {
           this.tempFilePrefix = tempFilePrefix;
         }
 
         @Override
         public void processElement(ProcessContext c) throws Exception {
           if (writer == null) {
-            writer = new TableRowWriter(tempFilePrefix, coder);
+            writer = new TableRowWriter(tempFilePrefix);
             writer.open(UUID.randomUUID().toString());
             LOG.debug("Done opening writer {}", writer);
           }
@@ -1816,17 +1815,15 @@ public class BigQueryIO {
 
       static class TableRowWriter {
         private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+        private final String tempFilePrefix;
         private String id;
-        private String tempFilePrefix;
         private String fileName;
         private WritableByteChannel channel;
         protected String mimeType = MimeTypes.TEXT;
-        private final Coder<TableRow> coder;
         private CountingOutputStream out;
 
-        TableRowWriter(String basename, Coder<TableRow> coder) {
+        TableRowWriter(String basename) {
           this.tempFilePrefix = basename;
-          this.coder = coder;
         }
 
         public final void open(String uId) throws Exception {
@@ -1842,7 +1839,7 @@ public class BigQueryIO {
               LOG.error("Writing header to {} failed, closing channel.", fileName);
               channel.close();
             } catch (IOException closeException) {
-              LOG.error("Closing channel for {} failed: {}", fileName, closeException.getMessage());
+              LOG.error("Closing channel for {} failed", fileName);
             }
             throw e;
           }
@@ -1981,11 +1978,11 @@ public class BigQueryIO {
      * Writes partitions to separate temporary tables.
      */
     static class WriteTempTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
-      private BigQueryServices bqServices;
-      private String jobIdToken;
-      private String tempFilePrefix;
-      private String jsonTableRef;
-      private String jsonSchema;
+      private final BigQueryServices bqServices;
+      private final String jobIdToken;
+      private final String tempFilePrefix;
+      private final String jsonTableRef;
+      private final String jsonSchema;
 
       public WriteTempTables(
           BigQueryServices bqServices,
@@ -2034,14 +2031,10 @@ public class BigQueryIO {
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
 
-        boolean retrying = false;
         String projectId = ref.getProjectId();
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          if (retrying) {
-            LOG.info("Previous load jobs failed, retrying.");
-          }
-          LOG.info("Starting BigQuery load job: {}", jobId);
+          LOG.info("Starting BigQuery load job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
@@ -2052,23 +2045,23 @@ public class BigQueryIO {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              throw new RuntimeException("Failed to poll the load job status.");
+              throw new RuntimeException("Failed to poll the load job status of job " + jobId);
             case FAILED:
               LOG.info("BigQuery load job failed: {}", jobId);
-              retrying = true;
               continue;
             default:
-              throw new IllegalStateException("Unexpected job status: " + jobStatus);
+              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
+                  jobStatus, jobId));
           }
         }
-        throw new RuntimeException(
-            "Failed to create the load job, reached max retries: " + Bound.MAX_RETRY_JOBS);
+        throw new RuntimeException(String.format("Failed to create the load job %s, reached max "
+            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
 
       private void removeTemporaryFiles(PipelineOptions options, Collection<String> matches)
           throws IOException {
         String pattern = tempFilePrefix + "*";
-        LOG.debug("Finding temporary bundle output files matching {}.", pattern);
+        LOG.debug("Finding temporary files matching {}.", pattern);
         IOChannelFactory factory = IOChannelUtils.getFactory(pattern);
         if (factory instanceof GcsIOChannelFactory) {
           GcsUtil gcsUtil = new GcsUtil.GcsUtilFactory().create(options);
@@ -2106,12 +2099,11 @@ public class BigQueryIO {
      * Copies temporary tables to destination table.
      */
     static class WriteRename extends DoFn<Void, Void> {
-      private BigQueryServices bqServices;
-      private String jobIdToken;
-      private String jsonTableRef;
-      private WriteDisposition writeDisposition;
-      private CreateDisposition createDisposition;
-      private List<TableReference> tempTables;
+      private final BigQueryServices bqServices;
+      private final String jobIdToken;
+      private final String jsonTableRef;
+      private final WriteDisposition writeDisposition;
+      private final CreateDisposition createDisposition;
       private final PCollectionView<Iterable<String>> tempTablesView;
 
       public WriteRename(
@@ -2127,12 +2119,12 @@ public class BigQueryIO {
         this.writeDisposition = writeDisposition;
         this.createDisposition = createDisposition;
         this.tempTablesView = tempTablesView;
-        tempTables = Lists.newArrayList();
       }
 
       @Override
       public void processElement(ProcessContext c) throws Exception {
         List<String> tempTablesJson = Lists.newArrayList(c.sideInput(tempTablesView));
+        List<TableReference> tempTables = Lists.newArrayList();
         for (String table : tempTablesJson) {
           tempTables.add(fromJsonString(table, TableReference.class));
         }
@@ -2143,10 +2135,7 @@ public class BigQueryIO {
             tempTables,
             writeDisposition,
             createDisposition);
-      }
 
-      @Override
-      public void finishBundle(Context c) throws Exception {
         DatasetService tableService =
             bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
         removeTemporaryTables(tableService, tempTables);
@@ -2165,14 +2154,10 @@ public class BigQueryIO {
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name());
 
-        boolean retrying = false;
         String projectId = ref.getProjectId();
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          if (retrying) {
-            LOG.info("Previous copy jobs failed, retrying.");
-          }
-          LOG.info("Starting BigQuery copy job: {}", jobId);
+          LOG.info("Starting BigQuery copy job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
@@ -2183,17 +2168,17 @@ public class BigQueryIO {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              throw new RuntimeException("Failed to poll the copy job status.");
+              throw new RuntimeException("Failed to poll the copy job status of job " + jobId);
             case FAILED:
               LOG.info("BigQuery copy job failed: {}", jobId);
-              retrying = true;
               continue;
             default:
-              throw new IllegalStateException("Unexpected job status: " + jobStatus);
+              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
+                  jobStatus, jobId));
           }
         }
-        throw new RuntimeException(
-            "Failed to create the copy job, reached max retries: " + Bound.MAX_RETRY_JOBS);
+        throw new RuntimeException(String.format("Failed to create the copy job %s, reached max "
+            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
 
       private void removeTemporaryTables(DatasetService tableService,

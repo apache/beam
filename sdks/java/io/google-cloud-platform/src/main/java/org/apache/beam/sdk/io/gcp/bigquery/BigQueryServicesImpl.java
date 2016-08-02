@@ -125,7 +125,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -143,7 +143,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -161,7 +161,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -179,7 +179,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -339,7 +339,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -360,7 +360,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -396,7 +396,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -417,7 +417,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
@@ -475,7 +475,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
      * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
