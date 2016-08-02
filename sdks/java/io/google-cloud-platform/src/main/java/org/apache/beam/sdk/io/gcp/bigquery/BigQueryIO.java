@@ -34,8 +34,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -207,7 +205,8 @@ import javax.annotation.Nullable;
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
  * empty. Note that the dataset being written to must already exist. Unbounded PCollections can only
- * be written using {@link WriteDisposition#WRITE_EMPTY} or {@link WriteDisposition#WRITE_APPEND}.
+ * be written using {@link Write.WriteDisposition#WRITE_EMPTY} or
+ * {@link Write.WriteDisposition#WRITE_APPEND}.
  *
  * <h3>Sharding BigQuery output tables</h3>
  * <p>A common use case is to dynamically generate BigQuery table names based on
@@ -1457,8 +1456,6 @@ public class BigQueryIO {
 
       @Nullable private BigQueryServices bigQueryServices;
 
-      private static Coder<TableRow> coder;
-
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
         private SerializableFunction<BoundedWindow, String> tableSpecFunction;
@@ -1696,7 +1693,6 @@ public class BigQueryIO {
         Pipeline p = input.getPipeline();
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
-        coder = input.getCoder();
 
         // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
         // and BigQuery's streaming import API.
@@ -1723,7 +1719,7 @@ public class BigQueryIO {
               e);
         }
 
-        PCollection<Void> singleton = p.apply("Create", Create.of((Void) null));
+        PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
 
         PCollection<TableRow> inputInGlobalWindow =
             input.apply(
@@ -1735,19 +1731,33 @@ public class BigQueryIO {
             .apply("WriteBundles",
                 ParDo.of(new WriteBundles(tempFilePrefix)));
 
+        TupleTag<KV<Long, List<String>>> multiPartitionsTag =
+            new TupleTag<KV<Long, List<String>>>("multiPartitionsTag") {};
+        TupleTag<KV<Long, List<String>>> singlePartitionTag =
+            new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
+
         PCollectionView<Iterable<KV<String, Long>>> resultsView = results
             .apply("ResultsView", View.<KV<String, Long>>asIterable());
-        PCollection<KV<Long, List<String>>> partitions = singleton
-            .apply(ParDo.of(new WritePartition(resultsView)).withSideInputs(resultsView));
+        PCollectionTuple partitions = singleton.apply(ParDo
+            .of(new WritePartition(
+                resultsView,
+                multiPartitionsTag,
+                singlePartitionTag))
+            .withSideInputs(resultsView)
+            .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
 
-        PCollection<String> tempTables = partitions
-            .apply("PartitionsGroupByKey", GroupByKey.<Long, List<String>>create())
-            .apply(ParDo.of(new WriteTempTables(
+        // Write multiple partitions to separate temporary tables
+        PCollection<String> tempTables = partitions.get(multiPartitionsTag)
+            .apply("MultiPartitionsGroupByKey", GroupByKey.<Long, List<String>>create())
+            .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
+                false,
                 bqServices,
                 jobIdToken,
                 tempFilePrefix,
                 toJsonString(table),
-                jsonSchema)));
+                jsonSchema,
+                WriteDisposition.WRITE_EMPTY,
+                CreateDisposition.CREATE_IF_NEEDED)));
 
         PCollectionView<Iterable<String>> tempTablesView = tempTables
             .apply("TempTablesView", View.<String>asIterable());
@@ -1760,6 +1770,19 @@ public class BigQueryIO {
                 createDisposition,
                 tempTablesView))
             .withSideInputs(tempTablesView));
+
+        // Write single partition to final table
+        partitions.get(singlePartitionTag)
+            .apply("SinglePartitionGroupByKey", GroupByKey.<Long, List<String>>create())
+            .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
+                true,
+                bqServices,
+                jobIdToken,
+                tempFilePrefix,
+                toJsonString(table),
+                jsonSchema,
+                writeDisposition,
+                createDisposition)));
 
         return PDone.in(input.getPipeline());
       }
@@ -1797,8 +1820,7 @@ public class BigQueryIO {
         @Override
         public void finishBundle(Context c) throws Exception {
           if (writer != null) {
-            KV<String, Long> result = writer.close();
-            c.output(result);
+            c.output(writer.close());
             writer = null;
           }
         }
@@ -1810,50 +1832,6 @@ public class BigQueryIO {
           builder
               .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
                   .withLabel("Temporary File Prefix"));
-        }
-      }
-
-      static class TableRowWriter {
-        private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
-        private final String tempFilePrefix;
-        private String id;
-        private String fileName;
-        private WritableByteChannel channel;
-        protected String mimeType = MimeTypes.TEXT;
-        private CountingOutputStream out;
-
-        TableRowWriter(String basename) {
-          this.tempFilePrefix = basename;
-        }
-
-        public final void open(String uId) throws Exception {
-          id = uId;
-          fileName = tempFilePrefix + id;
-          LOG.debug("Opening {}.", fileName);
-          channel = IOChannelUtils.create(fileName, mimeType);
-          try {
-            out = new CountingOutputStream(Channels.newOutputStream(channel));
-            LOG.debug("Writing header to {}.", fileName);
-          } catch (Exception e) {
-            try {
-              LOG.error("Writing header to {} failed, closing channel.", fileName);
-              channel.close();
-            } catch (IOException closeException) {
-              LOG.error("Closing channel for {} failed", fileName);
-            }
-            throw e;
-          }
-          LOG.debug("Starting write of bundle {} to {}.", this.id, fileName);
-        }
-
-        public void write(TableRow value) throws Exception {
-          coder.encode(value, out, Context.OUTER);
-          out.write(NEWLINE);
-        }
-
-        public final KV<String, Long> close() throws IOException {
-          channel.close();
-          return KV.of(fileName, out.getCount());
         }
       }
 
@@ -1935,36 +1913,98 @@ public class BigQueryIO {
       }
     }
 
+    static class TableRowWriter {
+      private static final Coder<TableRow> CODER = TableRowJsonCoder.of();
+      private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+      private final String tempFilePrefix;
+      private String id;
+      private String fileName;
+      private WritableByteChannel channel;
+      protected String mimeType = MimeTypes.TEXT;
+      private CountingOutputStream out;
+
+      TableRowWriter(String basename) {
+        this.tempFilePrefix = basename;
+      }
+
+      public final void open(String uId) throws Exception {
+        id = uId;
+        fileName = tempFilePrefix + id;
+        LOG.debug("Opening {}.", fileName);
+        channel = IOChannelUtils.create(fileName, mimeType);
+        try {
+          out = new CountingOutputStream(Channels.newOutputStream(channel));
+          LOG.debug("Writing header to {}.", fileName);
+        } catch (Exception e) {
+          try {
+            LOG.error("Writing header to {} failed, closing channel.", fileName);
+            channel.close();
+          } catch (IOException closeException) {
+            LOG.error("Closing channel for {} failed", fileName);
+          }
+          throw e;
+        }
+        LOG.debug("Starting write of bundle {} to {}.", this.id, fileName);
+      }
+
+      public void write(TableRow value) throws Exception {
+        CODER.encode(value, out, Context.OUTER);
+        out.write(NEWLINE);
+      }
+
+      public final KV<String, Long> close() throws IOException {
+        channel.close();
+        return KV.of(fileName, out.getCount());
+      }
+    }
+
     /**
      * Partitions temporary files based on number of files and file sizes.
      */
-    static class WritePartition extends DoFn<Void, KV<Long, List<String>>> {
+    static class WritePartition extends DoFn<String, KV<Long, List<String>>> {
       private final PCollectionView<Iterable<KV<String, Long>>> resultsView;
+      private TupleTag<KV<Long, List<String>>> multiPartitionsTag;
+      private TupleTag<KV<Long, List<String>>> singlePartitionTag;
 
-      public WritePartition(PCollectionView<Iterable<KV<String, Long>>> resultsView) {
+      public WritePartition(
+          PCollectionView<Iterable<KV<String, Long>>> resultsView,
+          TupleTag<KV<Long, List<String>>> multiPartitionsTag,
+          TupleTag<KV<Long, List<String>>> singlePartitionTag) {
         this.resultsView = resultsView;
+        this.multiPartitionsTag = multiPartitionsTag;
+        this.singlePartitionTag = singlePartitionTag;
       }
 
       @Override
       public void processElement(ProcessContext c) throws Exception {
         List<KV<String, Long>> results = Lists.newArrayList(c.sideInput(resultsView));
+        if (results.isEmpty()) {
+          TableRowWriter writer = new TableRowWriter(c.element());
+          writer.open(UUID.randomUUID().toString());
+          results.add(writer.close());
+        }
+
         long partitionId = 0;
         int currNumFiles = 0;
         long currSizeBytes = 0;
         List<String> currResults = Lists.newArrayList();
         for (int i = 0; i < results.size(); ++i) {
           KV<String, Long> fileResult = results.get(i);
-          ++currNumFiles;
-          currSizeBytes += fileResult.getValue();
-          currResults.add(fileResult.getKey());
-          if (currNumFiles >= Bound.MAX_NUM_FILES
-              || currSizeBytes >= Bound.MAX_SIZE_BYTES
-              || i == results.size() - 1) {
-            c.output(KV.of(++partitionId, currResults));
+          if (currNumFiles + 1 > Bound.MAX_NUM_FILES
+              || currSizeBytes + fileResult.getValue() > Bound.MAX_SIZE_BYTES) {
+            c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
             currResults = Lists.newArrayList();
             currNumFiles = 0;
             currSizeBytes = 0;
           }
+          ++currNumFiles;
+          currSizeBytes += fileResult.getValue();
+          currResults.add(fileResult.getKey());
+        }
+        if (partitionId == 0) {
+          c.sideOutput(singlePartitionTag, KV.of(++partitionId, currResults));
+        } else {
+          c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
         }
       }
 
@@ -1975,43 +2015,56 @@ public class BigQueryIO {
     }
 
     /**
-     * Writes partitions to separate temporary tables.
+     * Writes partitions to BigQuery tables.
      */
-    static class WriteTempTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
+    static class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
+      private final boolean singlePartition;
       private final BigQueryServices bqServices;
       private final String jobIdToken;
       private final String tempFilePrefix;
       private final String jsonTableRef;
       private final String jsonSchema;
+      private final WriteDisposition writeDisposition;
+      private final CreateDisposition createDisposition;
 
-      public WriteTempTables(
+      public WriteTables(
+          boolean singlePartition,
           BigQueryServices bqServices,
           String jobIdToken,
           String tempFilePrefix,
           String jsonTableRef,
-          String jsonSchema) {
+          String jsonSchema,
+          WriteDisposition writeDisposition,
+          CreateDisposition createDisposition) {
+        this.singlePartition = singlePartition;
         this.bqServices = bqServices;
         this.jobIdToken = jobIdToken;
         this.tempFilePrefix = tempFilePrefix;
         this.jsonTableRef = jsonTableRef;
         this.jsonSchema = jsonSchema;
+        this.writeDisposition = writeDisposition;
+        this.createDisposition = createDisposition;
       }
 
       @Override
       public void processElement(ProcessContext c) throws Exception {
         List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
         String jobIdPrefix = String.format(jobIdToken + "_%05d", c.element().getKey());
-        TableReference ref = fromJsonString(jsonTableRef, TableReference.class)
-            .setTableId(jobIdPrefix);
+        TableReference ref = fromJsonString(jsonTableRef, TableReference.class);
+        if (!singlePartition) {
+          ref.setTableId(jobIdPrefix);
+        }
+
         load(
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
             jobIdPrefix,
             ref,
             fromJsonString(jsonSchema, TableSchema.class),
             partition,
-            WriteDisposition.WRITE_EMPTY,
-            CreateDisposition.CREATE_IF_NEEDED);
+            writeDisposition,
+            createDisposition);
         c.output(toJsonString(ref));
+
         removeTemporaryFiles(c.getPipelineOptions(), partition);
       }
 
@@ -2098,7 +2151,7 @@ public class BigQueryIO {
     /**
      * Copies temporary tables to destination table.
      */
-    static class WriteRename extends DoFn<Void, Void> {
+    static class WriteRename extends DoFn<String, Void> {
       private final BigQueryServices bqServices;
       private final String jobIdToken;
       private final String jsonTableRef;
@@ -2124,6 +2177,12 @@ public class BigQueryIO {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         List<String> tempTablesJson = Lists.newArrayList(c.sideInput(tempTablesView));
+
+        // Do not copy if not temp tables are provided
+        if (tempTablesJson.size() == 0) {
+          return;
+        }
+
         List<TableReference> tempTables = Lists.newArrayList();
         for (String table : tempTablesJson) {
           tempTables.add(fromJsonString(table, TableReference.class));
@@ -2332,8 +2391,8 @@ public class BigQueryIO {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
             BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-            inserter.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
-                CreateDisposition.CREATE_IF_NEEDED, tableSchema);
+            inserter.getOrCreateTable(tableReference, Write.WriteDisposition.WRITE_APPEND,
+                Write.CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
           }
         }
