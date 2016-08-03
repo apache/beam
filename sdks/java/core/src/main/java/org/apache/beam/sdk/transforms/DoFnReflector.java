@@ -445,7 +445,7 @@ public abstract class DoFnReflector {
           anno, fnClazz, DoFnWithContext.class);
 
       if (matches.size() == 0) {
-        if (required == true) {
+        if (required) {
           throw new IllegalStateException(String.format(
               "No method annotated with @%s found in %s",
               anno.getSimpleName(), fnClazz.getName()));
