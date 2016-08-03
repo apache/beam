@@ -155,6 +155,29 @@ public class DoFnTester<InputT, OutputT> {
     resetState();
   }
 
+
+  /**
+   * Whether or not a {@link DoFnTester} should clone the {@link DoFn} under test.
+   */
+  public enum CloningBehavior {
+    CLONE,
+    DO_NOT_CLONE;
+  }
+
+  /**
+   * Instruct this {@link DoFnTester} whether or not to clone the {@link DoFn} under test.
+   */
+  public void setCloningBehavior(CloningBehavior newValue) {
+    this.cloningBehavior = newValue;
+  }
+
+  /**
+   *  Indicates whether this {@link DoFnTester} will clone the {@link DoFn} under test.
+   */
+  public CloningBehavior getCloningBehavior() {
+    return cloningBehavior;
+  }
+
   /**
    * A convenience operation that first calls {@link #startBundle},
    * then calls {@link #processElement} on each of the input elements, then
@@ -434,6 +457,13 @@ public class DoFnTester<InputT, OutputT> {
   private Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs =
       new HashMap<>();
 
+  /**
+   * Whether to clone the original {@link DoFn} or just use it as-is.
+   *
+   * <p>Worker-side {@link DoFn DoFns} may not be serializable, and are not required to be.
+   */
+  private CloningBehavior cloningBehavior = CloningBehavior.CLONE;
+
   /** The output tags used by the DoFn under test. */
   TupleTag<OutputT> mainOutputTag = new TupleTag<>();
   List<TupleTag<?>> sideOutputTags = new ArrayList<>();
@@ -468,10 +498,15 @@ public class DoFnTester<InputT, OutputT> {
 
   @SuppressWarnings("unchecked")
   void initializeState() {
-    fn = (DoFn<InputT, OutputT>)
-        SerializableUtils.deserializeFromByteArray(
-            SerializableUtils.serializeToByteArray(origFn),
-            origFn.toString());
+    if (cloningBehavior.equals(CloningBehavior.DO_NOT_CLONE)) {
+      fn = origFn;
+    } else {
+      fn = (DoFn<InputT, OutputT>)
+          SerializableUtils.deserializeFromByteArray(
+              SerializableUtils.serializeToByteArray(origFn),
+              origFn.toString());
+    }
+
     counterSet = new CounterSet();
     PTuple runnerSideInputs = PTuple.empty();
     for (Map.Entry<PCollectionView<?>, Iterable<WindowedValue<?>>> entry
