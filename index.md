@@ -4,7 +4,7 @@ layout: default
 <div class="alert alert-info alert-dismissible" role="alert">
 <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
 <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-The Apache Beam project is in the process of bootstrapping. This includes the website -- so please file issues you find in <a href="/use/issue-tracking/">Jira</a>). Thanks!
+The Apache Beam project is in the process of bootstrapping. This includes the website -- so please file issues you find in <a href="/use/issue-tracking/">Jira</a>. Thanks!
 </div>
 
 # Apache Beam (incubating)
@@ -89,12 +89,11 @@ Interested in working with Apache Beam? Great! Here's how to get started:
   </div>
 </div>
 
-## Apache Incubation Disclaimer
+<hr>
 
-Apache Beam is an effort undergoing incubation at [The Apache Software Foundation (ASF)](http://www.apache.org) 
-sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review
-indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent 
-with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or
-stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
+<p style="text-align:center"><img align="center" src="https://incubator.apache.org/images/apache-incubator-logo.png" alt="Apache Incubator Logo"></p>
+
+Apache Beam is an effort undergoing incubation at [The Apache Software Foundation (ASF)](http://www.apache.org) sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
+
 
 Apache Beam (incubating) is available under [Apache License, version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
