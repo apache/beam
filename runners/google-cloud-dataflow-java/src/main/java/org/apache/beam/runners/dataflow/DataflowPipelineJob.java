@@ -113,7 +113,7 @@ public class DataflowPipelineJob implements PipelineResult {
    *
    * @param projectId the project id
    * @param jobId the job id
-   * @param dataflowOptions the client for the Dataflow Service
+   * @param dataflowOptions used to configure the client for the Dataflow Service
    * @param aggregatorTransforms a mapping from aggregators to PTransforms
    */
   public DataflowPipelineJob(
