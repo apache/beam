@@ -1,15 +1,16 @@
 package cz.seznam.euphoria.flink.translation;
 
+import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.translation.functions.PartitionerWrapper;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.Arrays;
@@ -68,10 +69,14 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     // unnecessary shuffle, but there is no (known) way how to set custom
     // partitioner to "keyBy" transformation
 
-    // apply custom partitioner
-    return tuples.partitionCustom(
-            new PartitionerWrapper<>(operator.getPartitioning().getPartitioner()),
-            p -> p.getKey());
+    // apply custom partitioner if different from default HashPartitioner
+    if (!(operator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
+      tuples = tuples.partitionCustom(
+              new PartitionerWrapper<>(operator.getPartitioning().getPartitioner()),
+              p -> p.getKey());
+    }
+
+    return tuples;
   }
 
   private static class TypedKeySelector<KEY>
