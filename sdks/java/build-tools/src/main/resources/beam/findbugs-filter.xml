@@ -30,11 +30,6 @@
           the issue.
         -->
   <Match>
-    <Class name="org.apache.beam.sdk.coders.Coder$NonDeterministicException"/>
-    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
-    <!--[BEAM-396] Class is not derived from an Exception, even though it is named as such-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
     <Method name="getContext"/>
     <Bug pattern="DC_DOUBLECHECK"/>
