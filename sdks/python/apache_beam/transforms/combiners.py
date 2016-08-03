@@ -427,6 +427,12 @@ class _TupleCombineFnBase(core.CombineFn):
 
 
 class TupleCombineFn(_TupleCombineFnBase):
+  """A combiner for combining tuples via a tuple of combiners.
+
+  Takes as input a tuple of N CombineFns and combines N-tuples by
+  combining the k-th element of each tuple with the k-th CombineFn,
+  outputting a new N-tuple of combined values.
+  """
 
   def add_input(self, accumulator, element):
     return [c.add_input(a, e)
@@ -437,6 +443,12 @@ class TupleCombineFn(_TupleCombineFnBase):
 
 
 class SingleInputTupleCombineFn(_TupleCombineFnBase):
+  """A combiner for combining a single value via a tuple of combiners.
+
+  Takes as input a tuple of N CombineFns and combines elements by
+  applying each CombineFn to each input, producing an N-tuple of
+  the outputs corresponding to each of the N CombineFn's outputs.
+  """
 
   def add_input(self, accumulator, element):
     return [c.add_input(a, element)
