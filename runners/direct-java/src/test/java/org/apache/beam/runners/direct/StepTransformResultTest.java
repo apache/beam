@@ -18,6 +18,15 @@
 
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -27,13 +36,50 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class StepTransformResultTest {
+  private AppliedPTransform<?, ?, ?> transform;
+  private BundleFactory bundleFactory;
+  private PCollection<Integer> pc;
+
+  @Before
+  public void setup() {
+    TestPipeline p = TestPipeline.create();
+    pc = p.apply(Create.of(1, 2, 3));
+    transform = pc.getProducingTransformInternal();
+
+    bundleFactory = ImmutableListBundleFactory.create();
+  }
+
   @Test
   public void producedBundlesProducedOutputs() {
+    TransformResult result = StepTransformResult.withoutHold(transform)
+        .addOutput(bundleFactory.createRootBundle(pc))
+        .build();
 
+    assertThat(result.producedOutput(), is(true));
   }
 
   @Test
   public void withAdditionalOutputProducedOutputs() {
+    TransformResult result =
+        StepTransformResult.withoutHold(transform).withAdditionalOutput(true).build();
 
+    assertThat(result.producedOutput(), is(true));
+  }
+
+  @Test
+  public void producedBundlesAndAdditionalOutputProducedOutputs() {
+    TransformResult result = StepTransformResult.withoutHold(transform)
+        .addOutput(bundleFactory.createRootBundle(pc))
+        .withAdditionalOutput(true)
+        .build();
+
+    assertThat(result.producedOutput(), is(true));
+  }
+
+  @Test
+  public void noBundlesNoAdditionalOutputProducedOutputsFalse() {
+    TransformResult result = StepTransformResult.withoutHold(transform).build();
+
+    assertThat(result.producedOutput(), is(false));
   }
 }

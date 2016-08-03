@@ -23,12 +23,16 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
+import org.apache.beam.sdk.values.PCollectionView;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
+
 import java.util.Collection;
+
 import javax.annotation.Nullable;
 
 /**
@@ -61,10 +65,16 @@ public abstract class StepTransformResult implements TransformResult {
 
   @Override
   public boolean producedOutput() {
-    return !Iterables.isEmpty(getOutputBundles()) || isProducedAdditionalOutput();
+    return !Iterables.isEmpty(getOutputBundles()) || producedAdditionalOutput();
   }
 
-  abstract boolean isProducedAdditionalOutput();
+  /**
+   * Returns {@code true} if the step produced output that is not reflected in the Output Bundles.
+   *
+   * <p>If a step modifies the contents of a {@link PCollectionView}, this should return {@code
+   * true}.
+   */
+  abstract boolean producedAdditionalOutput();
 
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
