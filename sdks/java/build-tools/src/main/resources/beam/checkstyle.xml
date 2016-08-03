@@ -316,6 +316,11 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <!-- Checks for over-complicated boolean expressions. -->
+    <module name="SimplifyBooleanExpression"/>
+
+    <!-- Detects empty statements (standalone ";" semicolon). -->
+    <module name="EmptyStatement"/>
 
     <!--
 

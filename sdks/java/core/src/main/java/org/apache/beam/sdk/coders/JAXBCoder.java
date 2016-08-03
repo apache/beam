@@ -110,7 +110,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     }
   }
 
-  private final JAXBContext getContext() throws JAXBException {
+  private JAXBContext getContext() throws JAXBException {
     if (jaxbContext == null) {
       synchronized (this) {
         if (jaxbContext == null) {

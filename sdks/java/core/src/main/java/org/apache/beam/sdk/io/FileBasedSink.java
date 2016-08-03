@@ -207,7 +207,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     public enum TemporaryFileRetention {
       KEEP,
-      REMOVE;
+      REMOVE
     }
 
     /**

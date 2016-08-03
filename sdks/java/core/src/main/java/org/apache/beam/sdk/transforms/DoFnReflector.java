@@ -104,7 +104,7 @@ public abstract class DoFnReflector {
     /** Indicates parameters only available in {@code @ProcessElement} methods. */
     PROCESS_ELEMENT_ONLY,
     /** Indicates parameters available in all methods. */
-    EVERYWHERE;
+    EVERYWHERE
   }
 
   /**
@@ -445,7 +445,7 @@ public abstract class DoFnReflector {
           anno, fnClazz, DoFn.class);
 
       if (matches.size() == 0) {
-        if (required == true) {
+        if (required) {
           throw new IllegalStateException(String.format(
               "No method annotated with @%s found in %s",
               anno.getSimpleName(), fnClazz.getName()));
