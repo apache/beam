@@ -49,15 +49,13 @@ public final class SparkRunnerRegistrar {
   }
 
   /**
-   * Registers the {@link SparkPipelineOptions} and {@link SparkStreamingPipelineOptions}.
+   * Registers the {@link SparkPipelineOptions}.
    */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(
-          SparkPipelineOptions.class,
-          SparkStreamingPipelineOptions.class);
+      return ImmutableList.<Class<? extends PipelineOptions>>of(SparkPipelineOptions.class);
     }
   }
 }
