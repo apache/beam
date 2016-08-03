@@ -90,6 +90,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
  private final AtomicReference<ExecutorState> state =
       new AtomicReference<>(ExecutorState.QUIESCENT);
+
+  /**
+   * Measures the amount of {@link TransformExecutor TransformExecutors} that have been scheduled
+   * but not yet completed.
+   *
+   * <p>Before a {@link TransformExecutor} is scheduled, this value is incremented. All methods in
+   * {@link CompletionCallback} decrement this value.
+   */
   private final AtomicLong outstandingWork = new AtomicLong();
 
   public static ExecutorServiceParallelExecutor create(
@@ -347,10 +355,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         boolean noWorkOutstanding = outstandingWork.get() == 0L;
         ExecutorState startingState = state.get();
         if (startingState == ExecutorState.ACTIVE) {
-          state.compareAndSet(ExecutorState.ACTIVE, ExecutorState.DRAINING);
-        } else if (startingState == ExecutorState.DRAINING && noWorkOutstanding) {
-          state.compareAndSet(ExecutorState.DRAINING, ExecutorState.QUIESCING);
+          // The remainder of this call will add all available work to the Executor, and there will
+          // be no new work available
+          state.compareAndSet(ExecutorState.ACTIVE, ExecutorState.PROCESSING);
+        } else if (startingState == ExecutorState.PROCESSING && noWorkOutstanding) {
+          // The executor has consumed all new work and no new work was added
+          state.compareAndSet(ExecutorState.PROCESSING, ExecutorState.QUIESCING);
         } else if (startingState == ExecutorState.QUIESCING && noWorkOutstanding) {
+          // The executor re-ran all blocked work and nothing could make progress.
           state.compareAndSet(ExecutorState.QUIESCING, ExecutorState.QUIESCENT);
         }
         fireTimers();
@@ -365,8 +377,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         for (ExecutorUpdate update : updates) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
-            if (ExecutorState.ACTIVE == startingState
-                || (ExecutorState.DRAINING == startingState && noWorkOutstanding)) {
+            if (ExecutorState.ACTIVE == startingState || (ExecutorState.PROCESSING == startingState
+                && noWorkOutstanding)) {
               scheduleConsumers(update);
             } else {
               allUpdates.offer(update);
@@ -487,7 +499,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
      * <p>If all outstanding work completes without the executor becoming {@code ACTIVE}, the
      * Executor enters state {@code QUIESCING}. Pending work must be reevaluated.
      */
-    DRAINING,
+    PROCESSING,
     /**
      * The Executor had no new work and no outstanding work. All outstanding work is work that
      * may be blocked on a side input. When there is no outstanding work, the executor becomes
