@@ -18,14 +18,19 @@
 
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,35 +56,36 @@ public class StepTransformResultTest {
 
   @Test
   public void producedBundlesProducedOutputs() {
-    TransformResult result = StepTransformResult.withoutHold(transform)
-        .addOutput(bundleFactory.createRootBundle(pc))
+    UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle(pc);
+    TransformResult result = StepTransformResult.withoutHold(transform).addOutput(bundle)
         .build();
 
-    assertThat(result.producedOutput(), is(true));
+    assertThat(result.getOutputBundles(), Matchers.<UncommittedBundle>containsInAnyOrder(bundle));
   }
 
   @Test
   public void withAdditionalOutputProducedOutputs() {
-    TransformResult result =
-        StepTransformResult.withoutHold(transform).withAdditionalOutput(true).build();
+    TransformResult result = StepTransformResult.withoutHold(transform)
+        .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
+        .build();
 
-    assertThat(result.producedOutput(), is(true));
+    assertThat(result.getOutputTypes(), containsInAnyOrder(OutputType.PCOLLECTION_VIEW));
   }
 
   @Test
   public void producedBundlesAndAdditionalOutputProducedOutputs() {
     TransformResult result = StepTransformResult.withoutHold(transform)
         .addOutput(bundleFactory.createRootBundle(pc))
-        .withAdditionalOutput(true)
+        .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
         .build();
 
-    assertThat(result.producedOutput(), is(true));
+    assertThat(result.getOutputTypes(), hasItem(OutputType.PCOLLECTION_VIEW));
   }
 
   @Test
   public void noBundlesNoAdditionalOutputProducedOutputsFalse() {
     TransformResult result = StepTransformResult.withoutHold(transform).build();
 
-    assertThat(result.producedOutput(), is(false));
+    assertThat(result.getOutputTypes(), emptyIterable());
   }
 }

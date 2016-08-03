@@ -92,7 +92,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       new AtomicReference<>(ExecutorState.QUIESCENT);
 
   /**
-   * Measures the amount of {@link TransformExecutor TransformExecutors} that have been scheduled
+   * Measures the number of {@link TransformExecutor TransformExecutors} that have been scheduled
    * but not yet completed.
    *
    * <p>Before a {@link TransformExecutor} is scheduled, this value is incremented. All methods in
@@ -256,7 +256,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         allUpdates.offer(ExecutorUpdate.fromBundle(unprocessedInputs,
             Collections.<AppliedPTransform<?, ?, ?>>singleton(committedResult.getTransform())));
       }
-      if (committedResult.producedOutputs()) {
+      if (!committedResult.getProducedOutputTypes().isEmpty()) {
         state.set(ExecutorState.ACTIVE);
       }
       outstandingWork.decrementAndGet();
@@ -264,7 +264,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     @Override
-    public void handleEmpty(AppliedPTransform<?, ?, ?> transform, CommittedBundle<?> inputBundle) {
+    public void handleEmpty(AppliedPTransform<?, ?, ?> transform) {
       outstandingWork.decrementAndGet();
     }
 
@@ -485,25 +485,25 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    */
   private enum ExecutorState {
     /**
-     * The Executor has new work available to it. All pending, including potentially blocked work,
-     * should be evaluated.
+     * Output has been produced since the last time the monitor ran. Work exists that has not yet
+     * been evaluated, and all pending, including potentially blocked work, should be evaluated.
      *
      * <p>The executor becomes active whenever a timer fires, a {@link PCollectionView} is updated,
      * or output is produced by the evaluation of a {@link TransformExecutor}.
      */
     ACTIVE,
     /**
-     * The Executor does not have any new work available to it, but work is in progress. New work
-     * should not be added until the Executor becomes active or no work is pending.
+     * The Executor does not have any unevaluated work available to it, but work is in progress.
+     * Work should not be added until the Executor becomes active or no work is outstanding.
      *
      * <p>If all outstanding work completes without the executor becoming {@code ACTIVE}, the
-     * Executor enters state {@code QUIESCING}. Pending work must be reevaluated.
+     * Executor enters state {@code QUIESCING}. Previously evaluated work must be reevaluated, in
+     * case a side input has made progress.
      */
     PROCESSING,
     /**
-     * The Executor had no new work and no outstanding work. All outstanding work is work that
-     * may be blocked on a side input. When there is no outstanding work, the executor becomes
-     * {@code QUIESCENT}.
+     * All outstanding work is work that may be blocked on a side input. When there is no
+     * outstanding work, the executor becomes {@code QUIESCENT}.
      */
     QUIESCING,
     /**

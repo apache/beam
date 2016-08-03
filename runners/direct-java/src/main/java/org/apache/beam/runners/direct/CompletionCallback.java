@@ -32,8 +32,10 @@ interface CompletionCallback {
 
   /**
    * Handle an input bundle that did not require processing.
+   *
+   * <p>This occurs when a Source has no splits that can currently produce outputs.
    */
-  void handleEmpty(AppliedPTransform<?, ?, ?> transform, CommittedBundle<?> inputBundle);
+  void handleEmpty(AppliedPTransform<?, ?, ?> transform);
 
   /**
    * Handle a result that terminated abnormally due to the provided {@link Throwable}.

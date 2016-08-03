@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,6 +56,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -512,12 +514,14 @@ public class TransformExecutorTest {
 
       CommittedBundle<?> unprocessedBundle =
           inputBundle == null ? null : inputBundle.withElements(unprocessedElements);
-      return CommittedResult.create(
-          result, unprocessedBundle, Collections.<CommittedBundle<?>>emptyList(), false);
+      return CommittedResult.create(result,
+          unprocessedBundle,
+          Collections.<CommittedBundle<?>>emptyList(),
+          EnumSet.noneOf(OutputType.class));
     }
 
     @Override
-    public void handleEmpty(AppliedPTransform<?, ?, ?> transform, CommittedBundle<?> inputBundle) {
+    public void handleEmpty(AppliedPTransform<?, ?, ?> transform) {
       handledEmpty = true;
       onMethod.countDown();
     }

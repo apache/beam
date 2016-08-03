@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
@@ -48,6 +49,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -155,12 +157,18 @@ class EvaluationContext {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
+    EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());
+    if (Iterables.isEmpty(committedBundles)) {
+      outputTypes.remove(OutputType.BUNDLE);
+    } else {
+      outputTypes.add(OutputType.BUNDLE);
+    }
     CommittedResult committedResult = CommittedResult.create(result,
         completedBundle == null
             ? null
             : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
         committedBundles,
-        result.producedOutput());
+        outputTypes);
     watermarkManager.updateWatermarks(
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
