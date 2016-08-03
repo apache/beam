@@ -196,14 +196,14 @@ public class AvroSourceTest {
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     try (BoundedSource.BoundedReader<FixedRecord> reader = source.createReader(null)) {
-      assertEquals(new Double(0.0), reader.getFractionConsumed());
+      assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
     }
 
     List<? extends BoundedSource<FixedRecord>> splits =
         source.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
-        assertEquals(new Double(0.0), reader.getFractionConsumed());
+        assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
       }
     }
   }

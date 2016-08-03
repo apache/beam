@@ -109,7 +109,6 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> gabwDoFn =
           GroupAlsoByWindowViaWindowSetDoFn.create(
               windowingStrategy,
-              // new DirectStateInternalsFactory<K, V>(stepContext),
               new ConstantStateInternalsFactory<K>(stateInternals),
               SystemReduceFn.<K, V, BoundedWindow>buffering(valueCoder));
 
