@@ -261,7 +261,7 @@ public class CombineFns {
   public static class CoCombineResult implements Serializable {
 
     private enum NullValue {
-      INSTANCE;
+      INSTANCE
     }
 
     private final Map<TupleTag<?>, Object> valuesMap;

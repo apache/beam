@@ -1059,7 +1059,7 @@ public class KafkaIO {
         try {
           offsetConsumer.seekToEnd(p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
-          p.setLatestOffset(offset);;
+          p.setLatestOffset(offset);
         } catch (Exception e) {
           LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
           p.setLatestOffset(-1L); // reset

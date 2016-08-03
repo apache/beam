@@ -104,7 +104,7 @@ public abstract class DoFnReflector {
     /** Indicates parameters only available in {@code @ProcessElement} methods. */
     PROCESS_ELEMENT_ONLY,
     /** Indicates parameters available in all methods. */
-    EVERYWHERE;
+    EVERYWHERE
   }
 
   /**
