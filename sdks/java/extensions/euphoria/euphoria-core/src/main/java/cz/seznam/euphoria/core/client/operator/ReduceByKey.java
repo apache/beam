@@ -399,11 +399,17 @@ public class ReduceByKey<
     return this.grouped;
   }
 
+  /**
+   * @return {@code TRUE} when combinable reduce function provided
+   */
+  public boolean isCombinable() {
+    return reducer instanceof CombinableReduceFunction;
+  }
+
   // state represents the output value
   private class ReduceState extends State<VALUE, OUT> {
 
     final List<VALUE> reducableValues = new ArrayList<>();
-    final boolean isCombinable = reducer instanceof CombinableReduceFunction;
 
     ReduceState(Collector<OUT> collector) {
       super(collector);
@@ -429,7 +435,7 @@ public class ReduceByKey<
 
     @SuppressWarnings("unchecked")
     private void combineIfPossible() {
-      if (isCombinable && reducableValues.size() > 1) {
+      if (isCombinable() && reducableValues.size() > 1) {
         OUT val = reducer.apply(reducableValues);
         reducableValues.clear();
         reducableValues.add((VALUE) val);

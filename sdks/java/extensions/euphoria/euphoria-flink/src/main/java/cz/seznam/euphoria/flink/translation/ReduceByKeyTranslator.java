@@ -53,6 +53,11 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     // FIXME reduce without implemented windowing will emit accumulated
     // value per each input element
 
+    // FIXME non-combinable reduce function not supported without windowing
+    if (!operator.isCombinable()) {
+      throw new UnsupportedOperationException("Non-combinable reduce not supported yet");
+    }
+
     // group by key + reduce
     tuples = tuples.keyBy(new TypedKeySelector())
             .reduce(new TypedReducer<>(reducer))
