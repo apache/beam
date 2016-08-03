@@ -97,6 +97,6 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],
-    license='Apache License, 2.0',
+    license='Apache License, Version 2.0',
     keywords=PACKAGE_KEYWORDS,
     )
