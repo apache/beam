@@ -25,7 +25,7 @@ import org.apache.beam.sdk.util.ExecutionContext;
  * to be combined across all bundles.
  *
  * <p>Aggregators are created by calling
- * {@link DoFn#createAggregator DoFn.createAggregatorForDoFn},
+ * {@link DoFn#createAggregator DoFn.createAggregator},
  * typically from the {@link DoFn} constructor. Elements can be added to the
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
@@ -41,7 +41,7 @@ import org.apache.beam.sdk.util.ExecutionContext;
  *   private Aggregator<Integer, Integer> myAggregator;
  *
  *   public MyDoFn() {
- *     myAggregator = createAggregatorForDoFn("myAggregator", new Sum.SumIntegerFn());
+ *     myAggregator = createAggregator("myAggregator", new Sum.SumIntegerFn());
  *   }
  *
  *   @ProcessElement
@@ -89,9 +89,9 @@ public interface Aggregator<InputT, OutputT> {
   }
 
   // TODO: Consider the following additional API conveniences:
-  // - In addition to createAggregatorForDoFn(), consider adding getAggregator() to
+  // - In addition to createAggregator(), consider adding getAggregator() to
   //   avoid the need to store the aggregator locally in a DoFn, i.e., create
   //   if not already present.
   // - Add a shortcut for the most common aggregator:
-  //   c.createAggregatorForDoFn("name", new Sum.SumIntegerFn()).
+  //   c.createAggregator("name", new Sum.SumIntegerFn()).
 }
