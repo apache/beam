@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
-  private static final Map<ListDataSink, List> storage =
+  private static final Map<ListDataSink/*<T>*/, List/*<List<T>>*/> storage =
           Collections.synchronizedMap(new WeakHashMap<>());
 
   public static <T> ListDataSink<T> get(int numPartitions) {
@@ -51,7 +51,7 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
 
-  private final long sinkId = System.identityHashCode(this);
+  private final int sinkId = System.identityHashCode(this);
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
   private ListDataSink(int numPartitions) {
@@ -93,9 +93,11 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
   public List<List<T>> getUncommittedOutputs() {
-    return writers.stream()
-        .map(w -> w.output)
-        .collect(Collectors.toList());
+    synchronized (writers) {
+      return writers.stream()
+              .map(w -> w.output)
+              .collect(Collectors.toList());
+    }
   }
 
   @Override
@@ -110,6 +112,6 @@ public class ListDataSink<T> implements DataSink<T> {
 
   @Override
   public int hashCode() {
-    return (int) (sinkId ^ (sinkId >>> 32));
+    return sinkId;
   }
 }
