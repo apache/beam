@@ -78,6 +78,8 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <parallel>all</parallel>
+              <threadCount>4</threadCount>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
