@@ -114,31 +114,17 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>beam-exec-java</id>
-            <!-- ugly trick to actually get skipped exec:java goal here -->
-            <phase>dont-execute</phase>
-          </execution>
-          <execution>
-            <id>beam-runners-flink_2.10-examples-exec</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <configuration>
-              <executable>java</executable>
-              <arguments>
-                <argument>-classpath</argument>
-                <classpath />
-                <argument>${clazz}</argument>
-                <argument>--input=${input}</argument>
-                <argument>--output=${output}</argument>
-                <argument>--parallelism=${parallelism}</argument>
-              </arguments>
-            </configuration>
-          </execution>
-        </executions>
+        <configuration>
+          <executable>java</executable>
+          <arguments>
+            <argument>-classpath</argument>
+            <classpath />
+            <argument>${clazz}</argument>
+            <argument>--input=${input}</argument>
+            <argument>--output=${output}</argument>
+            <argument>--parallelism=${parallelism}</argument>
+          </arguments>
+        </configuration>
       </plugin>
 
     </plugins>
