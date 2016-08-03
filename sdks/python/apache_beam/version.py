@@ -21,7 +21,7 @@
 import re
 
 
-__version__ = '0.2.0-incubating.dev'  # TODO: PEP 440 and incubating suffix
+__version__ = '0.3.0-incubating.dev'  # TODO: PEP 440 and incubating suffix
 
 
 # The following utilities are legacy code from the Maven integration;
