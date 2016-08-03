@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.io;
 
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

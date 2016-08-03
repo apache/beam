@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.flink.translation.io;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
