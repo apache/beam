@@ -392,16 +392,14 @@ public class AutoComplete {
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
-    private Key ancestorKey;
-
     public FormatForDatastore(String kind) {
       this.kind = kind;
-      this.ancestorKey = makeKey(kind, "root").build();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
+      Key ancestorKey = makeKey(kind, "root").build();
       Key key = DatastoreHelper.makeKey(ancestorKey, kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
