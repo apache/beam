@@ -250,7 +250,7 @@ public class Pipeline {
      */
     public enum CompositeBehavior {
       ENTER_TRANSFORM,
-      DO_NOT_ENTER_TRANSFORM;
+      DO_NOT_ENTER_TRANSFORM
     }
 
     /**

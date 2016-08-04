@@ -926,7 +926,6 @@ public class BigQueryIO {
       if (parseStatus(job) != Status.SUCCEEDED) {
         throw new IOException("Query job failed: " + jobId);
       }
-      return;
     }
 
     private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {

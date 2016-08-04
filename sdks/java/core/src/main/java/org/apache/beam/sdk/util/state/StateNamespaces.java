@@ -36,7 +36,7 @@ public class StateNamespaces {
   private enum Namespace {
     GLOBAL,
     WINDOW,
-    WINDOW_AND_TRIGGER;
+    WINDOW_AND_TRIGGER
   }
 
   public static StateNamespace global() {

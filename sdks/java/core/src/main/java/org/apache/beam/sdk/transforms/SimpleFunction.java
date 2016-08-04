@@ -22,7 +22,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link SerializableFunction} which is not a <i>functional interface</i>.
  * Concrete subclasses allow us to infer type information, which in turn aids
- * {@link Coder} inference.
+ * {@link org.apache.beam.sdk.coders.Coder Coder} inference.
  */
 public abstract class SimpleFunction<InputT, OutputT>
     implements SerializableFunction<InputT, OutputT> {

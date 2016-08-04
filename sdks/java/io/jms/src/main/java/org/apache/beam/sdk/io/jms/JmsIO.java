@@ -474,9 +474,7 @@ public class JmsIO {
         if (producer == null) {
           this.connection = connectionFactory.createConnection();
           this.connection.start();
-          /**
-           * false means we don't use JMS transaction.
-           */
+          // false means we don't use JMS transaction.
           this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
           Destination destination;
           if (queue != null) {

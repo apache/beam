@@ -920,7 +920,7 @@ public class PipelineOptionsFactory {
           mismatch.setterPropertyType.getName()));
     } else if (mismatches.size() > 1) {
       StringBuilder builder = new StringBuilder(
-          String.format("Type mismatches between getters and setters detected:"));
+          "Type mismatches between getters and setters detected:");
       for (TypeMismatch mismatch : mismatches) {
         builder.append(String.format(
             "%n  - Property [%s]: Getter is of type [%s] whereas setter is of type [%s].",
