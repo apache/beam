@@ -18,41 +18,42 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.ProcessContext;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * An wrapper interface that represents the execution of a {@link DoFn}.
+ * An wrapper interface that represents the execution of a {@link OldDoFn}.
  */
 public interface DoFnRunner<InputT, OutputT> {
   /**
-   * Prepares and calls {@link DoFn#startBundle}.
+   * Prepares and calls {@link OldDoFn#startBundle}.
    */
   public void startBundle();
 
   /**
-   * Calls {@link DoFn#processElement} with a {@link ProcessContext} containing the current element.
+   * Calls {@link OldDoFn#processElement} with a {@link ProcessContext} containing the current
+   * element.
    */
   public void processElement(WindowedValue<InputT> elem);
 
   /**
-   * Calls {@link DoFn#finishBundle} and performs additional tasks, such as
+   * Calls {@link OldDoFn#finishBundle} and performs additional tasks, such as
    * flushing in-memory states.
    */
   public void finishBundle();
 
   /**
-   * An internal interface for signaling that a {@link DoFn} requires late data dropping.
+   * An internal interface for signaling that a {@link OldDoFn} requires late data dropping.
    */
   public interface ReduceFnExecutor<K, InputT, OutputT, W> {
     /**
-     * Gets this object as a {@link DoFn}.
+     * Gets this object as a {@link OldDoFn}.
      *
-     * Most implementors of this interface are expected to be {@link DoFn} instances, and will
+     * Most implementors of this interface are expected to be {@link OldDoFn} instances, and will
      * return themselves.
      */
-    DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();
+    OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();
 
     /**
      * Returns an aggregator that tracks elements that are dropped due to being late.

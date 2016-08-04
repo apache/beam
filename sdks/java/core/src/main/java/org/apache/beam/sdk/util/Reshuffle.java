@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -70,7 +70,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // set allowed lateness.
         .setWindowingStrategyInternal(originalStrategy)
         .apply("ExpandIterable", ParDo.of(
-            new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
+            new OldDoFn<KV<K, Iterable<V>>, KV<K, V>>() {
               @Override
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();

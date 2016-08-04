@@ -25,7 +25,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -46,7 +46,7 @@ public class DoFnOutputTest implements Serializable {
     PCollection<String> strings = pipeline.apply(Create.of("a"));
     // Test that values written from startBundle() and finishBundle() are written to
     // the output
-    PCollection<String> output = strings.apply(ParDo.of(new DoFn<String, String>() {
+    PCollection<String> output = strings.apply(ParDo.of(new OldDoFn<String, String>() {
       @Override
       public void startBundle(Context c) throws Exception {
         c.output("start");

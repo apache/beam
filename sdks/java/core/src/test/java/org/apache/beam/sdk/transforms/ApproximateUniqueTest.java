@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -53,7 +54,7 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class ApproximateUniqueTest implements Serializable {
-  // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
+  // implements Serializable just to make it easy to use anonymous inner OldDoFn subclasses
 
   @Test
   public void testEstimationErrorToSampleSize() {
@@ -222,7 +223,7 @@ public class ApproximateUniqueTest implements Serializable {
             .apply(View.<Long>asSingleton());
 
     PCollection<KV<Long, Long>> approximateAndExact = approximate
-        .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
+        .apply(ParDo.of(new OldDoFn<Long, KV<Long, Long>>() {
               @Override
               public void processElement(ProcessContext c) {
                 c.output(KV.of(c.element(), c.sideInput(exact)));

@@ -38,7 +38,7 @@ import java.util.Map;
  *
  * <p>When a {@link ParDo} tranform is processing a main input
  * element in a window {@code w} and a {@link PCollectionView} is read via
- * {@link DoFn.ProcessContext#sideInput}, the value of the view for {@code w} is
+ * {@link OldDoFn.ProcessContext#sideInput}, the value of the view for {@code w} is
  * returned.
  *
  * <p>The SDK supports viewing a {@link PCollection}, per window, as a single value,
@@ -118,7 +118,7 @@ import java.util.Map;
  *
  * PCollection PageVisits = urlVisits
  *     .apply(ParDo.withSideInputs(urlToPage)
- *         .of(new DoFn<UrlVisit, PageVisit>() {
+ *         .of(new OldDoFn<UrlVisit, PageVisit>() {
  *             {@literal @}Override
  *             void processElement(ProcessContext context) {
  *               UrlVisit urlVisit = context.element();
@@ -154,11 +154,11 @@ public class View {
    *
    * <p>If the input {@link PCollection} is empty,
    * throws {@link java.util.NoSuchElementException} in the consuming
-   * {@link DoFn}.
+   * {@link OldDoFn}.
    *
    * <p>If the input {@link PCollection} contains more than one
    * element, throws {@link IllegalArgumentException} in the
-   * consuming {@link DoFn}.
+   * consuming {@link OldDoFn}.
    */
   public static <T> AsSingleton<T> asSingleton() {
     return new AsSingleton<>();

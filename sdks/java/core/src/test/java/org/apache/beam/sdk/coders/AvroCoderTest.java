@@ -31,7 +31,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -134,7 +134,7 @@ public class AvroCoderTest {
     }
   }
 
-  private static class GetTextFn extends DoFn<Pojo, String> {
+  private static class GetTextFn extends OldDoFn<Pojo, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().text);

@@ -24,8 +24,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Mean;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -98,7 +98,7 @@ public class FilterExamples {
    * Examines each row in the input table. Outputs only the subset of the cells this example
    * is interested in-- the mean_temp and year, month, and day-- as a bigquery table row.
    */
-  static class ProjectionFn extends DoFn<TableRow, TableRow> {
+  static class ProjectionFn extends OldDoFn<TableRow, TableRow> {
     @Override
     public void processElement(ProcessContext c){
       TableRow row = c.element();
@@ -119,9 +119,9 @@ public class FilterExamples {
    * Implements 'filter' functionality.
    *
    * <p>Examines each row in the input table. Outputs only rows from the month
-   * monthFilter, which is passed in as a parameter during construction of this DoFn.
+   * monthFilter, which is passed in as a parameter during construction of this OldDoFn.
    */
-  static class FilterSingleMonthDataFn extends DoFn<TableRow, TableRow> {
+  static class FilterSingleMonthDataFn extends OldDoFn<TableRow, TableRow> {
     Integer monthFilter;
 
     public FilterSingleMonthDataFn(Integer monthFilter) {
@@ -143,7 +143,7 @@ public class FilterExamples {
    * Examines each row (weather reading) in the input table. Output the temperature
    * reading for that row ('mean_temp').
    */
-  static class ExtractTempFn extends DoFn<TableRow, Double> {
+  static class ExtractTempFn extends OldDoFn<TableRow, Double> {
     @Override
     public void processElement(ProcessContext c){
       TableRow row = c.element();
@@ -191,7 +191,7 @@ public class FilterExamples {
       PCollection<TableRow> filteredRows = monthFilteredRows
           .apply("ParseAndFilter", ParDo
               .withSideInputs(globalMeanTemp)
-              .of(new DoFn<TableRow, TableRow>() {
+              .of(new OldDoFn<TableRow, TableRow>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   Double meanTemp = Double.parseDouble(c.element().get("mean_temp").toString());

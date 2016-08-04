@@ -47,9 +47,9 @@ public class WithTimestampsJava8Test implements Serializable {
          .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(yearTwoThousand))));
 
     PCollection<KV<String, Instant>> timestampedVals =
-        timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
+        timestamped.apply(ParDo.of(new OldDoFn<String, KV<String, Instant>>() {
           @Override
-          public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
+          public void processElement(OldDoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));
           }

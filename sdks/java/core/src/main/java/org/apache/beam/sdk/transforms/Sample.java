@@ -164,9 +164,9 @@ public class Sample {
   }
 
   /**
-   * A {@link DoFn} that returns up to limit elements from the side input PCollection.
+   * A {@link OldDoFn} that returns up to limit elements from the side input PCollection.
    */
-  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
+  private static class SampleAnyDoFn<T> extends OldDoFn<Void, T> {
     long limit;
     final PCollectionView<Iterable<T>> iterableView;
 

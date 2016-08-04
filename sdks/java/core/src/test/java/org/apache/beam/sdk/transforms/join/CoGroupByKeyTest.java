@@ -29,9 +29,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -85,8 +85,8 @@ public class CoGroupByKeyTest implements Serializable {
           .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     }
     return input
-            .apply("Identity" + name, ParDo.of(new DoFn<KV<Integer, String>,
-                                     KV<Integer, String>>() {
+            .apply("Identity" + name, ParDo.of(new OldDoFn<KV<Integer, String>,
+                                                 KV<Integer, String>>() {
               @Override
               public void processElement(ProcessContext c) {
                 c.output(c.element());
@@ -313,11 +313,11 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * A DoFn used in testCoGroupByKeyWithWindowing(), to test processing the
+   * A OldDoFn used in testCoGroupByKeyWithWindowing(), to test processing the
    * results of a CoGroupByKey.
    */
   private static class ClickOfPurchaseFn extends
-      DoFn<KV<Integer, CoGbkResult>, KV<String, String>> implements RequiresWindowAccess {
+      OldDoFn<KV<Integer, CoGbkResult>, KV<String, String>> implements RequiresWindowAccess {
     private final TupleTag<String> clicksTag;
 
     private final TupleTag<String> purchasesTag;
@@ -347,11 +347,11 @@ public class CoGroupByKeyTest implements Serializable {
 
 
   /**
-   * A DoFn used in testCoGroupByKeyHandleResults(), to test processing the
+   * A OldDoFn used in testCoGroupByKeyHandleResults(), to test processing the
    * results of a CoGroupByKey.
    */
   private static class CorrelatePurchaseCountForAddressesWithoutNamesFn extends
-      DoFn<KV<Integer, CoGbkResult>, KV<String, Integer>> {
+      OldDoFn<KV<Integer, CoGbkResult>, KV<String, Integer>> {
     private final TupleTag<String> purchasesTag;
 
     private final TupleTag<String> addressesTag;
@@ -401,7 +401,7 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Tests that the consuming DoFn
+   * Tests that the consuming OldDoFn
    * (CorrelatePurchaseCountForAddressesWithoutNamesFn) performs as expected.
    */
   @SuppressWarnings("unchecked")

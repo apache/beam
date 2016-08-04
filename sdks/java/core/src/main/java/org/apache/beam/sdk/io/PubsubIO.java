@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -709,7 +709,7 @@ public class PubsubIO {
        *
        * <p>Public so can be suppressed by runners.
        */
-      public class PubsubBoundedReader extends DoFn<Void, T> {
+      public class PubsubBoundedReader extends OldDoFn<Void, T> {
         private static final int DEFAULT_PULL_SIZE = 100;
         private static final int ACK_TIMEOUT_SEC = 60;
 
@@ -998,7 +998,7 @@ public class PubsubIO {
        *
        * <p>Public so can be suppressed by runners.
        */
-      public class PubsubBoundedWriter extends DoFn<T, Void> {
+      public class PubsubBoundedWriter extends OldDoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<OutgoingMessage> output;
         private transient PubsubClient pubsubClient;

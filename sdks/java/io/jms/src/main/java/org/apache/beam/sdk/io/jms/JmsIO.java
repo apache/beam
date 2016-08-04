@@ -28,7 +28,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -453,7 +453,7 @@ public class JmsIO {
       checkArgument((queue != null || topic != null), "Either queue or topic is required");
     }
 
-    private static class JmsWriter extends DoFn<String, Void> {
+    private static class JmsWriter extends OldDoFn<String, Void> {
 
       private ConnectionFactory connectionFactory;
       private String queue;

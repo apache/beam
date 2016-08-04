@@ -32,8 +32,8 @@ import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -315,7 +315,7 @@ public final class StreamingTransformTranslator {
           sec.setStream(transform, dStream.window(windowDuration, slideDuration));
         }
         //--- then we apply windowing to the elements
-        DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
+        OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
         DoFnFunction<T, T> dofn = new DoFnFunction<>(addWindowsDoFn,
             ((StreamingEvaluationContext) context).getRuntimeContext(), null);
         @SuppressWarnings("unchecked")

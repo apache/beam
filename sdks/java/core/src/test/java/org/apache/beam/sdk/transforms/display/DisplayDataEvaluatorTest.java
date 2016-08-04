@@ -24,7 +24,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -50,7 +50,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
         new PTransform<PCollection<String>, POutput> () {
           @Override
           public PCollection<String> apply(PCollection<String> input) {
-            return input.apply(ParDo.of(new DoFn<String, String>() {
+            return input.apply(ParDo.of(new OldDoFn<String, String>() {
               @Override
               public void processElement(ProcessContext c) throws Exception {
                 c.output(c.element());
@@ -79,7 +79,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
   @Test
   public void testPrimitiveTransform() {
     PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform = ParDo.of(
-        new DoFn<Integer, Integer>() {
+        new OldDoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {}
 

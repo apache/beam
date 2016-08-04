@@ -30,7 +30,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -145,12 +145,12 @@ public class TrafficMaxLaneFlow {
   /**
    * Extract the timestamp field from the input string, and use it as the element timestamp.
    */
-  static class ExtractTimestamps extends DoFn<String, String> {
+  static class ExtractTimestamps extends OldDoFn<String, String> {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
     @Override
-    public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {
       String[] items = c.element().split(",");
       if (items.length > 0) {
         try {
@@ -170,7 +170,7 @@ public class TrafficMaxLaneFlow {
    * information. The number of lanes for which data is present depends upon which freeway the data
    * point comes from.
    */
-  static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
+  static class ExtractFlowInfoFn extends OldDoFn<String, KV<String, LaneInfo>> {
 
     @Override
     public void processElement(ProcessContext c) {
@@ -226,7 +226,7 @@ public class TrafficMaxLaneFlow {
    * Format the results of the Max Lane flow calculation to a TableRow, to save to BigQuery.
    * Add the timestamp from the window context.
    */
-  static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
+  static class FormatMaxesFn extends OldDoFn<KV<String, LaneInfo>, TableRow> {
     @Override
     public void processElement(ProcessContext c) {
 

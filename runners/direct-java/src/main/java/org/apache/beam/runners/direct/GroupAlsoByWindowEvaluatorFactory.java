@@ -23,7 +23,7 @@ import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
@@ -106,7 +106,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
       StateInternals<K> stateInternals = (StateInternals<K>) stepContext.stateInternals();
 
-      DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> gabwDoFn =
+      OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> gabwDoFn =
           GroupAlsoByWindowViaWindowSetDoFn.create(
               windowingStrategy,
               new ConstantStateInternalsFactory<K>(stateInternals),

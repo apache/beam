@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.dofnreflector;
 
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnReflectorTest.Invocations;
-import org.apache.beam.sdk.transforms.DoFnWithContext;
 
 /**
  * Test helper for DoFnReflectorTest, which needs to test package-private access
@@ -26,7 +26,7 @@ import org.apache.beam.sdk.transforms.DoFnWithContext;
  */
 public class DoFnReflectorTestHelper {
 
-  private static class StaticPrivateDoFn extends DoFnWithContext<String, String> {
+  private static class StaticPrivateDoFn extends DoFn<String, String> {
     final Invocations invocations;
 
     public StaticPrivateDoFn(Invocations invocations) {
@@ -39,7 +39,7 @@ public class DoFnReflectorTestHelper {
     }
   }
 
-  private class InnerPrivateDoFn extends DoFnWithContext<String, String> {
+  private class InnerPrivateDoFn extends DoFn<String, String> {
     final Invocations invocations;
 
     public InnerPrivateDoFn(Invocations invocations) {
@@ -52,7 +52,7 @@ public class DoFnReflectorTestHelper {
     }
   }
 
-  static class StaticPackagePrivateDoFn extends DoFnWithContext<String, String> {
+  static class StaticPackagePrivateDoFn extends DoFn<String, String> {
     final Invocations invocations;
 
     public StaticPackagePrivateDoFn(Invocations invocations) {
@@ -65,7 +65,7 @@ public class DoFnReflectorTestHelper {
     }
   }
 
-  class InnerPackagePrivateDoFn extends DoFnWithContext<String, String> {
+  class InnerPackagePrivateDoFn extends DoFn<String, String> {
     final Invocations invocations;
 
     public InnerPackagePrivateDoFn(Invocations invocations) {
@@ -78,25 +78,25 @@ public class DoFnReflectorTestHelper {
     }
   }
 
-  public static DoFnWithContext<String, String> newStaticPackagePrivateDoFn(
+  public static DoFn<String, String> newStaticPackagePrivateDoFn(
       Invocations invocations) {
     return new StaticPackagePrivateDoFn(invocations);
   }
 
-  public DoFnWithContext<String, String> newInnerPackagePrivateDoFn(Invocations invocations) {
+  public DoFn<String, String> newInnerPackagePrivateDoFn(Invocations invocations) {
     return new InnerPackagePrivateDoFn(invocations);
   }
 
-  public static DoFnWithContext<String, String> newStaticPrivateDoFn(Invocations invocations) {
+  public static DoFn<String, String> newStaticPrivateDoFn(Invocations invocations) {
     return new StaticPrivateDoFn(invocations);
   }
 
-  public DoFnWithContext<String, String> newInnerPrivateDoFn(Invocations invocations) {
+  public DoFn<String, String> newInnerPrivateDoFn(Invocations invocations) {
     return new InnerPrivateDoFn(invocations);
   }
 
-  public DoFnWithContext<String, String> newInnerAnonymousDoFn(final Invocations invocations) {
-    return new DoFnWithContext<String, String>() {
+  public DoFn<String, String> newInnerAnonymousDoFn(final Invocations invocations) {
+    return new DoFn<String, String>() {
       @ProcessElement
       public void process(ProcessContext c) {
         invocations.wasProcessElementInvoked = true;
@@ -104,9 +104,9 @@ public class DoFnReflectorTestHelper {
     };
   }
 
-  public static DoFnWithContext<String, String> newStaticAnonymousDoFn(
+  public static DoFn<String, String> newStaticAnonymousDoFn(
       final Invocations invocations) {
-    return new DoFnWithContext<String, String>() {
+    return new DoFn<String, String>() {
       @ProcessElement
       public void process(ProcessContext c) {
         invocations.wasProcessElementInvoked = true;

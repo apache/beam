@@ -18,22 +18,24 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
+import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -42,29 +44,23 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Map;
 
-/** Tests for {@link DoFnWithContext}. */
+/**
+ * Tests for OldDoFn.
+ */
 @RunWith(JUnit4.class)
-public class DoFnWithContextTest implements Serializable {
+public class OldDoFnTest implements Serializable {
+
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
-
-  private class NoOpDoFnWithContext extends DoFnWithContext<Void, Void> {
-
-    /**
-     * @param c context
-     */
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-    }
-  }
 
   @Test
   public void testCreateAggregatorWithCombinerSucceeds() {
     String name = "testAggregator";
     Sum.SumLongFn combiner = new Sum.SumLongFn();
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     Aggregator<Long, Long> aggregator = doFn.createAggregator(name, combiner);
 
@@ -77,7 +73,7 @@ public class DoFnWithContextTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("name cannot be null");
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator(null, new Sum.SumLongFn());
   }
@@ -89,7 +85,7 @@ public class DoFnWithContextTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -101,7 +97,7 @@ public class DoFnWithContextTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("combiner cannot be null");
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator("testAggregator", combiner);
   }
@@ -111,7 +107,7 @@ public class DoFnWithContextTest implements Serializable {
     String name = "testAggregator";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     doFn.createAggregator(name, combiner);
 
@@ -129,7 +125,7 @@ public class DoFnWithContextTest implements Serializable {
     String nameTwo = "aggregatorPrime";
     CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
 
-    DoFnWithContext<Void, Void> doFn = new NoOpDoFnWithContext();
+    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
     Aggregator<Double, Double> aggregatorOne =
         doFn.createAggregator(nameOne, combiner);
@@ -140,47 +136,16 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
-  public void testDoFnWithContextUsingAggregators() {
-    NoOpDoFn<Object, Object> noOpFn = new NoOpDoFn<>();
-    DoFn<Object, Object>.Context context = noOpFn.context();
-
-    DoFn<Object, Object> fn = spy(noOpFn);
-    context = spy(context);
-
-    @SuppressWarnings("unchecked")
-    Aggregator<Long, Long> agg = mock(Aggregator.class);
-
-    Sum.SumLongFn combiner = new Sum.SumLongFn();
-    Aggregator<Long, Long> delegateAggregator =
-        fn.createAggregator("test", combiner);
-
-    when(context.createAggregatorInternal("test", combiner)).thenReturn(agg);
-
-    context.setupDelegateAggregators();
-    delegateAggregator.addValue(1L);
-
-    verify(agg).addValue(1L);
-  }
-
-  @Test
-  public void testDefaultPopulateDisplayDataImplementation() {
-    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
-    };
-    DisplayData displayData = DisplayData.from(fn);
-    assertThat(displayData.items(), empty());
-  }
-
-  @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInStartBundleThrows() {
-    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
-      @StartBundle
-      public void startBundle(Context c) {
+    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
+      @Override
+      public void startBundle(OldDoFn<String, String>.Context c) throws Exception {
         createAggregator("anyAggregate", new MaxIntegerFn());
       }
 
-      @ProcessElement
-      public void processElement(ProcessContext c) {}
+      @Override
+      public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {}
     });
 
     thrown.expect(PipelineExecutionException.class);
@@ -192,9 +157,9 @@ public class DoFnWithContextTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInProcessElementThrows() {
-    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
+    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
         createAggregator("anyAggregate", new MaxIntegerFn());
       }
     });
@@ -208,14 +173,14 @@ public class DoFnWithContextTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testCreateAggregatorInFinishBundleThrows() {
-    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
-      @FinishBundle
-      public void finishBundle(Context c) {
+    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
+      @Override
+      public void finishBundle(OldDoFn<String, String>.Context c) throws Exception {
         createAggregator("anyAggregate", new MaxIntegerFn());
       }
 
-      @ProcessElement
-      public void processElement(ProcessContext c) {}
+      @Override
+      public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {}
     });
 
     thrown.expect(PipelineExecutionException.class);
@@ -225,13 +190,53 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   /**
-   * Initialize a test pipeline with the specified {@link DoFn}.
+   * Initialize a test pipeline with the specified {@link OldDoFn}.
    */
-  private <InputT, OutputT> TestPipeline createTestPipeline(DoFnWithContext<InputT, OutputT> fn) {
+  private <InputT, OutputT> TestPipeline createTestPipeline(OldDoFn<InputT, OutputT> fn) {
     TestPipeline pipeline = TestPipeline.create();
     pipeline.apply(Create.of((InputT) null))
      .apply(ParDo.of(fn));
 
     return pipeline;
+  }
+
+  @Test
+  public void testPopulateDisplayDataDefaultBehavior() {
+    OldDoFn<String, String> usesDefault =
+        new OldDoFn<String, String>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {}
+        };
+
+    DisplayData data = DisplayData.from(usesDefault);
+    assertThat(data.items(), empty());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregators() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    CountOddsFn countOdds = new CountOddsFn();
+    pipeline
+        .apply(Create.of(1, 3, 5, 7, 2, 4, 6, 8, 10, 12, 14, 20, 42, 68, 100))
+        .apply(ParDo.of(countOdds));
+    PipelineResult result = pipeline.run();
+
+    AggregatorValues<Integer> values = result.getAggregatorValues(countOdds.aggregator);
+    assertThat(values.getValuesAtSteps(),
+        equalTo((Map<String, Integer>) ImmutableMap.<String, Integer>of("ParDo(CountOdds)", 4)));
+  }
+
+  private static class CountOddsFn extends OldDoFn<Integer, Void> {
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      if (c.element() % 2 == 1) {
+        aggregator.addValue(1);
+      }
+    }
+
+    Aggregator<Integer, Integer> aggregator =
+        createAggregator("odds", new SumIntegerFn());
   }
 }

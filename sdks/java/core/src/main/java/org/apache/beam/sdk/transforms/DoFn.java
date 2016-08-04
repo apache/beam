@@ -22,9 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -34,18 +34,17 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-import com.google.common.base.MoreObjects;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.Collections;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 
 /**
  * The argument to {@link ParDo} providing the code to use to process
@@ -57,28 +56,37 @@ import java.util.UUID;
  * serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p>{@code DoFn}s can be tested in the context of a particular
+ * <p>{@code DoFn}s can be tested in a particular
  * {@code Pipeline} by running that {@code Pipeline} on sample input
  * and then checking its output.  Unit testing of a {@code DoFn},
  * separately from any {@code ParDo} transform or {@code Pipeline},
  * can be done via the {@link DoFnTester} harness.
  *
- * <p>{@link DoFnWithContext} (currently experimental) offers an alternative
- * mechanism for accessing {@link ProcessContext#window()} without the need
- * to implement {@link RequiresWindowAccess}.
+ * <p>Implementations must define a method annotated with {@link ProcessElement}
+ * that satisfies the requirements described there. See the {@link ProcessElement}
+ * for details.
  *
- * <p>See also {@link #processElement} for details on implementing the transformation
- * from {@code InputT} to {@code OutputT}.
+ * <p>This functionality is experimental and likely to change.
+ *
+ * <p>Example usage:
+ *
+ * <pre> {@code
+ * PCollection<String> lines = ... ;
+ * PCollection<String> words =
+ *     lines.apply(ParDo.of(new DoFn<String, String>() {
+ *         @ProcessElement
+ *         public void processElement(ProcessContext c, BoundedWindow window) {
+ *
+ *         }}));
+ * } </pre>
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
  */
+@Experimental
 public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
-  /**
-   * Information accessible to all methods in this {@code DoFn}.
-   * Used primarily to output elements.
-   */
+  /** Information accessible to all methods in this {@code DoFn}. */
   public abstract class Context {
 
     /**
@@ -92,16 +100,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     /**
      * Adds the given element to the main output {@code PCollection}.
      *
-     * <p>Once passed to {@code output} the element should be considered
-     * immutable and not be modified in any way. It may be cached or retained
-     * by the Dataflow runtime or later steps in the pipeline, or used in
-     * other unspecified ways.
+     * <p>Once passed to {@code output} the element should not be modified in
+     * any way.
      *
-     * <p>If invoked from {@link DoFn#processElement processElement}, the output
+     * <p>If invoked from {@link ProcessElement}, the output
      * element will have the same timestamp and be in the same windows
-     * as the input element passed to {@link DoFn#processElement processElement}.
+     * as the input element passed to the method annotated with
+     * {@code @ProcessElement}.
      *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
      * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -118,12 +125,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code outputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p>If invoked from {@link DoFn#processElement processElement}, the timestamp
+     * <p>If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
+     * {@link OldDoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
      * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -140,15 +147,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags withOutputTags} to
+     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
      *
      * <p>The output element will have the same timestamp and be in the same
-     * windows as the input element passed to {@link DoFn#processElement processElement}.
+     * windows as the input element passed to {@link ProcessElement}).
      *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
      * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -167,12 +174,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code sideOutputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p>If invoked from {@link DoFn#processElement processElement}, the timestamp
+     * <p>If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
+     * {@link OldDoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
+     * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
      * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -184,70 +191,24 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      */
     public abstract <T> void sideOutputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
-
-    /**
-     * Creates an {@link Aggregator} in the {@link DoFn} context with the
-     * specified name and aggregation logic specified by {@link CombineFn}.
-     *
-     * <p>For internal use only.
-     *
-     * @param name the name of the aggregator
-     * @param combiner the {@link CombineFn} to use in the aggregator
-     * @return an aggregator for the provided name and {@link CombineFn} in this
-     *         context
-     */
-    @Experimental(Kind.AGGREGATOR)
-    protected abstract <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
-        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
-
-    /**
-     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are
-     * usable within this context.
-     *
-     * <p>This method should be called by runners before {@link DoFn#startBundle}
-     * is executed.
-     */
-    @Experimental(Kind.AGGREGATOR)
-    protected final void setupDelegateAggregators() {
-      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
-        setupDelegateAggregator(aggregator);
-      }
-
-      aggregatorsAreFinal = true;
-    }
-
-    private final <AggInputT, AggOutputT> void setupDelegateAggregator(
-        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
-
-      Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(
-          aggregator.getName(), aggregator.getCombineFn());
-
-      aggregator.setDelegate(delegate);
-    }
   }
 
   /**
-   * Information accessible when running {@link DoFn#processElement}.
+   * Information accessible when running {@link OldDoFn#processElement}.
    */
   public abstract class ProcessContext extends Context {
 
     /**
      * Returns the input element to be processed.
      *
-     * <p>The element should be considered immutable. The Dataflow runtime will not mutate the
-     * element, so it is safe to cache, etc. The element should not be mutated by any of the
-     * {@link DoFn} methods, because it may be cached elsewhere, retained by the Dataflow runtime,
-     * or used in other unspecified ways.
+     * <p>The element will not be changed -- it is safe to cache, etc.
+     * without copying.
      */
     public abstract InputT element();
 
+
     /**
-     * Returns the value of the side input for the window corresponding to the
-     * window of the main input element.
-     *
-     * <p>See
-     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn#getSideInputWindow}
-     * for how this corresponding window is determined.
+     * Returns the value of the side input.
      *
      * @throws IllegalArgumentException if this is not a side input
      * @see ParDo#withSideInputs
@@ -263,17 +224,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     public abstract Instant timestamp();
 
     /**
-     * Returns the window into which the input element has been assigned.
-     *
-     * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
-     *
-     * @throws UnsupportedOperationException if this {@link DoFn} does
-     * not implement {@link RequiresWindowAccess}.
-     */
-    public abstract BoundedWindow window();
-
-    /**
      * Returns information about the pane within this window into which the
      * input element has been assigned.
      *
@@ -283,12 +233,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * for more information.
      */
     public abstract PaneInfo pane();
-
-    /**
-     * Returns the process context to use for implementing windowing.
-     */
-    @Experimental
-    public abstract WindowingInternals<InputT, OutputT> windowingInternals();
   }
 
   /**
@@ -299,88 +243,19 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>The default value is {@code Duration.ZERO}, in which case
    * timestamps can only be shifted forward to future.  For infinite
    * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
-   *
-   * <p> Note that producing an element whose timestamp is less than the
-   * current timestamp may result in late data, i.e. returning a non-zero
-   * value here does not impact watermark calculations used for firing
-   * windows.
-   *
-   * @deprecated does not interact well with the watermark.
    */
-  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return Duration.ZERO;
   }
 
-  /**
-   * Interface for signaling that a {@link DoFn} needs to access the window the
-   * element is being processed in, via {@link DoFn.ProcessContext#window}.
-   */
-  @Experimental
-  public interface RequiresWindowAccess {}
-
-  public DoFn() {
-    this(new HashMap<String, DelegatingAggregator<?, ?>>());
-  }
-
-  DoFn(Map<String, DelegatingAggregator<?, ?>> aggregators) {
-    this.aggregators = aggregators;
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
-  private final Map<String, DelegatingAggregator<?, ?>> aggregators;
+  Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
 
   /**
    * Protects aggregators from being created after initialization.
    */
   private boolean aggregatorsAreFinal;
-
-  /**
-   * Prepares this {@code DoFn} instance for processing a batch of elements.
-   *
-   * <p>By default, does nothing.
-   */
-  public void startBundle(Context c) throws Exception {
-  }
-
-  /**
-   * Processes one input element.
-   *
-   * <p>The current element of the input {@code PCollection} is returned by
-   * {@link ProcessContext#element() c.element()}. It should be considered immutable. The Dataflow
-   * runtime will not mutate the element, so it is safe to cache, etc. The element should not be
-   * mutated by any of the {@link DoFn} methods, because it may be cached elsewhere, retained by the
-   * Dataflow runtime, or used in other unspecified ways.
-   *
-   * <p>A value is added to the main output {@code PCollection} by {@link ProcessContext#output}.
-   * Once passed to {@code output} the element should be considered immutable and not be modified in
-   * any way. It may be cached elsewhere, retained by the Dataflow runtime, or used in other
-   * unspecified ways.
-   *
-   * @see ProcessContext
-   */
-  public abstract void processElement(ProcessContext c) throws Exception;
-
-  /**
-   * Finishes processing this batch of elements.
-   *
-   * <p>By default, does nothing.
-   */
-  public void finishBundle(Context c) throws Exception {
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>By default, does not register any display data. Implementors may override this method
-   * to provide their own display data.
-   */
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
@@ -401,38 +276,110 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>In the normal case of a concrete {@code DoFn} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
-   * for choosing a default output {@code Coder<OutputT>} for the output
-   * {@code PCollection<OutputT>}.
+   * for choosing a default output {@code Coder<O>} for the output
+   * {@code PCollection<O>}.
    */
   protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
     return new TypeDescriptor<OutputT>(getClass()) {};
   }
 
   /**
+   * Interface for runner implementors to provide implementations of extra context information.
+   *
+   * <p>The methods on this interface are called by {@link DoFnReflector} before invoking an
+   * annotated {@link StartBundle}, {@link ProcessElement} or {@link FinishBundle} method that
+   * has indicated it needs the given extra context.
+   *
+   * <p>In the case of {@link ProcessElement} it is called once per invocation of
+   * {@link ProcessElement}.
+   */
+  public interface ExtraContextFactory<InputT, OutputT> {
+    /**
+     * Construct the {@link BoundedWindow} to use within a {@link DoFn} that
+     * needs it. This is called if the {@link ProcessElement} method has a parameter of type
+     * {@link BoundedWindow}.
+     *
+     * @return {@link BoundedWindow} of the element currently being processed.
+     */
+    BoundedWindow window();
+
+    /**
+     * Construct the {@link WindowingInternals} to use within a {@link DoFn} that
+     * needs it. This is called if the {@link ProcessElement} method has a parameter of type
+     * {@link WindowingInternals}.
+     */
+    WindowingInternals<InputT, OutputT> windowingInternals();
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Annotation for the method to use to prepare an instance for processing a batch of elements.
+   * The method annotated with this must satisfy the following constraints:
+   * <ul>
+   *   <li>It must have at least one argument.
+   *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface StartBundle {}
+
+  /**
+   * Annotation for the method to use for processing elements. A subclass of
+   * {@link DoFn} must have a method with this annotation satisfying
+   * the following constraints in order for it to be executable:
+   * <ul>
+   *   <li>It must have at least one argument.
+   *   <li>Its first argument must be a {@link DoFn.ProcessContext}.
+   *   <li>Its remaining arguments must be {@link BoundedWindow}, or
+   *   {@link WindowingInternals WindowingInternals&lt;InputT, OutputT&gt;}.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface ProcessElement {}
+
+  /**
+   * Annotation for the method to use to prepare an instance for processing a batch of elements.
+   * The method annotated with this must satisfy the following constraints:
+   * <ul>
+   *   <li>It must have at least one argument.
+   *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface FinishBundle {}
+
+  /**
    * Returns an {@link Aggregator} with aggregation logic specified by the
    * {@link CombineFn} argument. The name provided must be unique across
-   * {@link Aggregator}s created within the DoFn. Aggregators can only be created
+   * {@link Aggregator}s created within the OldDoFn. Aggregators can only be created
    * during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link CombineFn} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this DoFn
+   *         this OldDoFn
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
-   * @throws IllegalStateException if called during pipeline processing.
+   * @throws IllegalStateException if called during pipeline execution.
    */
-  protected final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
-      createAggregator(String name, CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
+  public final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+      createAggregator(String name, Combine.CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
     checkNotNull(name, "name cannot be null");
     checkNotNull(combiner, "combiner cannot be null");
     checkArgument(!aggregators.containsKey(name),
         "Cannot create aggregator with name %s."
         + " An Aggregator with that name already exists within this scope.",
         name);
-
-    checkState(!aggregatorsAreFinal, "Cannot create an aggregator during DoFn processing."
+    checkState(!aggregatorsAreFinal,
+        "Cannot create an aggregator during pipeline execution."
         + " Aggregators should be registered during pipeline construction.");
 
     DelegatingAggregator<AggInputT, AggOutputT> aggregator =
@@ -444,122 +391,39 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Returns an {@link Aggregator} with the aggregation logic specified by the
    * {@link SerializableFunction} argument. The name provided must be unique
-   * across {@link Aggregator}s created within the DoFn. Aggregators can only be
+   * across {@link Aggregator}s created within the OldDoFn. Aggregators can only be
    * created during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link SerializableFunction} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this DoFn
+   *         this OldDoFn
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
-   * @throws IllegalStateException if called during pipeline processing.
+   * @throws IllegalStateException if called during pipeline execution.
    */
-  protected final <AggInputT> Aggregator<AggInputT, AggInputT> createAggregator(String name,
-      SerializableFunction<Iterable<AggInputT>, AggInputT> combiner) {
+  public final <AggInputT> Aggregator<AggInputT, AggInputT> createAggregator(
+      String name, SerializableFunction<Iterable<AggInputT>, AggInputT> combiner) {
     checkNotNull(combiner, "combiner cannot be null.");
     return createAggregator(name, Combine.IterableCombineFn.of(combiner));
   }
 
   /**
-   * Returns the {@link Aggregator Aggregators} created by this {@code DoFn}.
+   * Finalize the {@link DoFn} construction to prepare for processing.
+   * This method should be called by runners before any processing methods.
    */
-  Collection<Aggregator<?, ?>> getAggregators() {
-    return Collections.<Aggregator<?, ?>>unmodifiableCollection(aggregators.values());
+  public void prepareForProcessing() {
+    aggregatorsAreFinal = true;
   }
 
   /**
-   * An {@link Aggregator} that delegates calls to addValue to another
-   * aggregator.
+   * {@inheritDoc}
    *
-   * @param <AggInputT> the type of input element
-   * @param <AggOutputT> the type of output element
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display data.
    */
-  static class DelegatingAggregator<AggInputT, AggOutputT> implements
-      Aggregator<AggInputT, AggOutputT>, Serializable {
-    private final UUID id;
-
-    private final String name;
-
-    private final CombineFn<AggInputT, ?, AggOutputT> combineFn;
-
-    private Aggregator<AggInputT, ?> delegate;
-
-    public DelegatingAggregator(String name,
-        CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
-      this.id = UUID.randomUUID();
-      this.name = checkNotNull(name, "name cannot be null");
-      // Safe contravariant cast
-      @SuppressWarnings("unchecked")
-      CombineFn<AggInputT, ?, AggOutputT> specificCombiner =
-          (CombineFn<AggInputT, ?, AggOutputT>) checkNotNull(combiner, "combineFn cannot be null");
-      this.combineFn = specificCombiner;
-    }
-
-    @Override
-    public void addValue(AggInputT value) {
-      if (delegate == null) {
-        throw new IllegalStateException(
-            "addValue cannot be called on Aggregator outside of the execution of a DoFn.");
-      } else {
-        delegate.addValue(value);
-      }
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public CombineFn<AggInputT, ?, AggOutputT> getCombineFn() {
-      return combineFn;
-    }
-
-    /**
-     * Sets the current delegate of the Aggregator.
-     *
-     * @param delegate the delegate to set in this aggregator
-     */
-    public void setDelegate(Aggregator<AggInputT, ?> delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("name", name)
-          .add("combineFn", combineFn)
-          .toString();
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(id, name, combineFn.getClass());
-    }
-
-    /**
-     * Indicates whether some other object is "equal to" this one.
-     *
-     * <p>{@code DelegatingAggregator} instances are equal if they have the same name, their
-     * CombineFns are the same class, and they have identical IDs.
-     */
-    @Override
-    public boolean equals(Object o) {
-      if (o == this) {
-        return true;
-      }
-      if (o == null) {
-        return false;
-      }
-      if (o instanceof DelegatingAggregator) {
-        DelegatingAggregator<?, ?> that = (DelegatingAggregator<?, ?>) o;
-        return Objects.equals(this.id, that.id)
-            && Objects.equals(this.name, that.name)
-            && Objects.equals(this.combineFn.getClass(), that.combineFn.getClass());
-      }
-      return false;
-    }
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
   }
 }

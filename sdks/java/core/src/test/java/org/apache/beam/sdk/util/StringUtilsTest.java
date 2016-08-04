@@ -59,12 +59,12 @@ public class StringUtilsTest {
   /**
    * Inner class for simple name test.
    */
-  private class EmbeddedDoFn {
+  private class EmbeddedOldDoFn {
 
-    private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
+    private class DeeperEmbeddedOldDoFn extends EmbeddedOldDoFn {}
 
-    private EmbeddedDoFn getEmbedded() {
-      return new DeeperEmbeddedDoFn();
+    private EmbeddedOldDoFn getEmbedded() {
+      return new DeeperEmbeddedOldDoFn();
     }
   }
 
@@ -93,22 +93,22 @@ public class StringUtilsTest {
   @Test
   public void testSimpleName() {
     assertEquals("Embedded",
-        StringUtils.approximateSimpleName(EmbeddedDoFn.class));
+        StringUtils.approximateSimpleName(EmbeddedOldDoFn.class));
   }
 
   @Test
   public void testAnonSimpleName() throws Exception {
     thrown.expect(IllegalArgumentException.class);
 
-    EmbeddedDoFn anon = new EmbeddedDoFn(){};
+    EmbeddedOldDoFn anon = new EmbeddedOldDoFn(){};
 
     StringUtils.approximateSimpleName(anon.getClass());
   }
 
   @Test
   public void testNestedSimpleName() {
-    EmbeddedDoFn fn = new EmbeddedDoFn();
-    EmbeddedDoFn inner = fn.getEmbedded();
+    EmbeddedOldDoFn fn = new EmbeddedOldDoFn();
+    EmbeddedOldDoFn inner = fn.getEmbedded();
 
     assertEquals("DeeperEmbedded", StringUtils.approximateSimpleName(inner.getClass()));
   }

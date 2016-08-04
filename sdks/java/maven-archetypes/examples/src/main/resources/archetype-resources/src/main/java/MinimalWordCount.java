@@ -23,7 +23,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 
@@ -82,7 +82,7 @@ public class MinimalWordCount {
      // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
      // The ParDo returns a PCollection<String>, where each element is an individual word in
      // Shakespeare's collected texts.
-     .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
+     .apply("ExtractWords", ParDo.of(new OldDoFn<String, String>() {
                        @Override
                        public void processElement(ProcessContext c) {
                          for (String word : c.element().split("[^a-zA-Z']+")) {
@@ -98,7 +98,7 @@ public class MinimalWordCount {
      .apply(Count.<String>perElement())
      // Apply another ParDo transform that formats our PCollection of word counts into a printable
      // string, suitable for writing to an output file.
-     .apply("FormatResults", ParDo.of(new DoFn<KV<String, Long>, String>() {
+     .apply("FormatResults", ParDo.of(new OldDoFn<KV<String, Long>, String>() {
                        @Override
                        public void processElement(ProcessContext c) {
                          c.output(c.element().getKey() + ": " + c.element().getValue());

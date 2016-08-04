@@ -27,7 +27,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -122,7 +122,7 @@ public class KafkaStreamingTest {
     EMBEDDED_ZOOKEEPER.shutdown();
   }
 
-  private static class FormatKVFn extends DoFn<KV<String, String>, String> {
+  private static class FormatKVFn extends OldDoFn<KV<String, String>, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + "," + c.element().getValue());

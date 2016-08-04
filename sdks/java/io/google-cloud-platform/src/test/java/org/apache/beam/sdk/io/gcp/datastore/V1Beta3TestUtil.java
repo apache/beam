@@ -27,7 +27,7 @@ import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 
@@ -109,9 +109,9 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * A DoFn that creates entity for a long number.
+   * A OldDoFn that creates entity for a long number.
    */
-  static class CreateEntityFn extends DoFn<Long, Entity> {
+  static class CreateEntityFn extends OldDoFn<Long, Entity> {
     private final String kind;
     @Nullable
     private final String namespace;

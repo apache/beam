@@ -24,7 +24,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.IntraBundleParallelization;
 import org.apache.beam.sdk.util.Transport;
 
@@ -72,7 +72,7 @@ public class PubsubFileInjector {
   }
 
   /** A DoFn that publishes non-empty lines to Google Cloud PubSub. */
-  public static class Bound extends DoFn<String, Void> {
+  public static class Bound extends OldDoFn<String, Void> {
     private final String outputTopic;
     private final String timestampLabelKey;
     public transient Pubsub pubsub;

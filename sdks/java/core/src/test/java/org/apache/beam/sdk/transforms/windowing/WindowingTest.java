@@ -26,9 +26,9 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -59,7 +59,7 @@ public class WindowingTest implements Serializable {
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
 
     private final class FormatCountsDoFn
-        extends DoFn<KV<String, Long>, String> implements RequiresWindowAccess {
+        extends OldDoFn<KV<String, Long>, String> implements RequiresWindowAccess {
       @Override
           public void processElement(ProcessContext c) {
         c.output(c.element().getKey() + ":" + c.element().getValue()
@@ -234,8 +234,8 @@ public class WindowingTest implements Serializable {
     p.run();
   }
 
-  /** A DoFn that tokenizes lines of text into individual words. */
-  static class ExtractWordsWithTimestampsFn extends DoFn<String, String> {
+  /** A OldDoFn that tokenizes lines of text into individual words. */
+  static class ExtractWordsWithTimestampsFn extends OldDoFn<String, String> {
     @Override
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z0-9']+");

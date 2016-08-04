@@ -22,8 +22,8 @@ import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.Context;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 
 import com.google.auto.service.AutoService;
@@ -52,7 +52,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * and {@link PipelineOptionsFactory#as(Class)}. They can be created
  * from command-line arguments with {@link PipelineOptionsFactory#fromArgs(String[])}.
  * They can be converted to another type by invoking {@link PipelineOptions#as(Class)} and
- * can be accessed from within a {@link DoFn} by invoking
+ * can be accessed from within a {@link OldDoFn} by invoking
  * {@link Context#getPipelineOptions()}.
  *
  * <p>For example:
@@ -151,7 +151,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * {@link PipelineOptionsFactory#withValidation()} is invoked.
  *
  * <p>{@link JsonIgnore @JsonIgnore} is used to prevent a property from being serialized and
- * available during execution of {@link DoFn}. See the Serialization section below for more
+ * available during execution of {@link OldDoFn}. See the Serialization section below for more
  * details.
  *
  * <h2>Registration Of PipelineOptions</h2>

@@ -33,11 +33,11 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -762,7 +762,7 @@ public class PAssert {
           .apply("RewindowActuals", rewindowActuals.<T>windowActuals())
           .apply(
               ParDo.of(
-                  new DoFn<T, T>() {
+                  new OldDoFn<T, T>() {
                     @Override
                     public void processElement(ProcessContext context) throws CoderException {
                       context.output(CoderUtils.clone(coder, context.element()));
@@ -884,7 +884,7 @@ public class PAssert {
     }
   }
 
-  private static final class ConcatFn<T> extends DoFn<Iterable<Iterable<T>>, Iterable<T>> {
+  private static final class ConcatFn<T> extends OldDoFn<Iterable<Iterable<T>>, Iterable<T>> {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       c.output(Iterables.concat(c.element()));
@@ -995,13 +995,13 @@ public class PAssert {
   }
 
   /**
-   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of a
+   * A {@link OldDoFn} that runs a checking {@link SerializableFunction} on the contents of a
    * {@link PCollectionView}, and adjusts counters and thrown exceptions for use in testing.
    *
    * <p>The input is ignored, but is {@link Integer} to be usable on runners that do not support
    * null values.
    */
-  private static class SideInputCheckerDoFn<ActualT> extends DoFn<Integer, Void> {
+  private static class SideInputCheckerDoFn<ActualT> extends OldDoFn<Integer, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
         createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
@@ -1030,13 +1030,13 @@ public class PAssert {
   }
 
   /**
-   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
+   * A {@link OldDoFn} that runs a checking {@link SerializableFunction} on the contents of
    * the single iterable element of the input {@link PCollection} and adjusts counters and
    * thrown exceptions for use in testing.
    *
    * <p>The singleton property is presumed, not enforced.
    */
-  private static class GroupedValuesCheckerDoFn<ActualT> extends DoFn<ActualT, Void> {
+  private static class GroupedValuesCheckerDoFn<ActualT> extends OldDoFn<ActualT, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
         createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
@@ -1061,14 +1061,14 @@ public class PAssert {
   }
 
   /**
-   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
+   * A {@link OldDoFn} that runs a checking {@link SerializableFunction} on the contents of
    * the single item contained within the single iterable on input and
    * adjusts counters and thrown exceptions for use in testing.
    *
    * <p>The singleton property of the input {@link PCollection} is presumed, not enforced. However,
    * each input element must be a singleton iterable, or this will fail.
    */
-  private static class SingletonCheckerDoFn<ActualT> extends DoFn<Iterable<ActualT>, Void> {
+  private static class SingletonCheckerDoFn<ActualT> extends OldDoFn<Iterable<ActualT>, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
         createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
@@ -1310,7 +1310,7 @@ public class PAssert {
   }
 
   /**
-   * A DoFn that filters elements based on their presence in a static collection of windows.
+   * A OldDoFn that filters elements based on their presence in a static collection of windows.
    */
   private static final class FilterWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final StaticWindows windows;
@@ -1324,7 +1324,7 @@ public class PAssert {
       return input.apply("FilterWindows", ParDo.of(new Fn()));
     }
 
-    private class Fn extends DoFn<T, T> implements RequiresWindowAccess {
+    private class Fn extends OldDoFn<T, T> implements RequiresWindowAccess {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         if (windows.getWindows().contains(c.window())) {

@@ -21,8 +21,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -645,7 +645,7 @@ public class Window {
           // We first apply a (trivial) transform to the input PCollection to produce a new
           // PCollection. This ensures that we don't modify the windowing strategy of the input
           // which may be used elsewhere.
-          .apply("Identity", ParDo.of(new DoFn<T, T>() {
+          .apply("Identity", ParDo.of(new OldDoFn<T, T>() {
             @Override public void processElement(ProcessContext c) {
               c.output(c.element());
             }

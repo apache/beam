@@ -130,7 +130,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-        .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
+        .apply(ParDo.withSideInputs(view).of(new OldDoFn<Void, String>() {
                   @Override
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
@@ -339,7 +339,7 @@ public class FlattenTest implements Serializable {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static class IdentityFn<T> extends DoFn<T, T> {
+  private static class IdentityFn<T> extends OldDoFn<T, T> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element());

@@ -24,8 +24,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -82,7 +82,7 @@ public class MaxPerKeyExamples {
    * Examines each row (weather reading) in the input table. Output the month of the reading,
    * and the mean_temp.
    */
-  static class ExtractTempFn extends DoFn<TableRow, KV<Integer, Double>> {
+  static class ExtractTempFn extends OldDoFn<TableRow, KV<Integer, Double>> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -96,7 +96,7 @@ public class MaxPerKeyExamples {
    * Format the results to a TableRow, to save to BigQuery.
    *
    */
-  static class FormatMaxesFn extends DoFn<KV<Integer, Double>, TableRow> {
+  static class FormatMaxesFn extends OldDoFn<KV<Integer, Double>, TableRow> {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()

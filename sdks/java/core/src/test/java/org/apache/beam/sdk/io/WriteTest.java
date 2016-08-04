@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -40,9 +41,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOption
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -101,14 +102,14 @@ public class WriteTest {
       this.window = window;
     }
 
-    private static class AddArbitraryKey<T> extends DoFn<T, KV<Integer, T>> {
+    private static class AddArbitraryKey<T> extends OldDoFn<T, KV<Integer, T>> {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         c.output(KV.of(ThreadLocalRandom.current().nextInt(), c.element()));
       }
     }
 
-    private static class RemoveArbitraryKey<T> extends DoFn<KV<Integer, Iterable<T>>, T> {
+    private static class RemoveArbitraryKey<T> extends OldDoFn<KV<Integer, Iterable<T>>, T> {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         for (T s : c.element().getValue()) {

@@ -39,8 +39,8 @@ import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -94,6 +94,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
 import scala.Tuple2;
 
 /**
@@ -203,7 +204,7 @@ public final class TransformTranslator {
         WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) transform.getWindowingStrategy();
 
-        DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> gabwDoFn =
+        OldDoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> gabwDoFn =
             new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
                 windowingStrategy,
                 new InMemoryStateInternalsFactory<K>(),
@@ -768,7 +769,7 @@ public final class TransformTranslator {
                 && windowFn instanceof GlobalWindows)) {
           context.setOutputRDD(transform, inRDD);
         } else {
-          DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
+          OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           DoFnFunction<T, T> dofn =
               new DoFnFunction<>(addWindowsDoFn, context.getRuntimeContext(), null);
           context.setOutputRDD(transform, inRDD.mapPartitions(dofn));

@@ -131,7 +131,7 @@ public class AutoComplete {
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(new CompletionCandidate(c.element().getKey(), c.element().getValue()));
               }
@@ -210,7 +210,7 @@ public class AutoComplete {
 
     private static class FlattenTops
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -273,8 +273,8 @@ public class AutoComplete {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
-    @Override
-      public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
         c.output(KV.of(word.substring(0, i), c.element()));
@@ -342,7 +342,7 @@ public class AutoComplete {
    * Takes as input a set of strings, and emits each #hashtag found therein.
    */
   static class ExtractHashtags extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
@@ -352,7 +352,7 @@ public class AutoComplete {
   }
 
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
@@ -392,7 +392,7 @@ public class AutoComplete {
       this.kind = kind;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
       Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();

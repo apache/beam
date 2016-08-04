@@ -23,7 +23,7 @@ import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 import com.google.common.collect.Iterables;
@@ -69,39 +69,39 @@ public class PerKeyCombineFnRunners {
     }
 
     @Override
-    public AccumT createAccumulator(K key, DoFn<?, ?>.ProcessContext c) {
+    public AccumT createAccumulator(K key, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.createAccumulator(key);
     }
 
     @Override
     public AccumT addInput(
-        K key, AccumT accumulator, InputT input, DoFn<?, ?>.ProcessContext c) {
+        K key, AccumT accumulator, InputT input, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.addInput(key, accumulator, input);
     }
 
     @Override
     public AccumT mergeAccumulators(
-        K key, Iterable<AccumT> accumulators, DoFn<?, ?>.ProcessContext c) {
+        K key, Iterable<AccumT> accumulators, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.mergeAccumulators(key, accumulators);
     }
 
     @Override
-    public OutputT extractOutput(K key, AccumT accumulator, DoFn<?, ?>.ProcessContext c) {
+    public OutputT extractOutput(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.extractOutput(key, accumulator);
     }
 
     @Override
-    public AccumT compact(K key, AccumT accumulator, DoFn<?, ?>.ProcessContext c) {
+    public AccumT compact(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.compact(key, accumulator);
     }
 
     @Override
-    public OutputT apply(K key, Iterable<? extends InputT> inputs, DoFn<?, ?>.ProcessContext c) {
+    public OutputT apply(K key, Iterable<? extends InputT> inputs, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.apply(key, inputs);
     }
 
     @Override
-    public AccumT addInputs(K key, Iterable<InputT> inputs, DoFn<?, ?>.ProcessContext c) {
+    public AccumT addInputs(K key, Iterable<InputT> inputs, OldDoFn<?, ?>.ProcessContext c) {
       AccumT accum = keyedCombineFn.createAccumulator(key);
       for (InputT input : inputs) {
         accum = keyedCombineFn.addInput(key, accum, input);
@@ -165,45 +165,45 @@ public class PerKeyCombineFnRunners {
     }
 
     @Override
-    public AccumT createAccumulator(K key, DoFn<?, ?>.ProcessContext c) {
+    public AccumT createAccumulator(K key, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFnWithContext.createAccumulator(key,
           CombineContextFactory.createFromProcessContext(c));
     }
 
     @Override
     public AccumT addInput(
-        K key, AccumT accumulator, InputT value, DoFn<?, ?>.ProcessContext c) {
+        K key, AccumT accumulator, InputT value, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFnWithContext.addInput(key, accumulator, value,
           CombineContextFactory.createFromProcessContext(c));
     }
 
     @Override
     public AccumT mergeAccumulators(
-        K key, Iterable<AccumT> accumulators, DoFn<?, ?>.ProcessContext c) {
+        K key, Iterable<AccumT> accumulators, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFnWithContext.mergeAccumulators(
           key, accumulators, CombineContextFactory.createFromProcessContext(c));
     }
 
     @Override
-    public OutputT extractOutput(K key, AccumT accumulator, DoFn<?, ?>.ProcessContext c) {
+    public OutputT extractOutput(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFnWithContext.extractOutput(key, accumulator,
           CombineContextFactory.createFromProcessContext(c));
     }
 
     @Override
-    public AccumT compact(K key, AccumT accumulator, DoFn<?, ?>.ProcessContext c) {
+    public AccumT compact(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFnWithContext.compact(key, accumulator,
           CombineContextFactory.createFromProcessContext(c));
     }
 
     @Override
-    public OutputT apply(K key, Iterable<? extends InputT> inputs, DoFn<?, ?>.ProcessContext c) {
+    public OutputT apply(K key, Iterable<? extends InputT> inputs, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFnWithContext.apply(key, inputs,
           CombineContextFactory.createFromProcessContext(c));
     }
 
     @Override
-    public AccumT addInputs(K key, Iterable<InputT> inputs, DoFn<?, ?>.ProcessContext c) {
+    public AccumT addInputs(K key, Iterable<InputT> inputs, OldDoFn<?, ?>.ProcessContext c) {
       CombineWithContext.Context combineContext = CombineContextFactory.createFromProcessContext(c);
       AccumT accum = keyedCombineFnWithContext.createAccumulator(key, combineContext);
       for (InputT input : inputs) {
