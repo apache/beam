@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -71,6 +73,7 @@ import org.junit.runners.JUnit4;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -1421,8 +1424,12 @@ public class WatermarkManagerTest implements Serializable {
       AppliedPTransform<?, ?, ?> transform,
       @Nullable CommittedBundle<?> unprocessedBundle,
       Iterable<? extends CommittedBundle<?>> bundles) {
-    return CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+    return CommittedResult.create(
+        StepTransformResult.withoutHold(transform).build(),
         unprocessedBundle,
-        bundles);
+        bundles,
+        Iterables.isEmpty(bundles)
+            ? EnumSet.noneOf(OutputType.class)
+            : EnumSet.of(OutputType.BUNDLE));
   }
 }

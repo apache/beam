@@ -17,16 +17,23 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+
 import org.joda.time.Instant;
+
 import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+
 import javax.annotation.Nullable;
 
 /**
@@ -57,6 +64,9 @@ public abstract class StepTransformResult implements TransformResult {
   @Override
   public abstract TimerUpdate getTimerUpdate();
 
+  @Override
+  public abstract Set<OutputType> getOutputTypes();
+
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
@@ -75,12 +85,14 @@ public abstract class StepTransformResult implements TransformResult {
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private AggregatorContainer.Mutator aggregatorChanges;
+    private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
     private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
       this.transform = transform;
       this.watermarkHold = watermarkHold;
       this.bundlesBuilder = ImmutableList.builder();
+      this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
     }
@@ -93,7 +105,8 @@ public abstract class StepTransformResult implements TransformResult {
           aggregatorChanges,
           watermarkHold,
           state,
-          timerUpdate);
+          timerUpdate,
+          producedOutputs);
     }
 
     public Builder withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
@@ -125,6 +138,11 @@ public abstract class StepTransformResult implements TransformResult {
 
     public Builder addOutput(Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
+      return this;
+    }
+
+    public Builder withAdditionalOutput(OutputType producedAdditionalOutput) {
+      producedOutputs.add(producedAdditionalOutput);
       return this;
     }
   }
