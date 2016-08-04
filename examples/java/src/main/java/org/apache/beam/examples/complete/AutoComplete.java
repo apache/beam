@@ -18,6 +18,7 @@
 package org.apache.beam.examples.complete;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
@@ -384,18 +385,25 @@ public class AutoComplete {
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
    * suitable for writing to Datastore.
+   *
+   * <p>Note: We use ancestor keys for strong consistency.
+   * See the Cloud Datastore documentation on
+   * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
+   * Structuring Data for Strong Consistency</a>
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
+    private Key ancestorKey;
 
     public FormatForDatastore(String kind) {
       this.kind = kind;
+      this.ancestorKey = makeKey(kind, "root").build();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();
+      Key key = DatastoreHelper.makeKey(ancestorKey, kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
