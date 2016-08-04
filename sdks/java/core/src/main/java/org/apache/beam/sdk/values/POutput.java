@@ -66,7 +66,7 @@ public interface POutput {
    * output to make it ready for being used as an input and for running.
    *
    * <p>This includes ensuring that all {@link PCollection PCollections}
-   * have {@link Coder Coders} specified or defaulted.
+   * have {@link org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
    *
    * <p>Automatically invoked whenever this {@link POutput} is used
    * as a {@link PInput} to another {@link PTransform}, or if never

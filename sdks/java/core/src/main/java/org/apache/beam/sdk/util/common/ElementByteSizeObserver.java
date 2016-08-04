@@ -49,7 +49,7 @@ public class ElementByteSizeObserver implements Observer {
     if (counter != null) {
       counter.addValue(elementByteSize);
     }
-  };
+  }
 
   /**
    * Sets byte counting for the current element as lazy. That is, the

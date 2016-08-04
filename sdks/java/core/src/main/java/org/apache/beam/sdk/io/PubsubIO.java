@@ -365,9 +365,9 @@ public class PubsubIO {
    * the stream.
    *
    * <p>When running with a {@link PipelineRunner} that only supports bounded
-   * {@link PCollection PCollections} (such as {@link DirectRunner}),
-   * only a bounded portion of the input Pub/Sub stream can be processed. As such, either
-   * {@link Bound#maxNumRecords(int)} or {@link Bound#maxReadTime(Duration)} must be set.
+   * {@link PCollection PCollections}, only a bounded portion of the input Pub/Sub stream
+   * can be processed. As such, either {@link Bound#maxNumRecords(int)} or
+   * {@link Bound#maxReadTime(Duration)} must be set.
    */
   public static class Read {
 

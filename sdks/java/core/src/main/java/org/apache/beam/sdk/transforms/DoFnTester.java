@@ -132,7 +132,7 @@ public class DoFnTester<InputT, OutputT> {
    */
   public enum CloningBehavior {
     CLONE,
-    DO_NOT_CLONE;
+    DO_NOT_CLONE
   }
 
   /**

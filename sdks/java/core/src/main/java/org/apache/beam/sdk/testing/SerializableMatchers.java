@@ -517,7 +517,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}.
    */
   public static <T extends Serializable> SerializableMatcher<T> equalTo(final T expected) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
@@ -529,7 +529,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#equalTo(Object)}.
    *
    * <p>The expected value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -547,7 +547,8 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#greaterThan()}.
+   * A {@link SerializableMatcher} with identical criteria to
+   * {@link Matchers#greaterThan(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T>
   greaterThan(final T target) {
@@ -560,7 +561,8 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#greaterThan()}.
+   * A {@link SerializableMatcher} with identical criteria to
+   * {@link Matchers#greaterThan(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -578,7 +580,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThanOrEqualTo()}.
+   * {@link Matchers#greaterThanOrEqualTo(Comparable)}.
    */
   public static <T extends Comparable<T>> SerializableMatcher<T> greaterThanOrEqualTo(
       final T target) {
@@ -592,7 +594,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#greaterThanOrEqualTo()}.
+   * {@link Matchers#greaterThanOrEqualTo(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -861,7 +863,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThan(
       final T target) {
@@ -874,7 +876,7 @@ class SerializableMatchers implements Serializable {
   }
 
   /**
-   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan()}.
+   * A {@link SerializableMatcher} with identical criteria to {@link Matchers#lessThan(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.
@@ -892,7 +894,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#lessThanOrEqualTo()}.
+   * {@link Matchers#lessThanOrEqualTo(Comparable)}.
    */
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThanOrEqualTo(
       final T target) {
@@ -906,7 +908,7 @@ class SerializableMatchers implements Serializable {
 
   /**
    * A {@link SerializableMatcher} with identical criteria to
-   * {@link Matchers#lessThanOrEqualTo()}.
+   * {@link Matchers#lessThanOrEqualTo(Comparable)}.
    *
    * <p>The target value of type {@code T} will be serialized using the provided {@link Coder}.
    * It is explicitly <i>not</i> required or expected to be serializable via Java serialization.

@@ -126,7 +126,7 @@ public final class PaneInfo {
      * This element was not produced in a triggered pane and its relation to input and
      * output watermarks is unknown.
      */
-    UNKNOWN;
+    UNKNOWN
 
     // NOTE: Do not add fields or re-order them. The ordinal is used as part of
     // the encoding.
