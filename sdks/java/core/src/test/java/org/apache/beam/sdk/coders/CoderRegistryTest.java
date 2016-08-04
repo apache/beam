@@ -27,7 +27,7 @@ import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
@@ -366,8 +366,8 @@ public class CoderRegistryTest {
   private static class PTransformOutputingMySerializableGeneric
   extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
 
-    private class OutputDoFn extends OldDoFn<String, KV<String, MySerializableGeneric<String>>> {
-      @Override
+    private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
+      @ProcessElement
       public void processElement(ProcessContext c) { }
     }
 
@@ -430,8 +430,8 @@ public class CoderRegistryTest {
       PCollection<String>,
       PCollection<KV<String, MySerializableGeneric<T>>>> {
 
-    private class OutputDoFn extends OldDoFn<String, KV<String, MySerializableGeneric<T>>> {
-      @Override
+    private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<T>>> {
+      @ProcessElement
       public void processElement(ProcessContext c) { }
     }
 

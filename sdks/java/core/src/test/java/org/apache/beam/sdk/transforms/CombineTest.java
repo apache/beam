@@ -117,7 +117,7 @@ public class CombineTest implements Serializable {
     1, 1, 2, 3, 5, 8, 13, 21, 34, 55
   };
 
-  @Mock private OldDoFn<?, ?>.ProcessContext processContext;
+  @Mock private DoFn<?, ?>.ProcessContext processContext;
 
   PCollection<KV<String, Integer>> createInput(Pipeline p,
                                                KV<String, Integer>[] table) {
@@ -372,8 +372,8 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private static class FormatPaneInfo extends OldDoFn<Integer, String> {
-    @Override
+  private static class FormatPaneInfo extends DoFn<Integer, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element() + ": " + c.pane().isLast());
     }
@@ -560,8 +560,8 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private static class GetLast extends OldDoFn<Integer, Integer> {
-    @Override
+  private static class GetLast extends DoFn<Integer, Integer> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.pane().isLast()) {
         c.output(c.element());
@@ -653,8 +653,8 @@ public class CombineTest implements Serializable {
 
     PCollection<Integer> output = pipeline
         .apply("CreateVoidMainInput", Create.of((Void) null))
-        .apply("OutputSideInput", ParDo.of(new OldDoFn<Void, Integer>() {
-                  @Override
+        .apply("OutputSideInput", ParDo.of(new DoFn<Void, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view));
                   }
@@ -1176,8 +1176,8 @@ public class CombineTest implements Serializable {
   }
 
   private static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
-    return pc.apply(ParDo.of(new OldDoFn<T, T>() {
-      @Override
+    return pc.apply(ParDo.of(new DoFn<T, T>() {
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         for (int i = 0; i < n; i++) {
           c.output(c.element());

@@ -26,7 +26,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -82,15 +82,15 @@ public class SerializableCoderTest implements Serializable {
     }
   }
 
-  static class StringToRecord extends OldDoFn<String, MyRecord> {
-    @Override
+  static class StringToRecord extends DoFn<String, MyRecord> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new MyRecord(c.element()));
     }
   }
 
-  static class RecordToString extends OldDoFn<MyRecord, String> {
-    @Override
+  static class RecordToString extends DoFn<MyRecord, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().value);
     }

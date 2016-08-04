@@ -371,14 +371,14 @@ public class GroupByKeyTest {
     pipeline.run();
   }
 
-  private static class AssertTimestamp<K, V> extends OldDoFn<KV<K, V>, Void> {
+  private static class AssertTimestamp<K, V> extends DoFn<KV<K, V>, Void> {
     private final Instant timestamp;
 
     public AssertTimestamp(Instant timestamp) {
       this.timestamp = timestamp;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       assertThat(c.timestamp(), equalTo(timestamp));
     }
@@ -506,9 +506,9 @@ public class GroupByKeyTest {
    * Creates a KV that wraps the original KV together with a random key.
    */
   static class AssignRandomKey
-      extends OldDoFn<KV<BadEqualityKey, Long>, KV<Long, KV<BadEqualityKey, Long>>> {
+      extends DoFn<KV<BadEqualityKey, Long>, KV<Long, KV<BadEqualityKey, Long>>> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(KV.of(ThreadLocalRandom.current().nextLong(), c.element()));
     }
