@@ -88,7 +88,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <!-- Checks for out of order import statements. -->
 
       <property name="severity" value="error"/>
-      <property name="groups" value="org.apache.beam,com.google,android,com,io,Jama,junit,net,org,sun,java,javax"/>
+      <property name="groups" value="org.apache.beam,com.google,android,com,io,Jama,junit,net,org,sun,*,java,javax"/>
       <!-- This ensures that static imports go first. -->
       <property name="option" value="top"/>
       <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
