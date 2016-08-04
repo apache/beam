@@ -79,7 +79,8 @@ class FakeGcsObjects(object):
   def Get(self, get_request, download=None):  # pylint: disable=invalid-name
     f = self.get_file(get_request.bucket, get_request.object)
     if f is None:
-      raise ValueError('Specified object does not exist.')
+      # Failing with a HTTP 404 if file does not exist.
+      raise HttpError({'status':404}, None, None)
     if download is None:
       return f.get_metadata()
     else:
@@ -188,6 +189,13 @@ class TestGCSIO(unittest.TestCase):
   def setUp(self):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
+
+  def test_exists(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    self._insert_random_file(self.client, file_name, file_size)
+    self.assertFalse(self.gcs.exists(file_name + 'xyz'))
+    self.assertTrue(self.gcs.exists(file_name))
 
   def test_size(self):
     file_name = 'gs://gcsio-test/dummy_file'

@@ -530,15 +530,22 @@ class FileSink(iobase.Sink):
         channel_factory.rename(old_name, final_name)
       except IOError as e:
         # May have already been copied.
-        exists = channel_factory.exists(final_name)
+        try:
+          exists = channel_factory.exists(final_name)
+        except Exception as exists_e:  # pylint: disable=broad-except
+          logging.warning('Exception when invoking channel_factory.exists(): '
+                          '%s', exists_e)
+          # Returning original exception after logging the exception from
+          # exists() call.
+          return (None, e)
         if not exists:
           logging.warning(('IOError in _rename_file. old_name: %s, '
                            'final_name: %s, err: %s'), old_name, final_name, e)
-          return(None, e)
+          return (None, e)
       except Exception as e:  # pylint: disable=broad-except
         logging.warning(('Exception in _rename_file. old_name: %s, '
                          'final_name: %s, err: %s'), old_name, final_name, e)
-        return(None, e)
+        return (None, e)
       return (final_name, None)
 
     # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
