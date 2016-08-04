@@ -32,8 +32,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import com.google.datastore.v1beta3.Entity;
@@ -79,11 +79,11 @@ import javax.annotation.Nullable;
 public class DatastoreWordCount {
 
   /**
-   * A OldDoFn that gets the content of an entity (one line in a
+   * A {@link DoFn} that gets the content of an entity (one line in a
    * Shakespeare play) and converts it to a string.
    */
-  static class GetContentFn extends OldDoFn<Entity, String> {
-    @Override
+  static class GetContentFn extends DoFn<Entity, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Map<String, Value> props = c.element().getProperties();
       Value value = props.get("content");
@@ -108,9 +108,9 @@ public class DatastoreWordCount {
   }
 
   /**
-   * A OldDoFn that creates entity for every line in Shakespeare.
+   * A {@link DoFn} that creates an entity for every line in Shakespeare.
    */
-  static class CreateEntityFn extends OldDoFn<String, Entity> {
+  static class CreateEntityFn extends DoFn<String, Entity> {
     private final String namespace;
     private final String kind;
     private final Key ancestorKey;
@@ -140,7 +140,7 @@ public class DatastoreWordCount {
       return entityBuilder.build();
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(makeEntity(c.element()));
     }
