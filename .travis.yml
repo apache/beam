@@ -47,6 +47,20 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
   - export BEAM_SUREFIRE_ARGLINE="-Xmx512m"
 
+install:
+  # Removing this here protects from inadvertent caching
+  - rm -rf "$HOME/.m2/repository/org/apache/beam"
+
 script:
   - travis_retry mvn --batch-mode --update-snapshots $MAVEN_OVERRIDE verify
   - travis_retry testing/travis/test_wordcount.sh
+
+cache:
+  directories:
+    - $HOME/.m2/repository
+
+before_cache:
+  # Removing here increases cache hits (makes the above
+  # rm in `install` redundant unless our config has a bug,
+  # but it will be idempotent)
+  - rm -rf "$HOME/.m2/repository/org/apache/beam"
