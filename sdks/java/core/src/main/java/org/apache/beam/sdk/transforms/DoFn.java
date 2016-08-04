@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
@@ -83,7 +82,6 @@ import java.util.Map;
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
  */
-@Experimental
 public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   /** Information accessible to all methods in this {@code DoFn}. */
