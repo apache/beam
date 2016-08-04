@@ -23,8 +23,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -171,8 +171,8 @@ public class AutoCompleteTest implements Serializable {
       extends PTransform<PCollection<TimestampedValue<T>>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<TimestampedValue<T>> input) {
-      return input.apply(ParDo.of(new OldDoFn<TimestampedValue<T>, T>() {
-        @Override
+      return input.apply(ParDo.of(new DoFn<TimestampedValue<T>, T>() {
+        @ProcessElement
         public void processElement(ProcessContext c) {
           c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
         }

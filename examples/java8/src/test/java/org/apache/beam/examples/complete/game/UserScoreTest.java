@@ -83,7 +83,7 @@ public class UserScoreTest implements Serializable {
       KV.of("AndroidGreenKookaburra", 23),
       KV.of("BisqueBilby", 14));
 
-  /** Test the ParseEventFn OldDoFn. */
+  /** Test the {@link ParseEventFn} {@link DoFn}. */
   @Test
   public void testParseEventFn() throws Exception {
     DoFnTester<String, GameActionInfo> parseEventFn =

@@ -25,7 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -81,8 +81,8 @@ public class BigQueryTornadoes {
    * Examines each row in the input table. If a tornado was recorded
    * in that sample, the month in which it occurred is output.
    */
-  static class ExtractTornadoesFn extends OldDoFn<TableRow, Integer> {
-    @Override
+  static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       if ((Boolean) row.get("tornado")) {
@@ -95,8 +95,8 @@ public class BigQueryTornadoes {
    * Prepares the data for writing to BigQuery by building a TableRow object containing an
    * integer representation of month and the number of tornadoes that occurred in each month.
    */
-  static class FormatCountsFn extends OldDoFn<KV<Integer, Long>, TableRow> {
-    @Override
+  static class FormatCountsFn extends DoFn<KV<Integer, Long>, TableRow> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("month", c.element().getKey())

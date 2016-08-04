@@ -24,8 +24,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -141,8 +141,8 @@ public class TriggerExampleTest {
     return Joiner.on(",").join(entries);
   }
 
-  static class FormatResults extends OldDoFn<TableRow, String> {
-    @Override
+  static class FormatResults extends DoFn<TableRow, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       TableRow element = c.element();
       TableRow row = new TableRow()
