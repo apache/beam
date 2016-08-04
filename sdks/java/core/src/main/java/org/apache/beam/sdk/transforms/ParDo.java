@@ -958,7 +958,7 @@ public class ParDo {
     @Override
     protected String getKindString() {
       Class<?> clazz = DoFnReflector.getDoFnClass(fn);
-      if (fn.getClass().isAnonymousClass()) {
+      if (clazz.isAnonymousClass()) {
         return "AnonymousParMultiDo";
       } else {
         return String.format("ParMultiDo(%s)", StringUtils.approximateSimpleName(clazz));
