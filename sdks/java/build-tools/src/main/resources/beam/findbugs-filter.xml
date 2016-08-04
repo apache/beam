@@ -23,6 +23,8 @@
   <Bug pattern="EI_EXPOSE_REP2" />
   <Bug pattern="SE_NO_SERIALVERSIONID"/>
 
+  <!-- The uncallable method error fails on @ProcessElement style methods -->
+  <Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
 
   <!--
           Baseline issues below. No new issues should be added to this list. Instead, suppress
