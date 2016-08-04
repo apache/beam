@@ -1029,7 +1029,7 @@
 
           <executions>
             <execution>
-              <phase>test</phase>
+              <phase>test-compile</phase>
               <goals>
                 <goal>check</goal>
               </goals>
