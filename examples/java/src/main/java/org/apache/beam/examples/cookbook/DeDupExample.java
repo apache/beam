@@ -91,7 +91,7 @@ public class DeDupExample {
 
     p.apply("ReadLines", TextIO.Read.from(options.getInput()))
      .apply(RemoveDuplicates.<String>create())
-     .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
+     .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()).withoutSharding());
 
     p.run();
   }

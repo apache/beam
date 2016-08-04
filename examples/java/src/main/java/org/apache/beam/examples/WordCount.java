@@ -208,7 +208,7 @@ public class WordCount {
     p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
      .apply(new CountWords())
      .apply(MapElements.via(new FormatAsTextFn()))
-     .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
+     .apply("WriteCounts", TextIO.Write.to(options.getOutput()).withoutSharding());
 
     p.run();
   }
