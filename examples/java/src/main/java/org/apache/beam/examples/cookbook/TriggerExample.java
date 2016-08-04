@@ -28,14 +28,14 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
-import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -342,9 +342,9 @@ public class TriggerExample {
           .apply(GroupByKey.<String, Integer>create());
 
       PCollection<KV<String, String>> results = flowPerFreeway.apply(ParDo.of(
-          new OldDoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {
+          new DoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               Iterable<Integer> flows = c.element().getValue();
               Integer sum = 0;
@@ -365,22 +365,21 @@ public class TriggerExample {
    * Format the results of the Total flow calculation to a TableRow, to save to BigQuery.
    * Adds the triggerType, pane information, processing time and the window timestamp.
    * */
-  static class FormatTotalFlow extends OldDoFn<KV<String, String>, TableRow>
-  implements  RequiresWindowAccess {
+  static class FormatTotalFlow extends DoFn<KV<String, String>, TableRow> {
     private String triggerType;
 
     public FormatTotalFlow(String triggerType) {
       this.triggerType = triggerType;
     }
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       String[] values = c.element().getValue().split(",");
       TableRow row = new TableRow()
           .set("trigger_type", triggerType)
           .set("freeway", c.element().getKey())
           .set("total_flow", Integer.parseInt(values[0]))
           .set("number_of_records", Long.parseLong(values[1]))
-          .set("window", c.window().toString())
+          .set("window", window.toString())
           .set("isFirst", c.pane().isFirst())
           .set("isLast", c.pane().isLast())
           .set("timing", c.pane().getTiming().toString())
@@ -394,8 +393,8 @@ public class TriggerExample {
    * Extract the freeway and total flow in a reading.
    * Freeway is used as key since we are calculating the total flow for each freeway.
    */
-  static class ExtractFlowInfo extends OldDoFn<String, KV<String, Integer>> {
-    @Override
+  static class ExtractFlowInfo extends DoFn<String, KV<String, Integer>> {
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       String[] laneInfo = c.element().split(",");
       if (laneInfo[0].equals("timestamp")) {
@@ -471,13 +470,13 @@ public class TriggerExample {
    * Add current time to each record.
    * Also insert a delay at random to demo the triggers.
    */
-  public static class InsertDelays extends OldDoFn<String, String> {
+  public static class InsertDelays extends DoFn<String, String> {
     private static final double THRESHOLD = 0.001;
     // MIN_DELAY and MAX_DELAY in minutes.
     private static final int MIN_DELAY = 1;
     private static final int MAX_DELAY = 100;
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Instant timestamp = Instant.now();
       if (Math.random() < THRESHOLD){
