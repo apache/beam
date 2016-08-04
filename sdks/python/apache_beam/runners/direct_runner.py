@@ -43,7 +43,6 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
-from apache_beam.transforms import DoFnProcessContext
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
@@ -138,9 +137,6 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
-    # TODO(gildea): what is the appropriate object to attach the state to?
-    context = DoFnProcessContext(label=transform.label,
-                                 state=DoFnState(self._counter_factory))
 
     side_inputs = [self._cache.get_pvalue(view)
                    for view in transform_node.side_inputs]
@@ -176,8 +172,9 @@ class DirectPipelineRunner(PipelineRunner):
 
     runner = DoFnRunner(transform.dofn, transform.args, transform.kwargs,
                         side_inputs, transform_node.inputs[0].windowing,
-                        context, TaggedReceivers(),
-                        step_name=transform_node.full_label)
+                        tagged_receivers=TaggedReceivers(),
+                        step_name=transform_node.full_label,
+                        state=DoFnState(self._counter_factory))
     runner.start()
     for v in self._cache.get_pvalue(transform_node.inputs[0]):
       runner.process(v)
