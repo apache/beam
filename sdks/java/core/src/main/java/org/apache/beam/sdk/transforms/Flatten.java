@@ -174,8 +174,8 @@ public class Flatten {
       Coder<T> elemCoder = ((IterableLikeCoder<T, ?>) inCoder).getElemCoder();
 
       return in.apply("FlattenIterables", ParDo.of(
-          new OldDoFn<Iterable<T>, T>() {
-            @Override
+          new DoFn<Iterable<T>, T>() {
+            @ProcessElement
             public void processElement(ProcessContext c) {
               for (T i : c.element()) {
                 c.output(i);

@@ -134,7 +134,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     this.partitionDoFn = partitionDoFn;
   }
 
-  private static class PartitionDoFn<X> extends OldDoFn<X, Void> {
+  private static class PartitionDoFn<X> extends DoFn<X, Void> {
     private final int numPartitions;
     private final PartitionFn<? super X> partitionFn;
     private final TupleTagList outputTags;
@@ -163,7 +163,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       return outputTags;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       X input = c.element();
       int partition = partitionFn.partitionFor(input, numPartitions);
