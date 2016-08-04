@@ -703,7 +703,15 @@
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
           </configuration>
           <executions>
+            <!--
+              Execute checkstyle after compilation but before tests.
+
+              This ensures that any parsing or type checking errors are from
+              javac, so they look as expected. Beyond that, we want to
+              fail as early as possible.
+            -->
             <execution>
+              <phase>test-compile</phase>
               <goals>
                 <goal>check</goal>
               </goals>
