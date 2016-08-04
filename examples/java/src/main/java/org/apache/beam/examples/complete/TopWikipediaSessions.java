@@ -26,12 +26,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
-import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableComparator;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -85,8 +85,8 @@ public class TopWikipediaSessions {
   /**
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
    */
-  static class ExtractUserAndTimestamp extends OldDoFn<TableRow, String> {
-    @Override
+  static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       int timestamp = (Integer) row.get("timestamp");
@@ -132,24 +132,21 @@ public class TopWikipediaSessions {
     }
   }
 
-  static class SessionsToStringsDoFn extends OldDoFn<KV<String, Long>, KV<String, Long>>
-      implements RequiresWindowAccess {
-
-    @Override
-    public void processElement(ProcessContext c) {
+  static class SessionsToStringsDoFn extends DoFn<KV<String, Long>, KV<String, Long>> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
       c.output(KV.of(
-          c.element().getKey() + " : " + c.window(), c.element().getValue()));
+          c.element().getKey() + " : " + window, c.element().getValue()));
     }
   }
 
-  static class FormatOutputDoFn extends OldDoFn<List<KV<String, Long>>, String>
-      implements RequiresWindowAccess {
-    @Override
-    public void processElement(ProcessContext c) {
+  static class FormatOutputDoFn extends DoFn<List<KV<String, Long>>, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
       for (KV<String, Long> item : c.element()) {
         String session = item.getKey();
         long count = item.getValue();
-        c.output(session + " : " + count + " : " + ((IntervalWindow) c.window()).start());
+        c.output(session + " : " + count + " : " + ((IntervalWindow) window).start());
       }
     }
   }
@@ -168,8 +165,8 @@ public class TopWikipediaSessions {
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
 
           .apply("SampleUsers", ParDo.of(
-              new OldDoFn<String, String>() {
-                @Override
+              new DoFn<String, String>() {
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * samplingThreshold) {
                     c.output(c.element());

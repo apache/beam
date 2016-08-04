@@ -24,8 +24,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Mean;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -98,8 +98,8 @@ public class FilterExamples {
    * Examines each row in the input table. Outputs only the subset of the cells this example
    * is interested in-- the mean_temp and year, month, and day-- as a bigquery table row.
    */
-  static class ProjectionFn extends OldDoFn<TableRow, TableRow> {
-    @Override
+  static class ProjectionFn extends DoFn<TableRow, TableRow> {
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       // Grab year, month, day, mean_temp from the row
@@ -119,16 +119,16 @@ public class FilterExamples {
    * Implements 'filter' functionality.
    *
    * <p>Examines each row in the input table. Outputs only rows from the month
-   * monthFilter, which is passed in as a parameter during construction of this OldDoFn.
+   * monthFilter, which is passed in as a parameter during construction of this DoFn.
    */
-  static class FilterSingleMonthDataFn extends OldDoFn<TableRow, TableRow> {
+  static class FilterSingleMonthDataFn extends DoFn<TableRow, TableRow> {
     Integer monthFilter;
 
     public FilterSingleMonthDataFn(Integer monthFilter) {
       this.monthFilter = monthFilter;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       Integer month;
@@ -143,8 +143,8 @@ public class FilterExamples {
    * Examines each row (weather reading) in the input table. Output the temperature
    * reading for that row ('mean_temp').
    */
-  static class ExtractTempFn extends OldDoFn<TableRow, Double> {
-    @Override
+  static class ExtractTempFn extends DoFn<TableRow, Double> {
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
@@ -191,8 +191,8 @@ public class FilterExamples {
       PCollection<TableRow> filteredRows = monthFilteredRows
           .apply("ParseAndFilter", ParDo
               .withSideInputs(globalMeanTemp)
-              .of(new OldDoFn<TableRow, TableRow>() {
-                @Override
+              .of(new DoFn<TableRow, TableRow>() {
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   Double meanTemp = Double.parseDouble(c.element().get("mean_temp").toString());
                   Double gTemp = c.sideInput(globalMeanTemp);
