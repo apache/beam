@@ -102,23 +102,25 @@ public abstract class StandardCoder<T> implements Coder<T> {
 
   @Override
   public String toString() {
+    StringBuilder builder = new StringBuilder();
     String s = getClass().getName();
-    s = s.substring(s.lastIndexOf('.') + 1);
+    builder.append(s.substring(s.lastIndexOf('.') + 1));
+
     List<? extends Coder<?>> componentCoders = getComponents();
     if (!componentCoders.isEmpty()) {
-      s += "(";
+      builder.append('(');
       boolean first = true;
       for (Coder<?> componentCoder : componentCoders) {
         if (first) {
           first = false;
         } else {
-          s += ", ";
+          builder.append(',');
         }
-        s += componentCoder.toString();
+        builder.append(componentCoder.toString());
       }
-      s += ")";
+      builder.append(')');
     }
-    return s;
+    return builder.toString();
   }
 
   @Override
