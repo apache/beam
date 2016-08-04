@@ -33,6 +33,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.options.subpackagea.SubpackageAOptions;
+import org.apache.beam.sdk.options.subpackageb.SubpackageBOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.collect.ImmutableList;
@@ -963,5 +965,21 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("value")));
+  }
+
+  @Test
+  public void testPackagePrivateOptionsFromMultiplePackages() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    SubpackageAOptions.apply(options);
+    SubpackageBOptions.apply(options);
+    // Should not throw
+  }
+
+  @Test
+  public void testRegisteredPackagePrivateOptions() {
+    SubpackageAOptions.register();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    SubpackageBOptions.apply(options);
+    // Should not throw
   }
 }
