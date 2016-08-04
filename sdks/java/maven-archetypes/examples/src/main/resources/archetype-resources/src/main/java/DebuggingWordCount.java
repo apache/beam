@@ -65,7 +65,7 @@ import java.util.regex.Pattern;
  * }
  * </pre>
  *
- * <p>To execute this pipeline using the Dataflow service and the additional logging discussed
+ * <p>To execute this pipeline using the Dataflow service and with the additional logging discussed
  * below, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -152,7 +152,7 @@ public class DebuggingWordCount {
       }
     }
   }
-  
+
   /**
    * Options supported by {@link DebuggingWordCount}.
    *
@@ -177,6 +177,10 @@ public class DebuggingWordCount {
         p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
          .apply(new WordCount.CountWords())
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
+
+    filteredWords
+        .apply(ParDo.of(new WordCount.FormatAsTextFn()))
+        .apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
 
     /**
      * Concept #4: PAssert is a set of convenient PTransforms in the style of

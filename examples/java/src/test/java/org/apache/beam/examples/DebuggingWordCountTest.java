@@ -40,6 +40,8 @@ public class DebuggingWordCountTest {
     File file = tmpFolder.newFile();
     Files.write("stomach secret Flourish message Flourish here Flourish", file,
         StandardCharsets.UTF_8);
-    DebuggingWordCount.main(new String[]{"--inputFile=" + file.getAbsolutePath()});
+    DebuggingWordCount.main(new String[]{
+        "--inputFile=" + file.getAbsolutePath(),
+        "--output=" + tmpFolder.newFolder().getAbsolutePath()});
   }
 }
