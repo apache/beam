@@ -33,7 +33,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -94,7 +94,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
 
 /**
@@ -550,8 +549,8 @@ public class KafkaIO {
       return typedRead
           .apply(begin)
           .apply("Remove Kafka Metadata",
-              ParDo.of(new OldDoFn<KafkaRecord<K, V>, KV<K, V>>() {
-                @Override
+              ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
+                @ProcessElement
                 public void processElement(ProcessContext ctx) {
                   ctx.output(ctx.element().getKV());
                 }
@@ -1315,8 +1314,8 @@ public class KafkaIO {
     public PDone apply(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
-          ParDo.of(new OldDoFn<V, KV<Void, V>>() {
-            @Override
+          ParDo.of(new DoFn<V, KV<Void, V>>() {
+            @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
               ctx.output(KV.<Void, V>of(null, ctx.element()));
             }
@@ -1326,9 +1325,9 @@ public class KafkaIO {
     }
   }
 
-  private static class KafkaWriter<K, V> extends OldDoFn<KV<K, V>, Void> {
+  private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       // Producer initialization is fairly costly. Move this to future initialization api to avoid
       // creating a producer for each bundle.
@@ -1341,7 +1340,7 @@ public class KafkaIO {
       }
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
       checkForFailures();
 
@@ -1351,7 +1350,7 @@ public class KafkaIO {
           new SendCallback());
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       producer.flush();
       producer.close();

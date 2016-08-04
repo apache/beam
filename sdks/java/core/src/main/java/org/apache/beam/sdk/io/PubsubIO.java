@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -709,11 +709,11 @@ public class PubsubIO {
        *
        * <p>Public so can be suppressed by runners.
        */
-      public class PubsubBoundedReader extends OldDoFn<Void, T> {
+      public class PubsubBoundedReader extends DoFn<Void, T> {
         private static final int DEFAULT_PULL_SIZE = 100;
         private static final int ACK_TIMEOUT_SEC = 60;
 
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
           try (PubsubClient pubsubClient =
                    FACTORY.newClient(timestampLabel, idLabel,
@@ -998,12 +998,12 @@ public class PubsubIO {
        *
        * <p>Public so can be suppressed by runners.
        */
-      public class PubsubBoundedWriter extends OldDoFn<T, Void> {
+      public class PubsubBoundedWriter extends DoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<OutgoingMessage> output;
         private transient PubsubClient pubsubClient;
 
-        @Override
+        @StartBundle
         public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
           // NOTE: idLabel is ignored.
@@ -1012,7 +1012,7 @@ public class PubsubIO {
                                 c.getPipelineOptions().as(PubsubOptions.class));
         }
 
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
           // NOTE: The record id is always null.
           OutgoingMessage message =
@@ -1025,7 +1025,7 @@ public class PubsubIO {
           }
         }
 
-        @Override
+        @FinishBundle
         public void finishBundle(Context c) throws IOException {
           if (!output.isEmpty()) {
             publish();

@@ -27,7 +27,7 @@ import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 
@@ -60,7 +60,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
 
 class V1Beta3TestUtil {
@@ -109,9 +108,9 @@ class V1Beta3TestUtil {
   }
 
   /**
-   * A OldDoFn that creates entity for a long number.
+   * A DoFn that creates entity for a long number.
    */
-  static class CreateEntityFn extends OldDoFn<Long, Entity> {
+  static class CreateEntityFn extends DoFn<Long, Entity> {
     private final String kind;
     @Nullable
     private final String namespace;
@@ -124,7 +123,7 @@ class V1Beta3TestUtil {
       ancestorKey = makeAncestorKey(namespace, kind, ancestor);
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(makeEntity(c.element(), ancestorKey, kind, namespace));
     }

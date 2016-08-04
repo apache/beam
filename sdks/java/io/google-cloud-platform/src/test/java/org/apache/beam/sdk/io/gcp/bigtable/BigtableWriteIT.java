@@ -23,7 +23,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 
@@ -108,8 +108,8 @@ public class BigtableWriteIT implements Serializable {
 
     Pipeline p = Pipeline.create(options);
     p.apply(CountingInput.upTo(numRows))
-        .apply(ParDo.of(new OldDoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
-          @Override
+        .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
+          @ProcessElement
           public void processElement(ProcessContext c) {
             int index = c.element().intValue();
 
