@@ -20,6 +20,7 @@ package ${package};
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -86,7 +87,10 @@ import org.apache.beam.sdk.values.PCollection;
  * }</pre>
  *
  * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
- * overridden with {@code --inputFile}.
+ * overridden with {@code --inputFile}. You may also read from a compressed file by setting
+ * {@code --compressionType} parameter (see {@link TextIO.CompressionType} for options); by default
+ * this example will choose whether to attempt decompression based on the extension of the input
+ * file.
  */
 public class WordCount {
 
@@ -165,6 +169,11 @@ public class WordCount {
     String getInputFile();
     void setInputFile(String value);
 
+    @Description("Compression type for the input file")
+    @Default.Enum("AUTO")
+    CompressionType getCompressionType();
+    void setCompressionType(CompressionType value);
+
     @Description("Path of the file to write to")
     @Default.InstanceFactory(OutputFactory.class)
     String getOutput();
@@ -195,7 +204,8 @@ public class WordCount {
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
-    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
+    p.apply("ReadLines",
+        TextIO.Read.from(options.getInputFile()).withCompressionType(options.getCompressionType()))
      .apply(new CountWords())
      .apply(ParDo.of(new FormatAsTextFn()))
      .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
