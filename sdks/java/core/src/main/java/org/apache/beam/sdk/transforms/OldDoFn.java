@@ -72,7 +72,9 @@ import java.util.UUID;
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
+ * @deprecated Uses of {@link OldDoFn} should be replaced by the new {@link DoFn}.
  */
+@Deprecated
 public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   /**
