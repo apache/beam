@@ -78,7 +78,7 @@ public class EntityCoder extends AtomicCoder<Entity> {
    * {@inheritDoc}
    *
    * @throws NonDeterministicException always.
-   *         A datastore kind can hold arbitrary {@link Object} instances, which
+   *         A Datastore kind can hold arbitrary {@link Object} instances, which
    *         makes the encoding non-deterministic.
    */
   @Override
