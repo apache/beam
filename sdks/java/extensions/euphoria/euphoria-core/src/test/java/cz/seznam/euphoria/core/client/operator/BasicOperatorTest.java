@@ -3,7 +3,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -12,18 +11,14 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.io.StdoutSink;
-import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
 import cz.seznam.euphoria.core.util.Settings;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.Serializable;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -435,66 +430,4 @@ public class BasicOperatorTest {
     assertEquals(1, starts.length);
     return starts[0];
   }
-
-  @Test
-  @Ignore
-  public void testDistinctGroupByStream() throws Exception {
-
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.tcp",
-        TCPLineStreamSource.Factory.class);
-    settings.setClass("euphoria.io.datasink.factory.stdout",
-        StdoutSink.Factory.class);
-
-    Flow flow = Flow.create("Test", settings);
-
-    Dataset<String> lines = flow.createInput(new URI("tcp://localhost:8080"));
-
-    // get rid of empty lines
-    Dataset<String> nonempty = Filter.of(lines)
-        .by(line -> !line.isEmpty() && line.contains("\t"))
-        .output();
-
-    // split lines to pairs
-    Dataset<Pair<String, String>> pairs = MapElements.of(nonempty)
-        .using(s -> {
-          String[] parts = s.split("\t", 2);
-          return Pair.of(parts[0], parts[1]);
-        })
-        .output();
-
-    // group all lines by the first element
-    GroupedDataset<String, String> grouped = GroupByKey.of(pairs)
-            .keyBy(Pair::getFirst)
-            .valueBy(Pair::getSecond)
-        .output();
-
-    // calculate all distinct values within each group
-    Dataset<Pair<CompositeKey<String, String>, Void>>
-        reduced = ReduceByKey.of(grouped)
-        .keyBy(e -> e)
-        .valueBy(e -> (Void) null)
-        .combineBy(values -> null)
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
-        .output();
-
-    // take distinct tuples
-    Dataset<CompositeKey<String, String>> distinct =
-        MapElements.of(reduced)
-        .using(Pair::getFirst)
-        .output();
-
-    // calculate the final distinct values per key
-    Dataset<Pair<String, Long>> output =
-        CountByKey.of(distinct)
-        .keyBy(Pair::getFirst)
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
-        .output();
-
-    output.persist(URI.create("stdout:///?dump-partition-id=false"));
-
-    executor.waitForCompletion(flow);
-
-  }
-
 }
