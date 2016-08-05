@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -89,13 +90,13 @@ public class ParDoTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  private static class PrintingOldDoFn extends OldDoFn<String, String> implements
+  private static class PrintingOldDoFn extends DoFn<String, String> implements
       RequiresWindowAccess {
 
-    @Override
-    public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
       c.output(c.element() + ":" + c.timestamp().getMillis()
-          + ":" + c.window().maxTimestamp().getMillis());
+          + ":" + window.maxTimestamp().getMillis());
     }
   }
 
@@ -1401,7 +1402,7 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
   @Test
-  public void testDoFnDisplayData() {
+  public void testOldDoFnDisplayData() {
     OldDoFn<String, String> fn = new OldDoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) {
@@ -1425,7 +1426,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testDoFnWithContextDisplayData() {
+  public void testDoFnDisplayData() {
     DoFn<String, String> fn = new DoFn<String, String>() {
       @ProcessElement
       public void proccessElement(ProcessContext c) {}

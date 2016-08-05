@@ -220,7 +220,7 @@ public abstract class DoFnReflector {
   /**
    * Create a {@link OldDoFn} that the {@link DoFn}.
    */
-  public <InputT, OutputT> OldDoFn<InputT, OutputT> toDoFn(DoFn<InputT, OutputT> fn) {
+  public <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
     if (usesSingleWindow()) {
       return new WindowDoFnAdapter<InputT, OutputT>(this, fn);
     } else {
