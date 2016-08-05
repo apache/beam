@@ -24,7 +24,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -168,7 +167,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   };
 
   private final Class<T> type;
-  private final Schema schema;
+  private final transient Schema schema;
 
   private final List<String> nonDeterministicReasons;
 
@@ -178,10 +177,10 @@ public class AvroCoder<T> extends StandardCoder<T> {
   // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
   // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
   // an inner coder.
-  private final ThreadLocal<BinaryDecoder> decoder;
-  private final ThreadLocal<BinaryEncoder> encoder;
-  private final ThreadLocal<DatumWriter<T>> writer;
-  private final ThreadLocal<DatumReader<T>> reader;
+  private final transient ThreadLocal<BinaryDecoder> decoder;
+  private final transient ThreadLocal<BinaryEncoder> encoder;
+  private final transient ThreadLocal<DatumWriter<T>> writer;
+  private final transient ThreadLocal<DatumReader<T>> reader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
@@ -475,6 +474,10 @@ public class AvroCoder<T> extends StandardCoder<T> {
           checkMap(context, type, schema);
           break;
         case RECORD:
+          if (!(type.getType() instanceof Class)) {
+            reportError(context, "Cannot determine type from generic %s due to erasure", type);
+            return;
+          }
           checkRecord(type, schema);
           break;
         case UNION:
@@ -695,7 +698,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
      * Extract a field from a class. We need to look at the declared fields so that we can
      * see private fields. We may need to walk up to the parent to get classes from the parent.
      */
-    private static Field getField(Class<?> clazz, String name) {
+    private static Field getField(Class<?> originalClazz, String name) {
+      Class<?> clazz = originalClazz;
       while (clazz != null) {
         for (Field field : clazz.getDeclaredFields()) {
           AvroName avroName = field.getAnnotation(AvroName.class);
@@ -708,8 +712,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
         clazz = clazz.getSuperclass();
       }
 
-      throw new IllegalArgumentException(
-          "Unable to get field " + name + " from class " + clazz);
+      throw new IllegalArgumentException("Unable to get field " + name + " from " + originalClazz);
     }
   }
 }

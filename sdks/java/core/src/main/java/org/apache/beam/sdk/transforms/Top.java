@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -32,7 +34,6 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
@@ -375,9 +376,7 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
     private final ComparatorT compareFn;
 
     public TopCombineFn(int count, ComparatorT compareFn) {
-      Preconditions.checkArgument(
-          count >= 0,
-          "count must be >= 0");
+      checkArgument(count >= 0, "count must be >= 0 (not %s)", count);
       this.count = count;
       this.compareFn = compareFn;
     }

@@ -144,7 +144,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public String toString() {
-    return "DataflowRunner#" + hashCode();
+    return "FlinkRunner#" + hashCode();
   }
 
   /**

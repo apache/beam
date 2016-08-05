@@ -76,7 +76,7 @@ public final class PCollectionTupleTest implements Serializable {
 
     PCollectionTuple outputs = mainInput.apply(ParDo
         .of(new DoFn<Integer, Integer>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             c.sideOutput(sideOutputTag, c.element());
           }})

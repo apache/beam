@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.io.hadoop;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -24,8 +27,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -68,14 +69,10 @@ public final class HadoopIO {
 
       Bound(String filepattern, Class<? extends FileInputFormat<K, V>> format, Class<K> key,
           Class<V> value) {
-        Preconditions.checkNotNull(filepattern,
-                                   "need to set the filepattern of an HadoopIO.Read transform");
-        Preconditions.checkNotNull(format,
-                                   "need to set the format class of an HadoopIO.Read transform");
-        Preconditions.checkNotNull(key,
-                                   "need to set the key class of an HadoopIO.Read transform");
-        Preconditions.checkNotNull(value,
-                                   "need to set the value class of an HadoopIO.Read transform");
+        checkNotNull(filepattern, "need to set the filepattern of an HadoopIO.Read transform");
+        checkNotNull(format, "need to set the format class of an HadoopIO.Read transform");
+        checkNotNull(key, "need to set the key class of an HadoopIO.Read transform");
+        checkNotNull(value, "need to set the value class of an HadoopIO.Read transform");
         this.filepattern = filepattern;
         this.formatClass = format;
         this.keyClass = key;
@@ -203,17 +200,16 @@ public final class HadoopIO {
 
       @Override
       public PDone apply(PCollection<KV<K, V>> input) {
-        Preconditions.checkNotNull(filenamePrefix,
-            "need to set the filename prefix of an HadoopIO.Write transform");
-        Preconditions.checkNotNull(formatClass,
-            "need to set the format class of an HadoopIO.Write transform");
-        Preconditions.checkNotNull(keyClass,
-            "need to set the key class of an HadoopIO.Write transform");
-        Preconditions.checkNotNull(valueClass,
-            "need to set the value class of an HadoopIO.Write transform");
+        checkNotNull(
+            filenamePrefix, "need to set the filename prefix of an HadoopIO.Write transform");
+        checkNotNull(formatClass, "need to set the format class of an HadoopIO.Write transform");
+        checkNotNull(keyClass, "need to set the key class of an HadoopIO.Write transform");
+        checkNotNull(valueClass, "need to set the value class of an HadoopIO.Write transform");
 
-        Preconditions.checkArgument(ShardNameTemplateAware.class.isAssignableFrom(formatClass),
-            "Format class must implement " + ShardNameTemplateAware.class.getName());
+        checkArgument(
+            ShardNameTemplateAware.class.isAssignableFrom(formatClass),
+            "Format class must implement %s",
+            ShardNameTemplateAware.class.getName());
 
         return PDone.in(input.getPipeline());
       }

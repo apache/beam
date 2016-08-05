@@ -41,6 +41,8 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +52,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link TestDataflowRunner} is a pipeline runner that wraps a
@@ -74,12 +75,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Constructs a runner from the provided options.
    */
-  public static TestDataflowRunner fromOptions(
-      PipelineOptions options) {
+  public static TestDataflowRunner fromOptions(PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
-    dataflowOptions.setStagingLocation(Joiner.on("/").join(
-        new String[]{dataflowOptions.getTempRoot(),
-          dataflowOptions.getJobName(), "output", "results"}));
+    String tempLocation = Joiner.on("/").join(
+        dataflowOptions.getTempRoot(),
+        dataflowOptions.getJobName(),
+        "output",
+        "results");
+    dataflowOptions.setTempLocation(tempLocation);
 
     return new TestDataflowRunner(dataflowOptions);
   }
@@ -105,7 +108,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     assertThat(job, testPipelineOptions.getOnCreateMatcher());
 
     CancelWorkflowOnError messageHandler = new CancelWorkflowOnError(
-        job, new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
+        job, new MonitoringUtil.LoggingHandler());
 
     try {
       final Optional<Boolean> result;
@@ -129,7 +132,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             }
           }
         });
-        State finalState = job.waitToFinish(10L, TimeUnit.MINUTES, messageHandler);
+        State finalState = job.waitUntilFinish(Duration.standardMinutes(10L), messageHandler);
         if (finalState == null || finalState == State.RUNNING) {
           LOG.info("Dataflow job {} took longer than 10 minutes to complete, cancelling.",
               job.getJobId());
@@ -137,7 +140,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
         result = resultFuture.get();
       } else {
-        job.waitToFinish(-1, TimeUnit.SECONDS, messageHandler);
+        job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
         result = checkForSuccess(job);
       }
       if (!result.isPresent()) {
@@ -182,7 +185,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return Optional.of(false);
     }
 
-    JobMetrics metrics = job.getDataflowClient().projects().jobs()
+    JobMetrics metrics = options.getDataflowClient().projects().jobs()
         .getMetrics(job.getProjectId(), job.getJobId()).execute();
 
     if (metrics == null || metrics.getMetrics() == null) {

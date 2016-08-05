@@ -122,8 +122,8 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
 
   /**
    * A {@link StateTable} that, when a value is retrieved with
-   * {@link StateTable#get(StateNamespace, StateTag)}, first attempts to obtain a copy of existing
-   * {@link State} from an underlying {@link StateTable}.
+   * {@link StateTable#get(StateNamespace, StateTag, StateContext)}, first attempts to obtain a
+   * copy of existing {@link State} from an underlying {@link StateTable}.
    */
   private static class CopyOnAccessInMemoryStateTable<K> extends StateTable<K> {
     private final K key;

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-
-import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,17 +141,17 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
   @Override
   public void validate() {
-    Preconditions.checkArgument(
+    checkArgument(
         this.startOffset >= 0,
         "Start offset has value %s, must be non-negative", this.startOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         this.endOffset >= 0,
         "End offset has value %s, must be non-negative", this.endOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         this.startOffset < this.endOffset,
         "Start offset %s must be before end offset %s",
         this.startOffset, this.endOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         this.minBundleSize >= 0,
         "minBundleSize has value %s, must be non-negative",
         this.minBundleSize);
@@ -191,17 +191,6 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
    * the current source, i.e. {@code startOffset <= start < end <= endOffset}.
    */
   public abstract OffsetBasedSource<T> createSourceForSubrange(long start, long end);
-
-  /**
-   * Whether this source should allow dynamic splitting of the offset ranges.
-   *
-   * <p>True by default. Override this to return false if the source cannot
-   * support dynamic splitting correctly. If this returns false,
-   * {@link OffsetBasedSource.OffsetBasedReader#splitAtFraction} will refuse all split requests.
-   */
-  public boolean allowsDynamicSplitting() {
-    return true;
-  }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
@@ -342,7 +331,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
         // Note that even if the current source does not allow splitting, we don't know that
         // it's non-empty so we return UNKNOWN instead of 1.
         return BoundedReader.SPLIT_POINTS_UNKNOWN;
-      } else if (!getCurrentSource().allowsDynamicSplitting()) {
+      } else if (!allowsDynamicSplitting()) {
         // Started (so non-empty) and unsplittable, so only the current task.
         return 1;
       } else if (getCurrentOffset() >= rangeTracker.getStopPosition() - 1) {
@@ -355,9 +344,20 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
       }
     }
 
+    /**
+     * Whether this reader should allow dynamic splitting of the offset ranges.
+     *
+     * <p>True by default. Override this to return false if the reader cannot
+     * support dynamic splitting correctly. If this returns false,
+     * {@link OffsetBasedReader#splitAtFraction} will refuse all split requests.
+     */
+    public boolean allowsDynamicSplitting() {
+      return true;
+    }
+
     @Override
     public final synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
-      if (!getCurrentSource().allowsDynamicSplitting()) {
+      if (!allowsDynamicSplitting()) {
         return null;
       }
       if (rangeTracker.getStopPosition() == Long.MAX_VALUE) {
@@ -370,13 +370,13 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
       LOG.debug(
           "Proposing to split OffsetBasedReader {} at fraction {} (offset {})",
           rangeTracker, fraction, splitOffset);
-      if (!rangeTracker.trySplitAtPosition(splitOffset)) {
-        return null;
-      }
       long start = source.getStartOffset();
       long end = source.getEndOffset();
       OffsetBasedSource<T> primary = source.createSourceForSubrange(start, splitOffset);
       OffsetBasedSource<T> residual = source.createSourceForSubrange(splitOffset, end);
+      if (!rangeTracker.trySplitAtPosition(splitOffset)) {
+        return null;
+      }
       this.source = primary;
       return residual;
     }

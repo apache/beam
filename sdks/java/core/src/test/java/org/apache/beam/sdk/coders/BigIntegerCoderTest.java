@@ -21,20 +21,14 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.Counter.AggregationKind;
-import org.apache.beam.sdk.util.common.CounterName;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
 import com.google.common.collect.ImmutableList;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.math.BigInteger;
 import java.util.List;
 
@@ -87,15 +81,13 @@ public class BigIntegerCoderTest {
 
   @Test
   public void testGetEncodedElementByteSize() throws Exception {
-    Counter<Long> counter = Counter.longs(CounterName.named("dummy"), AggregationKind.SUM);
-    ElementByteSizeObserver observer = new ElementByteSizeObserver(counter);
+    TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
     for (BigInteger value : TEST_VALUES) {
       TEST_CODER.registerByteSizeObserver(value, observer, Coder.Context.OUTER);
       observer.advance();
       assertThat(
-          counter.getAggregate(),
+          observer.getSumAndReset(),
           equalTo((long) CoderUtils.encodeToByteArray(TEST_CODER, value).length));
-      counter.resetToValue(0L);
     }
   }
 

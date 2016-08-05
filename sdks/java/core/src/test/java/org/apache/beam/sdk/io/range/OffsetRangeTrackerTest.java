@@ -36,6 +36,17 @@ public class OffsetRangeTrackerTest {
   @Rule public final ExpectedException expected = ExpectedException.none();
 
   @Test
+  public void testUpdateStartOffset() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
+    assertEquals(100, tracker.getStartPosition().longValue());
+    // Update start offset to first record returned
+    assertTrue(tracker.tryReturnRecordAt(true, 150));
+    assertEquals(150, tracker.getStartPosition().longValue());
+    assertTrue(tracker.tryReturnRecordAt(true, 180));
+    assertEquals(150, tracker.getStartPosition().longValue());
+  }
+
+  @Test
   public void testTryReturnRecordSimpleSparse() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
     assertTrue(tracker.tryReturnRecordAt(true, 110));
@@ -113,28 +124,48 @@ public class OffsetRangeTrackerTest {
   public void testGetPositionForFractionDense() throws Exception {
     // Represents positions 3, 4, 5.
     OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
-    // [3, 3) represents 0.0 of [3, 6)
+    // [3, 3) represents from [0, 1/3) fraction of [3, 6)
     assertEquals(3, tracker.getPositionForFractionConsumed(0.0));
-    // [3, 4) represents up to 1/3 of [3, 6)
-    assertEquals(4, tracker.getPositionForFractionConsumed(1.0 / 6));
-    assertEquals(4, tracker.getPositionForFractionConsumed(0.333));
-    // [3, 5) represents up to 2/3 of [3, 6)
-    assertEquals(5, tracker.getPositionForFractionConsumed(0.334));
-    assertEquals(5, tracker.getPositionForFractionConsumed(0.666));
-    // any fraction consumed over 2/3 means the whole [3, 6) has been consumed.
-    assertEquals(6, tracker.getPositionForFractionConsumed(0.667));
+    assertEquals(3, tracker.getPositionForFractionConsumed(1.0 / 6));
+    assertEquals(3, tracker.getPositionForFractionConsumed(0.333));
+    // [3, 4) represents from [0, 2/3) fraction of [3, 6)
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.334));
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.666));
+    // [3, 5) represents from [0, 1) fraction of [3, 6)
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.667));
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.999));
+    // The whole [3, 6) is consumed for fraction 1
+    assertEquals(6, tracker.getPositionForFractionConsumed(1.0));
+  }
+
+  @Test
+  public void testGetPositionForFractionDenseUpdateStartOffset() throws Exception {
+    // Represents positions 3, 4, 5.
+    OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
+    // [3, 3) represents from [0, 1/3) fraction of [3, 6)
+    assertEquals(3, tracker.getPositionForFractionConsumed(0.333));
+    // Update start offset to 4
+    assertTrue(tracker.tryReturnRecordAt(true, 4));
+    // [4, 4) represents from [0, 1/2) fraction of [4, 6)
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.0));
+    assertEquals(4, tracker.getPositionForFractionConsumed(0.499));
+    // [4, 5) represents from [0, 1) fraction of [4, 6)
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.5));
+    assertEquals(5, tracker.getPositionForFractionConsumed(0.999));
+    // The whole [4, 6) is consumed for fraction 1
+    assertEquals(6, tracker.getPositionForFractionConsumed(1.0));
   }
 
   @Test
   public void testGetFractionConsumedDense() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(3, 6);
-    assertEquals(0, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 3));
-    assertEquals(1.0 / 3, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 4));
-    assertEquals(2.0 / 3, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(1.0 / 3, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 5));
-    assertEquals(1.0, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(2.0 / 3, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(false /* non-split-point */, 6));
     assertEquals(1.0, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(false /* non-split-point */, 7));
@@ -145,14 +176,33 @@ public class OffsetRangeTrackerTest {
   @Test
   public void testGetFractionConsumedSparse() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
-    assertEquals(0, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
+    assertTrue(tracker.tryReturnRecordAt(true, 100));
+    assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 110));
-    // Consumed positions through 110 = total 11 positions of 100.
-    assertEquals(0.11, tracker.getFractionConsumed(), 1e-6);
+    // Consumed positions through 109 = total 10 positions of 100.
+    assertEquals(0.1, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 150));
-    assertEquals(0.51, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(0.5, tracker.getFractionConsumed(), 1e-6);
     assertTrue(tracker.tryReturnRecordAt(true, 195));
-    assertEquals(0.96, tracker.getFractionConsumed(), 1e-6);
+    assertEquals(0.95, tracker.getFractionConsumed(), 1e-6);
+    assertFalse(tracker.tryReturnRecordAt(true, 200));
+    assertEquals(1.0, tracker.getFractionConsumed(), 1e-6);
+  }
+
+  @Test
+  public void testGetFractionConsumedUpdateStartOffset() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
+    assertTrue(tracker.tryReturnRecordAt(true, 150));
+    assertEquals(0.0, tracker.getFractionConsumed(), 1e-6);
+    assertTrue(tracker.tryReturnRecordAt(true, 160));
+    assertEquals(0.2, tracker.getFractionConsumed(), 1e-6);
+    assertTrue(tracker.tryReturnRecordAt(true, 180));
+    assertEquals(0.6, tracker.getFractionConsumed(), 1e-6);
+    assertTrue(tracker.tryReturnRecordAt(true, 195));
+    assertEquals(0.9, tracker.getFractionConsumed(), 1e-6);
+    assertFalse(tracker.tryReturnRecordAt(true, 200));
+    assertEquals(1.0, tracker.getFractionConsumed(), 1e-6);
   }
 
   @Test
@@ -172,15 +222,16 @@ public class OffsetRangeTrackerTest {
 
   @Test
   public void testTryReturnFirstRecordNotSplitPoint() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
     expected.expect(IllegalStateException.class);
-    new OffsetRangeTracker(100, 200).tryReturnRecordAt(false, 120);
+    tracker.tryReturnRecordAt(false, 120);
   }
 
   @Test
   public void testTryReturnRecordNonMonotonic() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(100, 200);
-    expected.expect(IllegalStateException.class);
     tracker.tryReturnRecordAt(true, 120);
+    expected.expect(IllegalStateException.class);
     tracker.tryReturnRecordAt(true, 110);
   }
 }

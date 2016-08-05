@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -33,7 +35,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -1071,7 +1072,7 @@ public class WatermarkManager {
      * Returns the input watermark of the {@link AppliedPTransform}.
      */
     public Instant getInputWatermark() {
-      return Preconditions.checkNotNull(inputWatermark.get());
+      return checkNotNull(inputWatermark.get());
     }
 
     /**

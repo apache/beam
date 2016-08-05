@@ -136,6 +136,18 @@ public class AvroIOGeneratedClassTest {
     return users;
   }
 
+  <T> void runTestRead(
+      String applyName, AvroIO.Read.Bound<T> read, String expectedName, T[] expectedOutput)
+      throws Exception {
+    generateAvroFile(generateAvroObjects());
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<T> output = p.apply(applyName, read);
+    PAssert.that(output).containsInAnyOrder(expectedOutput);
+    p.run();
+    assertEquals(expectedName, output.getName());
+  }
+
   <T> void runTestRead(AvroIO.Read.Bound<T> read, String expectedName, T[] expectedOutput)
       throws Exception {
     generateAvroFile(generateAvroObjects());
@@ -158,28 +170,16 @@ public class AvroIOGeneratedClassTest {
         AvroIO.Read.withSchema(AvroGeneratedUser.class).from(avroFile.getPath()),
         "AvroIO.Read/Read.out",
         generateAvroObjects());
-    runTestRead(
-        AvroIO.Read.named("MyRead").from(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
+    runTestRead("MyRead",
+        AvroIO.Read.from(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
         "MyRead/Read.out",
         generateAvroObjects());
-    runTestRead(
-        AvroIO.Read.named("MyRead").withSchema(AvroGeneratedUser.class).from(avroFile.getPath()),
+    runTestRead("MyRead",
+        AvroIO.Read.withSchema(AvroGeneratedUser.class).from(avroFile.getPath()),
         "MyRead/Read.out",
         generateAvroObjects());
-    runTestRead(
-        AvroIO.Read.from(avroFile.getPath()).withSchema(AvroGeneratedUser.class).named("HerRead"),
-        "HerRead/Read.out",
-        generateAvroObjects());
-    runTestRead(
-        AvroIO.Read.from(avroFile.getPath()).named("HerRead").withSchema(AvroGeneratedUser.class),
-        "HerRead/Read.out",
-        generateAvroObjects());
-    runTestRead(
-        AvroIO.Read.withSchema(AvroGeneratedUser.class).named("HerRead").from(avroFile.getPath()),
-        "HerRead/Read.out",
-        generateAvroObjects());
-    runTestRead(
-        AvroIO.Read.withSchema(AvroGeneratedUser.class).from(avroFile.getPath()).named("HerRead"),
+    runTestRead("HerRead",
+        AvroIO.Read.from(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
         "HerRead/Read.out",
         generateAvroObjects());
   }
@@ -195,28 +195,20 @@ public class AvroIOGeneratedClassTest {
         AvroIO.Read.withSchema(schema).from(avroFile.getPath()),
         "AvroIO.Read/Read.out",
         generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.named("MyRead").from(avroFile.getPath()).withSchema(schema),
+    runTestRead("MyRead",
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schema),
         "MyRead/Read.out",
         generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.named("MyRead").withSchema(schema).from(avroFile.getPath()),
+    runTestRead("MyRead",
+        AvroIO.Read.withSchema(schema).from(avroFile.getPath()),
         "MyRead/Read.out",
         generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.from(avroFile.getPath()).withSchema(schema).named("HerRead"),
+    runTestRead("HerRead",
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schema),
         "HerRead/Read.out",
         generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.from(avroFile.getPath()).named("HerRead").withSchema(schema),
-        "HerRead/Read.out",
-        generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.withSchema(schema).named("HerRead").from(avroFile.getPath()),
-        "HerRead/Read.out",
-        generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.withSchema(schema).from(avroFile.getPath()).named("HerRead"),
+    runTestRead("HerRead",
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schema),
         "HerRead/Read.out",
         generateAvroGenericRecords());
   }
@@ -232,28 +224,12 @@ public class AvroIOGeneratedClassTest {
         AvroIO.Read.withSchema(schemaString).from(avroFile.getPath()),
         "AvroIO.Read/Read.out",
         generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.named("MyRead").from(avroFile.getPath()).withSchema(schemaString),
+    runTestRead("MyRead",
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schemaString),
         "MyRead/Read.out",
         generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.named("MyRead").withSchema(schemaString).from(avroFile.getPath()),
-        "MyRead/Read.out",
-        generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.from(avroFile.getPath()).withSchema(schemaString).named("HerRead"),
-        "HerRead/Read.out",
-        generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.from(avroFile.getPath()).named("HerRead").withSchema(schemaString),
-        "HerRead/Read.out",
-        generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.withSchema(schemaString).named("HerRead").from(avroFile.getPath()),
-        "HerRead/Read.out",
-        generateAvroGenericRecords());
-    runTestRead(
-        AvroIO.Read.withSchema(schemaString).from(avroFile.getPath()).named("HerRead"),
+    runTestRead("HerRead",
+        AvroIO.Read.withSchema(schemaString).from(avroFile.getPath()),
         "HerRead/Read.out",
         generateAvroGenericRecords());
   }
@@ -276,106 +252,34 @@ public class AvroIOGeneratedClassTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteFromGeneratedClass() throws Exception {
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .withSchema(AvroGeneratedUser.class),
-                 "AvroIO.Write");
-    runTestWrite(AvroIO.Write.withSchema(AvroGeneratedUser.class)
-                             .to(avroFile.getPath()),
-                 "AvroIO.Write");
-    runTestWrite(AvroIO.Write.named("MyWrite")
-                             .to(avroFile.getPath())
-                             .withSchema(AvroGeneratedUser.class),
-                 "MyWrite");
-    runTestWrite(AvroIO.Write.named("MyWrite")
-                             .withSchema(AvroGeneratedUser.class)
-                             .to(avroFile.getPath()),
-                 "MyWrite");
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .withSchema(AvroGeneratedUser.class)
-                             .named("HerWrite"),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .named("HerWrite")
-                             .withSchema(AvroGeneratedUser.class),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.withSchema(AvroGeneratedUser.class)
-                             .named("HerWrite")
-                             .to(avroFile.getPath()),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.withSchema(AvroGeneratedUser.class)
-                             .to(avroFile.getPath())
-                             .named("HerWrite"),
-                 "HerWrite");
+    runTestWrite(
+        AvroIO.Write.to(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
+        "AvroIO.Write");
+    runTestWrite(
+        AvroIO.Write.withSchema(AvroGeneratedUser.class).to(avroFile.getPath()),
+        "AvroIO.Write");
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteFromSchema() throws Exception {
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .withSchema(schema),
-                 "AvroIO.Write");
-    runTestWrite(AvroIO.Write.withSchema(schema)
-                             .to(avroFile.getPath()),
-                 "AvroIO.Write");
-    runTestWrite(AvroIO.Write.named("MyWrite")
-                             .to(avroFile.getPath())
-                             .withSchema(schema),
-                 "MyWrite");
-    runTestWrite(AvroIO.Write.named("MyWrite")
-                             .withSchema(schema)
-                             .to(avroFile.getPath()),
-                 "MyWrite");
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .withSchema(schema)
-                             .named("HerWrite"),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .named("HerWrite")
-                             .withSchema(schema),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.withSchema(schema)
-                             .named("HerWrite")
-                             .to(avroFile.getPath()),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.withSchema(schema)
-                             .to(avroFile.getPath())
-                             .named("HerWrite"),
-                 "HerWrite");
+    runTestWrite(
+        AvroIO.Write.to(avroFile.getPath()).withSchema(schema),
+        "AvroIO.Write");
+    runTestWrite(
+        AvroIO.Write.withSchema(schema).to(avroFile.getPath()),
+        "AvroIO.Write");
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteFromSchemaString() throws Exception {
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .withSchema(schemaString),
-                 "AvroIO.Write");
-    runTestWrite(AvroIO.Write.withSchema(schemaString)
-                             .to(avroFile.getPath()),
-                 "AvroIO.Write");
-    runTestWrite(AvroIO.Write.named("MyWrite")
-                             .to(avroFile.getPath())
-                             .withSchema(schemaString),
-                 "MyWrite");
-    runTestWrite(AvroIO.Write.named("MyWrite")
-                             .withSchema(schemaString)
-                             .to(avroFile.getPath()),
-                 "MyWrite");
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .withSchema(schemaString)
-                             .named("HerWrite"),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.to(avroFile.getPath())
-                             .named("HerWrite")
-                             .withSchema(schemaString),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.withSchema(schemaString)
-                             .named("HerWrite")
-                             .to(avroFile.getPath()),
-                 "HerWrite");
-    runTestWrite(AvroIO.Write.withSchema(schemaString)
-                             .to(avroFile.getPath())
-                             .named("HerWrite"),
-                 "HerWrite");
+    runTestWrite(
+        AvroIO.Write.to(avroFile.getPath()).withSchema(schemaString),
+        "AvroIO.Write");
+    runTestWrite(
+        AvroIO.Write.withSchema(schemaString).to(avroFile.getPath()),
+        "AvroIO.Write");
   }
 
   // TODO: for Write only, test withSuffix, withNumShards,

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
@@ -38,7 +40,6 @@ import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.PCollectionView;
 
-import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
 import org.apache.flink.util.InstantiationUtil;
@@ -534,8 +535,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
                                              CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn,
                                              Coder<AccumT> accumCoder,
                                              final StateContext<?> stateContext) {
-      Preconditions.checkNotNull(combineFn);
-      Preconditions.checkNotNull(accumCoder);
+      checkNotNull(combineFn);
+      checkNotNull(accumCoder);
 
       this.stateKey = stateKey;
       this.combineFn = combineFn;

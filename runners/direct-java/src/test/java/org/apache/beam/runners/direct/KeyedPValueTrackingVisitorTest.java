@@ -28,9 +28,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -180,9 +180,9 @@ public class KeyedPValueTrackingVisitorTest {
     }
   }
 
-  private static class IdentityFn<K> extends DoFn<K, K> {
+  private static class IdentityFn<K> extends OldDoFn<K, K> {
     @Override
-    public void processElement(DoFn<K, K>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<K, K>.ProcessContext c) throws Exception {
       c.output(c.element());
     }
   }

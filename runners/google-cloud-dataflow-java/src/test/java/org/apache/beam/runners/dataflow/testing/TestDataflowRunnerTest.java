@@ -67,6 +67,7 @@ import com.google.common.collect.Lists;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -83,7 +84,6 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
 
 /** Tests for {@link TestDataflowRunner}. */
 @RunWith(JUnit4.class)
@@ -127,7 +127,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.DONE);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -148,7 +147,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.FAILED);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -174,11 +172,10 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.RUNNING);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
-    when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenAnswer(new Answer<State>() {
           @Override
           public State answer(InvocationOnMock invocation) {
@@ -186,7 +183,7 @@ public class TestDataflowRunnerTest {
             message.setMessageText("FooException");
             message.setTime(TimeUtil.toCloudTime(Instant.now()));
             message.setMessageImportance("JOB_MESSAGE_ERROR");
-            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[2])
+            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[1])
                 .process(Arrays.asList(message));
             return State.CANCELLED;
           }
@@ -218,7 +215,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.RUNNING);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -240,7 +236,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.RUNNING);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -264,7 +259,7 @@ public class TestDataflowRunnerTest {
   @Test
   public void testCheckingForSuccessWhenPAssertSucceeds() throws Exception {
     DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", service, null));
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -279,7 +274,7 @@ public class TestDataflowRunnerTest {
   @Test
   public void testCheckingForSuccessWhenPAssertFails() throws Exception {
     DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", service, null));
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -294,7 +289,7 @@ public class TestDataflowRunnerTest {
   @Test
   public void testCheckingForSuccessSkipsNonTentativeMetrics() throws Exception {
     DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", service, null));
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -330,7 +325,7 @@ public class TestDataflowRunnerTest {
   @Test
   public void testStreamingPipelineFailsIfServiceFails() throws Exception {
     DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", service, null));
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -350,11 +345,10 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.RUNNING);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
-    when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenAnswer(new Answer<State>() {
           @Override
           public State answer(InvocationOnMock invocation) {
@@ -362,7 +356,7 @@ public class TestDataflowRunnerTest {
             message.setMessageText("FooException");
             message.setTime(TimeUtil.toCloudTime(Instant.now()));
             message.setMessageImportance("JOB_MESSAGE_ERROR");
-            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[2])
+            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[1])
                 .process(Arrays.asList(message));
             return State.CANCELLED;
           }
@@ -393,7 +387,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.DONE);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -418,7 +411,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.DONE);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -430,7 +422,7 @@ public class TestDataflowRunnerTest {
     p.getOptions().as(TestPipelineOptions.class)
         .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
-    when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
 
     when(request.execute()).thenReturn(
@@ -445,7 +437,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.DONE);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -470,7 +461,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.DONE);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -482,7 +472,7 @@ public class TestDataflowRunnerTest {
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
-    when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
 
     when(request.execute()).thenReturn(
@@ -497,7 +487,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.FAILED);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -514,8 +503,8 @@ public class TestDataflowRunnerTest {
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
-      verify(mockJob, Mockito.times(1)).waitToFinish(any(Long.class), any(TimeUnit.class),
-          any(JobMessagesHandler.class));
+      verify(mockJob, Mockito.times(1)).waitUntilFinish(
+          any(Duration.class), any(JobMessagesHandler.class));
       return;
     }
     fail("Expected an exception on pipeline failure.");
@@ -529,7 +518,6 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.FAILED);
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
@@ -541,7 +529,7 @@ public class TestDataflowRunnerTest {
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestFailureMatcher());
 
-    when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
+    when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.FAILED);
 
     when(request.execute()).thenReturn(
@@ -549,7 +537,7 @@ public class TestDataflowRunnerTest {
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
-      verify(mockJob, Mockito.times(1)).waitToFinish(any(Long.class), any(TimeUnit.class),
+      verify(mockJob, Mockito.times(1)).waitUntilFinish(any(Duration.class),
           any(JobMessagesHandler.class));
       return;
     }
@@ -572,8 +560,8 @@ public class TestDataflowRunnerTest {
         fail(String.format("Expected PipelineResult but received %s", o));
       }
       try {
-        verify(mockJob, Mockito.times(called)).waitToFinish(any(Long.class), any(TimeUnit.class),
-            any(JobMessagesHandler.class));
+        verify(mockJob, Mockito.times(called)).waitUntilFinish(
+            any(Duration.class), any(JobMessagesHandler.class));
       } catch (IOException | InterruptedException e) {
         throw new AssertionError(e);
       }

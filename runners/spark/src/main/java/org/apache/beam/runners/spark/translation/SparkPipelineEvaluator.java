@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -26,9 +26,9 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
 /**
- * Pipeline {@link SparkPipelineRunner.Evaluator} for Spark.
+ * Pipeline {@link SparkRunner.Evaluator} for Spark.
  */
-public final class SparkPipelineEvaluator extends SparkPipelineRunner.Evaluator {
+public final class SparkPipelineEvaluator extends SparkRunner.Evaluator {
 
   private final EvaluationContext ctxt;
 

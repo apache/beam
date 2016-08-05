@@ -61,7 +61,7 @@ public class DataflowGroupByKeyTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
-    options.setStagingLocation("gs://staging");
+    options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(null);
     return Pipeline.create(options);

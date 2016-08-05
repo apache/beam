@@ -43,7 +43,6 @@ import com.google.common.collect.ListMultimap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;

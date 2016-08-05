@@ -94,7 +94,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
 
 /**
@@ -551,7 +550,7 @@ public class KafkaIO {
           .apply(begin)
           .apply("Remove Kafka Metadata",
               ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext ctx) {
                   ctx.output(ctx.element().getKV());
                 }
@@ -759,6 +758,8 @@ public class KafkaIO {
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
+    // how long to wait for new records from kafka consumer inside start()
+    private static final Duration START_NEW_RECORDS_POLL_TIMEOUT = Duration.standardSeconds(5);
     // how long to wait for new records from kafka consumer inside advance()
     private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
 
@@ -891,12 +892,12 @@ public class KafkaIO {
       LOG.info("{}: Returning from consumer pool loop", this);
     }
 
-    private void nextBatch() {
+    private void nextBatch(Duration timeout) {
       curBatch = Collections.emptyIterator();
 
       ConsumerRecords<byte[], byte[]> records;
       try {
-        records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
+        records = availableRecordsQueue.poll(timeout.getMillis(),
                                              TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -965,6 +966,9 @@ public class KafkaIO {
             }
           }, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
+      // Wait for longer than normal when fetching a batch to improve chances a record is available
+      // when start() returns.
+      nextBatch(START_NEW_RECORDS_POLL_TIMEOUT);
       return advance();
     }
 
@@ -1028,7 +1032,7 @@ public class KafkaIO {
           return true;
 
         } else { // -- (b)
-          nextBatch();
+          nextBatch(NEW_RECORDS_POLL_TIMEOUT);
 
           if (!curBatch.hasNext()) {
             return false;
@@ -1054,7 +1058,7 @@ public class KafkaIO {
         try {
           offsetConsumer.seekToEnd(p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
-          p.setLatestOffset(offset);;
+          p.setLatestOffset(offset);
         } catch (Exception e) {
           LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
           p.setLatestOffset(-1L); // reset
@@ -1311,7 +1315,7 @@ public class KafkaIO {
       return input
         .apply("Kafka values with default key",
           ParDo.of(new DoFn<V, KV<Void, V>>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
               ctx.output(KV.<Void, V>of(null, ctx.element()));
             }
@@ -1323,7 +1327,7 @@ public class KafkaIO {
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       // Producer initialization is fairly costly. Move this to future initialization api to avoid
       // creating a producer for each bundle.
@@ -1336,7 +1340,7 @@ public class KafkaIO {
       }
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
       checkForFailures();
 
@@ -1346,7 +1350,7 @@ public class KafkaIO {
           new SendCallback());
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       producer.flush();
       producer.close();

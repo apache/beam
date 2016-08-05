@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.display;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
@@ -54,7 +55,6 @@ import com.google.common.testing.EqualsTester;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
@@ -110,6 +110,11 @@ public class DisplayDataTest implements Serializable {
         new PTransform<PCollection<String>, PCollection<String>>() {
           final Instant defaultStartTime = new Instant(0);
           Instant startTime = defaultStartTime;
+
+          @Override
+          public PCollection<String> apply(PCollection<String> begin) {
+            throw new IllegalArgumentException("Should never be applied");
+          }
 
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
@@ -202,7 +207,7 @@ public class DisplayDataTest implements Serializable {
         hasType(DisplayData.Type.TIMESTAMP),
         hasValue(ISO_FORMATTER.print(value)),
         hasShortValue(nullValue(String.class)),
-        hasLabel(is("the current instant")),
+        hasLabel("the current instant"),
         hasUrl(is("http://time.gov")));
 
     assertThat(item, matchesAllOf);
@@ -1049,7 +1054,7 @@ public class DisplayDataTest implements Serializable {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return input.apply(ParDo.of(new DoFn<T, T>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           c.output(c.element());
         }
@@ -1098,16 +1103,6 @@ public class DisplayDataTest implements Serializable {
 
     JsonNode jsonNode = MAPPER.readTree(builder.toString());
     return hasItem(jsonNode);
-  }
-
-  private static Matcher<DisplayData.Item<?>> hasLabel(Matcher<String> labelMatcher) {
-    return new FeatureMatcher<DisplayData.Item<?>, String>(
-        labelMatcher, "display item with label", "label") {
-      @Override
-      protected String featureValueOf(DisplayData.Item<?> actual) {
-        return actual.getLabel();
-      }
-    };
   }
 
   private static Matcher<DisplayData.Item<?>> hasUrl(Matcher<String> urlMatcher) {

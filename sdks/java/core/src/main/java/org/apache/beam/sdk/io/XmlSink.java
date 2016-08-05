@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
@@ -24,8 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.Preconditions;
 
 import java.io.OutputStream;
 import java.nio.channels.Channels;
@@ -205,9 +205,9 @@ public class XmlSink {
      */
     @Override
     public void validate(PipelineOptions options) {
-      Preconditions.checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
-      Preconditions.checkNotNull(rootElementName, "Missing a root element name.");
-      Preconditions.checkNotNull(baseOutputFilename, "Missing a filename to write to.");
+      checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
+      checkNotNull(rootElementName, "Missing a root element name.");
+      checkNotNull(baseOutputFilename, "Missing a filename to write to.");
       try {
         JAXBContext.newInstance(classToBind);
       } catch (JAXBException e) {

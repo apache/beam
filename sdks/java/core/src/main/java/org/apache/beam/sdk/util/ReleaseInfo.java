@@ -64,14 +64,12 @@ public final class ReleaseInfo extends GenericJson {
   private ReleaseInfo(String resourcePath) {
     Properties properties = new Properties();
 
-    InputStream in = ReleaseInfo.class.getResourceAsStream(
-        PROPERTIES_PATH);
-    if (in == null) {
-      LOG.warn("Dataflow properties resource not found: {}", resourcePath);
-      return;
-    }
+    try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {
+      if (in == null) {
+        LOG.warn("Dataflow properties resource not found: {}", resourcePath);
+        return;
+      }
 
-    try {
       properties.load(in);
     } catch (IOException e) {
       LOG.warn("Error loading Dataflow properties resource: ", e);

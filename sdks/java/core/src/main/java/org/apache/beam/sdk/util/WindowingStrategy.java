@@ -53,7 +53,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
-    ACCUMULATING_FIRED_PANES;
+    ACCUMULATING_FIRED_PANES
   }
 
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
@@ -278,8 +278,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    *
    * <ul>
    *   <li>The {@link WindowFn#getOutputTime} allows adjustments such as that whereby
-   *       {@link SlidingWindows#getOutputTime} moves elements later in time to avoid holding up
-   *       progress downstream.</li>
+   *       {@link org.apache.beam.sdk.transforms.windowing.SlidingWindows#getOutputTime}
+   *       moves elements later in time to avoid holding up progress downstream.</li>
    *   <li>Then, when multiple elements are buffered for output, the output timestamp of the
    *       result is calculated using {@link OutputTimeFn#combine}.</li>
    *   <li>In the case of a merging {@link WindowFn}, the output timestamp when windows merge

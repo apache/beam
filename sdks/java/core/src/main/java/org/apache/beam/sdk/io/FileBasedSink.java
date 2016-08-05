@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,12 +33,12 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
@@ -112,7 +116,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Perform pipeline-construction-time validation. The default implementation is a no-op.
    * Subclasses should override to ensure the sink is valid and can be written to. It is recommended
-   * to use {@link Preconditions} in the implementation of this method.
+   * to use {@link Preconditions#checkState(boolean)} in the implementation of this method.
    */
   @Override
   public void validate(PipelineOptions options) {}
@@ -203,7 +207,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     public enum TemporaryFileRetention {
       KEEP,
-      REMOVE;
+      REMOVE
     }
 
     /**
@@ -366,7 +370,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       }
 
       int numDistinctShards = new HashSet<String>(destFilenames).size();
-      Preconditions.checkState(numDistinctShards == numFiles,
+      checkState(numDistinctShards == numFiles,
           "Shard name template '%s' only generated %s distinct file names for %s files.",
           fileNamingTemplate, numDistinctShards, numFiles);
 
@@ -458,7 +462,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Construct a new FileBasedWriter with a base filename.
      */
     public FileBasedWriter(FileBasedWriteOperation<T> writeOperation) {
-      Preconditions.checkNotNull(writeOperation);
+      checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
     }
 
@@ -628,7 +632,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     @Override
     public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-      Preconditions.checkArgument(
+      checkArgument(
           srcFilenames.size() == destFilenames.size(),
           "Number of source files %s must equal number of destination files %s",
           srcFilenames.size(),
@@ -645,7 +649,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     private void copyOne(String source, String destination) throws IOException {
       try {
         // Copy the source file, replacing the existing destination.
-        Files.copy(Paths.get(source), Paths.get(destination), StandardCopyOption.REPLACE_EXISTING);
+        // Paths.get(x) will not work on win cause of the ":" after the drive letter
+        Files.copy(
+                new File(source).toPath(),
+                new File(destination).toPath(),
+                StandardCopyOption.REPLACE_EXISTING);
       } catch (NoSuchFileException e) {
         LOG.debug("{} does not exist.", source);
         // Suppress exception if file does not exist.
