@@ -99,7 +99,7 @@ import java.util.regex.Pattern;
  *   --streaming
  * }</pre>
  *
- * <p>This will update the datastore every 10 seconds based on the last
+ * <p>This will update the Cloud Datastore every 10 seconds based on the last
  * 30 minutes of data received.
  */
 public class AutoComplete {
@@ -383,7 +383,7 @@ public class AutoComplete {
 
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
-   * suitable for writing to Datastore.
+   * suitable for writing to Cloud Datastore.
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
@@ -429,7 +429,7 @@ public class AutoComplete {
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("Datastore entity kind")
+    @Description("Cloud Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
@@ -439,12 +439,12 @@ public class AutoComplete {
     Boolean getOutputToBigQuery();
     void setOutputToBigQuery(Boolean value);
 
-    @Description("Whether output to Datastore")
+    @Description("Whether output to Cloud Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
-    @Description("Datastore output project ID, defaults to project ID")
+    @Description("Cloud Datastore output project ID, defaults to project ID")
     String getOutputProject();
     void setOutputProject(String value);
   }
