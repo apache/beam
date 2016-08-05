@@ -27,6 +27,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public abstract class SimpleFunction<InputT, OutputT>
     implements SerializableFunction<InputT, OutputT> {
 
+  public static <InputT, OutputT>
+      SimpleFunction<InputT, OutputT> fromSerializableFunctionWithOutputType(
+          SerializableFunction<InputT, OutputT> fn, TypeDescriptor<OutputT> outputType) {
+    return new SimpleFunctionWithOutputType<>(fn, outputType);
+  }
+
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
    * about the input type of this {@code OldDoFn} instance's most-derived
@@ -51,5 +57,33 @@ public abstract class SimpleFunction<InputT, OutputT>
    */
   public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
     return new TypeDescriptor<OutputT>(this) {};
+  }
+
+  /**
+   * A {@link SimpleFunction} built from a {@link SerializableFunction}, having
+   * a known output type that is explicitly set.
+   */
+  private static class SimpleFunctionWithOutputType<InputT, OutputT>
+      extends SimpleFunction<InputT, OutputT> {
+
+    private final SerializableFunction<InputT, OutputT> fn;
+    private final TypeDescriptor<OutputT> outputType;
+
+    public SimpleFunctionWithOutputType(
+        SerializableFunction<InputT, OutputT> fn,
+        TypeDescriptor<OutputT> outputType) {
+      this.fn = fn;
+      this.outputType = outputType;
+    }
+
+    @Override
+    public OutputT apply(InputT input) {
+      return fn.apply(input);
+    }
+
+    @Override
+    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+      return outputType;
+    }
   }
 }
