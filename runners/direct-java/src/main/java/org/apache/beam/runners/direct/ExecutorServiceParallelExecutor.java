@@ -40,7 +40,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -433,9 +432,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
                       .createKeyedBundle(
                           null, keyTimers.getKey(), (PCollection) transform.getInput())
                       .add(WindowedValue.valueInEmptyWindows(work))
-                      .commit(Instant.now());
-              state.set(ExecutorState.ACTIVE);
+                      .commit(evaluationContext.now());
               scheduleConsumption(transform, bundle, new TimerIterableCompletionCallback(delivery));
+              state.set(ExecutorState.ACTIVE);
             }
           }
         }
