@@ -168,8 +168,8 @@ public class StateSpecs {
     }
 
     @Override
-    public ValueState<T> bind(StateSpec.StateBinder<?> visitor) {
-      return visitor.bindValue(this, coder);
+    public ValueState<T> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindValue(id, this, coder);
     }
 
     @Override
@@ -236,8 +236,8 @@ public class StateSpecs {
 
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
-        StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValueWithContext(this, accumCoder, combineFn);
+        String id, StateBinder<? extends K> visitor) {
+      return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
     }
 
     @Override
@@ -287,8 +287,8 @@ public class StateSpecs {
 
     @Override
     public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
-        StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValue(this, accumCoder, keyedCombineFn);
+        String id, StateBinder<? extends K> visitor) {
+      return visitor.bindKeyedCombiningValue(id, this, accumCoder, keyedCombineFn);
     }
 
     @Override
@@ -331,8 +331,8 @@ public class StateSpecs {
     }
 
     @Override
-    public BagState<T> bind(StateBinder<?> visitor) {
-      return visitor.bindBag(this, elemCoder);
+    public BagState<T> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindBag(id, this, elemCoder);
     }
 
     @Override
@@ -370,8 +370,8 @@ public class StateSpecs {
     }
 
     @Override
-    public WatermarkHoldState<W> bind(StateBinder<?> visitor) {
-      return visitor.bindWatermark(this, outputTimeFn);
+    public WatermarkHoldState<W> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindWatermark(id, this, outputTimeFn);
     }
 
     @Override

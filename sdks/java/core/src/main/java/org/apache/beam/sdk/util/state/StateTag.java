@@ -19,13 +19,7 @@ package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -46,43 +40,6 @@ import java.io.Serializable;
 @Experimental(Kind.STATE)
 public interface StateTag<K, StateT extends State> extends Serializable {
 
-  /**
-   * Visitor for binding a {@link StateTag} and to the associated {@link State}.
-   *
-   * @param <K> the type of key this binder embodies.
-   */
-  public interface StateBinder<K> {
-    <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> address, Coder<T> coder);
-
-    <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
-        Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindKeyedCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
-        Coder<AccumT> accumCoder, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindKeyedCombiningValueWithContext(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn);
-
-    /**
-     * Bind to a watermark {@link StateTag}.
-     *
-     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
-     * added to the returned {@link WatermarkHoldState} are to be combined.
-     */
-    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-        StateTag<? super K, WatermarkHoldState<W>> address,
-        OutputTimeFn<? super W> outputTimeFn);
-  }
-
   /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
   void appendTo(Appendable sb) throws IOException;
 
@@ -92,7 +49,7 @@ public interface StateTag<K, StateT extends State> extends Serializable {
   String getId();
 
   /**
-   * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
+   * Returns the spec for the enclosed state cell.
    */
-  StateT bind(StateBinder<? extends K> binder);
+  StateSpec<K, StateT> getSpec();
 }

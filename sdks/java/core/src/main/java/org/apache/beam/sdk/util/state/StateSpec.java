@@ -19,15 +19,7 @@ package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -42,44 +34,7 @@ import java.io.Serializable;
 public interface StateSpec<K, StateT extends State> extends Serializable {
 
   /**
-   * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
-   *
-   * @param <K> the type of key this binder embodies.
-   */
-  public interface StateBinder<K> {
-    <T> ValueState<T> bindValue(StateSpec<? super K, ValueState<T>> spec, Coder<T> coder);
-
-    <T> BagState<T> bindBag(StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindCombiningValue(
-        StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindKeyedCombiningValue(
-        StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindKeyedCombiningValueWithContext(
-        StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn);
-
-    /**
-     * Bind to a watermark {@link StateSpec}.
-     *
-     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
-     * added to the returned {@link WatermarkHoldState} are to be combined.
-     */
-    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-        StateSpec<? super K, WatermarkHoldState<W>> spec,
-        OutputTimeFn<? super W> outputTimeFn);
-  }
-
-  /**
    * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
    */
-  StateT bind(StateBinder<? extends K> binder);
+  StateT bind(String id, StateBinder<? extends K> binder);
 }
