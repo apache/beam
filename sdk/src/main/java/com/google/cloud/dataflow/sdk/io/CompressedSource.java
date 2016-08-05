@@ -290,7 +290,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           (FileNameBasedDecompressingChannelFactory) channelFactory;
       return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec());
     }
-    return true;
+    return false;
   }
 
   /**
@@ -362,7 +362,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;
-    private final boolean splittable;
     private final Object progressLock = new Object();
     @GuardedBy("progressLock")
     private int numRecordsRead;
@@ -375,13 +374,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     public CompressedReader(CompressedSource<T> source, FileBasedReader<T> readerDelegate) {
       super(source);
       this.source = source;
-      boolean splittable;
-      try {
-        splittable = source.isSplittable();
-      } catch (Exception e) {
-        throw new RuntimeException("Unable to tell whether source " + source + " is splittable", e);
-      }
-      this.splittable = splittable;
       this.readerDelegate = readerDelegate;
     }
 
@@ -395,22 +387,14 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     @Override
     public final long getSplitPointsConsumed() {
-      if (splittable) {
-        return readerDelegate.getSplitPointsConsumed();
-      } else {
-        synchronized (progressLock) {
-          return (isDone() && numRecordsRead > 0) ? 1 : 0;
-        }
+      synchronized (progressLock) {
+        return (isDone() && numRecordsRead > 0) ? 1 : 0;
       }
     }
 
     @Override
     public final long getSplitPointsRemaining() {
-      if (splittable) {
-        return readerDelegate.getSplitPointsRemaining();
-      } else {
-        return isDone() ? 0 : 1;
-      }
+      return isDone() ? 0 : 1;
     }
 
     /**
@@ -418,18 +402,14 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final boolean isAtSplitPoint() {
-      if (splittable) {
-        return readerDelegate.isAtSplitPoint();
-      } else {
-        // We have to return true for the first record, but not for the state before reading it,
-        // and not for the state after reading any other record. Hence == rather than >= or <=.
-        // This is required because FileBasedReader is intended for readers that can read a range
-        // of offsets in a file and where the range can be split in parts. CompressedReader,
-        // however, is a degenerate case because it cannot be split, but it has to satisfy the
-        // semantics of offsets and split points anyway.
-        synchronized (progressLock) {
-          return numRecordsRead == 1;
-        }
+      // We have to return true for the first record, but not for the state before reading it,
+      // and not for the state after reading any other record. Hence == rather than >= or <=.
+      // This is required because FileBasedReader is intended for readers that can read a range
+      // of offsets in a file and where the range can be split in parts. CompressedReader,
+      // however, is a degenerate case because it cannot be split, but it has to satisfy the
+      // semantics of offsets and split points anyway.
+      synchronized (progressLock) {
+        return numRecordsRead == 1;
       }
     }
 
@@ -473,14 +453,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final void startReading(ReadableByteChannel channel) throws IOException {
-      if (splittable) {
-        // No-op. We will always delegate to the inner reader, so this.channel and this.progressLock
-        // will never be used.
-      } else {
-        synchronized (progressLock) {
-          this.channel = new CountingChannel(channel, getCurrentSource().getStartOffset());
-          channel = this.channel;
-        }
+      synchronized (progressLock) {
+        this.channel = new CountingChannel(channel, getCurrentSource().getStartOffset());
+        channel = this.channel;
       }
 
       if (source.getChannelFactory() instanceof FileNameBasedDecompressingChannelFactory) {
@@ -509,30 +484,21 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       return true;
     }
 
-    // Splittable: simply delegates to the inner reader.
-    //
     // Unsplittable: returns the offset in the input stream that has been read by the input.
     // these positions are likely to be coarse-grained (in the event of buffering) and
     // over-estimates (because they reflect the number of bytes read to produce an element, not its
     // start) but both of these provide better data than e.g., reporting the start of the file.
     @Override
     protected final long getCurrentOffset() throws NoSuchElementException {
-      if (splittable) {
-        return readerDelegate.getCurrentOffset();
-      } else {
-        synchronized (progressLock) {
-          if (numRecordsRead <= 1) {
-            // Since the first record is at a split point, it should start at the beginning of the
-            // file. This avoids the bad case where the decompressor read the entire file, which
-            // would cause the file to be treated as empty when returning channel.getCount() as it
-            // is outside the valid range.
-            return 0;
-          }
-          if (channel == null) {
-            throw new NoSuchElementException();
-          }
-          return channel.getCount();
+      synchronized (progressLock) {
+        if (numRecordsRead <= 1) {
+          // Since the first record is at a split point, it should start at the beginning of the
+          // file. This avoids the bad case where the decompressor read the entire file, which
+          // would cause the file to be treated as empty when returning channel.getCount() as it
+          // is outside the valid range.
+          return 0;
         }
+        return channel.getCount();
       }
     }
   }
