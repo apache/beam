@@ -22,10 +22,6 @@ import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -140,29 +136,6 @@ public class DoFnTest implements Serializable {
   }
 
   @Test
-  public void testDoFnWithContextUsingAggregators() {
-    NoOpOldDoFn<Object, Object> noOpFn = new NoOpOldDoFn<>();
-    OldDoFn<Object, Object>.Context context = noOpFn.context();
-
-    OldDoFn<Object, Object> fn = spy(noOpFn);
-    context = spy(context);
-
-    @SuppressWarnings("unchecked")
-    Aggregator<Long, Long> agg = mock(Aggregator.class);
-
-    Sum.SumLongFn combiner = new Sum.SumLongFn();
-    Aggregator<Long, Long> delegateAggregator =
-        fn.createAggregator("test", combiner);
-
-    when(context.createAggregatorInternal("test", combiner)).thenReturn(agg);
-
-    context.setupDelegateAggregators();
-    delegateAggregator.addValue(1L);
-
-    verify(agg).addValue(1L);
-  }
-
-  @Test
   public void testDefaultPopulateDisplayDataImplementation() {
     DoFn<String, String> fn = new DoFn<String, String>() {
     };
@@ -225,7 +198,7 @@ public class DoFnTest implements Serializable {
   }
 
   /**
-   * Initialize a test pipeline with the specified {@link OldDoFn}.
+   * Initialize a test pipeline with the specified {@link DoFn}.
    */
   private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) {
     TestPipeline pipeline = TestPipeline.create();
