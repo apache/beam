@@ -48,6 +48,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     DataStream<Pair> tuples = (DataStream) input.map(el ->
             Pair.of(keyExtractor.apply(el), valueExtractor.apply(el)))
             .name(operator.getName() + "::map-input")
+            // FIXME parallelism should be set to the same level as parent
+            // since this "map-input" transformation is applied before shuffle
             .setParallelism(parallelism)
             .returns((Class) Pair.class);
 
