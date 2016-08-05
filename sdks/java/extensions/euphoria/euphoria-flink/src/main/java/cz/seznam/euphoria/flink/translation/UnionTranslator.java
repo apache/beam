@@ -9,9 +9,8 @@ class UnionTranslator implements OperatorTranslator<Union> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public DataStream<?> translate(Union operator,
-                                 ExecutorContext context,
-                                 int parallelism)
+  public DataStream<?> translate(FlinkOperator<Union> operator,
+                                 ExecutorContext context)
   {
     List<DataStream<?>> inputs = context.getInputStreams(operator);
     if (inputs.size() != 2) {

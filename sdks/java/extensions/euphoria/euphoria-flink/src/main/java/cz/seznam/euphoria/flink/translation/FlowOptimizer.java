@@ -11,13 +11,13 @@ import java.util.stream.Collectors;
 
 /**
  * Converts DAG of Euphoria {@link Operator} to Flink-layer specific
- * DAG of {@link ParallelOperator}. During the conversion some
+ * DAG of {@link FlinkOperator}. During the conversion some
  * kind of optimization can be made.
  */
 class FlowOptimizer {
 
-  public DAG<ParallelOperator<?, ?>> optimize(DAG<Operator<?, ?>> dag) {
-    DAG<ParallelOperator<?, ?>> flinkDag = convert(dag);
+  public DAG<FlinkOperator<?>> optimize(DAG<Operator<?, ?>> dag) {
+    DAG<FlinkOperator<?>> flinkDag = convert(dag);
 
     // setup parallelism
     return setParallelism(flinkDag);
@@ -25,17 +25,17 @@ class FlowOptimizer {
 
   /**
    * Converts DAG of Euphoria {@link Operator} to Flink-layer specific
-   * DAG of {@link ParallelOperator}.
+   * DAG of {@link FlinkOperator}.
    */
-  private DAG<ParallelOperator<?, ?>> convert(DAG<Operator<?, ?>> dag) {
-    DAG<ParallelOperator<?, ?>> output = DAG.of();
+  private DAG<FlinkOperator<?>> convert(DAG<Operator<?, ?>> dag) {
+    DAG<FlinkOperator<?>> output = DAG.of();
 
     // mapping between original operator and newly created ParallelOperator
-    final Map<Operator<?, ?>, ParallelOperator<?, ?>> mapping = new HashMap<>();
+    final Map<Operator<?, ?>, FlinkOperator<?>> mapping = new HashMap<>();
 
     dag.traverse().forEach(n -> {
       Operator<?, ?> current = n.get();
-      ParallelOperator<?, ?> created = new ParallelOperator<>(current);
+      FlinkOperator<?> created = new FlinkOperator<>(current);
       mapping.put(current, created);
 
       output.add(
@@ -53,9 +53,9 @@ class FlowOptimizer {
    * @param dag Original DAG
    * @return Modified DAG
    */
-  private DAG<ParallelOperator<?, ?>> setParallelism(DAG<ParallelOperator<?, ?>> dag) {
+  private DAG<FlinkOperator<?>> setParallelism(DAG<FlinkOperator<?>> dag) {
     dag.traverse().forEach(n -> {
-      ParallelOperator flinkOp = n.get();
+      FlinkOperator flinkOp = n.get();
       Operator<?, ?> op = flinkOp.getOriginalOperator();
 
       if (op instanceof FlowUnfolder.InputOperator) {
