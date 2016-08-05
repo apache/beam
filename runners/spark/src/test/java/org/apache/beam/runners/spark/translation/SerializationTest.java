@@ -30,7 +30,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -147,12 +147,12 @@ public class SerializationTest {
   /**
    * A OldDoFn that tokenizes lines of text into individual words.
    */
-  static class ExtractWordsFn extends OldDoFn<StringHolder, StringHolder> {
+  static class ExtractWordsFn extends DoFn<StringHolder, StringHolder> {
     private static final Pattern WORD_BOUNDARY = Pattern.compile("[^a-zA-Z']+");
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // Split the line into words.
       String[] words = WORD_BOUNDARY.split(c.element().toString());
@@ -175,8 +175,8 @@ public class SerializationTest {
   /**
    * A OldDoFn that converts a Word and Count into a printable string.
    */
-  private static class FormatCountsFn extends OldDoFn<KV<StringHolder, Long>, StringHolder> {
-    @Override
+  private static class FormatCountsFn extends DoFn<KV<StringHolder, Long>, StringHolder> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new StringHolder(c.element().getKey() + ": " + c.element().getValue()));
     }
