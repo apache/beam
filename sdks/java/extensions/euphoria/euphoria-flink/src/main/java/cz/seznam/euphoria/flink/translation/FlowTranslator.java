@@ -50,7 +50,7 @@ public class FlowTranslator {
             new ExecutorContext(streamExecutionEnvironment);
 
     // transform flow to acyclic graph of supported operators + optimize
-    DAG<ParallelOperator<?, ?>> dag =
+    DAG<FlinkOperator<?>> dag =
             new FlowOptimizer().optimize(
                     FlowUnfolder.unfold(flow, TRANSLATORS.keySet()));
 
@@ -63,8 +63,7 @@ public class FlowTranslator {
                 "Operator " + op.getClass().getSimpleName() + " not supported");
       }
 
-      DataStream<?> out = translator.translate(
-              originalOp, executorContext, op.getParallelism());
+      DataStream<?> out = translator.translate(op, executorContext);
 
       // save output of current operator to context
       executorContext.setOutputStream(op, out);

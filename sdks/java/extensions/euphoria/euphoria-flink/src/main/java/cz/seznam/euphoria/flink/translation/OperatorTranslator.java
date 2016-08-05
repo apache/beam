@@ -6,12 +6,11 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 interface OperatorTranslator<T extends Operator> {
 
   /**
-   * Translates Euphoria {@code Operator} to Flink transformation
+   * Translates Euphoria {@code FlinkOperator} to Flink transformation
    *
    * @param operator    Euphoria operator
    * @param context     Processing context aware of all inputs of given operator
-   * @param parallelism Degree of parallelism of this operator
    * @return Output of transformation in Flink API
    */
-  DataStream translate(T operator, ExecutorContext context, int parallelism);
+  DataStream translate(FlinkOperator<T> operator, ExecutorContext context);
 }
