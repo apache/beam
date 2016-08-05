@@ -19,29 +19,29 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public DataStream<?> translate(ReduceByKey operator,
-                                 ExecutorContext context,
-                                 int parallelism)
+  public DataStream<?> translate(FlinkOperator<ReduceByKey> operator,
+                                 ExecutorContext context)
   {
+    ReduceByKey origOperator = operator.getOriginalOperator();
     DataStream<?> input =
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
-    final UnaryFunction<Iterable, Object> reducer = operator.getReducer();
+    final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
     final UnaryFunction keyExtractor;
     final UnaryFunction valueExtractor;
 
-    if (operator.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = operator.getKeyExtractor();
+    if (origOperator.isGrouped()) {
+      UnaryFunction reduceKeyExtractor = origOperator.getKeyExtractor();
       keyExtractor = (UnaryFunction<Pair, CompositeKey>)
               (Pair p) -> CompositeKey.of(
                       p.getFirst(),
                       reduceKeyExtractor.apply(p.getSecond()));
-      UnaryFunction vfn = operator.getValueExtractor();
+      UnaryFunction vfn = origOperator.getValueExtractor();
       valueExtractor = (UnaryFunction<Pair, Object>)
               (Pair p) -> vfn.apply(p.getSecond());
     } else {
-      keyExtractor = operator.getKeyExtractor();
-      valueExtractor = operator.getValueExtractor();
+      keyExtractor = origOperator.getKeyExtractor();
+      valueExtractor = origOperator.getValueExtractor();
     }
 
     // extract key/value from data
@@ -50,14 +50,14 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
             .name(operator.getName() + "::map-input")
             // FIXME parallelism should be set to the same level as parent
             // since this "map-input" transformation is applied before shuffle
-            .setParallelism(parallelism)
+            .setParallelism(operator.getParallelism())
             .returns((Class) Pair.class);
 
     // FIXME reduce without implemented windowing will emit accumulated
     // value per each input element
 
     // FIXME non-combinable reduce function not supported without windowing
-    if (!operator.isCombinable()) {
+    if (!origOperator.isCombinable()) {
       throw new UnsupportedOperationException("Non-combinable reduce not supported yet");
     }
 
@@ -65,16 +65,16 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     tuples = tuples.keyBy(new TypedKeySelector())
             .reduce(new TypedReducer<>(reducer))
             .name(operator.getName())
-            .setParallelism(parallelism);
+            .setParallelism(operator.getParallelism());
 
     // FIXME partitioner should be applied during "reduce" to avoid
     // unnecessary shuffle, but there is no (known) way how to set custom
     // partitioner to "keyBy" transformation
 
     // apply custom partitioner if different from default HashPartitioner
-    if (!(operator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
+    if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
       tuples = tuples.partitionCustom(
-              new PartitionerWrapper<>(operator.getPartitioning().getPartitioner()),
+              new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               p -> p.getKey());
     }
 
