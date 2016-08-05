@@ -55,18 +55,18 @@ class AggregatorTest(unittest.TestCase):
         (any, int, True),
         (all, float, False),
     ]
-    aggeregators = [Aggregator('%s_%s' % (f.__name__, t.__name__), f, t)
-                    for f, t, _ in counter_types]
+    aggregators = [Aggregator('%s_%s' % (f.__name__, t.__name__), f, t)
+                   for f, t, _ in counter_types]
 
     class UpdateAggregators(beam.DoFn):
       def process(self, context):
-        for a in aggeregators:
+        for a in aggregators:
           context.aggregate_to(a, context.element)
 
     p = beam.Pipeline('DirectPipelineRunner')
     p | beam.Create([0, 1, 2, 3]) | beam.ParDo(UpdateAggregators())  # pylint: disable=expression-not-assigned
     res = p.run()
-    for (_, _, expected), a in zip(counter_types, aggeregators):
+    for (_, _, expected), a in zip(counter_types, aggregators):
       actual = res.aggregated_values(a).values()[0]
       self.assertEqual(expected, actual)
       self.assertEqual(type(expected), type(actual))
