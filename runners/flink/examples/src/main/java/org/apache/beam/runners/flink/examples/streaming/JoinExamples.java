@@ -23,7 +23,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
@@ -76,10 +76,10 @@ public class JoinExamples {
     // country code 'key' -> string of <event info>, <country name>
     PCollection<KV<String, String>> finalResultCollection =
         kvpCollection.apply("Process", ParDo.of(
-            new OldDoFn<KV<String, CoGbkResult>, KV<String, String>>() {
+            new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
               private static final long serialVersionUID = 0;
 
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 KV<String, CoGbkResult> e = c.element();
                 String key = e.getKey();
@@ -98,10 +98,10 @@ public class JoinExamples {
             }));
 
     return finalResultCollection
-        .apply("Format", ParDo.of(new OldDoFn<KV<String, String>, String>() {
+        .apply("Format", ParDo.of(new DoFn<KV<String, String>, String>() {
           private static final long serialVersionUID = 0;
 
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             String result = c.element().getKey() + " -> " + c.element().getValue();
             System.out.println(result);
@@ -110,10 +110,10 @@ public class JoinExamples {
         }));
   }
 
-  static class ExtractEventDataFn extends OldDoFn<String, KV<String, String>> {
+  static class ExtractEventDataFn extends DoFn<String, KV<String, String>> {
     private static final long serialVersionUID = 0;
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String line = c.element().toLowerCase();
       String key = line.split("\\s")[0];
