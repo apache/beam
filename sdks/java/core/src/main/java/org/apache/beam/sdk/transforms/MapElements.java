@@ -104,8 +104,8 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   @Override
   public PCollection<OutputT> apply(PCollection<InputT> input) {
-    return input.apply("Map", ParDo.of(new OldDoFn<InputT, OutputT>() {
-      @Override
+    return input.apply("Map", ParDo.of(new DoFn<InputT, OutputT>() {
+      @ProcessElement
       public void processElement(ProcessContext c) {
         c.output(fn.apply(c.element()));
       }

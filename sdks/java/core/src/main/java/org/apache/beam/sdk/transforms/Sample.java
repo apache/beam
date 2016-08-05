@@ -164,9 +164,9 @@ public class Sample {
   }
 
   /**
-   * A {@link OldDoFn} that returns up to limit elements from the side input PCollection.
+   * A {@link DoFn} that returns up to limit elements from the side input PCollection.
    */
-  private static class SampleAnyDoFn<T> extends OldDoFn<Void, T> {
+  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
     long limit;
     final PCollectionView<Iterable<T>> iterableView;
 
@@ -175,7 +175,7 @@ public class Sample {
       this.iterableView = iterableView;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       for (T i : c.sideInput(iterableView)) {
         if (limit-- <= 0) {

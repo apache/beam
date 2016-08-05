@@ -461,7 +461,7 @@ public class  CombineFnsTest {
   }
 
   private static class ExtractResultDoFn
-      extends OldDoFn<KV<String, CoCombineResult>, KV<String, KV<Integer, String>>> {
+      extends DoFn<KV<String, CoCombineResult>, KV<String, KV<Integer, String>>> {
 
     private final TupleTag<Integer> maxIntTag;
     private final TupleTag<UserString> concatStringTag;
@@ -471,7 +471,7 @@ public class  CombineFnsTest {
       this.concatStringTag = concatStringTag;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       UserString userString = c.element().getValue().get(concatStringTag);
       KV<Integer, String> value = KV.of(

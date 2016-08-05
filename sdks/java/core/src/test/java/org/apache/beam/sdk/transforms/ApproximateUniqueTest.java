@@ -54,7 +54,7 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class ApproximateUniqueTest implements Serializable {
-  // implements Serializable just to make it easy to use anonymous inner OldDoFn subclasses
+  // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 
   @Test
   public void testEstimationErrorToSampleSize() {
@@ -223,8 +223,8 @@ public class ApproximateUniqueTest implements Serializable {
             .apply(View.<Long>asSingleton());
 
     PCollection<KV<Long, Long>> approximateAndExact = approximate
-        .apply(ParDo.of(new OldDoFn<Long, KV<Long, Long>>() {
-              @Override
+        .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(KV.of(c.element(), c.sideInput(exact)));
               }

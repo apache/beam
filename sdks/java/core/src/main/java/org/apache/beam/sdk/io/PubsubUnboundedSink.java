@@ -31,8 +31,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -65,7 +65,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-
 import javax.annotation.Nullable;
 
 /**
@@ -78,7 +77,7 @@ import javax.annotation.Nullable;
  * <li>We try to send messages in batches while also limiting send latency.
  * <li>No stats are logged. Rather some counters are used to keep track of elements and batches.
  * <li>Though some background threads are used by the underlying netty system all actual Pubsub
- * calls are blocking. We rely on the underlying runner to allow multiple {@link OldDoFn} instances
+ * calls are blocking. We rely on the underlying runner to allow multiple {@link DoFn} instances
  * to execute concurrently and hide latency.
  * <li>A failed bundle will cause messages to be resent. Thus we rely on the Pubsub consumer
  * to dedup messages.
@@ -155,7 +154,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Convert elements to messages and shard them.
    */
-  private static class ShardFn<T> extends OldDoFn<T, KV<Integer, OutgoingMessage>> {
+  private static class ShardFn<T> extends DoFn<T, KV<Integer, OutgoingMessage>> {
     private final Aggregator<Long, Long> elementCounter =
         createAggregator("elements", new Sum.SumLongFn());
     private final Coder<T> elementCoder;
@@ -168,7 +167,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       this.recordIdMethod = recordIdMethod;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.addValue(1L);
       byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
@@ -207,7 +206,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    * Publish messages to Pubsub in batches.
    */
   private static class WriterFn
-      extends OldDoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
+      extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
     private final TopicPath topic;
     private final String timestampLabel;
@@ -253,14 +252,14 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       byteCounter.addValue((long) bytes);
     }
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
       pubsubClient = pubsubFactory.newClient(timestampLabel, idLabel,
                                              c.getPipelineOptions().as(PubsubOptions.class));
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       List<OutgoingMessage> pubsubMessages = new ArrayList<>(publishBatchSize);
       int bytes = 0;
@@ -285,7 +284,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       }
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       pubsubClient.close();
       pubsubClient = null;

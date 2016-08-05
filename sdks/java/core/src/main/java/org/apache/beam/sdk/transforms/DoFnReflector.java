@@ -72,6 +72,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -728,6 +729,11 @@ public abstract class DoFnReflector {
     @Override
     protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return fn.getOutputTypeDescriptor();
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return fn.getAllowedTimestampSkew();
     }
 
     @Override

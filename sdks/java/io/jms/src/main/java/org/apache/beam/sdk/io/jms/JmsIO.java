@@ -28,7 +28,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -453,7 +453,7 @@ public class JmsIO {
       checkArgument((queue != null || topic != null), "Either queue or topic is required");
     }
 
-    private static class JmsWriter extends OldDoFn<String, Void> {
+    private static class JmsWriter extends DoFn<String, Void> {
 
       private ConnectionFactory connectionFactory;
       private String queue;
@@ -469,7 +469,7 @@ public class JmsIO {
         this.topic = topic;
       }
 
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         if (producer == null) {
           this.connection = connectionFactory.createConnection();
@@ -486,7 +486,7 @@ public class JmsIO {
         }
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
 
@@ -499,7 +499,7 @@ public class JmsIO {
         }
       }
 
-      @Override
+      @FinishBundle
       public void finishBundle(Context c) throws Exception {
         producer.close();
         producer = null;

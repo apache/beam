@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -64,8 +65,8 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -131,7 +132,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-
 import javax.annotation.Nullable;
 
 /**
@@ -235,7 +235,7 @@ public class BigQueryIOTest implements Serializable {
     private Object[] pollJobReturns;
     private String executingProject;
     // Both counts will be reset back to zeros after serialization.
-    // This is a work around for OldDoFn's verifyUnmodified check.
+    // This is a work around for DoFn's verifyUnmodified check.
     private transient int startJobCallsCount;
     private transient int pollJobStatusCallsCount;
 
@@ -571,8 +571,8 @@ public class BigQueryIOTest implements Serializable {
         .apply(BigQueryIO.Read.from("non-executing-project:somedataset.sometable")
             .withTestServices(fakeBqServices)
             .withoutValidation())
-        .apply(ParDo.of(new OldDoFn<TableRow, String>() {
-          @Override
+        .apply(ParDo.of(new DoFn<TableRow, String>() {
+          @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             c.output((String) c.element().get("name"));
           }

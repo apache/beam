@@ -78,6 +78,7 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -2715,7 +2716,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Nullable
     private PTransform<?, ?> transform;
     @Nullable
-    private OldDoFn<?, ?> doFn;
+    private DoFn<?, ?> doFn;
 
     /**
      * Builds an instance of this class from the overridden transform.

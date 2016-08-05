@@ -31,7 +31,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -55,7 +55,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 
 import io.grpc.Status;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +64,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import javax.annotation.Nullable;
 
 /**
@@ -512,7 +510,7 @@ public class BigtableIO {
       return new BigtableServiceImpl(options);
     }
 
-    private class BigtableWriterFn extends OldDoFn<KV<ByteString, Iterable<Mutation>>, Void> {
+    private class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
 
       public BigtableWriterFn(String tableId, BigtableService bigtableService) {
         this.tableId = checkNotNull(tableId, "tableId");
@@ -520,13 +518,13 @@ public class BigtableIO {
         this.failures = new ConcurrentLinkedQueue<>();
       }
 
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         bigtableWriter = bigtableService.openForWriting(tableId);
         recordsWritten = 0;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         checkForFailures();
         Futures.addCallback(
@@ -534,7 +532,7 @@ public class BigtableIO {
         ++recordsWritten;
       }
 
-      @Override
+      @FinishBundle
       public void finishBundle(Context c) throws Exception {
         bigtableWriter.close();
         bigtableWriter = null;

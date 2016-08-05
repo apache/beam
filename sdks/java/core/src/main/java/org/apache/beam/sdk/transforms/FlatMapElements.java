@@ -133,9 +133,9 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   @Override
   public PCollection<OutputT> apply(PCollection<InputT> input) {
-    return input.apply("Map", ParDo.of(new OldDoFn<InputT, OutputT>() {
+    return input.apply("Map", ParDo.of(new DoFn<InputT, OutputT>() {
       private static final long serialVersionUID = 0L;
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         for (OutputT element : fn.apply(c.element())) {
           c.output(element);

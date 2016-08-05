@@ -229,8 +229,8 @@ public class CreateTest {
     p.run();
   }
 
-  private static class PrintTimestamps extends OldDoFn<String, String> {
-    @Override
+  private static class PrintTimestamps extends DoFn<String, String> {
+    @ProcessElement
       public void processElement(ProcessContext c) {
       c.output(c.element() + ":" + c.timestamp().getMillis());
     }

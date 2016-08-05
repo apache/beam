@@ -37,9 +37,9 @@ import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
@@ -478,11 +478,11 @@ public class V1Beta3 {
     }
 
     /**
-     * A {@link OldDoFn} that splits a given query into multiple sub-queries, assigns them unique
+     * A {@link DoFn} that splits a given query into multiple sub-queries, assigns them unique
      * keys and outputs them as {@link KV}.
      */
     @VisibleForTesting
-    static class SplitQueryFn extends OldDoFn<Query, KV<Integer, Query>> {
+    static class SplitQueryFn extends DoFn<Query, KV<Integer, Query>> {
       private final V1Beta3Options options;
       // number of splits to make for a given query
       private final int numSplits;
@@ -505,13 +505,13 @@ public class V1Beta3 {
         this.datastoreFactory = datastoreFactory;
       }
 
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.projectId);
         querySplitter = datastoreFactory.getQuerySplitter();
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         int key = 1;
         Query query = c.element();
@@ -559,10 +559,10 @@ public class V1Beta3 {
     }
 
     /**
-     * A {@link OldDoFn} that reads entities from Datastore for each query.
+     * A {@link DoFn} that reads entities from Datastore for each query.
      */
     @VisibleForTesting
-    static class ReadFn extends OldDoFn<Query, Entity> {
+    static class ReadFn extends DoFn<Query, Entity> {
       private final V1Beta3Options options;
       private final V1Beta3DatastoreFactory datastoreFactory;
       // Datastore client
@@ -578,13 +578,13 @@ public class V1Beta3 {
         this.datastoreFactory = datastoreFactory;
       }
 
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId());
       }
 
       /** Read and output entities for the given query. */
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         Query query = context.element();
         String namespace = options.getNamespace();

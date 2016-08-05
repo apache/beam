@@ -41,7 +41,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -1053,8 +1053,8 @@ public class DisplayDataTest implements Serializable {
   private static class IdentityTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      return input.apply(ParDo.of(new OldDoFn<T, T>() {
-        @Override
+      return input.apply(ParDo.of(new DoFn<T, T>() {
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           c.output(c.element());
         }
