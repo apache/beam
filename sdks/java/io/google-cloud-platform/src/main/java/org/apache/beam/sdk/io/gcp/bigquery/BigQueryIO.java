@@ -2062,7 +2062,7 @@ public class BigQueryIO {
             createDisposition);
         c.output(toJsonString(ref));
 
-        removeTemporaryFiles(c.getPipelineOptions(), partition);
+        removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partition);
       }
 
       private void load(
@@ -2108,11 +2108,12 @@ public class BigQueryIO {
             + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
 
-      private void removeTemporaryFiles(PipelineOptions options, Collection<String> matches)
+      static void removeTemporaryFiles(
+          PipelineOptions options,
+          String tempFilePrefix,
+          Collection<String> matches)
           throws IOException {
-        String pattern = tempFilePrefix + "*";
-        LOG.debug("Finding temporary files matching {}.", pattern);
-        IOChannelFactory factory = IOChannelUtils.getFactory(pattern);
+        IOChannelFactory factory = IOChannelUtils.getFactory(tempFilePrefix);
         if (factory instanceof GcsIOChannelFactory) {
           GcsUtil gcsUtil = new GcsUtil.GcsUtilFactory().create(options);
           gcsUtil.remove(matches);
@@ -2175,7 +2176,7 @@ public class BigQueryIO {
       public void processElement(ProcessContext c) throws Exception {
         List<String> tempTablesJson = Lists.newArrayList(c.sideInput(tempTablesView));
 
-        // Do not copy if not temp tables are provided
+        // Do not copy if no temp tables are provided
         if (tempTablesJson.size() == 0) {
           return;
         }
@@ -2237,13 +2238,18 @@ public class BigQueryIO {
             + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
 
-      private void removeTemporaryTables(DatasetService tableService,
-          List<TableReference> tempTables) throws Exception {
+      static void removeTemporaryTables(DatasetService tableService,
+          List<TableReference> tempTables) {
         for (TableReference tableRef : tempTables) {
-          tableService.deleteTable(
-              tableRef.getProjectId(),
-              tableRef.getDatasetId(),
-              tableRef.getTableId());
+          try {
+            LOG.debug("Deleting table " + toJsonString(tableRef));
+            tableService.deleteTable(
+                tableRef.getProjectId(),
+                tableRef.getDatasetId(),
+                tableRef.getTableId());
+          } catch (Exception e) {
+            LOG.warn("Failed to delete the table " + toJsonString(tableRef));
+          }
         }
       }
 
