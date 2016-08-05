@@ -8,15 +8,14 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 class InputTranslator implements OperatorTranslator<FlowUnfolder.InputOperator> {
 
   @Override
-  public DataStream<?> translate(FlowUnfolder.InputOperator operator,
-                                 ExecutorContext context,
-                                 int parallelism)
+  public DataStream<?> translate(FlinkOperator<FlowUnfolder.InputOperator> operator,
+                                 ExecutorContext context)
   {
     // get original datasource from operator
     DataSource<?> ds = operator.output().getSource();
 
     return context.getExecutionEnvironment()
             .addSource(new DataSourceWrapper<>(ds))
-            .setParallelism(parallelism);
+            .setParallelism(operator.getParallelism());
   }
 }

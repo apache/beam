@@ -9,12 +9,12 @@ class RepartitionTranslator implements OperatorTranslator<Repartition> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public DataStream<?> translate(Repartition operator,
-                                 ExecutorContext context,
-                                 int parallelism)
+  public DataStream<?> translate(FlinkOperator<Repartition> operator,
+                                 ExecutorContext context)
   {
-    DataStream input = context.getInputStream(operator);
-    Partitioning partitioning = operator.getPartitioning();
+    Repartition origOperator = operator.getOriginalOperator();
+    DataStream input = context.getInputStream(origOperator);
+    Partitioning partitioning = origOperator.getPartitioning();
 
     PartitionerWrapper flinkPartitioner =
             new PartitionerWrapper<>(partitioning.getPartitioner());
