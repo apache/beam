@@ -1473,9 +1473,9 @@ public class Combine {
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
           .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
-              new OldDoFn<Void, OutputT>() {
-                @Override
-                public void processElement(OldDoFn<Void, OutputT>.ProcessContext c) {
+              new DoFn<Void, OutputT>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
                   Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
                   if (!combined.hasNext()) {
                     c.output(defaultValue);
@@ -2097,15 +2097,15 @@ public class Combine {
       final TupleTag<KV<KV<K, Integer>, InputT>> hot = new TupleTag<>();
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply("AddNonce", ParDo.of(
-          new OldDoFn<KV<K, InputT>, KV<K, InputT>>() {
+          new DoFn<KV<K, InputT>, KV<K, InputT>>() {
             transient int counter;
-            @Override
+            @StartBundle
             public void startBundle(Context c) {
               counter = ThreadLocalRandom.current().nextInt(
                   Integer.MAX_VALUE);
             }
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               KV<K, InputT> kv = c.element();
               int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
@@ -2135,9 +2135,9 @@ public class Combine {
           .setWindowingStrategyInternal(preCombineStrategy)
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
           .apply("StripNonce", ParDo.of(
-              new OldDoFn<KV<KV<K, Integer>, AccumT>,
+              new DoFn<KV<KV<K, Integer>, AccumT>,
                                      KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(
                       c.element().getKey().getKey(),
@@ -2151,8 +2151,8 @@ public class Combine {
           .get(cold)
           .setCoder(inputCoder)
           .apply("PrepareCold", ParDo.of(
-              new OldDoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @Override
+              new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(c.element().getKey(),
                                  InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
