@@ -30,7 +30,6 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -84,10 +83,11 @@ public class CoGroupByKeyTest implements Serializable {
       input = p.apply("Create" + name, Create.timestamped(list, timestamps)
           .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     }
-    return input
-            .apply("Identity" + name, ParDo.of(new DoFn<KV<Integer, String>,
-                                     KV<Integer, String>>() {
-              @Override
+    return input.apply(
+        "Identity" + name,
+        ParDo.of(
+            new DoFn<KV<Integer, String>, KV<Integer, String>>() {
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(c.element());
               }
@@ -313,11 +313,11 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * A DoFn used in testCoGroupByKeyWithWindowing(), to test processing the
-   * results of a CoGroupByKey.
+   * A DoFn used in testCoGroupByKeyWithWindowing(), to test processing the results of a
+   * CoGroupByKey.
    */
-  private static class ClickOfPurchaseFn extends
-      DoFn<KV<Integer, CoGbkResult>, KV<String, String>> implements RequiresWindowAccess {
+  private static class ClickOfPurchaseFn
+      extends DoFn<KV<Integer, CoGbkResult>, KV<String, String>> {
     private final TupleTag<String> clicksTag;
 
     private final TupleTag<String> purchasesTag;
@@ -329,9 +329,9 @@ public class CoGroupByKeyTest implements Serializable {
       this.purchasesTag = purchasesTag;
     }
 
-    @Override
-    public void processElement(ProcessContext c) {
-      BoundedWindow w = c.window();
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
+      BoundedWindow w = window;
       KV<Integer, CoGbkResult> e = c.element();
       CoGbkResult row = e.getValue();
       Iterable<String> clicks = row.getAll(clicksTag);
@@ -367,7 +367,7 @@ public class CoGroupByKeyTest implements Serializable {
       this.namesTag = namesTag;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<Integer, CoGbkResult> e = c.element();
       CoGbkResult row = e.getValue();

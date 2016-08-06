@@ -124,6 +124,13 @@
       <version>[0-incubating, 2-incubating)</version>
     </dependency>
 
+    <!-- Adds a dependency on a specific version of the Beam Google Cloud Platform IO module. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+      <version>[0-incubating, 2-incubating)</version>
+    </dependency>
+
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.transforms;
 import java.util.Collection;
 
 /**
- * An internal class for extracting {@link Aggregator Aggregators} from {@link DoFn DoFns}.
+ * An internal class for extracting {@link Aggregator Aggregators} from {@link OldDoFn DoFns}.
  */
 public final class AggregatorRetriever {
   private AggregatorRetriever() {
@@ -28,9 +28,9 @@ public final class AggregatorRetriever {
   }
 
   /**
-   * Returns the {@link Aggregator Aggregators} created by the provided {@link DoFn}.
+   * Returns the {@link Aggregator Aggregators} created by the provided {@link OldDoFn}.
    */
-  public static Collection<Aggregator<?, ?>> getAggregators(DoFn<?, ?> fn) {
+  public static Collection<Aggregator<?, ?>> getAggregators(OldDoFn<?, ?> fn) {
     return fn.getAggregators();
   }
 }

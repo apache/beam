@@ -107,7 +107,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
+   * {@link OldDoFn.Context#output}
    * is called.
    */
   @Override
@@ -115,7 +115,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#sideOutput}
+   * {@link OldDoFn.Context#sideOutput}
    * is called.
    */
   @Override

@@ -89,10 +89,9 @@ public class DeDupExample {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
+    p.apply("ReadLines", TextIO.Read.from(options.getInput()))
      .apply(RemoveDuplicates.<String>create())
-     .apply(TextIO.Write.named("DedupedShakespeare")
-         .to(options.getOutput()));
+     .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
 
     p.run();
   }

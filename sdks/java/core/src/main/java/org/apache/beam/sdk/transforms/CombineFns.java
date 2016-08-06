@@ -90,7 +90,7 @@ public class CombineFns {
    *
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new DoFn<KV<K, CoCombineResult>, T>() {
+   *         new OldDoFn<KV<K, CoCombineResult>, T>() {
    *           @Override
    *           public void processElement(ProcessContext c) throws Exception {
    *             KV<K, CoCombineResult> e = c.element();
@@ -133,7 +133,7 @@ public class CombineFns {
    *
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new DoFn<CoCombineResult, T>() {
+   *         new OldDoFn<CoCombineResult, T>() {
    *           @Override
    *           public void processElement(ProcessContext c) throws Exception {
    *             CoCombineResult e = c.element();
@@ -261,7 +261,7 @@ public class CombineFns {
   public static class CoCombineResult implements Serializable {
 
     private enum NullValue {
-      INSTANCE;
+      INSTANCE
     }
 
     private final Map<TupleTag<?>, Object> valuesMap;
@@ -503,8 +503,8 @@ public class CombineFns {
       this.extractInputFns = castedExtractInputFns;
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts
-          = (List) combineFnWithContexts;
+      List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts =
+          (List) combineFnWithContexts;
       this.combineFnWithContexts = castedCombineFnWithContexts;
 
       this.outputTags = outputTags;

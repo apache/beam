@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<FindBugsFilter>
+  <!-- Ignored bug categories. Bugs in these categories should not block the build. -->
+  <Bug category="I18N"/>
+  <Bug pattern="DM_STRING_CTOR"/>
+  <Bug pattern="EI_EXPOSE_REP" />
+  <Bug pattern="EI_EXPOSE_REP2" />
+  <Bug pattern="SE_NO_SERIALVERSIONID"/>
+
+  <!-- The uncallable method error fails on @ProcessElement style methods -->
+  <Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
+
+  <!--
+          Baseline issues below. No new issues should be added to this list. Instead, suppress
+          the issue inline using @SuppressFBWarnings and a documented reason, or (preferably) fix
+          the issue.
+        -->
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Method name="getContext"/>
+    <Bug pattern="DC_DOUBLECHECK"/>
+    <!--[BEAM-398] Possible double check of field-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Field name="jaxbContext"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-398] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.StandardCoder"/>
+    <Method name="toString"/>
+    <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
+    <!--[BEAM-401] Method invokes inefficient new String(String) constructor-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="done"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-407] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="lastRecordStart"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-407] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="offsetOfLastSplitPoint"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-407] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="splitPointsSeen"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-407] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="startOffset"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-407] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
+    <Field name="stopOffset"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-407] Inconsistent synchronization-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.WindowSupplier"/>
+    <Field name="windows"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--[BEAM-409] Inconsistent synchronization -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$ApproximateQuantilesCombineFn"/>
+    <Method name="create"/>
+    <Bug pattern="ICAST_INT_CAST_TO_DOUBLE_PASSED_TO_CEIL"/>
+    <!--[BEAM-409] Integral value cast to double and then passed to Math.ceil-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$QuantileBuffer"/>
+    <Method name="compareTo"/>
+    <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
+    <!--[BEAM-410] Class defines compareTo(...) and uses Object.equals()-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
+    <Method name="equals"/>
+    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
+    <!--[BEAM-413] Test for floating point equality-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.transforms.display.DisplayData"/>
+    <Field name="entries"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--[BEAM-412] Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.BitSetCoder"/>
+    <Field name="byteArrayCoder"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--[BEAM-418] Transient field that isn't set by deserialization. -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
+    <Field name="context"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.WatermarkHold"/>
+    <Field name="timerInternals"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateTags$CombiningValueStateTag"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    <!--[BEAM-421] Class doesn't override equals in superclass-->
+  </Match>
+</FindBugsFilter>

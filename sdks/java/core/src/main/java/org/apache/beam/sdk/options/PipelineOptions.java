@@ -35,7 +35,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.lang.reflect.Proxy;
 import java.util.ServiceLoader;
-
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -234,7 +233,7 @@ public interface PipelineOptions extends HasDisplayData {
   public static enum CheckEnabled {
     OFF,
     WARNING,
-    ERROR;
+    ERROR
   }
 
   /**

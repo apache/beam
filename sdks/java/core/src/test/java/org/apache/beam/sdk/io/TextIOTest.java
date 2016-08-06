@@ -22,7 +22,11 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -38,23 +42,27 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -80,7 +88,12 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import javax.annotation.Nullable;
 
 /**
  * Tests for TextIO Read and Write transforms.
@@ -91,6 +104,11 @@ import java.util.zip.GZIPOutputStream;
 public class TextIOTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  @BeforeClass
+  public static void setupClass() {
+    IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
+  }
 
   <T> void runTestRead(T[] expected, Coder<T> coder) throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
@@ -163,15 +181,8 @@ public class TextIOTest {
     }
 
     {
-      PCollection<String> output2 =
-          p.apply(TextIO.Read.named("MyRead").from(file));
+      PCollection<String> output2 = p.apply("MyRead", TextIO.Read.from(file));
       assertEquals("MyRead/Read.out", output2.getName());
-    }
-
-    {
-      PCollection<String> output3 =
-          p.apply(TextIO.Read.from(file).named("HerRead"));
-      assertEquals("HerRead/Read.out", output3.getName());
     }
   }
 
@@ -187,6 +198,20 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
     assertThat(displayData, hasDisplayItem("compressionType", CompressionType.BZIP2.toString()));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPrimitiveReadDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    TextIO.Read.Bound<String> read = TextIO.Read
+        .from("foobar")
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("TextIO.Read should include the file prefix in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
@@ -214,14 +239,11 @@ public class TextIOTest {
     } else if (numShards > 0) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
-    int numOutputShards = (numShards > 0) ? numShards : 1;
-
     input.apply(write);
 
     p.run();
 
-    assertOutputFiles(elems, coder, numOutputShards, tmpFolder, outputName,
-        write.getShardNameTemplate());
+    assertOutputFiles(elems, coder, numShards, tmpFolder, outputName, write.getShardNameTemplate());
   }
 
   public static <T> void assertOutputFiles(
@@ -233,11 +255,19 @@ public class TextIOTest {
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    for (int i = 0; i < numShards; i++) {
-      expectedFiles.add(
-          new File(
-              rootLocation.getRoot(),
-              IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+    if (numShards == 0) {
+      String pattern =
+          IOChannelUtils.resolve(rootLocation.getRoot().getAbsolutePath(), outputName + "*");
+      for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
+        expectedFiles.add(new File(expected));
+      }
+    } else {
+      for (int i = 0; i < numShards; i++) {
+        expectedFiles.add(
+            new File(
+                rootLocation.getRoot(),
+                IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+      }
     }
 
     List<String> actual = new ArrayList<>();
@@ -295,27 +325,6 @@ public class TextIOTest {
   }
 
   @Test
-  public void testWriteNamed() {
-    {
-      PTransform<PCollection<String>, PDone> transform1 =
-        TextIO.Write.to("/tmp/file.txt");
-      assertEquals("TextIO.Write", transform1.getName());
-    }
-
-    {
-      PTransform<PCollection<String>, PDone> transform2 =
-          TextIO.Write.named("MyWrite").to("/tmp/file.txt");
-      assertEquals("MyWrite", transform2.getName());
-    }
-
-    {
-      PTransform<PCollection<String>, PDone> transform3 =
-          TextIO.Write.to("/tmp/file.txt").named("HerWrite");
-      assertEquals("HerWrite", transform3.getName());
-    }
-  }
-
-  @Test
   @Category(NeedsRunner.class)
   public void testShardedWrite() throws Exception {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
@@ -337,6 +346,23 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
+  public void testPrimitiveWriteDisplayData() throws IOException {
+    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
+    String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
+    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foobar");
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    TextIO.Write.Bound<?> write = TextIO.Write.to(outputPath);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("TextIO.Write should include the file prefix in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasValue(startsWith(outputPath)))));
   }
 
   @Test
@@ -419,6 +445,175 @@ public class TextIOTest {
     p.run();
   }
 
+  /**
+   * Create a zip file with the given lines.
+   *
+   * @param expected A list of expected lines, populated in the zip file.
+   * @param filename Optionally zip file name (can be null).
+   * @param fieldsEntries Fields to write in zip entries.
+   * @return The zip filename.
+   * @throws Exception In case of a failure during zip file creation.
+   */
+  private String createZipFile(List<String> expected, @Nullable String filename, String[]
+      ...
+      fieldsEntries)
+      throws Exception {
+    File tmpFile;
+    if (filename != null) {
+      tmpFile = tmpFolder.newFile(filename);
+    } else {
+      tmpFile = tmpFolder.newFile();
+    }
+    String tmpFileName = tmpFile.getPath();
+
+    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmpFile));
+    PrintStream writer = new PrintStream(out, true /* auto-flush on write */);
+
+    int index = 0;
+    for (String[] entry : fieldsEntries) {
+      out.putNextEntry(new ZipEntry(Integer.toString(index)));
+      for (String field : entry) {
+        writer.println(field);
+        expected.add(field);
+      }
+      out.closeEntry();
+      index++;
+    }
+
+    writer.close();
+    out.close();
+
+    return tmpFileName;
+  }
+
+  /**
+   * Read a zip compressed file. The user provides the ZIP compression type.
+   * We expect a PCollection with the lines.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    List<String> expected = new ArrayList<>();
+
+    String filename = createZipFile(expected, null, lines);
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Read a zip compressed file. The ZIP compression type is auto-detected based on the
+   * file extension. We expect a PCollection with the lines.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedAutoDetected() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    List<String> expected = new ArrayList<>();
+
+    String filename = createZipFile(expected, "testZipCompressedAutoDetected.zip", lines);
+
+    // test with auto-detect ZIP based on extension.
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read = TextIO.Read.from(filename);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed empty file. We expect an empty PCollection.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithEmptyFile() throws Exception {
+    String filename = createZipFile(new ArrayList<String>(), null);
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output = p.apply(TextIO.Read.from(filename).withCompressionType
+        (CompressionType.ZIP));
+    PAssert.that(output).empty();
+
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed file containing an unique empty entry. We expect an empty PCollection.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithEmptyEntry() throws Exception {
+    String filename = createZipFile(new ArrayList<String>(), null, new String[]{ });
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output = p.apply(TextIO.Read.from(filename).withCompressionType
+        (CompressionType.ZIP));
+    PAssert.that(output).empty();
+
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed file with multiple entries. We expect a PCollection containing
+   * lines from all entries.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithMultiEntriesFile() throws Exception {
+    String[] entry0 = new String[]{ "first", "second", "three" };
+    String[] entry1 = new String[]{ "four", "five", "six" };
+    String[] entry2 = new String[]{ "seven", "eight", "nine" };
+
+    List<String> expected = new ArrayList<>();
+
+    String filename = createZipFile(expected, null, entry0, entry1, entry2);
+
+    Pipeline p = TestPipeline.create();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP);
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Read a ZIP compressed file containing data, multiple empty entries, and then more data. We
+   * expect just the data back.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
+    String filename = createZipFile(
+        new ArrayList<String>(),
+        null,
+        new String[] {"cat"},
+        new String[] {},
+        new String[] {},
+        new String[] {"dog"});
+    List<String> expected = ImmutableList.of("cat", "dog");
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output =
+        p.apply(TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP));
+    PAssert.that(output).containsInAnyOrder(expected);
+
+    p.run();
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testGZIPReadWhenUncompressed() throws Exception {
@@ -447,12 +642,8 @@ public class TextIOTest {
   public void testTextIOGetName() {
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
     assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
-    assertEquals("ReadMyFile", TextIO.Read.named("ReadMyFile").from("somefile").getName());
-    assertEquals("WriteMyFile", TextIO.Write.named("WriteMyFile").to("somefile").getName());
 
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
-    assertEquals(
-        "ReadMyFile [TextIO.Read]", TextIO.Read.named("ReadMyFile").from("somefile").toString());
   }
 
   @Test

@@ -15,5 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Defines utilities used to interact with Google Cloud Storage. **/
+
+/** Defines utilities used to interact with Google Cloud Storage. */
 package org.apache.beam.sdk.util.gcsfs;

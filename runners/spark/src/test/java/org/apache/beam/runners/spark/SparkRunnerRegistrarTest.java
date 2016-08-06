@@ -41,13 +41,13 @@ public class SparkRunnerRegistrarTest {
   @Test
   public void testOptions() {
     assertEquals(
-        ImmutableList.of(SparkPipelineOptions.class, SparkStreamingPipelineOptions.class),
+        ImmutableList.of(SparkPipelineOptions.class),
         new SparkRunnerRegistrar.Options().getPipelineOptions());
   }
 
   @Test
   public void testRunners() {
-    assertEquals(ImmutableList.of(SparkPipelineRunner.class, TestSparkPipelineRunner.class),
+    assertEquals(ImmutableList.of(SparkRunner.class, TestSparkRunner.class),
         new SparkRunnerRegistrar.Runner().getPipelineRunners());
   }
 

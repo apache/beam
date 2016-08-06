@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimerInternals;
 
@@ -106,7 +106,7 @@ public abstract class AbstractFlinkTimerInternals<K, VIN> implements TimerIntern
     }
   }
 
-  public void encodeTimerInternals(DoFn.ProcessContext context,
+  public void encodeTimerInternals(OldDoFn.ProcessContext context,
                                    StateCheckpointWriter writer,
                                    KvCoder<K, VIN> kvCoder,
                                    Coder<? extends BoundedWindow> windowCoder) throws IOException {

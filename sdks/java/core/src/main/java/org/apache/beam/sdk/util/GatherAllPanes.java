@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.ReifyTimestampsAndWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -58,16 +57,17 @@ public class GatherAllPanes<T>
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input
-        .apply(WithKeys.<Void, T>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
-        .apply(new ReifyTimestampsAndWindows<Void, T>())
+        .apply(WithKeys.<Integer, T>of(0).withKeyType(new TypeDescriptor<Integer>() {}))
+        .apply(new ReifyTimestampsAndWindows<Integer, T>())
         .apply(
             Window.into(
-                    new IdentityWindowFn<KV<Void, WindowedValue<T>>>(
-                        originalWindowFn.windowCoder(),
-                        input.getWindowingStrategy().getWindowFn().assignsToSingleWindow()))
-                .triggering(Never.ever()))
+                    new IdentityWindowFn<KV<Integer, WindowedValue<T>>>(
+                        originalWindowFn.windowCoder()))
+                .triggering(Never.ever())
+                .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
+                .discardingFiredPanes())
         // all values have the same key so they all appear as a single output element
-        .apply(GroupByKey.<Void, WindowedValue<T>>create())
+        .apply(GroupByKey.<Integer, WindowedValue<T>>create())
         .apply(Values.<Iterable<WindowedValue<T>>>create())
         .setWindowingStrategyInternal(input.getWindowingStrategy());
   }

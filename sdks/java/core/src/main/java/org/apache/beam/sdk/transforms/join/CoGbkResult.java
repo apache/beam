@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms.join;
 
 import static org.apache.beam.sdk.util.Structs.addObject;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -30,13 +32,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -233,8 +233,7 @@ public class CoGbkResult {
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components,
         @JsonProperty(PropertyNames.CO_GBK_RESULT_SCHEMA) CoGbkResultSchema schema) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
       return new CoGbkResultCoder(schema, (UnionCoder) components.get(0));
     }
 
@@ -422,7 +421,7 @@ public class CoGbkResult {
 
     @Override
     public boolean hasNext() {
-      if (containsTag[tag] == Boolean.FALSE) {
+      if (Boolean.FALSE.equals(containsTag[tag])) {
         return false;
       }
       advance();

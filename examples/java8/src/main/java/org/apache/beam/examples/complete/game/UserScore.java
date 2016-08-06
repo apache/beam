@@ -130,7 +130,7 @@ public class UserScore {
     private final Aggregator<Long, Long> numParseErrors =
         createAggregator("ParseErrors", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] components = c.element().split(",");
       try {
@@ -226,7 +226,7 @@ public class UserScore {
 
     // Read events from a text file and parse them.
     pipeline.apply(TextIO.Read.from(options.getInput()))
-      .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
+      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))
       .apply("WriteUserScoreSums",

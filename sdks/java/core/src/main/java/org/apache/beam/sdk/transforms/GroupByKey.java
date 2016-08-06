@@ -68,7 +68,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * PCollection<KV<String, Iterable<Doc>>> urlToDocs =
  *     urlDocPairs.apply(GroupByKey.<String, Doc>create());
  * PCollection<R> results =
- *     urlToDocs.apply(ParDo.of(new DoFn<KV<String, Iterable<Doc>>, R>() {
+ *     urlToDocs.apply(ParDo.of(new OldDoFn<KV<String, Iterable<Doc>>, R>() {
  *       public void processElement(ProcessContext c) {
  *         String url = c.element().getKey();
  *         Iterable<Doc> docsWithThatUrl = c.element().getValue();

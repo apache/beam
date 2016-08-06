@@ -20,6 +20,14 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 
 import com.google.common.collect.Lists;
 
@@ -32,6 +40,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SumTest {
+  private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
 
   @Test
   public void testSumGetNames() {
@@ -65,5 +74,29 @@ public class SumTest {
         new Sum.SumDoubleFn(),
         Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
         10.0);
+  }
+
+  @Test
+  public void testGetAccumulatorCoderEquals() {
+    Sum.SumIntegerFn sumIntegerFn = new Sum.SumIntegerFn();
+    assertEquals(
+        sumIntegerFn.getAccumulatorCoder(STANDARD_REGISTRY, VarIntCoder.of()),
+        sumIntegerFn.getAccumulatorCoder(STANDARD_REGISTRY, VarIntCoder.of()));
+    assertNotEquals(
+        sumIntegerFn.getAccumulatorCoder(STANDARD_REGISTRY, VarIntCoder.of()),
+        sumIntegerFn.getAccumulatorCoder(STANDARD_REGISTRY, BigEndianIntegerCoder.of()));
+
+    Sum.SumLongFn sumLongFn = new Sum.SumLongFn();
+    assertEquals(
+        sumLongFn.getAccumulatorCoder(STANDARD_REGISTRY, VarLongCoder.of()),
+        sumLongFn.getAccumulatorCoder(STANDARD_REGISTRY, VarLongCoder.of()));
+    assertNotEquals(
+        sumLongFn.getAccumulatorCoder(STANDARD_REGISTRY, VarLongCoder.of()),
+        sumLongFn.getAccumulatorCoder(STANDARD_REGISTRY, BigEndianLongCoder.of()));
+
+    Sum.SumDoubleFn sumDoubleFn = new Sum.SumDoubleFn();
+    assertEquals(
+        sumDoubleFn.getAccumulatorCoder(STANDARD_REGISTRY, DoubleCoder.of()),
+        sumDoubleFn.getAccumulatorCoder(STANDARD_REGISTRY, DoubleCoder.of()));
   }
 }

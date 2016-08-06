@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -74,7 +75,7 @@ public class IntraBundleParallelizationTest {
   /**
    * Introduces a delay in processing, then passes thru elements.
    */
-  private static class DelayFn<T> extends DoFn<T, T> {
+  private static class DelayFn<T> extends OldDoFn<T, T> {
     public static final long DELAY_MS = 25;
 
     @Override
@@ -94,7 +95,7 @@ public class IntraBundleParallelizationTest {
   /**
    * Throws an exception after some number of calls.
    */
-  private static class ExceptionThrowingFn<T> extends DoFn<T, T> {
+  private static class ExceptionThrowingFn<T> extends OldDoFn<T, T> {
     private ExceptionThrowingFn(int numSuccesses) {
       IntraBundleParallelizationTest.numSuccesses.set(numSuccesses);
     }
@@ -120,11 +121,11 @@ public class IntraBundleParallelizationTest {
   /**
    * Measures concurrency of the processElement method.
    */
-  private static class ConcurrencyMeasuringFn<T> extends DoFn<T, T> {
+  private static class ConcurrencyMeasuringFn<T> extends OldDoFn<T, T> {
     @Override
     public void processElement(ProcessContext c) {
       // Synchronize on the class to provide synchronous access irrespective of
-      // how this DoFn is called.
+      // how this OldDoFn is called.
       synchronized (ConcurrencyMeasuringFn.class) {
         concurrentElements++;
         if (concurrentElements > maxDownstreamConcurrency) {
@@ -154,8 +155,8 @@ public class IntraBundleParallelizationTest {
   }
 
   /**
-   * Test that the DoFn is parallelized up the the Max Parallelism factor within a bundle, but not
-   * greater than that amount.
+   * Test that the OldDoFn is parallelized up the the Max Parallelism factor within a bundle, but
+   * not greater than that amount.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -224,7 +225,7 @@ public class IntraBundleParallelizationTest {
 
   @Test
   public void testDisplayData() {
-    DoFn<String, String> fn = new DoFn<String, String>() {
+    OldDoFn<String, String> fn = new OldDoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
       }
@@ -248,15 +249,15 @@ public class IntraBundleParallelizationTest {
   /**
    * Runs the provided doFn inside of an {@link IntraBundleParallelization} transform.
    *
-   * <p>This method assumes that the DoFn passed to it will call {@link #startConcurrentCall()}
+   * <p>This method assumes that the OldDoFn passed to it will call {@link #startConcurrentCall()}
    * before processing each elements and {@link #finishConcurrentCall()} after each element.
    *
    * @param numElements the size of the input
    * @param maxParallelism how many threads to execute in parallel
-   * @param doFn the DoFn to execute
-   * @return the maximum observed parallelism of the DoFn
+   * @param doFn the OldDoFn to execute
+   * @return the maximum observed parallelism of the OldDoFn
    */
-  private int run(int numElements, int maxParallelism, DoFn<Integer, Integer> doFn) {
+  private int run(int numElements, int maxParallelism, OldDoFn<Integer, Integer> doFn) {
     Pipeline pipeline = TestPipeline.create();
 
     ArrayList<Integer> data = new ArrayList<>(numElements);

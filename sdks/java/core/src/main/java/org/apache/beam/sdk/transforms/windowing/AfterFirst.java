@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ExecutableTrigger;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
@@ -38,15 +39,13 @@ public class AfterFirst extends OnceTrigger {
 
   AfterFirst(List<Trigger> subTriggers) {
     super(subTriggers);
-    Preconditions.checkArgument(subTriggers.size() > 1);
+    checkArgument(subTriggers.size() > 1);
   }
 
   /**
    * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
    */
-  @SafeVarargs
-  public static OnceTrigger of(
-      OnceTrigger... triggers) {
+  public static OnceTrigger of(OnceTrigger... triggers) {
     return new AfterFirst(Arrays.<Trigger>asList(triggers));
   }
 

@@ -25,7 +25,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
@@ -108,7 +108,7 @@ import java.util.regex.Pattern;
  */
 public class DebuggingWordCount {
   /** A DoFn that filters for a specific key based upon a regular expression. */
-  public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
+  public static class FilterTextFn extends OldDoFn<KV<String, Long>, KV<String, Long>> {
     /**
      * Concept #1: The logger below uses the fully qualified class name of FilterTextFn
      * as the logger. All log statements emitted by this logger will be referenced by this name
@@ -174,7 +174,7 @@ public class DebuggingWordCount {
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> filteredWords =
-        p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
+        p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
          .apply(new WordCount.CountWords())
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 

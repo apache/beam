@@ -21,6 +21,7 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.transforms.Combine;
+
 import java.util.Arrays;
 
 /**
