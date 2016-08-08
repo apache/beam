@@ -27,8 +27,8 @@ import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -156,7 +156,7 @@ public class Write {
      * Writes all the elements in a bundle using a {@link Writer} produced by the
      * {@link WriteOperation} associated with the {@link Sink}.
      */
-    private class WriteBundles<WriteT> extends OldDoFn<T, WriteT> {
+    private class WriteBundles<WriteT> extends DoFn<T, WriteT> {
       // Writer that will write the records in this bundle. Lazily
       // initialized in processElement.
       private Writer<T, WriteT> writer = null;
@@ -166,7 +166,7 @@ public class Write {
         this.writeOperationView = writeOperationView;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         // Lazily initialize the Writer
         if (writer == null) {
@@ -182,7 +182,7 @@ public class Write {
           // Discard write result and close the write.
           try {
             writer.close();
-            // The writer does not need to be reset, as this OldDoFn cannot be reused.
+            // The writer does not need to be reset, as this DoFn cannot be reused.
           } catch (Exception closeException) {
             if (closeException instanceof InterruptedException) {
               // Do not silently ignore interrupted state.
@@ -195,7 +195,7 @@ public class Write {
         }
       }
 
-      @Override
+      @FinishBundle
       public void finishBundle(Context c) throws Exception {
         if (writer != null) {
           WriteT result = writer.close();
@@ -217,14 +217,14 @@ public class Write {
      *
      * @see WriteBundles
      */
-    private class WriteShardedBundles<WriteT> extends OldDoFn<KV<Integer, Iterable<T>>, WriteT> {
+    private class WriteShardedBundles<WriteT> extends DoFn<KV<Integer, Iterable<T>>, WriteT> {
       private final PCollectionView<WriteOperation<T, WriteT>> writeOperationView;
 
       WriteShardedBundles(PCollectionView<WriteOperation<T, WriteT>> writeOperationView) {
         this.writeOperationView = writeOperationView;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         // In a sharded write, single input element represents one shard. We can open and close
         // the writer in each call to processElement.
@@ -296,8 +296,8 @@ public class Write {
      * <p>This singleton collection containing the WriteOperation is then used as a side input to a
      * ParDo over the PCollection of elements to write. In this bundle-writing phase,
      * {@link WriteOperation#createWriter} is called to obtain a {@link Writer}.
-     * {@link Writer#open} and {@link Writer#close} are called in {@link OldDoFn#startBundle} and
-     * {@link OldDoFn#finishBundle}, respectively, and {@link Writer#write} method is called for
+     * {@link Writer#open} and {@link Writer#close} are called in {@link DoFn#startBundle} and
+     * {@link DoFn#finishBundle}, respectively, and {@link Writer#write} method is called for
      * every element in the bundle. The output of this ParDo is a PCollection of
      * <i>writer result</i> objects (see {@link Sink} for a description of writer results)-one for
      * each bundle.
@@ -334,8 +334,8 @@ public class Write {
       // Initialize the resource in a do-once ParDo on the WriteOperation.
       operationCollection = operationCollection
           .apply("Initialize", ParDo.of(
-              new OldDoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
-            @Override
+              new DoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
               LOG.info("Initializing write operation {}", writeOperation);
@@ -388,8 +388,8 @@ public class Write {
       // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
       // collection as a side input), so it will happen after the parallel write.
       operationCollection
-          .apply("Finalize", ParDo.of(new OldDoFn<WriteOperation<T, WriteT>, Integer>() {
-            @Override
+          .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
               LOG.info("Finalizing write operation {}.", writeOperation);
