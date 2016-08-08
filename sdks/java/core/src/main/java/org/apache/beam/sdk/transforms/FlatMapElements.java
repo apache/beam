@@ -167,7 +167,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(fnClassDisplayData);
+    builder.include(fn).add(fnClassDisplayData);
   }
 
   /**

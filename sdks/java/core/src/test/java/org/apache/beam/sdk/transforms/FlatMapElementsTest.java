@@ -151,6 +151,25 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   @Test
+  public void testSimpleFunctionDisplayData() {
+    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
+      @Override
+      public List<Integer> apply(Integer input) {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "baz"));
+      }
+    };
+
+    FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("foo", "baz"));
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testVoidValues() throws Exception {
     Pipeline pipeline = TestPipeline.create();
