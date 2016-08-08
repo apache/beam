@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-class HadoopDataSource<K extends Writable, V extends Writable>
+public class HadoopDataSource<K extends Writable, V extends Writable>
     implements DataSource<Pair<K, V>> {
 
   private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
