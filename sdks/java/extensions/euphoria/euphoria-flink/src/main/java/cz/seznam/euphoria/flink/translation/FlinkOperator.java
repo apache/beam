@@ -12,10 +12,10 @@ import java.util.Collection;
  */
 class FlinkOperator<OP extends Operator> extends Operator {
 
-  private final Operator<?, ?> wrapped;
+  private final OP wrapped;
   private int parallelism;
 
-  public FlinkOperator(OP wrapped) {
+  FlinkOperator(OP wrapped) {
     super(wrapped.getName(), wrapped.getFlow());
     this.wrapped = wrapped;
   }
@@ -23,7 +23,7 @@ class FlinkOperator<OP extends Operator> extends Operator {
   @Override
   @SuppressWarnings("unchecked")
   public Collection<Dataset<?>> listInputs() {
-    return (Collection) wrapped.listInputs();
+    return  wrapped.listInputs();
   }
 
   @Override
@@ -32,13 +32,13 @@ class FlinkOperator<OP extends Operator> extends Operator {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
     return wrapped.getBasicOps();
   }
 
-  @SuppressWarnings("unchecked")
   public OP getOriginalOperator() {
-    return (OP) wrapped;
+    return wrapped;
   }
 
   public int getParallelism() {
