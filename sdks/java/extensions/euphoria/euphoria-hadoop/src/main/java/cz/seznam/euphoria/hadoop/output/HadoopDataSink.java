@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import java.io.IOException;
 import java.util.Objects;
 
-public class HadoopOutputFormatAdapter<K extends Writable, V extends Writable>
+public class HadoopDataSink<K extends Writable, V extends Writable>
     implements DataSink<Pair<K, V>> {
 
   private final Class<? extends OutputFormat<K, V>> hadoopFormatCls;
@@ -25,8 +25,8 @@ public class HadoopOutputFormatAdapter<K extends Writable, V extends Writable>
 
   private transient OutputFormat<?, ?> hadoopFormatInstance;
 
-  public HadoopOutputFormatAdapter(Class<? extends OutputFormat<K, V>> hadoopFormatCls,
-                                   SerializableWritable<Configuration> conf)
+  public HadoopDataSink(Class<? extends OutputFormat<K, V>> hadoopFormatCls,
+                        SerializableWritable<Configuration> conf)
   {
     this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
     this.conf = Objects.requireNonNull(conf);
