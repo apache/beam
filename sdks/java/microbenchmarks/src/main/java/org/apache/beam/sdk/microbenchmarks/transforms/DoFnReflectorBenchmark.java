@@ -79,7 +79,7 @@ public class DoFnReflectorBenchmark {
   @Setup
   public void setUp() {
     doFnReflector = DoFnReflector.of(doFn.getClass());
-    adaptedDoFnWithContext = doFnReflector.toDoFn(doFn);
+    adaptedDoFnWithContext = doFnReflector.toOldDoFn(doFn);
     invoker = doFnReflector.bindInvoker(doFn);
   }
 
