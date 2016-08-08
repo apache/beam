@@ -17,6 +17,6 @@
  */
 
 /**
- * Tests for KinesisIO.
+ * Transforms for reading and writing from Amazon Kinesis.
  */
 package org.apache.beam.sdk.io.kinesis;
