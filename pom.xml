@@ -149,7 +149,7 @@
 
   <profiles>
     <!-- A global profile defined for all modules for release-level verification. 
-      Slow processes such as building source, javadoc, and test jars should be limited 
+      Optional processes such as building source and javadoc should be limited 
       to this profile. -->
     <profile>
       <id>release</id>
@@ -186,19 +186,6 @@
                   <phase>package</phase>
                   <goals>
                     <goal>test-jar-no-fork</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-jar-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>default-test-jar</id>
-                  <goals>
-                    <goal>test-jar</goal>
                   </goals>
                 </execution>
               </executions>
@@ -758,6 +745,12 @@
               <id>default-jar</id>
               <goals>
                 <goal>jar</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>default-test-jar</id>
+              <goals>
+                <goal>test-jar</goal>
               </goals>
             </execution>
           </executions>
