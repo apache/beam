@@ -33,10 +33,12 @@ import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-/**
- *
+/***
+ * Sends records to Kinesis in reliable way.
  */
 public class KinesisUploader {
+
+    public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
 
     public static void uploadAll(List<String> data, KinesisTestOptions options) {
         AmazonKinesis client = new AmazonKinesisClient(
@@ -45,7 +47,7 @@ public class KinesisUploader {
                                 options.getAwsAccessKey(), options.getAwsSecretKey()))
         ).withRegion(Regions.fromName(options.getAwsKinesisRegion()));
 
-        List<List<String>> partitions = Lists.partition(data, 499);
+        List<List<String>> partitions = Lists.partition(data, MAX_NUMBER_OF_RECORDS_IN_BATCH);
 
 
         for (List<String> partition : partitions) {

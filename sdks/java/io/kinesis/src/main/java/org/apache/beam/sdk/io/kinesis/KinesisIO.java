@@ -33,44 +33,44 @@ import org.joda.time.Instant;
 /**
  * {@link PTransform}s for reading from
  * <a href="https://aws.amazon.com/kinesis/">Kinesis</a> streams.
- * <p>
+ *
  * <h3>Usage</h3>
- * <p>
+ *
  * <p>Main class you're going to operate is called {@link KinesisIO}.
  * It follows the usage conventions laid out by other *IO classes like
  * BigQueryIO or PubsubIOLet's see how you can set up a simple Pipeline, which reads from Kinesis:
- * <p>
+ *
  * <pre>{@code}
  * p.
  *   apply(KinesisIO.Read.
  *     from("streamName", InitialPositionInStream.LATEST).
  *     using("AWS_KEY", _"AWS_SECRET", STREAM_REGION).
  *     apply( ... ) // other transformations
- * </pre>
+ *</pre>
  * </p>
- * <p>
+ *
  * <p>
  * As you can see you need to provide 3 things:
  * <ul>
- * <li>name of the stream you're going to read</li>
- * <li>position in the stream where reading should start. There are two options:</li>
- * <ul>
- * <li>{@link InitialPositionInStream#LATEST} - reading will begin from end of the stream</li>
- * <li>{@link InitialPositionInStream#TRIM_HORIZON} - reading will begin at
- * the very beginning of the stream</li>
- * </ul>
- * <li>data used to initialize {@link AmazonKinesis} client></li>
- * <ul>
- * <li>credentials (aws key, aws secret)</li>
- * <li>region where the stream is located</li>
- * </ul>
+ *   <li>name of the stream you're going to read</li>
+ *   <li>position in the stream where reading should start. There are two options:</li>
+ *   <ul>
+ *     <li>{@link InitialPositionInStream#LATEST} - reading will begin from end of the stream</li>
+ *     <li>{@link InitialPositionInStream#TRIM_HORIZON} - reading will begin at
+ *        the very beginning of the stream</li>
+ *   </ul>
+ *   <li>data used to initialize {@link AmazonKinesis} client></li>
+ *   <ul>
+ *     <li>credentials (aws key, aws secret)</li>
+ *    <li>region where the stream is located</li>
+ *   </ul>
  * </ul>
  * </p>
- * <p>
+ *
  * <p>In case when you want to set up {@link AmazonKinesis} client by your own
  * (for example if you're using more sophisticated authorization methods like Amazon STS, etc.)
  * you can do it by implementing {@link KinesisClientProvider} class:
- * <p>
+ *
  * <pre>{@code}
  * public class MyCustomKinesisClientProvider implements KinesisClientProvider {
  *   @Override
@@ -79,9 +79,9 @@ import org.joda.time.Instant;
  *   }
  * }
  * </pre>
- * <p>
+ *
  * Usage is pretty straightforward:
- * <p>
+ *
  * <pre>{@code}
  * p.
  *   apply(KinesisIO.Read.
@@ -90,10 +90,10 @@ import org.joda.time.Instant;
  *    apply( ... ) // other transformations
  * </pre>
  * </p>
- * <p>
+ *
  * <p>There’s also possibility to start reading using arbitrary point in time -
  * in this case you need to provide {@link Instant} object:
- * <p>
+ *
  * <pre>{@code}
  * p.
  *   apply(KinesisIO.Read.
@@ -102,6 +102,7 @@ import org.joda.time.Instant;
  *     apply( ... ) // other transformations
  * </pre>
  * </p>
+ *
  */
 public final class KinesisIO {
     /***
@@ -113,21 +114,21 @@ public final class KinesisIO {
         private final StartingPoint initialPosition;
 
         private Read(String streamName, StartingPoint initialPosition) {
-            checkNotNull(streamName);
-            checkNotNull(initialPosition);
-            this.streamName = streamName;
-            this.initialPosition = initialPosition;
+            this.streamName = checkNotNull(streamName, "streamName");
+            this.initialPosition = checkNotNull(initialPosition, "initialPosition");
         }
 
         /***
          * Specify reading from streamName at some initial position.
          */
         public static Read from(String streamName, InitialPositionInStream initialPosition) {
-            return new Read(streamName, new StartingPoint(initialPosition));
+            return new Read(streamName, new StartingPoint(
+                    checkNotNull(initialPosition, "initialPosition")));
         }
 
         public static Read from(String streamName, Instant initialTimestamp) {
-            return new Read(streamName, new StartingPoint(initialTimestamp));
+            return new Read(streamName, new StartingPoint(
+                    checkNotNull(initialTimestamp, "initialTimestamp")));
         }
 
         /***
@@ -162,13 +163,9 @@ public final class KinesisIO {
             private final Regions region;
 
             private BasicKinesisProvider(String accessKey, String secretKey, Regions region) {
-                checkNotNull(accessKey);
-                checkNotNull(secretKey);
-                checkNotNull(region);
-
-                this.accessKey = accessKey;
-                this.secretKey = secretKey;
-                this.region = region;
+                this.accessKey = checkNotNull(accessKey, "accessKey");
+                this.secretKey = checkNotNull(secretKey, "secretKey");
+                this.region = checkNotNull(region, "region");
             }
 
 

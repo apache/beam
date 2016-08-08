@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.google.common.base.Optional;
-
 import java.util.NoSuchElementException;
 
 /***
- * Similar to {@link Optional}, but throws {@link NoSuchElementException} for missing element.
+ * Similar to Guava {@code Optional}, but throws {@link NoSuchElementException} for missing element.
  */
 abstract class CustomOptional<T> {
     public static <T> CustomOptional<T> absent() {

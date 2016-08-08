@@ -36,14 +36,12 @@ class StartingPoint implements Serializable {
     private final Instant timestamp;
 
     public StartingPoint(InitialPositionInStream position) {
-        checkNotNull(position);
-        this.position = position;
+        this.position = checkNotNull(position, "position");
         this.timestamp = null;
     }
 
     public StartingPoint(Instant timestamp) {
-        checkNotNull(timestamp);
-        this.timestamp = timestamp;
+        this.timestamp = checkNotNull(timestamp, "timestamp");
         this.position = null;
     }
 

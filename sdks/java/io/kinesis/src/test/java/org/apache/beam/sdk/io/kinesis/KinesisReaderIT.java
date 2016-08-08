@@ -27,16 +27,17 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Lists.newArrayList;
-import com.google.common.base.Charsets;
 
 import com.amazonaws.regions.Regions;
 import static org.assertj.core.api.Assertions.assertThat;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -53,6 +54,7 @@ public class KinesisReaderIT {
     private ExecutorService singleThreadExecutor = newSingleThreadExecutor();
 
 
+    @Ignore
     @Test
     public void readsDataFromRealKinesisStream()
             throws IOException, InterruptedException, ExecutionException {
@@ -111,7 +113,7 @@ public class KinesisReaderIT {
         @Override
         public void processElement(ProcessContext c) throws Exception {
             checkNotNull(c.element());
-            c.output(new String(c.element().getData().array(), Charsets.UTF_8));
+            c.output(new String(c.element().getData().array(), StandardCharsets.UTF_8));
         }
     }
 }
