@@ -19,6 +19,7 @@ public class FlinkExecutor implements Executor {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutor.class);
 
   private StreamExecutionEnvironment flinkStreamEnv;
+  private boolean dumpExecPlan;
 
   public FlinkExecutor() {
     this(StreamExecutionEnvironment.getExecutionEnvironment());
@@ -26,6 +27,14 @@ public class FlinkExecutor implements Executor {
 
   public FlinkExecutor(StreamExecutionEnvironment flinkStreamEnv) {
     this.flinkStreamEnv = flinkStreamEnv;
+  }
+
+  /**
+   * Specify whether to dump the flink execution plan before executing
+   * a flow using {@link #waitForCompletion(Flow)}.
+   */
+  public void setDumpExecutionPlan(boolean dumpExecPlan) {
+    this.dumpExecPlan = dumpExecPlan;
   }
 
   @Override
@@ -37,6 +46,11 @@ public class FlinkExecutor implements Executor {
   public int waitForCompletion(Flow flow) throws Exception {
     FlowTranslator translator = new FlowTranslator();
     List<DataSink<?>> sinks = translator.translateInto(flow, flinkStreamEnv);
+
+    if (dumpExecPlan) {
+      LOG.info("Flink execution plan for {}: {}",
+          flow.getName(), flinkStreamEnv.getExecutionPlan());
+    }
 
     try {
       flinkStreamEnv.execute(); // blocking operation
