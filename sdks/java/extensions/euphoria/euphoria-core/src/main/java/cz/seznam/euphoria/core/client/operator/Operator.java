@@ -36,7 +36,6 @@ public abstract class Operator<IN, OUT> implements Serializable {
    * Retrieve basic operators that constitute this operator.
    * Override this method for all non basic operators.
    */
-  @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(this);
   }
