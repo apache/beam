@@ -23,14 +23,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
+class HadoopInputFormatAdapter<K extends Writable, V extends Writable>
+    implements DataSource<Pair<K, V>> {
 
-  private final Class<? extends InputFormat> hadoopFormatCls;
+  private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
   private final SerializableWritable<Configuration> conf;
 
-  private transient InputFormat<?, ?> hadoopFormatInstance;
+  private transient InputFormat<K, V> hadoopFormatInstance;
 
-  public HadoopInputFormatAdapter(Class<? extends InputFormat> hadoopFormatCls,
+  public HadoopInputFormatAdapter(Class<? extends InputFormat<K, V>> hadoopFormatCls,
                                   SerializableWritable<Configuration> conf)
   {
     this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
@@ -39,12 +40,12 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
 
   @Override
   @SneakyThrows
-  public List<Partition<Pair<?, ?>>> getPartitions() {
+  public List<Partition<Pair<K, V>>> getPartitions() {
     Configuration c = conf.getWritable();
     return getHadoopFormatInstance()
             .getSplits(HadoopUtils.createJobContext(c))
             .stream()
-            .map(split -> new HadoopPartition(hadoopFormatCls, c, split))
+            .map(split -> new HadoopPartition<>(hadoopFormatCls, c, split))
             .collect(Collectors.toList());
   }
 
@@ -58,7 +59,7 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
    * You must always pass a valid configuration object
    * or {@code NullPointerException} might be thrown.
    */
-  private InputFormat<?, ?> getHadoopFormatInstance()
+  private InputFormat<K, V> getHadoopFormatInstance()
           throws InstantiationException, IllegalAccessException
   {
     if (hadoopFormatInstance == null) {
@@ -74,9 +75,9 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
   /**
    * Wraps Hadoop {@link RecordReader}
    */
-  private static class HadoopReader
-          extends AbstractIterator<Pair<?, ?>>
-          implements Reader<Pair<?, ?>>
+  private static class HadoopReader<K extends Writable, V extends Writable>
+          extends AbstractIterator<Pair<K, V>>
+          implements Reader<Pair<K, V>>
   {
     private final RecordReader<?, ?> hadoopReader;
     private final Configuration conf;
@@ -88,13 +89,13 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
 
     @Override
     @SneakyThrows
-    protected Pair<?, ?> computeNext() {
+    protected Pair<K, V> computeNext() {
       if (hadoopReader.nextKeyValue()) {
 
         // ~ cast to Writable (may throw ClassCastException
         // when input format doesn't support Writables)
-        Writable key = (Writable) hadoopReader.getCurrentKey();
-        Writable value = (Writable) hadoopReader.getCurrentValue();
+        K key = (K) hadoopReader.getCurrentKey();
+        V value = (V) hadoopReader.getCurrentValue();
 
         // ~ clone Writables since they are reused
         // between calls to RecordReader#nextKeyValue
@@ -113,13 +114,14 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
   /**
    * Wraps Hadoop {@link InputSplit}
    */
-  private static class HadoopPartition implements Partition<Pair<?, ?>> {
+  private static class HadoopPartition<K extends Writable, V extends Writable>
+      implements Partition<Pair<K, V>> {
 
-    private final Class<? extends InputFormat> hadoopFormatCls;
+    private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
     private final Configuration conf;
     private final InputSplit hadoopSplit;
 
-    public HadoopPartition(Class<? extends InputFormat> hadoopFormatCls,
+    public HadoopPartition(Class<? extends InputFormat<K, V>> hadoopFormatCls,
                            Configuration conf,
                            InputSplit hadoopSplit)
     {
@@ -137,9 +139,9 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
 
     @Override
     @SneakyThrows
-    public Reader<Pair<?, ?>> openReader() throws IOException {
+    public Reader<Pair<K, V>> openReader() throws IOException {
       TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
-      RecordReader<?, ?> reader =
+      RecordReader<K, V> reader =
               HadoopUtils.instantiateHadoopFormat(
                       hadoopFormatCls,
                       InputFormat.class,
@@ -148,7 +150,7 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
 
       reader.initialize(hadoopSplit, ctx);
 
-      return new HadoopReader(reader, conf);
+      return new HadoopReader<>(reader, conf);
     }
   }
 
