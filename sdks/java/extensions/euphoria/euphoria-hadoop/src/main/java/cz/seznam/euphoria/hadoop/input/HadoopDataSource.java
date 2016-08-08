@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-class HadoopInputFormatAdapter<K extends Writable, V extends Writable>
+class HadoopDataSource<K extends Writable, V extends Writable>
     implements DataSource<Pair<K, V>> {
 
   private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
@@ -31,8 +31,8 @@ class HadoopInputFormatAdapter<K extends Writable, V extends Writable>
 
   private transient InputFormat<K, V> hadoopFormatInstance;
 
-  public HadoopInputFormatAdapter(Class<? extends InputFormat<K, V>> hadoopFormatCls,
-                                  SerializableWritable<Configuration> conf)
+  public HadoopDataSource(Class<? extends InputFormat<K, V>> hadoopFormatCls,
+                          SerializableWritable<Configuration> conf)
   {
     this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
     this.conf = Objects.requireNonNull(conf);

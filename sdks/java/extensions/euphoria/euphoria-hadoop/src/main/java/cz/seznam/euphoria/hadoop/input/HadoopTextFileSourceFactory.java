@@ -21,7 +21,7 @@ public class HadoopTextFileSourceFactory implements DataSourceFactory {
     // set input dir
     conf.set(FileInputFormat.INPUT_DIR, uri.toString());
 
-    return (DataSource<T>) new HadoopInputFormatAdapter(
+    return (DataSource<T>) new HadoopDataSource(
             TextInputFormat.class, new SerializableWritable<>(conf));
   }
 }
