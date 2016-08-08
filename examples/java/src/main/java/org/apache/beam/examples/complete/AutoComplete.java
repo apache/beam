@@ -62,7 +62,6 @@ import com.google.common.base.MoreObjects;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Key;
 import com.google.datastore.v1beta3.Value;
-import com.google.datastore.v1beta3.client.DatastoreHelper;
 
 import org.joda.time.Duration;
 
@@ -392,15 +391,16 @@ public class AutoComplete {
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
-    public FormatForDatastore(String kind) {
+    private String ancestorKey;
+    public FormatForDatastore(String kind, String ancestorKey) {
       this.kind = kind;
+      this.ancestorKey = ancestorKey;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key ancestorKey = makeKey(kind, "root").build();
-      Key key = DatastoreHelper.makeKey(ancestorKey, kind, c.element().getKey()).build();
+      Key key = makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
@@ -449,6 +449,11 @@ public class AutoComplete {
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
+    @Description("Datastore ancestor key")
+    @Default.String("root")
+    String getDatastoreAncestorKey();
+    void setDatastoreAncestorKey(String value);
+
     @Description("Datastore output project ID, defaults to project ID")
     String getOutputProject();
     void setOutputProject(String value);
@@ -481,7 +486,8 @@ public class AutoComplete {
 
     if (options.getOutputToDatastore()) {
       toWrite
-      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
+      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind(),
+          options.getDatastoreAncestorKey())))
       .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }
