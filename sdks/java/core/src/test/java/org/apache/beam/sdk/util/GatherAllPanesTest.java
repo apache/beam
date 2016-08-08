@@ -20,8 +20,10 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -32,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.collect.Iterables;
@@ -39,6 +42,7 @@ import com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -50,6 +54,7 @@ import java.io.Serializable;
 @RunWith(JUnit4.class)
 public class GatherAllPanesTest implements Serializable {
   @Test
+  @Category(NeedsRunner.class)
   public void singlePaneSingleReifiedPane() {
     TestPipeline p = TestPipeline.create();
     PCollection<Iterable<WindowedValue<Iterable<Long>>>> accumulatedPanes =
@@ -86,14 +91,21 @@ public class GatherAllPanesTest implements Serializable {
                 return null;
               }
             });
+
+    p.run();
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void multiplePanesMultipleReifiedPane() {
     TestPipeline p = TestPipeline.create();
 
+    PCollection<Long> someElems = p.apply("someLongs", CountingInput.upTo(20000));
+    PCollection<Long> otherElems = p.apply("otherLongs", CountingInput.upTo(20000));
     PCollection<Iterable<WindowedValue<Iterable<Long>>>> accumulatedPanes =
-        p.apply(CountingInput.upTo(20000))
+        PCollectionList.of(someElems)
+            .and(otherElems)
+            .apply(Flatten.<Long>pCollections())
             .apply(
                 WithTimestamps.of(
                     new SerializableFunction<Long, Instant>() {
@@ -128,5 +140,7 @@ public class GatherAllPanesTest implements Serializable {
                 return null;
               }
             });
+
+    p.run();
   }
 }

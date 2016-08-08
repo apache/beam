@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.PropertyNames;
+import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.sdk.util.PropertyNames;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -55,8 +55,7 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
   public static CollectionCoder<?> of(
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
       List<Object> components) {
-    Preconditions.checkArgument(components.size() == 1,
-        "Expecting 1 component, got " + components.size());
+    checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
     return of((Coder<?>) components.get(0));
   }
 

@@ -33,6 +33,8 @@ import org.joda.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * {@link Trigger}s that fire based on properties of the elements in the current pane.
  */
@@ -84,6 +86,8 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT", justification =
+      "prefetch side effect")
   public void prefetchShouldFire(StateAccessor<?> state) {
     state.access(ELEMENTS_IN_PANE_TAG).readLater();
   }

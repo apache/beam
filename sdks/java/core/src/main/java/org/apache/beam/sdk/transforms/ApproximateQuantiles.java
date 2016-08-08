@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -31,7 +33,6 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
@@ -254,9 +255,9 @@ public class ApproximateQuantiles {
         int bufferSize,
         int numBuffers,
         long maxNumElements) {
-      Preconditions.checkArgument(numQuantiles >= 2);
-      Preconditions.checkArgument(bufferSize >= 2);
-      Preconditions.checkArgument(numBuffers >= 2);
+      checkArgument(numQuantiles >= 2);
+      checkArgument(bufferSize >= 2);
+      checkArgument(numBuffers >= 2);
       this.numQuantiles = numQuantiles;
       this.compareFn = compareFn;
       this.bufferSize = bufferSize;

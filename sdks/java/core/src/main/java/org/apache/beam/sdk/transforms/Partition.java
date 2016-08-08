@@ -163,7 +163,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       return outputTags;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       X input = c.element();
       int partition = partitionFn.partitionFor(input, numPartitions);

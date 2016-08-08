@@ -46,7 +46,7 @@ public class TypedPValueTest {
 
   private static class IdentityDoFn extends DoFn<Integer, Integer> {
     private static final long serialVersionUID = 0;
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
@@ -76,8 +76,12 @@ public class TypedPValueTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage("erasure");
-    thrown.expectMessage("see TupleTag Javadoc");
+    thrown.expectMessage(
+        containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the @DefaultCoder annotation failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     tuple.get(untypedSideOutputTag).getCoder();
   }
@@ -91,8 +95,12 @@ public class TypedPValueTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage("erasure");
-    thrown.expectMessage("see TupleTag Javadoc");
+    thrown.expectMessage(
+        containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the @DefaultCoder annotation failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the fallback CoderProvider failed"));
 
     tuple.get(untypedSideOutputTag).getCoder();
   }
@@ -123,7 +131,7 @@ public class TypedPValueTest {
 
   private static class EmptyClassDoFn extends DoFn<Integer, EmptyClass> {
     private static final long serialVersionUID = 0;
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(new EmptyClass());
     }

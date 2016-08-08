@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,8 +29,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -56,8 +56,8 @@ public class FlinkStreamingTranslationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
 
   public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
-    this.env = Preconditions.checkNotNull(env);
-    this.options = Preconditions.checkNotNull(options);
+    this.env = checkNotNull(env);
+    this.options = checkNotNull(options);
     this.dataStreams = new HashMap<>();
   }
 

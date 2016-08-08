@@ -18,7 +18,7 @@
 package org.apache.beam.examples.cookbook;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -82,7 +82,7 @@ public class BigQueryTornadoes {
    * in that sample, the month in which it occurred is output.
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       if ((Boolean) row.get("tornado")) {
@@ -96,7 +96,7 @@ public class BigQueryTornadoes {
    * integer representation of month and the number of tornadoes that occurred in each month.
    */
   static class FormatCountsFn extends DoFn<KV<Integer, Long>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("month", c.element().getKey())

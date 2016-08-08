@@ -128,9 +128,8 @@ public class CoGroupByKey<K> extends
         flattenedTable.apply(GroupByKey.<K, RawUnionValue>create());
 
     CoGbkResultSchema tupleTags = input.getCoGbkResultSchema();
-    PCollection<KV<K, CoGbkResult>> result = groupedTable.apply(
-        ParDo.of(new ConstructCoGbkResultFn<K>(tupleTags))
-          .named("ConstructCoGbkResultFn"));
+    PCollection<KV<K, CoGbkResult>> result = groupedTable.apply("ConstructCoGbkResultFn",
+        ParDo.of(new ConstructCoGbkResultFn<K>(tupleTags)));
     result.setCoder(KvCoder.of(keyCoder,
         CoGbkResultCoder.of(tupleTags, unionCoder)));
 
@@ -163,9 +162,8 @@ public class CoGroupByKey<K> extends
       PCollection<KV<K, V>> pCollection,
       KvCoder<K, RawUnionValue> unionTableEncoder) {
 
-    return pCollection.apply(ParDo.of(
-        new ConstructUnionTableFn<K, V>(index)).named("MakeUnionTable" + index))
-                                               .setCoder(unionTableEncoder);
+    return pCollection.apply("MakeUnionTable" + index,
+        ParDo.of(new ConstructUnionTableFn<K, V>(index))).setCoder(unionTableEncoder);
   }
 
   /**
@@ -182,7 +180,7 @@ public class CoGroupByKey<K> extends
       this.index = index;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<K, ?> e = c.element();
       c.output(KV.of(e.getKey(), new RawUnionValue(index, e.getValue())));
@@ -195,7 +193,7 @@ public class CoGroupByKey<K> extends
     */
   private static class ConstructCoGbkResultFn<K>
     extends DoFn<KV<K, Iterable<RawUnionValue>>,
-                 KV<K, CoGbkResult>> {
+                     KV<K, CoGbkResult>> {
 
     private final CoGbkResultSchema schema;
 
@@ -203,7 +201,7 @@ public class CoGroupByKey<K> extends
       this.schema = schema;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<K, Iterable<RawUnionValue>> e = c.element();
       c.output(KV.of(e.getKey(), new CoGbkResult(schema, e.getValue())));

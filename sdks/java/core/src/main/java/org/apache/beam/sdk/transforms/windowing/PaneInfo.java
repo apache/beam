@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.VarInt;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
@@ -36,8 +38,8 @@ import java.util.Objects;
 /**
  * Provides information about the pane an element belongs to. Every pane is implicitly associated
  * with a window. Panes are observable only via the
- * {@link org.apache.beam.sdk.transforms.DoFn.ProcessContext#pane} method of the context
- * passed to a {@link DoFn#processElement} overridden method.
+ * {@link OldDoFn.ProcessContext#pane} method of the context
+ * passed to a {@link OldDoFn#processElement} overridden method.
  *
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
@@ -72,8 +74,8 @@ public final class PaneInfo {
    * definitions:
    * <ol>
    * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#outputWithTimestamp} in
-   * any {@code DoFn}, and it uses the same
+   * {@link OldDoFn.Context#outputWithTimestamp} in
+   * any {@code OldDoFn}, and it uses the same
    * {@link org.apache.beam.sdk.transforms.windowing.Window.Bound#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
    * <li>We'll call an element 'locally late', from the point of view of a computation on a
@@ -124,7 +126,7 @@ public final class PaneInfo {
      * This element was not produced in a triggered pane and its relation to input and
      * output watermarks is unknown.
      */
-    UNKNOWN;
+    UNKNOWN
 
     // NOTE: Do not add fields or re-order them. The ordinal is used as part of
     // the encoding.
@@ -191,7 +193,7 @@ public final class PaneInfo {
   }
 
   public static PaneInfo createPane(boolean isFirst, boolean isLast, Timing timing) {
-    Preconditions.checkArgument(isFirst, "Indices must be provided for non-first pane info.");
+    checkArgument(isFirst, "Indices must be provided for non-first pane info.");
     return createPane(isFirst, isLast, timing, 0, timing == Timing.EARLY ? -1 : 0);
   }
 
@@ -201,15 +203,14 @@ public final class PaneInfo {
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
     if (isFirst || timing == Timing.UNKNOWN) {
-      return Preconditions.checkNotNull(
-          BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
+      return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
     } else {
       return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
     }
   }
 
   public static PaneInfo decodePane(byte encodedPane) {
-    return Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get(encodedPane));
+    return checkNotNull(BYTE_TO_PANE_INFO.get(encodedPane));
   }
 
   /**
@@ -292,6 +293,10 @@ public final class PaneInfo {
 
   @Override
   public String toString() {
+    if (this == PaneInfo.NO_FIRING) {
+      return "PaneInfo.NO_FIRING";
+    }
+
     return MoreObjects.toStringHelper(getClass())
         .omitNullValues()
         .add("isFirst", isFirst ? true : null)

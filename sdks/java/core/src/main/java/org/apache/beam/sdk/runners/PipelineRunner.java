@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.GcsOptions;
@@ -27,8 +29,6 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-
-import com.google.common.base.Preconditions;
 
 /**
  * A {@link PipelineRunner} can execute, translate, or otherwise process a
@@ -45,7 +45,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    */
   public static PipelineRunner<? extends PipelineResult> fromOptions(PipelineOptions options) {
     GcsOptions gcsOptions = PipelineOptionsValidator.validate(GcsOptions.class, options);
-    Preconditions.checkNotNull(options);
+    checkNotNull(options);
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerStandardIOFactories(gcsOptions);

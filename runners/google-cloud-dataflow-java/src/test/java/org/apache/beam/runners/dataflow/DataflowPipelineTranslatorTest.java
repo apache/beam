@@ -47,10 +47,9 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.RecordingPipelineVisitor;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -127,8 +126,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/object"))
-        .apply(TextIO.Write.named("WriteMyFile").to("gs://bucket/object"));
+    p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
+     .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
 
     return p;
   }
@@ -195,10 +194,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     settings.put("appName", "DataflowPipelineTranslatorTest");
     settings.put("project", "some-project");
     settings.put("pathValidatorClass",
-        "org.apache.beam.runners.dataflow.util.DataflowPathValidator");
+        "org.apache.beam.sdk.util.GcsPathValidator");
     settings.put("runner", "org.apache.beam.runners.dataflow.DataflowRunner");
     settings.put("jobName", "some-job-name");
     settings.put("tempLocation", "gs://somebucket/some/path");
+    settings.put("gcpTempLocation", "gs://somebucket/some/path");
     settings.put("stagingLocation", "gs://somebucket/some/path/staging");
     settings.put("stableUniqueNames", "WARNING");
     settings.put("streaming", false);
@@ -458,7 +458,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     // Create a pipeline that the predefined step will be embedded into
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/in"))
+    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
         .apply(ParDo.of(new NoOpFn()))
         .apply(new EmbeddedTransform(predefinedStep.clone()))
         .apply(ParDo.of(new NoOpFn()));
@@ -506,16 +506,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   /**
-   * Returns a Step for a DoFn by creating and translating a pipeline.
+   * Returns a Step for a OldDoFn by creating and translating a pipeline.
    */
   private static Step createPredefinedStep() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
     String stepName = "DoFn1";
-    pipeline.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/in"))
-        .apply(ParDo.of(new NoOpFn()).named(stepName))
-        .apply(TextIO.Write.named("WriteMyFile").to("gs://bucket/out"));
+    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
+        .apply(stepName, ParDo.of(new NoOpFn()))
+        .apply("WriteMyFile", TextIO.Write.to("gs://bucket/out"));
     Job job =
         translator
             .translate(
@@ -530,7 +530,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     return step;
   }
 
-  private static class NoOpFn extends DoFn<String, String> {
+  private static class NoOpFn extends OldDoFn<String, String> {
     @Override public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
@@ -864,7 +864,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
 
-    DoFn<Integer, Integer> fn1 = new DoFn<Integer, Integer>() {
+    OldDoFn<Integer, Integer> fn1 = new OldDoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         c.output(c.element());
@@ -880,7 +880,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       }
     };
 
-    DoFn<Integer, Integer> fn2 = new DoFn<Integer, Integer>() {
+    OldDoFn<Integer, Integer> fn2 = new OldDoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         c.output(c.element());

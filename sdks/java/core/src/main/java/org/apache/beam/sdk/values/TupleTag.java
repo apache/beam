@@ -39,7 +39,7 @@ import java.util.Random;
  * Its generic type parameter allows tracking
  * the static type of things stored in tuples.
  *
- * <p>To aid in assigning default {@link Coder Coders} for results of
+ * <p>To aid in assigning default {@link org.apache.beam.sdk.coders.Coder Coders} for results of
  * side outputs of {@link ParDo}, an output
  * {@link TupleTag} should be instantiated with an extra {@code {}} so
  * it is an instance of an anonymous subclass without generic type

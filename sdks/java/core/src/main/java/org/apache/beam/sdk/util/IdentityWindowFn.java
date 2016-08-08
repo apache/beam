@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * A {@link WindowFn} that leaves all associations between elements and windows unchanged.
@@ -55,25 +56,21 @@ class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
    * these windows.
    */
   private final Coder<BoundedWindow> coder;
-  private final boolean assignsToSingleWindow;
 
-  public IdentityWindowFn(Coder<? extends BoundedWindow> coder, boolean assignsToSingleWindow) {
+  public IdentityWindowFn(Coder<? extends BoundedWindow> coder) {
     // Safe because it is only used privately here.
     // At every point where a window is returned or accepted, it has been provided
-    // by priorWindowFn, so it is of the expected type.
+    // by the prior WindowFn, so it is of the expected type.
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>) coder;
     this.coder = windowCoder;
-    this.assignsToSingleWindow = assignsToSingleWindow;
   }
 
   @Override
   public Collection<BoundedWindow> assignWindows(WindowFn<T, BoundedWindow>.AssignContext c)
       throws Exception {
-    // The windows are provided by priorWindowFn, which also provides the coder for them
-    @SuppressWarnings("unchecked")
-    Collection<BoundedWindow> priorWindows = (Collection<BoundedWindow>) c.windows();
-    return priorWindows;
+    // The window is provided by the prior WindowFn, which also provides the coder for them
+    return Collections.singleton(c.window());
   }
 
   @Override
@@ -88,14 +85,9 @@ class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   @Override
   public Coder<BoundedWindow> windowCoder() {
-    // Safe because the previous WindowFn provides both the windows and the coder.
+    // Safe because the prior WindowFn provides both the windows and the coder.
     // The Coder is _not_ actually a coder for an arbitrary BoundedWindow.
     return coder;
-  }
-
-  @Override
-  public boolean assignsToSingleWindow() {
-    return assignsToSingleWindow;
   }
 
   @Override

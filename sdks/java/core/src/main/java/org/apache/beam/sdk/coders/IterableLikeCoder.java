@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
-import com.google.common.base.Preconditions;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -89,10 +89,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   protected IterableLikeCoder(Coder<T> elementCoder, String  iterableName) {
-    Preconditions.checkArgument(elementCoder != null,
-        "element Coder for IterableLikeCoder must not be null");
-    Preconditions.checkArgument(iterableName != null,
-        "iterable name for IterableLikeCoder must not be null");
+    checkArgument(elementCoder != null, "element Coder for IterableLikeCoder must not be null");
+    checkArgument(iterableName != null, "iterable name for IterableLikeCoder must not be null");
     this.elementCoder = elementCoder;
     this.iterableName = iterableName;
   }

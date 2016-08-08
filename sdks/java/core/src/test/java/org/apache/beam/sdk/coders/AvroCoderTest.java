@@ -62,6 +62,8 @@ import org.junit.runners.JUnit4;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -133,7 +135,7 @@ public class AvroCoderTest {
   }
 
   private static class GetTextFn extends DoFn<Pojo, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().text);
     }
@@ -146,6 +148,30 @@ public class AvroCoderTest {
 
     Assert.assertThat(encoding.keySet(),
         Matchers.containsInAnyOrder("@type", "type", "schema", "encoding_id"));
+  }
+
+  /**
+   * Confirm that we can serialize and deserialize an AvroCoder object and still decode after.
+   * (BEAM-349).
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testTransientFieldInitialization() throws Exception {
+    Pojo value = new Pojo("Hello", 42);
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    //Serialization of object
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    ObjectOutputStream out = new ObjectOutputStream(bos);
+    out.writeObject(coder);
+
+    //De-serialization of object
+    ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+    ObjectInputStream in = new ObjectInputStream(bis);
+    AvroCoder<Pojo> copied = (AvroCoder<Pojo>) in.readObject();
+
+    CoderProperties.coderDecodeEncodeEqual(copied, value);
   }
 
   @Test
@@ -754,5 +780,31 @@ public class AvroCoderTest {
     public int hashCode() {
       return Objects.hash(getClass(), onlySomeTypesAllowed);
     }
+  }
+
+  @Test
+  public void testAvroCoderForGenerics() throws Exception {
+    Schema fooSchema = AvroCoder.of(Foo.class).getSchema();
+    Schema schema = new Schema.Parser().parse("{"
+        + "\"type\":\"record\","
+        + "\"name\":\"SomeGeneric\","
+        + "\"namespace\":\"ns\","
+        + "\"fields\":["
+        + "  {\"name\":\"foo\", \"type\":" + fooSchema.toString() + "}"
+        + "]}");
+    @SuppressWarnings("rawtypes")
+    AvroCoder<SomeGeneric> coder = AvroCoder.of(SomeGeneric.class, schema);
+
+    assertNonDeterministic(coder,
+        reasonField(SomeGeneric.class, "foo", "erasure"));
+  }
+
+  private static class SomeGeneric<T> {
+    @SuppressWarnings("unused")
+    private T foo;
+  }
+  private static class Foo {
+    @SuppressWarnings("unused")
+    String id;
   }
 }

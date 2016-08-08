@@ -64,8 +64,8 @@ public final class CoderUtils {
    */
   public static final String KIND_STREAM = "kind:stream";
 
-  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>> threadLocalOutputStream
-      = new ThreadLocal<>();
+  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
+      threadLocalOutputStream = new ThreadLocal<>();
 
   /**
    * If true, a call to {@code encodeToByteArray} is already on the call stack.

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
@@ -42,7 +44,7 @@ import java.util.List;
  * @param <T> The type of objects coded by this Coder.
  * @param <IntermediateT> The type of objects a {@code T} will be converted to for coding.
  */
-public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
+public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   /**
    * A {@link DelegateCoder.CodingFunction CodingFunction&lt;InputT, OutputT&gt;} is a serializable
    * function from {@code InputT} to {@code OutputT} that may throw any {@link Exception}.
@@ -101,8 +103,28 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   @Override
+  public boolean equals(Object o) {
+    if (o == null || this.getClass() != o.getClass()) {
+      return false;
+    }
+    DelegateCoder<?, ?> that = (DelegateCoder<?, ?>) o;
+    return Objects.equal(this.coder, that.coder)
+        && Objects.equal(this.toFn, that.toFn)
+        && Objects.equal(this.fromFn, that.fromFn);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(this.coder, this.toFn, this.fromFn);
+  }
+
+  @Override
   public String toString() {
-    return "DelegateCoder(" + coder + ")";
+    return MoreObjects.toStringHelper(getClass())
+        .add("coder", coder)
+        .add("toFn", toFn)
+        .add("fromFn", fromFn)
+        .toString();
   }
 
   /**

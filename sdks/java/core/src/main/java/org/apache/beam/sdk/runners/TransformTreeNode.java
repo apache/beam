@@ -17,14 +17,15 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -82,7 +83,7 @@ public class TransformTreeNode {
                            @Nullable PInput input) {
     this.enclosingNode = enclosingNode;
     this.transform = transform;
-    Preconditions.checkArgument((enclosingNode == null && transform == null)
+    checkArgument((enclosingNode == null && transform == null)
         || (enclosingNode != null && transform != null),
         "EnclosingNode and transform must both be specified, or both be null");
     this.fullName = fullName;
@@ -146,7 +147,7 @@ public class TransformTreeNode {
    * Adds an input to the transform node.
    */
   public void addInputProducer(PValue expandedInput, TransformTreeNode producer) {
-    Preconditions.checkState(!finishedSpecifying);
+    checkState(!finishedSpecifying);
     inputs.put(expandedInput, producer);
   }
 
@@ -169,8 +170,8 @@ public class TransformTreeNode {
    * Adds an output to the transform node.
    */
   public void setOutput(POutput output) {
-    Preconditions.checkState(!finishedSpecifying);
-    Preconditions.checkState(this.output == null);
+    checkState(!finishedSpecifying);
+    checkState(this.output == null);
     this.output = output;
   }
 

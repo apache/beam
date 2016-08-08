@@ -17,15 +17,15 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
@@ -40,10 +40,10 @@ public class FlinkParDoBoundMultiWrapper<IN, OUT> extends FlinkAbstractParDoWrap
   private final TupleTag<?> mainTag;
   private final Map<TupleTag<?>, Integer> outputLabels;
 
-  public FlinkParDoBoundMultiWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUT> doFn, TupleTag<?> mainTag, Map<TupleTag<?>, Integer> tagsToLabels) {
+  public FlinkParDoBoundMultiWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, OldDoFn<IN, OUT> doFn, TupleTag<?> mainTag, Map<TupleTag<?>, Integer> tagsToLabels) {
     super(options, windowingStrategy, doFn);
-    this.mainTag = Preconditions.checkNotNull(mainTag);
-    this.outputLabels = Preconditions.checkNotNull(tagsToLabels);
+    this.mainTag = checkNotNull(mainTag);
+    this.outputLabels = checkNotNull(tagsToLabels);
   }
 
   @Override

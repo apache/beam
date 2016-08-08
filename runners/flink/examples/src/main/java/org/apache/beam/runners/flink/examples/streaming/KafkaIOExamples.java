@@ -30,7 +30,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -326,7 +326,7 @@ public class KafkaIOExamples {
    * Print contents to stdout
    * @param <T> type of the input
    */
-  private static class PrintFn<T> extends DoFn<T, T> {
+  private static class PrintFn<T> extends OldDoFn<T, T> {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {

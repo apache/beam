@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -34,7 +35,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
@@ -55,9 +55,7 @@ import javax.annotation.Nullable;
  * {@link AvroIO.Read}, specifying {@link AvroIO.Read#from} to specify
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
- * filename or filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}), and optionally
- * {@link AvroIO.Read#named} to specify the name of the pipeline step.
+ * filename or filename pattern of the form {@code "gs://<bucket>/<filepath>"}).
  *
  * <p>It is required to specify {@link AvroIO.Read#withSchema}. To
  * read specific records, such as Avro-generated classes, provide an
@@ -73,15 +71,15 @@ import javax.annotation.Nullable;
  * // A simple Read of a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records =
  *     p.apply(AvroIO.Read.from("/path/to/file.avro")
- *                        .withSchema(AvroAutoGenClass.class));
+ *                 .withSchema(AvroAutoGenClass.class));
  *
  * // A Read from a GCS file (runs locally and via the Google Cloud
  * // Dataflow service):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
- *     p.apply(AvroIO.Read.named("ReadFromAvro")
- *                        .from("gs://my_bucket/path/to/records-*.avro")
- *                        .withSchema(schema));
+ *     p.apply(AvroIO.Read
+ *                .from("gs://my_bucket/path/to/records-*.avro")
+ *                .withSchema(schema));
  * } </pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use
@@ -89,8 +87,7 @@ import javax.annotation.Nullable;
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}), and optionally
- * {@link AvroIO.Write#named} to specify the name of the pipeline step.
+ * {@code "gs://<bucket>/<filepath>"}).
  *
  * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an
@@ -110,10 +107,10 @@ import javax.annotation.Nullable;
  * // Dataflow service):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
- * records.apply(AvroIO.Write.named("WriteToAvro")
- *                           .to("gs://my_bucket/path/to/numbers")
- *                           .withSchema(schema)
- *                           .withSuffix(".avro"));
+ * records.apply("WriteToAvro", AvroIO.Write
+ *     .to("gs://my_bucket/path/to/numbers")
+ *     .withSchema(schema)
+ *     .withSuffix(".avro"));
  * } </pre>
  *
  * <p><h3>Permissions</h3>
@@ -128,12 +125,6 @@ public class AvroIO {
    * the decoding of each record.
    */
   public static class Read {
-    /**
-     * Returns a {@link PTransform} with the given step name.
-     */
-    public static Bound<GenericRecord> named(String name) {
-      return new Bound<>(GenericRecord.class).named(name);
-    }
 
     /**
      * Returns a {@link PTransform} that reads from the file(s)
@@ -219,16 +210,6 @@ public class AvroIO {
         this.type = type;
         this.schema = schema;
         this.validate = validate;
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(name, filepattern, type, schema, validate);
       }
 
       /**
@@ -366,12 +347,6 @@ public class AvroIO {
    * multiple Avro files matching a sharding pattern).
    */
   public static class Write {
-    /**
-     * Returns a {@link PTransform} with the given step name.
-     */
-    public static Bound<GenericRecord> named(String name) {
-      return new Bound<>(GenericRecord.class).named(name);
-    }
 
     /**
      * Returns a {@link PTransform} that writes to the file(s)
@@ -522,17 +497,6 @@ public class AvroIO {
 
       /**
        * Returns a new {@link PTransform} that's like this one but
-       * with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
        * <p>See {@link AvroIO.Write#to(String)} for more information
@@ -575,7 +539,7 @@ public class AvroIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
-        Preconditions.checkArgument(numShards >= 0);
+        checkArgument(numShards >= 0);
         return new Bound<>(
             name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
@@ -682,14 +646,14 @@ public class AvroIO {
           throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
-        // Note that custom sinks currently do not expose sharding controls.
-        // Thus pipeline runner writers need to individually add support internally to
-        // apply user requested sharding limits.
-        return input.apply(
-            "Write",
+        org.apache.beam.sdk.io.Write.Bound<T> write =
             org.apache.beam.sdk.io.Write.to(
                 new AvroSink<>(
-                    filenamePrefix, filenameSuffix, shardTemplate, AvroCoder.of(type, schema))));
+                    filenamePrefix, filenameSuffix, shardTemplate, AvroCoder.of(type, schema)));
+        if (getNumShards() > 0) {
+          write = write.withNumShards(getNumShards());
+        }
+        return input.apply("Write", write);
       }
 
       @Override
@@ -764,7 +728,7 @@ public class AvroIO {
   private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
 
   private static void validateOutputComponent(String partialFilePattern) {
-    Preconditions.checkArgument(
+    checkArgument(
         !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
         "Output name components are not allowed to contain @* or @N patterns: "
         + partialFilePattern);

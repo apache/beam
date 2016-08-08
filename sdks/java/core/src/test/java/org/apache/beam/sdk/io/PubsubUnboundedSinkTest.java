@@ -59,7 +59,7 @@ public class PubsubUnboundedSinkTest {
   private static final int NUM_SHARDS = 10;
 
   private static class Stamp extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(c.element(), new Instant(TIMESTAMP));
     }

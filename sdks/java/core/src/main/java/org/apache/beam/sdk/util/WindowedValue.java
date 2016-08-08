@@ -34,12 +34,10 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -60,9 +58,6 @@ import java.util.Set;
  */
 public abstract class WindowedValue<T> {
 
-  protected final T value;
-  protected final PaneInfo pane;
-
   /**
    * Returns a {@code WindowedValue} with the given value, timestamp,
    * and windows.
@@ -72,7 +67,7 @@ public abstract class WindowedValue<T> {
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
-    Preconditions.checkNotNull(pane);
+    checkNotNull(pane);
 
     if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInEmptyWindows(value, pane);
@@ -91,7 +86,7 @@ public abstract class WindowedValue<T> {
       Instant timestamp,
       BoundedWindow window,
       PaneInfo pane) {
-    Preconditions.checkNotNull(pane);
+    checkNotNull(pane);
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
@@ -134,7 +129,11 @@ public abstract class WindowedValue<T> {
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and pane.
+   *
+   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
+   *     it at any point, and benign runner implementation details could cause silent data loss.
    */
+  @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
     return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
   }
@@ -142,14 +141,13 @@ public abstract class WindowedValue<T> {
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and the specified pane.
+   *
+   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
+   *     it at any point, and benign runner implementation details could cause silent data loss.
    */
+  @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
     return new ValueInEmptyWindows<T>(value, pane);
-  }
-
-  private WindowedValue(T value, PaneInfo pane) {
-    this.value = value;
-    this.pane = checkNotNull(pane);
   }
 
   /**
@@ -161,9 +159,7 @@ public abstract class WindowedValue<T> {
   /**
    * Returns the value of this {@code WindowedValue}.
    */
-  public T getValue() {
-    return value;
-  }
+  public abstract T getValue();
 
   /**
    * Returns the timestamp of this {@code WindowedValue}.
@@ -174,6 +170,11 @@ public abstract class WindowedValue<T> {
    * Returns the windows of this {@code WindowedValue}.
    */
   public abstract Collection<? extends BoundedWindow> getWindows();
+
+  /**
+   * Returns the pane of this {@code WindowedValue} in its window.
+   */
+  public abstract PaneInfo getPane();
 
   /**
    * Returns a collection of {@link WindowedValue WindowedValues} identical to this one, except each
@@ -187,18 +188,28 @@ public abstract class WindowedValue<T> {
     return windowedValues.build();
   }
 
-  /**
-   * Returns the pane of this {@code WindowedValue} in its window.
-   */
-  public PaneInfo getPane() {
-    return pane;
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof WindowedValue)) {
+      return false;
+    } else {
+      WindowedValue<?> that = (WindowedValue<?>) other;
+
+      // Compare timestamps first as they are most likely to differ.
+      // Also compare timestamps according to millis-since-epoch because otherwise expensive
+      // comparisons are made on their Chronology objects.
+      return this.getTimestamp().isEqual(that.getTimestamp())
+          && Objects.equals(this.getValue(), that.getValue())
+          && Objects.equals(this.getWindows(), that.getWindows())
+          && Objects.equals(this.getPane(), that.getPane());
+    }
   }
 
   @Override
-  public abstract boolean equals(Object o);
-
-  @Override
-  public abstract int hashCode();
+  public int hashCode() {
+    // Hash only the millis of the timestamp to be consistent with equals
+    return Objects.hash(getValue(), getTimestamp().getMillis(), getWindows(), getPane());
+  }
 
   @Override
   public abstract String toString();
@@ -207,11 +218,34 @@ public abstract class WindowedValue<T> {
       Collections.singletonList(GlobalWindow.INSTANCE);
 
   /**
+   * An abstract superclass for implementations of {@link WindowedValue} that stores the value
+   * and pane info.
+   */
+  private abstract static class SimpleWindowedValue<T> extends WindowedValue<T> {
+    private final T value;
+    private final PaneInfo pane;
+
+    protected SimpleWindowedValue(T value, PaneInfo pane) {
+      this.value = value;
+      this.pane = checkNotNull(pane);
+    }
+
+    @Override
+    public PaneInfo getPane() {
+      return pane;
+    }
+    @Override
+    public T getValue() {
+      return value;
+    }
+  }
+
+  /**
    * The abstract superclass of WindowedValue representations where
    * timestamp == MIN.
    */
   private abstract static class MinTimestampWindowedValue<T>
-      extends WindowedValue<T> {
+      extends SimpleWindowedValue<T> {
     public MinTimestampWindowedValue(T value, PaneInfo pane) {
       super(value, pane);
     }
@@ -233,8 +267,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT value) {
-      return new ValueInGlobalWindow<>(value, pane);
+    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
+      return new ValueInGlobalWindow<>(newValue, getPane());
     }
 
     @Override
@@ -246,40 +280,42 @@ public abstract class WindowedValue<T> {
     public boolean equals(Object o) {
       if (o instanceof ValueInGlobalWindow) {
         ValueInGlobalWindow<?> that = (ValueInGlobalWindow<?>) o;
-        return Objects.equals(that.pane, this.pane)
-            && Objects.equals(that.value, this.value);
+        return Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getValue(), this.getValue());
       } else {
-        return false;
+        return super.equals(o);
       }
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(value, pane);
+      return Objects.hash(getValue(), getPane());
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("value", value)
-          .add("pane", pane)
+          .add("value", getValue())
+          .add("pane", getPane())
           .toString();
     }
   }
 
   /**
-   * The representation of a WindowedValue where timestamp == MIN and
-   * windows == {}.
+   * The representation of a WindowedValue where timestamp == MIN and windows == {}.
+   *
+   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
+   *     it at any point, and benign runner implementation details could cause silent data loss.
    */
-  private static class ValueInEmptyWindows<T>
-      extends MinTimestampWindowedValue<T> {
+  @Deprecated
+  private static class ValueInEmptyWindows<T> extends MinTimestampWindowedValue<T> {
     public ValueInEmptyWindows(T value, PaneInfo pane) {
       super(value, pane);
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT value) {
-      return new ValueInEmptyWindows<>(value, pane);
+    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
+      return new ValueInEmptyWindows<>(newValue, getPane());
     }
 
     @Override
@@ -291,23 +327,23 @@ public abstract class WindowedValue<T> {
     public boolean equals(Object o) {
       if (o instanceof ValueInEmptyWindows) {
         ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
-        return Objects.equals(that.pane, this.pane)
-            && Objects.equals(that.value, this.value);
+        return Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getValue(), this.getValue());
       } else {
-        return false;
+        return super.equals(o);
       }
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(value, pane);
+      return Objects.hash(getValue(), getPane());
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("value", value)
-          .add("pane", pane)
+          .add("value", getValue())
+          .add("pane", getPane())
           .toString();
     }
   }
@@ -317,8 +353,8 @@ public abstract class WindowedValue<T> {
    * timestamp is arbitrary.
    */
   private abstract static class TimestampedWindowedValue<T>
-      extends WindowedValue<T> {
-    protected final Instant timestamp;
+      extends SimpleWindowedValue<T> {
+    private final Instant timestamp;
 
     public TimestampedWindowedValue(T value,
                                     Instant timestamp,
@@ -346,8 +382,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT value) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
+    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
+      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPane());
     }
 
     @Override
@@ -360,25 +396,29 @@ public abstract class WindowedValue<T> {
       if (o instanceof TimestampedValueInGlobalWindow) {
         TimestampedValueInGlobalWindow<?> that =
             (TimestampedValueInGlobalWindow<?>) o;
-        return this.timestamp.isEqual(that.timestamp) // don't compare chronology objects
-            && Objects.equals(that.pane, this.pane)
-            && Objects.equals(that.value, this.value);
+        // Compare timestamps first as they are most likely to differ.
+        // Also compare timestamps according to millis-since-epoch because otherwise expensive
+        // comparisons are made on their Chronology objects.
+        return this.getTimestamp().isEqual(that.getTimestamp())
+            && Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getValue(), this.getValue());
       } else {
-        return false;
+        return super.equals(o);
       }
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(value, pane, timestamp.getMillis());
+      // Hash only the millis of the timestamp to be consistent with equals
+      return Objects.hash(getValue(), getPane(), getTimestamp().getMillis());
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("value", value)
-          .add("timestamp", timestamp)
-          .add("pane", pane)
+          .add("value", getValue())
+          .add("timestamp", getTimestamp())
+          .add("pane", getPane())
           .toString();
     }
   }
@@ -400,8 +440,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT value) {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
+    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
+      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPane());
     }
 
     @Override
@@ -414,27 +454,31 @@ public abstract class WindowedValue<T> {
       if (o instanceof TimestampedValueInSingleWindow) {
         TimestampedValueInSingleWindow<?> that =
             (TimestampedValueInSingleWindow<?>) o;
-        return Objects.equals(that.value, this.value)
-            && this.timestamp.isEqual(that.timestamp) // don't compare chronology objects
-            && Objects.equals(that.pane, this.pane)
+        // Compare timestamps first as they are most likely to differ.
+        // Also compare timestamps according to millis-since-epoch because otherwise expensive
+        // comparisons are made on their Chronology objects.
+        return this.getTimestamp().isEqual(that.getTimestamp())
+            && Objects.equals(that.getValue(), this.getValue())
+            && Objects.equals(that.getPane(), this.getPane())
             && Objects.equals(that.window, this.window);
       } else {
-        return false;
+        return super.equals(o);
       }
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(value, timestamp.getMillis(), pane, window);
+      // Hash only the millis of the timestamp to be consistent with equals
+      return Objects.hash(getValue(), getTimestamp().getMillis(), getPane(), window);
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("value", value)
-          .add("timestamp", timestamp)
+          .add("value", getValue())
+          .add("timestamp", getTimestamp())
           .add("window", window)
-          .add("pane", pane)
+          .add("pane", getPane())
           .toString();
     }
   }
@@ -457,8 +501,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT value) {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
+      return new TimestampedValueInMultipleWindows<>(newValue, getTimestamp(), windows, getPane());
     }
 
     @Override
@@ -471,30 +515,37 @@ public abstract class WindowedValue<T> {
       if (o instanceof TimestampedValueInMultipleWindows) {
         TimestampedValueInMultipleWindows<?> that =
             (TimestampedValueInMultipleWindows<?>) o;
-        if (this.timestamp.isEqual(that.timestamp) // don't compare chronology objects
-            && Objects.equals(that.value, this.value)
-            && Objects.equals(that.pane, this.pane)) {
+        // Compare timestamps first as they are most likely to differ.
+        // Also compare timestamps according to millis-since-epoch because otherwise expensive
+        // comparisons are made on their Chronology objects.
+        if (this.getTimestamp().isEqual(that.getTimestamp())
+            && Objects.equals(that.getValue(), this.getValue())
+            && Objects.equals(that.getPane(), this.getPane())) {
           ensureWindowsAreASet();
           that.ensureWindowsAreASet();
           return that.windows.equals(this.windows);
+        } else {
+          return false;
         }
+      } else {
+        return super.equals(o);
       }
-      return false;
     }
 
     @Override
     public int hashCode() {
+      // Hash only the millis of the timestamp to be consistent with equals
       ensureWindowsAreASet();
-      return Objects.hash(value, timestamp.getMillis(), pane, windows);
+      return Objects.hash(getValue(), getTimestamp().getMillis(), getPane(), windows);
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
-          .add("value", value)
-          .add("timestamp", timestamp)
+          .add("value", getValue())
+          .add("timestamp", getTimestamp())
           .add("windows", windows)
-          .add("pane", pane)
+          .add("pane", getPane())
           .toString();
     }
 

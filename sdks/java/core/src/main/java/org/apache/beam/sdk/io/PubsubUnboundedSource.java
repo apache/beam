@@ -77,7 +77,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import javax.annotation.Nullable;
 
 /**
@@ -1131,7 +1130,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       this.idLabel = idLabel;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.addValue(1L);
       c.output(c.element());
@@ -1296,8 +1295,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
-                .apply(ParDo.named("PubsubUnboundedSource.Stats")
-                            .of(new StatsFn<T>(pubsubFactory, subscription,
-                                               timestampLabel, idLabel)));
+                .apply("PubsubUnboundedSource.Stats",
+                    ParDo.of(new StatsFn<T>(pubsubFactory, subscription, timestampLabel, idLabel)));
   }
 }

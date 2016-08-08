@@ -91,7 +91,7 @@ import java.io.Serializable;
  *
  * <pre> {@code
  * ...
- * .apply(ParDo.named("Step1").of(new MyDoFn3()))
+ * .apply("Step1", ParDo.of(new MyDoFn3()))
  * ...
  * } </pre>
  *
@@ -147,7 +147,7 @@ import java.io.Serializable;
  * implementing {@code Serializable}.
  *
  * <p>{@code PTransform} is marked {@code Serializable} solely
- * because it is common for an anonymous {@code DoFn},
+ * because it is common for an anonymous {@code OldDoFn},
  * instance to be created within an
  * {@code apply()} method of a composite {@code PTransform}.
  *
@@ -181,18 +181,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * transforms, which do not apply any transforms internally, should return
    * a new unbound output and register evaluators (via backend-specific
    * registration methods).
-   *
-   * <p>The default implementation throws an exception.  A derived class must
-   * either implement apply, or else each runner must supply a custom
-   * implementation via
-   * {@link org.apache.beam.sdk.runners.PipelineRunner#apply}.
    */
-  public OutputT apply(InputT input) {
-    throw new IllegalArgumentException(
-        "Runner " + input.getPipeline().getRunner()
-            + " has not registered an implementation for the required primitive operation "
-            + this);
-  }
+  public abstract OutputT apply(InputT input);
 
   /**
    * Called before invoking apply (which may be intercepted by the runner) to
@@ -201,7 +191,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *
    * <p>By default, does nothing.
    */
-  public void validate(InputT input) { }
+  public void validate(InputT input) {}
 
   /**
    * Returns the transform name.
@@ -218,9 +208,8 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   // understand why all of its instance state is transient.
 
   /**
-   * The base name of this {@code PTransform}, e.g., from
-   * {@link ParDo#named(String)}, or from defaults, or {@code null} if not
-   * yet assigned.
+   * The base name of this {@code PTransform}, e.g., from defaults, or
+   * {@code null} if not yet assigned.
    */
   protected final transient String name;
 
@@ -280,8 +269,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * @throws CannotProvideCoderException if no coder can be inferred
    */
   protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
-    throw new CannotProvideCoderException(
-      "PTransform.getDefaultOutputCoder called.");
+    throw new CannotProvideCoderException("PTransform.getDefaultOutputCoder called.");
   }
 
   /**
@@ -320,6 +308,5 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * to provide their own display data.
    */
   @Override
-  public void populateDisplayData(Builder builder) {
-  }
+  public void populateDisplayData(Builder builder) {}
 }

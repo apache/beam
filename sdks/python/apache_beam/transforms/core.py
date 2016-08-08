@@ -270,7 +270,7 @@ class CombineFn(WithTypeHints):
   1. Input values are partitioned into one or more batches.
   2. For each batch, the create_accumulator method is invoked to create a fresh
      initial "accumulator" value representing the combination of zero values.
-  3. For each input value in the batch, the add_inputs method is invoked to
+  3. For each input value in the batch, the add_input method is invoked to
      combine more values with the accumulator for that batch.
   4. The merge_accumulators method is invoked to combine accumulators from
      separate batches into a single combined output accumulator value, once all
@@ -296,7 +296,7 @@ class CombineFn(WithTypeHints):
   def add_input(self, accumulator, element, *args, **kwargs):
     """Return result of folding element into accumulator.
 
-    CombineFn implementors must override either add_input or add_inputs.
+    CombineFn implementors must override add_input.
 
     Args:
       accumulator: the current accumulator
@@ -420,7 +420,7 @@ class CallableWrapperCombineFn(CombineFn):
     if accumulator is self._EMPTY:
       return self._fn(elements, *args, **kwargs)
     elif isinstance(elements, (list, tuple)):
-      return self._fn([accumulator] + elements, *args, **kwargs)
+      return self._fn([accumulator] + list(elements), *args, **kwargs)
     else:
       def union():
         yield accumulator

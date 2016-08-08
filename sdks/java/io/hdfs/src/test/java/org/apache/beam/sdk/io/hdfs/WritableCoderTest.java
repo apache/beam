@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hdfs;
 import org.apache.beam.sdk.testing.CoderProperties;
 
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.junit.Test;
 
 /**
@@ -31,6 +32,14 @@ public class WritableCoderTest {
   public void testIntWritableEncoding() throws Exception {
     IntWritable value = new IntWritable(42);
     WritableCoder<IntWritable> coder = WritableCoder.of(IntWritable.class);
+
+    CoderProperties.coderDecodeEncodeEqual(coder, value);
+  }
+
+  @Test
+  public void testNullWritableEncoding() throws Exception {
+    NullWritable value = NullWritable.get();
+    WritableCoder<NullWritable> coder = WritableCoder.of(NullWritable.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
   }

@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.NanoClock;
-import com.google.common.base.Preconditions;
 
 import java.util.concurrent.TimeUnit;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Extension of {@link AttemptBoundedExponentialBackOff} that bounds the total time that the backoff
@@ -112,13 +115,13 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
       ResetPolicy resetPolicy,
       NanoClock nanoClock) {
     super(maximumNumberOfAttempts, initialIntervalMillis);
-    Preconditions.checkArgument(
+    checkArgument(
         maximumTotalWaitTimeMillis > 0, "Maximum total wait time must be greater than zero.");
-    Preconditions.checkArgument(
+    checkArgument(
         maximumTotalWaitTimeMillis < MAX_ELAPSED_TIME_MILLIS,
         "Maximum total wait time must be less than " + MAX_ELAPSED_TIME_MILLIS + " milliseconds");
-    Preconditions.checkArgument(resetPolicy != null, "resetPolicy may not be null");
-    Preconditions.checkArgument(nanoClock != null, "nanoClock may not be null");
+    checkArgument(resetPolicy != null, "resetPolicy may not be null");
+    checkArgument(nanoClock != null, "nanoClock may not be null");
     this.maximumTotalWaitTimeMillis = maximumTotalWaitTimeMillis;
     this.resetPolicy = resetPolicy;
     this.nanoClock = nanoClock;
@@ -128,6 +131,8 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
   }
 
   @Override
+  @SuppressFBWarnings(value = "UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR",
+      justification = "Explicitly handled in implementation.")
   public void reset() {
     // reset() is called in the constructor of the parent class before resetPolicy and nanoClock are
     // set.  In this case, we call the parent class's reset() method and return.

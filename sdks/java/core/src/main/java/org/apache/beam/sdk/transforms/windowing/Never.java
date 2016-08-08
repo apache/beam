@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+
 import org.joda.time.Instant;
 
 import java.util.List;

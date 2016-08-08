@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -39,7 +39,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <flink.version>1.0.0</flink.version>
+    <flink.version>1.0.3</flink.version>
   </properties>
 
   <repositories>
@@ -73,7 +73,7 @@
           </executions>
           <configuration>
             <forkCount>1</forkCount>
-            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline}</argLine>
           </configuration>
         </plugin>
 
@@ -82,7 +82,7 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
-            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+            <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline}</argLine>
           </configuration>
         </plugin>
 
