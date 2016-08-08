@@ -271,11 +271,11 @@ A `DoFn` processes one element at a time from the input `PCollection`. When you 
 static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 ```
 
-Inside your `DoFn` subclass, you'll need to override the method `processElement`, where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your override of `processElement` should accept an object of type `ProcessContext`. The `ProcessContext` object gives you access to an input element and a method for emitting an output element:
+Inside your `DoFn` subclass, you'll write a method annotated with `@ProcessElement` where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your `@ProcessElement` method should accept an object of type `ProcessContext`. The `ProcessContext` object gives you access to an input element and a method for emitting an output element:
 
 ```java
 static class ComputeWordLengthFn extends DoFn<String, Integer> {
-  @Override
+  @ProcessElement
   public void processElement(ProcessContext c) {
     // Get the input element from ProcessContext.
     String word = c.element();
@@ -287,9 +287,9 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 
 > **Note:** If the elements in your input `PCollection` are key/value pairs, you can access the key or value by using `ProcessContext.element().getKey()` or `ProcessContext.element().getValue()`, respectively.
 
-A given `DoFn` instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to `processElement`, but if you do so, make sure the implementation **does not depend on the number of invocations**.
+A given `DoFn` instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to your `@ProcessElement` method, but if you do so, make sure the implementation **does not depend on the number of invocations**.
 
-When you override `processElement`, you'll need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:
+In your `@ProcessElement` method, you'll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:
 
 * You should not in any way modify an element returned by `ProcessContext.element()` or `ProcessContext.sideInput()` (the incoming elements from the input collection).
 * Once you output a value using `ProcessContext.output()` or `ProcessContext.sideOutput()`, you should not modify that value in any way.
@@ -310,7 +310,7 @@ PCollection<Integer> wordLengths = words.apply(
   ParDo
     .named("ComputeWordLengths")            // the transform name
     .of(new DoFn<String, Integer>() {       // a DoFn as an anonymous inner class instance
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         c.output(c.element().length());
       }
