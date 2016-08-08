@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -34,6 +34,53 @@
     user.</description>
 
   <packaging>jar</packaging>
+
+  <profiles>
+
+    <!--
+      A default profile that includes optional dependencies
+      on all of our runners. This is aimed at making it very
+      easy for users to run examples with any runner without
+      any configuration. It is not needed or desirable when
+      testing the examples with a particular runner.
+
+      This profile can be disabled on the command line
+      by specifying -P !include-runners.
+
+      This profile cannot be lifted to examples-parent because
+      it would be automatically deactivated when the Java 8
+      profile were activated.
+    -->
+    <profile>
+      <id>include-runners</id>
+      <activation><activeByDefault>true</activeByDefault></activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-direct-java</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-flink_2.10</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-spark</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
@@ -64,20 +111,6 @@
             </beamTestPipelineOptions>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals><goal>analyze-only</goal></goals>
-            <configuration>
-              <failOnWarning>true</failOnWarning>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
@@ -112,13 +145,12 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-examples-java</artifactId>
-      <version>${project.version}</version>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+      <artifactId>beam-examples-java</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -185,6 +217,17 @@
       <artifactId>google-api-client</artifactId>
     </dependency>
 
-  </dependencies>
+    <!-- Test dependencies -->
 
+    <!--
+      For testing the example itself, use the direct runner. This is separate from
+      the use of RunnableOnService tests for testing a particular runner.
+    -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

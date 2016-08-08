@@ -21,10 +21,11 @@ package org.apache.beam.runners.spark.io.hadoop;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.coders.WritableCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,7 +70,9 @@ public class HadoopFileFormatPipelineTest {
   public void testSequenceFile() throws Exception {
     populateFile();
 
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(SparkRunner.class);
+    Pipeline p = Pipeline.create(options);
     @SuppressWarnings("unchecked")
     Class<? extends FileInputFormat<IntWritable, Text>> inputFormatClass =
         (Class<? extends FileInputFormat<IntWritable, Text>>)
@@ -89,7 +92,7 @@ public class HadoopFileFormatPipelineTest {
     HadoopIO.Write.Bound<IntWritable, Text> write = HadoopIO.Write.to(outputFile.getAbsolutePath(),
         outputFormatClass, IntWritable.class, Text.class);
     input.apply(write.withoutSharding());
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
 
     IntWritable key = new IntWritable();

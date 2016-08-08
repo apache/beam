@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -30,13 +30,13 @@ import org.apache.flink.util.Collector;
 import java.util.Map;
 
 /**
- * Encapsulates a {@link org.apache.beam.sdk.transforms.DoFn}
+ * Encapsulates a {@link OldDoFn}
  * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  */
 public class FlinkDoFnFunction<InputT, OutputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
 
-  private final DoFn<InputT, OutputT> doFn;
+  private final OldDoFn<InputT, OutputT> doFn;
   private final SerializedPipelineOptions serializedOptions;
 
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
@@ -47,7 +47,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   public FlinkDoFnFunction(
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options) {
@@ -56,7 +56,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
 
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
+    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.hasSideInputs = !sideInputs.isEmpty();
   }
 

@@ -35,11 +35,10 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -59,6 +58,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.api.client.util.Maps;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -69,7 +69,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.IngestionTimeExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -251,6 +251,8 @@ public class FlinkStreamingTransformTranslators {
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
         @SuppressWarnings("unchecked")
         UnboundedFlinkSource<T> flinkSourceFunction = (UnboundedFlinkSource<T>) transform.getSource();
+        final AssignerWithPeriodicWatermarks<T> flinkAssigner = flinkSourceFunction.getFlinkTimestampAssigner();
+
         DataStream<T> flinkSource = context.getExecutionEnvironment()
             .addSource(flinkSourceFunction.getFlinkSource());
 
@@ -259,17 +261,17 @@ public class FlinkStreamingTransformTranslators {
               context.getExecutionEnvironment().getConfig()));
 
         source = flinkSource
+            .assignTimestampsAndWatermarks(flinkAssigner)
             .flatMap(new FlatMapFunction<T, WindowedValue<T>>() {
               @Override
               public void flatMap(T s, Collector<WindowedValue<T>> collector) throws Exception {
                 collector.collect(
                     WindowedValue.of(
                         s,
-                        Instant.now(),
+                        new Instant(flinkAssigner.extractTimestamp(s, -1)),
                         GlobalWindow.INSTANCE,
                         PaneInfo.NO_FIRING));
-              }
-            }).assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
+              }});
       } else {
         try {
           transform.getSource();
@@ -341,8 +343,8 @@ public class FlinkStreamingTransformTranslators {
       context.setOutputDataStream(context.getOutput(transform), windowedStream);
     }
 
-    private static <T, W extends BoundedWindow> DoFn<T, T> createWindowAssigner(final WindowFn<T, W> windowFn) {
-      return new DoFn<T, T>() {
+    private static <T, W extends BoundedWindow> OldDoFn<T, T> createWindowAssigner(final WindowFn<T, W> windowFn) {
+      return new OldDoFn<T, T>() {
 
         @Override
         public void processElement(final ProcessContext c) throws Exception {
@@ -359,8 +361,8 @@ public class FlinkStreamingTransformTranslators {
                 }
 
                 @Override
-                public Collection<? extends BoundedWindow> windows() {
-                  return c.windowingInternals().windows();
+                public BoundedWindow window() {
+                  return Iterables.getOnlyElement(c.windowingInternals().windows());
                 }
               });
 

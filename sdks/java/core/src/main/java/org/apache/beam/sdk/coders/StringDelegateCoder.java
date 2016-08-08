@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.coders;
 
+import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 
 /**
  * A {@link Coder} that wraps a {@code Coder<String>}
@@ -43,7 +48,7 @@ import java.lang.reflect.InvocationTargetException;
  *
  * @param <T> The type of objects coded.
  */
-public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
+public final class StringDelegateCoder<T> extends CustomCoder<T> {
   public static <T> StringDelegateCoder<T> of(Class<T> clazz) {
     return new StringDelegateCoder<T>(clazz);
   }
@@ -53,10 +58,11 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
     return "StringDelegateCoder(" + clazz + ")";
   }
 
+  private final DelegateCoder<T, String> delegateCoder;
   private final Class<T> clazz;
 
   protected StringDelegateCoder(final Class<T> clazz) {
-    super(StringUtf8Coder.of(),
+    delegateCoder = DelegateCoder.of(StringUtf8Coder.of(),
       new CodingFunction<T, String>() {
         @Override
         public String apply(T input) {
@@ -77,6 +83,41 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
     this.clazz = clazz;
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || this.getClass() != o.getClass()) {
+      return false;
+    }
+    StringDelegateCoder<?> that = (StringDelegateCoder<?>) o;
+    return this.clazz.equals(that.clazz);
+  }
+
+  @Override
+  public int hashCode() {
+    return this.clazz.hashCode();
+  }
+
+  @Override
+  public void encode(T value, OutputStream outStream, Context context)
+      throws CoderException, IOException {
+    delegateCoder.encode(value, outStream, context);
+  }
+
+  @Override
+  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
+    return delegateCoder.decode(inStream, context);
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    delegateCoder.verifyDeterministic();
+  }
+
+  @Override
+  public Object structuralValue(T value) throws Exception {
+    return delegateCoder.structuralValue(value);
+  }
+
   /**
    * The encoding id is the fully qualified name of the encoded/decoded class.
    */
@@ -84,4 +125,10 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
   public String getEncodingId() {
     return clazz.getName();
   }
+
+  @Override
+  public Collection<String> getAllowedEncodings() {
+    return delegateCoder.getAllowedEncodings();
+  }
 }
+

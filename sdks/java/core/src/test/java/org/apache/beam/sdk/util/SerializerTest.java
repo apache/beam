@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.util.Structs.addString;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;

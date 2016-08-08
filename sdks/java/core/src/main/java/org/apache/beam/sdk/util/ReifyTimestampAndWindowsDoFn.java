@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * DoFn that makes timestamps and window assignments explicit in the value part of each key/value
+ * OldDoFn that makes timestamps and window assignments explicit in the value part of each key/value
  * pair.
  *
  * @param <K> the type of the keys of the input and output {@code PCollection}s
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.KV;
  */
 @SystemDoFnInternal
 public class ReifyTimestampAndWindowsDoFn<K, V>
-    extends DoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
+    extends OldDoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
   @Override
   public void processElement(ProcessContext c)
       throws Exception {

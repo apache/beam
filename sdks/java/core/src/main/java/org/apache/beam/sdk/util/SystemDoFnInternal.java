@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -26,10 +26,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to mark {@link DoFn DoFns} as an internal component of the Dataflow SDK.
+ * Annotation to mark {@link OldDoFn DoFns} as an internal component of the Dataflow SDK.
  *
  * <p>Currently, the only effect of this is to mark any aggregators reported by an annotated
- * {@code DoFn} as a system counter (as opposed to a user counter).
+ * {@code OldDoFn} as a system counter (as opposed to a user counter).
  *
  * <p>This is internal to the Dataflow SDK.
  */

@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink.translation.functions;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
@@ -60,7 +60,7 @@ public class FlinkMergingNonShuffleReduceFunction<
 
   private final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> combineFn;
 
-  private final DoFn<KV<K, InputT>, KV<K, OutputT>> doFn;
+  private final OldDoFn<KV<K, InputT>, KV<K, OutputT>> doFn;
 
   private final WindowingStrategy<?, W> windowingStrategy;
 
@@ -81,8 +81,8 @@ public class FlinkMergingNonShuffleReduceFunction<
 
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
-    // dummy DoFn because we need one for ProcessContext
-    this.doFn = new DoFn<KV<K, InputT>, KV<K, OutputT>>() {
+    // dummy OldDoFn because we need one for ProcessContext
+    this.doFn = new OldDoFn<KV<K, InputT>, KV<K, OutputT>>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
 

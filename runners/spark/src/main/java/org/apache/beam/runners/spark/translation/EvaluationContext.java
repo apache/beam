@@ -44,7 +44,9 @@ import com.google.common.collect.Iterables;
 
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.joda.time.Duration;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -285,5 +287,24 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public State getState() {
     return State.DONE;
+  }
+
+  @Override
+  public State cancel() throws IOException {
+    throw new UnsupportedOperationException(
+        "Spark runner EvaluationContext does not support cancel.");
+  }
+
+  @Override
+  public State waitUntilFinish()
+      throws IOException, InterruptedException {
+    return waitUntilFinish(Duration.millis(-1));
+  }
+
+  @Override
+  public State waitUntilFinish(Duration duration)
+      throws IOException, InterruptedException {
+    throw new UnsupportedOperationException(
+        "Spark runner EvaluationContext does not support waitUntilFinish.");
   }
 }

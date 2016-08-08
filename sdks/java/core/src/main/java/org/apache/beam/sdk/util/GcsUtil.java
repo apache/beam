@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,7 +46,6 @@ import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import org.slf4j.Logger;
@@ -158,7 +160,7 @@ public class GcsUtil {
    * exists.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
-    Preconditions.checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
+    checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
     Matcher m = GLOB_PREFIX.matcher(gcsPattern.getObject());
     Pattern p = null;
     String prefix = null;
@@ -218,7 +220,7 @@ public class GcsUtil {
             +  ", prefix " + prefix + " against pattern " + p.toString(), e);
       }
       //Objects objects = listObject.execute();
-      Preconditions.checkNotNull(objects);
+      checkNotNull(objects);
 
       if (objects.getItems() == null) {
         break;
@@ -371,7 +373,7 @@ public class GcsUtil {
   }
 
   public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-    Preconditions.checkArgument(
+    checkArgument(
         srcFilenames.size() == destFilenames.size(),
         "Number of source files %s must equal number of destination files %s",
         srcFilenames.size(),

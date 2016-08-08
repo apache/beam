@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -34,7 +35,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
@@ -58,8 +58,7 @@ import javax.annotation.Nullable;
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}). You may optionally call
- * {@link TextIO.Read#named(String)} to specify the name of the pipeline step.
+ * {@code "gs://<bucket>/<filepath>"}).
  *
  * <p>By default, {@link TextIO.Read} returns a {@link PCollection} of {@link String Strings},
  * each corresponding to one line of an input UTF-8 text file. To convert directly from the raw
@@ -78,9 +77,9 @@ import javax.annotation.Nullable;
  * // A fully-specified Read from a GCS file (runs locally and via the
  * // Google Cloud Dataflow service):
  * PCollection<Integer> numbers =
- *     p.apply(TextIO.Read.named("ReadNumbers")
- *                        .from("gs://my_bucket/path/to/numbers-*.txt")
- *                        .withCoder(TextualIntegerCoder.of()));
+ *     p.apply("ReadNumbers", TextIO.Read
+ *         .from("gs://my_bucket/path/to/numbers-*.txt")
+ *         .withCoder(TextualIntegerCoder.of()));
  * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use
@@ -88,9 +87,8 @@ import javax.annotation.Nullable;
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}). You can optionally name the resulting transform using
- * {@link TextIO.Write#named(String)}, and you can use {@link TextIO.Write#withCoder(Coder)}
- * to specify the Coder to use to encode the Java values into text lines.
+ * {@code "gs://<bucket>/<filepath>"}). You can use {@link TextIO.Write#withCoder(Coder)}
+ * to specify the {@link Coder} to use to encode the Java values into text lines.
  *
  * <p>Any existing files with the same names as generated output files
  * will be overwritten.
@@ -104,14 +102,14 @@ import javax.annotation.Nullable;
  * // A fully-specified Write to a sharded GCS file (runs locally and via the
  * // Google Cloud Dataflow service):
  * PCollection<Integer> numbers = ...;
- * numbers.apply(TextIO.Write.named("WriteNumbers")
- *                           .to("gs://my_bucket/path/to/numbers")
- *                           .withSuffix(".txt")
- *                           .withCoder(TextualIntegerCoder.of()));
+ * numbers.apply("WriteNumbers", TextIO.Write
+ *      .to("gs://my_bucket/path/to/numbers")
+ *      .withSuffix(".txt")
+ *      .withCoder(TextualIntegerCoder.of()));
  * }</pre>
  *
  * <h3>Permissions</h3>
- * <p>When run using the {@link DirectRunner}, your pipeline can read and write text files
+ * <p>When run using the {@code DirectRunner}, your pipeline can read and write text files
  * on your local drive and remote text files on Google Cloud Storage that you have access to using
  * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
  * read and write files from GCS. For more information about permissions, see the Cloud Dataflow
@@ -130,12 +128,6 @@ public class TextIO {
    * {@link #withCoder(Coder)} to change the return type.
    */
   public static class Read {
-    /**
-     * Returns a transform for reading text files that uses the given step name.
-     */
-    public static Bound<String> named(String name) {
-      return new Bound<>(DEFAULT_TEXT_CODER).named(name);
-    }
 
     /**
      * Returns a transform for reading text files that reads from the file(s)
@@ -224,16 +216,6 @@ public class TextIO {
         this.filepattern = filepattern;
         this.validate = validate;
         this.compressionType = compressionType;
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
@@ -328,6 +310,11 @@ public class TextIO {
                 CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.GZIP));
             break;
+          case ZIP:
+            read = org.apache.beam.sdk.io.Read.from(
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                                .withDecompression(CompressedSource.CompressionMode.ZIP));
+            break;
           default:
             throw new IllegalArgumentException("Unknown compression mode: " + compressionType);
         }
@@ -382,12 +369,6 @@ public class TextIO {
    * element of the input collection encoded into its own line.
    */
   public static class Write {
-    /**
-     * Returns a transform for writing to text files with the given step name.
-     */
-    public static Bound<String> named(String name) {
-      return new Bound<>(DEFAULT_TEXT_CODER).named(name);
-    }
 
     /**
      * Returns a transform for writing to text files that writes to the file(s)
@@ -516,17 +497,6 @@ public class TextIO {
 
       /**
        * Returns a transform for writing to text files that's like this one but
-       * with the given step name.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> named(String name) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            shardTemplate, validate);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
        * <p>See {@link TextIO.Write#to(String) Write.to(String)} for more information.
@@ -568,7 +538,7 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
-        Preconditions.checkArgument(numShards >= 0);
+        checkArgument(numShards >= 0);
         return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
             shardTemplate, validate);
       }
@@ -638,12 +608,13 @@ public class TextIO {
               "need to set the filename prefix of a TextIO.Write transform");
         }
 
-        // Note that custom sinks currently do not expose sharding controls.
-        // Thus pipeline runner writers need to individually add support internally to
-        // apply user requested sharding limits.
-        return input.apply("Write", org.apache.beam.sdk.io.Write.to(
-            new TextSink<>(
-                filenamePrefix, filenameSuffix, shardTemplate, coder)));
+        org.apache.beam.sdk.io.Write.Bound<T> write =
+            org.apache.beam.sdk.io.Write.to(
+                new TextSink<>(filenamePrefix, filenameSuffix, shardTemplate, coder));
+        if (getNumShards() > 0) {
+          write = write.withNumShards(getNumShards());
+        }
+        return input.apply("Write", write);
       }
 
       @Override
@@ -721,7 +692,11 @@ public class TextIO {
     /**
      * BZipped.
      */
-    BZIP2(".bz2");
+    BZIP2(".bz2"),
+    /**
+     * Zipped.
+     */
+    ZIP(".zip");
 
     private String filenameSuffix;
 
@@ -744,7 +719,7 @@ public class TextIO {
   private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
 
   private static void validateOutputComponent(String partialFilePattern) {
-    Preconditions.checkArgument(
+    checkArgument(
         !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
         "Output name components are not allowed to contain @* or @N patterns: "
         + partialFilePattern);

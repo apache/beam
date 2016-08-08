@@ -27,7 +27,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -52,19 +51,20 @@ import java.io.Serializable;
 
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("unchecked")
 public class WindowingTest implements Serializable {
   @Rule
   public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
 
-    private final class FormatCountsDoFn
-        extends DoFn<KV<String, Long>, String> implements RequiresWindowAccess {
-      @Override
-          public void processElement(ProcessContext c) {
-        c.output(c.element().getKey() + ":" + c.element().getValue()
-            + ":" + c.timestamp().getMillis() + ":" + c.window());
+    private final class FormatCountsDoFn extends DoFn<KV<String, Long>, String> {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow window) {
+        c.output(
+            c.element().getKey()
+                + ":" + c.element().getValue()
+                + ":" + c.timestamp().getMillis()
+                + ":" + window);
       }
     }
     private WindowFn<? super String, ?> windowFn;
@@ -73,12 +73,11 @@ public class WindowingTest implements Serializable {
     }
     @Override
     public PCollection<String> apply(PCollection<String> in) {
-      return in.apply(
-              Window.named("Window")
-                  .<String>into(windowFn)
+      return in.apply("Window",
+              Window.<String>into(windowFn)
                   .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
           .apply(Count.<String>perElement())
-          .apply(ParDo.named("FormatCounts").of(new FormatCountsDoFn()))
+          .apply("FormatCounts", ParDo.of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());
     }
   }
@@ -223,7 +222,7 @@ public class WindowingTest implements Serializable {
 
     Pipeline p = TestPipeline.create();
     PCollection<String> output = p.begin()
-        .apply(TextIO.Read.named("ReadLines").from(filename))
+        .apply("ReadLines", TextIO.Read.from(filename))
         .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
         .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 
@@ -238,7 +237,7 @@ public class WindowingTest implements Serializable {
 
   /** A DoFn that tokenizes lines of text into individual words. */
   static class ExtractWordsWithTimestampsFn extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z0-9']+");
       if (words.length == 2) {

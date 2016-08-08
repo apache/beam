@@ -41,11 +41,11 @@ matrix:
     #  env: MAVEN_OVERRIDE=""
     ## On Linux, run with specific JDKs only.
     #- os: linux
-    #  env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DforkCount=0"
+    #  env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
     #- os: linux
-    #  env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DforkCount=0"
+    #  env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
     #- os: linux
-    #  env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DforkCount=0"
+    #  env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
     # Python SDK environments.
     - os: osx
       env: TEST_PYTHON="1"

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -144,7 +144,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * and passing in the {@link Class#getName() class name}.
      */
     public WorkerLogLevelOverrides addOverrideForClass(Class<?> klass, Level level) {
-      Preconditions.checkNotNull(klass, "Expected class to be not null.");
+      checkNotNull(klass, "Expected class to be not null.");
       addOverrideForName(klass.getName(), level);
       return this;
     }
@@ -157,7 +157,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * and passing in the {@link Package#getName() package name}.
      */
     public WorkerLogLevelOverrides addOverrideForPackage(Package pkg, Level level) {
-      Preconditions.checkNotNull(pkg, "Expected package to be not null.");
+      checkNotNull(pkg, "Expected package to be not null.");
       addOverrideForName(pkg.getName(), level);
       return this;
     }
@@ -170,8 +170,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * a parent logger that has the passed in name.
      */
     public WorkerLogLevelOverrides addOverrideForName(String name, Level level) {
-      Preconditions.checkNotNull(name, "Expected name to be not null.");
-      Preconditions.checkNotNull(level,
+      checkNotNull(name, "Expected name to be not null.");
+      checkNotNull(level,
           "Expected level to be one of %s.", Arrays.toString(Level.values()));
       put(name, level);
       return this;
@@ -186,7 +186,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      */
     @JsonCreator
     public static WorkerLogLevelOverrides from(Map<String, String> values) {
-      Preconditions.checkNotNull(values, "Expected values to be not null.");
+      checkNotNull(values, "Expected values to be not null.");
       WorkerLogLevelOverrides overrides = new WorkerLogLevelOverrides();
       for (Map.Entry<String, String> entry : values.entrySet()) {
         try {

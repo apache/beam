@@ -132,6 +132,9 @@ class CountCombineFn(core.CombineFn):
   def create_accumulator(self):
     return 0
 
+  def add_input(self, accumulator, element):
+    return accumulator + 1
+
   def add_inputs(self, accumulator, elements):
     return accumulator + len(elements)
 
@@ -424,19 +427,31 @@ class _TupleCombineFnBase(core.CombineFn):
 
 
 class TupleCombineFn(_TupleCombineFnBase):
+  """A combiner for combining tuples via a tuple of combiners.
 
-  def add_inputs(self, accumulator, elements):
-    return [c.add_inputs(a, e)
-            for c, a, e in zip(self._combiners, accumulator, zip(*elements))]
+  Takes as input a tuple of N CombineFns and combines N-tuples by
+  combining the k-th element of each tuple with the k-th CombineFn,
+  outputting a new N-tuple of combined values.
+  """
+
+  def add_input(self, accumulator, element):
+    return [c.add_input(a, e)
+            for c, a, e in zip(self._combiners, accumulator, element)]
 
   def with_common_input(self):
     return SingleInputTupleCombineFn(*self._combiners)
 
 
 class SingleInputTupleCombineFn(_TupleCombineFnBase):
+  """A combiner for combining a single value via a tuple of combiners.
 
-  def add_inputs(self, accumulator, elements):
-    return [c.add_inputs(a, elements)
+  Takes as input a tuple of N CombineFns and combines elements by
+  applying each CombineFn to each input, producing an N-tuple of
+  the outputs corresponding to each of the N CombineFn's outputs.
+  """
+
+  def add_input(self, accumulator, element):
+    return [c.add_input(a, element)
             for c, a in zip(self._combiners, accumulator)]
 
 
@@ -521,9 +536,6 @@ def curry_combine_fn(fn, args, kwargs):
 
       def add_input(self, accumulator, element):
         return fn.add_input(accumulator, element, *args, **kwargs)
-
-      def add_inputs(self, accumulator, elements):
-        return fn.add_inputs(accumulator, elements, *args, **kwargs)
 
       def merge_accumulators(self, accumulators):
         return fn.merge_accumulators(accumulators, *args, **kwargs)

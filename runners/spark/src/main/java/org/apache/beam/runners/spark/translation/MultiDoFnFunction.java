@@ -19,7 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -45,13 +45,13 @@ import scala.Tuple2;
  */
 class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
-  private final DoFn<InputT, OutputT> mFunction;
+  private final OldDoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final TupleTag<OutputT> mMainOutputTag;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
   MultiDoFnFunction(
-      DoFn<InputT, OutputT> fn,
+      OldDoFn<InputT, OutputT> fn,
       SparkRuntimeContext runtimeContext,
       TupleTag<OutputT> mainOutputTag,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
@@ -75,7 +75,7 @@ class MultiDoFnFunction<InputT, OutputT>
 
     private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
 
-    ProcCtxt(DoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
+    ProcCtxt(OldDoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
         BroadcastHelper<?>> sideInputs) {
       super(fn, runtimeContext, sideInputs);
     }

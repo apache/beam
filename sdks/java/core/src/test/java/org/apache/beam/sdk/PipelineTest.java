@@ -147,7 +147,7 @@ public class PipelineTest {
   private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
       final String suffix) {
     return ParDo.of(new DoFn<String, String>() {
-      @Override
+      @ProcessElement
       public void processElement(DoFn<String, String>.ProcessContext c) {
         c.output(c.element() + suffix);
       }

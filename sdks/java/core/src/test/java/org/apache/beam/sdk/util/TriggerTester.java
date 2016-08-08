@@ -20,13 +20,13 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.TriggerBuilder;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ActiveWindowSet.MergeCallback;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
@@ -43,7 +43,6 @@ import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -108,7 +107,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final Map<W, W> windowToMergeResult;
 
   /**
-   * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link TriggerBuilder}
+   * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link Trigger}
    * under test.
    */
   private final ExecutableTrigger executableTrigger;
@@ -119,10 +118,10 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final Map<W, FinishedTriggers> finishedSets;
 
   public static <W extends BoundedWindow> SimpleTriggerTester<W> forTrigger(
-      TriggerBuilder trigger, WindowFn<Object, W> windowFn)
+      Trigger trigger, WindowFn<Object, W> windowFn)
           throws Exception {
     WindowingStrategy<Object, W> windowingStrategy =
-        WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
+        WindowingStrategy.of(windowFn).withTrigger(trigger)
         // Merging requires accumulation mode or early firings can break up a session.
         // Not currently an issue with the tester (because we never GC) but we don't want
         // mystery failures due to violating this need.
@@ -134,9 +133,9 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   }
 
   public static <InputT, W extends BoundedWindow> TriggerTester<InputT, W> forAdvancedTrigger(
-      TriggerBuilder trigger, WindowFn<Object, W> windowFn) throws Exception {
+      Trigger trigger, WindowFn<Object, W> windowFn) throws Exception {
     WindowingStrategy<Object, W> strategy =
-        WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
+        WindowingStrategy.of(windowFn).withTrigger(trigger)
         // Merging requires accumulation mode or early firings can break up a session.
         // Not currently an issue with the tester (because we never GC) but we don't want
         // mystery failures due to violating this need.
@@ -160,7 +159,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     this.windowToMergeResult = new HashMap<>();
 
     this.contextFactory =
-        new TriggerContextFactory<>(windowingStrategy, stateInternals, activeWindows);
+        new TriggerContextFactory<>(windowingStrategy.getWindowFn(), stateInternals, activeWindows);
   }
 
   /**
@@ -245,7 +244,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
         InputT value = input.getValue();
         Instant timestamp = input.getTimestamp();
         Collection<W> assignedWindows = windowFn.assignWindows(new TestAssignContext<W>(
-            windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
+            windowFn, value, timestamp, GlobalWindow.INSTANCE));
 
         for (W window : assignedWindows) {
           activeWindows.addActiveForTesting(window);
@@ -401,14 +400,14 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       extends WindowFn<Object, W>.AssignContext {
     private Object element;
     private Instant timestamp;
-    private Collection<? extends BoundedWindow> windows;
+    private BoundedWindow window;
 
-    public TestAssignContext(WindowFn<Object, W> windowFn, Object element, Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
+    public TestAssignContext(
+        WindowFn<Object, W> windowFn, Object element, Instant timestamp, BoundedWindow window) {
       windowFn.super();
       this.element = element;
       this.timestamp = timestamp;
-      this.windows = windows;
+      this.window = window;
     }
 
     @Override
@@ -422,8 +421,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return windows;
+    public BoundedWindow window() {
+      return window;
     }
   }
 
@@ -488,7 +487,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
     @Override
     public Instant currentInputWatermarkTime() {
-      return Preconditions.checkNotNull(inputWatermarkTime);
+      return checkNotNull(inputWatermarkTime);
     }
 
     @Override

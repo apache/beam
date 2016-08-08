@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.io.Files;
@@ -80,6 +82,12 @@ public class IOChannelUtilsTest {
   }
 
   @Test
+  public void testHandlerNoScheme() throws Exception {
+    String pathToTempFolder = tmpFolder.getRoot().getAbsolutePath();
+    assertThat(IOChannelUtils.getFactory(pathToTempFolder), instanceOf(FileIOChannelFactory.class));
+  }
+
+  @Test
   public void testGetSizeBytes() throws Exception {
     String data = "TestData";
     File file = tmpFolder.newFile();
@@ -88,8 +96,16 @@ public class IOChannelUtilsTest {
   }
 
   @Test
-  public void testResolve() throws Exception {
+  public void testResolveSinglePath() throws Exception {
     String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
     assertEquals(expected, IOChannelUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
+  }
+
+  @Test
+  public void testResolveMultiplePaths() throws Exception {
+    String expected =
+        tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
+    assertEquals(expected,
+        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
   }
 }

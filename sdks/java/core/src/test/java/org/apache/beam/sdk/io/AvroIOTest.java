@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -27,11 +29,15 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -39,9 +45,12 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
+import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -54,6 +63,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Tests for AvroIO Read and Write transforms.
@@ -62,6 +72,11 @@ import java.util.Objects;
 public class AvroIOTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @BeforeClass
+  public static void setupClass() {
+    IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
+  }
 
   @Test
   public void testReadWithoutValidationFlag() throws Exception {
@@ -81,10 +96,6 @@ public class AvroIOTest {
   public void testAvroIOGetName() {
     assertEquals("AvroIO.Read", AvroIO.Read.from("gs://bucket/foo*/baz").getName());
     assertEquals("AvroIO.Write", AvroIO.Write.to("gs://bucket/foo/baz").getName());
-    assertEquals("ReadMyFile",
-        AvroIO.Read.named("ReadMyFile").from("gs://bucket/foo*/baz").getName());
-    assertEquals("WriteMyFile",
-        AvroIO.Write.named("WriteMyFile").to("gs://bucket/foo/baz").getName());
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -276,6 +287,20 @@ public class AvroIOTest {
   }
 
   @Test
+  @Category(RunnableOnService.class)
+  public void testPrimitiveReadDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*")
+        .withSchema(Schema.create(Schema.Type.STRING))
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("AvroIO.Read should include the file pattern in its primitive transform",
+        displayData, hasItem(hasDisplayItem("filePattern")));
+  }
+
+  @Test
   public void testWriteDisplayData() {
     AvroIO.Write.Bound<?> write = AvroIO.Write
         .to("foo")
@@ -293,5 +318,25 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
+  public void testPrimitiveWriteDisplayData() throws IOException {
+    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
+    String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
+    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foo");
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
+
+    AvroIO.Write.Bound<?> write = AvroIO.Write
+        .to(outputPath)
+        .withSchema(Schema.create(Schema.Type.STRING))
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("AvroIO.Write should include the file pattern in its primitive transform",
+        displayData, hasItem(hasDisplayItem("fileNamePattern")));
   }
 }

@@ -24,8 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AggregatorPipelineExtractor;
 import org.apache.beam.sdk.runners.AggregatorRetrievalException;
@@ -41,8 +40,6 @@ import org.apache.beam.sdk.util.MapAggregatorValues;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -54,8 +51,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -80,8 +79,7 @@ public class DirectRunner
           ImmutableMap.<Class<? extends PTransform>, PTransformOverrideFactory>builder()
               .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(CreatePCollectionView.class, new ViewOverrideFactory())
-              .put(AvroIO.Write.Bound.class, new AvroIOShardedWriteFactory())
-              .put(TextIO.Write.Bound.class, new TextIOShardedWriteFactory())
+              .put(Write.Bound.class, new WriteWithShardingFactory())
               .build();
 
   /**
@@ -321,17 +319,15 @@ public class DirectRunner
     @Override
     public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
         throws AggregatorRetrievalException {
-      CounterSet counters = evaluationContext.getCounters();
+      AggregatorContainer aggregators = evaluationContext.getAggregatorContainer();
       Collection<PTransform<?, ?>> steps = aggregatorSteps.get(aggregator);
       Map<String, T> stepValues = new HashMap<>();
       for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
         if (steps.contains(transform.getTransform())) {
-          String stepName =
-              String.format(
-                  "user-%s-%s", evaluationContext.getStepName(transform), aggregator.getName());
-          Counter<T> counter = (Counter<T>) counters.getExistingCounter(stepName);
-          if (counter != null) {
-            stepValues.put(transform.getFullName(), counter.getAggregate());
+          T aggregate = aggregators.getAggregate(
+              evaluationContext.getStepName(transform), aggregator.getName());
+          if (aggregate != null) {
+            stepValues.put(transform.getFullName(), aggregate);
           }
         }
       }
@@ -367,6 +363,22 @@ public class DirectRunner
         }
       }
       return state;
+    }
+
+    @Override
+    public State cancel() throws IOException {
+      throw new UnsupportedOperationException("DirectPipelineResult does not support cancel.");
+    }
+
+    @Override
+    public State waitUntilFinish() throws IOException {
+      return waitUntilFinish(Duration.millis(-1));
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) throws IOException {
+      throw new UnsupportedOperationException(
+          "DirectPipelineResult does not support waitUntilFinish.");
     }
   }
 }

@@ -79,6 +79,11 @@ public class DisplayDataMatchersTest {
 
     DisplayData data = DisplayData.from(new PTransform<PCollection<String>, PCollection<String>>() {
       @Override
+      public PCollection<String> apply(PCollection<String> input) {
+        throw new IllegalArgumentException("Should never be applied");
+      }
+
+      @Override
       public void populateDisplayData(Builder builder) {
         builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
       }
@@ -101,7 +106,12 @@ public class DisplayDataMatchersTest {
     Matcher<DisplayData> matcher = hasDisplayItem(hasNamespace(SampleTransform.class));
 
     assertFalse(matcher.matches(DisplayData.from(
-        new PTransform<PCollection<String>, PCollection<String>>(){})));
+        new PTransform<PCollection<String>, PCollection<String>>(){
+          @Override
+          public PCollection<String> apply(PCollection<String> input) {
+            throw new IllegalArgumentException("Should never be applied");
+          }
+        })));
     assertThat(createDisplayDataWithItem("foo", "bar"), matcher);
   }
 
@@ -146,6 +156,11 @@ public class DisplayDataMatchersTest {
     SampleTransform(String key, String value) {
       this.key = key;
       this.value = value;
+    }
+
+    @Override
+    public PCollection<String> apply(PCollection<String> input) {
+      throw new IllegalArgumentException("Should never be applied");
     }
 
     @Override

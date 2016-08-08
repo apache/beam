@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.transforms.Combine.Holder;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.Min;
@@ -134,8 +133,8 @@ public class StateTagTest {
     MaxIntegerFn maxFn = new Max.MaxIntegerFn();
     MinIntegerFn minFn = new Min.MinIntegerFn();
 
-    Coder<Holder<Integer>> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
-    Coder<Holder<Integer>> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());
+    Coder<int[]> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
+    Coder<int[]> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());
 
     StateTag<?, ?> fooCoder1Max1 = StateTags.keyedCombiningValueWithContext(
             "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).<String>asKeyedFn());
