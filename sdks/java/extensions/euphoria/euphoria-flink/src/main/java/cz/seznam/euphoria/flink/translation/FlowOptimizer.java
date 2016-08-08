@@ -30,7 +30,8 @@ class FlowOptimizer {
   private DAG<FlinkOperator<?>> convert(DAG<Operator<?, ?>> dag) {
     DAG<FlinkOperator<?>> output = DAG.of();
 
-    // mapping between original operator and newly created ParallelOperator
+    // mapping between original operator and newly created executor
+    // specific wrapper
     final Map<Operator<?, ?>, FlinkOperator<?>> mapping = new HashMap<>();
 
     dag.traverse().forEach(n -> {
