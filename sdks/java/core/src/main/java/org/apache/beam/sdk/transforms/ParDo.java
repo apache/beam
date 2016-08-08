@@ -516,7 +516,10 @@ public class ParDo {
    * {@code PCollection<OutputT>}, inferred from the types of the argument
    * {@code OldDoFn<InputT, OutputT>}. It is ready to be applied, or further
    * properties can be set on it first.
+   *
+   * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
    */
+  @Deprecated
   public static <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
     return of(fn, fn.getClass());
   }
@@ -620,7 +623,10 @@ public class ParDo {
      * not modify this transform. The resulting {@link PTransform} is
      * sufficiently specified to be applied, but more properties can
      * still be specified.
+     *
+     * @deprecated please port your {@link OldDoFn} to a {@link DoFn}
      */
+    @Deprecated
     public <InputT, OutputT> Bound<InputT, OutputT> of(OldDoFn<InputT, OutputT> fn) {
       return of(fn, fn.getClass());
     }
