@@ -21,8 +21,6 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
-
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -30,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
@@ -37,6 +36,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+import com.google.common.testing.EqualsTester;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -215,37 +215,17 @@ public class ProxyInvocationHandlerTest {
   }
 
   @Test
-  public void testEquals() throws Exception {
+  public void testEqualsAndHashCode() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     Simple proxy = handler.as(Simple.class);
     JLSDefaults sameAsProxy = proxy.as(JLSDefaults.class);
     ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     Simple proxy2 = handler2.as(Simple.class);
     JLSDefaults sameAsProxy2 = proxy2.as(JLSDefaults.class);
-    assertTrue(handler.equals(proxy));
-    assertTrue(proxy.equals(proxy));
-    assertTrue(proxy.equals(sameAsProxy));
-    assertFalse(handler.equals(handler2));
-    assertFalse(proxy.equals(proxy2));
-    assertFalse(proxy.equals(sameAsProxy2));
-  }
-
-  @Test
-  public void testHashCode() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
-    Simple proxy = handler.as(Simple.class);
-    JLSDefaults sameAsProxy = proxy.as(JLSDefaults.class);
-
-    ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
-    Simple proxy2 = handler2.as(Simple.class);
-    JLSDefaults sameAsProxy2 = proxy2.as(JLSDefaults.class);
-
-    // Hashcode comparisons below depend on random numbers, so could fail if seed changes.
-    assertTrue(handler.hashCode() == proxy.hashCode());
-    assertTrue(proxy.hashCode() == sameAsProxy.hashCode());
-    assertFalse(handler.hashCode() == handler2.hashCode());
-    assertFalse(proxy.hashCode() == proxy2.hashCode());
-    assertFalse(proxy.hashCode() == sameAsProxy2.hashCode());
+    new EqualsTester()
+        .addEqualityGroup(handler, proxy, sameAsProxy)
+        .addEqualityGroup(handler2, proxy2, sameAsProxy2)
+        .testEquals();
   }
 
   @Test
