@@ -533,8 +533,8 @@ class FileSink(iobase.Sink):
         try:
           exists = channel_factory.exists(final_name)
         except Exception as exists_e:  # pylint: disable=broad-except
-          logging.warning('Exception when invoking channel_factory.exists(): '
-                          '%s', exists_e)
+          logging.warning('Exception when checking if file %s exists: '
+                          '%s', final_name, exists_e)
           # Returning original exception after logging the exception from
           # exists() call.
           return (None, e)
