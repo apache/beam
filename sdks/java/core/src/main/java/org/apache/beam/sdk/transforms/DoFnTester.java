@@ -543,7 +543,7 @@ public class DoFnTester<InputT, OutputT> {
           return windowValue;
         }
       }
-      return view.fromIterableInternal(Collections.<WindowedValue<?>>emptyList());
+      return view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
     }
 
     @Override

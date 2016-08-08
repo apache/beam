@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 
@@ -44,22 +45,42 @@ import java.io.Serializable;
  */
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
-   * A unique identifier, for internal use.
+   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
+   *     input, is part of the side input's specification with a {@link ParDo} transform, which will
+   *     obtain that information via a package-private channel.
    */
+  @Deprecated
   public TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
-   * For internal use only.
+   * @deprecated use {@link #getViewFn()} for now, but eventually get the needed information via the
+   *     side input specification on the {@link ParDo} transform.
    */
+  @Deprecated
   public T fromIterableInternal(Iterable<WindowedValue<?>> contents);
 
   /**
-   * For internal use only.
+   * @deprecated this method will be removed entirely. The {@link ViewFn} for a side input is an
+   *     attribute of the side input's specification with a {@link ParDo} transform, which will
+   *     obtain this specification via a package-private channel.
    */
+  @Deprecated
+  public ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
+
+  /**
+   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
+   *     input, including its {@link WindowingStrategy}, is part of the side input's specification
+   *     with a {@link ParDo} transform, which will obtain that information via a package-private
+   *     channel.
+   */
+  @Deprecated
   public WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
-   * For internal use only.
+   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
+   *     input, including its {@link Coder}, is part of the side input's specification with a {@link
+   *     ParDo} transform, which will obtain that information via a package-private channel.
    */
+  @Deprecated
   public Coder<Iterable<WindowedValue<?>>> getCoderInternal();
 }

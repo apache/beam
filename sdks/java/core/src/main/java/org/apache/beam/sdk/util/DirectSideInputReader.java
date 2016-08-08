@@ -60,9 +60,9 @@ public class DirectSideInputReader implements SideInputReader {
     }
 
     if (view.getWindowingStrategyInternal().getWindowFn() instanceof GlobalWindows) {
-      return view.fromIterableInternal(sideInputValues.get(tag));
+      return view.getViewFn().apply(sideInputValues.get(tag));
     } else {
-      return view.fromIterableInternal(
+      return view.getViewFn().apply(
           Iterables.filter(sideInputValues.get(tag),
               new Predicate<WindowedValue<?>>() {
                   @Override

@@ -84,7 +84,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
     BroadcastHelper<Iterable<WindowedValue<?>>> broadcastHelper =
         (BroadcastHelper<Iterable<WindowedValue<?>>>) mSideInputs.get(view.getTagInternal());
     Iterable<WindowedValue<?>> contents = broadcastHelper.getValue();
-    return view.fromIterableInternal(contents);
+    return view.getViewFn().apply(contents);
   }
 
   @Override
