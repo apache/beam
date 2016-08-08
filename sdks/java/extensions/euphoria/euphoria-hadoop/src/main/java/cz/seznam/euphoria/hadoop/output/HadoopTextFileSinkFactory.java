@@ -21,7 +21,7 @@ public class HadoopTextFileSinkFactory implements DataSinkFactory {
     // set input dir
     conf.set(FileOutputFormat.OUTDIR, uri.toString());
 
-    return (DataSink<T>) new HadoopOutputFormatAdapter(
+    return (DataSink<T>) new HadoopDataSink(
             TextOutputFormat.class, new SerializableWritable<>(conf));
   }
 }
