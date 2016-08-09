@@ -110,7 +110,7 @@ public class KinesisReaderIT {
     }
 
     private static class RecordDataToString extends DoFn<KinesisRecord, String> {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
             checkNotNull(c.element());
             c.output(new String(c.element().getData().array(), StandardCharsets.UTF_8));

@@ -57,7 +57,7 @@ public class KinesisMockReadTest {
 
     private static class KinesisRecordToTestData extends
             DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
             c.output(new AmazonKinesisMock.TestData(c.element()));
         }
