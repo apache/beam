@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -295,9 +294,8 @@ public class WriteTest {
   @Test
   public void testWriteUnbounded() {
     TestPipeline p = TestPipeline.create();
-    PCollection<String> unbounded = PCollection.<String>createPrimitiveOutputInternal(p,
-        WindowingStrategy.globalDefault(),
-        IsBounded.UNBOUNDED).setCoder(StringUtf8Coder.of());
+    PCollection<String> unbounded =
+        p.apply(Create.of("foo")).setIsBoundedInternal(IsBounded.UNBOUNDED);
 
     TestSink sink = new TestSink();
     thrown.expect(IllegalArgumentException.class);

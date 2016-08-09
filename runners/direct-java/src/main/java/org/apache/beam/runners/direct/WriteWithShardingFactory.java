@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
@@ -74,6 +75,9 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
 
     @Override
     public PDone apply(PCollection<T> input) {
+      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+          "%s can only be applied to a Bounded PCollection",
+          getClass().getSimpleName());
       PCollection<T> records = input.apply("RewindowInputs",
           Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
               .withAllowedLateness(Duration.ZERO)

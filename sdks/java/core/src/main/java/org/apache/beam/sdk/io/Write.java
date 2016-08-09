@@ -108,6 +108,9 @@ public class Write {
 
     @Override
     public PDone apply(PCollection<T> input) {
+      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+          "%s can only be applied to a Bounded PCollection",
+          Write.class.getSimpleName());
       PipelineOptions options = input.getPipeline().getOptions();
       sink.validate(options);
       return createWrite(input, sink.createWriteOperation(options));
@@ -321,9 +324,6 @@ public class Write {
      */
     private <WriteT> PDone createWrite(
         PCollection<T> input, WriteOperation<T, WriteT> writeOperation) {
-      checkArgument(IsBounded.BOUNDED == input.isBounded(),
-          "%s can only be applied to a Bounded PCollection",
-          getClass().getSimpleName());
       Pipeline p = input.getPipeline();
 
       // A coder to use for the WriteOperation.
