@@ -435,10 +435,10 @@
 </code></pre>
 </div>
 
-<p>Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll need to override the method <code class="highlighter-rouge">processElement</code>, where you provide the actual processing logic. You don’t need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your override of <code class="highlighter-rouge">processElement</code> should accept an object of type <code class="highlighter-rouge">ProcessContext</code>. The <code class="highlighter-rouge">ProcessContext</code> object gives you access to an input element and a method for emitting an output element:</p>
+<p>Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll write a method annotated with <code class="highlighter-rouge">@ProcessElement</code> where you provide the actual processing logic. You don’t need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your <code class="highlighter-rouge">@ProcessElement</code> method should accept an object of type <code class="highlighter-rouge">ProcessContext</code>. The <code class="highlighter-rouge">ProcessContext</code> object gives you access to an input element and a method for emitting an output element:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
-  <span class="nd">@Override</span>
+  <span class="nd">@ProcessElement</span>
   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Get the input element from ProcessContext.</span>
     <span class="n">String</span> <span class="n">word</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
@@ -453,9 +453,9 @@
   <p><strong>Note:</strong> If the elements in your input <code class="highlighter-rouge">PCollection</code> are key/value pairs, you can access the key or value by using <code class="highlighter-rouge">ProcessContext.element().getKey()</code> or <code class="highlighter-rouge">ProcessContext.element().getValue()</code>, respectively.</p>
 </blockquote>
 
-<p>A given <code class="highlighter-rouge">DoFn</code> instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn’t guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to <code class="highlighter-rouge">processElement</code>, but if you do so, make sure the implementation <strong>does not depend on the number of invocations</strong>.</p>
+<p>A given <code class="highlighter-rouge">DoFn</code> instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn’t guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to your <code class="highlighter-rouge">@ProcessElement</code> method, but if you do so, make sure the implementation <strong>does not depend on the number of invocations</strong>.</p>
 
-<p>When you override <code class="highlighter-rouge">processElement</code>, you’ll need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:</p>
+<p>In your <code class="highlighter-rouge">@ProcessElement</code> method, you’ll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:</p>
 
 <ul>
   <li>You should not in any way modify an element returned by <code class="highlighter-rouge">ProcessContext.element()</code> or <code class="highlighter-rouge">ProcessContext.sideInput()</code> (the incoming elements from the input collection).</li>
@@ -477,7 +477,7 @@
   <span class="n">ParDo</span>
     <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ComputeWordLengths"</span><span class="o">)</span>            <span class="c1">// the transform name</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>       <span class="c1">// a DoFn as an anonymous inner class instance</span>
-      <span class="nd">@Override</span>
+      <span class="nd">@ProcessElement</span>
       <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
         <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">length</span><span class="o">());</span>
       <span class="o">}</span>
