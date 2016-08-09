@@ -39,6 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Strings;
+import com.google.common.io.Resources;
 
 import java.io.IOException;
 
@@ -204,16 +205,16 @@ public class WordCount {
      *   <li>SparkRunner:
      *   .../src/test/resources/LICENSE</li>
      *   <li>other runners:
-     *   gs://dataflow-samples/apache/LICENSE</li>
+     *   gs://apache-beam-samples/apache/LICENSE</li>
      * </ul>
      */
     public static class InputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         if (options.getRunner().isAssignableFrom(SparkRunner.class)) {
-          return WordCount.class.getClass().getResource("/LICENSE").getPath();
+          return Resources.getResource("LICENSE").getPath();
         } else {
-          return "gs://dataflow-samples/apache/LICENSE";
+          return "gs://apache-beam-samples/apache/LICENSE";
         }
       }
     }
