@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.Pipeline;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
@@ -106,6 +108,9 @@ public class Write {
 
     @Override
     public PDone apply(PCollection<T> input) {
+      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+          "%s can only be applied to a Bounded PCollection",
+          Write.class.getSimpleName());
       PipelineOptions options = input.getPipeline().getOptions();
       sink.validate(options);
       return createWrite(input, sink.createWriteOperation(options));
