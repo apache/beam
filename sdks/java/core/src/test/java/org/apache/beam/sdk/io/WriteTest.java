@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
@@ -294,8 +293,13 @@ public class WriteTest {
   @Test
   public void testWriteUnbounded() {
     TestPipeline p = TestPipeline.create();
-    PCollection<String> unbounded =
-        p.apply(Create.of("foo")).setIsBoundedInternal(IsBounded.UNBOUNDED);
+    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
+        .apply(MapElements.via(new SimpleFunction<Long, String>() {
+          @Override
+          public String apply(Long input) {
+            return Long.toString(input);
+      }
+    }));
 
     TestSink sink = new TestSink();
     thrown.expect(IllegalArgumentException.class);
