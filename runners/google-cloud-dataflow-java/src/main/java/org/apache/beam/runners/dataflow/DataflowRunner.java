@@ -2375,7 +2375,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * A specialized {@link OldDoFn} for writing the contents of a {@link PCollection}
    * to a streaming {@link PCollectionView} backend implementation.
    */
-  private static class StreamingPCollectionViewWriterFn<T>
+  @Deprecated
+  public static class StreamingPCollectionViewWriterFn<T>
   extends OldDoFn<Iterable<T>, T> implements OldDoFn.RequiresWindowAccess {
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
@@ -2388,6 +2389,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private StreamingPCollectionViewWriterFn(PCollectionView<?> view, Coder<T> dataCoder) {
       this.view = view;
       this.dataCoder = dataCoder;
+    }
+
+    public PCollectionView<?> getView() {
+      return view;
+    }
+
+    public Coder<T> getDataCoder() {
+      return dataCoder;
     }
 
     @Override
