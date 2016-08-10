@@ -22,8 +22,9 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
+import org.apache.beam.sdk.transforms.DoFnInvoker;
 import org.apache.beam.sdk.transforms.DoFnReflector;
-import org.apache.beam.sdk.transforms.DoFnReflector.DoFnInvoker;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -60,16 +61,14 @@ public class DoFnReflectorBenchmark {
   private ExtraContextFactory<String, String> extraContextFactory =
       new DoFn.FakeExtraContextFactory<>();
 
-  private DoFnReflector doFnReflector;
   private OldDoFn<String, String> adaptedDoFnWithContext;
 
   private DoFnInvoker<String, String> invoker;
 
   @Setup
   public void setUp() {
-    doFnReflector = DoFnReflector.of(doFn.getClass());
-    adaptedDoFnWithContext = doFnReflector.toDoFn(doFn);
-    invoker = doFnReflector.bindInvoker(doFn);
+    adaptedDoFnWithContext = DoFnAdapters.toOldDoFn(doFn);
+    invoker = DoFnReflector.newByteBuddyInvoker(doFn);
   }
 
   @Benchmark

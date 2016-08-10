@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.transforms.dofnreflector;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnReflectorTest.Invocations;
+import org.apache.beam.sdk.transforms.DoFnInvokersTest;
+import org.apache.beam.sdk.transforms.DoFnInvokersTest.Invocations;
 
 /**
- * Test helper for DoFnReflectorTest, which needs to test package-private access
+ * Test helper for {@link DoFnInvokersTest}, which needs to test package-private access
  * to DoFns in other packages.
  */
-public class DoFnReflectorTestHelper {
+public class DoFnInvokersTestHelper {
 
   private static class StaticPrivateDoFn extends DoFn<String, String> {
     final Invocations invocations;
