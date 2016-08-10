@@ -110,12 +110,6 @@
     <!--[BEAM-412] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.BitSetCoder"/>
-    <Field name="byteArrayCoder"/>
-    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
-    <!--[BEAM-418] Transient field that isn't set by deserialization. -->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
