@@ -2111,14 +2111,14 @@ public class BigQueryIO {
       static void removeTemporaryFiles(
           PipelineOptions options,
           String tempFilePrefix,
-          Collection<String> matches)
+          Collection<String> files)
           throws IOException {
         IOChannelFactory factory = IOChannelUtils.getFactory(tempFilePrefix);
         if (factory instanceof GcsIOChannelFactory) {
           GcsUtil gcsUtil = new GcsUtil.GcsUtilFactory().create(options);
-          gcsUtil.remove(matches);
+          gcsUtil.remove(files);
         } else if (factory instanceof FileIOChannelFactory) {
-          for (String filename : matches) {
+          for (String filename : files) {
             LOG.debug("Removing file {}", filename);
             boolean exists = Files.deleteIfExists(Paths.get(filename));
             if (!exists) {
@@ -2248,7 +2248,7 @@ public class BigQueryIO {
                 tableRef.getDatasetId(),
                 tableRef.getTableId());
           } catch (Exception e) {
-            LOG.warn("Failed to delete the table " + toJsonString(tableRef));
+            LOG.warn("Failed to delete the table " + toJsonString(tableRef), e);
           }
         }
       }
