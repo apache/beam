@@ -22,10 +22,10 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
   public DataStream<?> translate(FlinkOperator<ReduceByKey> operator,
                                  ExecutorContext context)
   {
-    ReduceByKey origOperator = operator.getOriginalOperator();
     DataStream<?> input =
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
+    ReduceByKey origOperator = operator.getOriginalOperator();
     final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
     final UnaryFunction keyExtractor;
     final UnaryFunction valueExtractor;
