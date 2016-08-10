@@ -99,8 +99,11 @@ public class StdoutSink<T> implements DataSink<T> {
           .append(partitionId)
           .append("] (#")
           .append(System.identityHashCode(elem))
-          .append("): ")
-          .append(elem);
+          .append(") {")
+          .append(elem == null ? null : elem.getClass())
+          .append("}: ")
+          .append(elem)
+      ;
       out.println(buf);
     }
   }
