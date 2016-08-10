@@ -34,7 +34,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -48,11 +47,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
 import com.google.common.collect.ImmutableMap;
-
 import com.fasterxml.jackson.annotation.JsonValue;
-
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,7 +56,6 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -157,7 +152,7 @@ public class DirectRunnerTest implements Serializable {
     DirectPipelineResult otherResult = ((DirectPipelineResult) p.run());
     otherResult.awaitCompletion();
 
-    assertThat(changed.get(), equalTo(6));
+    assertThat("Each element should have been processed twice", changed.get(), equalTo(6));
   }
 
   @Test(timeout = 5000L)
