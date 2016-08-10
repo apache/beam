@@ -294,17 +294,19 @@ public class WriteTest {
   public void testWriteUnbounded() {
     TestPipeline p = TestPipeline.create();
     PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(MapElements.via(new SimpleFunction<Long, String>() {
-          @Override
-          public String apply(Long input) {
-            return Long.toString(input);
-      }
-    }));
+        .apply(MapElements.via(new ToStringFn()));
 
     TestSink sink = new TestSink();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Write can only be applied to a Bounded PCollection");
     unbounded.apply(Write.to(sink));
+  }
+
+  private static class ToStringFn extends SimpleFunction<Long, String> {
+    @Override
+    public String apply(Long input) {
+      return Long.toString(input);
+    }
   }
 
   /**
