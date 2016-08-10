@@ -58,18 +58,7 @@ public class DoFnReflectorBenchmark {
   private StubDoFnProcessContext stubDoFnContext =
       new StubDoFnProcessContext(doFn, ELEMENT);
   private ExtraContextFactory<String, String> extraContextFactory =
-      new ExtraContextFactory<String, String>() {
-
-    @Override
-    public BoundedWindow window() {
-      return null;
-    }
-
-    @Override
-    public WindowingInternals<String, String> windowingInternals() {
-      return null;
-    }
-  };
+      new DoFn.FakeExtraContextFactory<>();
 
   private DoFnReflector doFnReflector;
   private OldDoFn<String, String> adaptedDoFnWithContext;

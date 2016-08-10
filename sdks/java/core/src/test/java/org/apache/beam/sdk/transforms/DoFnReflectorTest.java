@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.dofnreflector.DoFnReflectorTestHelper;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowingInternals;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -71,7 +70,9 @@ public class DoFnReflectorTest {
   @Mock
   private BoundedWindow mockWindow;
   @Mock
-  private WindowingInternals<String, String> mockWindowingInternals;
+  private DoFn.InputProvider<String> mockInputProvider;
+  @Mock
+  private DoFn.OutputReceiver<String> mockOutputReceiver;
 
   private ExtraContextFactory<String, String> extraContextFactory;
 
@@ -85,8 +86,13 @@ public class DoFnReflectorTest {
       }
 
       @Override
-      public WindowingInternals<String, String> windowingInternals() {
-        return mockWindowingInternals;
+      public DoFn.InputProvider<String> inputProvider() {
+        return mockInputProvider;
+      }
+
+      @Override
+      public DoFn.OutputReceiver<String> outputReceiver() {
+        return mockOutputReceiver;
       }
     };
   }
@@ -257,16 +263,35 @@ public class DoFnReflectorTest {
   }
 
   @Test
-  public void testDoFnWithWindowingInternals() throws Exception {
+  public void testDoFnWithOutputReceiver() throws Exception {
     final Invocations invocations = new Invocations("AnonymousClass");
     DoFnReflector reflector = underTest(new DoFn<String, String>() {
 
       @ProcessElement
-      public void processElement(ProcessContext c, WindowingInternals<String, String> w)
+      public void processElement(ProcessContext c, DoFn.OutputReceiver<String> o)
           throws Exception {
         invocations.wasProcessElementInvoked = true;
         assertSame(c, mockContext);
-        assertSame(w, mockWindowingInternals);
+        assertSame(o, mockOutputReceiver);
+      }
+    });
+
+    assertFalse(reflector.usesSingleWindow());
+
+    checkInvokeProcessElementWorks(reflector, invocations);
+  }
+
+  @Test
+  public void testDoFnWithInputProvider() throws Exception {
+    final Invocations invocations = new Invocations("AnonymousClass");
+    DoFnReflector reflector = underTest(new DoFn<String, String>() {
+
+      @ProcessElement
+      public void processElement(ProcessContext c, DoFn.InputProvider<String> i)
+          throws Exception {
+        invocations.wasProcessElementInvoked = true;
+        assertSame(c, mockContext);
+        assertSame(i, mockInputProvider);
       }
     });
 
@@ -513,7 +538,7 @@ public class DoFnReflectorTest {
     thrown.expectMessage(
         "Integer is not a valid context parameter for method "
         + getClass().getName() + "#badExtraProcessContext(ProcessContext, Integer)"
-        + ". Should be one of [BoundedWindow, WindowingInternals<Integer, String>]");
+        + ". Should be one of [BoundedWindow]");
 
     DoFnReflector.verifyProcessMethodArguments(
         getClass().getDeclaredMethod("badExtraProcessContext",
@@ -534,102 +559,148 @@ public class DoFnReflectorTest {
   }
 
   @SuppressWarnings("unused")
-  private void goodGenerics(DoFn<Integer, String>.ProcessContext c,
-      WindowingInternals<Integer, String> i1) {}
+  private void goodGenerics(
+      DoFn<Integer, String>.ProcessContext c,
+      DoFn.InputProvider<Integer> input,
+      DoFn.OutputReceiver<String> output) {}
 
   @Test
   public void testValidGenerics() throws Exception {
-    Method method = getClass().getDeclaredMethod("goodGenerics",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "goodGenerics",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
     DoFnReflector.verifyProcessMethodArguments(method);
   }
 
   @SuppressWarnings("unused")
-  private void goodWildcards(DoFn<Integer, String>.ProcessContext c,
-      WindowingInternals<?, ?> i1) {}
+  private void goodWildcards(
+      DoFn<Integer, String>.ProcessContext c,
+      DoFn.InputProvider<?> input,
+      DoFn.OutputReceiver<?> output) {}
 
   @Test
   public void testGoodWildcards() throws Exception {
-    Method method = getClass().getDeclaredMethod("goodWildcards",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "goodWildcards",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
     DoFnReflector.verifyProcessMethodArguments(method);
   }
 
   @SuppressWarnings("unused")
-  private void goodBoundedWildcards(DoFn<Integer, String>.ProcessContext c,
-      WindowingInternals<? super Integer, ? super String> i1) {}
+  private void goodBoundedWildcards(
+      DoFn<Integer, String>.ProcessContext c,
+      DoFn.InputProvider<? super Integer> input,
+      DoFn.OutputReceiver<? super String> output) {}
 
   @Test
   public void testGoodBoundedWildcards() throws Exception {
-    Method method = getClass().getDeclaredMethod("goodBoundedWildcards",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "goodBoundedWildcards",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
     DoFnReflector.verifyProcessMethodArguments(method);
   }
 
   @SuppressWarnings("unused")
   private <InputT, OutputT> void goodTypeVariables(
       DoFn<InputT, OutputT>.ProcessContext c,
-      WindowingInternals<InputT, OutputT> i1) {}
+      DoFn.InputProvider<InputT> input,
+      DoFn.OutputReceiver<OutputT> output) {}
 
   @Test
   public void testGoodTypeVariables() throws Exception {
-    Method method = getClass().getDeclaredMethod("goodTypeVariables",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "goodTypeVariables",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
     DoFnReflector.verifyProcessMethodArguments(method);
   }
 
   @SuppressWarnings("unused")
-  private void badGenericTwoArgs(DoFn<Integer, String>.ProcessContext c,
-      WindowingInternals<Integer, Integer> i1) {}
+  private void badGenericTwoArgs(
+      DoFn<Integer, String>.ProcessContext c,
+      DoFn.InputProvider<Integer> input,
+      DoFn.OutputReceiver<Integer> output) {}
 
   @Test
   public void testBadGenericsTwoArgs() throws Exception {
-    Method method = getClass().getDeclaredMethod("badGenericTwoArgs",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "badGenericTwoArgs",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Incompatible generics in context parameter "
-        + "WindowingInternals<Integer, Integer> "
+        + "OutputReceiver<Integer> "
         + "for method " + getClass().getName()
-        + "#badGenericTwoArgs(ProcessContext, WindowingInternals). Should be "
-        + "WindowingInternals<Integer, String>");
+        + "#badGenericTwoArgs(ProcessContext, InputProvider, OutputReceiver). Should be "
+        + "OutputReceiver<String>");
 
     DoFnReflector.verifyProcessMethodArguments(method);
   }
 
   @SuppressWarnings("unused")
-  private void badGenericWildCards(DoFn<Integer, String>.ProcessContext c,
-      WindowingInternals<Integer, ? super Integer> i1) {}
+  private void badGenericWildCards(
+      DoFn<Integer, String>.ProcessContext c,
+      DoFn.InputProvider<Integer> input,
+      DoFn.OutputReceiver<? super Integer> output) {}
 
   @Test
   public void testBadGenericWildCards() throws Exception {
-    Method method = getClass().getDeclaredMethod("badGenericWildCards",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "badGenericWildCards",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Incompatible generics in context parameter "
-        + "WindowingInternals<Integer, ? super Integer> for method "
+        + "OutputReceiver<? super Integer> for method "
         + getClass().getName()
-        + "#badGenericWildCards(ProcessContext, WindowingInternals). Should be "
-        + "WindowingInternals<Integer, String>");
+        + "#badGenericWildCards(ProcessContext, InputProvider, OutputReceiver). Should be "
+        + "OutputReceiver<String>");
 
     DoFnReflector.verifyProcessMethodArguments(method);
   }
 
   @SuppressWarnings("unused")
   private <InputT, OutputT> void badTypeVariables(DoFn<InputT, OutputT>.ProcessContext c,
-      WindowingInternals<InputT, InputT> i1) {}
+      DoFn.InputProvider<InputT> input, DoFn.OutputReceiver<InputT> output) {}
 
   @Test
   public void testBadTypeVariables() throws Exception {
-    Method method = getClass().getDeclaredMethod("badTypeVariables",
-        DoFn.ProcessContext.class, WindowingInternals.class);
+    Method method =
+        getClass()
+            .getDeclaredMethod(
+                "badTypeVariables",
+                DoFn.ProcessContext.class,
+                DoFn.InputProvider.class,
+                DoFn.OutputReceiver.class);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Incompatible generics in context parameter "
-        + "WindowingInternals<InputT, InputT> for method " + getClass().getName()
-        + "#badTypeVariables(ProcessContext, WindowingInternals). Should be "
-        + "WindowingInternals<InputT, OutputT>");
+        + "OutputReceiver<InputT> for method " + getClass().getName()
+        + "#badTypeVariables(ProcessContext, InputProvider, OutputReceiver). Should be "
+        + "OutputReceiver<OutputT>");
 
     DoFnReflector.verifyProcessMethodArguments(method);
   }

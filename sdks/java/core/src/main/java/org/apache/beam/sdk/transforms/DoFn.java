@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -302,11 +301,43 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     BoundedWindow window();
 
     /**
-     * Construct the {@link WindowingInternals} to use within a {@link DoFn} that
-     * needs it. This is called if the {@link ProcessElement} method has a parameter of type
-     * {@link WindowingInternals}.
+     * A placeholder for testing purposes. The return type itself is package-private and not
+     * implemented.
      */
-    WindowingInternals<InputT, OutputT> windowingInternals();
+    InputProvider<InputT> inputProvider();
+
+    /**
+     * A placeholder for testing purposes. The return type itself is package-private and not
+     * implemented.
+     */
+    OutputReceiver<OutputT> outputReceiver();
+  }
+
+  static interface OutputReceiver<T> {
+    void output(T output);
+  }
+
+  static interface InputProvider<T> {
+    T get();
+  }
+
+  /** For testing only, this {@link ExtraContextFactory} returns {@code null} for all parameters. */
+  public static class FakeExtraContextFactory<InputT, OutputT>
+      implements ExtraContextFactory<InputT, OutputT> {
+    @Override
+    public BoundedWindow window() {
+      return null;
+    }
+
+    @Override
+    public InputProvider<InputT> inputProvider() {
+      return null;
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver() {
+      return null;
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -331,8 +362,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>It must have at least one argument.
    *   <li>Its first argument must be a {@link DoFn.ProcessContext}.
-   *   <li>Its remaining arguments must be {@link BoundedWindow}, or
-   *   {@link WindowingInternals WindowingInternals&lt;InputT, OutputT&gt;}.
+   *   <li>Its remaining argument, if any, must be {@link BoundedWindow}.
    * </ul>
    */
   @Documented
