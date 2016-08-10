@@ -169,7 +169,7 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-flink_2.10</artifactId>
-      <version>0.3.0-incubating-SNAPSHOT</version>
+      <version>0.2.0-incubating-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
