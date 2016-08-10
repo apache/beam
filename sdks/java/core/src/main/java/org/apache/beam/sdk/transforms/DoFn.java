@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -247,7 +248,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
-  Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
+  protected Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
 
   /**
    * Protects aggregators from being created after initialization.
@@ -283,7 +284,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Interface for runner implementors to provide implementations of extra context information.
    *
-   * <p>The methods on this interface are called by {@link DoFnReflector} before invoking an
+   * <p>The methods on this interface are called by {@link DoFnInvoker} before invoking an
    * annotated {@link StartBundle}, {@link ProcessElement} or {@link FinishBundle} method that
    * has indicated it needs the given extra context.
    *
@@ -301,23 +302,23 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     BoundedWindow window();
 
     /**
-     * A placeholder for testing purposes. The return type itself is package-private and not
-     * implemented.
+     * A placeholder for testing purposes.
      */
     InputProvider<InputT> inputProvider();
 
     /**
-     * A placeholder for testing purposes. The return type itself is package-private and not
-     * implemented.
+     * A placeholder for testing purposes.
      */
     OutputReceiver<OutputT> outputReceiver();
   }
 
-  static interface OutputReceiver<T> {
+  /** A placeholder for testing handling of output types during {@link DoFn} reflection. */
+  public interface OutputReceiver<T> {
     void output(T output);
   }
 
-  static interface InputProvider<T> {
+  /** A placeholder for testing handling of input types during {@link DoFn} reflection. */
+  public interface InputProvider<T> {
     T get();
   }
 
