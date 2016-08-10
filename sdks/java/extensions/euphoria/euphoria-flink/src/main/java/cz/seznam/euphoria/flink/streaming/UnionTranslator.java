@@ -1,16 +1,17 @@
-package cz.seznam.euphoria.flink.translation;
+package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.operator.Union;
+import cz.seznam.euphoria.flink.FlinkOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.List;
 
-class UnionTranslator implements OperatorTranslator<Union> {
+class UnionTranslator implements StreamingOperatorTranslator<Union> {
 
   @Override
   @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<Union> operator,
-                                 ExecutorContext context)
+                                 StreamingExecutorContext context)
   {
     List<DataStream<?>> inputs = context.getInputStreams(operator);
     if (inputs.size() != 2) {
