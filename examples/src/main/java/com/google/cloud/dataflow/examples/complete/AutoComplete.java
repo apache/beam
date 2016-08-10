@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.examples.complete;
 
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -61,7 +62,6 @@ import com.google.common.base.Preconditions;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Key;
 import com.google.datastore.v1beta3.Value;
-import com.google.datastore.v1beta3.client.DatastoreHelper;
 
 import org.joda.time.Duration;
 
@@ -384,18 +384,24 @@ public class AutoComplete {
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
    * suitable for writing to Datastore.
+   *
+   * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
+   * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
+   * Structuring Data for Strong Consistency</a>
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
+    private String ancestorKey;
 
-    public FormatForDatastore(String kind) {
+    public FormatForDatastore(String kind, String ancestorKey) {
       this.kind = kind;
+      this.ancestorKey = ancestorKey;
     }
 
     @Override
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();
+      Key key = makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
@@ -446,6 +452,11 @@ public class AutoComplete {
     @Description("Datastore output dataset ID, defaults to project ID")
     String getOutputDataset();
     void setOutputDataset(String value);
+
+    @Description("Datastore ancestor key")
+    @Default.String("root")
+    String getDatastoreAncestorKey();
+    void setDatastoreAncestorKey(String value);
   }
 
   public static void main(String[] args) throws IOException {
@@ -486,7 +497,8 @@ public class AutoComplete {
 
     if (options.getOutputToDatastore()) {
       toWrite
-          .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
+          .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind(),
+              options.getDatastoreAncestorKey())))
           .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
               options.getOutputDataset(), options.getProject())));
     }
