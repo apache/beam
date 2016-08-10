@@ -32,7 +32,7 @@ import java.util.BitSet;
 class BitSetCoder extends AtomicCoder<BitSet> {
 
   private static final BitSetCoder INSTANCE = new BitSetCoder();
-  private transient ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
+  private static final ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
 
   private BitSetCoder() {}
 
