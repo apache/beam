@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -300,13 +299,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * @return {@link BoundedWindow} of the element currently being processed.
      */
     BoundedWindow window();
-
-    /**
-     * Construct the {@link WindowingInternals} to use within a {@link DoFn} that
-     * needs it. This is called if the {@link ProcessElement} method has a parameter of type
-     * {@link WindowingInternals}.
-     */
-    WindowingInternals<InputT, OutputT> windowingInternals();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -331,8 +323,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>It must have at least one argument.
    *   <li>Its first argument must be a {@link DoFn.ProcessContext}.
-   *   <li>Its remaining arguments must be {@link BoundedWindow}, or
-   *   {@link WindowingInternals WindowingInternals&lt;InputT, OutputT&gt;}.
+   *   <li>The only other argument currently supported is {@link BoundedWindow}
    * </ul>
    */
   @Documented

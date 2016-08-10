@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -124,17 +123,6 @@ public abstract class DoFnReflector {
       public <InputT, OutputT> TypeToken<?>
           tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
         return TypeToken.of(BoundedWindow.class);
-      }
-    },
-
-    WINDOWING_INTERNALS(Availability.PROCESS_ELEMENT_ONLY,
-        WindowingInternals.class, "windowingInternals") {
-      @Override
-      public <InputT, OutputT> TypeToken<?> tokenFor(
-          TypeToken<InputT> in, TypeToken<OutputT> out) {
-        return new TypeToken<WindowingInternals<InputT, OutputT>>() {}
-            .where(new TypeParameter<InputT>() {}, in)
-            .where(new TypeParameter<OutputT>() {}, out);
       }
     };
 
@@ -285,10 +273,7 @@ public abstract class DoFnReflector {
    * <li>The method has at least one argument.
    * <li>The first argument is of type firstContextArg.
    * <li>The remaining arguments have raw types that appear in {@code contexts}
-   * <li>Any generics on the extra context arguments match what is expected. Eg.,
-   *     {@code WindowingInternals<InputT, OutputT>} either matches the
-   *     {@code InputT} and {@code OutputT} parameters of the
-   *     {@code OldDoFn<InputT, OutputT>.ProcessContext}, or it uses a wildcard, etc.
+   * <li>Any generics on the extra context arguments match what is expected.
    * </ol>
    *
    * @param m the method to verify
@@ -605,14 +590,6 @@ public abstract class DoFnReflector {
       // should be unreachable.
       throw new UnsupportedOperationException("Can only get the window in ProcessElements");
     }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      // The DoFn doesn't allow us to ask for these outside ProcessElements, so this
-      // should be unreachable.
-      throw new UnsupportedOperationException(
-          "Can only get the windowingInternals in ProcessElements");
-    }
   }
 
   private static class ProcessContextAdapter<InputT, OutputT>
@@ -676,11 +653,6 @@ public abstract class DoFnReflector {
     @Override
     public BoundedWindow window() {
       return context.window();
-    }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return context.windowingInternals();
     }
   }
 
