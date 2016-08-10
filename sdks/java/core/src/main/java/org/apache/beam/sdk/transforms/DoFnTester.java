@@ -170,7 +170,7 @@ public class DoFnTester<InputT, OutputT> {
    *
    * <ol>
    *   <li>Calls {@link #startBundle}.</li>
-   *   <li>Calls {@link #processElement} on each of the arguments.<li>
+   *   <li>Calls {@link #processElement} on each of the arguments.</li>
    *   <li>Calls {@link #finishBundle}.</li>
    *   <li>Returns the result of {@link #takeOutputElements}.</li>
    * </ol>
