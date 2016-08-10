@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -32,6 +33,8 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -45,8 +48,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.collect.ImmutableMap;
+
 import com.fasterxml.jackson.annotation.JsonValue;
+
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,10 +60,12 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tests for basic {@link DirectRunner} functionality.
@@ -109,10 +117,12 @@ public class DirectRunnerTest implements Serializable {
     result.awaitCompletion();
   }
 
+  private static AtomicInteger changed;
   @Test
   public void reusePipelineSucceeds() throws Throwable {
     Pipeline p = getPipeline();
 
+    changed = new AtomicInteger(0);
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
             .apply(MapElements.via(new SimpleFunction<String, String>() {
@@ -131,6 +141,14 @@ public class DirectRunnerTest implements Serializable {
           }
         }));
 
+    counts.apply(ParDo.of(new DoFn<KV<String, Long>, Void>() {
+      @ProcessElement
+      public void updateChanged(ProcessContext c) {
+        changed.getAndIncrement();
+      }
+    }));
+
+
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
     DirectPipelineResult result = ((DirectPipelineResult) p.run());
@@ -138,6 +156,8 @@ public class DirectRunnerTest implements Serializable {
 
     DirectPipelineResult otherResult = ((DirectPipelineResult) p.run());
     otherResult.awaitCompletion();
+
+    assertThat(changed.get(), equalTo(6));
   }
 
   @Test(timeout = 5000L)
