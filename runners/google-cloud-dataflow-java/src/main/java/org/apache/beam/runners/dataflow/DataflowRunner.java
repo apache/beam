@@ -759,31 +759,30 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       PTransform<PCollection<T>, PCollection<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>>> {
 
     /**
-     * A {@link OldDoFn} that for each element outputs a {@code KV} structure suitable for
+     * A {@link DoFn} that for each element outputs a {@code KV} structure suitable for
      * grouping by the hash of the window's byte representation and sorting the grouped values
      * using the window's byte representation.
      */
     @SystemDoFnInternal
     private static class UseWindowHashAsKeyAndWindowAsSortKeyDoFn<T, W extends BoundedWindow>
-        extends OldDoFn<T, KV<Integer, KV<W, WindowedValue<T>>>> implements
-        OldDoFn.RequiresWindowAccess {
+        extends DoFn<T, KV<Integer, KV<W, WindowedValue<T>>>> {
 
       private final IsmRecordCoder<?> ismCoderForHash;
       private UseWindowHashAsKeyAndWindowAsSortKeyDoFn(IsmRecordCoder<?> ismCoderForHash) {
         this.ismCoderForHash = ismCoderForHash;
       }
 
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow untypedWindow) throws Exception {
         @SuppressWarnings("unchecked")
-        W window = (W) c.window();
+        W window = (W) untypedWindow;
         c.output(
             KV.of(ismCoderForHash.hash(ImmutableList.of(window)),
                 KV.of(window,
                     WindowedValue.of(
                         c.element(),
                         c.timestamp(),
-                        c.window(),
+                        window,
                         c.pane()))));
       }
     }
@@ -826,14 +825,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       extends PTransform<PCollection<T>, PCollectionView<T>> {
 
     /**
-     * A {@link OldDoFn} that outputs {@link IsmRecord}s. These records are structured as follows:
+     * A {@link DoFn} that outputs {@link IsmRecord}s. These records are structured as follows:
      * <ul>
      *   <li>Key 1: Window
      *   <li>Value: Windowed value
      * </ul>
      */
     static class IsmRecordForSingularValuePerWindowDoFn<T, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
+        extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
                              IsmRecord<WindowedValue<T>>> {
 
       private final Coder<W> windowCoder;
@@ -841,7 +840,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
         T previousValue = null;
@@ -900,7 +899,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         applyForSingleton(
             DataflowRunner runner,
             PCollection<T> input,
-            OldDoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
+            DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
                              IsmRecord<WindowedValue<FinalT>>> doFn,
             boolean hasDefault,
             FinalT defaultValue,
@@ -996,7 +995,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static class BatchViewAsList<T>
       extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     /**
-     * A {@link OldDoFn} which creates {@link IsmRecord}s assuming that each element is within the
+     * A {@link DoFn} which creates {@link IsmRecord}s assuming that each element is within the
      * global window. Each {@link IsmRecord} has
      * <ul>
      *   <li>Key 1: Global window</li>
@@ -1006,15 +1005,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     @SystemDoFnInternal
     static class ToIsmRecordForGlobalWindowDoFn<T>
-        extends OldDoFn<T, IsmRecord<WindowedValue<T>>> {
+        extends DoFn<T, IsmRecord<WindowedValue<T>>> {
 
       long indexInBundle;
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         indexInBundle = 0;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         c.output(IsmRecord.of(
             ImmutableList.of(GlobalWindow.INSTANCE, indexInBundle),
@@ -1028,7 +1027,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     /**
-     * A {@link OldDoFn} which creates {@link IsmRecord}s comparing successive elements windows
+     * A {@link DoFn} which creates {@link IsmRecord}s comparing successive elements windows
      * to locate the window boundaries. The {@link IsmRecord} has:
      * <ul>
      *   <li>Key 1: Window</li>
@@ -1038,7 +1037,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     @SystemDoFnInternal
     static class ToIsmRecordForNonGlobalWindowDoFn<T, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
+        extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
                              IsmRecord<WindowedValue<T>>> {
 
       private final Coder<W> windowCoder;
@@ -1046,7 +1045,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         long elementsInWindow = 0;
         Optional<Object> previousWindowStructuralValue = Optional.absent();
@@ -1172,7 +1171,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
 
     /**
-     * A {@link OldDoFn} which groups elements by window boundaries. For each group,
+     * A {@link DoFn} which groups elements by window boundaries. For each group,
      * the group of elements is transformed into a {@link TransformedMap}.
      * The transformed {@code Map<K, V>} is backed by a {@code Map<K, WindowedValue<V>>}
      * and contains a function {@code WindowedValue<V> -> V}.
@@ -1186,7 +1185,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * </ul>
      */
     static class ToMapDoFn<K, V, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<W, WindowedValue<KV<K, V>>>>>,
+        extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<KV<K, V>>>>>,
                              IsmRecord<WindowedValue<TransformedMap<K,
                                                      WindowedValue<V>,
                                                      V>>>> {
@@ -1196,7 +1195,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c)
           throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
@@ -1356,18 +1355,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       @SystemDoFnInternal
       private static class GroupByKeyHashAndSortByKeyAndWindowDoFn<K, V, W>
-          extends OldDoFn<KV<K, V>, KV<Integer, KV<KV<K, W>, WindowedValue<V>>>>
-          implements OldDoFn.RequiresWindowAccess {
+          extends DoFn<KV<K, V>, KV<Integer, KV<KV<K, W>, WindowedValue<V>>>> {
 
         private final IsmRecordCoder<?> coder;
         private GroupByKeyHashAndSortByKeyAndWindowDoFn(IsmRecordCoder<?> coder) {
           this.coder = coder;
         }
 
-        @Override
-        public void processElement(ProcessContext c) throws Exception {
+        @ProcessElement
+        public void processElement(ProcessContext c, BoundedWindow untypedWindow) throws Exception {
           @SuppressWarnings("unchecked")
-          W window = (W) c.window();
+          W window = (W) untypedWindow;
 
           c.output(
               KV.of(coder.hash(ImmutableList.of(c.element().getKey())),
@@ -1375,7 +1373,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                       WindowedValue.of(
                           c.element().getValue(),
                           c.timestamp(),
-                          (BoundedWindow) window,
+                          untypedWindow,
                           c.pane()))));
         }
       }
@@ -1410,7 +1408,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     /**
-     * A {@link OldDoFn} which creates {@link IsmRecord}s comparing successive elements windows
+     * A {@link DoFn} which creates {@link IsmRecord}s comparing successive elements windows
      * and keys to locate window and key boundaries. The main output {@link IsmRecord}s have:
      * <ul>
      *   <li>Key 1: Window</li>
@@ -1422,11 +1420,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * <p>Additionally, we output all the unique keys per window seen to {@code outputForEntrySet}
      * and the unique key count per window to {@code outputForSize}.
      *
-     * <p>Finally, if this OldDoFn has been requested to perform unique key checking, it will
+     * <p>Finally, if this {@link DoFn} has been requested to perform unique key checking, it will
      * throw an {@link IllegalStateException} if more than one key per window is found.
      */
     static class ToIsmRecordForMapLikeDoFn<K, V, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<KV<K, W>, WindowedValue<V>>>>,
+        extends DoFn<KV<Integer, Iterable<KV<KV<K, W>, WindowedValue<V>>>>,
                              IsmRecord<WindowedValue<V>>> {
 
       private final TupleTag<KV<Integer, KV<W, Long>>> outputForSize;
@@ -1450,7 +1448,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.uniqueKeysExpected = uniqueKeysExpected;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         long currentKeyIndex = 0;
         // We use one based indexing while counting
@@ -1555,7 +1553,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     /**
-     * A {@link OldDoFn} which outputs a metadata {@link IsmRecord} per window of:
+     * A {@link DoFn} which outputs a metadata {@link IsmRecord} per window of:
        * <ul>
        *   <li>Key 1: META key</li>
        *   <li>Key 2: window</li>
@@ -1563,17 +1561,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
        *   <li>Value: sum of values for window</li>
        * </ul>
        *
-       * <p>This {@link OldDoFn} is meant to be used to compute the number of unique keys
+       * <p>This {@link DoFn} is meant to be used to compute the number of unique keys
        * per window for map and multimap side inputs.
        */
     static class ToIsmMetadataRecordForSizeDoFn<K, V, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<W, Long>>>, IsmRecord<WindowedValue<V>>> {
+        extends DoFn<KV<Integer, Iterable<KV<W, Long>>>, IsmRecord<WindowedValue<V>>> {
       private final Coder<W> windowCoder;
       ToIsmMetadataRecordForSizeDoFn(Coder<W> windowCoder) {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Iterator<KV<W, Long>> iterator = c.element().getValue().iterator();
         KV<W, Long> currentValue = iterator.next();
@@ -1604,7 +1602,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     /**
-     * A {@link OldDoFn} which outputs a metadata {@link IsmRecord} per window and key pair of:
+     * A {@link DoFn} which outputs a metadata {@link IsmRecord} per window and key pair of:
        * <ul>
        *   <li>Key 1: META key</li>
        *   <li>Key 2: window</li>
@@ -1612,11 +1610,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
        *   <li>Value: key</li>
        * </ul>
        *
-       * <p>This {@link OldDoFn} is meant to be used to output index to key records
+       * <p>This {@link DoFn} is meant to be used to output index to key records
        * per window for map and multimap side inputs.
        */
     static class ToIsmMetadataRecordForKeyDoFn<K, V, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<W, K>>>, IsmRecord<WindowedValue<V>>> {
+        extends DoFn<KV<Integer, Iterable<KV<W, K>>>, IsmRecord<WindowedValue<V>>> {
 
       private final Coder<K> keyCoder;
       private final Coder<W> windowCoder;
@@ -1625,7 +1623,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Iterator<KV<W, K>> iterator = c.element().getValue().iterator();
         KV<W, K> currentValue = iterator.next();
@@ -1656,7 +1654,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     /**
-     * A {@link OldDoFn} which partitions sets of elements by window boundaries. Within each
+     * A {@link DoFn} which partitions sets of elements by window boundaries. Within each
      * partition, the set of elements is transformed into a {@link TransformedMap}.
      * The transformed {@code Map<K, Iterable<V>>} is backed by a
      * {@code Map<K, Iterable<WindowedValue<V>>>} and contains a function
@@ -1671,7 +1669,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * </ul>
      */
     static class ToMultimapDoFn<K, V, W extends BoundedWindow>
-        extends OldDoFn<KV<Integer, Iterable<KV<W, WindowedValue<KV<K, V>>>>>,
+        extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<KV<K, V>>>>>,
                              IsmRecord<WindowedValue<TransformedMap<K,
                                                                     Iterable<WindowedValue<V>>,
                                                                     Iterable<V>>>>> {
@@ -1681,7 +1679,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c)
           throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
@@ -2333,8 +2331,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // WindmillSink.
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
           .apply("StripIds", ParDo.of(
-              new OldDoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
-                @Override
+              new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(c.element().getValue().getValue());
                 }
@@ -2370,7 +2368,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * A specialized {@link OldDoFn} for writing the contents of a {@link PCollection}
+   * A specialized {@link DoFn} for writing the contents of a {@link PCollection}
    * to a streaming {@link PCollectionView} backend implementation.
    */
   @Deprecated
@@ -2560,8 +2558,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private static class WrapAsList<T> extends OldDoFn<T, List<T>> {
-    @Override
+  private static class WrapAsList<T> extends DoFn<T, List<T>> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(Arrays.asList(c.element()));
     }

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
@@ -190,8 +191,22 @@ public class DoFnTester<InputT, OutputT> {
     initializeState();
     TestContext<InputT, OutputT> context = createContext(fn);
     context.setupDelegateAggregators();
-    fn.startBundle(context);
+    try {
+      fn.startBundle(context);
+    } catch (UserCodeException e) {
+      unwrapUserCodeException(e);
+    }
     state = State.STARTED;
+  }
+
+  private static void unwrapUserCodeException(UserCodeException e) throws Exception {
+    if (e.getCause() instanceof Exception) {
+      throw (Exception) e.getCause();
+    } else if (e.getCause() instanceof Error) {
+      throw (Error) e.getCause();
+    } else {
+      throw e;
+    }
   }
 
   /**
@@ -212,7 +227,11 @@ public class DoFnTester<InputT, OutputT> {
     if (state == State.UNSTARTED) {
       startBundle();
     }
-    fn.processElement(createProcessContext(fn, element));
+    try {
+      fn.processElement(createProcessContext(fn, element));
+    } catch (UserCodeException e) {
+      unwrapUserCodeException(e);
+    }
   }
 
   /**
@@ -231,7 +250,11 @@ public class DoFnTester<InputT, OutputT> {
     if (state == State.UNSTARTED) {
       startBundle();
     }
-    fn.finishBundle(createContext(fn));
+    try {
+      fn.finishBundle(createContext(fn));
+    } catch (UserCodeException e) {
+      unwrapUserCodeException(e);
+    }
     state = State.FINISHED;
   }
 
