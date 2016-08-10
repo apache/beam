@@ -22,14 +22,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.joda.time.DateTimeUtils;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 /**
  * Options which can be used to configure a Flink PipelineRunner.
@@ -48,15 +43,6 @@ public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOp
   @JsonIgnore
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
-
-  /**
-   * The job name is used to identify jobs running on a Flink cluster.
-   */
-  @Description("Flink job name, to uniquely identify active jobs. "
-      + "Defaults to using the ApplicationName-UserName-Date.")
-  @Default.InstanceFactory(JobNameFactory.class)
-  String getJobName();
-  void setJobName(String value);
 
   /**
    * The url of the Flink JobManager on which to execute pipelines. This can either be
@@ -93,24 +79,4 @@ public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOp
   @Default.Long(-1L)
   Long getExecutionRetryDelay();
   void setExecutionRetryDelay(Long delay);
-
-
-  class JobNameFactory implements DefaultValueFactory<String> {
-    private static final DateTimeFormatter FORMATTER =
-        DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
-
-    @Override
-    public String create(PipelineOptions options) {
-      String appName = options.as(ApplicationNameOptions.class).getAppName();
-      String normalizedAppName = appName == null || appName.length() == 0 ? "FlinkRunner"
-          : appName.toLowerCase()
-          .replaceAll("[^a-z0-9]", "0")
-          .replaceAll("^[^a-z]", "a");
-      String userName = System.getProperty("user.name", "");
-      String normalizedUserName = userName.toLowerCase()
-          .replaceAll("[^a-z0-9]", "0");
-      String datePart = FORMATTER.print(DateTimeUtils.currentTimeMillis());
-      return normalizedAppName + "-" + normalizedUserName + "-" + datePart;
-    }
-  }
 }
