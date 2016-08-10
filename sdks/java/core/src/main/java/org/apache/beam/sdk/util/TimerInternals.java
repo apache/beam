@@ -30,6 +30,7 @@ import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ComparisonChain;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -205,9 +206,21 @@ public interface TimerInternals {
           .toString();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
+     * arbitrary.
+     */
     @Override
     public int compareTo(TimerData o) {
-      return Long.compare(timestamp.getMillis(), o.getTimestamp().getMillis());
+      ComparisonChain chain =
+          ComparisonChain.start().compare(timestamp, o.getTimestamp()).compare(domain, o.domain);
+      if (chain.result() == 0) {
+        // Obtaining the stringKey may be expensive; only do so if required
+        chain = chain.compare(namespace.stringKey(), o.namespace.stringKey());
+      }
+      return chain.result();
     }
   }
 
