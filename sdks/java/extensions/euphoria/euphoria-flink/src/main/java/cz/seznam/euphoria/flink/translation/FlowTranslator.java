@@ -46,13 +46,12 @@ public class FlowTranslator {
   public List<DataSink<?>> translateInto(Flow flow,
                                          StreamExecutionEnvironment streamExecutionEnvironment)
   {
-    ExecutorContext executorContext =
-            new ExecutorContext(streamExecutionEnvironment);
-
     // transform flow to acyclic graph of supported operators + optimize
-    DAG<FlinkOperator<?>> dag =
-            new FlowOptimizer().optimize(
-                    FlowUnfolder.unfold(flow, TRANSLATORS.keySet()));
+    DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, TRANSLATORS.keySet());
+    DAG<FlinkOperator<?>> dag = new FlowOptimizer().optimize(unfolded);
+
+    ExecutorContext executorContext =
+        new ExecutorContext(streamExecutionEnvironment, dag);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
