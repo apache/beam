@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util.common;
 
 import java.util.Observable;
 import java.util.Observer;
-import javax.annotation.Nullable;
 
 /**
  * An observer that gets notified when additional bytes are read and/or used.
