@@ -6,6 +6,7 @@ import cz.seznam.euphoria.core.client.operator.PartitioningAware;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -39,10 +40,9 @@ class FlowOptimizer {
       FlinkOperator<?> created = new FlinkOperator<>(current);
       mapping.put(current, created);
 
-      output.add(
-              created,
-              n.getParents().stream().map(
-                      p -> mapping.get(p.get())).collect(Collectors.toList()));
+      List<FlinkOperator<?>> parents = n.getParents().stream().map(
+          p -> mapping.get(p.get())).collect(Collectors.toList());
+      output.add(created, parents);
     });
 
     return output;

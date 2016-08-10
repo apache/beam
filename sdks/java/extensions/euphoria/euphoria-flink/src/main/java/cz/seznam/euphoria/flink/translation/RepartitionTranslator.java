@@ -12,9 +12,8 @@ class RepartitionTranslator implements OperatorTranslator<Repartition> {
   public DataStream<?> translate(FlinkOperator<Repartition> operator,
                                  ExecutorContext context)
   {
-    Repartition origOperator = operator.getOriginalOperator();
-    DataStream input = context.getInputStream(origOperator);
-    Partitioning partitioning = origOperator.getPartitioning();
+    DataStream input = context.getSingleInputStream(operator);
+    Partitioning partitioning = operator.getOriginalOperator().getPartitioning();
 
     PartitionerWrapper flinkPartitioner =
             new PartitionerWrapper<>(partitioning.getPartitioner());
