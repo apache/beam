@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Strings;
+import com.google.common.io.Resources;
 
 import java.io.IOException;
 
@@ -166,7 +168,7 @@ public class WordCount {
    */
   public static interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    @Default.InstanceFactory(InputFactory.class)
     String getInputFile();
     void setInputFile(String value);
 
@@ -196,6 +198,26 @@ public class WordCount {
       }
     }
 
+    /**
+     * Return default input file path according to runner type.
+     *
+     * <p><ul>
+     *   <li>SparkRunner:
+     *   .../src/test/resources/LICENSE</li>
+     *   <li>other runners:
+     *   gs://apache-beam-samples/apache/LICENSE</li>
+     * </ul>
+     */
+    public static class InputFactory implements DefaultValueFactory<String> {
+      @Override
+      public String create(PipelineOptions options) {
+        if (options.getRunner().isAssignableFrom(SparkRunner.class)) {
+          return Resources.getResource("LICENSE").getPath();
+        } else {
+          return "gs://apache-beam-samples/apache/LICENSE";
+        }
+      }
+    }
   }
 
   public static void main(String[] args) {
