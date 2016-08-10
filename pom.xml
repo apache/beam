@@ -235,6 +235,7 @@
                   <exclude>**/test/resources/**/*.txt</exclude>
                   <exclude>**/test/**/.placeholder</exclude>
                   <exclude>.repository/**/*</exclude>
+                  <exclude>**/.eggs/nose-*.egg/**/*</exclude>
                 </excludes>
               </configuration>
             </plugin>
@@ -816,7 +817,7 @@
               <exclude>**/test/resources/**/*.txt</exclude>
               <exclude>**/test/**/.placeholder</exclude>
               <exclude>.repository/**/*</exclude>
-              <exclude>**/nose-*/**/*</exclude>
+              <exclude>**/.eggs/nose-*.egg/**/*</exclude>
 
               <!-- Default eclipse excludes neglect subprojects -->
               <exclude>**/.checkstyle</exclude>
