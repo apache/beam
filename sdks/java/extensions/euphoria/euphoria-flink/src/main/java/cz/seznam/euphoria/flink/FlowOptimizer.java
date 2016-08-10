@@ -1,9 +1,10 @@
-package cz.seznam.euphoria.flink.translation;
+package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.PartitioningAware;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import cz.seznam.euphoria.flink.FlinkOperator;
 
 import java.util.HashMap;
 import java.util.List;

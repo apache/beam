@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.translation;
+package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -10,7 +10,7 @@ import java.util.Collection;
  * Decorated representation of {@link Operator} by Flink specific information
  * that is needed for Euphoria to Flink translation.
  */
-class FlinkOperator<OP extends Operator> extends Operator {
+public class FlinkOperator<OP extends Operator> extends Operator {
 
   private final OP wrapped;
   private int parallelism;
