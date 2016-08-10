@@ -3,8 +3,8 @@ package cz.seznam.euphoria.flink;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.flink.translation.FlowTranslator;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
+import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,15 +18,15 @@ public class FlinkExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutor.class);
 
-  private StreamExecutionEnvironment flinkStreamEnv;
+  private final boolean test;
   private boolean dumpExecPlan;
 
   public FlinkExecutor() {
-    this(StreamExecutionEnvironment.getExecutionEnvironment());
+    this(false);
   }
 
-  public FlinkExecutor(StreamExecutionEnvironment flinkStreamEnv) {
-    this.flinkStreamEnv = flinkStreamEnv;
+  public FlinkExecutor(boolean test) {
+    this.test = test;
   }
 
   /**
@@ -44,16 +44,27 @@ public class FlinkExecutor implements Executor {
 
   @Override
   public int waitForCompletion(Flow flow) throws Exception {
-    FlowTranslator translator = new FlowTranslator();
-    List<DataSink<?>> sinks = translator.translateInto(flow, flinkStreamEnv);
+    ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
+
+    LOG.info("Running flow in {} mode", mode);
+
+    ExecutionEnvironment environment = new ExecutionEnvironment(mode, test);
+    FlowTranslator translator;
+    if (mode == ExecutionEnvironment.Mode.BATCH) {
+      translator = new BatchFlowTranslator();
+    } else {
+      translator = new StreamingFlowTranslator();
+    }
+
+    List<DataSink<?>> sinks = translator.translateInto(flow, environment);
 
     if (dumpExecPlan) {
       LOG.info("Flink execution plan for {}: {}",
-          flow.getName(), flinkStreamEnv.getExecutionPlan());
+          flow.getName(), environment.dumpExecutionPlan());
     }
 
     try {
-      flinkStreamEnv.execute(); // blocking operation
+      environment.execute(); // blocking operation
     } catch (Exception e) {
       // when exception thrown rollback all sinks
       for (DataSink s : sinks) {

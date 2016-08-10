@@ -1,11 +1,12 @@
-package cz.seznam.euphoria.flink.translation;
+package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.flink.translation.functions.PartitionerWrapper;
+import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -15,12 +16,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.Arrays;
 
-class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
+class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> {
 
   @Override
   @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<ReduceByKey> operator,
-                                 ExecutorContext context)
+                                 StreamingExecutorContext context)
   {
     DataStream<?> input =
             Iterables.getOnlyElement(context.getInputStreams(operator));

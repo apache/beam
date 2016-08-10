@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.translation.io;
+package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;

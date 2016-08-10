@@ -1,7 +1,5 @@
 package cz.seznam.euphoria.flink;
 
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-
 /**
  * Executor running Flink in "local environment". The local execution environment
  * will run the program in a multi-threaded fashion in the same JVM as the
@@ -11,6 +9,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 public class TestFlinkExecutor extends FlinkExecutor {
 
   public TestFlinkExecutor() {
-    super(StreamExecutionEnvironment.createLocalEnvironment());
+    super(true);
   }
 }

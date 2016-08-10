@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.translation.functions;
+package cz.seznam.euphoria.flink.functions;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.flink.api.common.functions.FlatMapFunction;
