@@ -90,10 +90,6 @@
     </developer>
   </developers>
 
-  <prerequisites>
-    <maven>3.0.3</maven>
-  </prerequisites>
-
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <dataflow.javadoc_opts />
@@ -220,24 +216,6 @@
                   </goals>
                 </execution>
               </executions>
-              <configuration>
-                <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
-                <excludeSubProjects>false</excludeSubProjects>
-                <useDefaultExcludes>true</useDefaultExcludes>
-                <excludes>
-                  <!-- Keep exclude sync with .gitignore -->
-                  <exclude>**/target/**/*</exclude>
-                  <exclude>**/dependency-reduced-pom.xml</exclude>
-                  <exclude>.github/**/*</exclude>
-                  <exclude>**/*.iml</exclude>
-                  <exclude>**/package-list</exclude>
-                  <exclude>**/user.avsc</exclude>
-                  <exclude>**/test/resources/**/*.txt</exclude>
-                  <exclude>**/test/**/.placeholder</exclude>
-                  <exclude>.repository/**/*</exclude>
-                  <exclude>**/.eggs/nose-*.egg/**/*</exclude>
-                </excludes>
-              </configuration>
             </plugin>
           </plugins>
         </pluginManagement>
@@ -974,16 +952,6 @@
                 </pluginExecution>
               </pluginExecutions>
             </lifecycleMappingMetadata>
-          </configuration>
-        </plugin>
-
-        <!-- Ignore runtime-only dependencies in analysis -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.10</version>
-          <configuration>
-            <ignoreNonCompile>true</ignoreNonCompile>
           </configuration>
         </plugin>
 
