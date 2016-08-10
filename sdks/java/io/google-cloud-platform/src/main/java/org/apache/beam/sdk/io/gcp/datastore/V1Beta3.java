@@ -93,12 +93,12 @@ import javax.annotation.Nullable;
  * {@link Entity} objects.
  *
  * <p>This API currently requires an authentication workaround. To use {@link V1Beta3}, users
- * must use the {@code gcloud} command line tool to get credentials for Datastore:
+ * must use the {@code gcloud} command line tool to get credentials for Cloud Datastore:
  * <pre>
  * $ gcloud auth login
  * </pre>
  *
- * <p>To read a {@link PCollection} from a query to Datastore, use {@link V1Beta3#read} and
+ * <p>To read a {@link PCollection} from a query to Cloud Datastore, use {@link V1Beta3#read} and
  * its methods {@link V1Beta3.Read#withProjectId} and {@link V1Beta3.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
  * to query within using {@link V1Beta3.Read#withNamespace}. You could also optionally specify
@@ -107,7 +107,7 @@ import javax.annotation.Nullable;
  * <p>For example:
  *
  * <pre> {@code
- * // Read a query from Datastore
+ * // Read a query from Cloud Datastore
  * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
  * Query query = ...;
  * String projectId = "...";
@@ -124,7 +124,7 @@ import javax.annotation.Nullable;
  * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then
  * all returned results will be read by a single Dataflow worker in order to ensure correct data.
  *
- * <p>To write a {@link PCollection} to a Datastore, use {@link V1Beta3#write},
+ * <p>To write a {@link PCollection} to Cloud Datastore, use {@link V1Beta3#write},
  * specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
@@ -153,7 +153,7 @@ import javax.annotation.Nullable;
  * more details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
- * </a>for security and permission related information specific to Datastore.
+ * </a>for security and permission related information specific to Cloud Datastore.
  *
  * @see org.apache.beam.sdk.runners.PipelineRunner
  */
@@ -180,7 +180,7 @@ public class V1Beta3 {
   }
 
   /**
-   * A {@link PTransform} that reads the result rows of a Datastore query as {@code Entity}
+   * A {@link PTransform} that reads the result rows of a Cloud Datastore query as {@code Entity}
    * objects.
    *
    * @see DatastoreIO
@@ -217,7 +217,7 @@ public class V1Beta3 {
 
     /**
      * Computes the number of splits to be performed on the given query by querying the estimated
-     * size from Datastore.
+     * size from Cloud Datastore.
      */
     static int getEstimatedNumSplits(Datastore datastore, Query query, @Nullable String namespace) {
       int numSplits;
@@ -236,7 +236,7 @@ public class V1Beta3 {
     /**
      * Get the estimated size of the data returned by the given query.
      *
-     * <p>Datastore provides no way to get a good estimate of how large the result of a query
+     * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
      * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind
      * is specified in the query.
      *
@@ -310,7 +310,8 @@ public class V1Beta3 {
     }
 
     /**
-     * Returns a new {@link V1Beta3.Read} that reads from the Datastore for the specified project.
+     * Returns a new {@link V1Beta3.Read} that reads from the Cloud Datastore for the specified
+     * project.
      */
     public V1Beta3.Read withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
@@ -352,7 +353,7 @@ public class V1Beta3 {
      *   <li>If the {@code query} has a user limit set, then {@code numQuerySplits} will be
      *   ignored and no split will be performed.
      *   <li>Under certain cases Cloud Datastore is unable to split query to the requested number of
-     *   splits. In such cases we just use whatever the Datastore returns.
+     *   splits. In such cases we just use whatever the Cloud Datastore returns.
      * </ul>
      */
     public V1Beta3.Read withNumQuerySplits(int numQuerySplits) {
@@ -444,7 +445,7 @@ public class V1Beta3 {
     }
 
     /**
-     * A class for v1beta3 Datastore related options.
+     * A class for Cloud Datastore v1beta3 version related options.
      */
     @VisibleForTesting
     static class V1Beta3Options implements Serializable {
@@ -559,7 +560,7 @@ public class V1Beta3 {
     }
 
     /**
-     * A {@link DoFn} that reads entities from Datastore for each query.
+     * A {@link DoFn} that reads entities from Cloud Datastore for each query.
      */
     @VisibleForTesting
     static class ReadFn extends DoFn<Query, Entity> {
@@ -636,8 +637,8 @@ public class V1Beta3 {
     }
 
     /**
-     * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
-     * {@link QuerySplitter}
+     * A wrapper factory class for Cloud Datastore client library singleton classes
+     * {@link DatastoreFactory} and {@link QuerySplitter}
      *
      * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
      * wrapping them under this class, which implements {@link Serializable}.
@@ -645,7 +646,7 @@ public class V1Beta3 {
     @VisibleForTesting
     static class V1Beta3DatastoreFactory implements Serializable {
 
-      /** Builds a Datastore client for the given pipeline options and project. */
+      /** Builds a Cloud Datastore client for the given pipeline options and project. */
       public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
         DatastoreOptions.Builder builder =
             new DatastoreOptions.Builder()
@@ -662,7 +663,7 @@ public class V1Beta3 {
         return DatastoreFactory.get().create(builder.build());
       }
 
-      /** Builds a Datastore {@link QuerySplitter}. */
+      /** Builds a Cloud Datastore {@link QuerySplitter}. */
       public QuerySplitter getQuerySplitter() {
         return DatastoreHelper.getQuerySplitter();
       }
@@ -736,7 +737,7 @@ public class V1Beta3 {
   }
 
   /**
-   * A {@link org.apache.beam.sdk.io.Sink} that writes data to Datastore.
+   * A {@link org.apache.beam.sdk.io.Sink} that writes data to Cloud Datastore.
    */
   static class DatastoreSink extends org.apache.beam.sdk.io.Sink<Entity> {
     final String projectId;
@@ -765,7 +766,7 @@ public class V1Beta3 {
   }
 
   /**
-   * A {@link WriteOperation} that will manage a parallel write to a Datastore sink.
+   * A {@link WriteOperation} that will manage a parallel write to a Cloud Datastore sink.
    */
   private static class DatastoreWriteOperation
       extends WriteOperation<Entity, DatastoreWriteResult> {
@@ -786,7 +787,7 @@ public class V1Beta3 {
     public void initialize(PipelineOptions options) throws Exception {}
 
     /**
-     * Finalizes the write.  Logs the number of entities written to the Datastore.
+     * Finalizes the write. Logs the number of entities written to the Cloud Datastore.
      */
     @Override
     public void finalize(Iterable<DatastoreWriteResult> writerResults, PipelineOptions options)
@@ -820,16 +821,16 @@ public class V1Beta3 {
   }
 
   /**
-   * {@link Writer} that writes entities to a Datastore Sink.  Entities are written in batches,
-   * where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.  Entities
+   * {@link Writer} that writes entities to a Cloud Datastore Sink.  Entities are written in
+   * batches, where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}. Entities
    * are committed as upsert mutations (either update if the key already exists, or insert if it is
    * a new key).  If an entity does not have a complete key (i.e., it has no name or id), the bundle
    * will fail.
    *
    * <p>See <a
    * href="https://cloud.google.com/datastore/docs/concepts/entities#Datastore_Creating_an_entity">
-   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and upsert
-   * mutations.
+   * Cloud Datastore: Entities, Properties, and Keys</a> for information about entity keys and
+   * upsert mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
    * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
@@ -859,7 +860,7 @@ public class V1Beta3 {
     private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
     /**
-     * Returns true if a Datastore key is complete.  A key is complete if its last element
+     * Returns true if a Cloud Datastore key is complete.  A key is complete if its last element
      * has either an id or a name.
      */
     static boolean isValidKey(Key key) {
@@ -880,7 +881,7 @@ public class V1Beta3 {
     public void open(String uId) throws Exception {}
 
     /**
-     * Writes an entity to the Datastore.  Writes are batched, up to {@link
+     * Writes an entity to the Cloud Datastore.  Writes are batched, up to {@link
      * V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}. If an entity does not have a complete key, an
      * {@link IllegalArgumentException} will be thrown.
      */
@@ -916,12 +917,12 @@ public class V1Beta3 {
     }
 
     /**
-     * Writes a batch of entities to the Datastore.
+     * Writes a batch of entities to the Cloud Datastore.
      *
      * <p>If a commit fails, it will be retried (up to {@link DatastoreWriter#MAX_RETRIES}
      * times).  All entities in the batch will be committed again, even if the commit was partially
-     * successful. If the retry limit is exceeded, the last exception from the Datastore will be
-     * thrown.
+     * successful. If the retry limit is exceeded, the last exception from the Cloud Datastore will
+     * be thrown.
      *
      * @throws DatastoreException if the commit fails or IOException or InterruptedException if
      * backing off between retries fails.

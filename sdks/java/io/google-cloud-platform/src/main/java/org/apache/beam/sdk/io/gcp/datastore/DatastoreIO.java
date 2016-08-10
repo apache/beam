@@ -22,7 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 /**
  * <p>{@link DatastoreIO} provides an API for reading from and writing to
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
- * versions of the Datastore Client libraries.
+ * versions of the Cloud Datastore Client libraries.
  *
  * <p>To use the v1beta3 version see {@link V1Beta3}.
  */
@@ -32,8 +32,8 @@ public class DatastoreIO {
   private DatastoreIO() {}
 
   /**
-   * Returns a {@link V1Beta3} that provides an API for accessing Datastore through v1beta3 version
-   * of Datastore Client library.
+   * Returns a {@link V1Beta3} that provides an API for accessing Cloud Datastore through v1beta3
+   * version of the client library.
    */
   public static V1Beta3 v1beta3() {
     return new V1Beta3();
