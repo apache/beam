@@ -49,8 +49,7 @@ public interface ExampleBigQueryTableOptions extends GcpOptions {
   static class BigQueryTableFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return options.as(ExampleOptions.class).getNormalizedUniqueName()
-          .replace('-', '_');
+      return options.getJobName().replace('-', '_');
     }
   }
 }
