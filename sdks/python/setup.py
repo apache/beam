@@ -85,6 +85,7 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),
+    setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
     zip_safe=False,
