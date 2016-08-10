@@ -26,7 +26,6 @@ import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingEvaluationContext;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
-import org.apache.beam.runners.spark.translation.streaming.StreamingWindowPipelineDetector;
 import org.apache.beam.runners.spark.util.SinglePrimitiveOutputPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -145,24 +144,16 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
-              .getSparkMaster(), mOptions.getAppName());
+      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(),
+          mOptions.getAppName());
 
       if (mOptions.isStreaming()) {
         SparkPipelineTranslator translator =
-                new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
-        // if streaming - fixed window should be defined on all UNBOUNDED inputs
-        StreamingWindowPipelineDetector streamingWindowPipelineDetector =
-            new StreamingWindowPipelineDetector(translator);
-        pipeline.traverseTopologically(streamingWindowPipelineDetector);
-        if (!streamingWindowPipelineDetector.isWindowing()) {
-          throw new IllegalStateException("Spark streaming pipeline must be windowed!");
-        }
-
-        Duration batchInterval = streamingWindowPipelineDetector.getBatchDuration();
+            new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
+        Duration batchInterval = new Duration(mOptions.getBatchIntervalMillis());
         LOG.info("Setting Spark streaming batchInterval to {} msec", batchInterval.milliseconds());
-        EvaluationContext ctxt = createStreamingEvaluationContext(jsc, pipeline, batchInterval);
 
+        EvaluationContext ctxt = createStreamingEvaluationContext(jsc, pipeline, batchInterval);
         pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
         ctxt.computeOutputs();
 
