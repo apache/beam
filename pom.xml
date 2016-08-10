@@ -839,8 +839,7 @@
           <artifactId>exec-maven-plugin</artifactId>
           <version>1.4.0</version>
           <executions>
-            <execution>             
-              <id>beam-exec-java</id>
+            <execution>
               <phase>verify</phase>
               <goals>
                 <goal>java</goal>
