@@ -131,6 +131,28 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
+   * Whether or not a {@link DoFnTester} should clone the {@link DoFn} under test.
+   */
+  public enum CloningBehavior {
+    CLONE,
+    DO_NOT_CLONE;
+  }
+
+  /**
+   * Instruct this {@link DoFnTester} whether or not to clone the {@link DoFn} under test.
+   */
+  public void setCloningBehavior(CloningBehavior newValue) {
+    this.cloningBehavior = newValue;
+  }
+
+  /**
+   *  Indicates whether this {@link DoFnTester} will clone the {@link DoFn} under test.
+   */
+  public CloningBehavior getCloningBehavior() {
+    return cloningBehavior;
+  }
+
+  /**
    * A convenience operation that first calls {@link #startBundle},
    * then calls {@link #processElement} on each of the input elements, then
    * calls {@link #finishBundle}, then returns the result of
@@ -644,6 +666,13 @@ public class DoFnTester<InputT, OutputT> {
   /** The original DoFn under test. */
   private final DoFn<InputT, OutputT> origFn;
 
+  /**
+   * Whether to clone the original {@link DoFn} or just use it as-is.
+   *
+   * <p></p>Worker-side {@link DoFn DoFns} may not be serializable, and are not required to be.
+   */
+  private CloningBehavior cloningBehavior = CloningBehavior.CLONE;
+
   /** The side input values to provide to the DoFn under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
@@ -676,10 +705,14 @@ public class DoFnTester<InputT, OutputT> {
 
   @SuppressWarnings("unchecked")
   private void initializeState() {
-    fn = (DoFn<InputT, OutputT>)
-        SerializableUtils.deserializeFromByteArray(
-            SerializableUtils.serializeToByteArray(origFn),
-            origFn.toString());
+    if (cloningBehavior.equals(CloningBehavior.DO_NOT_CLONE)) {
+      fn = origFn;
+    } else {
+      fn = (DoFn<InputT, OutputT>)
+          SerializableUtils.deserializeFromByteArray(
+              SerializableUtils.serializeToByteArray(origFn),
+              origFn.toString());
+    }
     outputs = new HashMap<>();
     accumulators = new HashMap<>();
   }

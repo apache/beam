@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -83,7 +83,8 @@
                           "--streaming=false"
                         ]
                       </beamTestPipelineOptions>
-                      <dataflow.spark.test.reuseSparkContext>true</dataflow.spark.test.reuseSparkContext>
+                      <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
+                      <spark.ui.enabled>false</spark.ui.enabled>
                     </systemPropertyVariables>
                   </configuration>
                 </execution>
@@ -222,17 +223,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-examples-java</artifactId>
-      <exclusions>
-        <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-jdk14</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro-mapred</artifactId>
       <version>${avro.version}</version>
@@ -256,11 +246,6 @@
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <version>0.2.0-incubating-SNAPSHOT</version>
     </dependency>
 
     <!-- Depend on test jar to scan for RunnableOnService tests -->
@@ -295,6 +280,10 @@
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
+            <systemPropertyVariables>
+              <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
+              <spark.ui.enabled>false</spark.ui.enabled>
+            </systemPropertyVariables>
           </configuration>
         </plugin>
         <plugin>

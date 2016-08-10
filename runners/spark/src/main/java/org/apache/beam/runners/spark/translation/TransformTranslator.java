@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
@@ -32,6 +33,7 @@ import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
@@ -47,8 +49,16 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AssignWindowsDoFn;
+import org.apache.beam.sdk.util.GroupAlsoByWindowsViaOutputBufferDoFn;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
+import org.apache.beam.sdk.util.SystemReduceFn;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -78,12 +88,12 @@ import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import scala.Tuple2;
 
 /**
@@ -156,6 +166,55 @@ public final class TransformTranslator {
             .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, valueCoder)))
             // empty windows are OK here, see GroupByKey#evaluateHelper in the SDK
             .map(WindowingHelpers.<KV<K, Iterable<V>>>windowFunction());
+        context.setOutputRDD(transform, outRDD);
+      }
+    };
+  }
+
+  private static <K, V, W extends BoundedWindow>
+      TransformEvaluator<GroupAlsoByWindow<K, V>> gabw() {
+    return new TransformEvaluator<GroupAlsoByWindow<K, V>>() {
+      @Override
+      public void evaluate(GroupAlsoByWindow<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        JavaRDDLike<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>, ?> inRDD =
+            (JavaRDDLike<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>, ?>)
+                context.getInputRDD(transform);
+
+        Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder =
+            context.getInput(transform).getCoder();
+        Coder<K> keyCoder = transform.getKeyCoder(inputCoder);
+        Coder<V> valueCoder = transform.getValueCoder(inputCoder);
+
+        @SuppressWarnings("unchecked")
+        KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
+            (KvCoder<K, Iterable<WindowedValue<V>>>) context.getInput(transform).getCoder();
+        Coder<Iterable<WindowedValue<V>>> inputValueCoder = inputKvCoder.getValueCoder();
+
+        IterableCoder<WindowedValue<V>> inputIterableValueCoder =
+            (IterableCoder<WindowedValue<V>>) inputValueCoder;
+        Coder<WindowedValue<V>> inputIterableElementCoder = inputIterableValueCoder.getElemCoder();
+        WindowedValueCoder<V> inputIterableWindowedValueCoder =
+            (WindowedValueCoder<V>) inputIterableElementCoder;
+
+        Coder<V> inputIterableElementValueCoder = inputIterableWindowedValueCoder.getValueCoder();
+
+        @SuppressWarnings("unchecked")
+        WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) transform.getWindowingStrategy();
+
+        DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> gabwDoFn =
+            new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
+                windowingStrategy,
+                new InMemoryStateInternalsFactory<K>(),
+                SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
+
+        // GroupAlsoByWindow current uses a dummy in-memory StateInternals
+        JavaRDDLike<WindowedValue<KV<K, Iterable<V>>>, ?> outRDD =
+            inRDD.mapPartitions(
+                new DoFnFunction<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>>(
+                    gabwDoFn, context.getRuntimeContext(), null));
+
         context.setOutputRDD(transform, outRDD);
       }
     };
@@ -815,6 +874,7 @@ public final class TransformTranslator {
     EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(GroupByKeyOnly.class, gbk());
+    EVALUATORS.put(GroupAlsoByWindow.class, gabw());
     EVALUATORS.put(Combine.GroupedValues.class, grouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
@@ -851,6 +911,14 @@ public final class TransformTranslator {
     public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translate(
         Class<TransformT> clazz) {
       return getTransformEvaluator(clazz);
+    }
+  }
+
+  private static class InMemoryStateInternalsFactory<K> implements StateInternalsFactory<K>,
+      Serializable {
+    @Override
+    public StateInternals<K> stateInternalsForKey(K key) {
+      return InMemoryStateInternals.forKey(key);
     }
   }
 }

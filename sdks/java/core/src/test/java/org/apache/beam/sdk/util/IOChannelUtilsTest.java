@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.io.Files;
@@ -77,6 +79,12 @@ public class IOChannelUtilsTest {
     Assert.assertEquals("out-100-of-5000.txt",
         IOChannelUtils.constructName("out", "-SS-of-NN", ".txt",
             100, 5000));
+  }
+
+  @Test
+  public void testHandlerNoScheme() throws Exception {
+    String pathToTempFolder = tmpFolder.getRoot().getAbsolutePath();
+    assertThat(IOChannelUtils.getFactory(pathToTempFolder), instanceOf(FileIOChannelFactory.class));
   }
 
   @Test

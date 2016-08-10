@@ -31,6 +31,7 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 
 /**
@@ -44,8 +45,10 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
 
   public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
-          WindowingStrategy<?, W> strategy, SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
-    return new GroupAlsoByWindowViaWindowSetDoFn<>(strategy, reduceFn);
+          WindowingStrategy<?, W> strategy,
+          StateInternalsFactory<K> stateInternalsFactory,
+          SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
+    return new GroupAlsoByWindowViaWindowSetDoFn<>(strategy, stateInternalsFactory, reduceFn);
   }
 
   protected final Aggregator<Long, Long> droppedDueToClosedWindow =
@@ -55,15 +58,18 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
       createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
   private final WindowingStrategy<Object, W> windowingStrategy;
+  private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
 
   private GroupAlsoByWindowViaWindowSetDoFn(
       WindowingStrategy<?, W> windowingStrategy,
+      StateInternalsFactory<K> stateInternalsFactory,
       SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
     this.windowingStrategy = noWildcard;
     this.reduceFn = reduceFn;
+    this.stateInternalsFactory = stateInternalsFactory;
   }
 
   @Override
@@ -72,11 +78,7 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
 
     K key = c.element().key();
     TimerInternals timerInternals = c.windowingInternals().timerInternals();
-
-    // It is the responsibility of the user of GroupAlsoByWindowsViaWindowSet to only
-    // provide a WindowingInternals instance with the appropriate key type for StateInternals.
-    @SuppressWarnings("unchecked")
-    StateInternals<K> stateInternals = (StateInternals<K>) c.windowingInternals().stateInternals();
+    StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
         new ReduceFnRunner<>(

@@ -78,7 +78,8 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
           Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
               .withAllowedLateness(Duration.ZERO)
               .discardingFiredPanes());
-      final PCollectionView<Long> numRecords = records.apply(Count.<T>globally().asSingletonView());
+      final PCollectionView<Long> numRecords = records
+          .apply("CountRecords", Count.<T>globally().asSingletonView());
       PCollection<T> resharded =
           records
               .apply(
@@ -107,7 +108,7 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
     private final PCollectionView<Long> numRecords;
     private final int randomExtraShards;
     private int currentShard;
-    private int maxShards;
+    private int maxShards = 0;
 
     KeyBasedOnCountFn(PCollectionView<Long> numRecords, int extraShards) {
       this.numRecords = numRecords;
@@ -116,7 +117,7 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      if (maxShards == 0L) {
+      if (maxShards == 0) {
         maxShards = calculateShards(c.sideInput(numRecords));
         currentShard = ThreadLocalRandom.current().nextInt(maxShards);
       }

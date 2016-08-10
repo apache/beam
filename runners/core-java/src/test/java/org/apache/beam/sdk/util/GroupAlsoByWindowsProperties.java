@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -32,10 +33,15 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -61,7 +67,7 @@ public class GroupAlsoByWindowsProperties {
    */
   public interface GroupAlsoByWindowsDoFnFactory<K, InputT, OutputT> {
     <W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
-    forStrategy(WindowingStrategy<?, W> strategy);
+    forStrategy(WindowingStrategy<?, W> strategy, StateInternalsFactory<K> stateInternalsFactory);
   }
 
   /**
@@ -77,10 +83,15 @@ public class GroupAlsoByWindowsProperties {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
 
+    // This key should never actually be used, though it is eagerly passed to the
+    // StateInternalsFactory so must be non-null
+    @SuppressWarnings("unchecked")
+    K fakeKey = (K) "this key should never be used";
+
     DoFnTester<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> result = runGABW(
         gabwFactory,
         windowingStrategy,
-        (K) null, // key should never be used
+        fakeKey,
         Collections.<WindowedValue<InputT>>emptyList());
 
     assertThat(result.peekOutputElements(), hasSize(0));
@@ -599,11 +610,14 @@ public class GroupAlsoByWindowsProperties {
       K key,
       Collection<WindowedValue<InputT>> values) throws Exception {
 
-    TupleTag<KV<K, OutputT>> outputTag = new TupleTag<>();
-    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    final StateInternalsFactory<K> stateInternalsCache = new CachingStateInternalsFactory<K>();
 
     DoFnTester<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> tester =
-        DoFnTester.of(gabwFactory.forStrategy(windowingStrategy));
+        DoFnTester.of(gabwFactory.forStrategy(windowingStrategy, stateInternalsCache));
+
+    // Though we use a DoFnTester, the function itself is instantiated directly by the
+    // runner and should not be serialized; it may not even be serializable.
+    tester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     tester.startBundle();
     tester.processElement(KV.<K, Iterable<WindowedValue<InputT>>>of(key, values));
     tester.finishBundle();
@@ -620,4 +634,28 @@ public class GroupAlsoByWindowsProperties {
     return new IntervalWindow(new Instant(start), new Instant(end));
   }
 
+  private static final class CachingStateInternalsFactory<K> implements StateInternalsFactory<K> {
+    private final LoadingCache<K, StateInternals<K>> stateInternalsCache;
+
+    private CachingStateInternalsFactory() {
+      this.stateInternalsCache = CacheBuilder.newBuilder().build(new StateInternalsLoader<K>());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public StateInternals<K> stateInternalsForKey(K key) {
+      try {
+        return stateInternalsCache.get(key);
+      } catch (Exception exc) {
+        throw new RuntimeException(exc);
+      }
+    }
+  }
+
+  private static class StateInternalsLoader<K> extends CacheLoader<K, StateInternals<K>> {
+    @Override
+    public StateInternals<K> load(K key) throws Exception {
+      return InMemoryStateInternals.forKey(key);
+    }
+  }
 }

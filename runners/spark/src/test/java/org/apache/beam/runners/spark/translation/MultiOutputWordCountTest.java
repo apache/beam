@@ -22,6 +22,7 @@ import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.testing.PAssert;
@@ -68,7 +69,9 @@ public class MultiOutputWordCountTest {
 
   @Test
   public void testRun() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(SparkRunner.class);
+    Pipeline p = Pipeline.create(options);
     PCollection<String> regex = p.apply(Create.of("[^a-zA-Z']+"));
     PCollection<String> w1 = p.apply(Create.of("Here are some words to count", "and some others"));
     PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));

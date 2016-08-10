@@ -19,14 +19,15 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.SimpleWordCountTest;
 import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -64,7 +65,8 @@ public class WindowedWordCountTest {
     PCollection<String> windowedWords =
         inputWords.apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
 
-    PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
+    PCollection<String> output = windowedWords.apply(new WordCount.CountWords())
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SEPARATE_COUNT_SET);
 
@@ -85,7 +87,8 @@ public class WindowedWordCountTest {
     PCollection<String> windowedWords = inputWords
         .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(5))));
 
-    PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
+    PCollection<String> output = windowedWords.apply(new WordCount.CountWords())
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SAME_COUNT_SET);
 
@@ -108,7 +111,8 @@ public class WindowedWordCountTest {
         .apply(Window.<String>into(SlidingWindows.of(Duration.standardMinutes(2))
         .every(Duration.standardMinutes(1))));
 
-    PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
+    PCollection<String> output = windowedWords.apply(new WordCount.CountWords())
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_SLIDING_COUNT_SET);
 

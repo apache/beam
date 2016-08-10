@@ -24,6 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -51,7 +52,9 @@ public class CombinePerKeyTest {
         ImmutableList.of("the", "quick", "brown", "fox", "jumped", "over", "the", "lazy", "dog");
     @Test
     public void testRun() {
-        Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+        PipelineOptions options = PipelineOptionsFactory.create();
+        options.setRunner(SparkRunner.class);
+        Pipeline p = Pipeline.create(options);
         PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
         PCollection<KV<String, Long>> cnts = inputWords.apply(new SumPerKey<String>());
         EvaluationResult res = SparkRunner.create().run(p);

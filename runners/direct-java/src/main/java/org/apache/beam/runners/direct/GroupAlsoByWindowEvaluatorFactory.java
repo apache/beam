@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,11 +27,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.SystemReduceFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -94,9 +98,19 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>) application.getTransform().getWindowingStrategy();
 
+      DirectStepContext stepContext =
+          evaluationContext
+              .getExecutionContext(application, inputBundle.getKey())
+              .getOrCreateStepContext(
+                  evaluationContext.getStepName(application), application.getTransform().getName());
+
+      StateInternals<K> stateInternals = (StateInternals<K>) stepContext.stateInternals();
+
       DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> gabwDoFn =
           GroupAlsoByWindowViaWindowSetDoFn.create(
               windowingStrategy,
+              // new DirectStateInternalsFactory<K, V>(stepContext),
+              new ConstantStateInternalsFactory<K>(stateInternals),
               SystemReduceFn.<K, V, BoundedWindow>buffering(valueCoder));
 
       TupleTag<KV<K, Iterable<V>>> mainOutputTag = new TupleTag<KV<K, Iterable<V>>>() {};
@@ -105,6 +119,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       this.gabwParDoEvaluator =
           ParDoEvaluator.create(
               evaluationContext,
+              stepContext,
               inputBundle,
               application,
               gabwDoFn,
@@ -122,6 +137,21 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult finishBundle() throws Exception {
       return gabwParDoEvaluator.finishBundle();
+    }
+  }
+
+  private static final class ConstantStateInternalsFactory<K>
+      implements StateInternalsFactory<K> {
+    private final StateInternals<K> stateInternals;
+
+    private ConstantStateInternalsFactory(StateInternals<K> stateInternals) {
+      this.stateInternals = stateInternals;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public StateInternals<K> stateInternalsForKey(K key) {
+      return stateInternals;
     }
   }
 }

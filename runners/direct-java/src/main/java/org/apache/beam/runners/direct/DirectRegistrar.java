@@ -35,7 +35,7 @@ public class DirectRegistrar {
    * Registers the {@link org.apache.beam.runners.direct.DirectRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
-  public static class DirectRunner implements PipelineRunnerRegistrar {
+  public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
       return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
@@ -47,7 +47,7 @@ public class DirectRegistrar {
    * Registers the {@link org.apache.beam.runners.direct.DirectOptions}.
    */
   @AutoService(PipelineOptionsRegistrar.class)
-  public static class DirectOptions implements PipelineOptionsRegistrar {
+  public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return ImmutableList.<Class<? extends PipelineOptions>>of(

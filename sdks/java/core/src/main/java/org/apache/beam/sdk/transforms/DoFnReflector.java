@@ -42,16 +42,18 @@ import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy.SuffixingRandom;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.ParameterList;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.Generic;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.MethodCall.MethodLocator;
 import net.bytebuddy.implementation.StubMethod;
@@ -70,7 +72,6 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -89,7 +90,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 
@@ -499,8 +499,20 @@ public abstract class DoFnReflector {
      */
     private Constructor<? extends DoFnInvoker<?, ?>> createInvokerConstructor(
         @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> clazz) {
+
+      final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
+
       DynamicType.Builder<?> builder = new ByteBuddy()
-          .subclass(DoFnInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
+          // Create subclasses inside the target class, to have access to
+          // private and package-private bits
+          .with(new SuffixingRandom("auxiliary") {
+                @Override
+                public String subclass(Generic superClass) {
+                  return super.name(clazzDescription);
+                }
+              })
+          // Create a subclass of DoFnInvoker
+          .subclass(DoFnInvoker.class, Default.NO_CONSTRUCTORS)
           .defineField(FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
           // Define a constructor to populate fields appropriately.
           .defineConstructor(Visibility.PUBLIC)

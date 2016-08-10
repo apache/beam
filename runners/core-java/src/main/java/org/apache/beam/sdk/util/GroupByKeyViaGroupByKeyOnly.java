@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -26,6 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -68,7 +71,7 @@ import java.util.List;
 public class GroupByKeyViaGroupByKeyOnly<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
-  private GroupByKey<K, V> gbkTransform;
+  private final GroupByKey<K, V> gbkTransform;
 
   public GroupByKeyViaGroupByKeyOnly(GroupByKey<K, V> originalTransform) {
     this.gbkTransform = originalTransform;
@@ -161,13 +164,12 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   }
 
   /**
-   * Helper transform that takes a collection of timestamp-ordered
-   * values associated with each key, groups the values by window,
-   * combines windows as needed, and for each window in each key,
-   * outputs a collection of key/value-list pairs implicitly assigned
-   * to the window and with the timestamp derived from that window.
+   * Runner-specific primitive that takes a collection of timestamp-ordered values associated with
+   * each key, groups the values by window, merges windows as needed, and for each window in each
+   * key, outputs a collection of key/value-list pairs implicitly assigned to the window and with
+   * the timestamp derived from that window.
    */
-  private static class GroupAlsoByWindow<K, V>
+  public static class GroupAlsoByWindow<K, V>
       extends PTransform<
           PCollection<KV<K, Iterable<WindowedValue<V>>>>, PCollection<KV<K, Iterable<V>>>> {
     private final WindowingStrategy<?, ?> windowingStrategy;
@@ -176,8 +178,57 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       this.windowingStrategy = windowingStrategy;
     }
 
+    public WindowingStrategy<?, ?> getWindowingStrategy() {
+      return windowingStrategy;
+    }
+
+    private KvCoder<K, Iterable<WindowedValue<V>>> getKvCoder(
+        Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder) {
+      // Coder<KV<...>> --> KvCoder<...>
+      checkArgument(inputCoder instanceof KvCoder,
+          "%s requires a %s<...> but got %s",
+          getClass().getSimpleName(),
+          KvCoder.class.getSimpleName(),
+          inputCoder);
+      @SuppressWarnings("unchecked")
+      KvCoder<K, Iterable<WindowedValue<V>>> kvCoder =
+          (KvCoder<K, Iterable<WindowedValue<V>>>) inputCoder;
+      return kvCoder;
+    }
+
+    public Coder<K> getKeyCoder(Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder) {
+      return getKvCoder(inputCoder).getKeyCoder();
+    }
+
+    public Coder<V> getValueCoder(Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder) {
+      // Coder<Iterable<...>> --> IterableCoder<...>
+      Coder<Iterable<WindowedValue<V>>> iterableWindowedValueCoder =
+          getKvCoder(inputCoder).getValueCoder();
+      checkArgument(iterableWindowedValueCoder instanceof IterableCoder,
+          "%s requires a %s<..., %s> but got a %s",
+          getClass().getSimpleName(),
+          KvCoder.class.getSimpleName(),
+          IterableCoder.class.getSimpleName(),
+          iterableWindowedValueCoder);
+      IterableCoder<WindowedValue<V>> iterableCoder =
+          (IterableCoder<WindowedValue<V>>) iterableWindowedValueCoder;
+
+      // Coder<WindowedValue<...>> --> WindowedValueCoder<...>
+      Coder<WindowedValue<V>> iterableElementCoder = iterableCoder.getElemCoder();
+      checkArgument(iterableElementCoder instanceof WindowedValueCoder,
+          "%s requires a %s<..., %s<%s>> but got a %s",
+          getClass().getSimpleName(),
+          KvCoder.class.getSimpleName(),
+          IterableCoder.class.getSimpleName(),
+          WindowedValueCoder.class.getSimpleName(),
+          iterableElementCoder);
+      WindowedValueCoder<V> windowedValueCoder =
+          (WindowedValueCoder<V>) iterableElementCoder;
+
+      return windowedValueCoder.getValueCoder();
+    }
+
     @Override
-    @SuppressWarnings("unchecked")
     public PCollection<KV<K, Iterable<V>>> apply(
         PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
       @SuppressWarnings("unchecked")
@@ -197,16 +248,20 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       Coder<Iterable<V>> outputValueCoder = IterableCoder.of(inputIterableElementValueCoder);
       Coder<KV<K, Iterable<V>>> outputKvCoder = KvCoder.of(keyCoder, outputValueCoder);
 
-      return input
-          .apply(ParDo.of(groupAlsoByWindowsFn(windowingStrategy, inputIterableElementValueCoder)))
+      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
+          input.getPipeline(), windowingStrategy, input.isBounded())
           .setCoder(outputKvCoder);
     }
 
     private <W extends BoundedWindow>
         GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W> groupAlsoByWindowsFn(
-            WindowingStrategy<?, W> strategy, Coder<V> inputIterableElementValueCoder) {
+            WindowingStrategy<?, W> strategy,
+            StateInternalsFactory<K> stateInternalsFactory,
+            Coder<V> inputIterableElementValueCoder) {
       return new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
-          strategy, SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
+          strategy,
+          stateInternalsFactory,
+          SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
     }
   }
 }

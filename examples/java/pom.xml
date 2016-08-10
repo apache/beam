@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -45,7 +45,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <beamUseDummyRunner></beamUseDummyRunner>
+            <beamUseDummyRunner />
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
@@ -195,17 +195,6 @@
         </executions>
       </plugin>
     </plugins>
-
-    <extensions>
-      <!-- Use os-maven-plugin to initialize the "os.detected" properties for Bigtable
-           in beam-sdks-java-io-google-cloud-platform.
-           See: https://cloud.google.com/bigtable/docs/using-maven#encryption -->
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${os-maven-plugin.version}</version>
-      </extension>
-    </extensions>
   </build>
 
   <dependencies>
