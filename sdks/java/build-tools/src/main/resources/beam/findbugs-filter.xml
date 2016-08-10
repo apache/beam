@@ -44,12 +44,6 @@
     <!--[BEAM-398] Inconsistent synchronization-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.coders.StandardCoder"/>
-    <Method name="toString"/>
-    <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
-    <!--[BEAM-401] Method invokes inefficient new String(String) constructor-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
     <Field name="done"/>
     <Bug pattern="IS2_INCONSISTENT_SYNC"/>
