@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.apache.spark.streaming.Durations;
 import org.joda.time.Duration;
 import org.junit.Test;
 
@@ -58,6 +59,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
         PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     options.setStreaming(true);
+    options.setBatchIntervalMillis(Durations.seconds(1).milliseconds());
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
 

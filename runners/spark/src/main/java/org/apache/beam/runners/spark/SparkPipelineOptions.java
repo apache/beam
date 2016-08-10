@@ -39,4 +39,9 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   @Default.Long(-1)
   Long getTimeout();
   void setTimeout(Long batchInterval);
+
+  @Description("Batch interval for Spark streaming in milliseconds.")
+  @Default.Long(1000)
+  Long getBatchIntervalMillis();
+  void setBatchIntervalMillis(Long batchInterval);
 }
