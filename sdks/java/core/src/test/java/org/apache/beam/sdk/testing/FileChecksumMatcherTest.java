@@ -49,29 +49,57 @@ public class FileChecksumMatcherTest {
   private PipelineResult pResult = Mockito.mock(PipelineResult.class);
 
   @Test
-  public void testPreconditionValidChecksumString() throws IOException{
+  public void testPreconditionChecksumIsNull() throws IOException {
     String tmpPath = tmpFolder.newFile().getPath();
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("Expected valid checksum, but received"));
     new FileChecksumMatcher(null, tmpPath);
+  }
+
+  @Test
+  public void testPreconditionChecksumIsEmpty() throws IOException {
+    String tmpPath = tmpFolder.newFile().getPath();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString("Expected valid checksum, but received"));
     new FileChecksumMatcher("", tmpPath);
   }
 
   @Test
-  public void testPreconditionValidFilePath() throws IOException {
+  public void testPreconditionFilePathIsNull() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("Expected valid file path, but received"));
     new FileChecksumMatcher("checksumString", null);
+  }
+
+  @Test
+  public void testPreconditionFilePathIsEmpty() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString("Expected valid file path, but received"));
     new FileChecksumMatcher("checksumString", "");
   }
 
   @Test
-  public void testChecksumVerify() throws IOException{
+  public void testMatcherVerifySingleFile() throws IOException{
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
     FileChecksumMatcher matcher =
         new FileChecksumMatcher("a8772322f5d7b851777f820fc79d050f9d302915", tmpFile.getPath());
+
+    assertThat(pResult, matcher);
+  }
+
+  @Test
+  public void testMatcherVerifyMultipleFilesInOneDir() throws IOException {
+    File tmpFile1 = tmpFolder.newFile();
+    File tmpFile2 = tmpFolder.newFile();
+    Files.write("To be or not to be, ", tmpFile1, StandardCharsets.UTF_8);
+    Files.write("it is not a question.", tmpFile2, StandardCharsets.UTF_8);
+    FileChecksumMatcher matcher =
+        new FileChecksumMatcher(
+            "90552392c28396935fe4f123bd0b5c2d0f6260c8",
+            tmpFolder.getRoot().getPath() + "/*");
 
     assertThat(pResult, matcher);
   }
