@@ -279,7 +279,7 @@ public class TextIOTest {
     List<String> actual = new ArrayList<>();
     for (File tmpFile : expectedFiles) {
       try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
-        for (; ; ) {
+        for (;;) {
           String line = reader.readLine();
           if (line == null) {
             break;
