@@ -283,7 +283,17 @@ class _CompressionType(object):
     self.identifier = identifier
 
   def __eq__(self, other):
-    return self.identifier == other.identifier
+    return (isinstance(other, _CompressionType) and
+            self.identifier == other.identifier)
+
+  def __hash__(self):
+    return hash((self.identifier))
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __repr__(self):
+    return '_CompressionType(%s)' % self.identifier
 
 
 class CompressionTypes(object):
