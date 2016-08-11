@@ -120,7 +120,6 @@
     <jackson.version>2.7.2</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
     <joda.version>2.4</joda.version>
-    <jsr305.version>3.0.1</jsr305.version>
     <junit.version>4.11</junit.version>
     <mockito.version>1.9.5</mockito.version>
     <netty.version>4.1.1.Final</netty.version>
