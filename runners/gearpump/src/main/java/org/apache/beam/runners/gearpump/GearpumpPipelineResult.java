@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.gearpump;
 
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.joda.time.Duration;
+
+import java.io.IOException;
 
 /**
  * Result of executing a {@link Pipeline} with Gearpump.
@@ -33,10 +36,26 @@ public class GearpumpPipelineResult implements PipelineResult {
   }
 
   @Override
+  public State cancel() throws IOException {
+    return null;
+  }
+
+  @Override
+  public State waitUntilFinish(Duration duration) throws IOException, InterruptedException {
+    return null;
+  }
+
+  @Override
+  public State waitUntilFinish() throws IOException, InterruptedException {
+    return null;
+  }
+
+  @Override
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
     throw new AggregatorRetrievalException(
         "PipelineResult getAggregatorValues not supported in Gearpump pipeline",
         new UnsupportedOperationException());
   }
+
 }
