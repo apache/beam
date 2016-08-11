@@ -367,7 +367,7 @@ public class CoderRegistryTest {
   extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
 
     private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) { }
     }
 
@@ -431,7 +431,7 @@ public class CoderRegistryTest {
       PCollection<KV<String, MySerializableGeneric<T>>>> {
 
     private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<T>>> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) { }
     }
 

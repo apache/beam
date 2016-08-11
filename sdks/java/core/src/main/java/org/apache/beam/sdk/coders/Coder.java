@@ -260,7 +260,7 @@ public interface Coder<T> extends Serializable {
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
    * not deterministic, including details of why the encoding is not deterministic.
    */
-  public static class NonDeterministicException extends Throwable {
+  public static class NonDeterministicException extends Exception {
     private Coder<?> coder;
     private List<String> reasons;
 

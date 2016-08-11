@@ -67,7 +67,7 @@ public class SimpleWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = SparkRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 
@@ -87,7 +87,7 @@ public class SimpleWordCountTest {
     File outputFile = testFolder.newFile();
     output.apply("WriteCounts", TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
 
-    EvaluationResult res = SparkRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
 
     assertThat(Sets.newHashSet(FileUtils.readLines(outputFile)),

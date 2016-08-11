@@ -20,7 +20,7 @@ package org.apache.beam.sdk.options;
 import org.apache.beam.sdk.util.CredentialFactory;
 import org.apache.beam.sdk.util.GcpCredentialFactory;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.util.PathValidator;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
@@ -29,7 +29,6 @@ import com.google.common.base.Strings;
 import com.google.common.io.Files;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +40,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 /**
  * Options used to configure Google Cloud Platform project and credentials.
@@ -300,7 +301,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description("A GCS path for storing temporary files in GCP.")
   @Default.InstanceFactory(GcpTempLocationFactory.class)
-  String getGcpTempLocation();
+  @Nullable String getGcpTempLocation();
   void setGcpTempLocation(String value);
 
   /**
@@ -309,11 +310,13 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   public static class GcpTempLocationFactory implements DefaultValueFactory<String> {
 
     @Override
+    @Nullable
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
       if (!Strings.isNullOrEmpty(tempLocation)) {
         try {
-          GcsPath.fromUri(tempLocation);
+          PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+          validator.validateOutputFilePrefixSupported(tempLocation);
         } catch (Exception e) {
           // Ignore the temp location because it is not a valid 'gs://' path.
           return null;

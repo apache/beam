@@ -39,7 +39,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -391,7 +391,7 @@ class FlinkBatchTransformTranslators {
           inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
 
       // construct a map from side input to WindowingStrategy so that
-      // the DoFn runner can map main-input windows to side input windows
+      // the OldDoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
       for (PCollectionView<?> sideInput: transform.getSideInputs()) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
@@ -494,7 +494,7 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      final DoFn<InputT, OutputT> doFn = transform.getFn();
+      final OldDoFn<InputT, OutputT> doFn = transform.getFn();
 
       TypeInformation<WindowedValue<OutputT>> typeInformation =
           context.getTypeInfo(context.getOutput(transform));
@@ -502,7 +502,7 @@ class FlinkBatchTransformTranslators {
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       // construct a map from side input to WindowingStrategy so that
-      // the DoFn runner can map main-input windows to side input windows
+      // the OldDoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
       for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
@@ -539,7 +539,7 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      final DoFn<InputT, OutputT> doFn = transform.getFn();
+      final OldDoFn<InputT, OutputT> doFn = transform.getFn();
 
       Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
 
@@ -578,7 +578,7 @@ class FlinkBatchTransformTranslators {
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       // construct a map from side input to WindowingStrategy so that
-      // the DoFn runner can map main-input windows to side input windows
+      // the OldDoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
       for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());

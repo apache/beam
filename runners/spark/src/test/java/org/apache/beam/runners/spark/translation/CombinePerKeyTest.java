@@ -57,7 +57,7 @@ public class CombinePerKeyTest {
         Pipeline p = Pipeline.create(options);
         PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
         PCollection<KV<String, Long>> cnts = inputWords.apply(new SumPerKey<String>());
-        EvaluationResult res = SparkRunner.create().run(p);
+        EvaluationResult res = (EvaluationResult) p.run();
         Map<String, Long> actualCnts = new HashMap<>();
         for (KV<String, Long> kv : res.get(cnts)) {
             actualCnts.put(kv.getKey(), kv.getValue());
@@ -71,7 +71,7 @@ public class CombinePerKeyTest {
       @Override
       public PCollection<KV<T, Long>> apply(PCollection<T> pcol) {
           PCollection<KV<T, Long>> withLongs = pcol.apply(ParDo.of(new DoFn<T, KV<T, Long>>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext processContext) throws Exception {
                   processContext.output(KV.of(processContext.element(), 1L));
               }

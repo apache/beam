@@ -71,7 +71,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         .setWindowingStrategyInternal(originalStrategy)
         .apply("ExpandIterable", ParDo.of(
             new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();
                 for (V value : c.element().getValue()) {

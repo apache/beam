@@ -19,8 +19,8 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -32,14 +32,14 @@ import org.joda.time.Instant;
 import java.util.Collection;
 
 /**
- * {@link DoFn} that tags elements of a {@link PCollection} with windows, according to the provided
- * {@link WindowFn}.
+ * {@link OldDoFn} that tags elements of a {@link PCollection} with windows, according to the
+ * provided {@link WindowFn}.
  *
  * @param <T> Type of elements being windowed
  * @param <W> Window type
  */
 @SystemDoFnInternal
-public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T>
+public class AssignWindowsDoFn<T, W extends BoundedWindow> extends OldDoFn<T, T>
     implements RequiresWindowAccess {
   private WindowFn<? super T, W> fn;
 

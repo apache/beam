@@ -175,7 +175,7 @@ public class Sample {
       this.iterableView = iterableView;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       for (T i : c.sideInput(iterableView)) {
         if (limit-- <= 0) {

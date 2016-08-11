@@ -155,7 +155,7 @@ public class Window {
      *
      * <p>This is the default behavior.
      */
-    FIRE_IF_NON_EMPTY;
+    FIRE_IF_NON_EMPTY
   }
 
   /**
@@ -646,7 +646,8 @@ public class Window {
           // PCollection. This ensures that we don't modify the windowing strategy of the input
           // which may be used elsewhere.
           .apply("Identity", ParDo.of(new DoFn<T, T>() {
-            @Override public void processElement(ProcessContext c) {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
               c.output(c.element());
             }
           }))

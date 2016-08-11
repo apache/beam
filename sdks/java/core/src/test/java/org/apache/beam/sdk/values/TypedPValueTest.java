@@ -46,7 +46,7 @@ public class TypedPValueTest {
 
   private static class IdentityDoFn extends DoFn<Integer, Integer> {
     private static final long serialVersionUID = 0;
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
@@ -131,7 +131,7 @@ public class TypedPValueTest {
 
   private static class EmptyClassDoFn extends DoFn<Integer, EmptyClass> {
     private static final long serialVersionUID = 0;
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(new EmptyClass());
     }

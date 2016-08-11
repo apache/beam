@@ -71,7 +71,6 @@ import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.runners.AggregatorPipelineExtractor;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -81,6 +80,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -143,7 +143,6 @@ import com.google.common.collect.Multimap;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -173,7 +172,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
 import javax.annotation.Nullable;
 
 /**
@@ -213,10 +211,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
-  public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160714";
-  public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160714";
+  public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE =
+      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20160804-dofn";
+  public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE =
+      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20160804-dofn";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -597,18 +595,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Obtain all of the extractors from the PTransforms used in the pipeline so the
     // DataflowPipelineJob has access to them.
-    AggregatorPipelineExtractor aggregatorExtractor = new AggregatorPipelineExtractor(pipeline);
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
-        aggregatorExtractor.getAggregatorSteps();
+        pipeline.getAggregatorSteps();
 
     DataflowAggregatorTransforms aggregatorTransforms =
         new DataflowAggregatorTransforms(aggregatorSteps, jobSpecification.getStepNames());
 
     // Use a raw client for post-launch monitoring, as status calls may fail
     // regularly and need not be retried automatically.
-    DataflowPipelineJob dataflowPipelineJob =
-        new DataflowPipelineJob(options.getProject(), jobResult.getId(),
-            options.getDataflowClient(), aggregatorTransforms);
+    DataflowPipelineJob dataflowPipelineJob = new DataflowPipelineJob(
+        options.getProject(), jobResult.getId(), options, aggregatorTransforms);
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same
@@ -769,24 +765,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     @SystemDoFnInternal
     private static class UseWindowHashAsKeyAndWindowAsSortKeyDoFn<T, W extends BoundedWindow>
-        extends DoFn<T, KV<Integer, KV<W, WindowedValue<T>>>> implements DoFn.RequiresWindowAccess {
+        extends DoFn<T, KV<Integer, KV<W, WindowedValue<T>>>> {
 
       private final IsmRecordCoder<?> ismCoderForHash;
       private UseWindowHashAsKeyAndWindowAsSortKeyDoFn(IsmRecordCoder<?> ismCoderForHash) {
         this.ismCoderForHash = ismCoderForHash;
       }
 
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow untypedWindow) throws Exception {
         @SuppressWarnings("unchecked")
-        W window = (W) c.window();
+        W window = (W) untypedWindow;
         c.output(
             KV.of(ismCoderForHash.hash(ImmutableList.of(window)),
                 KV.of(window,
                     WindowedValue.of(
                         c.element(),
                         c.timestamp(),
-                        c.window(),
+                        window,
                         c.pane()))));
       }
     }
@@ -837,14 +833,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     static class IsmRecordForSingularValuePerWindowDoFn<T, W extends BoundedWindow>
         extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
-                     IsmRecord<WindowedValue<T>>> {
+                             IsmRecord<WindowedValue<T>>> {
 
       private final Coder<W> windowCoder;
       IsmRecordForSingularValuePerWindowDoFn(Coder<W> windowCoder) {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
         T previousValue = null;
@@ -904,7 +900,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             DataflowRunner runner,
             PCollection<T> input,
             DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
-                 IsmRecord<WindowedValue<FinalT>>> doFn,
+                             IsmRecord<WindowedValue<FinalT>>> doFn,
             boolean hasDefault,
             FinalT defaultValue,
             Coder<FinalT> defaultValueCoder) {
@@ -1012,12 +1008,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         extends DoFn<T, IsmRecord<WindowedValue<T>>> {
 
       long indexInBundle;
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         indexInBundle = 0;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         c.output(IsmRecord.of(
             ImmutableList.of(GlobalWindow.INSTANCE, indexInBundle),
@@ -1042,14 +1038,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @SystemDoFnInternal
     static class ToIsmRecordForNonGlobalWindowDoFn<T, W extends BoundedWindow>
         extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<T>>>>,
-                     IsmRecord<WindowedValue<T>>> {
+                             IsmRecord<WindowedValue<T>>> {
 
       private final Coder<W> windowCoder;
       ToIsmRecordForNonGlobalWindowDoFn(Coder<W> windowCoder) {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         long elementsInWindow = 0;
         Optional<Object> previousWindowStructuralValue = Optional.absent();
@@ -1190,16 +1186,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     static class ToMapDoFn<K, V, W extends BoundedWindow>
         extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<KV<K, V>>>>>,
-                     IsmRecord<WindowedValue<TransformedMap<K,
-                                             WindowedValue<V>,
-                                             V>>>> {
+                             IsmRecord<WindowedValue<TransformedMap<K,
+                                                     WindowedValue<V>,
+                                                     V>>>> {
 
       private final Coder<W> windowCoder;
       ToMapDoFn(Coder<W> windowCoder) {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c)
           throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
@@ -1359,18 +1355,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       @SystemDoFnInternal
       private static class GroupByKeyHashAndSortByKeyAndWindowDoFn<K, V, W>
-          extends DoFn<KV<K, V>, KV<Integer, KV<KV<K, W>, WindowedValue<V>>>>
-          implements DoFn.RequiresWindowAccess {
+          extends DoFn<KV<K, V>, KV<Integer, KV<KV<K, W>, WindowedValue<V>>>> {
 
         private final IsmRecordCoder<?> coder;
         private GroupByKeyHashAndSortByKeyAndWindowDoFn(IsmRecordCoder<?> coder) {
           this.coder = coder;
         }
 
-        @Override
-        public void processElement(ProcessContext c) throws Exception {
+        @ProcessElement
+        public void processElement(ProcessContext c, BoundedWindow untypedWindow) throws Exception {
           @SuppressWarnings("unchecked")
-          W window = (W) c.window();
+          W window = (W) untypedWindow;
 
           c.output(
               KV.of(coder.hash(ImmutableList.of(c.element().getKey())),
@@ -1378,7 +1373,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                       WindowedValue.of(
                           c.element().getValue(),
                           c.timestamp(),
-                          (BoundedWindow) window,
+                          untypedWindow,
                           c.pane()))));
         }
       }
@@ -1425,12 +1420,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * <p>Additionally, we output all the unique keys per window seen to {@code outputForEntrySet}
      * and the unique key count per window to {@code outputForSize}.
      *
-     * <p>Finally, if this DoFn has been requested to perform unique key checking, it will
+     * <p>Finally, if this {@link DoFn} has been requested to perform unique key checking, it will
      * throw an {@link IllegalStateException} if more than one key per window is found.
      */
     static class ToIsmRecordForMapLikeDoFn<K, V, W extends BoundedWindow>
         extends DoFn<KV<Integer, Iterable<KV<KV<K, W>, WindowedValue<V>>>>,
-                     IsmRecord<WindowedValue<V>>> {
+                             IsmRecord<WindowedValue<V>>> {
 
       private final TupleTag<KV<Integer, KV<W, Long>>> outputForSize;
       private final TupleTag<KV<Integer, KV<W, K>>> outputForEntrySet;
@@ -1453,7 +1448,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.uniqueKeysExpected = uniqueKeysExpected;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         long currentKeyIndex = 0;
         // We use one based indexing while counting
@@ -1576,7 +1571,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Iterator<KV<W, Long>> iterator = c.element().getValue().iterator();
         KV<W, Long> currentValue = iterator.next();
@@ -1628,7 +1623,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Iterator<KV<W, K>> iterator = c.element().getValue().iterator();
         KV<W, K> currentValue = iterator.next();
@@ -1675,16 +1670,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     static class ToMultimapDoFn<K, V, W extends BoundedWindow>
         extends DoFn<KV<Integer, Iterable<KV<W, WindowedValue<KV<K, V>>>>>,
-                     IsmRecord<WindowedValue<TransformedMap<K,
-                                                            Iterable<WindowedValue<V>>,
-                                                            Iterable<V>>>>> {
+                             IsmRecord<WindowedValue<TransformedMap<K,
+                                                                    Iterable<WindowedValue<V>>,
+                                                                    Iterable<V>>>>> {
 
       private final Coder<W> windowCoder;
       ToMultimapDoFn(Coder<W> windowCoder) {
         this.windowCoder = windowCoder;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c)
           throws Exception {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
@@ -2337,7 +2332,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
           .apply("StripIds", ParDo.of(
               new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(c.element().getValue().getValue());
                 }
@@ -2376,8 +2371,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * A specialized {@link DoFn} for writing the contents of a {@link PCollection}
    * to a streaming {@link PCollectionView} backend implementation.
    */
-  private static class StreamingPCollectionViewWriterFn<T>
-  extends DoFn<Iterable<T>, T> implements DoFn.RequiresWindowAccess {
+  @Deprecated
+  public static class StreamingPCollectionViewWriterFn<T>
+  extends OldDoFn<Iterable<T>, T> implements OldDoFn.RequiresWindowAccess {
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
 
@@ -2389,6 +2385,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private StreamingPCollectionViewWriterFn(PCollectionView<?> view, Coder<T> dataCoder) {
       this.view = view;
       this.dataCoder = dataCoder;
+    }
+
+    public PCollectionView<?> getView() {
+      return view;
+    }
+
+    public Coder<T> getDataCoder() {
+      return dataCoder;
     }
 
     @Override
@@ -2555,7 +2559,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class WrapAsList<T> extends DoFn<T, List<T>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(Arrays.asList(c.element()));
     }

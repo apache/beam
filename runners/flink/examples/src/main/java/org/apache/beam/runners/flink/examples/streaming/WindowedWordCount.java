@@ -60,7 +60,7 @@ public class WindowedWordCount {
   static final long SLIDE_SIZE = 5;  // Default window slide in seconds
 
   static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
       c.output(row);
@@ -71,7 +71,7 @@ public class WindowedWordCount {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);

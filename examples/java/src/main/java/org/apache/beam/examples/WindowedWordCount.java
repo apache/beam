@@ -118,7 +118,7 @@ public class WindowedWordCount {
       this.minTimestamp = new Instant(System.currentTimeMillis());
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // Generate a timestamp that falls somewhere in the past two hours.
       long randMillis = (long) (Math.random() * RAND_RANGE.getMillis());
@@ -132,7 +132,7 @@ public class WindowedWordCount {
 
   /** A DoFn that converts a Word and Count into a BigQuery table row. */
   static class FormatAsTableRowFn extends DoFn<KV<String, Long>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("word", c.element().getKey())

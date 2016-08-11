@@ -304,7 +304,7 @@ public class StateTags {
     }
 
     @Override
-    public ValueState<T> bind(StateBinder<? extends Object> visitor) {
+    public ValueState<T> bind(StateBinder<?> visitor) {
       return visitor.bindValue(this, coder);
     }
 
@@ -505,7 +505,7 @@ public class StateTags {
     }
 
     @Override
-    public BagState<T> bind(StateBinder<? extends Object> visitor) {
+    public BagState<T> bind(StateBinder<?> visitor) {
       return visitor.bindBag(this, elemCoder);
     }
 
@@ -551,7 +551,7 @@ public class StateTags {
     }
 
     @Override
-    public WatermarkHoldState<W> bind(StateBinder<? extends Object> visitor) {
+    public WatermarkHoldState<W> bind(StateBinder<?> visitor) {
       return visitor.bindWatermark(this, outputTimeFn);
     }
 

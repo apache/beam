@@ -79,7 +79,7 @@ public class JoinExamples {
             new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
               private static final long serialVersionUID = 0;
 
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 KV<String, CoGbkResult> e = c.element();
                 String key = e.getKey();
@@ -101,7 +101,7 @@ public class JoinExamples {
         .apply("Format", ParDo.of(new DoFn<KV<String, String>, String>() {
           private static final long serialVersionUID = 0;
 
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             String result = c.element().getKey() + " -> " + c.element().getValue();
             System.out.println(result);
@@ -113,7 +113,7 @@ public class JoinExamples {
   static class ExtractEventDataFn extends DoFn<String, KV<String, String>> {
     private static final long serialVersionUID = 0;
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String line = c.element().toLowerCase();
       String key = line.split("\\s")[0];

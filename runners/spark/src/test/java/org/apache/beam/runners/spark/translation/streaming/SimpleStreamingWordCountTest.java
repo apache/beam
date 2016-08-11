@@ -19,8 +19,8 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.apache.spark.streaming.Durations;
 import org.joda.time.Duration;
 import org.junit.Test;
 
@@ -54,10 +55,11 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
   @Test
   public void testRun() throws Exception {
-    SparkStreamingPipelineOptions options =
-        PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     options.setStreaming(true);
+    options.setBatchIntervalMillis(Durations.seconds(1).milliseconds());
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
 
@@ -70,7 +72,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
         .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
     PAssertStreaming.assertContents(output, EXPECTED_COUNTS);
-    EvaluationResult res = SparkRunner.create(options).run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 }

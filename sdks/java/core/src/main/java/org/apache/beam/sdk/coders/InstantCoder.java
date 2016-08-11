@@ -22,7 +22,6 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Converter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;

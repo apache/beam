@@ -219,7 +219,9 @@ public class EmbeddedKafkaCluster {
 
 
     public void shutdown() {
-      factory.shutdown();
+      if (factory != null) {
+        factory.shutdown();
+      }
       try {
         TestUtils.deleteFile(snapshotDir);
       } catch (FileNotFoundException e) {

@@ -226,7 +226,7 @@ public class TfIdf {
       PCollection<KV<URI, String>> uriToWords = uriToContent
           .apply("SplitWords", ParDo.of(
               new DoFn<KV<URI, String>, KV<URI, String>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
                   String line = c.element().getValue();
@@ -269,7 +269,7 @@ public class TfIdf {
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
           .apply("ShiftKeys", ParDo.of(
               new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey().getKey();
                   String word = c.element().getKey().getValue();
@@ -308,7 +308,7 @@ public class TfIdf {
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
           .apply("ComputeTermFrequencies", ParDo.of(
               new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
                   Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
@@ -333,7 +333,7 @@ public class TfIdf {
           .apply("ComputeDocFrequencies", ParDo
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
                   Long documentCount = c.element().getValue();
@@ -362,7 +362,7 @@ public class TfIdf {
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
           .apply("ComputeTfIdf", ParDo.of(
               new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
                   Double df = c.element().getValue().getOnly(dfTag);
@@ -401,7 +401,7 @@ public class TfIdf {
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
           .apply("Format", ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               c.output(String.format("%s,\t%s,\t%f",
                   c.element().getKey(),

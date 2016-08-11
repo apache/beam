@@ -172,7 +172,7 @@ public class AutoCompleteTest implements Serializable {
     @Override
     public PCollection<T> apply(PCollection<TimestampedValue<T>> input) {
       return input.apply(ParDo.of(new DoFn<TimestampedValue<T>, T>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) {
           c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
         }

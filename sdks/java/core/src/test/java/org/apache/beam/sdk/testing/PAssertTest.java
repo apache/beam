@@ -39,7 +39,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import com.google.common.collect.Iterables;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;

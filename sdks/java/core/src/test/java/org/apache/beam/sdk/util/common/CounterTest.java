@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.util.common.Counter.CommitState;
 import org.apache.beam.sdk.util.common.Counter.CounterMean;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

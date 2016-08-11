@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
+package org.apache.beam.sdk;
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.transforms.Aggregator;
 
 /**
- * Options used to configure Spark streaming.
+ * Signals that an exception has occurred while retrieving {@link Aggregator}s.
  */
-public interface SparkStreamingPipelineOptions extends SparkPipelineOptions {
-  @Description("Timeout to wait (in msec) for the streaming execution so stop, -1 runs until "
-          + "execution is stopped")
-  @Default.Long(-1)
-  Long getTimeout();
-  void setTimeout(Long batchInterval);
+public class AggregatorRetrievalException extends Exception {
+  /**
+   * Constructs a new {@code AggregatorRetrievalException} with the specified detail message and
+   * cause.
+   */
+  public AggregatorRetrievalException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

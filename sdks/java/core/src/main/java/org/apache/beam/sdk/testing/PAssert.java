@@ -34,7 +34,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -763,7 +762,7 @@ public class PAssert {
           .apply(
               ParDo.of(
                   new DoFn<T, T>() {
-                    @Override
+                    @ProcessElement
                     public void processElement(ProcessContext context) throws CoderException {
                       context.output(CoderUtils.clone(coder, context.element()));
                     }
@@ -885,7 +884,7 @@ public class PAssert {
   }
 
   private static final class ConcatFn<T> extends DoFn<Iterable<Iterable<T>>, Iterable<T>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(Iterables.concat(c.element()));
     }
@@ -1015,7 +1014,7 @@ public class PAssert {
       this.actual = actual;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       try {
         ActualT actualContents = c.sideInput(actual);
@@ -1047,7 +1046,7 @@ public class PAssert {
       this.checkerFn = checkerFn;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       try {
         doChecks(c.element(), checkerFn, success, failure);
@@ -1079,7 +1078,7 @@ public class PAssert {
       this.checkerFn = checkerFn;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       try {
         ActualT actualContents = Iterables.getOnlyElement(c.element());
@@ -1324,10 +1323,10 @@ public class PAssert {
       return input.apply("FilterWindows", ParDo.of(new Fn()));
     }
 
-    private class Fn extends DoFn<T, T> implements RequiresWindowAccess {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-        if (windows.getWindows().contains(c.window())) {
+    private class Fn extends DoFn<T, T> {
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+        if (windows.getWindows().contains(window)) {
           c.output(c.element());
         }
       }

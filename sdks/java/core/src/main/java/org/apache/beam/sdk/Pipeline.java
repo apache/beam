@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -250,7 +252,7 @@ public class Pipeline {
      */
     public enum CompositeBehavior {
       ENTER_TRANSFORM,
-      DO_NOT_ENTER_TRANSFORM;
+      DO_NOT_ENTER_TRANSFORM
     }
 
     /**
@@ -515,6 +517,14 @@ public class Pipeline {
       // A duplicate!  Retry.
       name = origName + suffixNum++;
     }
+  }
+
+  /**
+   * Returns a {@link Map} from each {@link Aggregator} in the {@link Pipeline} to the {@link
+   * PTransform PTransforms} in which it is used.
+   */
+  public Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> getAggregatorSteps() {
+    return new AggregatorPipelineExtractor(this).getAggregatorSteps();
   }
 
   /**

@@ -487,7 +487,7 @@ public class Create<T> {
     }
 
     private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
       }

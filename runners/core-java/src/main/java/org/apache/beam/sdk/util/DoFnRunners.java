@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.DoFnRunner.ReduceFnExecutor;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
@@ -44,19 +45,19 @@ public class DoFnRunners {
   }
 
   /**
-   * Returns a basic implementation of {@link DoFnRunner} that works for most {@link DoFn DoFns}.
+   * Returns a basic implementation of {@link DoFnRunner} that works for most {@link OldDoFn DoFns}.
    *
-   * <p>It invokes {@link DoFn#processElement} for each input.
+   * <p>It invokes {@link OldDoFn#processElement} for each input.
    */
   public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
       PipelineOptions options,
-      DoFn<InputT, OutputT> fn,
+      OldDoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator,
+      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleDoFnRunner<>(
         options,
@@ -66,14 +67,41 @@ public class DoFnRunners {
         mainOutputTag,
         sideOutputTags,
         stepContext,
-        addCounterMutator,
+        aggregatorFactory,
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a basic implementation of {@link DoFnRunner} that works for most
+   * {@link OldDoFn OldDoFns}.
+   *
+   * <p>It invokes {@link OldDoFn#processElement} for each input.
+   */
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
+      PipelineOptions options,
+      OldDoFn<InputT, OutputT> fn,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      StepContext stepContext,
+      CounterSet.AddCounterMutator addCounterMutator,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return simpleRunner(options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        CounterAggregator.factoryFor(addCounterMutator),
         windowingStrategy);
   }
 
   /**
    * Returns an implementation of {@link DoFnRunner} that handles late data dropping.
    *
-   * <p>It drops elements from expired windows before they reach the underlying {@link DoFn}.
+   * <p>It drops elements from expired windows before they reach the underlying {@link OldDoFn}.
    */
   public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(
@@ -84,7 +112,7 @@ public class DoFnRunners {
           TupleTag<KV<K, OutputT>> mainOutputTag,
           List<TupleTag<?>> sideOutputTags,
           StepContext stepContext,
-          CounterSet.AddCounterMutator addCounterMutator,
+          AggregatorFactory aggregatorFactory,
           WindowingStrategy<?, W> windowingStrategy) {
     DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> simpleDoFnRunner =
         simpleRunner(
@@ -95,7 +123,7 @@ public class DoFnRunners {
             mainOutputTag,
             sideOutputTags,
             stepContext,
-            addCounterMutator,
+            aggregatorFactory,
             windowingStrategy);
     return new LateDataDroppingDoFnRunner<>(
         simpleDoFnRunner,
@@ -104,15 +132,43 @@ public class DoFnRunners {
         reduceFnExecutor.getDroppedDueToLatenessAggregator());
   }
 
+  /**
+   * Returns an implementation of {@link DoFnRunner} that handles late data dropping.
+   *
+   * <p>It drops elements from expired windows before they reach the underlying {@link OldDoFn}.
+   */
+  public static <K, InputT, OutputT, W extends BoundedWindow>
+  DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(
+      PipelineOptions options,
+      ReduceFnExecutor<K, InputT, OutputT, W> reduceFnExecutor,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<KV<K, OutputT>> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      StepContext stepContext,
+      CounterSet.AddCounterMutator addCounterMutator,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return lateDataDroppingRunner(
+        options,
+        reduceFnExecutor,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        CounterAggregator.factoryFor(addCounterMutator),
+        windowingStrategy);
+  }
+
   public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(
       PipelineOptions options,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
-      AddCounterMutator addCounterMutator,
+      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     if (doFn instanceof ReduceFnExecutor) {
       @SuppressWarnings("rawtypes")
@@ -126,7 +182,7 @@ public class DoFnRunners {
           (TupleTag) mainOutputTag,
           sideOutputTags,
           stepContext,
-          addCounterMutator,
+          aggregatorFactory,
           (WindowingStrategy) windowingStrategy);
       return runner;
     }
@@ -138,7 +194,29 @@ public class DoFnRunners {
         mainOutputTag,
         sideOutputTags,
         stepContext,
-        addCounterMutator,
+        aggregatorFactory,
+        windowingStrategy);
+  }
+
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(
+      PipelineOptions options,
+      OldDoFn<InputT, OutputT> doFn,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      StepContext stepContext,
+      AddCounterMutator addCounterMutator,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return createDefault(
+        options,
+        doFn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        CounterAggregator.factoryFor(addCounterMutator),
         windowingStrategy);
   }
 }

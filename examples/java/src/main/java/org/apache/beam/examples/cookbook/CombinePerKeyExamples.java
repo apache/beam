@@ -94,7 +94,7 @@ public class CombinePerKeyExamples {
     private final Aggregator<Long, Long> smallerWords =
         createAggregator("smallerWords", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       String playName = (String) row.get("corpus");
@@ -115,7 +115,7 @@ public class CombinePerKeyExamples {
    * containing a word with a string listing the plays in which it appeared.
    */
   static class FormatShakespeareOutputFn extends DoFn<KV<String, String>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("word", c.element().getKey())

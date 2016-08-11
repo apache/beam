@@ -149,7 +149,7 @@
 
   <profiles>
     <!-- A global profile defined for all modules for release-level verification. 
-      Slow processes such as building source, javadoc, and test jars should be limited 
+      Optional processes such as building source and javadoc should be limited 
       to this profile. -->
     <profile>
       <id>release</id>
@@ -186,19 +186,6 @@
                   <phase>package</phase>
                   <goals>
                     <goal>test-jar-no-fork</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-jar-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>default-test-jar</id>
-                  <goals>
-                    <goal>test-jar</goal>
                   </goals>
                 </execution>
               </executions>
@@ -573,7 +560,7 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-handler</artifactId>
-	<version>${netty.version}</version>
+        <version>${netty.version}</version>
       </dependency>
 
       <dependency>
@@ -703,7 +690,15 @@
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
           </configuration>
           <executions>
+            <!--
+              Execute checkstyle after compilation but before tests.
+
+              This ensures that any parsing or type checking errors are from
+              javac, so they look as expected. Beyond that, we want to
+              fail as early as possible.
+            -->
             <execution>
+              <phase>test-compile</phase>
               <goals>
                 <goal>check</goal>
               </goals>
@@ -750,6 +745,12 @@
               <id>default-jar</id>
               <goals>
                 <goal>jar</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>default-test-jar</id>
+              <goals>
+                <goal>test-jar</goal>
               </goals>
             </execution>
           </executions>
@@ -1021,7 +1022,7 @@
 
           <executions>
             <execution>
-              <phase>test</phase>
+              <phase>test-compile</phase>
               <goals>
                 <goal>check</goal>
               </goals>

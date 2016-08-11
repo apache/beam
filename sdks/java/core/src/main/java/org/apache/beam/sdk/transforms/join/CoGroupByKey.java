@@ -180,7 +180,7 @@ public class CoGroupByKey<K> extends
       this.index = index;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<K, ?> e = c.element();
       c.output(KV.of(e.getKey(), new RawUnionValue(index, e.getValue())));
@@ -193,7 +193,7 @@ public class CoGroupByKey<K> extends
     */
   private static class ConstructCoGbkResultFn<K>
     extends DoFn<KV<K, Iterable<RawUnionValue>>,
-                 KV<K, CoGbkResult>> {
+                     KV<K, CoGbkResult>> {
 
     private final CoGbkResultSchema schema;
 
@@ -201,7 +201,7 @@ public class CoGroupByKey<K> extends
       this.schema = schema;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<K, Iterable<RawUnionValue>> e = c.element();
       c.output(KV.of(e.getKey(), new CoGbkResult(schema, e.getValue())));

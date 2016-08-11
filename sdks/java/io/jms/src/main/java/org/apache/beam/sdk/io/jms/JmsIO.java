@@ -469,14 +469,12 @@ public class JmsIO {
         this.topic = topic;
       }
 
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         if (producer == null) {
           this.connection = connectionFactory.createConnection();
           this.connection.start();
-          /**
-           * false means we don't use JMS transaction.
-           */
+          // false means we don't use JMS transaction.
           this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
           Destination destination;
           if (queue != null) {
@@ -488,7 +486,7 @@ public class JmsIO {
         }
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
 
@@ -501,7 +499,7 @@ public class JmsIO {
         }
       }
 
-      @Override
+      @FinishBundle
       public void finishBundle(Context c) throws Exception {
         producer.close();
         producer = null;

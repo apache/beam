@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.runners;
+package org.apache.beam.sdk;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -23,13 +23,13 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -211,7 +211,7 @@ public class AggregatorPipelineExtractorTest {
     }
   }
 
-  private static class AggregatorProvidingDoFn<InT, OuT> extends DoFn<InT, OuT> {
+  private static class AggregatorProvidingDoFn<InT, OuT> extends OldDoFn<InT, OuT> {
     public <InputT, OutT> Aggregator<InputT, OutT> addAggregator(
         CombineFn<InputT, ?, OutT> combiner) {
       return createAggregator(randomName(), combiner);
@@ -222,7 +222,7 @@ public class AggregatorPipelineExtractorTest {
     }
 
     @Override
-    public void processElement(DoFn<InT, OuT>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<InT, OuT>.ProcessContext c) throws Exception {
       fail();
     }
   }

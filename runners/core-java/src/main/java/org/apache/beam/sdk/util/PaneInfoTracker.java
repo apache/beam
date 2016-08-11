@@ -32,7 +32,6 @@ import org.apache.beam.sdk.util.state.ValueState;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**

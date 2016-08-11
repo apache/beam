@@ -34,6 +34,10 @@
 
   <packaging>jar</packaging>
 
+  <properties>
+    <spark.version>1.6.2</spark.version>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -187,6 +191,8 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <parallel>all</parallel>
+              <threadCount>4</threadCount>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
@@ -280,6 +286,33 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-flink_2.10</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-spark</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.10</artifactId>
+      <version>${spark.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-streaming_2.10</artifactId>
+      <version>${spark.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>

@@ -235,7 +235,7 @@ public class DoFnTesterTest {
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
             TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
-    DoFn<Integer, Integer> fn = new SideInputDoFn(value);
+    OldDoFn<Integer, Integer> fn = new SideInputDoFn(value);
 
     DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
 
@@ -251,7 +251,7 @@ public class DoFnTesterTest {
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
             TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
-    DoFn<Integer, Integer> fn = new SideInputDoFn(value);
+    OldDoFn<Integer, Integer> fn = new SideInputDoFn(value);
 
     DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
     tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
@@ -264,7 +264,7 @@ public class DoFnTesterTest {
     assertThat(tester.peekOutputElements(), containsInAnyOrder(-2, -2, -2, -2));
   }
 
-  private static class SideInputDoFn extends DoFn<Integer, Integer> {
+  private static class SideInputDoFn extends OldDoFn<Integer, Integer> {
     private final PCollectionView<Integer> value;
 
     private SideInputDoFn(PCollectionView<Integer> value) {
@@ -278,9 +278,9 @@ public class DoFnTesterTest {
   }
 
   /**
-   * A DoFn that adds values to an aggregator and converts input to String in processElement.
+   * A OldDoFn that adds values to an aggregator and converts input to String in processElement.
    */
-  private static class CounterDoFn extends DoFn<Long, String> {
+  private static class CounterDoFn extends OldDoFn<Long, String> {
     Aggregator<Long, Long> agg = createAggregator("ctr", new Sum.SumLongFn());
     private final long startBundleVal;
     private final long finishBundleVal;

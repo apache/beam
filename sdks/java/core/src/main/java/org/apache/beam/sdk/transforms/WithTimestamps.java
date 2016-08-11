@@ -114,7 +114,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
       this.allowedTimestampSkew = allowedTimestampSkew;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Instant timestamp = fn.apply(c.element());
       checkNotNull(

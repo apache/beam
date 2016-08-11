@@ -200,7 +200,7 @@ public class WindowTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Iterable<String>>, Void>() {
-                  @Override
+                  @ProcessElement
                   public void processElement(ProcessContext c) throws Exception {
                     assertThat(
                         c.timestamp(),
@@ -232,7 +232,7 @@ public class WindowTest implements Serializable {
             .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             assertThat(c.timestamp(), equalTo(new Instant(10 * 60 * 1000 - 1)));
           }

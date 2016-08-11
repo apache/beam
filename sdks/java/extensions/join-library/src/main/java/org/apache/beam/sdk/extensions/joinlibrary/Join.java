@@ -60,7 +60,7 @@ public class Join {
 
     return coGbkResultCollection.apply(ParDo.of(
       new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
 
@@ -109,7 +109,7 @@ public class Join {
 
     return coGbkResultCollection.apply(ParDo.of(
       new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
 
@@ -162,7 +162,7 @@ public class Join {
 
     return coGbkResultCollection.apply(ParDo.of(
       new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
 

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.util;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.BaseExecutionContext.StepContext;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -62,7 +62,7 @@ public class SimpleDoFnRunnerTest {
     runner.processElement(WindowedValue.valueInGlobalWindow("anyValue"));
   }
 
-  private DoFnRunner<String, String> createRunner(DoFn<String, String> fn) {
+  private DoFnRunner<String, String> createRunner(OldDoFn<String, String> fn) {
     // Pass in only necessary parameters for the test
     List<TupleTag<?>> sideOutputTags = Arrays.asList();
     StepContext context = mock(StepContext.class);
@@ -70,7 +70,7 @@ public class SimpleDoFnRunnerTest {
           null, fn, null, null, null, sideOutputTags, context, null, null);
   }
 
-  static class ThrowingDoFn extends DoFn<String, String> {
+  static class ThrowingDoFn extends OldDoFn<String, String> {
     final Exception exceptionToThrow =
         new UnsupportedOperationException("Expected exception");
 

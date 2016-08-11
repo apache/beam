@@ -19,7 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -39,7 +39,7 @@ import java.util.Map;
 public class DoFnFunction<InputT, OutputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>,
     WindowedValue<OutputT>> {
-  private final DoFn<InputT, OutputT> mFunction;
+  private final OldDoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
@@ -48,7 +48,7 @@ public class DoFnFunction<InputT, OutputT>
    * @param runtime    Runtime to apply function in.
    * @param sideInputs Side inputs used in DoFunction.
    */
-  public DoFnFunction(DoFn<InputT, OutputT> fn,
+  public DoFnFunction(OldDoFn<InputT, OutputT> fn,
                SparkRuntimeContext runtime,
                Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.mFunction = fn;
@@ -69,7 +69,7 @@ public class DoFnFunction<InputT, OutputT>
 
     private final List<WindowedValue<OutputT>> outputs = new LinkedList<>();
 
-    ProcCtxt(DoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
+    ProcCtxt(OldDoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
         BroadcastHelper<?>> sideInputs) {
       super(fn, runtimeContext, sideInputs);
     }

@@ -17,8 +17,7 @@
  */
 /**
  * Defines transforms for reading and writing common storage formats, including
- * {@link org.apache.beam.sdk.io.AvroIO},
- * {@link org.apache.beam.sdk.io.BigQueryIO}, and
+ * {@link org.apache.beam.sdk.io.AvroIO}, and
  * {@link org.apache.beam.sdk.io.TextIO}.
  *
  * <p>The classes in this package provide {@code Read} transforms that create PCollections

@@ -133,7 +133,7 @@ public class DebuggingWordCount {
     private final Aggregator<Long, Long> unmatchedWords =
         createAggregator("umatchedWords", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (filter.matcher(c.element().getKey()).matches()) {
         // Log at the "DEBUG" level each element that we match. When executing this pipeline

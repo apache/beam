@@ -30,7 +30,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -41,16 +41,13 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentitySideInputWindowFn;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -60,11 +57,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
 import javax.annotation.Nullable;
 
 /**
@@ -156,7 +151,11 @@ public class ParDoEvaluatorTest {
             evaluationContext.getExecutionContext(
                 Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
         .thenReturn(executionContext);
-    when(evaluationContext.createCounterSet()).thenReturn(new CounterSet());
+
+    AggregatorContainer container = AggregatorContainer.create();
+    AggregatorContainer.Mutator mutator = container.createMutator();
+    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
+    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     return ParDoEvaluator.create(
         evaluationContext,
@@ -170,7 +169,7 @@ public class ParDoEvaluatorTest {
         ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output));
   }
 
-  private static class RecorderFn extends DoFn<Integer, Integer> {
+  private static class RecorderFn extends OldDoFn<Integer, Integer> {
     private Collection<Integer> processed;
     private final PCollectionView<Integer> view;
 
@@ -180,7 +179,7 @@ public class ParDoEvaluatorTest {
     }
 
     @Override
-    public void processElement(DoFn<Integer, Integer>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<Integer, Integer>.ProcessContext c) throws Exception {
       processed.add(c.element());
       c.output(c.element() + c.sideInput(view));
     }

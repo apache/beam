@@ -135,7 +135,7 @@ public class AvroCoderTest {
   }
 
   private static class GetTextFn extends DoFn<Pojo, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().text);
     }

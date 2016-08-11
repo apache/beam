@@ -36,7 +36,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -112,7 +112,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   private transient CoderRegistry coderRegistry;
 
-  private DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> operator;
+  private OldDoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> operator;
 
   private ProcessContext context;
 
@@ -263,7 +263,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
    * a function with that combiner is created, so that elements are combined as they arrive. This is
    * done for speed and (in most of the cases) for reduction of the per-window state.
    */
-  private <W extends BoundedWindow> DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> createGroupAlsoByWindowOperator() {
+  private <W extends BoundedWindow> OldDoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> createGroupAlsoByWindowOperator() {
     if (this.operator == null) {
 
       StateInternalsFactory<K> stateInternalsFactory = new GroupAlsoByWindowWrapperStateInternalsFactory();
@@ -272,7 +272,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
         // Thus VOUT == Iterable<VIN>
         Coder<VIN> inputValueCoder = inputKvCoder.getValueCoder();
 
-        this.operator = (DoFn) GroupAlsoByWindowViaWindowSetDoFn.create(
+        this.operator = (OldDoFn) GroupAlsoByWindowViaWindowSetDoFn.create(
             (WindowingStrategy<?, W>) this.windowingStrategy, stateInternalsFactory, SystemReduceFn.<K, VIN, W>buffering(inputValueCoder));
       } else {
         Coder<K> inputKeyCoder = inputKvCoder.getKeyCoder();
@@ -446,7 +446,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
     private KeyedWorkItem<K, VIN> element;
 
-    public ProcessContext(DoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> function,
+    public ProcessContext(OldDoFn<KeyedWorkItem<K, VIN>, KV<K, VOUT>> function,
                           TimestampedCollector<WindowedValue<KV<K, VOUT>>> outCollector,
                           FlinkTimerInternals timerInternals) {
       function.super();

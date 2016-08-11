@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.comparesEqualTo;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.TimerInternals.TimerDataCoder;
+import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 
 import org.joda.time.Instant;
@@ -49,5 +55,46 @@ public class TimerInternalsTest {
             StateNamespaces.window(
                 windowCoder, new IntervalWindow(new Instant(0), new Instant(100))),
             new Instant(99), TimeDomain.PROCESSING_TIME));
+  }
+
+  @Test
+  public void testCompareTo() {
+    Instant firstTimestamp = new Instant(100);
+    Instant secondTimestamp = new Instant(200);
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), firstTimestamp);
+    IntervalWindow secondWindow =  new IntervalWindow(firstTimestamp, secondTimestamp);
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    StateNamespace firstWindowNs = StateNamespaces.window(windowCoder, firstWindow);
+    StateNamespace secondWindowNs = StateNamespaces.window(windowCoder, secondWindow);
+
+    TimerData firstEventTime = TimerData.of(firstWindowNs, firstTimestamp, TimeDomain.EVENT_TIME);
+    TimerData secondEventTime = TimerData.of(firstWindowNs, secondTimestamp, TimeDomain.EVENT_TIME);
+    TimerData thirdEventTime = TimerData.of(secondWindowNs, secondTimestamp, TimeDomain.EVENT_TIME);
+
+    TimerData firstProcTime =
+        TimerData.of(firstWindowNs, firstTimestamp, TimeDomain.PROCESSING_TIME);
+    TimerData secondProcTime =
+        TimerData.of(firstWindowNs, secondTimestamp, TimeDomain.PROCESSING_TIME);
+    TimerData thirdProcTime =
+        TimerData.of(secondWindowNs, secondTimestamp, TimeDomain.PROCESSING_TIME);
+
+    assertThat(firstEventTime,
+        comparesEqualTo(TimerData.of(firstWindowNs, firstTimestamp, TimeDomain.EVENT_TIME)));
+    assertThat(firstEventTime, lessThan(secondEventTime));
+    assertThat(secondEventTime, lessThan(thirdEventTime));
+    assertThat(firstEventTime, lessThan(thirdEventTime));
+
+    assertThat(secondProcTime,
+        comparesEqualTo(TimerData.of(firstWindowNs, secondTimestamp, TimeDomain.PROCESSING_TIME)));
+    assertThat(firstProcTime, lessThan(secondProcTime));
+    assertThat(secondProcTime, lessThan(thirdProcTime));
+    assertThat(firstProcTime, lessThan(thirdProcTime));
+
+    assertThat(firstEventTime, not(comparesEqualTo(firstProcTime)));
+    assertThat(firstProcTime,
+        not(comparesEqualTo(TimerData.of(firstWindowNs,
+            firstTimestamp,
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME))));
   }
 }

@@ -365,9 +365,9 @@ public class PubsubIO {
    * the stream.
    *
    * <p>When running with a {@link PipelineRunner} that only supports bounded
-   * {@link PCollection PCollections} (such as {@link DirectRunner}),
-   * only a bounded portion of the input Pub/Sub stream can be processed. As such, either
-   * {@link Bound#maxNumRecords(int)} or {@link Bound#maxReadTime(Duration)} must be set.
+   * {@link PCollection PCollections}, only a bounded portion of the input Pub/Sub stream
+   * can be processed. As such, either {@link Bound#maxNumRecords(int)} or
+   * {@link Bound#maxReadTime(Duration)} must be set.
    */
   public static class Read {
 
@@ -713,7 +713,7 @@ public class PubsubIO {
         private static final int DEFAULT_PULL_SIZE = 100;
         private static final int ACK_TIMEOUT_SEC = 60;
 
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
           try (PubsubClient pubsubClient =
                    FACTORY.newClient(timestampLabel, idLabel,
@@ -1003,7 +1003,7 @@ public class PubsubIO {
         private transient List<OutgoingMessage> output;
         private transient PubsubClient pubsubClient;
 
-        @Override
+        @StartBundle
         public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
           // NOTE: idLabel is ignored.
@@ -1012,7 +1012,7 @@ public class PubsubIO {
                                 c.getPipelineOptions().as(PubsubOptions.class));
         }
 
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
           // NOTE: The record id is always null.
           OutgoingMessage message =
@@ -1025,7 +1025,7 @@ public class PubsubIO {
           }
         }
 
-        @Override
+        @FinishBundle
         public void finishBundle(Context c) throws IOException {
           if (!output.isEmpty()) {
             publish();

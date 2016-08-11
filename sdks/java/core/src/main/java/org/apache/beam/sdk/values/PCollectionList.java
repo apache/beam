@@ -128,7 +128,7 @@ public class PCollectionList<T> implements PInput, POutput {
    * this {@link PCollectionList} plus the given {@link PCollection PCollections} appended to the
    * end, in order.
    *
-   * <p>All the {@link PCollections} in the resulting {@link PCollectionList} must be
+   * <p>All the {@link PCollection PCollections} in the resulting {@link PCollectionList} must be
    * part of the same {@link Pipeline}.
    */
   public PCollectionList<T> and(Iterable<PCollection<T>> pcs) {

@@ -18,32 +18,32 @@
 package org.apache.beam.runners.dataflow.util;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 
 import java.io.Serializable;
 
 /**
- * Wrapper class holding the necessary information to serialize a DoFn.
+ * Wrapper class holding the necessary information to serialize a OldDoFn.
  *
- * @param <InputT> the type of the (main) input elements of the DoFn
- * @param <OutputT> the type of the (main) output elements of the DoFn
+ * @param <InputT> the type of the (main) input elements of the OldDoFn
+ * @param <OutputT> the type of the (main) output elements of the OldDoFn
  */
 public class DoFnInfo<InputT, OutputT> implements Serializable {
-  private final DoFn<InputT, OutputT> doFn;
+  private final OldDoFn<InputT, OutputT> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
 
-  public DoFnInfo(DoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy) {
+  public DoFnInfo(OldDoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = null;
     this.inputCoder = null;
   }
 
-  public DoFnInfo(DoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy,
+  public DoFnInfo(OldDoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy,
                   Iterable<PCollectionView<?>> sideInputViews, Coder<InputT> inputCoder) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
@@ -51,7 +51,7 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.inputCoder = inputCoder;
   }
 
-  public DoFn<InputT, OutputT> getDoFn() {
+  public OldDoFn<InputT, OutputT> getDoFn() {
     return doFn;
   }
 
