@@ -563,7 +563,7 @@ public class CompressedSourceTest {
         if (channel.read(buff) != 1) {
           return false;
         }
-        current = new Byte(buff.get(0));
+        current = buff.get(0);
         offset += 1;
         return true;
       }
