@@ -2242,13 +2242,13 @@ public class BigQueryIO {
           List<TableReference> tempTables) {
         for (TableReference tableRef : tempTables) {
           try {
-            LOG.debug("Deleting table " + toJsonString(tableRef));
+            LOG.debug("Deleting table {}", toJsonString(tableRef));
             tableService.deleteTable(
                 tableRef.getProjectId(),
                 tableRef.getDatasetId(),
                 tableRef.getTableId());
           } catch (Exception e) {
-            LOG.warn("Failed to delete the table " + toJsonString(tableRef), e);
+            LOG.warn("Failed to delete the table {}", toJsonString(tableRef), e);
           }
         }
       }
