@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Never;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
@@ -174,6 +175,13 @@ public class PAssert {
      * specified window.
      */
     IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on panes in the {@link GlobalWindow} that were emitted before the {@link GlobalWindow}
+     * closed. These panes have {@link Timing#EARLY}.
+     */
+    IterableAssert<T> inEarlyGlobalWindowPanes();
 
     /**
      * Asserts that the iterable in question contains the provided elements.
@@ -381,6 +389,11 @@ public class PAssert {
       return withPane(window, PaneExtractors.<T>nonLatePanes());
     }
 
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPane(GlobalWindow.INSTANCE, PaneExtractors.<T>earlyPanes());
+    }
+
     private PCollectionContentsAssert<T> withPane(
         BoundedWindow window,
         SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor) {
@@ -555,6 +568,11 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
+    }
+
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.<Iterable<T>>earlyPanes());
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
