@@ -84,13 +84,12 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
       return actualChecksum.equals(expectedChecksum);
     } catch (IOException e) {
       throw new RuntimeException(
-              String.format("Failed to read from path: %s", filePath));
+          String.format("Failed to read from path: %s", filePath));
     }
   }
 
   private List<String> readLines(String path) throws IOException {
     List<String> readData = new ArrayList<>();
-
     IOChannelFactory factory = IOChannelUtils.getFactory(path);
 
     // Match inputPath which may contains glob
@@ -100,7 +99,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     int i = 0;
     for (String file : files) {
       try (Reader reader =
-               Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
+          Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         readData.addAll(lines);
         LOG.info(
@@ -122,16 +121,16 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
   @Override
   public void describeTo(Description description) {
     description
-            .appendText("Expected checksum is (")
-            .appendText(expectedChecksum)
-            .appendText(")");
+        .appendText("Expected checksum is (")
+        .appendText(expectedChecksum)
+        .appendText(")");
   }
 
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
     description
-            .appendText("was (")
-            .appendText(actualChecksum)
-            .appendText(")");
+        .appendText("was (")
+        .appendText(actualChecksum)
+        .appendText(")");
   }
 }
