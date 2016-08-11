@@ -467,6 +467,7 @@ public class TextIOTest {
    * Tests reading from a small, gzipped file with no .gz extension but GZIP compression set.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSmallCompressedGzipReadNoExtension() throws Exception {
     String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
     File tmpFile = tmpFolder.newFile(); // no GZ extension
@@ -480,6 +481,7 @@ public class TextIOTest {
    * Tests reading from a small, gzipped file with .gz extension and AUTO or GZIP compression set.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSmallCompressedGzipRead() throws Exception {
     String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
     File tmpFile = tmpFolder.newFile("small_gzip.gz");
@@ -498,6 +500,7 @@ public class TextIOTest {
    * clients will transparently decompress gzipped content.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSmallCompressedGzipReadActuallyUncompressed() throws Exception {
     String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
     File tmpFile = tmpFolder.newFile("not_really_gzipped.gz"); // GZ file extension lies
@@ -514,6 +517,7 @@ public class TextIOTest {
    * Tests reading from a small, bzip2ed file with no .bz2 extension but BZIP2 compression set.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSmallCompressedBzip2ReadNoExtension() throws Exception {
     String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
     File tmpFile = tmpFolder.newFile(); // no BZ2 extension
@@ -527,6 +531,7 @@ public class TextIOTest {
    * Tests reading from a small, bzip2ed file with .bz2 extension and AUTO or BZIP2 compression set.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testSmallCompressedBzipRead() throws Exception {
     String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
     File tmpFile = tmpFolder.newFile("small_bzip2.bz2");
@@ -546,6 +551,7 @@ public class TextIOTest {
    * compressed files are usually as big as the uncompressed ones or bigger.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testLargeCompressedBzipRead() throws Exception {
     String[] lines = makeLines(5000);
     File bz2File = tmpFolder.newFile("large_bzip2.bz2");
@@ -570,6 +576,7 @@ public class TextIOTest {
    * compressed files are usually as big as the uncompressed ones or bigger.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testLargeCompressedGzipRead() throws Exception {
     String[] lines = makeLines(5000);
     File gzFile = tmpFolder.newFile("large_gzip.gz");
@@ -591,6 +598,7 @@ public class TextIOTest {
    * Tests reading from a large, uncompressed file.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testLargeUncompressedReadTxt() throws Exception {
     String[] lines = makeLines(5000);
     File txtFile = tmpFolder.newFile("large_file.txt");
@@ -605,6 +613,7 @@ public class TextIOTest {
    * Tests reading from a large, uncompressed file with a weird file extension.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testLargeUncompressedReadWeirdExtension() throws Exception {
     String[] lines = makeLines(5000);
     File txtFile = tmpFolder.newFile("large_file.bin.data.foo");
