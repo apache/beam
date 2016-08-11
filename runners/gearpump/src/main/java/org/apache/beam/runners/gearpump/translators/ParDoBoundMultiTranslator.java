@@ -23,6 +23,7 @@ import org.apache.beam.runners.gearpump.translators.utils.GearpumpDoFnRunner;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpSideInputReader;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.DoFnRunner;
 import org.apache.beam.sdk.util.DoFnRunners;
@@ -92,7 +93,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
 
     public DoFnMultiFunction(
         GearpumpPipelineOptions pipelineOptions,
-        DoFn<InputT, OutputT> doFn,
+        OldDoFn<InputT, OutputT> doFn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList sideOutputTags,
         WindowingStrategy<?, ?> windowingStrategy,

@@ -23,8 +23,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -151,7 +151,7 @@ public class GearpumpPipelineRunner extends PipelineRunner<GearpumpPipelineResul
 
     private final Window.Bound<T> wrapped;
 
-    public AssignWindowsAndSetStrategy(Window.Bound<T> wrapped) {
+    AssignWindowsAndSetStrategy(Window.Bound<T> wrapped) {
       this.wrapped = wrapped;
     }
 
@@ -184,7 +184,7 @@ public class GearpumpPipelineRunner extends PipelineRunner<GearpumpPipelineResul
     }
   }
 
-  private static class IdentityFn<T> extends DoFn<T, T> {
+  private static class IdentityFn<T> extends OldDoFn<T, T> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element());

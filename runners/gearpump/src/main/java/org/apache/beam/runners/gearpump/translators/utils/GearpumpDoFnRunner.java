@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -64,7 +65,7 @@ import java.util.Set;
 public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT>,
     Serializable {
 
-  private final DoFn<InputT, OutputT> fn;
+  private final OldDoFn<InputT, OutputT> fn;
   private final transient PipelineOptions options;
   private final SideInputReader sideInputReader;
   private final DoFnRunners.OutputManager outputManager;
@@ -76,7 +77,7 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
 
   public GearpumpDoFnRunner(
       GearpumpPipelineOptions pipelineOptions,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       SideInputReader sideInputReader,
       DoFnRunners.OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
@@ -119,7 +120,7 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
   @Override
   public void processElement(WindowedValue<InputT> elem) {
     if (elem.getWindows().size() <= 1
-        || (!DoFn.RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
+        || (!OldDoFn.RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
         && context.sideInputReader.isEmpty())) {
       invokeProcessElement(elem);
     } else {
@@ -144,7 +145,7 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
-    final DoFn<InputT, OutputT>.ProcessContext processContext =
+    final OldDoFn<InputT, OutputT>.ProcessContext processContext =
         new DoFnProcessContext<>(fn, context, elem);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
@@ -169,11 +170,11 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
    * @param <OutputT> the type of the DoFn's (main) output elements
    */
   private static class DoFnContext<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.Context {
+      extends OldDoFn<InputT, OutputT>.Context {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final transient PipelineOptions options;
-    final DoFn<InputT, OutputT> fn;
+    final OldDoFn<InputT, OutputT> fn;
     final SideInputReader sideInputReader;
     final DoFnRunners.OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
@@ -187,7 +188,7 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
     private final Set<TupleTag<?>> outputTags;
 
     public DoFnContext(PipelineOptions options,
-        DoFn<InputT, OutputT> fn,
+        OldDoFn<InputT, OutputT> fn,
         SideInputReader sideInputReader,
         DoFnRunners.OutputManager outputManager,
         TupleTag<OutputT> mainOutputTag,
@@ -357,14 +358,14 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
    * @param <OutputT> the type of the DoFn's (main) output elements
    */
   private static class DoFnProcessContext<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.ProcessContext {
+      extends OldDoFn<InputT, OutputT>.ProcessContext {
 
 
-    final DoFn<InputT, OutputT> fn;
+    final OldDoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;
     final WindowedValue<InputT> windowedValue;
 
-    public DoFnProcessContext(DoFn<InputT, OutputT> fn,
+    public DoFnProcessContext(OldDoFn<InputT, OutputT> fn,
         DoFnContext<InputT, OutputT> context,
         WindowedValue<InputT> windowedValue) {
       fn.super();
@@ -409,7 +410,7 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
 
     @Override
     public BoundedWindow window() {
-      if (!(fn instanceof DoFn.RequiresWindowAccess)) {
+      if (!(fn instanceof OldDoFn.RequiresWindowAccess)) {
         throw new UnsupportedOperationException(
             "window() is only available in the context of a DoFn marked as RequiresWindow.");
       }
