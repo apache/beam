@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.PipelineResult;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -58,16 +60,20 @@ public class TestPipelineTest {
 
   @Test
   public void testCreationOfPipelineOptions() throws Exception {
-    ObjectMapper mapper = new ObjectMapper();
-    String stringOptions = mapper.writeValueAsString(new String[]{
+    setTestOptionsSystemProperty(new String[]{
       "--runner=org.apache.beam.sdk.testing.CrashingRunner",
       "--project=testProject"
     });
-    System.getProperties().put("beamTestPipelineOptions", stringOptions);
     GcpOptions options =
         TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     assertEquals(CrashingRunner.class, options.getRunner());
     assertEquals(options.getProject(), "testProject");
+  }
+
+  private void setTestOptionsSystemProperty(String[] optionsArgs) throws JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
+    String stringOptions = mapper.writeValueAsString(optionsArgs);
+    System.getProperties().put("beamTestPipelineOptions", stringOptions);
   }
 
   @Test
@@ -75,6 +81,35 @@ public class TestPipelineTest {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     assertThat(options.as(ApplicationNameOptions.class).getAppName(), startsWith(
         "TestPipelineTest-testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase"));
+  }
+
+  @Test
+  public void testLocationDefaultsWithSetTempRoot() throws JsonProcessingException {
+    setTestOptionsSystemProperty(new String[]{ "--tempRoot=foo://bar" });
+    TestPipelineOptions opt = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+    assertEquals("foo://bar", opt.getTempRoot());
+    assertEquals("tempLocation defaults to tempRoot", "foo://bar", opt.getTempLocation());
+  }
+
+  @Test
+  public void testLocationDefaultsWithSetTempRootAndTempLocation() throws JsonProcessingException {
+    setTestOptionsSystemProperty(new String[]{
+        "--tempRoot=foo://bar",
+        "--tempLocation=bar://baz"
+    });
+    TestPipelineOptions opt = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+    assertEquals("foo://bar", opt.getTempRoot());
+    assertEquals("bar://baz", opt.getTempLocation());
+  }
+
+  @Test public void testLocationDefaultsWithoutTempRoot() {
+    // tempRoot System property not set
+    TestPipelineOptions opt = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+    assertNull(opt.getTempRoot());
+    assertNull(opt.getTempLocation());
   }
 
   @Test

@@ -156,6 +156,13 @@ public class TestPipeline extends Pipeline {
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
 
+      if (options.getTempLocation() == null) {
+        String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
+        if (tempRoot != null) {
+          options.setTempLocation(tempRoot);
+        }
+      }
+
       IOChannelUtils.registerStandardIOFactories(options);
       return options;
     } catch (IOException e) {
