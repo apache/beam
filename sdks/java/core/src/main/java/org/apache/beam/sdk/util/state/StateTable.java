@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.util.state;
 
-import org.apache.beam.sdk.util.state.StateTag.StateBinder;
-
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
@@ -39,7 +37,8 @@ public abstract class StateTable<K> {
    * already present in this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
-      StateNamespace namespace, StateTag<? super K, StateT> tag, StateContext<?> c) {
+      StateNamespace namespace,
+      StateTag<? super K, StateT> tag, StateContext<?> c) {
     State storage = stateTable.get(namespace, tag);
     if (storage != null) {
       @SuppressWarnings("unchecked")
@@ -47,7 +46,7 @@ public abstract class StateTable<K> {
       return typedStorage;
     }
 
-    StateT typedStorage = tag.bind(binderForNamespace(namespace, c));
+    StateT typedStorage = tag.getSpec().bind(tag.getId(), binderForNamespace(namespace, c));
     stateTable.put(namespace, tag, typedStorage);
     return typedStorage;
   }
@@ -77,8 +76,9 @@ public abstract class StateTable<K> {
   }
 
   /**
-   * Provide the {@code StateBinder} to use for creating {@code Storage} instances
-   * in the specified {@code namespace}.
+   * Provide the {@code StateBinder} to use for creating {@code Storage} instances in the specified
+   * {@code namespace}.
    */
-  protected abstract StateBinder<K> binderForNamespace(StateNamespace namespace, StateContext<?> c);
+  protected abstract StateBinder<K> binderForNamespace(
+      StateNamespace namespace, StateContext<?> c);
 }

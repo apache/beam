@@ -365,12 +365,12 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       super(null);
     }
 
-    public Set<StateTag<? super K, ?>> getTagsInUse(StateNamespace namespace) {
-      Set<StateTag<? super K, ?>> inUse = new HashSet<>();
+    public Set<String> getTagsInUse(StateNamespace namespace) {
+      Set<String> inUse = new HashSet<>();
       for (Map.Entry<StateTag<? super K, ?>, State> entry :
           inMemoryState.getTagsInUse(namespace).entrySet()) {
         if (!isEmptyForTesting(entry.getValue())) {
-          inUse.add(entry.getKey());
+          inUse.add(entry.getKey().getId());
         }
       }
       return inUse;

@@ -25,19 +25,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateContext;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaces;
-import org.apache.beam.sdk.util.state.StateTable;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
-import org.apache.beam.sdk.util.state.ValueState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.util.state.*;
 import org.apache.beam.sdk.values.PCollectionView;
 
 import com.google.protobuf.ByteString;
@@ -98,45 +86,51 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
   protected final StateTable<K> inMemoryState = new StateTable<K>() {
     @Override
-    protected StateTag.StateBinder binderForNamespace(final StateNamespace namespace, final StateContext<?> c) {
-      return new StateTag.StateBinder<K>() {
+    protected StateBinder binderForNamespace(final StateNamespace namespace, final StateContext<?> c) {
+      return new StateBinder<K>() {
 
         @Override
-        public <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
-          return new FlinkInMemoryValue<>(encodeKey(namespace, address), coder);
+        public <T> ValueState<T> bindValue(String id, StateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
+          return new FlinkInMemoryValue<>(encodeKey(namespace, id), coder);
         }
 
         @Override
-        public <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
-          return new FlinkInMemoryBag<>(encodeKey(namespace, address), elemCoder);
+        public <T> BagState<T> bindBag(String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
+          return new FlinkInMemoryBag<>(encodeKey(namespace, id), elemCoder);
         }
 
         @Override
         public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            String id,
+            StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
             Coder<AccumT> accumCoder, Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn, accumCoder, c);
+          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, id), combineFn, accumCoder, c);
         }
 
         @Override
         public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            String id,
+            StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
             Coder<AccumT> accumCoder,
             Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn, accumCoder, c);
+          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, id), combineFn, accumCoder, c);
         }
 
         @Override
         public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            String id,
+            StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
             Coder<AccumT> accumCoder,
             CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, address), combineFn, accumCoder, c);
+          return new FlinkInMemoryKeyedCombiningValue<>(encodeKey(namespace, id), combineFn, accumCoder, c);
         }
 
         @Override
-        public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(StateTag<? super K, WatermarkHoldState<W>> address, OutputTimeFn<? super W> outputTimeFn) {
-          return new FlinkWatermarkHoldStateImpl<>(encodeKey(namespace, address), outputTimeFn);
+        public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+            String id,
+            StateSpec<? super K, WatermarkHoldState<W>> spec,
+            OutputTimeFn<? super W> outputTimeFn) {
+          return new FlinkWatermarkHoldStateImpl<>(encodeKey(namespace, id), outputTimeFn);
         }
       };
     }
@@ -184,7 +178,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   /**
    * We remove the first character which encodes the type of the stateTag ('s' for system
    * and 'u' for user). For more details check out the source of
-   * {@link StateTags.StateTagBase#getId()}.
+   * {@link StateTags.SimpleStateTag#getId()}.
    */
   private void decodeState(StateCheckpointReader reader, ClassLoader loader)
       throws IOException, ClassNotFoundException {
@@ -277,12 +271,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private ByteString encodeKey(StateNamespace namespace, StateTag<? super K, ?> address) {
+  private ByteString encodeKey(StateNamespace namespace, String id) {
     StringBuilder sb = new StringBuilder();
     try {
       namespace.appendTo(sb);
       sb.append('+');
-      address.appendTo(sb);
+      sb.append(id);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

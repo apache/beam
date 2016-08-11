@@ -19,37 +19,22 @@ package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.transforms.GroupByKey;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * An address for persistent state. This includes a unique identifier for the location, the
- * information necessary to encode the value, and details about the intended access pattern.
- *
- * <p>State can be thought of as a sparse table, with each {@code StateTag} defining a column
- * that has cells of type {@code StateT}.
- *
- * <p>Currently, this can only be used in a step immediately following a {@link GroupByKey}.
+ * A specification of a persistent state cell. This includes information necessary to encode the
+ * value and details about the intended access pattern.
  *
  * @param <K> The type of key that must be used with the state tag. Contravariant: methods should
- *            accept values of type {@code KeyedStateTag<? super K, StateT>}.
- * @param <StateT> The type of state being tagged.
+ *            accept values of type {@code StateSpec<? super K, StateT>}.
+ * @param <StateT> The type of state being described.
  */
 @Experimental(Kind.STATE)
-public interface StateTag<K, StateT extends State> extends Serializable {
-
-  /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
-  void appendTo(Appendable sb) throws IOException;
+public interface StateSpec<K, StateT extends State> extends Serializable {
 
   /**
-   * Returns the user-provided name of this state cell.
+   * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
    */
-  String getId();
-
-  /**
-   * Returns the spec for the enclosed state cell.
-   */
-  StateSpec<K, StateT> getSpec();
+  StateT bind(String id, StateBinder<? extends K> binder);
 }
