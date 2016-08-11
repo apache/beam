@@ -150,7 +150,7 @@ public class CompressedSourceTest {
         .withDecompression(CompressionMode.GZIP);
     assertFalse(source.isSplittable());
   }
-  
+
   /**
    * Test reading nonempty input with bzip2.
    */
