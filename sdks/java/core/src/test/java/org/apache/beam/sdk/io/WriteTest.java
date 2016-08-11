@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-import static org.apache.beam.sdk.values.KV.of;
-
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -29,8 +27,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-
-import static java.util.concurrent.ThreadLocalRandom.current;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,8 +58,10 @@ import com.google.common.base.Optional;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -76,6 +74,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -83,6 +82,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @RunWith(JUnit4.class)
 public class WriteTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   // Static store that can be accessed within the writer
   private static List<String> sinkContents = new ArrayList<>();
   // Static count of output shards
@@ -108,7 +109,7 @@ public class WriteTest {
 
       @ProcessElement
       public void processElement(ProcessContext c) {
-        c.output(of(current().nextInt(), c.element()));
+        c.output(KV.of(ThreadLocalRandom.current().nextInt(), c.element()));
       }
     }
 
@@ -287,6 +288,25 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFrom(sink));
     assertThat(displayData, hasDisplayItem("numShards", 1));
+  }
+
+  @Test
+  public void testWriteUnbounded() {
+    TestPipeline p = TestPipeline.create();
+    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
+        .apply(MapElements.via(new ToStringFn()));
+
+    TestSink sink = new TestSink();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
+    unbounded.apply(Write.to(sink));
+  }
+
+  private static class ToStringFn extends SimpleFunction<Long, String> {
+    @Override
+    public String apply(Long input) {
+      return Long.toString(input);
+    }
   }
 
   /**
