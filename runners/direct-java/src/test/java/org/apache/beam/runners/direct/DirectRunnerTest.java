@@ -155,7 +155,7 @@ public class DirectRunnerTest implements Serializable {
     assertThat("Each element should have been processed twice", changed.get(), equalTo(6));
   }
 
-  @Test(timeout = 5000L)
+  @Test
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
