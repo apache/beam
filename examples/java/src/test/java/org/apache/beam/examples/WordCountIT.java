@@ -41,7 +41,8 @@ public class WordCountIT {
   /**
    * Options for the WordCount Integration Test.
    *
-   * Define expected output file checksum to verify WordCount pipeline result with customized input.
+   * <p>Define expected output file checksum to verify WordCount pipeline result
+   * with customized input.
    */
   public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
     @Default.String("c04722202dee29c442b55ead54c6000693e85e77")
