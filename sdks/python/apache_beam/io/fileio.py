@@ -287,7 +287,7 @@ class _CompressionType(object):
             self.identifier == other.identifier)
 
   def __hash__(self):
-    return hash((self.identifier))
+    return hash(self.identifier)
 
   def __ne__(self, other):
     return not self.__eq__(other)
