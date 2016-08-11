@@ -455,7 +455,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     @Override
     public boolean allowsDynamicSplitting() {
-      return splittable;
+      return false;
     }
 
     @Override
