@@ -32,57 +32,74 @@ import org.apache.beam.sdk.transforms.DoFn;
  */
 @AutoValue
 public abstract class DoFnSignature {
+  /** Class of the original {@link DoFn} from which this signature was produced. */
   public abstract Class<? extends DoFn> fnClass();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.StartBundle} method. */
   @Nullable
   public abstract BundleMethod startBundle();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.FinishBundle} method. */
   @Nullable
   public abstract BundleMethod finishBundle();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.Setup} method. */
   @Nullable
   public abstract LifecycleMethod setup();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.Teardown} method. */
   @Nullable
   public abstract LifecycleMethod teardown();
 
-  static DoFnSignature create(
-      Class<? extends DoFn> fnClass,
-      ProcessElementMethod processElement,
-      @Nullable BundleMethod startBundle,
-      @Nullable BundleMethod finishBundle,
-      @Nullable LifecycleMethod setup,
-      @Nullable LifecycleMethod teardown) {
-    return new AutoValue_DoFnSignature(
-        fnClass,
-        processElement,
-        startBundle,
-        finishBundle,
-        setup,
-        teardown);
+  static Builder builder() {
+    return new AutoValue_DoFnSignature.Builder();
+  }
+
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setFnClass(Class<? extends DoFn> fnClass);
+    abstract Builder setProcessElement(ProcessElementMethod processElement);
+    abstract Builder setStartBundle(BundleMethod startBundle);
+    abstract Builder setFinishBundle(BundleMethod finishBundle);
+    abstract Builder setSetup(LifecycleMethod setup);
+    abstract Builder setTeardown(LifecycleMethod teardown);
+    abstract DoFnSignature build();
+  }
+
+  /** A method delegated to a annotated method of an underlying {@link DoFn}. */
+  public interface DoFnMethod {
+    /** The annotated method itself. */
+    Method targetMethod();
+  }
+
+  /** A type of optional parameter of the {@link DoFn.ProcessElement} method. */
+  public enum Parameter {
+    BOUNDED_WINDOW,
+    INPUT_PROVIDER,
+    OUTPUT_RECEIVER,
   }
 
   /** Describes a {@link DoFn.ProcessElement} method. */
   @AutoValue
-  public abstract static class ProcessElementMethod {
-    enum Parameter {
-      BOUNDED_WINDOW,
-      INPUT_PROVIDER,
-      OUTPUT_RECEIVER
-    }
-
+  public abstract static class ProcessElementMethod implements DoFnMethod {
+    /** The annotated method itself. */
+    @Override
     public abstract Method targetMethod();
 
+    /** Types of optional parameters of the annotated method, in the order they appear. */
     public abstract List<Parameter> extraParameters();
 
-    static ProcessElementMethod create(Method targetMethod, List<Parameter> extraParameters) {
+    static ProcessElementMethod create(
+        Method targetMethod,
+        List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod, Collections.unmodifiableList(extraParameters));
     }
 
-    /** @return true if the reflected {@link DoFn} uses a Single Window. */
+    /** Whether this {@link DoFn} uses a Single Window. */
     public boolean usesSingleWindow() {
       return extraParameters().contains(Parameter.BOUNDED_WINDOW);
     }
@@ -90,7 +107,9 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue
-  public abstract static class BundleMethod {
+  public abstract static class BundleMethod implements DoFnMethod {
+    /** The annotated method itself. */
+    @Override
     public abstract Method targetMethod();
 
     static BundleMethod create(Method targetMethod) {
@@ -100,7 +119,9 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.Setup} or {@link DoFn.Teardown} method. */
   @AutoValue
-  public abstract static class LifecycleMethod {
+  public abstract static class LifecycleMethod implements DoFnMethod {
+    /** The annotated method itself. */
+    @Override
     public abstract Method targetMethod();
 
     static LifecycleMethod create(Method targetMethod) {

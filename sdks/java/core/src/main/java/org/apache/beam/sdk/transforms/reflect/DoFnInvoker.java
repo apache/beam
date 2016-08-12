@@ -26,28 +26,16 @@ import org.apache.beam.sdk.transforms.DoFn;
  * referred to as the bound {@link DoFn}.
  */
 public interface DoFnInvoker<InputT, OutputT> {
-  /**
-   * Invoke the {@link DoFn.Setup} method on the bound {@link DoFn}.
-   */
+  /** Invoke the {@link DoFn.Setup} method on the bound {@link DoFn}. */
   void invokeSetup();
 
-  /**
-   * Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}.
-   *
-   * @param c The {@link DoFn.Context} to invoke the fn with.
-   */
+  /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
   void invokeStartBundle(DoFn<InputT, OutputT>.Context c);
 
-  /**
-   * Invoke the {@link DoFn.FinishBundle} method on the bound {@link DoFn}.
-   *
-   * @param c The {@link DoFn.Context} to invoke the fn with.
-   */
+  /** Invoke the {@link DoFn.FinishBundle} method on the bound {@link DoFn}. */
   void invokeFinishBundle(DoFn<InputT, OutputT>.Context c);
 
-  /**
-   * Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}.
-   */
+  /** Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}. */
   void invokeTeardown();
 
   /**
