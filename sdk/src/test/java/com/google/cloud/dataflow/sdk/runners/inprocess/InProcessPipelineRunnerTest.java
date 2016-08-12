@@ -15,7 +15,9 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -52,6 +54,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tests for basic {@link InProcessPipelineRunner} functionality.
@@ -88,6 +91,50 @@ public class InProcessPipelineRunnerTest implements Serializable {
     result.awaitCompletion();
   }
 
+  private static AtomicInteger changed;
+  @Test
+  public void reusePipelineSucceeds() throws Throwable {
+    Pipeline p = getPipeline();
+
+    changed = new AtomicInteger(0);
+
+    PCollection<KV<String, Long>> counts =
+        p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
+            .apply(MapElements.via(new SimpleFunction<String, String>() {
+              @Override
+              public String apply(String input) {
+                return input;
+              }
+            }))
+            .apply(Count.<String>perElement());
+    PCollection<String> countStrs =
+        counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
+          @Override
+          public String apply(KV<String, Long> input) {
+            String str = String.format("%s: %s", input.getKey(), input.getValue());
+            return str;
+          }
+        }));
+
+    counts.apply(ParDo.of(new DoFn<KV<String, Long>, Void>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+        changed.getAndIncrement();
+      }
+    }));
+
+    DataflowAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
+
+    InProcessPipelineResult result = ((InProcessPipelineResult) p.run());
+    result.awaitCompletion();
+
+    InProcessPipelineResult otherResult = ((InProcessPipelineResult) p.run());
+    otherResult.awaitCompletion();
+
+    assertThat("Each element should have been processed twice", changed.get(), equalTo(6));
+  }
+
+  @Test
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
