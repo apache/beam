@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -29,6 +30,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,9 +40,11 @@ import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -341,14 +346,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      */
     @Deprecated
     WindowingInternals<InputT, OutputT> windowingInternals();
+
+    /**
+     * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
+     * the current {@link ProcessElement} call.
+     */
+    <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
   }
 
-  /** A placeholder for testing handling of output types during {@link DoFn} reflection. */
+  /** Receives values of the given type. */
   public interface OutputReceiver<T> {
     void output(T output);
   }
 
-  /** A placeholder for testing handling of input types during {@link DoFn} reflection. */
+  /** Provides a single value of the given type. */
   public interface InputProvider<T> {
     T get();
   }
@@ -373,6 +384,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     @Override
     public WindowingInternals<InputT, OutputT> windowingInternals() {
+      return null;
+    }
+
+    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
       return null;
     }
   }
@@ -412,14 +427,57 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface StartBundle {}
 
   /**
-   * Annotation for the method to use for processing elements. A subclass of
-   * {@link DoFn} must have a method with this annotation satisfying
-   * the following constraints in order for it to be executable:
+   * Annotation for the method to use for processing elements. A subclass of {@link DoFn} must have
+   * a method with this annotation.
+   *
+   * <p>The signature of this method must satisfy the following constraints:
+   *
    * <ul>
-   *   <li>It must have at least one argument.
-   *   <li>Its first argument must be a {@link DoFn.ProcessContext}.
-   *   <li>Its remaining argument, if any, must be {@link BoundedWindow}.
+   * <li>Its first argument must be a {@link DoFn.ProcessContext}.
+   * <li>If one of its arguments is a subtype of {@link RestrictionTracker}, then it is a <a
+   *     href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} subject to the
+   *     separate requirements described below. Items below are assuming this is not a splittable
+   *     {@link DoFn}.
+   * <li>If one of its arguments is {@link BoundedWindow}, this argument corresponds to the window
+   *     of the current element. If absent, a runner may perform additional optimizations.
+   * <li>It must return {@code void}.
    * </ul>
+   *
+   * <h2>Splittable DoFn's (WARNING: work in progress, do not use)</h2>
+   *
+   * <p>A {@link DoFn} is <i>splittable</i> if its {@link ProcessElement} method has a parameter
+   * whose type is a subtype of {@link RestrictionTracker}. This is an advanced feature and an
+   * overwhelming majority of users will never need to write a splittable {@link DoFn}. Right now
+   * the implementation of this feature is in progress and it's not ready for any use.
+   *
+   * <p>See <a href="https://s.apache.org/splittable-do-fn">the proposal</a> for an overview of the
+   * involved concepts (<i>splittable DoFn</i>, <i>restriction</i>, <i>restriction tracker</i>).
+   *
+   * <p>If a {@link DoFn} is splittable, the following constraints must be respected:
+   *
+   * <ul>
+   * <li>It <i>must</i> define a {@link GetInitialRestriction} method.
+   * <li>It <i>may</i> define a {@link SplitRestriction} method.
+   * <li>It <i>must</i> define a {@link NewTracker} method returning the same type as the type of
+   *     the {@link RestrictionTracker} argument of {@link ProcessElement}, which in turn must be a
+   *     subtype of {@code RestrictionTracker<R>} where {@code R} is the restriction type returned
+   *     by {@link GetInitialRestriction}.
+   * <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
+   * <li>The type of restrictions used by all of these methods must be the same.
+   * <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
+   *     indicate whether there is more work to be done for the current element.
+   * <li>Its {@link ProcessElement} method <i>must not</i> use any extra context parameters, such as
+   *     {@link BoundedWindow}.
+   * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or
+   *     {@link UnboundedPerElement}, but not both at the same time. If it's not annotated with
+   *     either of these, it's assumed to be {@link BoundedPerElement} if its {@link
+   *     ProcessElement} method returns {@code void} and {@link UnboundedPerElement} if it
+   *     returns a {@link ProcessContinuation}.
+   * </ul>
+   *
+   * <p>A non-splittable {@link DoFn} <i>must not</i> define any of these methods.
+   *
+   * <p>More documentation will be added when the feature becomes ready for general usage.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -452,6 +510,150 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface Teardown {
+  }
+
+  /**
+   * Annotation for the method that maps an element to an initial restriction for a <a
+   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+   *
+   * <p>Signature: {@code RestrictionT getInitialRestriction(InputT element);}
+   *
+   * <p>TODO: Make the InputT parameter optional.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface GetInitialRestriction {}
+
+  /**
+   * Annotation for the method that returns the coder to use for the restriction of a <a
+   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+   *
+   * <p>If not defined, a coder will be inferred using standard coder inference rules and the
+   * pipeline's {@link Pipeline#getCoderRegistry coder registry}.
+   *
+   * <p>This method will be called only at pipeline construction time.
+   *
+   * <p>Signature: {@code Coder<RestrictionT> getRestrictionCoder();}
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface GetRestrictionCoder {}
+
+  /**
+   * Annotation for the method that splits restriction of a <a
+   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into multiple parts to
+   * be processed in parallel.
+   *
+   * <p>Signature: {@code List<RestrictionT> splitRestriction( InputT element, RestrictionT
+   * restriction);}
+   *
+   * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
+   * defining the method and returning {@code Collections.singletonList(restriction)}).
+   *
+   * <p>TODO: Introduce a parameter for controlling granularity of splitting, e.g. numParts. TODO:
+   * Make the InputT parameter optional.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface SplitRestriction {}
+
+  /**
+   * Annotation for the method that creates a new {@link RestrictionTracker} for the restriction of
+   * a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+   *
+   * <p>Signature: {@code MyRestrictionTracker newTracker(RestrictionT restriction);} where {@code
+   * MyRestrictionTracker} must be a subtype of {@code RestrictionTracker<RestrictionT>}.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface NewTracker {}
+
+  /**
+   * Annotation on a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}
+   * specifying that the {@link DoFn} performs a bounded amount of work per input element, so
+   * applying it to a bounded {@link PCollection} will produce also a bounded {@link PCollection}.
+   * It is an error to specify this on a non-splittable {@link DoFn}.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.TYPE)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface BoundedPerElement {}
+
+  /**
+   * Annotation on a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}
+   * specifying that the {@link DoFn} performs an unbounded amount of work per input element, so
+   * applying it to a bounded {@link PCollection} will produce an unbounded {@link PCollection}. It
+   * is an error to specify this on a non-splittable {@link DoFn}.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.TYPE)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface UnboundedPerElement {}
+
+  // This can't be put into ProcessContinuation itself due to the following problem:
+  // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
+  private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
+      new AutoValue_DoFn_ProcessContinuation(false, Duration.ZERO, null);
+
+  /**
+   * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
+   * be done for the current element.
+   */
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  @AutoValue
+  public abstract static class ProcessContinuation {
+    /** Indicates that there is no more work to be done for the current element. */
+    public static ProcessContinuation stop() {
+      return PROCESS_CONTINUATION_STOP;
+    }
+
+    /** Indicates that there is more work to be done for the current element. */
+    public static ProcessContinuation resume() {
+      return new AutoValue_DoFn_ProcessContinuation(true, Duration.ZERO, null);
+    }
+
+    /**
+     * If false, the {@link DoFn} promises that there is no more work remaining for the current
+     * element, so the runner should not resume the {@link ProcessElement} call.
+     */
+    public abstract boolean shouldResume();
+
+    /**
+     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
+     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
+     */
+    public abstract Duration resumeDelay();
+
+    /**
+     * A lower bound provided by the {@link DoFn} on timestamps of the output that will be emitted
+     * by future {@link ProcessElement} calls continuing processing of the current element.
+     *
+     * <p>A runner should treat an absent value as equivalent to the timestamp of the input element.
+     */
+    @Nullable
+    public abstract Instant getWatermark();
+
+    /** Builder method to set the value of {@link #resumeDelay()}. */
+    public ProcessContinuation withResumeDelay(Duration resumeDelay) {
+      return new AutoValue_DoFn_ProcessContinuation(
+          shouldResume(), resumeDelay, getWatermark());
+    }
+
+    /** Builder method to set the value of {@link #getWatermark()}. */
+    public ProcessContinuation withWatermark(Instant watermark) {
+      return new AutoValue_DoFn_ProcessContinuation(
+          shouldResume(), resumeDelay(), watermark);
+    }
   }
 
   /**

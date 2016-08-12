@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -27,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
@@ -716,6 +719,8 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
+      checkArgument(
+          !isSplittable(fn), "Splittable DoFn not supported by the current runner");
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
@@ -925,6 +930,9 @@ public class ParDo {
 
     @Override
     public PCollectionTuple apply(PCollection<? extends InputT> input) {
+      checkArgument(
+          !isSplittable(fn), "Splittable DoFn not supported by the current runner");
+
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
@@ -996,5 +1004,16 @@ public class ParDo {
         .include(fn)
         .add(DisplayData.item("fn", fnClass)
             .withLabel("Transform Function"));
+  }
+
+  private static boolean isSplittable(OldDoFn<?, ?> oldDoFn) {
+    DoFn<?, ?> fn = DoFnAdapters.getDoFn(oldDoFn);
+    if (fn == null) {
+      return false;
+    }
+    return DoFnSignatures.INSTANCE
+        .getOrParseSignature(fn.getClass())
+        .processElement()
+        .isSplittable();
   }
 }

@@ -61,7 +61,7 @@ public class DoFnSignaturesProcessElementTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Integer is not a valid context parameter. "
-            + "Should be one of [BoundedWindow]");
+            + "Should be one of [BoundedWindow, RestrictionTracker<?>]");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -72,7 +72,7 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadReturnType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must return void");
+    thrown.expectMessage("Must return void or ProcessContinuation");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
@@ -34,9 +36,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getOrParseSignature}.
@@ -88,6 +93,14 @@ public class DoFnSignatures {
     Method setupMethod = findAnnotatedMethod(errors, DoFn.Setup.class, fnClass, false);
     Method teardownMethod = findAnnotatedMethod(errors, DoFn.Teardown.class, fnClass, false);
 
+    Method getInitialRestrictionMethod =
+        findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
+    Method splitRestrictionMethod =
+        findAnnotatedMethod(errors, DoFn.SplitRestriction.class, fnClass, false);
+    Method getRestrictionCoderMethod =
+        findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
+    Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
+
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
@@ -119,7 +132,213 @@ public class DoFnSignatures {
               errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
     }
 
-    return builder.build();
+    DoFnSignature.GetInitialRestrictionMethod getInitialRestriction = null;
+    ErrorReporter getInitialRestrictionErrors = null;
+    if (getInitialRestrictionMethod != null) {
+      getInitialRestrictionErrors =
+          errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestrictionMethod);
+      builder.setGetInitialRestriction(
+          getInitialRestriction =
+              analyzeGetInitialRestrictionMethod(
+                  getInitialRestrictionErrors, fnToken, getInitialRestrictionMethod, inputT));
+    }
+
+    DoFnSignature.SplitRestrictionMethod splitRestriction = null;
+    if (splitRestrictionMethod != null) {
+      ErrorReporter splitRestrictionErrors =
+          errors.forMethod(DoFn.SplitRestriction.class, splitRestrictionMethod);
+      builder.setSplitRestriction(
+          splitRestriction =
+              analyzeSplitRestrictionMethod(
+                  splitRestrictionErrors, fnToken, splitRestrictionMethod, inputT));
+    }
+
+    DoFnSignature.GetRestrictionCoderMethod getRestrictionCoder = null;
+    if (getRestrictionCoderMethod != null) {
+      ErrorReporter getRestrictionCoderErrors =
+          errors.forMethod(DoFn.GetRestrictionCoder.class, getRestrictionCoderMethod);
+      builder.setGetRestrictionCoder(
+          getRestrictionCoder =
+              analyzeGetRestrictionCoderMethod(
+                  getRestrictionCoderErrors, fnToken, getRestrictionCoderMethod));
+    }
+
+    DoFnSignature.NewTrackerMethod newTracker = null;
+    if (newTrackerMethod != null) {
+      ErrorReporter newTrackerErrors = errors.forMethod(DoFn.NewTracker.class, newTrackerMethod);
+      builder.setNewTracker(
+          newTracker = analyzeNewTrackerMethod(newTrackerErrors, fnToken, newTrackerMethod));
+    }
+
+    builder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
+
+    DoFnSignature signature = builder.build();
+
+    // Additional validation for splittable DoFn's.
+    if (processElement.isSplittable()) {
+      verifySplittableMethods(signature, errors);
+    } else {
+      verifyUnsplittableMethods(errors, signature);
+    }
+
+    return signature;
+  }
+
+  /**
+   * Infers the boundedness of the {@link DoFn.ProcessElement} method (whether or not it performs a
+   * bounded amount of work per element) using the following criteria:
+   *
+   * <ol>
+   * <li>If the {@link DoFn} is not splittable, then it is bounded, it must not be annotated as
+   *     {@link DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, and {@link
+   *     DoFn.ProcessElement} must return {@code void}.
+   * <li>If the {@link DoFn} (or any of its supertypes) is annotated as {@link
+   *     DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, use that. Only one of
+   *     these must be specified.
+   * <li>If {@link DoFn.ProcessElement} returns {@link DoFn.ProcessContinuation}, assume it is
+   *     unbounded. Otherwise (if it returns {@code void}), assume it is bounded.
+   * <li>If {@link DoFn.ProcessElement} returns {@code void}, but the {@link DoFn} is annotated
+   *     {@link DoFn.UnboundedPerElement}, this is an error.
+   * </ol>
+   */
+  private static PCollection.IsBounded inferBoundedness(
+      TypeToken<? extends DoFn> fnToken,
+      DoFnSignature.ProcessElementMethod processElement,
+      ErrorReporter errors) {
+    PCollection.IsBounded isBounded = null;
+    for (TypeToken<?> supertype : fnToken.getTypes()) {
+      if (supertype.getRawType().isAnnotationPresent(DoFn.BoundedPerElement.class)
+          || supertype.getRawType().isAnnotationPresent(DoFn.UnboundedPerElement.class)) {
+        errors.checkArgument(
+            isBounded == null,
+            "Both @%s and @%s specified",
+            DoFn.BoundedPerElement.class.getSimpleName(),
+            DoFn.UnboundedPerElement.class.getSimpleName());
+        isBounded =
+            supertype.getRawType().isAnnotationPresent(DoFn.BoundedPerElement.class)
+                ? PCollection.IsBounded.BOUNDED
+                : PCollection.IsBounded.UNBOUNDED;
+      }
+    }
+    if (processElement.isSplittable()) {
+      if (isBounded == null) {
+        isBounded =
+            processElement.hasReturnValue()
+                ? PCollection.IsBounded.UNBOUNDED
+                : PCollection.IsBounded.BOUNDED;
+      }
+    } else {
+      errors.checkArgument(
+          isBounded == null,
+          "Non-splittable, but annotated as @"
+              + ((isBounded == PCollection.IsBounded.BOUNDED)
+                  ? DoFn.BoundedPerElement.class.getSimpleName()
+                  : DoFn.UnboundedPerElement.class.getSimpleName()));
+      checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
+      isBounded = PCollection.IsBounded.BOUNDED;
+    }
+    return isBounded;
+  }
+
+  /**
+   * Verifies properties related to methods of splittable {@link DoFn}:
+   *
+   * <ul>
+   * <li>Must declare the required {@link DoFn.GetInitialRestriction} and {@link DoFn.NewTracker}
+   *     methods.
+   * <li>Types of restrictions and trackers must match exactly between {@link DoFn.ProcessElement},
+   *     {@link DoFn.GetInitialRestriction}, {@link DoFn.NewTracker}, {@link
+   *     DoFn.GetRestrictionCoder}, {@link DoFn.SplitRestriction}.
+   * </ul>
+   */
+  private static void verifySplittableMethods(DoFnSignature signature, ErrorReporter errors) {
+    DoFnSignature.ProcessElementMethod processElement = signature.processElement();
+    DoFnSignature.GetInitialRestrictionMethod getInitialRestriction =
+        signature.getInitialRestriction();
+    DoFnSignature.NewTrackerMethod newTracker = signature.newTracker();
+    DoFnSignature.GetRestrictionCoderMethod getRestrictionCoder = signature.getRestrictionCoder();
+    DoFnSignature.SplitRestrictionMethod splitRestriction = signature.splitRestriction();
+
+    ErrorReporter processElementErrors =
+        errors.forMethod(DoFn.ProcessElement.class, processElement.targetMethod());
+
+    List<String> missingRequiredMethods = new ArrayList<>();
+    if (getInitialRestriction == null) {
+      missingRequiredMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
+    }
+    if (newTracker == null) {
+      missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
+    }
+    if (!missingRequiredMethods.isEmpty()) {
+      processElementErrors.throwIllegalArgument(
+          "Splittable, but does not define the following required methods: %s",
+          missingRequiredMethods);
+    }
+
+    processElementErrors.checkArgument(
+        processElement.trackerT().equals(newTracker.trackerT()),
+        "Has tracker type %s, but @%s method %s uses tracker type %s",
+        formatType(processElement.trackerT()),
+        DoFn.NewTracker.class.getSimpleName(),
+        format(newTracker.targetMethod()),
+        formatType(newTracker.trackerT()));
+
+    ErrorReporter getInitialRestrictionErrors =
+        errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
+    TypeToken<?> restrictionT = getInitialRestriction.restrictionT();
+
+    getInitialRestrictionErrors.checkArgument(
+        restrictionT.equals(newTracker.restrictionT()),
+        "Uses restriction type %s, but @%s method %s uses restriction type %s",
+        formatType(restrictionT),
+        DoFn.NewTracker.class.getSimpleName(),
+        format(newTracker.targetMethod()),
+        formatType(newTracker.restrictionT()));
+
+    if (getRestrictionCoder != null) {
+      getInitialRestrictionErrors.checkArgument(
+          getRestrictionCoder.coderT().isSubtypeOf(coderTypeOf(restrictionT)),
+          "Uses restriction type %s, but @%s method %s returns %s "
+              + "which is not a subtype of %s",
+          formatType(restrictionT),
+          DoFn.GetRestrictionCoder.class.getSimpleName(),
+          format(getRestrictionCoder.targetMethod()),
+          formatType(getRestrictionCoder.coderT()),
+          formatType(coderTypeOf(restrictionT)));
+    }
+
+    if (splitRestriction != null) {
+      getInitialRestrictionErrors.checkArgument(
+          splitRestriction.restrictionT().equals(restrictionT),
+          "Uses restriction type %s, but @%s method %s uses restriction type %s",
+          formatType(restrictionT),
+          DoFn.SplitRestriction.class.getSimpleName(),
+          format(splitRestriction.targetMethod()),
+          formatType(splitRestriction.restrictionT()));
+    }
+  }
+
+  /**
+   * Verifies that a non-splittable {@link DoFn} does not declare any methods that only make sense
+   * for splittable {@link DoFn}: {@link DoFn.GetInitialRestriction}, {@link DoFn.SplitRestriction},
+   * {@link DoFn.NewTracker}, {@link DoFn.GetRestrictionCoder}.
+   */
+  private static void verifyUnsplittableMethods(ErrorReporter errors, DoFnSignature signature) {
+    List<String> forbiddenMethods = new ArrayList<>();
+    if (signature.getInitialRestriction() != null) {
+      forbiddenMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
+    }
+    if (signature.splitRestriction() != null) {
+      forbiddenMethods.add("@" + DoFn.SplitRestriction.class.getSimpleName());
+    }
+    if (signature.newTracker() != null) {
+      forbiddenMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
+    }
+    if (signature.getRestrictionCoder() != null) {
+      forbiddenMethods.add("@" + DoFn.GetRestrictionCoder.class.getSimpleName());
+    }
+    errors.checkArgument(
+        forbiddenMethods.isEmpty(), "Non-splittable, but defines methods: %s", forbiddenMethods);
   }
 
   /**
@@ -166,7 +385,11 @@ public class DoFnSignatures {
       Method m,
       TypeToken<?> inputT,
       TypeToken<?> outputT) {
-    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+    errors.checkArgument(
+        void.class.equals(m.getReturnType())
+            || DoFn.ProcessContinuation.class.equals(m.getReturnType()),
+        "Must return void or %s",
+        DoFn.ProcessContinuation.class.getSimpleName());
 
     TypeToken<?> processContextToken = doFnProcessContextTypeOf(inputT, outputT);
 
@@ -181,6 +404,7 @@ public class DoFnSignatures {
         formatType(processContextToken));
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
+    TypeToken<?> trackerT = null;
 
     TypeToken<?> expectedInputProviderT = inputProviderTypeOf(inputT);
     TypeToken<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
@@ -190,38 +414,62 @@ public class DoFnSignatures {
       if (rawType.equals(BoundedWindow.class)) {
         errors.checkArgument(
             !extraParameters.contains(DoFnSignature.Parameter.BOUNDED_WINDOW),
-            "Multiple BoundedWindow parameters");
+            "Multiple %s parameters",
+            BoundedWindow.class.getSimpleName());
         extraParameters.add(DoFnSignature.Parameter.BOUNDED_WINDOW);
       } else if (rawType.equals(DoFn.InputProvider.class)) {
         errors.checkArgument(
             !extraParameters.contains(DoFnSignature.Parameter.INPUT_PROVIDER),
-            "Multiple InputProvider parameters");
+            "Multiple %s parameters",
+            DoFn.InputProvider.class.getSimpleName());
         errors.checkArgument(
             paramT.equals(expectedInputProviderT),
-            "Wrong type of InputProvider parameter: %s, should be %s",
+            "Wrong type of %s parameter: %s, should be %s",
+            DoFn.InputProvider.class.getSimpleName(),
             formatType(paramT),
             formatType(expectedInputProviderT));
         extraParameters.add(DoFnSignature.Parameter.INPUT_PROVIDER);
       } else if (rawType.equals(DoFn.OutputReceiver.class)) {
         errors.checkArgument(
             !extraParameters.contains(DoFnSignature.Parameter.OUTPUT_RECEIVER),
-            "Multiple OutputReceiver parameters");
+            "Multiple %s parameters",
+            DoFn.OutputReceiver.class.getSimpleName());
         errors.checkArgument(
             paramT.equals(expectedOutputReceiverT),
-            "Wrong type of OutputReceiver parameter: %s, should be %s",
+            "Wrong type of %s parameter: %s, should be %s",
+            DoFn.OutputReceiver.class.getSimpleName(),
             formatType(paramT),
             formatType(expectedOutputReceiverT));
         extraParameters.add(DoFnSignature.Parameter.OUTPUT_RECEIVER);
+      } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
+        errors.checkArgument(
+            !extraParameters.contains(DoFnSignature.Parameter.RESTRICTION_TRACKER),
+            "Multiple %s parameters",
+            RestrictionTracker.class.getSimpleName());
+        extraParameters.add(DoFnSignature.Parameter.RESTRICTION_TRACKER);
+        trackerT = paramT;
       } else {
         List<String> allowedParamTypes =
-            Arrays.asList(formatType(new TypeToken<BoundedWindow>() {}));
+            Arrays.asList(
+                formatType(new TypeToken<BoundedWindow>() {}),
+                formatType(new TypeToken<RestrictionTracker<?>>() {}));
         errors.throwIllegalArgument(
             "%s is not a valid context parameter. Should be one of %s",
             formatType(paramT), allowedParamTypes);
       }
     }
 
-    return DoFnSignature.ProcessElementMethod.create(m, extraParameters);
+    // A splittable DoFn can not have any other extra context parameters.
+    if (extraParameters.contains(DoFnSignature.Parameter.RESTRICTION_TRACKER)) {
+      errors.checkArgument(
+          extraParameters.size() == 1,
+          "Splittable DoFn must not have any extra context arguments apart from %s, but has: %s",
+          trackerT,
+          extraParameters);
+    }
+
+    return DoFnSignature.ProcessElementMethod.create(
+        m, extraParameters, trackerT, DoFn.ProcessContinuation.class.equals(m.getReturnType()));
   }
 
   @VisibleForTesting
@@ -246,6 +494,100 @@ public class DoFnSignatures {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
     errors.checkArgument(m.getGenericParameterTypes().length == 0, "Must take zero arguments");
     return DoFnSignature.LifecycleMethod.create(m);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.GetInitialRestrictionMethod analyzeGetInitialRestrictionMethod(
+      ErrorReporter errors, TypeToken<? extends DoFn> fnToken, Method m, TypeToken<?> inputT) {
+    // Method is of the form:
+    // @GetInitialRestriction
+    // RestrictionT getInitialRestriction(InputT element);
+    Type[] params = m.getGenericParameterTypes();
+    errors.checkArgument(
+        params.length == 1 && fnToken.resolveType(params[0]).equals(inputT),
+        "Must take a single argument of type %s",
+        formatType(inputT));
+    return DoFnSignature.GetInitialRestrictionMethod.create(
+        m, fnToken.resolveType(m.getGenericReturnType()));
+  }
+
+  /** Generates a type token for {@code List<T>} given {@code T}. */
+  private static <T> TypeToken<List<T>> listTypeOf(TypeToken<T> elementT) {
+    return new TypeToken<List<T>>() {}.where(new TypeParameter<T>() {}, elementT);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.SplitRestrictionMethod analyzeSplitRestrictionMethod(
+      ErrorReporter errors, TypeToken<? extends DoFn> fnToken, Method m, TypeToken<?> inputT) {
+    // Method is of the form:
+    // @SplitRestriction
+    // void splitRestriction(InputT element, RestrictionT restriction);
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
+    Type[] params = m.getGenericParameterTypes();
+    errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
+    errors.checkArgument(
+        fnToken.resolveType(params[0]).equals(inputT),
+        "First argument must be the element type %s",
+        formatType(inputT));
+
+    TypeToken<?> restrictionT = fnToken.resolveType(params[1]);
+    TypeToken<?> receiverT = fnToken.resolveType(params[2]);
+    TypeToken<?> expectedReceiverT = outputReceiverTypeOf(restrictionT);
+    errors.checkArgument(
+        receiverT.equals(expectedReceiverT),
+        "Third argument must be %s, but is %s",
+        formatType(expectedReceiverT),
+        formatType(receiverT));
+
+    return DoFnSignature.SplitRestrictionMethod.create(m, restrictionT);
+  }
+
+  /** Generates a type token for {@code Coder<T>} given {@code T}. */
+  private static <T> TypeToken<Coder<T>> coderTypeOf(TypeToken<T> elementT) {
+    return new TypeToken<Coder<T>>() {}.where(new TypeParameter<T>() {}, elementT);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.GetRestrictionCoderMethod analyzeGetRestrictionCoderMethod(
+      ErrorReporter errors, TypeToken<? extends DoFn> fnToken, Method m) {
+    errors.checkArgument(m.getParameterTypes().length == 0, "Must have zero arguments");
+    TypeToken<?> resT = fnToken.resolveType(m.getGenericReturnType());
+    errors.checkArgument(
+        resT.isSubtypeOf(TypeToken.of(Coder.class)),
+        "Must return a Coder, but returns %s",
+        formatType(resT));
+    return DoFnSignature.GetRestrictionCoderMethod.create(m, resT);
+  }
+
+  /**
+   * Generates a type token for {@code RestrictionTracker<RestrictionT>} given {@code RestrictionT}.
+   */
+  private static <RestrictionT>
+      TypeToken<RestrictionTracker<RestrictionT>> restrictionTrackerTypeOf(
+          TypeToken<RestrictionT> restrictionT) {
+    return new TypeToken<RestrictionTracker<RestrictionT>>() {}.where(
+        new TypeParameter<RestrictionT>() {}, restrictionT);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.NewTrackerMethod analyzeNewTrackerMethod(
+      ErrorReporter errors, TypeToken<? extends DoFn> fnToken, Method m) {
+    // Method is of the form:
+    // @NewTracker
+    // TrackerT newTracker(RestrictionT restriction);
+    Type[] params = m.getGenericParameterTypes();
+    errors.checkArgument(params.length == 1, "Must have a single argument");
+
+    TypeToken<?> restrictionT = fnToken.resolveType(params[0]);
+    TypeToken<?> trackerT = fnToken.resolveType(m.getGenericReturnType());
+    TypeToken<?> expectedTrackerT = restrictionTrackerTypeOf(restrictionT);
+    errors.checkArgument(
+        trackerT.isSubtypeOf(expectedTrackerT),
+        "Returns %s, but must return a subtype of %s",
+        formatType(trackerT),
+        formatType(expectedTrackerT));
+    return DoFnSignature.NewTrackerMethod.create(m, restrictionT, trackerT);
   }
 
   private static Collection<Method> declaredMethodsWithAnnotation(
@@ -310,7 +652,7 @@ public class DoFnSignatures {
   }
 
   private static String format(Method method) {
-    return ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method);
+    return ReflectHelpers.METHOD_FORMATTER.apply(method);
   }
 
   private static String formatType(TypeToken<?> t) {
@@ -327,7 +669,9 @@ public class DoFnSignatures {
     ErrorReporter forMethod(Class<? extends Annotation> annotation, Method method) {
       return new ErrorReporter(
           this,
-          String.format("@%s %s", annotation, (method == null) ? "(absent)" : format(method)));
+          String.format(
+              "@%s %s",
+              annotation.getSimpleName(), (method == null) ? "(absent)" : format(method)));
     }
 
     void throwIllegalArgument(String message, Object... args) {

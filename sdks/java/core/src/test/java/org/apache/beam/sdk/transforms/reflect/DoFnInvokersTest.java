@@ -17,14 +17,32 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -34,7 +52,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.AdditionalAnswers;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DoFnInvokers}. */
@@ -76,11 +96,16 @@ public class DoFnInvokersTest {
           public WindowingInternals<String, String> windowingInternals() {
             return mockWindowingInternals;
           }
+
+          @Override
+          public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+            return null;
+          }
         };
   }
 
-  private void invokeProcessElement(DoFn<String, String> fn) {
-    DoFnInvokers.INSTANCE
+  private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
+    return DoFnInvokers.INSTANCE
         .newByteBuddyInvoker(fn)
         .invokeProcessElement(mockContext, extraContextFactory);
   }
@@ -106,9 +131,9 @@ public class DoFnInvokersTest {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {}
     }
-    MockFn fn = mock(MockFn.class);
-    invokeProcessElement(fn);
-    verify(fn).processElement(mockContext);
+    MockFn mockFn = mock(MockFn.class);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(mockFn));
+    verify(mockFn).processElement(mockContext);
   }
 
   interface InterfaceWithProcessElement {
@@ -128,7 +153,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithProcessElementInterface() throws Exception {
     IdentityUsingInterfaceWithProcessElement fn =
         mock(IdentityUsingInterfaceWithProcessElement.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockContext);
   }
 
@@ -149,14 +174,14 @@ public class DoFnInvokersTest {
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
     IdentityChildWithoutOverride fn = mock(IdentityChildWithoutOverride.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).process(mockContext);
   }
 
   @Test
   public void testDoFnWithMethodInSubclass() throws Exception {
     IdentityChildWithOverride fn = mock(IdentityChildWithOverride.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).process(mockContext);
   }
 
@@ -167,7 +192,7 @@ public class DoFnInvokersTest {
       public void processElement(ProcessContext c, BoundedWindow w) throws Exception {}
     }
     MockFn fn = mock(MockFn.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockContext, mockWindow);
   }
 
@@ -178,7 +203,7 @@ public class DoFnInvokersTest {
       public void processElement(ProcessContext c, OutputReceiver<String> o) throws Exception {}
     }
     MockFn fn = mock(MockFn.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockContext, mockOutputReceiver);
   }
 
@@ -189,8 +214,32 @@ public class DoFnInvokersTest {
       public void processElement(ProcessContext c, InputProvider<String> o) throws Exception {}
     }
     MockFn fn = mock(MockFn.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockContext, mockInputProvider);
+  }
+
+  @Test
+  public void testDoFnWithReturn() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @DoFn.ProcessElement
+      public ProcessContinuation processElement(ProcessContext c, SomeRestrictionTracker tracker)
+          throws Exception {
+        return null;
+      }
+
+      @GetInitialRestriction
+      public SomeRestriction getInitialRestriction(String element) {
+        return null;
+      }
+
+      @NewTracker
+      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+        return null;
+      }
+    }
+    MockFn fn = mock(MockFn.class);
+    when(fn.processElement(mockContext, null)).thenReturn(ProcessContinuation.resume());
+    assertEquals(ProcessContinuation.resume(), invokeProcessElement(fn));
   }
 
   @Test
@@ -224,6 +273,154 @@ public class DoFnInvokersTest {
   }
 
   // ---------------------------------------------------------------------------------------
+  // Tests for invoking Splittable DoFn methods
+  // ---------------------------------------------------------------------------------------
+  private static class SomeRestriction {}
+
+  private abstract static class SomeRestrictionTracker
+      implements RestrictionTracker<SomeRestriction> {}
+
+  private static class SomeRestrictionCoder extends CustomCoder<SomeRestriction> {
+    public static SomeRestrictionCoder of() {
+      return new SomeRestrictionCoder();
+    }
+
+    @Override
+    public void encode(SomeRestriction value, OutputStream outStream, Context context) {}
+
+    @Override
+    public SomeRestriction decode(InputStream inStream, Context context) {
+      return null;
+    }
+  }
+
+  /** Public so Mockito can do "delegatesTo()" in the test below. */
+  public static class MockFn extends DoFn<String, String> {
+    @ProcessElement
+    public ProcessContinuation processElement(ProcessContext c, SomeRestrictionTracker tracker) {
+      return null;
+    }
+
+    @GetInitialRestriction
+    public SomeRestriction getInitialRestriction(String element) {
+      return null;
+    }
+
+    @SplitRestriction
+    public void splitRestriction(
+        String element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
+
+    @NewTracker
+    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      return null;
+    }
+
+    @GetRestrictionCoder
+    public SomeRestrictionCoder getRestrictionCoder() {
+      return null;
+    }
+  }
+
+  @Test
+  public void testSplittableDoFnWithAllMethods() throws Exception {
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    final SomeRestrictionTracker tracker = mock(SomeRestrictionTracker.class);
+    final SomeRestrictionCoder coder = mock(SomeRestrictionCoder.class);
+    SomeRestriction restriction = new SomeRestriction();
+    final SomeRestriction part1 = new SomeRestriction();
+    final SomeRestriction part2 = new SomeRestriction();
+    final SomeRestriction part3 = new SomeRestriction();
+    when(fn.getRestrictionCoder()).thenReturn(coder);
+    when(fn.getInitialRestriction("blah")).thenReturn(restriction);
+    doAnswer(
+            AdditionalAnswers.delegatesTo(
+                new MockFn() {
+                  @DoFn.SplitRestriction
+                  @Override
+                  public void splitRestriction(
+                      String element,
+                      SomeRestriction restriction,
+                      DoFn.OutputReceiver<SomeRestriction> receiver) {
+                    receiver.output(part1);
+                    receiver.output(part2);
+                    receiver.output(part3);
+                  }
+                }))
+        .when(fn)
+        .splitRestriction(
+            eq("blah"), same(restriction), Mockito.<DoFn.OutputReceiver<SomeRestriction>>any());
+    when(fn.newTracker(restriction)).thenReturn(tracker);
+    when(fn.processElement(mockContext, tracker)).thenReturn(ProcessContinuation.resume());
+
+    assertEquals(coder, invoker.invokeGetRestrictionCoder(new CoderRegistry()));
+    assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
+    final List<SomeRestriction> outputs = new ArrayList<>();
+    invoker.invokeSplitRestriction(
+        "blah",
+        restriction,
+        new DoFn.OutputReceiver<SomeRestriction>() {
+          @Override
+          public void output(SomeRestriction output) {
+            outputs.add(output);
+          }
+        });
+    assertEquals(Arrays.asList(part1, part2, part3), outputs);
+    assertEquals(tracker, invoker.invokeNewTracker(restriction));
+    assertEquals(
+        ProcessContinuation.resume(),
+        invoker.invokeProcessElement(
+            mockContext,
+            new DoFn.FakeExtraContextFactory<String, String>() {
+              @Override
+              public RestrictionTracker restrictionTracker() {
+                return tracker;
+              }
+            }));
+  }
+
+  @Test
+  public void testSplittableDoFnDefaultMethods() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(ProcessContext c, SomeRestrictionTracker tracker) {}
+
+      @GetInitialRestriction
+      public SomeRestriction getInitialRestriction(String element) {
+        return null;
+      }
+
+      @NewTracker
+      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+        return null;
+      }
+    }
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+
+    CoderRegistry coderRegistry = new CoderRegistry();
+    coderRegistry.registerCoder(SomeRestriction.class, SomeRestrictionCoder.class);
+    assertThat(
+        invoker.<SomeRestriction>invokeGetRestrictionCoder(coderRegistry),
+        instanceOf(SomeRestrictionCoder.class));
+    invoker.invokeSplitRestriction(
+        "blah",
+        "foo",
+        new DoFn.OutputReceiver<String>() {
+          private boolean invoked;
+
+          @Override
+          public void output(String output) {
+            assertFalse(invoked);
+            invoked = true;
+            assertEquals("foo", output);
+          }
+        });
+    assertEquals(
+        ProcessContinuation.stop(), invoker.invokeProcessElement(mockContext, extraContextFactory));
+  }
+
+  // ---------------------------------------------------------------------------------------
   // Tests for ability to invoke private, inner and anonymous classes.
   // ---------------------------------------------------------------------------------------
 
@@ -235,14 +432,14 @@ public class DoFnInvokersTest {
   @Test
   public void testLocalPrivateDoFnClass() throws Exception {
     PrivateDoFnClass fn = mock(PrivateDoFnClass.class);
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processThis(mockContext);
   }
 
   @Test
   public void testStaticPackagePrivateDoFnClass() throws Exception {
     DoFn<String, String> fn = mock(DoFnInvokersTestHelper.newStaticPackagePrivateDoFn().getClass());
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     DoFnInvokersTestHelper.verifyStaticPackagePrivateDoFn(fn, mockContext);
   }
 
@@ -250,28 +447,28 @@ public class DoFnInvokersTest {
   public void testInnerPackagePrivateDoFnClass() throws Exception {
     DoFn<String, String> fn =
         mock(new DoFnInvokersTestHelper().newInnerPackagePrivateDoFn().getClass());
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     DoFnInvokersTestHelper.verifyInnerPackagePrivateDoFn(fn, mockContext);
   }
 
   @Test
   public void testStaticPrivateDoFnClass() throws Exception {
     DoFn<String, String> fn = mock(DoFnInvokersTestHelper.newStaticPrivateDoFn().getClass());
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     DoFnInvokersTestHelper.verifyStaticPrivateDoFn(fn, mockContext);
   }
 
   @Test
   public void testInnerPrivateDoFnClass() throws Exception {
     DoFn<String, String> fn = mock(new DoFnInvokersTestHelper().newInnerPrivateDoFn().getClass());
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     DoFnInvokersTestHelper.verifyInnerPrivateDoFn(fn, mockContext);
   }
 
   @Test
   public void testAnonymousInnerDoFn() throws Exception {
     DoFn<String, String> fn = mock(new DoFnInvokersTestHelper().newInnerAnonymousDoFn().getClass());
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     DoFnInvokersTestHelper.verifyInnerAnonymousDoFn(fn, mockContext);
   }
 
@@ -279,7 +476,7 @@ public class DoFnInvokersTest {
   public void testStaticAnonymousDoFnInOtherPackage() throws Exception {
     // Can't use mockito for this one - the anonymous class is final and can't be mocked.
     DoFn<String, String> fn = DoFnInvokersTestHelper.newStaticAnonymousDoFn();
-    invokeProcessElement(fn);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     DoFnInvokersTestHelper.verifyStaticAnonymousDoFnInvoked(fn, mockContext);
   }
 
@@ -300,6 +497,32 @@ public class DoFnInvokersTest {
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
     invoker.invokeProcessElement(null, null);
+  }
+
+  @Test
+  public void testProcessElementExceptionWithReturn() throws Exception {
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    DoFnInvokers.INSTANCE
+        .newByteBuddyInvoker(
+            new DoFn<Integer, Integer>() {
+              @ProcessElement
+              public ProcessContinuation processElement(
+                  @SuppressWarnings("unused") ProcessContext c, SomeRestrictionTracker tracker) {
+                throw new IllegalArgumentException("bogus");
+              }
+
+              @GetInitialRestriction
+              public SomeRestriction getInitialRestriction(Integer element) {
+                return null;
+              }
+
+              @NewTracker
+              public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+                return null;
+              }
+            })
+        .invokeProcessElement(null, new DoFn.FakeExtraContextFactory<Integer, Integer>());
   }
 
   @Test
