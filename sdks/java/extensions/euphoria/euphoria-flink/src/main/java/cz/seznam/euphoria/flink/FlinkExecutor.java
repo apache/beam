@@ -18,15 +18,15 @@ public class FlinkExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutor.class);
 
-  private final boolean test;
+  private final boolean localEnv;
   private boolean dumpExecPlan;
 
   public FlinkExecutor() {
     this(false);
   }
 
-  public FlinkExecutor(boolean test) {
-    this.test = test;
+  public FlinkExecutor(boolean localEnv) {
+    this.localEnv = localEnv;
   }
 
   /**
@@ -48,7 +48,7 @@ public class FlinkExecutor implements Executor {
 
     LOG.info("Running flow in {} mode", mode);
 
-    ExecutionEnvironment environment = new ExecutionEnvironment(mode, test);
+    ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
     FlowTranslator translator;
     if (mode == ExecutionEnvironment.Mode.BATCH) {
       translator = new BatchFlowTranslator();
