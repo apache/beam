@@ -6,19 +6,10 @@ import cz.seznam.euphoria.flink.FlinkOperator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-
-public class BatchExecutorContext extends ExecutorContext<DataSet<?>> {
-
-  private final ExecutionEnvironment executionEnvironment;
-
-  public BatchExecutorContext(ExecutionEnvironment executionEnvironment,
-                              DAG<FlinkOperator<?>> dag)
-  {
-    super(dag);
-    this.executionEnvironment = executionEnvironment;
-  }
-
-  public ExecutionEnvironment getExecutionEnvironment() {
-    return executionEnvironment;
+public class BatchExecutorContext
+    extends ExecutorContext<ExecutionEnvironment, DataSet<?>>
+{
+  public BatchExecutorContext(ExecutionEnvironment env, DAG<FlinkOperator<?>> dag) {
+    super(env, dag);
   }
 }
