@@ -115,7 +115,7 @@ class TransformExecutor<T> implements Runnable {
 
       processElements(evaluator, enforcements);
 
-      InProcessTransformResult result = finishBundle(evaluator, enforcements);
+      finishBundle(evaluator, enforcements);
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
       if (t instanceof RuntimeException) {
