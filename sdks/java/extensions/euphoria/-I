@@ -1,0 +1,11 @@
+HTTP/1.1 302 Moved Temporarily
+Server: nginx/1.10.1
+Content-Type: text/html
+Location: http://www.sport365.live/en/main
+Content-Length: 161
+Accept-Ranges: bytes
+Date: Fri, 12 Aug 2016 09:02:16 GMT
+Age: 0
+Via: 1.1 varnish
+Connection: keep-alive
+
