@@ -171,6 +171,14 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
       <artifactId>beam-runners-flink_2.10</artifactId>
       <version>0.2.0-incubating-SNAPSHOT</version>
     </dependency>
+
+    <!-- Uncomment, if you want to use Flink's Kafka connector -->
+    <!--<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+      <version>1.0.3</version>
+    </dependency>-->
+
   </dependencies>
 
   <build>
@@ -194,6 +202,15 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
       </plugin>
 
     </plugins>
