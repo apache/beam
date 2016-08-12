@@ -18,7 +18,6 @@ import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitA
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -27,6 +26,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.AvroCoder;
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -36,6 +37,7 @@ import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.avro.reflect.ReflectData;
 import org.hamcrest.Matchers;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -226,6 +228,11 @@ public class XmlSourceTest {
       return str;
     }
   }
+
+  // Use a non-XML coder as JAXBCoder is not suitable for use as an intermediate coder, as it
+  // requires the entire stream to behave correctly.
+  private Coder<Train> trainCoder =
+      AvroCoder.of(Train.class, ReflectData.AllowNull.get().getSchema(Train.class));
 
   private List<Train> generateRandomTrainList(int size) {
     String[] names = {"Thomas", "Henry", "Gordon", "Emily", "Toby", "Percy", "Mavis", "Edward",
@@ -576,7 +583,8 @@ public class XmlSourceTest {
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
 
-    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<Train> output =
+        p.apply(Read.from(source).named("ReadFileData")).setCoder(trainCoder);
 
     List<Train> expectedResults =
         ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
@@ -665,7 +673,8 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<Train> output =
+        p.apply(Read.from(source).named("ReadFileData")).setCoder(trainCoder);
 
     DataflowAssert.that(output).containsInAnyOrder(trains);
     p.run();
@@ -812,7 +821,8 @@ public class XmlSourceTest {
                                   .withRecordElement("train")
                                   .withRecordClass(Train.class)
                                   .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
+    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"))
+        .setCoder(trainCoder);
 
     List<Train> expectedResults = new ArrayList<>();
     expectedResults.addAll(trains1);
