@@ -20,12 +20,11 @@ package org.apache.beam.runners.spark.translation.streaming;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -47,11 +47,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 
-import kafka.serializer.StringDecoder;
 /**
  * Test Kafka as input.
  */
@@ -97,15 +95,18 @@ public class KafkaStreamingTest {
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
 
-    Map<String, String> kafkaParams = ImmutableMap.of(
-        "metadata.broker.list", EMBEDDED_KAFKA_CLUSTER.getBrokerList(),
+    Map<String, Object> props = ImmutableMap.<String, Object>of(
         "auto.offset.reset", "smallest"
     );
 
-    PCollection<KV<String, String>> kafkaInput = p.apply(KafkaIO.Read.from(StringDecoder.class,
-        StringDecoder.class, String.class, String.class, Collections.singleton(TOPIC),
-        kafkaParams))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    KafkaIO.Read<String, String> kafkaIO = KafkaIO.read()
+        .withTopics(Lists.newArrayList(TOPIC))
+        .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
+        .withKeyCoder(StringUtf8Coder.of())
+        .withValueCoder(StringUtf8Coder.of())
+        .updateConsumerProperties(props);
+
+    PCollection<KV<String, String>> kafkaInput = p.apply(kafkaIO.withoutMetadata());
     PCollection<KV<String, String>> windowedWords = kafkaInput
         .apply(Window.<KV<String, String>>into(FixedWindows.of(Duration.standardSeconds(1))));
 
