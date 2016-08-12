@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -39,12 +39,15 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.MethodCall;
-import net.bytebuddy.implementation.bind.MethodDelegationBinder;
+import net.bytebuddy.implementation.Implementation.Context;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.implementation.bind.annotation.TargetMethodAnnotationDrivenBinder;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.Throw;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -52,13 +55,10 @@ import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.DoFn.Setup;
-import org.apache.beam.sdk.transforms.DoFn.StartBundle;
-import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.util.UserCodeException;
 
 /** Dynamically generates {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
@@ -153,25 +153,13 @@ public class DoFnInvokers {
             .method(ElementMatchers.named("invokeProcessElement"))
             .intercept(new ProcessElementDelegation(signature.processElement()))
             .method(ElementMatchers.named("invokeStartBundle"))
-            .intercept(
-                signature.startBundle() == null
-                    ? new NoopMethodImplementation()
-                    : new BundleMethodDelegation(signature.startBundle()))
+            .intercept(delegateOrNoop(signature.startBundle()))
             .method(ElementMatchers.named("invokeFinishBundle"))
-            .intercept(
-                signature.finishBundle() == null
-                    ? new NoopMethodImplementation()
-                    : new BundleMethodDelegation(signature.finishBundle()))
+            .intercept(delegateOrNoop(signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
-            .intercept(
-                signature.setup() == null
-                    ? new NoopMethodImplementation()
-                    : new LifecycleMethodDelegation(signature.setup()))
+            .intercept(delegateOrNoop(signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
-            .intercept(
-                signature.teardown() == null
-                    ? new NoopMethodImplementation()
-                    : new LifecycleMethodDelegation(signature.teardown()));
+            .intercept(delegateOrNoop(signature.teardown()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -184,35 +172,29 @@ public class DoFnInvokers {
     return res;
   }
 
-  /** Implements an invoker method by doing nothing and immediately returning void. */
-  private static class NoopMethodImplementation implements Implementation {
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    @Override
-    public ByteCodeAppender appender(final Target implementationTarget) {
-      return new ByteCodeAppender() {
-        @Override
-        public Size apply(
-            MethodVisitor methodVisitor,
-            Context implementationContext,
-            MethodDescription instrumentedMethod) {
-          StackManipulation manipulation = MethodReturn.VOID;
-          StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-        }
-      };
-    }
+  /** Delegates to the given method if available, or does nothing. */
+  private static Implementation delegateOrNoop(DoFnSignature.DoFnMethod method) {
+    return (method == null)
+        ? FixedValue.originType()
+        : new DoFnMethodDelegation(method.targetMethod());
   }
 
   /**
-   * Base class for implementing an invoker method by delegating to a method of the target {@link
-   * DoFn}.
+   * Implements a method of {@link DoFnInvoker} (the "instrumented method") by delegating to a
+   * "target method" of the wrapped {@link DoFn}.
    */
-  private abstract static class MethodDelegation implements Implementation {
-    FieldDescription delegateField;
+  private static class DoFnMethodDelegation implements Implementation {
+    /** The {@link MethodDescription} of the wrapped {@link DoFn}'s method. */
+    protected final MethodDescription targetMethod;
+    /** Whether the target method returns non-void. */
+    private final boolean targetHasReturn;
+
+    private FieldDescription delegateField;
+
+    public DoFnMethodDelegation(Method targetMethod) {
+      this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
+      targetHasReturn = !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
+    }
 
     @Override
     public InstrumentedType prepare(InstrumentedType instrumentedType) {
@@ -222,7 +204,6 @@ public class DoFnInvokers {
               .getDeclaredFields()
               .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
               .getOnly();
-
       // Delegating the method call doesn't require any changes to the instrumented type.
       return instrumentedType;
     }
@@ -230,54 +211,102 @@ public class DoFnInvokers {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return new ByteCodeAppender() {
+        /**
+         * @param instrumentedMethod The {@link DoFnInvoker} method for which we're generating code.
+         */
         @Override
         public Size apply(
             MethodVisitor methodVisitor,
             Context implementationContext,
             MethodDescription instrumentedMethod) {
+          // Figure out how many locals we'll need. This corresponds to "this", the parameters
+          // of the instrumented method, and an argument to hold the return value if the target
+          // method has a return value.
+          int numLocals = 1 + instrumentedMethod.getParameters().size() + (targetHasReturn ? 1 : 0);
+
+          Integer returnVarIndex = null;
+          if (targetHasReturn) {
+            // Local comes after formal parameters, so figure out where that is.
+            returnVarIndex = 1; // "this"
+            for (Type param : Type.getArgumentTypes(instrumentedMethod.getDescriptor())) {
+              returnVarIndex += param.getSize();
+            }
+          }
+
           StackManipulation manipulation =
               new StackManipulation.Compound(
-                  // Push "this" reference to the stack
+                  // Push "this" (DoFnInvoker on top of the stack)
                   MethodVariableAccess.REFERENCE.loadOffset(0),
-                  // Access the delegate field of the the invoker
+                  // Access this.delegate (DoFn on top of the stack)
                   FieldAccess.forField(delegateField).getter(),
-                  invokeTargetMethod(instrumentedMethod));
+                  // Run the beforeDelegation manipulations.
+                  // The arguments necessary to invoke the target are on top of the stack.
+                  beforeDelegation(instrumentedMethod),
+                  // Perform the method delegation.
+                  // This will consume the arguments on top of the stack
+                  // Either the stack is now empty (because the targetMethod returns void) or the
+                  // stack contains the return value.
+                  new UserCodeMethodInvocation(returnVarIndex, targetMethod, instrumentedMethod),
+                  // Run the afterDelegation manipulations.
+                  // Either the stack is now empty (because the instrumentedMethod returns void)
+                  // or the stack contains the return value.
+                  afterDelegation(instrumentedMethod));
+
           StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
+          return new Size(size.getMaximalSize(), numLocals);
         }
       };
     }
 
     /**
-     * Generates code to invoke the target method. When this is called the delegate field will be on
-     * top of the stack. This should add any necessary arguments to the stack and then perform the
-     * method invocation.
+     * Return the code to the prepare the operand stack for the method delegation.
+     *
+     * <p>Before this method is called, the stack delegate will be the only thing on the stack.
+     *
+     * <p>After this method is called, the stack contents should contain exactly the arguments
+     * necessary to invoke the target method.
      */
-    protected abstract StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod);
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
+      return MethodVariableAccess.allArgumentsOf(targetMethod);
+    }
+
+    /**
+     * Return the code to execute after the method delegation.
+     *
+     * <p>Before this method is called, the stack will either be empty (if the target method returns
+     * void) or contain the method return value.
+     *
+     * <p>After this method is called, the stack should either be empty (if the instrumented method
+     * returns void) or contain the value for the instrumented method to return).
+     */
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return TargetMethodAnnotationDrivenBinder.TerminationHandler.Returning.INSTANCE.resolve(
+          Assigner.DEFAULT, instrumentedMethod, targetMethod);
+    }
   }
 
   /**
    * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
    * {@link DoFn.ProcessElement} method.
    */
-  private static final class ProcessElementDelegation extends MethodDelegation {
-    private static final Map<DoFnSignature.ProcessElementMethod.Parameter, MethodDescription>
+  private static final class ProcessElementDelegation extends DoFnMethodDelegation {
+    private static final Map<DoFnSignature.Parameter, MethodDescription>
         EXTRA_CONTEXT_FACTORY_METHODS;
 
     static {
       try {
-        Map<DoFnSignature.ProcessElementMethod.Parameter, MethodDescription> methods =
-            new EnumMap<>(DoFnSignature.ProcessElementMethod.Parameter.class);
+        Map<DoFnSignature.Parameter, MethodDescription> methods =
+            new EnumMap<>(DoFnSignature.Parameter.class);
         methods.put(
-            DoFnSignature.ProcessElementMethod.Parameter.BOUNDED_WINDOW,
+            DoFnSignature.Parameter.BOUNDED_WINDOW,
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("window")));
         methods.put(
-            DoFnSignature.ProcessElementMethod.Parameter.INPUT_PROVIDER,
+            DoFnSignature.Parameter.INPUT_PROVIDER,
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("inputProvider")));
         methods.put(
-            DoFnSignature.ProcessElementMethod.Parameter.OUTPUT_RECEIVER,
+            DoFnSignature.Parameter.OUTPUT_RECEIVER,
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
         EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
@@ -291,16 +320,12 @@ public class DoFnInvokers {
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(DoFnSignature.ProcessElementMethod signature) {
+      super(signature.targetMethod());
       this.signature = signature;
     }
 
     @Override
-    protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
-      MethodDescription targetMethod =
-          new MethodCall.MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(signature.targetMethod()))
-              .resolve(instrumentedMethod);
-
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
       // Parameters of the wrapper invoker method:
       //   DoFn.ProcessContext, ExtraContextFactory.
       // Parameters of the wrapped DoFn method:
@@ -310,144 +335,159 @@ public class DoFnInvokers {
       parameters.add(MethodVariableAccess.REFERENCE.loadOffset(1));
       // Push the extra arguments in their actual order.
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(2);
-      for (DoFnSignature.ProcessElementMethod.Parameter param : signature.extraParameters()) {
+      for (DoFnSignature.Parameter param : signature.extraParameters()) {
         parameters.add(
             new StackManipulation.Compound(
                 pushExtraContextFactory,
                 MethodInvocation.invoke(EXTRA_CONTEXT_FACTORY_METHODS.get(param))));
       }
-
-      return new StackManipulation.Compound(
-          // Push the parameters
-          new StackManipulation.Compound(parameters),
-          // Invoke the target method
-          wrapWithUserCodeException(
-              MethodDelegationBinder.MethodInvoker.Simple.INSTANCE.invoke(targetMethod)),
-          // Return from the instrumented method
-          MethodReturn.VOID);
-    }
-  }
-
-  /**
-   * Implements {@link DoFnInvoker#invokeStartBundle} or {@link DoFnInvoker#invokeFinishBundle} by
-   * delegating respectively to the {@link StartBundle} and {@link FinishBundle} methods.
-   */
-  private static final class BundleMethodDelegation extends MethodDelegation {
-    private final DoFnSignature.BundleMethod signature;
-
-    private BundleMethodDelegation(@Nullable DoFnSignature.BundleMethod signature) {
-      this.signature = signature;
+      return new StackManipulation.Compound(parameters);
     }
 
     @Override
-    protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
-      MethodDescription targetMethod =
-          new MethodCall.MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).targetMethod()))
-              .resolve(instrumentedMethod);
-      return new StackManipulation.Compound(
-          // Push the parameters
-          MethodVariableAccess.REFERENCE.loadOffset(1),
-          // Invoke the target method
-          wrapWithUserCodeException(
-              MethodDelegationBinder.MethodInvoker.Simple.INSTANCE.invoke(targetMethod)),
-          MethodReturn.VOID);
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return MethodReturn.VOID;
     }
   }
 
-  /**
-   * Implements {@link DoFnInvoker#invokeSetup} or {@link DoFnInvoker#invokeTeardown} by delegating
-   * respectively to the {@link Setup} and {@link Teardown} methods.
-   */
-  private static final class LifecycleMethodDelegation extends MethodDelegation {
-    private final DoFnSignature.LifecycleMethod signature;
+  private static class UserCodeMethodInvocation implements StackManipulation {
 
-    private LifecycleMethodDelegation(@Nullable DoFnSignature.LifecycleMethod signature) {
-      this.signature = signature;
+    @Nullable private final Integer returnVarIndex;
+    private final MethodDescription targetMethod;
+    private final MethodDescription instrumentedMethod;
+    private final TypeDescription returnType;
+
+    private final Label wrapStart = new Label();
+    private final Label wrapEnd = new Label();
+    private final Label tryBlockStart = new Label();
+    private final Label tryBlockEnd = new Label();
+    private final Label catchBlockStart = new Label();
+    private final Label catchBlockEnd = new Label();
+
+    private final MethodDescription createUserCodeException;
+
+    UserCodeMethodInvocation(
+        @Nullable Integer returnVarIndex,
+        MethodDescription targetMethod,
+        MethodDescription instrumentedMethod) {
+      this.returnVarIndex = returnVarIndex;
+      this.targetMethod = targetMethod;
+      this.instrumentedMethod = instrumentedMethod;
+      this.returnType = targetMethod.getReturnType().asErasure();
+
+      boolean targetMethodReturnsVoid = TypeDescription.VOID.equals(returnType);
+      checkArgument(
+          (returnVarIndex == null) == targetMethodReturnsVoid,
+          "returnVarIndex should be defined if and only if the target method has a return value");
+
+      try {
+        createUserCodeException =
+            new MethodDescription.ForLoadedMethod(
+                UserCodeException.class.getDeclaredMethod("wrap", Throwable.class));
+      } catch (NoSuchMethodException | SecurityException e) {
+        throw new RuntimeException("Unable to find UserCodeException.wrap", e);
+      }
     }
 
     @Override
-    protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
-      MethodDescription targetMethod =
-          new MethodCall.MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).targetMethod()))
-              .resolve(instrumentedMethod);
-      return new StackManipulation.Compound(
-          wrapWithUserCodeException(
-              MethodDelegationBinder.MethodInvoker.Simple.INSTANCE.invoke(targetMethod)),
-          MethodReturn.VOID);
-    }
-  }
-
-  /**
-   * Wraps a given stack manipulation in a try catch block. Any exceptions thrown within the try are
-   * wrapped with a {@link UserCodeException}.
-   */
-  private static StackManipulation wrapWithUserCodeException(final StackManipulation tryBody) {
-    final MethodDescription createUserCodeException;
-    try {
-      createUserCodeException =
-          new MethodDescription.ForLoadedMethod(
-              UserCodeException.class.getDeclaredMethod("wrap", Throwable.class));
-    } catch (NoSuchMethodException | SecurityException e) {
-      throw new RuntimeException("Unable to find UserCodeException.wrap", e);
+    public boolean isValid() {
+      return true;
     }
 
-    return new StackManipulation() {
-      @Override
-      public boolean isValid() {
-        return tryBody.isValid();
+    private Object describeType(Type type) {
+      switch (type.getSort()) {
+        case Type.OBJECT:
+          return type.getDescriptor();
+        case Type.INT:
+        case Type.BYTE:
+        case Type.BOOLEAN:
+        case Type.SHORT:
+          return Opcodes.INTEGER;
+        case Type.LONG:
+          return Opcodes.LONG;
+        case Type.DOUBLE:
+          return Opcodes.DOUBLE;
+        case Type.FLOAT:
+          return Opcodes.FLOAT;
+        default:
+          throw new IllegalArgumentException("Unhandled type as method argument: " + type);
+      }
+    }
+
+    private void visitFrame(
+        MethodVisitor mv, boolean localsIncludeReturn, @Nullable String stackTop) {
+      boolean hasReturnLocal = (returnVarIndex != null) && localsIncludeReturn;
+
+      Type[] localTypes = Type.getArgumentTypes(instrumentedMethod.getDescriptor());
+      Object[] locals = new Object[1 + localTypes.length + (hasReturnLocal ? 1 : 0)];
+      locals[0] = instrumentedMethod.getReceiverType().asErasure().getInternalName();
+      for (int i = 0; i < localTypes.length; i++) {
+        locals[i + 1] = describeType(localTypes[i]);
+      }
+      if (hasReturnLocal) {
+        locals[locals.length - 1] = returnType.getInternalName();
       }
 
-      @Override
-      public Size apply(MethodVisitor mv, Implementation.Context implementationContext) {
-        Label tryBlockStart = new Label();
-        Label tryBlockEnd = new Label();
-        Label catchBlockStart = new Label();
-        Label catchBlockEnd = new Label();
+      Object[] stack = stackTop == null ? new Object[] {} : new Object[] {stackTop};
 
-        String throwableName = new TypeDescription.ForLoadedType(Throwable.class).getInternalName();
-        mv.visitTryCatchBlock(tryBlockStart, tryBlockEnd, catchBlockStart, throwableName);
+      mv.visitFrame(Opcodes.F_NEW, locals.length, locals, stack.length, stack);
+    }
 
-        // The try block attempts to perform the expected operations, then jumps to success
-        mv.visitLabel(tryBlockStart);
-        Size trySize = tryBody.apply(mv, implementationContext);
-        mv.visitJumpInsn(Opcodes.GOTO, catchBlockEnd);
-        mv.visitLabel(tryBlockEnd);
+    @Override
+    public Size apply(MethodVisitor mv, Context context) {
+      Size size = new Size(0, 0);
 
-        // The handler wraps the exception, and then throws.
-        mv.visitLabel(catchBlockStart);
-        // Add the exception to the frame
-        mv.visitFrame(
-            Opcodes.F_SAME1,
-            // No local variables
-            0,
-            new Object[] {},
-            // 1 stack element (the throwable)
-            1,
-            new Object[] {throwableName});
+      mv.visitLabel(wrapStart);
 
-        Size catchSize =
-            new Compound(MethodInvocation.invoke(createUserCodeException), Throw.INSTANCE)
-                .apply(mv, implementationContext);
+      String throwableName = new TypeDescription.ForLoadedType(Throwable.class).getInternalName();
+      mv.visitTryCatchBlock(tryBlockStart, tryBlockEnd, catchBlockStart, throwableName);
 
-        mv.visitLabel(catchBlockEnd);
-        // The frame contents after the try/catch block is the same
-        // as it was before.
-        mv.visitFrame(
-            Opcodes.F_SAME,
-            // No local variables
-            0,
-            new Object[] {},
-            // No new stack variables
-            0,
-            new Object[] {});
+      // The try block attempts to perform the expected operations, then jumps to success
+      mv.visitLabel(tryBlockStart);
+      size = size.aggregate(MethodInvocation.invoke(targetMethod).apply(mv, context));
 
-        return new Size(
-            trySize.getSizeImpact(),
-            Math.max(trySize.getMaximalSize(), catchSize.getMaximalSize()));
+      if (returnVarIndex != null) {
+        mv.visitVarInsn(Opcodes.ASTORE, returnVarIndex);
+        size = size.aggregate(new Size(-1, 0)); // Reduces the size of the stack
       }
-    };
+      mv.visitJumpInsn(Opcodes.GOTO, catchBlockEnd);
+      mv.visitLabel(tryBlockEnd);
+
+      // The handler wraps the exception, and then throws.
+      mv.visitLabel(catchBlockStart);
+      // In catch block, should have same locals and {Throwable} on the stack.
+      visitFrame(mv, false, throwableName);
+
+      // Create the user code exception and throw
+      size =
+          size.aggregate(
+              new Compound(MethodInvocation.invoke(createUserCodeException), Throw.INSTANCE)
+                  .apply(mv, context));
+
+      mv.visitLabel(catchBlockEnd);
+
+      // After the catch block we should have the return in scope, but nothing on the stack.
+      visitFrame(mv, true, null);
+
+      // After catch block, should have same locals and will have the return on the stack.
+      if (returnVarIndex != null) {
+        mv.visitVarInsn(Opcodes.ALOAD, returnVarIndex);
+        size = size.aggregate(new Size(1, 0)); // Increases the size of the stack
+      }
+      mv.visitLabel(wrapEnd);
+      if (returnVarIndex != null) {
+        // Drop the return type from the locals
+        mv.visitLocalVariable(
+            "res",
+            returnType.getDescriptor(),
+            returnType.getGenericSignature(),
+            wrapStart,
+            wrapEnd,
+            returnVarIndex);
+      }
+
+      return size;
+    }
   }
 
   /**

@@ -33,8 +33,6 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.Queue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -151,26 +149,6 @@ public class ReflectHelpers {
       builder.append("[]");
     }
   };
-
-  /**
-   * Returns all interfaces of the given clazz.
-   * @param clazz
-   * @return
-   */
-  public static FluentIterable<Class<?>> getClosureOfInterfaces(Class<?> clazz) {
-    checkNotNull(clazz);
-    Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
-    Collections.addAll(interfacesToProcess, clazz.getInterfaces());
-
-    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
-    while (!interfacesToProcess.isEmpty()) {
-      Class<?> current = interfacesToProcess.remove();
-      if (interfaces.add(current)) {
-        Collections.addAll(interfacesToProcess, current.getInterfaces());
-      }
-    }
-    return FluentIterable.from(interfaces);
-  }
 
   /**
    * Returns all the methods visible from the provided interfaces.

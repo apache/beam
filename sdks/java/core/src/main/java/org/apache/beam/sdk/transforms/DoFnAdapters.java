@@ -86,7 +86,7 @@ public class DoFnAdapters {
 
     @Override
     public void startBundle(Context c) throws Exception {
-      this.fn.prepareForProcessing();
+      fn.prepareForProcessing();
       invoker.invokeStartBundle(new ContextAdapter<>(fn, c));
     }
 
