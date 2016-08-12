@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
@@ -35,10 +37,12 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.implementation.ExceptionMethod;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.Implementation.Context;
@@ -48,6 +52,7 @@ import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -57,12 +62,17 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Dynamically generates {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
 public class DoFnInvokers {
@@ -113,12 +123,13 @@ public class DoFnInvokers {
     }
 
     @Override
-    public void invokeProcessElement(
+    public DoFn.ProcessContinuation invokeProcessElement(
         DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra) {
       OldDoFn<InputT, OutputT>.ProcessContext oldCtx =
           DoFnAdapters.adaptProcessContext(fn, c, extra);
       try {
         fn.processElement(oldCtx);
+        return DoFn.ProcessContinuation.stop();
       } catch (Throwable exc) {
         throw UserCodeException.wrap(exc);
       }
@@ -160,6 +171,28 @@ public class DoFnInvokers {
       } catch (Throwable exc) {
         throw UserCodeException.wrap(exc);
       }
+    }
+
+    @Override
+    public <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element) {
+      throw new UnsupportedOperationException("OldDoFn is not splittable");
+    }
+
+    @Override
+    public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder() {
+      throw new UnsupportedOperationException("OldDoFn is not splittable");
+    }
+
+    @Override
+    public <RestrictionT> List<RestrictionT> invokeSplitRestriction(
+        InputT element, RestrictionT restriction) {
+      throw new UnsupportedOperationException("OldDoFn is not splittable");
+    }
+
+    @Override
+    public <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+    TrackerT invokeNewTracker(RestrictionT restriction) {
+      throw new UnsupportedOperationException("OldDoFn is not splittable");
     }
   }
 
@@ -214,6 +247,38 @@ public class DoFnInvokers {
     return constructor;
   }
 
+  /** Default implementation of {@link DoFn.SplitRestriction}, for delegation by bytebuddy. */
+  public static class DefaultSplitRestriction {
+    /** Doesn't split the restriction. */
+    @SuppressWarnings("unused")
+    public static <InputT, RestrictionT> List<RestrictionT> invokeSplitRestriction(
+        InputT element, RestrictionT restriction) {
+      return Collections.singletonList(restriction);
+    }
+  }
+
+  /** Default implementation of {@link DoFn.SplitRestriction}, for delegation by bytebuddy. */
+  public static class DefaultRestrictionCoder {
+    private static final CoderRegistry CODER_REGISTRY = new CoderRegistry();
+
+    static {
+      CODER_REGISTRY.registerStandardCoders();
+    }
+
+    private final TypeToken<?> restrictionType;
+
+    DefaultRestrictionCoder(TypeToken<?> restrictionType) {
+      this.restrictionType = restrictionType;
+    }
+
+    /** Doesn't split the restriction. */
+    @SuppressWarnings({"unused", "unchecked"})
+    public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder()
+        throws CannotProvideCoderException {
+      return (Coder) CODER_REGISTRY.getCoder(TypeDescriptor.of(restrictionType.getType()));
+    }
+  }
+
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
   private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
@@ -247,7 +312,27 @@ public class DoFnInvokers {
             .method(ElementMatchers.named("invokeSetup"))
             .intercept(delegateOrNoop(signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
-            .intercept(delegateOrNoop(signature.teardown()));
+            .intercept(delegateOrNoop(signature.teardown()))
+            .method(ElementMatchers.named("invokeGetInitialRestriction"))
+            .intercept(delegateWithDowncastOrThrow(signature.getInitialRestriction()))
+            .method(ElementMatchers.named("invokeSplitRestriction"))
+            .intercept(
+                (signature.splitRestriction() == null)
+                    ? MethodDelegation.to(DefaultSplitRestriction.class)
+                    : new DowncastingParametersMethodDelegation(
+                        signature.splitRestriction().targetMethod()))
+            .method(ElementMatchers.named("invokeGetRestrictionCoder"))
+            .intercept(
+                signature.processElement().isSplittable()
+                    ? ((signature.getRestrictionCoder() == null)
+                        ? MethodDelegation.to(
+                            new DefaultRestrictionCoder(
+                                signature.getInitialRestriction().restrictionT()))
+                        : new DowncastingParametersMethodDelegation(
+                            signature.getRestrictionCoder().targetMethod()))
+                    : ExceptionMethod.throwing(UnsupportedOperationException.class))
+            .method(ElementMatchers.named("invokeNewTracker"))
+            .intercept(delegateWithDowncastOrThrow(signature.newTracker()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -265,6 +350,13 @@ public class DoFnInvokers {
     return (method == null)
         ? FixedValue.originType()
         : new DoFnMethodDelegation(method.targetMethod());
+  }
+
+  /** Delegates to the given method if available, or throws UnsupportedOperationException. */
+  private static Implementation delegateWithDowncastOrThrow(DoFnSignature.DoFnMethod method) {
+    return (method == null)
+        ? ExceptionMethod.throwing(UnsupportedOperationException.class)
+        : new DowncastingParametersMethodDelegation(method.targetMethod());
   }
 
   /**
@@ -374,12 +466,37 @@ public class DoFnInvokers {
   }
 
   /**
+   * Passes parameters to the delegated method by downcasting each parameter of non-primitive type
+   * to its expected type.
+   */
+  private static class DowncastingParametersMethodDelegation extends DoFnMethodDelegation {
+    DowncastingParametersMethodDelegation(Method method) {
+      super(method);
+    }
+
+    @Override
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
+      List<StackManipulation> pushParameters = new ArrayList<>();
+      TypeList.Generic paramTypes = targetMethod.getParameters().asTypeList();
+      for (int i = 0; i < paramTypes.size(); i++) {
+        TypeDescription.Generic paramT = paramTypes.get(i);
+        pushParameters.add(MethodVariableAccess.of(paramT).loadOffset(i + 1));
+        if (!paramT.isPrimitive()) {
+          pushParameters.add(TypeCasting.to(paramT));
+        }
+      }
+      return new StackManipulation.Compound(pushParameters);
+    }
+  }
+
+  /**
    * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
    * {@link DoFn.ProcessElement} method.
    */
   private static final class ProcessElementDelegation extends DoFnMethodDelegation {
     private static final Map<DoFnSignature.Parameter, MethodDescription>
         EXTRA_CONTEXT_FACTORY_METHODS;
+    private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
 
     static {
       try {
@@ -397,10 +514,20 @@ public class DoFnInvokers {
             DoFnSignature.Parameter.OUTPUT_RECEIVER,
             new MethodDescription.ForLoadedMethod(
                 DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
+        methods.put(
+            DoFnSignature.Parameter.RESTRICTION_TRACKER,
+            new MethodDescription.ForLoadedMethod(
+                DoFn.ExtraContextFactory.class.getMethod("restrictionTracker")));
         EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
       } catch (Exception e) {
         throw new RuntimeException(
             "Failed to locate an ExtraContextFactory method that was expected to exist", e);
+      }
+      try {
+        PROCESS_CONTINUATION_STOP_METHOD =
+            new MethodDescription.ForLoadedMethod(DoFn.ProcessContinuation.class.getMethod("stop"));
+      } catch (NoSuchMethodException e) {
+        throw new RuntimeException("Failed to locate ProcessContinuation.stop()");
       }
     }
 
@@ -427,14 +554,26 @@ public class DoFnInvokers {
         parameters.add(
             new StackManipulation.Compound(
                 pushExtraContextFactory,
-                MethodInvocation.invoke(EXTRA_CONTEXT_FACTORY_METHODS.get(param))));
+                MethodInvocation.invoke(EXTRA_CONTEXT_FACTORY_METHODS.get(param)),
+                // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
+                // but the @ProcessElement method expects a concrete subtype of it.
+                // Insert a downcast.
+                (param == DoFnSignature.Parameter.RESTRICTION_TRACKER)
+                    ? TypeCasting.to(
+                        new TypeDescription.ForLoadedType(signature.trackerT().getRawType()))
+                    : StackManipulation.Trivial.INSTANCE));
       }
       return new StackManipulation.Compound(parameters);
     }
 
     @Override
     protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
-      return MethodReturn.VOID;
+      if (TypeDescription.VOID.equals(targetMethod.getReturnType().asErasure())) {
+        return new StackManipulation.Compound(
+            MethodInvocation.invoke(PROCESS_CONTINUATION_STOP_METHOD), MethodReturn.REFERENCE);
+      } else {
+        return MethodReturn.returning(targetMethod.getReturnType().asErasure());
+      }
     }
   }
 

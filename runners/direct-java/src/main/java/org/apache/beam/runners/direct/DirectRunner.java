@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
@@ -83,6 +84,10 @@ public class DirectRunner
               .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(TestStream.class, new DirectTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
+              .put(ParDo.Bound.class, new ParDoOverrideFactory())
+              .put(
+                  GBKIntoKeyedWorkItems.class,
+                  new DirectGBKIntoKeyedWorkItemsOverrideFactory())
               .build();
 
   /**

@@ -76,6 +76,12 @@ public @interface Experimental {
     TIMERS,
 
     /** Experimental APIs related to customizing the output time for computed values. */
-    OUTPUT_TIME
+    OUTPUT_TIME,
+
+    /**
+     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
+     * Do not use: API is unstable and runner support is incomplete.
+     */
+    SPLITTABLE_DO_FN,
   }
 }
