@@ -39,6 +39,9 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -118,17 +121,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(1)));
-    assertThat(item0.getWindows(), contains(window(0, 10)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(13)));
-    assertThat(item1.getWindows(),
-        contains(window(10, 20)));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(0, 10), new Instant(1), "v1", "v2"),
+        gabwResult(window(10, 20), new Instant(13), "v3")));
   }
 
   /**
@@ -158,24 +153,10 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(3));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), contains("v1"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(5)));
-    assertThat(item0.getWindows(),
-        contains(window(-10, 10)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(10)));
-    assertThat(item1.getWindows(),
-        contains(window(0, 20)));
-
-    WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
-    assertThat(item2.getValue().getValue(), contains("v2"));
-    assertThat(item2.getTimestamp(), equalTo(new Instant(20)));
-    assertThat(item2.getWindows(),
-        contains(window(10, 30)));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(-10, 10), new Instant(5), "v1"),
+        gabwResult(window(0, 20), new Instant(10), "v1", "v2"),
+        gabwResult(window(10, 30), new Instant(20), "v2")));
   }
 
   /**
@@ -266,18 +247,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v3"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(1)));
-    assertThat(item0.getWindows(),
-        contains(window(0, 5)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v2"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(4)));
-    assertThat(item1.getWindows(),
-        contains(window(1, 5)));
+    assertThat(result,
+        containsInAnyOrder(gabwResult(window(0, 5), new Instant(1), "v1", "v3"),
+            gabwResult(window(1, 5), new Instant(4), "v2")));
   }
 
   /**
@@ -309,18 +281,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(0)));
-    assertThat(item0.getWindows(),
-        contains(window(0, 15)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(15)));
-    assertThat(item1.getWindows(),
-        contains(window(15, 25)));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(0, 15), new Instant(0), "v1", "v2"),
+        gabwResult(window(15, 25), new Instant(15), "v3")));
   }
 
   /**
@@ -402,18 +365,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(window(0, 10).maxTimestamp()));
-    assertThat(item0.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item0.getWindows()).maxTimestamp()));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(window(10, 20).maxTimestamp()));
-    assertThat(item1.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item1.getWindows()).maxTimestamp()));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(0, 10), window(0, 10).maxTimestamp(), "v1", "v2"),
+        gabwResult(window(10, 20), window(10, 20).maxTimestamp(), "v3")));
   }
 
   /**
@@ -451,16 +405,9 @@ public class GroupAlsoByWindowsProperties {
         WindowedValue.of("v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 10)));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(2)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(10, 20)));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(14)));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(0, 10), new Instant(2), "v1", "v2"),
+        gabwResult(window(10, 20), new Instant(14), "v3")));
   }
 
   /**
@@ -495,16 +442,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 10)));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(2)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(10, 20)));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(13)));
+    assertThat(result, containsInAnyOrder(
+            gabwResult(window(0, 10), new Instant(2), "v1", "v2"),
+            gabwResult(window(10, 20), new Instant(13), "v3")));
   }
 
   /**
@@ -538,18 +478,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 15)));
-    assertThat(item0.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item0.getWindows()).maxTimestamp()));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(15, 25)));
-    assertThat(item1.getTimestamp(),
-        equalTo(Iterables.getOnlyElement(item1.getWindows()).maxTimestamp()));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(0, 15), window(0, 15).maxTimestamp(), "v1", "v2"),
+        gabwResult(window(15, 25), window(15, 25).maxTimestamp(), "v3")));
   }
 
   /**
@@ -583,16 +514,9 @@ public class GroupAlsoByWindowsProperties {
                 PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 15)));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(5)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(15, 25)));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(15)));
+    assertThat(result, containsInAnyOrder(
+        gabwResult(window(0, 15), new Instant(5), "v1", "v2"),
+        gabwResult(window(15, 25), new Instant(15), "v3")));
   }
 
   /**
@@ -629,13 +553,21 @@ public class GroupAlsoByWindowsProperties {
 
     assertThat(result.size(), equalTo(2));
 
-    WindowedValue<KV<String, Long>> item0 = result.get(0);
+    // TODO: Rewrite to use matchers rather than order-based inspection
+    WindowedValue<KV<String, Long>> item0;
+    WindowedValue<KV<String, Long>> item1;
+    if (result.get(0).getWindows().iterator().next().equals(window(0, 15))) {
+      item0 = result.get(0);
+      item1 = result.get(1);
+    } else {
+      item0 = result.get(1);
+      item1 = result.get(0);
+    }
     assertThat(item0.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(1L, 2L))));
     assertThat(item0.getWindows(), contains(window(0, 15)));
     assertThat(item0.getTimestamp(),
         equalTo(Iterables.getOnlyElement(item0.getWindows()).maxTimestamp()));
 
-    WindowedValue<KV<String, Long>> item1 = result.get(1);
     assertThat(item1.getValue().getValue(), equalTo(combineFn.apply(ImmutableList.of(4L))));
     assertThat(item1.getWindows(), contains(window(15, 25)));
     assertThat(item1.getTimestamp(),
@@ -715,4 +647,45 @@ public class GroupAlsoByWindowsProperties {
     return new IntervalWindow(new Instant(start), new Instant(end));
   }
 
+  private static <T> Matcher<WindowedValue<KV<String, Iterable<T>>>> gabwResult(
+      BoundedWindow window,
+      Instant timestamp,
+      T... values) {
+    return new GroupAlsoByWindowResultMatcher<>(values, new BoundedWindow[] {window}, timestamp);
+  }
+
+  private static class GroupAlsoByWindowResultMatcher<T>
+      extends BaseMatcher<WindowedValue<KV<String, Iterable<T>>>> {
+
+    private final T[] values;
+    private final BoundedWindow[] windows;
+    private final Instant timestamp;
+
+    private GroupAlsoByWindowResultMatcher(T[] values, BoundedWindow[] windows, Instant timestamp) {
+      this.values = values;
+      this.windows = windows;
+      this.timestamp = timestamp;
+    }
+
+    @Override
+    public boolean matches(Object item) {
+      if (item instanceof WindowedValue && ((WindowedValue) item).getValue() instanceof KV) {
+        WindowedValue<KV<String, Iterable<T>>> that = (WindowedValue<KV<String, Iterable<T>>>) item;
+        return containsInAnyOrder(values).matches(that.getValue().getValue())
+            && timestamp.equals(that.getTimestamp())
+            && containsInAnyOrder(windows).matches(that.getWindows());
+      }
+      return false;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("A Windowed Value containing values ")
+          .appendValueList("[", ", ", "]", values)
+          .appendText(" in windows ")
+          .appendValueList("[", ", ", "]", windows)
+          .appendText(" with timestamp ")
+          .appendValue(timestamp);
+    }
+  }
 }
