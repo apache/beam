@@ -7,18 +7,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 
-public class StreamingExecutorContext extends ExecutorContext<DataStream<?>> {
-
-  private final StreamExecutionEnvironment executionEnvironment;
-
-  public StreamingExecutorContext(StreamExecutionEnvironment executionEnvironment,
+public class StreamingExecutorContext
+    extends ExecutorContext<StreamExecutionEnvironment, DataStream<?>>
+{
+  public StreamingExecutorContext(StreamExecutionEnvironment env,
                                   DAG<FlinkOperator<?>> dag)
   {
-    super(dag);
-    this.executionEnvironment = executionEnvironment;
-  }
-
-  public StreamExecutionEnvironment getExecutionEnvironment() {
-    return executionEnvironment;
+    super(env, dag);
   }
 }

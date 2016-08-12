@@ -16,28 +16,34 @@ import java.util.Map;
  * Keeps track of mapping between Euphoria {@link Dataset} and
  * Flink output {@link DataStream} or {@link org.apache.flink.api.java.DataSet}.
  *
- * @param <T> the type of the datasets handled in this context,
+ * @param <D> the type of the datasets handled in this context,
  *            either {@code Dataset} (for batch mode) or {@code DataStream} (for
  *            stream mode.)
  */
-public abstract class ExecutorContext<T> {
+public abstract class ExecutorContext<E, D> {
 
+  private final E env;
   private final DAG<FlinkOperator<?>> dag;
-  private final Map<FlinkOperator<?>, T> outputs;
+  private final Map<FlinkOperator<?>, D> outputs;
 
-  public ExecutorContext(DAG<FlinkOperator<?>> dag) {
+  public ExecutorContext(E env, DAG<FlinkOperator<?>> dag) {
+    this.env = env;
     this.dag = dag;
     this.outputs = new IdentityHashMap<>();
+  }
+
+  public E getExecutionEnvironment() {
+    return this.env;
   }
 
   /**
    * Retrieve list of Flink {@link DataStream} inputs of given operator
    */
-  public List<T> getInputStreams(FlinkOperator<?> operator) {
+  public List<D> getInputStreams(FlinkOperator<?> operator) {
     List<Node<FlinkOperator<?>>> parents = dag.getNode(operator).getParents();
-    List<T> inputs = new ArrayList<>(parents.size());
+    List<D> inputs = new ArrayList<>(parents.size());
     for (Node<FlinkOperator<?>> p : parents) {
-      T pout = outputs.get(dag.getNode(p.get()).get());
+      D pout = outputs.get(dag.getNode(p.get()).get());
       if (pout == null) {
         throw new IllegalArgumentException(
                 "Output DataStream/DataSet missing for operator " + p.get().getName());
@@ -48,12 +54,12 @@ public abstract class ExecutorContext<T> {
   }
 
   /** Assumes the specified operator is a single-input-operator. */
-  public T getSingleInputStream(FlinkOperator<? extends SingleInputOperator> operator) {
+  public D getSingleInputStream(FlinkOperator<? extends SingleInputOperator> operator) {
     return Iterables.getOnlyElement(getInputStreams(operator));
   }
 
-  public T getOutputStream(FlinkOperator<?> operator) {
-    T out = outputs.get(operator);
+  public D getOutputStream(FlinkOperator<?> operator) {
+    D out = outputs.get(operator);
     if (out == null) {
       throw new IllegalArgumentException("No output exists for operator " +
               operator.getName());
@@ -61,8 +67,8 @@ public abstract class ExecutorContext<T> {
     return out;
   }
 
-  public void setOutput(FlinkOperator<?> operator, T output) {
-    T prev = outputs.put(operator, output);
+  public void setOutput(FlinkOperator<?> operator, D output) {
+    D prev = outputs.put(operator, output);
     if (prev != null) {
       throw new IllegalStateException(
               "Operator(" + operator.getName() + ") output already processed");
