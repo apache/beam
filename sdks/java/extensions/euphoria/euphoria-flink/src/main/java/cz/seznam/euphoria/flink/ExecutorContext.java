@@ -46,7 +46,7 @@ public abstract class ExecutorContext<T> {
   }
 
   /** Assumes the specified operator is a single-input-operator. */
-  public T getSingleInputStream(FlinkOperator<?> operator) {
+  public T getSingleInputStream(FlinkOperator<? extends SingleInputOperator> operator) {
     return Iterables.getOnlyElement(getInputStreams(operator));
   }
 
