@@ -45,6 +45,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import org.joda.time.Instant;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +79,7 @@ class InProcessEvaluationContext {
 
   /** The options that were used to create this {@link Pipeline}. */
   private final InProcessPipelineOptions options;
+  private final Clock clock;
 
   private final BundleFactory bundleFactory;
   /** The current processing time and event time watermarks and timers. */
@@ -112,6 +115,7 @@ class InProcessEvaluationContext {
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     this.options = checkNotNull(options);
+    this.clock = options.getClock();
     this.bundleFactory = checkNotNull(bundleFactory);
     checkNotNull(rootTransforms);
     checkNotNull(valueToConsumers);
@@ -120,8 +124,7 @@ class InProcessEvaluationContext {
     this.stepNames = stepNames;
 
     this.watermarkManager =
-        InMemoryWatermarkManager.create(
-            NanosOffsetClock.create(), rootTransforms, valueToConsumers);
+        InMemoryWatermarkManager.create(clock, rootTransforms, valueToConsumers);
     this.sideInputContainer = InProcessSideInputContainer.create(this, views);
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
@@ -302,7 +305,7 @@ class InProcessEvaluationContext {
       AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
     return new InProcessExecutionContext(
-        options.getClock(),
+        clock,
         key,
         (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
@@ -420,5 +423,9 @@ class InProcessEvaluationContext {
       }
     }
     return true;
+  }
+
+  public Instant now() {
+    return clock.now();
   }
 }
