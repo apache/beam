@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DATASTORE_BATCH_MUTATION_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.getEstimatedSizeBytes;
@@ -24,11 +25,12 @@ import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.makeRequest;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -44,11 +46,13 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriter;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriterFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.SplitQueryFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3DatastoreFactory;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3Options;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.UpsertFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.V1Beta3DatastoreFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -61,10 +65,11 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 
-import com.google.common.collect.Lists;
+import com.google.datastore.v1beta3.CommitRequest;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
 import com.google.datastore.v1beta3.Key;
+import com.google.datastore.v1beta3.Mutation;
 import com.google.datastore.v1beta3.PartitionId;
 import com.google.datastore.v1beta3.Query;
 import com.google.datastore.v1beta3.QueryResultBatch;
@@ -87,7 +92,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -199,9 +203,9 @@ public class V1Beta3Test {
   @Test
   public void testReadDisplayData() {
     V1Beta3.Read read =  DatastoreIO.v1beta3().read()
-      .withProjectId(PROJECT_ID)
-      .withQuery(QUERY)
-      .withNamespace(NAMESPACE);
+        .withProjectId(PROJECT_ID)
+        .withQuery(QUERY)
+        .withNamespace(NAMESPACE);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -258,7 +262,7 @@ public class V1Beta3Test {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testSinkPrimitiveDisplayData() {
+  public void testWritePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
         DatastoreIO.v1beta3().write().withProjectId("myProject");
@@ -285,33 +289,33 @@ public class V1Beta3Test {
     Key key;
     // Complete with name, no ancestor
     key = makeKey("bird", "finch").build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Complete with id, no ancestor
     key = makeKey("bird", 123).build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Incomplete, no ancestor
     key = makeKey("bird").build();
-    assertFalse(DatastoreWriter.isValidKey(key));
+    assertFalse(V1Beta3.isValidKey(key));
 
     // Complete with name and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", "horned").build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Complete with id and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", 123).build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Incomplete with ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird").build();
-    assertFalse(DatastoreWriter.isValidKey(key));
+    assertFalse(V1Beta3.isValidKey(key));
 
     key = makeKey().build();
-    assertFalse(DatastoreWriter.isValidKey(key));
+    assertFalse(V1Beta3.isValidKey(key));
   }
 
   /**
@@ -319,37 +323,96 @@ public class V1Beta3Test {
    */
   @Test
   public void testAddEntitiesWithIncompleteKeys() throws Exception {
+
     Key key = makeKey("bird").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
-    DatastoreWriter writer = new DatastoreWriter(null, mockDatastore);
+    UpsertFn upsertFn = new UpsertFn();
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Entities to be written to the Datastore must have complete keys");
 
-    writer.write(entity);
+    upsertFn.apply(entity);
+  }
+
+  @Test
+  /**
+   * Test that entities with valid keys are transformed to upsert mutations.
+   */
+  public void testAddEntities() throws Exception {
+    Key key = makeKey("bird", "finch").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    UpsertFn upsertFn = new UpsertFn();
+
+    Mutation exceptedMutation = makeUpsert(entity).build();
+    assertEquals(upsertFn.apply(entity), exceptedMutation);
   }
 
   /**
-   * Test that entities are added to the batch to update.
+   * Test that entities with incomplete keys cannot be deleted.
    */
   @Test
-  public void testAddingEntities() throws Exception {
-    List<Entity> expected = Lists.newArrayList(
-        Entity.newBuilder().setKey(makeKey("bird", "jay").build()).build(),
-        Entity.newBuilder().setKey(makeKey("bird", "condor").build()).build(),
-        Entity.newBuilder().setKey(makeKey("bird", "robin").build()).build());
+  public void testDeleteEntitiesWithIncompleteKeys() throws Exception {
 
-    List<Entity> allEntities = Lists.newArrayList(expected);
-    Collections.shuffle(allEntities);
+    Key key = makeKey("bird").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    DeleteFn deleteFn = new DeleteFn();
 
-    DatastoreWriter writer = new DatastoreWriter(null, mockDatastore);
-    writer.open("test_id");
-    for (Entity entity : allEntities) {
-      writer.write(entity);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Entities to be deleted from the Datastore must have complete keys");
+
+    deleteFn.apply(entity);
+  }
+
+  /**
+   * Test that entities with valid keys are transformed to delete mutations.
+   */
+  @Test
+  public void testDeleteEntities() throws Exception {
+    Key key = makeKey("bird", "finch").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    DeleteFn deleteFn = new DeleteFn();
+
+    Mutation exceptedMutation = makeDelete(entity.getKey()).build();
+    assertEquals(deleteFn.apply(entity), exceptedMutation);
+  }
+
+  @Test
+  public void testDatatoreWriterFnWithOneBatch() throws Exception {
+    datastoreWriteFnTest(100);
+  }
+
+  @Test
+  public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
+    datastoreWriteFnTest(DATASTORE_BATCH_MUTATION_LIMIT * 3 + 100);
+  }
+
+  @Test
+  public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
+    datastoreWriteFnTest(DATASTORE_BATCH_MUTATION_LIMIT * 2);
+  }
+
+  private void datastoreWriteFnTest(int numMutations) throws Exception {
+    // Create the requested number of mutations.
+    List<Mutation> mutations = new ArrayList<>(numMutations);
+    for (int i = 0; i < numMutations; ++i) {
+      mutations.add(
+          makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
     }
 
-    assertEquals(expected.size(), writer.entities.size());
-    assertThat(writer.entities, containsInAnyOrder(expected.toArray()));
+    for (int i = 0; i < numMutations; i = i + DATASTORE_BATCH_MUTATION_LIMIT) {
+      CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+      commitRequest.addAllMutations(mutations);
+      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+      when(mockDatastore.commit(commitRequest.build())).thenReturn(null);
+    }
+
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
+    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    doFnTester.processBundle(mutations);
+
+    int expectedBatches = (int) Math.ceil((double) numMutations / DATASTORE_BATCH_MUTATION_LIMIT);
+    verify(mockDatastore, times(expectedBatches)).commit(any(CommitRequest.class));
   }
 
   /**

@@ -24,24 +24,23 @@ import static com.google.common.base.Verify.verify;
 import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
 import static com.google.datastore.v1beta3.QueryResultBatch.MoreResultsType.NOT_FINISHED;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.Sink.WriteOperation;
-import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -64,6 +63,7 @@ import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
 import com.google.datastore.v1beta3.Key;
 import com.google.datastore.v1beta3.Key.PathElement;
+import com.google.datastore.v1beta3.Mutation;
 import com.google.datastore.v1beta3.PartitionId;
 import com.google.datastore.v1beta3.Query;
 import com.google.datastore.v1beta3.QueryResultBatch;
@@ -88,7 +88,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * <p>{@link V1Beta3} provides an API to Read and Write {@link PCollection PCollections} of
+ * <p>{@link V1Beta3} provides an API to Read, Write and Delete {@link PCollection PCollections} of
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1beta3
  * {@link Entity} objects.
  *
@@ -133,7 +133,16 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
+ * <p>To delete a {@link PCollection} of entities from Datastore, use {@link V1Beta3#delete},
+ * specifying the Cloud Datastore project to write to:
+ *
+ * <pre> {@code
+ * PCollection<Entity> entities = ...;
+ * entities.apply(DatastoreIO.v1beta3().delete().withProjectId(projectId));
+ * p.run();
+ * } </pre>
+ *
+ * <p>{@link Entity Entities} in the {@code PCollection} to be written or deleted must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
  * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
  * {@code projectId} default may be used by specifying it in the {@code Entity} {@code Keys}.
@@ -143,9 +152,9 @@ import javax.annotation.Nullable;
  * keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
  * }</pre>
  *
- * <p>{@code Entities} will be committed as upsert (update or insert) mutations. Please read
- * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
- * Keys</a> for more information about {@code Entity} keys.
+ * <p>{@code Entities} will be committed as upsert (update or insert) or delete mutations. Please
+ * read <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties,
+ * and Keys</a> for more information about {@code Entity} keys.
  *
  * <p><h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
@@ -167,7 +176,8 @@ public class V1Beta3 {
    * Datastore has a limit of 500 mutations per batch operation, so we flush
    * changes to Datastore every 500 entities.
    */
-  private static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_MUTATION_LIMIT = 500;
 
   /**
    * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
@@ -634,41 +644,7 @@ public class V1Beta3 {
         }
       }
     }
-
-    /**
-     * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
-     * {@link QuerySplitter}
-     *
-     * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
-     * wrapping them under this class, which implements {@link Serializable}.
-     */
-    @VisibleForTesting
-    static class V1Beta3DatastoreFactory implements Serializable {
-
-      /** Builds a Datastore client for the given pipeline options and project. */
-      public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
-        DatastoreOptions.Builder builder =
-            new DatastoreOptions.Builder()
-                .projectId(projectId)
-                .initializer(
-                    new RetryHttpRequestInitializer()
-                );
-
-        Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-        if (credential != null) {
-          builder.credential(credential);
-        }
-
-        return DatastoreFactory.get().create(builder.build());
-      }
-
-      /** Builds a Datastore {@link QuerySplitter}. */
-      public QuerySplitter getQuerySplitter() {
-        return DatastoreHelper.getQuerySplitter();
-      }
-    }
   }
-
 
   /**
    * Returns an empty {@link V1Beta3.Write} builder. Configure the destination
@@ -679,20 +655,25 @@ public class V1Beta3 {
   }
 
   /**
+   * Returns an empty {@link V1Beta3.Delete} builder. Configure the destination
+   * {@code projectId} using {@link V1Beta3.Delete#withProjectId}.
+   */
+  public Delete delete() {
+    return new Delete(null);
+  }
+
+  /**
    * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
    *
    * @see DatastoreIO
    */
-  public static class Write extends PTransform<PCollection<Entity>, PDone> {
-    @Nullable
-    private final String projectId;
-
+  public static class Write extends DatastoreMutation {
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
     public Write(@Nullable String projectId) {
-      this.projectId = projectId;
+      super(projectId, new UpsertFn());
     }
 
     /**
@@ -702,27 +683,67 @@ public class V1Beta3 {
       checkNotNull(projectId, "projectId");
       return new Write(projectId);
     }
+  }
+
+  /**
+   * A {@link PTransform} that deletes {@link Entity} objects from Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class Delete extends DatastoreMutation {
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    public Delete(@Nullable String projectId) {
+      super(projectId, new DeleteFn());
+    }
+
+    /**
+     * Returns a new {@link Delete} that deletes from the Cloud Datastore for the specified project.
+     */
+    public Delete withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new Delete(projectId);
+    }
+  }
+
+  /**
+   * A {@link PTransform} that writes mutations of {@link Entity} objects to Cloud Datastore.
+   *
+   * <p>It requires a {@link DoFn} that tranforms an {@code Entity} object to a {@link Mutation}
+   * <b>Note:</b> Only idempotent Cloud Datastore mutation operations (upsert and delete) should
+   * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
+   */
+  private static class DatastoreMutation extends PTransform<PCollection<Entity>, PDone> {
+    private final String projectId;
+    // A function that transforms each entity into a mutation.
+    private final SimpleFunction<Entity, Mutation> mutationFn;
+
+    public DatastoreMutation(String projectId, SimpleFunction<Entity, Mutation> mutationFn) {
+      this.projectId = projectId;
+      this.mutationFn = mutationFn;
+    }
 
     @Override
     public PDone apply(PCollection<Entity> input) {
-      return input.apply(
-          org.apache.beam.sdk.io.Write.to(new DatastoreSink(projectId)));
+      input.apply(MapElements.via(mutationFn))
+          .apply(ParDo.of(new DatastoreWriterFn(projectId)));
+
+      return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<Entity> input) {
       checkNotNull(projectId, "projectId");
-    }
-
-    @Nullable
-    public String getProjectId() {
-      return projectId;
+      checkNotNull(mutationFn, "mutationFn");
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
           .add("projectId", projectId)
+          .add("mutationFn", mutationFn.getClass().getName())
           .toString();
     }
 
@@ -731,122 +752,38 @@ public class V1Beta3 {
       super.populateDisplayData(builder);
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"));
+              .withLabel("Output Project"))
+          .addIfNotNull(DisplayData.item("mutationFn", mutationFn.getClass().getName())
+              .withLabel("Datastore Mutation Function"));
+    }
+
+    public String getProjectId() {
+      return projectId;
     }
   }
 
   /**
-   * A {@link org.apache.beam.sdk.io.Sink} that writes data to Datastore.
-   */
-  static class DatastoreSink extends org.apache.beam.sdk.io.Sink<Entity> {
-    final String projectId;
-
-    public DatastoreSink(String projectId) {
-      this.projectId = projectId;
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(projectId, "projectId");
-    }
-
-    @Override
-    public DatastoreWriteOperation createWriteOperation(PipelineOptions options) {
-      return new DatastoreWriteOperation(this);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder
-          .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"));
-    }
-  }
-
-  /**
-   * A {@link WriteOperation} that will manage a parallel write to a Datastore sink.
-   */
-  private static class DatastoreWriteOperation
-      extends WriteOperation<Entity, DatastoreWriteResult> {
-    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriteOperation.class);
-
-    private final DatastoreSink sink;
-
-    public DatastoreWriteOperation(DatastoreSink sink) {
-      this.sink = sink;
-    }
-
-    @Override
-    public Coder<DatastoreWriteResult> getWriterResultCoder() {
-      return SerializableCoder.of(DatastoreWriteResult.class);
-    }
-
-    @Override
-    public void initialize(PipelineOptions options) throws Exception {}
-
-    /**
-     * Finalizes the write.  Logs the number of entities written to the Datastore.
-     */
-    @Override
-    public void finalize(Iterable<DatastoreWriteResult> writerResults, PipelineOptions options)
-        throws Exception {
-      long totalEntities = 0;
-      for (DatastoreWriteResult result : writerResults) {
-        totalEntities += result.entitiesWritten;
-      }
-      LOG.info("Wrote {} elements.", totalEntities);
-    }
-
-    @Override
-    public DatastoreWriter createWriter(PipelineOptions options) throws Exception {
-      DatastoreOptions.Builder builder =
-          new DatastoreOptions.Builder()
-              .projectId(sink.projectId)
-              .initializer(new RetryHttpRequestInitializer());
-      Credential credential = options.as(GcpOptions.class).getGcpCredential();
-      if (credential != null) {
-        builder.credential(credential);
-      }
-      Datastore datastore = DatastoreFactory.get().create(builder.build());
-
-      return new DatastoreWriter(this, datastore);
-    }
-
-    @Override
-    public DatastoreSink getSink() {
-      return sink;
-    }
-  }
-
-  /**
-   * {@link Writer} that writes entities to a Datastore Sink.  Entities are written in batches,
-   * where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.  Entities
-   * are committed as upsert mutations (either update if the key already exists, or insert if it is
-   * a new key).  If an entity does not have a complete key (i.e., it has no name or id), the bundle
-   * will fail.
+   * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
+   * batches, where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_MUTATION_LIMIT}.
    *
    * <p>See <a
-   * href="https://cloud.google.com/datastore/docs/concepts/entities#Datastore_Creating_an_entity">
-   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and upsert
-   * mutations.
+   * href="https://cloud.google.com/datastore/docs/concepts/entities">
+   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
-   * times).
-   *
-   * <p>Visible for testing purposes.
+   * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_MUTATION_LIMIT}
+   * times). This means that the mutation operation should be idempotent. Thus, the writer should
+   * only be used for {code upsert} and {@code delete} mutation operations, as these are the only
+   * two Cloud Datastore mutations that are idempotent.
    */
   @VisibleForTesting
-  static class DatastoreWriter extends Writer<Entity, DatastoreWriteResult> {
-    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriter.class);
-    private final DatastoreWriteOperation writeOp;
-    private final Datastore datastore;
-    private long totalWritten = 0;
-
-    // Visible for testing.
-    final List<Entity> entities = new ArrayList<>();
-
+  static class DatastoreWriterFn extends DoFn<Mutation, Void> {
+    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
+    private final String projectId;
+    private transient Datastore datastore;
+    private final V1Beta3DatastoreFactory datastoreFactory;
+    // Current batch of mutations to be written.
+    private final List<Mutation> mutations = new ArrayList<>();
     /**
      * Since a bundle is written in batches, we should retry the commit of a batch in order to
      * prevent transient errors from causing the bundle to fail.
@@ -858,68 +795,41 @@ public class V1Beta3 {
      */
     private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
-    /**
-     * Returns true if a Datastore key is complete.  A key is complete if its last element
-     * has either an id or a name.
-     */
-    static boolean isValidKey(Key key) {
-      List<PathElement> elementList = key.getPathList();
-      if (elementList.isEmpty()) {
-        return false;
-      }
-      PathElement lastElement = elementList.get(elementList.size() - 1);
-      return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
+    public DatastoreWriterFn(String projectId) {
+      this(projectId, new V1Beta3DatastoreFactory());
     }
 
-    DatastoreWriter(DatastoreWriteOperation writeOp, Datastore datastore) {
-      this.writeOp = writeOp;
-      this.datastore = datastore;
+    @VisibleForTesting
+    DatastoreWriterFn(String projectId, V1Beta3DatastoreFactory datastoreFactory) {
+      this.projectId = checkNotNull(projectId, "projectId");
+      this.datastoreFactory = datastoreFactory;
     }
 
-    @Override
-    public void open(String uId) throws Exception {}
+    @StartBundle
+    public void startBundle(Context c) {
+      datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId);
+    }
 
-    /**
-     * Writes an entity to the Datastore.  Writes are batched, up to {@link
-     * V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}. If an entity does not have a complete key, an
-     * {@link IllegalArgumentException} will be thrown.
-     */
-    @Override
-    public void write(Entity value) throws Exception {
-      // Verify that the entity to write has a complete key.
-      if (!isValidKey(value.getKey())) {
-        throw new IllegalArgumentException(
-            "Entities to be written to the Datastore must have complete keys");
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      mutations.add(c.element());
+      if (mutations.size() >= V1Beta3.DATASTORE_BATCH_MUTATION_LIMIT) {
+        flushBatch();
       }
+    }
 
-      entities.add(value);
-
-      if (entities.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
+    @FinishBundle
+    public void finishBundle(Context c) throws Exception {
+      if (mutations.size() > 0) {
         flushBatch();
       }
     }
 
     /**
-     * Flushes any pending batch writes and returns a DatastoreWriteResult.
-     */
-    @Override
-    public DatastoreWriteResult close() throws Exception {
-      if (entities.size() > 0) {
-        flushBatch();
-      }
-      return new DatastoreWriteResult(totalWritten);
-    }
-
-    @Override
-    public DatastoreWriteOperation getWriteOperation() {
-      return writeOp;
-    }
-
-    /**
-     * Writes a batch of entities to the Datastore.
+     * Writes a batch of mutations to Cloud Datastore.
      *
-     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriter#MAX_RETRIES}
-     * times).  All entities in the batch will be committed again, even if the commit was partially
+     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriterFn#MAX_RETRIES}
+     * times). All mutations in the batch will be committed again, even if the commit was partially
      * successful. If the retry limit is exceeded, the last exception from the Datastore will be
      * thrown.
      *
@@ -927,7 +837,7 @@ public class V1Beta3 {
      * backing off between retries fails.
      */
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
-      LOG.debug("Writing batch of {} entities", entities.size());
+      LOG.debug("Writing batch of {} mutations", mutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
 
@@ -935,9 +845,7 @@ public class V1Beta3 {
         // Batch upsert entities.
         try {
           CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          for (Entity entity: entities) {
-            commitRequest.addMutations(makeUpsert(entity));
-          }
+          commitRequest.addAllMutations(mutations);
           commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
           datastore.commit(commitRequest.build());
           // Break if the commit threw no exception.
@@ -953,17 +861,94 @@ public class V1Beta3 {
           }
         }
       }
-      totalWritten += entities.size();
-      LOG.debug("Successfully wrote {} entities", entities.size());
-      entities.clear();
+      LOG.debug("Successfully wrote {} mutations", mutations.size());
+      mutations.clear();
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("projectId", projectId)
+              .withLabel("Output Project"));
     }
   }
 
-  private static class DatastoreWriteResult implements Serializable {
-    final long entitiesWritten;
+  /**
+   * Returns true if a Datastore key is complete. A key is complete if its last element
+   * has either an id or a name.
+   */
+  static boolean isValidKey(Key key) {
+    List<PathElement> elementList = key.getPathList();
+    if (elementList.isEmpty()) {
+      return false;
+    }
+    PathElement lastElement = elementList.get(elementList.size() - 1);
+    return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
+  }
 
-    public DatastoreWriteResult(long recordsWritten) {
-      this.entitiesWritten = recordsWritten;
+  /**
+   * A function that constructs an upsert {@link Mutation} from an {@link Entity}.
+   */
+  @VisibleForTesting
+  static class UpsertFn extends SimpleFunction<Entity, Mutation> {
+    @Override
+    public Mutation apply(Entity entity) {
+      // Verify that the entity to write has a complete key.
+      if (!isValidKey(entity.getKey())) {
+        throw new IllegalArgumentException(
+            "Entities to be written to the Datastore must have complete keys");
+      }
+      return makeUpsert(entity).build();
+    }
+  }
+
+  /**
+   * A function that constructs a delete {@link Mutation} from an {@link Entity}.
+   */
+  @VisibleForTesting
+  static class DeleteFn extends SimpleFunction<Entity, Mutation> {
+    @Override
+    public Mutation apply(Entity entity) {
+      // Verify that the entity to delete has a complete key.
+      if (!isValidKey(entity.getKey())) {
+        throw new IllegalArgumentException(
+            "Entities to be deleted from the Datastore must have complete keys");
+      }
+      return makeDelete(entity.getKey()).build();
+    }
+  }
+
+  /**
+   * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
+   * {@link QuerySplitter}
+   *
+   * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
+   * wrapping them under this class, which implements {@link Serializable}.
+   */
+  @VisibleForTesting
+  static class V1Beta3DatastoreFactory implements Serializable {
+
+    /** Builds a Datastore client for the given pipeline options and project. */
+    public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+      DatastoreOptions.Builder builder =
+          new DatastoreOptions.Builder()
+              .projectId(projectId)
+              .initializer(
+                  new RetryHttpRequestInitializer()
+              );
+
+      Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      if (credential != null) {
+        builder.credential(credential);
+      }
+
+      return DatastoreFactory.get().create(builder.build());
+    }
+
+    /** Builds a Datastore {@link QuerySplitter}. */
+    public QuerySplitter getQuerySplitter() {
+      return DatastoreHelper.getQuerySplitter();
     }
   }
 }
