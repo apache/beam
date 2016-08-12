@@ -5,19 +5,19 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
- * Joint interface for Flink batch and stream execution environments
+ * Unified interface for Flink batch and stream execution environments
  */
 public class ExecutionEnvironment {
 
   private org.apache.flink.api.java.ExecutionEnvironment batchEnv;
   private StreamExecutionEnvironment streamEnv;
 
-  public ExecutionEnvironment(Mode mode, boolean test) {
+  public ExecutionEnvironment(Mode mode, boolean local) {
     if (mode == Mode.BATCH) {
-      batchEnv = test ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment() :
+      batchEnv = local ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment() :
               org.apache.flink.api.java.ExecutionEnvironment.getExecutionEnvironment();
     } else {
-      streamEnv = test ? StreamExecutionEnvironment.createLocalEnvironment() :
+      streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment() :
               StreamExecutionEnvironment.getExecutionEnvironment();
     }
   }
