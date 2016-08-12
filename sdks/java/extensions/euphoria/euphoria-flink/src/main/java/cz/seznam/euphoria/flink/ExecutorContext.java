@@ -3,13 +3,11 @@ package cz.seznam.euphoria.flink;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +15,10 @@ import java.util.Map;
 /**
  * Keeps track of mapping between Euphoria {@link Dataset} and
  * Flink output {@link DataStream} or {@link org.apache.flink.api.java.DataSet}.
+ *
+ * @param <T> the type of the datasets handled in this context,
+ *            either {@code Dataset} (for batch mode) or {@code DataStream} (for
+ *            stream mode.)
  */
 public abstract class ExecutorContext<T> {
 
