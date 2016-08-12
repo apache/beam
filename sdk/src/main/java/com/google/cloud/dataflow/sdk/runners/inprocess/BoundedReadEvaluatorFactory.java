@@ -58,21 +58,15 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
-  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
-    return getTransformEvaluatorQueue(transform, evaluationContext).poll();
-  }
-
   /**
-   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
-   * provided application of {@link Bounded Read.Bounded}, initializing it if required.
+   * Get a {@link TransformEvaluator} that produce elements for the provided application of
+   * {@link Bounded Read.Bounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.
    */
   @SuppressWarnings("unchecked")
-  private <OutputT> Queue<BoundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
+  private <OutputT> BoundedReadEvaluator<OutputT> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
       final InProcessEvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
@@ -94,7 +88,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
       }
     }
-    return evaluatorQueue;
+    return evaluatorQueue.poll();
   }
 
   /**
@@ -130,7 +124,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
       try (final BoundedReader<OutputT> reader =
-              source.createReader(evaluationContext.getPipelineOptions());) {
+              source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
             evaluationContext.createRootBundle(transform.getOutput());
