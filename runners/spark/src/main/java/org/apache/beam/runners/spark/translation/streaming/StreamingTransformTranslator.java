@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
-import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
+import org.apache.beam.runners.spark.io.kafka8.SparkKafkaSourcePTransform;
 import org.apache.beam.runners.spark.translation.DoFnFunction;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -35,6 +36,8 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -59,6 +62,7 @@ import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
+import org.joda.time.Instant;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -67,12 +71,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import kafka.serializer.Decoder;
+import kafka.serializer.DefaultDecoder;
 import scala.Tuple2;
 
 
 /**
- * Supports translation between a DataFlow transform, and Spark's operations on DStreams.
+ * Supports translation between a Beam transform, and Spark's operations on DStreams.
  */
 public final class StreamingTransformTranslator {
 
@@ -92,27 +96,30 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, V> TransformEvaluator<KafkaIO.Read.Unbound<K, V>> kafka() {
-    return new TransformEvaluator<KafkaIO.Read.Unbound<K, V>>() {
+  private static <K, V> TransformEvaluator<SparkKafkaSourcePTransform<K, V>> kafka() {
+    return new TransformEvaluator<SparkKafkaSourcePTransform<K, V>>() {
       @Override
-      public void evaluate(KafkaIO.Read.Unbound<K, V> transform, EvaluationContext context) {
+      public void evaluate(final SparkKafkaSourcePTransform<K, V> transform,
+                           EvaluationContext context) {
         StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
         JavaStreamingContext jssc = sec.getStreamingContext();
-        Class<K> keyClazz = transform.getKeyClass();
-        Class<V> valueClazz = transform.getValueClass();
-        Class<? extends Decoder<K>> keyDecoderClazz = transform.getKeyDecoderClass();
-        Class<? extends Decoder<V>> valueDecoderClazz = transform.getValueDecoderClass();
-        Map<String, String> kafkaParams = transform.getKafkaParams();
-        Set<String> topics = transform.getTopics();
-        JavaPairInputDStream<K, V> inputPairStream = KafkaUtils.createDirectStream(jssc, keyClazz,
-                valueClazz, keyDecoderClazz, valueDecoderClazz, kafkaParams, topics);
+        // read raw Kafka messages.
+        JavaPairInputDStream<byte[], byte[]> inputPairStream = KafkaUtils.createDirectStream(jssc,
+            byte[].class, byte[].class, DefaultDecoder.class, DefaultDecoder.class,
+                transform.getKafkaParams(), transform.getTopics());
+        // use Beam Coders to decode, and the timestampFn to get the Instant.
         JavaDStream<WindowedValue<KV<K, V>>> inputStream =
-            inputPairStream.map(new Function<Tuple2<K, V>, KV<K, V>>() {
+            inputPairStream.map(new Function<Tuple2<byte[], byte[]>, WindowedValue<KV<K, V>>>() {
+
           @Override
-          public KV<K, V> call(Tuple2<K, V> t2) throws Exception {
-            return KV.of(t2._1(), t2._2());
+          public WindowedValue<KV<K, V>> call(Tuple2<byte[], byte[]> tuple2) throws Exception {
+            K key = CoderHelpers.fromByteArray(tuple2._1(), transform.getKeyCoder());
+            V value = CoderHelpers.fromByteArray(tuple2._2(), transform.getValueCoder());
+            KV<K, V> kv = KV.of(key, value);
+            Instant instant = transform.getKvTimestampFn().apply(kv);
+            return WindowedValue.of(kv, instant, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
           }
-        }).map(WindowingHelpers.<KV<K, V>>windowFunction());
+        });
         sec.setStream(transform, inputStream);
       }
     };
@@ -131,6 +138,7 @@ public final class StreamingTransformTranslator {
     };
   }
 
+  /** Use for testing to mock a Spark streaming micro-batch. */
   private static <T> TransformEvaluator<CreateStream.QueuedValues<T>> createFromQueue() {
     return new TransformEvaluator<CreateStream.QueuedValues<T>>() {
       @Override
@@ -328,7 +336,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.QueuedValues.class, createFromQueue());
     EVALUATORS.put(Create.Values.class, create());
-    EVALUATORS.put(KafkaIO.Read.Unbound.class, kafka());
+    EVALUATORS.put(SparkKafkaSourcePTransform.class, kafka());
     EVALUATORS.put(Window.Bound.class, window());
     EVALUATORS.put(Flatten.FlattenPCollectionList.class, flattenPColl());
   }
@@ -353,13 +361,13 @@ public final class StreamingTransformTranslator {
         (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
     if (transform == null) {
       if (UNSUPPORTED_EVALUATORS.contains(clazz)) {
-        throw new UnsupportedOperationException("Dataflow transformation " + clazz
+        throw new UnsupportedOperationException("Beam transformation " + clazz
           .getCanonicalName()
           + " is currently unsupported by the Spark streaming pipeline");
       }
       // DStream transformations will transform an RDD into another RDD
       // Actions will create output
-      // In Dataflow it depends on the PTransform's Input and Output class
+      // In Beam it depends on the PTransform's Input and Output class
       Class<?> pTOutputClazz = getPTransformOutputClazz(clazz);
       if (PDone.class.equals(pTOutputClazz)) {
         return foreachRDD(rddTranslator);
@@ -377,7 +385,7 @@ public final class StreamingTransformTranslator {
   }
 
   /**
-   * Translator matches Dataflow transformation with the appropriate Spark streaming evaluator.
+   * Translator matches Beam transformation with the appropriate Spark streaming evaluator.
    * rddTranslator uses Spark evaluators in transform/foreachRDD to evaluate the transformation
    */
   public static class Translator implements SparkPipelineTranslator {
