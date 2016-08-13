@@ -66,7 +66,6 @@ from apache_beam.utils import names
 from apache_beam.utils import processes
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import SetupOptions
-from apache_beam.version import __version__
 
 
 # Standard file names used for staging files.
