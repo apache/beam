@@ -21,20 +21,19 @@ import java.util.Observable;
 import java.util.Observer;
 
 /**
- * An observer that gets notified when additional bytes are read
- * and/or used. It adds all bytes into a local counter. When the
- * observer gets advanced via the next() call, it adds the total byte
- * count to the specified counter, and prepares for the next element.
+ * An observer that gets notified when additional bytes are read and/or used.
  */
-public class ElementByteSizeObserver implements Observer {
-  private final Counter<Long> counter;
+public abstract class ElementByteSizeObserver implements Observer {
   private boolean isLazy = false;
   private long totalSize = 0;
   private double scalingFactor = 1.0;
 
-  public ElementByteSizeObserver(Counter<Long> counter) {
-    this.counter = counter;
-  }
+  public ElementByteSizeObserver() {}
+
+  /**
+   * Called to report element byte size.
+   */
+  protected abstract void reportElementSize(long elementByteSize);
 
   /**
    * Sets byte counting for the current element as lazy. That is, the
@@ -85,8 +84,7 @@ public class ElementByteSizeObserver implements Observer {
    * size to the counter, and prepares the observer for the next element.
    */
   public void advance() {
-    counter.addValue(totalSize);
-
+    reportElementSize(totalSize);
     totalSize = 0;
     isLazy = false;
   }

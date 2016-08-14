@@ -28,7 +28,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import org.junit.After;
@@ -50,11 +50,11 @@ public class SideEffectsTest implements Serializable {
   public void test() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline p = Pipeline.create(options);
 
-    pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
+    p.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
-    pipeline.apply(Create.of("a")).apply(ParDo.of(new DoFn<String, String>() {
+    p.apply(Create.of("a")).apply(ParDo.of(new OldDoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         throw new UserException();
@@ -62,7 +62,7 @@ public class SideEffectsTest implements Serializable {
     }));
 
     try {
-      pipeline.run();
+      p.run();
       fail("Run should thrown an exception");
     } catch (RuntimeException e) {
       assertNotNull(e.getCause());

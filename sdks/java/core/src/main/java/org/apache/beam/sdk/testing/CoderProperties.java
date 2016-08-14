@@ -36,11 +36,13 @@ import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
-
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingInputStream;
+import com.google.common.io.CountingOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -361,5 +363,66 @@ public class CoderProperties {
   private static <T> T decodeEncode(Coder<T> coder, Coder.Context context, T value)
       throws CoderException, IOException {
     return decode(coder, context, encode(coder, context, value));
+  }
+
+  /**
+   * A utility method that passes the given (unencoded) elements through
+   * coder's registerByteSizeObserver() and encode() methods, and confirms
+   * they are mutually consistent. This is useful for testing coder
+   * implementations.
+   */
+  public static <T> void testByteCount(Coder<T> coder, Coder.Context context, T[] elements)
+      throws Exception {
+    TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
+
+    CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream());
+    for (T elem : elements) {
+      coder.registerByteSizeObserver(elem, observer, context);
+      coder.encode(elem, os, context);
+      observer.advance();
+    }
+    long expectedLength = os.getCount();
+
+    assertEquals(expectedLength, observer.getSum());
+    assertEquals(elements.length, observer.getCount());
+  }
+
+  /**
+   * An {@link ElementByteSizeObserver} that records the observed element sizes for testing
+   * purposes.
+   */
+  public static class TestElementByteSizeObserver extends ElementByteSizeObserver {
+
+    private long currentSum = 0;
+    private long count = 0;
+
+    @Override
+    protected void reportElementSize(long elementByteSize) {
+      count++;
+      currentSum += elementByteSize;
+    }
+
+    public double getMean() {
+      return ((double) currentSum) / count;
+    }
+
+    public long getSum() {
+      return currentSum;
+    }
+
+    public long getCount() {
+      return count;
+    }
+
+    public void reset() {
+      currentSum = 0;
+      count = 0;
+    }
+
+    public long getSumAndReset() {
+      long returnValue = currentSum;
+      reset();
+      return returnValue;
+    }
   }
 }

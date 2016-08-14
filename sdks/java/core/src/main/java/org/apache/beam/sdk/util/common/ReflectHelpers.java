@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import static java.util.Arrays.asList;
 
 import com.google.common.base.Function;

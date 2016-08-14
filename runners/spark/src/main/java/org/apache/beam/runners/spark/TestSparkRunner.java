@@ -46,8 +46,6 @@ import org.apache.beam.sdk.values.POutput;
  * options.setSparkMaster("spark://host:port");
  * EvaluationResult result = SparkRunner.create(options).run(p);
  * }
- *
- * To create a Spark streaming pipeline runner use {@link SparkStreamingPipelineOptions}
  */
 public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
 

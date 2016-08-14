@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -562,7 +563,7 @@ public class CompressedSourceTest {
         if (channel.read(buff) != 1) {
           return false;
         }
-        current = new Byte(buff.get(0));
+        current = buff.get(0);
         offset += 1;
         return true;
       }

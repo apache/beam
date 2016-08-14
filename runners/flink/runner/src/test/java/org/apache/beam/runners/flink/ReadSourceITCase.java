@@ -73,7 +73,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
     PCollection<String> result = p
         .apply(CountingInput.upTo(10))
         .apply(ParDo.of(new DoFn<Long, String>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());
           }

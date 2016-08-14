@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -181,7 +181,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * Store the previously emitted pane (if any) for each window.
    *
    * <ul>
-   * <li>State: The previous {@link PaneInfo} passed to the user's {@link DoFn#processElement},
+   * <li>State: The previous {@link PaneInfo} passed to the user's {@link OldDoFn#processElement},
    * if any.
    * <li>Style style: DIRECT
    * <li>Merging: Always keyed by actual window, so does not depend on {@link #activeWindows}.

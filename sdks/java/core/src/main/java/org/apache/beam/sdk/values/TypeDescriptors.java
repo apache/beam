@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import com.google.common.reflect.TypeParameter;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
 
@@ -112,6 +113,18 @@ public class TypeDescriptors {
    */
   public static TypeDescriptor<BigDecimal> bigdecimals() {
     return new TypeDescriptor<BigDecimal>() {};
+  }
+
+  /**
+   * The {@link TypeDescriptor} for BigInteger.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;BigInteger&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for BigInteger
+   */
+  public static TypeDescriptor<BigInteger> bigintegers() {
+    return new TypeDescriptor<BigInteger>() {};
   }
 
   /**

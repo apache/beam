@@ -21,27 +21,28 @@ import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
 import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
 import org.apache.beam.runners.dataflow.internal.DataflowMetricUpdateExtractor;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.runners.AggregatorRetrievalException;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.MapAggregatorValues;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +75,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * Client for the Dataflow service. This can be used to query the service
    * for information about the job.
    */
-  private Dataflow dataflowClient;
+  private DataflowPipelineOptions dataflowOptions;
 
   /**
    * The state the job terminated in or {@code null} if the job has not terminated.
@@ -112,13 +113,17 @@ public class DataflowPipelineJob implements PipelineResult {
    *
    * @param projectId the project id
    * @param jobId the job id
-   * @param dataflowClient the client for the Dataflow Service
+   * @param dataflowOptions used to configure the client for the Dataflow Service
+   * @param aggregatorTransforms a mapping from aggregators to PTransforms
    */
-  public DataflowPipelineJob(String projectId, String jobId, Dataflow dataflowClient,
+  public DataflowPipelineJob(
+      String projectId,
+      String jobId,
+      DataflowPipelineOptions dataflowOptions,
       DataflowAggregatorTransforms aggregatorTransforms) {
     this.projectId = projectId;
     this.jobId = jobId;
-    this.dataflowClient = dataflowClient;
+    this.dataflowOptions = dataflowOptions;
     this.aggregatorTransforms = aggregatorTransforms;
   }
 
@@ -152,39 +157,27 @@ public class DataflowPipelineJob implements PipelineResult {
     return replacedByJob;
   }
 
-  /**
-   * Waits for the job to finish and return the final status.
-   *
-   * @param timeToWait The time to wait in units timeUnit for the job to finish.
-   *     Provide a value less than 1 ms for an infinite wait.
-   * @param timeUnit The unit of time for timeToWait.
-   * @param messageHandler If non null this handler will be invoked for each
-   *   batch of messages received.
-   * @return The final state of the job or null on timeout or if the
-   *   thread is interrupted.
-   * @throws IOException If there is a persistent problem getting job
-   *   information.
-   * @throws InterruptedException
-   */
+  @Override
   @Nullable
-  public State waitToFinish(
-      long timeToWait,
-      TimeUnit timeUnit,
-      MonitoringUtil.JobMessagesHandler messageHandler)
+  public State waitUntilFinish() throws IOException, InterruptedException {
+    return waitUntilFinish(Duration.millis(-1));
+  }
+
+  @Override
+  @Nullable
+  public State waitUntilFinish(Duration duration)
           throws IOException, InterruptedException {
-    return waitToFinish(timeToWait, timeUnit, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+    return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
   }
 
   /**
-   * Wait for the job to finish and return the final status.
+   * Waits until the pipeline finishes and returns the final status.
    *
-   * @param timeToWait The time to wait in units timeUnit for the job to finish.
+   * @param duration The time to wait for the job to finish.
    *     Provide a value less than 1 ms for an infinite wait.
-   * @param timeUnit The unit of time for timeToWait.
+   *
    * @param messageHandler If non null this handler will be invoked for each
    *   batch of messages received.
-   * @param sleeper A sleeper to use to sleep between attempts.
-   * @param nanoClock A nanoClock used to time the total time taken.
    * @return The final state of the job or null on timeout or if the
    *   thread is interrupted.
    * @throws IOException If there is a persistent problem getting job
@@ -193,22 +186,44 @@ public class DataflowPipelineJob implements PipelineResult {
    */
   @Nullable
   @VisibleForTesting
-  State waitToFinish(
-      long timeToWait,
-      TimeUnit timeUnit,
+  public State waitUntilFinish(
+      Duration duration,
+      MonitoringUtil.JobMessagesHandler messageHandler) throws IOException, InterruptedException {
+    return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+  }
+
+  /**
+   * Waits until the pipeline finishes and returns the final status.
+   *
+   * @param duration The time to wait for the job to finish.
+   *     Provide a value less than 1 ms for an infinite wait.
+   *
+   * @param messageHandler If non null this handler will be invoked for each
+   *   batch of messages received.
+   * @param sleeper A sleeper to use to sleep between attempts.
+   * @param nanoClock A nanoClock used to time the total time taken.
+   * @return The final state of the job or null on timeout.
+   * @throws IOException If there is a persistent problem getting job
+   *   information.
+   * @throws InterruptedException if the thread is interrupted.
+   */
+  @Nullable
+  @VisibleForTesting
+  State waitUntilFinish(
+      Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock)
           throws IOException, InterruptedException {
-    MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowClient);
+    MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowOptions.getDataflowClient());
 
     long lastTimestamp = 0;
     BackOff backoff =
-        timeUnit.toMillis(timeToWait) > 0
+        duration.getMillis() > 0
             ? new AttemptAndTimeBoundedExponentialBackOff(
                 MESSAGES_POLLING_ATTEMPTS,
                 MESSAGES_POLLING_INTERVAL,
-                timeUnit.toMillis(timeToWait),
+                duration.getMillis(),
                 AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ATTEMPTS,
                 nanoClock)
             : new AttemptBoundedExponentialBackOff(
@@ -250,18 +265,24 @@ public class DataflowPipelineJob implements PipelineResult {
     return null;  // Timed out.
   }
 
-  /**
-   * Cancels the job.
-   * @throws IOException if there is a problem executing the cancel request.
-   */
-  public void cancel() throws IOException {
+  @Override
+  public State cancel() throws IOException {
     Job content = new Job();
     content.setProjectId(projectId);
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
-    dataflowClient.projects().jobs()
-        .update(projectId, jobId, content)
-        .execute();
+    try {
+      dataflowOptions.getDataflowClient().projects().jobs()
+          .update(projectId, jobId, content)
+          .execute();
+    } catch (IOException e) {
+      String errorMsg = String.format(
+          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
+          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+      LOG.warn(errorMsg);
+      throw new IOException(errorMsg, e);
+    }
+    return State.CANCELLED;
   }
 
   @Override
@@ -315,7 +336,7 @@ public class DataflowPipelineJob implements PipelineResult {
     // Retry loop ends in return or throw
     while (true) {
       try {
-        Job job = dataflowClient
+        Job job = dataflowOptions.getDataflowClient()
             .projects()
             .jobs()
             .get(projectId, jobId)
@@ -324,7 +345,7 @@ public class DataflowPipelineJob implements PipelineResult {
         if (currentState.isTerminal()) {
           terminalState = currentState;
           replacedByJob = new DataflowPipelineJob(
-              getProjectId(), job.getReplacedByJobId(), dataflowClient, aggregatorTransforms);
+              getProjectId(), job.getReplacedByJobId(), dataflowOptions, aggregatorTransforms);
         }
         return job;
       } catch (IOException exn) {
@@ -356,7 +377,20 @@ public class DataflowPipelineJob implements PipelineResult {
   public <OutputT> AggregatorValues<OutputT> getAggregatorValues(Aggregator<?, OutputT> aggregator)
       throws AggregatorRetrievalException {
     try {
-      return new MapAggregatorValues<>(fromMetricUpdates(aggregator));
+      final Map<String, OutputT> stepValues = fromMetricUpdates(aggregator);
+      return new AggregatorValues<OutputT>() {
+        @Override
+        public Map<String, OutputT> getValuesAtSteps() {
+          return stepValues;
+        }
+
+        @Override
+        public String toString() {
+          return MoreObjects.toStringHelper(this)
+              .add("stepValues", stepValues)
+              .toString();
+        }
+      };
     } catch (IOException e) {
       throw new AggregatorRetrievalException(
           "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
@@ -371,8 +405,8 @@ public class DataflowPipelineJob implements PipelineResult {
         metricUpdates = terminalMetricUpdates;
       } else {
         boolean terminal = getState().isTerminal();
-        JobMetrics jobMetrics =
-            dataflowClient.projects().jobs().getMetrics(projectId, jobId).execute();
+        JobMetrics jobMetrics = dataflowOptions.getDataflowClient()
+            .projects().jobs().getMetrics(projectId, jobId).execute();
         metricUpdates = jobMetrics.getMetrics();
         if (terminal && jobMetrics.getMetrics() != null) {
           terminalMetricUpdates = metricUpdates;

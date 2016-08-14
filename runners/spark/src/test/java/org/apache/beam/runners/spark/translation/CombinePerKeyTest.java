@@ -24,6 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -51,10 +52,12 @@ public class CombinePerKeyTest {
         ImmutableList.of("the", "quick", "brown", "fox", "jumped", "over", "the", "lazy", "dog");
     @Test
     public void testRun() {
-        Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+        PipelineOptions options = PipelineOptionsFactory.create();
+        options.setRunner(SparkRunner.class);
+        Pipeline p = Pipeline.create(options);
         PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
         PCollection<KV<String, Long>> cnts = inputWords.apply(new SumPerKey<String>());
-        EvaluationResult res = SparkRunner.create().run(p);
+        EvaluationResult res = (EvaluationResult) p.run();
         Map<String, Long> actualCnts = new HashMap<>();
         for (KV<String, Long> kv : res.get(cnts)) {
             actualCnts.put(kv.getKey(), kv.getValue());
@@ -68,7 +71,7 @@ public class CombinePerKeyTest {
       @Override
       public PCollection<KV<T, Long>> apply(PCollection<T> pcol) {
           PCollection<KV<T, Long>> withLongs = pcol.apply(ParDo.of(new DoFn<T, KV<T, Long>>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext processContext) throws Exception {
                   processContext.output(KV.of(processContext.element(), 1L));
               }

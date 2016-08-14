@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -47,7 +48,6 @@ import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,8 +144,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
               boundedSource);
           return ImmutableList.of(this);
         }
-        List<? extends BoundedSource<T>> splits
-            = boundedSource.splitIntoBundles(desiredBundleSize, options);
+        List<? extends BoundedSource<T>> splits =
+            boundedSource.splitIntoBundles(desiredBundleSize, options);
         if (splits == null) {
           LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
           return ImmutableList.of(this);

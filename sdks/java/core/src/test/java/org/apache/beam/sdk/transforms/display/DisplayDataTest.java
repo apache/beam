@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasName
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
@@ -54,7 +55,6 @@ import com.google.common.testing.EqualsTester;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
@@ -1054,7 +1054,7 @@ public class DisplayDataTest implements Serializable {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return input.apply(ParDo.of(new DoFn<T, T>() {
-        @Override
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           c.output(c.element());
         }

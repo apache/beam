@@ -111,13 +111,14 @@ class TransformExecutor<T> implements Runnable {
       TransformEvaluator<T> evaluator =
           evaluatorFactory.forApplication(transform, inputBundle, evaluationContext);
       if (evaluator == null) {
+        onComplete.handleEmpty(transform);
         // Nothing to do
         return;
       }
 
       processElements(evaluator, enforcements);
 
-      TransformResult result = finishBundle(evaluator, enforcements);
+      finishBundle(evaluator, enforcements);
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
       if (t instanceof RuntimeException) {

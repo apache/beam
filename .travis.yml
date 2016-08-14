@@ -48,8 +48,19 @@ before_install:
   - export BEAM_SUREFIRE_ARGLINE="-Xmx512m"
 
 install:
-  - travis_retry mvn -B install clean -U -DskipTests=true
+  # Removing this here protects from inadvertent caching
+  - rm -rf "$HOME/.m2/repository/org/apache/beam"
 
 script:
-  - travis_retry mvn -B $MAVEN_OVERRIDE install -U
-  - travis_retry testing/travis/test_wordcount.sh
+  - travis_retry mvn --settings .travis/settings.xml --batch-mode --update-snapshots $MAVEN_OVERRIDE verify
+  - travis_retry .travis/test_wordcount.sh
+
+cache:
+  directories:
+    - $HOME/.m2/repository
+
+before_cache:
+  # Removing here increases cache hits (makes the above
+  # rm in `install` redundant unless our config has a bug,
+  # but it will be idempotent)
+  - rm -rf "$HOME/.m2/repository/org/apache/beam"

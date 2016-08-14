@@ -247,7 +247,7 @@ class SideInputContainer {
       @SuppressWarnings("unchecked") Iterable<WindowedValue<?>> values =
           (Iterable<WindowedValue<?>>) viewContents.getUnchecked(PCollectionViewWindow.of(view,
               window)).get();
-      return view.fromIterableInternal(values);
+      return view.getViewFn().apply(values);
     }
 
     @Override

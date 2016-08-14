@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,7 +38,7 @@ import java.util.Map;
  * {@link BoundMulti} primitive {@link PTransform}.
  */
 class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
-  private final LoadingCache<AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<DoFn<?, ?>>>
+  private final LoadingCache<AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<OldDoFn<?, ?>>>
       fnClones;
 
   public ParDoMultiEvaluatorFactory() {
@@ -45,9 +46,10 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
         CacheBuilder.newBuilder()
             .build(
                 new CacheLoader<
-                    AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<DoFn<?, ?>>>() {
+                    AppliedPTransform<?, ?, BoundMulti<?, ?>>, ThreadLocal<OldDoFn<?, ?>>>() {
                   @Override
-                  public ThreadLocal<DoFn<?, ?>> load(AppliedPTransform<?, ?, BoundMulti<?, ?>> key)
+                  public ThreadLocal<OldDoFn<?, ?>> load(
+                      AppliedPTransform<?, ?, BoundMulti<?, ?>> key)
                       throws Exception {
                     @SuppressWarnings({"unchecked", "rawtypes"})
                     ThreadLocal threadLocal =
@@ -75,12 +77,17 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
     Map<TupleTag<?>, PCollection<?>> outputs = application.getOutput().getAll();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    ThreadLocal<DoFn<InT, OuT>> fnLocal =
+    ThreadLocal<OldDoFn<InT, OuT>> fnLocal =
         (ThreadLocal) fnClones.getUnchecked((AppliedPTransform) application);
+    String stepName = evaluationContext.getStepName(application);
+    DirectStepContext stepContext =
+        evaluationContext.getExecutionContext(application, inputBundle.getKey())
+            .getOrCreateStepContext(stepName, stepName);
     try {
       TransformEvaluator<InT> parDoEvaluator =
           ParDoEvaluator.create(
               evaluationContext,
+              stepContext,
               inputBundle,
               application,
               fnLocal.get(),

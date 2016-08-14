@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
@@ -328,7 +329,7 @@ public class KafkaIOExamples {
    */
   private static class PrintFn<T> extends DoFn<T, T> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       System.out.println(c.element().toString());
     }

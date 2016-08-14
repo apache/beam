@@ -78,7 +78,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
 
 /**
@@ -282,7 +281,7 @@ public class KafkaIOTest {
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element() - c.timestamp().getMillis());
     }
@@ -310,7 +309,7 @@ public class KafkaIOTest {
   }
 
   private static class RemoveKafkaMetadata<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, V>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
       ctx.output(ctx.element().getKV());
     }

@@ -66,7 +66,7 @@ public class WithTimestampsTest implements Serializable {
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @Override
+          @ProcessElement
           public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));
@@ -151,7 +151,7 @@ public class WithTimestampsTest implements Serializable {
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestampedWithSkew.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
-          @Override
+          @ProcessElement
           public void processElement(DoFn<String, KV<String, Instant>>.ProcessContext c)
               throws Exception {
             c.output(KV.of(c.element(), c.timestamp()));

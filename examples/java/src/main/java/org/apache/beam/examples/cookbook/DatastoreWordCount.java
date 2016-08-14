@@ -44,7 +44,6 @@ import com.google.datastore.v1beta3.Value;
 
 import java.util.Map;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
 
 /**
@@ -80,11 +79,11 @@ import javax.annotation.Nullable;
 public class DatastoreWordCount {
 
   /**
-   * A DoFn that gets the content of an entity (one line in a
+   * A {@link DoFn} that gets the content of an entity (one line in a
    * Shakespeare play) and converts it to a string.
    */
   static class GetContentFn extends DoFn<Entity, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Map<String, Value> props = c.element().getProperties();
       Value value = props.get("content");
@@ -109,7 +108,7 @@ public class DatastoreWordCount {
   }
 
   /**
-   * A DoFn that creates entity for every line in Shakespeare.
+   * A {@link DoFn} that creates an entity for every line in Shakespeare.
    */
   static class CreateEntityFn extends DoFn<String, Entity> {
     private final String namespace;
@@ -141,7 +140,7 @@ public class DatastoreWordCount {
       return entityBuilder.build();
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(makeEntity(c.element()));
     }

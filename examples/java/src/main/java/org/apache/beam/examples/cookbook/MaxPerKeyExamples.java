@@ -83,7 +83,7 @@ public class MaxPerKeyExamples {
    * and the mean_temp.
    */
   static class ExtractTempFn extends DoFn<TableRow, KV<Integer, Double>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       Integer month = Integer.parseInt((String) row.get("month"));
@@ -97,7 +97,7 @@ public class MaxPerKeyExamples {
    *
    */
   static class FormatMaxesFn extends DoFn<KV<Integer, Double>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("month", c.element().getKey())
