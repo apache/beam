@@ -430,7 +430,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   private Object getValueFromJson(String propertyName, Method method) {
     try {
       JavaType type;
-      if (method.getReturnType().equals(RuntimeValueProvider.class)) {
+      if (method.getReturnType().equals(ValueProvider.class)) {
         // TODO: Handle other types besides strings with annotations.
         type = MAPPER.getTypeFactory().constructType(String.class);
       } else {
@@ -456,10 +456,10 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
-    if (method.getReturnType().equals(RuntimeValueProvider.class)) {
+    if (method.getReturnType().equals(ValueProvider.class)) {
       // If has a default annotation, we need to supply that.
       for (Annotation annotation : method.getAnnotations()) {
-        if (annotation instanceof Default.Class) {
+        if (annotation instanceof Default.String) {
           return new RuntimeValueProvider<String>(
             method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
             ((Default.String) annotation).value());
