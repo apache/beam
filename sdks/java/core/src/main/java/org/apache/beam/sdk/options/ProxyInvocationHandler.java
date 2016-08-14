@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
+import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -206,7 +207,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface(), "Not an interface: " + iface.toString());
+    checkArgument(iface.isInterface(), "Not an interface: " + iface.toString());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
