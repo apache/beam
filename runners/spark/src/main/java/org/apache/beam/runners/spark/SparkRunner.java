@@ -129,6 +129,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       return (OutputT) super.apply(
           new SinglePrimitiveOutputPTransform((Create.Values) transform), input);
     } else if (transform instanceof KafkaIO.TypedWithoutMetadata) {
+      LOG.warn("Overriding KafkaIO.TypedWithoutMetadata with SparkKafkaSourcePTransform, this "
+          + "will ignore the supplied consumerFactoryFn.");
       return (OutputT) ((PBegin) input).apply(transform.getName(),
           new SparkKafkaSourcePTransform(((KafkaIO.TypedWithoutMetadata) transform).typedRead));
     } else {
