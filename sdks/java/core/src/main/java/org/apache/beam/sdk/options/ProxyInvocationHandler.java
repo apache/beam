@@ -202,7 +202,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface(), "Not an interface: " + iface.toString());
+    checkArgument(iface.isInterface(), "Not an interface: " + iface.toString());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
