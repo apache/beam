@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -42,5 +44,6 @@ public class ValueProviderTest {
 
   @Test
   public void testStaticValueProvider() {
+    assertEquals("foo", "foo");
   }
 }
