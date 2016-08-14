@@ -59,6 +59,9 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertFalse(provider.shouldValidate());
+
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage("Not called from a runtime context");
   }
 
   @Test
@@ -72,26 +75,28 @@ public class ValueProviderTest {
   @Test
   public void testNoDefaultRuntimeProviderWithOverride() {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(
-      ImmutableMap.<String, Object>builder().put("bar", "baz").build());
+      ImmutableMap.<String, Object>builder().put("foo", "quux").build());
     TestOptions proxy = handler.as(TestOptions.class);
     RuntimeValueProvider.setRuntimeOptions(proxy);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertFalse(provider.shouldValidate());
-    assertEquals("baz", provider.get());
+    assertEquals("quux", provider.get());
+    RuntimeValueProvider.setRuntimeOptions(null);
   }
 
   @Test
   public void testDefaultRuntimeProviderWithOverride() {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(
-      ImmutableMap.<String, Object>builder().put("bar", "baz").build());
+      ImmutableMap.<String, Object>builder().put("baz", "quux").build());
     TestOptions proxy = handler.as(TestOptions.class);
     RuntimeValueProvider.setRuntimeOptions(proxy);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
     assertTrue(provider.shouldValidate());
-    assertEquals("baz", provider.get());
+    assertEquals("quux", provider.get());
+    RuntimeValueProvider.setRuntimeOptions(null);
   }
 }
