@@ -457,6 +457,14 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
     if (method.getReturnType().equals(RuntimeValueProvider.class)) {
+      // If has a default annotation, we need to supply that.
+      for (Annotation annotation : method.getAnnotations()) {
+        if (annotation instanceof Default.Class) {
+          return new RuntimeValueProvider<String>(
+            method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+            ((Default.String) annotation).value());
+        }
+      }
       return new RuntimeValueProvider<String>(
           method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass());
     }

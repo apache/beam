@@ -22,13 +22,21 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-/** Provides a value. */
+/** ValueProvider is an interface which abstracts the notion of fetching a
+ * value that may or may not be currently available.  This can be used to
+ * parameterize transforms that only read values in at runtime, for example.
+ */
 public interface ValueProvider<T> {
   T get();
 
+  /** Whether the contents of this ValueProvider is available to validation
+   * routines that run at graph construction time.
+   */
   boolean shouldValidate();
 
-  /** This is for static values. */
+  /** StaticValueProvider is an implementation of ValueProvider that allows
+   * for a static value to be provided.
+   */
   public static class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
     private final T value;
 
@@ -52,27 +60,48 @@ public interface ValueProvider<T> {
     }
   }
 
-  /** For dynamic values, must only call get() on the worker. */
+  /** RuntimeValueProvider is an implementation of ValueProvider that allows
+   * for a value to be provided at execution time rather than at graph
+   * construction time.
+   *
+   * <p>To enforce this contract, if there is no default, users must only call
+   * get() on the worker, which will provide the value of OPTIONS.
+   */
   public static class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
-    // TODO(sgmc): Turn this into a keyed registry.
-    public static PipelineOptions OPTIONS = null;
+    private static PipelineOptions options = null;
 
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
+    private final T defaultValue;
 
     RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass) {
       this.methodName = methodName;
       this.klass = klass;
+      this.defaultValue = null;
+    }
+
+    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
+      T defaultValue) {
+      this.methodName = methodName;
+      this.klass = klass;
+      this.defaultValue = defaultValue;
+    }
+
+    static void setRuntimeOptions(PipelineOptions runtimeOptions) {
+      options = runtimeOptions;
     }
 
     @Override
     public T get() {
-      if (OPTIONS == null) {
-        throw new RuntimeException("Not called from a worker context.");
+      if (options == null) {
+        if (defaultValue != null) {
+          return defaultValue;
+        }
+        throw new RuntimeException("Not called from a runtime context.");
       }
       try {
         Method method = klass.getMethod(methodName);
-        PipelineOptions methodOptions = OPTIONS.as(klass);
+        PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
         return (T) handler.invoke(methodOptions, method, null);
       } catch (Throwable e) {
@@ -82,7 +111,7 @@ public interface ValueProvider<T> {
 
     @Override
     public boolean shouldValidate() {
-      return false;
+      return defaultValue != null;
     }
   }
 }
