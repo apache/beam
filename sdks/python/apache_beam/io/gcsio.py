@@ -234,8 +234,13 @@ class GcsIO(object):
                                                  object=object_path)
       self.client.objects.Get(request)  # metadata
       return True
-    except IOError:
-      return False
+    except HttpError as http_error:
+      if http_error.status_code == 404:
+        # HTTP 404 indicates that the file did not exist
+        return False
+      else:
+        # We re-raise all other exceptions
+        raise
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
