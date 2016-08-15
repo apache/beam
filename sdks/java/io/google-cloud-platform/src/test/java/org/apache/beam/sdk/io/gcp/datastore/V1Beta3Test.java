@@ -361,22 +361,23 @@ public class V1Beta3Test {
       entities.add(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build());
     }
 
-    for (int i = 0; i < numEntities; i = i + DATASTORE_BATCH_UPDATE_LIMIT) {
-      CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-      for (Entity entity: entities) {
-        commitRequest.addMutations(makeUpsert(entity));
-      }
-      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
-      when(mockDatastore.commit(commitRequest.build())).thenReturn(null);
-    }
-
     DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
     DoFnTester<Entity, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(entities);
 
-    int expectedBatches = (int) Math.ceil((double) numEntities / DATASTORE_BATCH_UPDATE_LIMIT);
-    verify(mockDatastore, times(expectedBatches)).commit(any(CommitRequest.class));
+    int start = 0;
+    while (start < numEntities) {
+      int end = Math.min(numEntities, start + DATASTORE_BATCH_UPDATE_LIMIT);
+      CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+      for (Entity entity: entities.subList(start, end)) {
+        commitRequest.addMutations(makeUpsert(entity));
+      }
+      // Verify all the batch requests were made with the expected entities.
+      verify(mockDatastore, times(1)).commit(commitRequest.build());
+      start = end;
+    }
   }
 
   /**
