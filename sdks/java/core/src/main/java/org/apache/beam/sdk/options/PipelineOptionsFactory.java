@@ -873,6 +873,9 @@ public class PipelineOptionsFactory {
       if (getterMethod != null) {
         Type getterPropertyType = getterMethod.getGenericReturnType();
         Type setterPropertyType = method.getGenericParameterTypes()[0];
+        if (getterPropertyType.equals(ValueProvider.class)) {
+          continue;
+        }
         if (!getterPropertyType.equals(setterPropertyType)) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;

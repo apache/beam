@@ -22,9 +22,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-/** ValueProvider is an interface which abstracts the notion of fetching a
- * value that may or may not be currently available.  This can be used to
- * parameterize transforms that only read values in at runtime, for example.
+/** {@link ValueProvider} is an interface which abstracts the notion of
+ * fetching a value that may or may not be currently available.  This can be
+ * used to parameterize transforms that only read values in at runtime, for
+ * example.
  */
 public interface ValueProvider<T> {
   T get();
@@ -34,8 +35,8 @@ public interface ValueProvider<T> {
    */
   boolean shouldValidate();
 
-  /** StaticValueProvider is an implementation of ValueProvider that allows
-   * for a static value to be provided.
+  /** {@link StaticValueProvider} is an implementation of ValueProvider that
+   * allows for a static value to be provided.
    */
   public static class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
     private final T value;
@@ -60,8 +61,8 @@ public interface ValueProvider<T> {
     }
   }
 
-  /** RuntimeValueProvider is an implementation of ValueProvider that allows
-   * for a value to be provided at execution time rather than at graph
+  /** {@link RuntimeValueProvider} is an implementation of ValueProvider that
+   * allows for a value to be provided at execution time rather than at graph
    * construction time.
    *
    * <p>To enforce this contract, if there is no default, users must only call
