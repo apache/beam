@@ -359,6 +359,9 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
+                  <excludes>
+                    <exclude>com.google.common.**.testing</exclude>
+                  </excludes>
                   <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
