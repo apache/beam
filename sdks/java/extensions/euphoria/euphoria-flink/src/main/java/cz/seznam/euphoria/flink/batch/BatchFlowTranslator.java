@@ -4,14 +4,13 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.ExecutionEnvironment;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
-import cz.seznam.euphoria.flink.streaming.DataSinkWrapper;
-import cz.seznam.euphoria.flink.streaming.StreamingExecutorContext;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -28,6 +27,8 @@ public class BatchFlowTranslator extends FlowTranslator {
 
   static {
     // TODO add full support of all operators
+    TRANSLATORS.put((Class) FlowUnfolder.InputOperator.class, new InputTranslator());
+    TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
   }
 
 
@@ -71,6 +72,11 @@ public class BatchFlowTranslator extends FlowTranslator {
                       Objects.requireNonNull(executorContext.getOutputStream(op));
 
               // FIXME process sink
+              try {
+                flinkOutput.print();
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
             });
 
     return sinks;
