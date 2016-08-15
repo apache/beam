@@ -879,6 +879,9 @@ public class PipelineOptionsFactory {
       // Validate that the getter and setter property types are the same.
       if (getterMethod != null) {
         Class<?> getterPropertyType = getterMethod.getReturnType();
+        if (getterPropertyType.equals(ValueProvider.class)) {
+          continue;
+        }
         Class<?> setterPropertyType = method.getParameterTypes()[0];
         if (getterPropertyType != setterPropertyType) {
           TypeMismatch mismatch = new TypeMismatch();

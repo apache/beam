@@ -24,8 +24,6 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,10 +39,10 @@ public class ValueProviderTest {
   public static interface TestOptions extends PipelineOptions {
     @Default.String("bar")
     ValueProvider<String> getBar();
-    void setBar(ValueProvider<String> bar);
+    void setBar(String bar);
 
     ValueProvider<String> getFoo();
-    void setFoo(ValueProvider<String> foo);
+    void setFoo(String foo);
   }
 
   @Test
@@ -74,10 +72,9 @@ public class ValueProviderTest {
 
   @Test
   public void testNoDefaultRuntimeProviderWithOverride() {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(
-      ImmutableMap.<String, Object>builder().put("foo", "quux").build());
-    TestOptions proxy = handler.as(TestOptions.class);
-    RuntimeValueProvider.setRuntimeOptions(proxy);
+    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
+    runtime.setFoo("quux");
+    RuntimeValueProvider.setRuntimeOptions(runtime);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
@@ -88,10 +85,9 @@ public class ValueProviderTest {
 
   @Test
   public void testDefaultRuntimeProviderWithOverride() {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(
-      ImmutableMap.<String, Object>builder().put("baz", "quux").build());
-    TestOptions proxy = handler.as(TestOptions.class);
-    RuntimeValueProvider.setRuntimeOptions(proxy);
+    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
+    runtime.setBar("quux");
+    RuntimeValueProvider.setRuntimeOptions(runtime);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
