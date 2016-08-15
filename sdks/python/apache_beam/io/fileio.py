@@ -283,7 +283,17 @@ class _CompressionType(object):
     self.identifier = identifier
 
   def __eq__(self, other):
-    return self.identifier == other.identifier
+    return (isinstance(other, _CompressionType) and
+            self.identifier == other.identifier)
+
+  def __hash__(self):
+    return hash(self.identifier)
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __repr__(self):
+    return '_CompressionType(%s)' % self.identifier
 
 
 class CompressionTypes(object):
@@ -530,15 +540,22 @@ class FileSink(iobase.Sink):
         channel_factory.rename(old_name, final_name)
       except IOError as e:
         # May have already been copied.
-        exists = channel_factory.exists(final_name)
+        try:
+          exists = channel_factory.exists(final_name)
+        except Exception as exists_e:  # pylint: disable=broad-except
+          logging.warning('Exception when checking if file %s exists: '
+                          '%s', final_name, exists_e)
+          # Returning original exception after logging the exception from
+          # exists() call.
+          return (None, e)
         if not exists:
           logging.warning(('IOError in _rename_file. old_name: %s, '
                            'final_name: %s, err: %s'), old_name, final_name, e)
-          return(None, e)
+          return (None, e)
       except Exception as e:  # pylint: disable=broad-except
         logging.warning(('Exception in _rename_file. old_name: %s, '
                          'final_name: %s, err: %s'), old_name, final_name, e)
-        return(None, e)
+        return (None, e)
       return (final_name, None)
 
     # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a

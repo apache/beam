@@ -30,7 +30,6 @@ from apache_beam.runners.common import DoFnState
 from apache_beam.runners.inprocess.inprocess_watermark_manager import InProcessWatermarkManager
 from apache_beam.runners.inprocess.inprocess_transform_result import InProcessTransformResult
 from apache_beam.transforms import core
-from apache_beam.transforms import DoFnProcessContext
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
@@ -337,8 +336,6 @@ class _ParDoEvaluator(_TransformEvaluator):
     self._tagged_receivers[None].tag = None  # main_tag is None.
 
     self._counter_factory = counters.CounterFactory()
-    context = DoFnProcessContext(label=transform.label,
-                                 state=DoFnState(self._counter_factory))
 
     dofn = copy.deepcopy(transform.dofn)
 
@@ -351,8 +348,9 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.runner = DoFnRunner(dofn, transform.args, transform.kwargs,
                              self._side_inputs,
                              self._applied_ptransform.inputs[0].windowing,
-                             context, self._tagged_receivers,
-                             step_name=self._applied_ptransform.full_label)
+                             tagged_receivers=self._tagged_receivers,
+                             step_name=self._applied_ptransform.full_label,
+                             state=DoFnState(self._counter_factory))
     self.runner.start()
 
   def process_element(self, element):
