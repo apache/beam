@@ -32,7 +32,7 @@ cdef class DoFnRunner(Receiver):
   cdef object dofn
   cdef object dofn_process
   cdef object window_fn
-  cdef DoFnContext context
+  cdef object context   # TODO(robertwb): Make this a DoFnContext
   cdef object tagged_receivers
   cdef LoggingContext logging_context
   cdef object step_name

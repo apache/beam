@@ -29,7 +29,6 @@ from apitools.base.py.exceptions import HttpError
 from apache_beam.internal.clients import storage
 
 from apache_beam.io import gcsio
-from mock import patch
 
 
 class FakeGcsClient(object):
@@ -80,8 +79,7 @@ class FakeGcsObjects(object):
   def Get(self, get_request, download=None):  # pylint: disable=invalid-name
     f = self.get_file(get_request.bucket, get_request.object)
     if f is None:
-      # Failing with a HTTP 404 if file does not exist.
-      raise HttpError({'status':404}, None, None)
+      raise ValueError('Specified object does not exist.')
     if download is None:
       return f.get_metadata()
     else:
@@ -190,25 +188,6 @@ class TestGCSIO(unittest.TestCase):
   def setUp(self):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
-
-  def test_exists(self):
-    file_name = 'gs://gcsio-test/dummy_file'
-    file_size = 1234
-    self._insert_random_file(self.client, file_name, file_size)
-    self.assertFalse(self.gcs.exists(file_name + 'xyz'))
-    self.assertTrue(self.gcs.exists(file_name))
-
-  @patch.object(FakeGcsObjects, 'Get')
-  def test_exists_failure(self, mock_get):
-    # Raising an error other than 404. Raising 404 is a valid failure for
-    # exists() call.
-    mock_get.side_effect = HttpError({'status':400}, None, None)
-    file_name = 'gs://gcsio-test/dummy_file'
-    file_size = 1234
-    self._insert_random_file(self.client, file_name, file_size)
-    with self.assertRaises(HttpError) as cm:
-      self.gcs.exists(file_name)
-    self.assertEquals(400, cm.exception.status_code)
 
   def test_size(self):
     file_name = 'gs://gcsio-test/dummy_file'
