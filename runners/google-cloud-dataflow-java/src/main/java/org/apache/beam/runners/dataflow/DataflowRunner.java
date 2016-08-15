@@ -125,6 +125,7 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -307,6 +308,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new IllegalArgumentException("Number of worker harness threads '"
           + debugOptions.getNumberOfWorkerHarnessThreads()
           + "' invalid. Please make sure the value is non-negative.");
+    }
+
+    if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
+      dataflowOptions.setGcsUploadBufferSizeBytes(
+          AbstractGoogleAsyncWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT);
     }
 
     return new DataflowRunner(dataflowOptions);

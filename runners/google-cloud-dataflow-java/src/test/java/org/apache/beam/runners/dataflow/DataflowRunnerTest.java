@@ -89,6 +89,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -793,6 +794,36 @@ public class DataflowRunnerTest {
           .fromOptions(options);
       assertNotNull(runner);
     }
+  }
+
+  @Test
+  public void testGcsUploadBufferSizeDefault() throws IOException {
+    DataflowPipelineOptions batchOptions = buildPipelineOptions();
+    DataflowRunner.fromOptions(batchOptions);
+    assertNull(batchOptions.getGcsUploadBufferSizeBytes());
+
+    DataflowPipelineOptions streamingOptions = buildPipelineOptions();
+    streamingOptions.setStreaming(true);
+    DataflowRunner.fromOptions(streamingOptions);
+    assertEquals(
+        AbstractGoogleAsyncWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT,
+        streamingOptions.getGcsUploadBufferSizeBytes().intValue());
+  }
+
+  @Test
+  public void testGcsUploadBufferSize() throws IOException {
+    int gcsUploadBufferSizeBytes = 12345678;
+    DataflowPipelineOptions batchOptions = buildPipelineOptions();
+    batchOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
+    DataflowRunner.fromOptions(batchOptions);
+    assertEquals(gcsUploadBufferSizeBytes, batchOptions.getGcsUploadBufferSizeBytes().intValue());
+
+    DataflowPipelineOptions streamingOptions = buildPipelineOptions();
+    streamingOptions.setStreaming(true);
+    streamingOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
+    DataflowRunner.fromOptions(streamingOptions);
+    assertEquals(
+        gcsUploadBufferSizeBytes, streamingOptions.getGcsUploadBufferSizeBytes().intValue());
   }
 
   /**
