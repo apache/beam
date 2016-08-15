@@ -30,10 +30,6 @@ import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.Sink.WriteOperation;
-import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -167,7 +163,8 @@ public class V1Beta3 {
    * Datastore has a limit of 500 mutations per batch operation, so we flush
    * changes to Datastore every 500 entities.
    */
-  private static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+  @VisibleForTesting
+  static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
    * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
@@ -634,41 +631,7 @@ public class V1Beta3 {
         }
       }
     }
-
-    /**
-     * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
-     * {@link QuerySplitter}
-     *
-     * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
-     * wrapping them under this class, which implements {@link Serializable}.
-     */
-    @VisibleForTesting
-    static class V1Beta3DatastoreFactory implements Serializable {
-
-      /** Builds a Datastore client for the given pipeline options and project. */
-      public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
-        DatastoreOptions.Builder builder =
-            new DatastoreOptions.Builder()
-                .projectId(projectId)
-                .initializer(
-                    new RetryHttpRequestInitializer()
-                );
-
-        Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-        if (credential != null) {
-          builder.credential(credential);
-        }
-
-        return DatastoreFactory.get().create(builder.build());
-      }
-
-      /** Builds a Datastore {@link QuerySplitter}. */
-      public QuerySplitter getQuerySplitter() {
-        return DatastoreHelper.getQuerySplitter();
-      }
-    }
   }
-
 
   /**
    * Returns an empty {@link V1Beta3.Write} builder. Configure the destination
@@ -705,8 +668,8 @@ public class V1Beta3 {
 
     @Override
     public PDone apply(PCollection<Entity> input) {
-      return input.apply(
-          org.apache.beam.sdk.io.Write.to(new DatastoreSink(projectId)));
+      input.apply(ParDo.of(new DatastoreWriterFn(projectId)));
+      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -733,130 +696,127 @@ public class V1Beta3 {
           .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"));
     }
-  }
-
-  /**
-   * A {@link org.apache.beam.sdk.io.Sink} that writes data to Datastore.
-   */
-  static class DatastoreSink extends org.apache.beam.sdk.io.Sink<Entity> {
-    final String projectId;
-
-    public DatastoreSink(String projectId) {
-      this.projectId = projectId;
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(projectId, "projectId");
-    }
-
-    @Override
-    public DatastoreWriteOperation createWriteOperation(PipelineOptions options) {
-      return new DatastoreWriteOperation(this);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder
-          .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"));
-    }
-  }
-
-  /**
-   * A {@link WriteOperation} that will manage a parallel write to a Datastore sink.
-   */
-  private static class DatastoreWriteOperation
-      extends WriteOperation<Entity, DatastoreWriteResult> {
-    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriteOperation.class);
-
-    private final DatastoreSink sink;
-
-    public DatastoreWriteOperation(DatastoreSink sink) {
-      this.sink = sink;
-    }
-
-    @Override
-    public Coder<DatastoreWriteResult> getWriterResultCoder() {
-      return SerializableCoder.of(DatastoreWriteResult.class);
-    }
-
-    @Override
-    public void initialize(PipelineOptions options) throws Exception {}
 
     /**
-     * Finalizes the write.  Logs the number of entities written to the Datastore.
+     * A {@link DoFn} that writes {@link Entity} objects to Cloud Datastore. Entities are written in
+     * batches, where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.
+     * Entities are committed as upsert mutations (either update if the key already exists, or
+     * insert if it is a new key). If an entity does not have a complete key (i.e., it has no name
+     * or id), the bundle will fail.
+     *
+     * <p>See <a
+     * href="https://cloud.google.com/datastore/docs/concepts/entities">
+     * Datastore: Entities, Properties, and Keys</a> for information about entity keys and entities.
+     *
+     * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
+     * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
+     * times).
      */
-    @Override
-    public void finalize(Iterable<DatastoreWriteResult> writerResults, PipelineOptions options)
-        throws Exception {
-      long totalEntities = 0;
-      for (DatastoreWriteResult result : writerResults) {
-        totalEntities += result.entitiesWritten;
+    @VisibleForTesting
+    static class DatastoreWriterFn extends DoFn<Entity, Void> {
+      private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
+      private final String projectId;
+      private transient Datastore datastore;
+      private final V1Beta3DatastoreFactory datastoreFactory;
+      // Current batch of entities to be written.
+      private final List<Entity> entities = new ArrayList<>();
+      /**
+       * Since a bundle is written in batches, we should retry the commit of a batch in order to
+       * prevent transient errors from causing the bundle to fail.
+       */
+      private static final int MAX_RETRIES = 5;
+
+      /**
+       * Initial backoff time for exponential backoff for retry attempts.
+       */
+      private static final int INITIAL_BACKOFF_MILLIS = 5000;
+
+      public DatastoreWriterFn(String projectId) {
+        this(projectId, new V1Beta3DatastoreFactory());
       }
-      LOG.info("Wrote {} elements.", totalEntities);
-    }
 
-    @Override
-    public DatastoreWriter createWriter(PipelineOptions options) throws Exception {
-      DatastoreOptions.Builder builder =
-          new DatastoreOptions.Builder()
-              .projectId(sink.projectId)
-              .initializer(new RetryHttpRequestInitializer());
-      Credential credential = options.as(GcpOptions.class).getGcpCredential();
-      if (credential != null) {
-        builder.credential(credential);
+      @VisibleForTesting
+      DatastoreWriterFn(String projectId, V1Beta3DatastoreFactory datastoreFactory) {
+        this.projectId = checkNotNull(projectId, "projectId");
+        this.datastoreFactory = datastoreFactory;
       }
-      Datastore datastore = DatastoreFactory.get().create(builder.build());
 
-      return new DatastoreWriter(this, datastore);
+      @StartBundle
+      public void startBundle(Context c) {
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId);
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        // Verify that the entity to write has a complete key.
+        if (!isValidKey(c.element().getKey())) {
+          throw new IllegalArgumentException(
+              "Entities to be written to the Datastore must have complete keys");
+        }
+
+        entities.add(c.element());
+        if (entities.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
+          flushBatch();
+        }
+      }
+
+      @FinishBundle
+      public void finishBundle(Context c) throws Exception {
+        if (entities.size() > 0) {
+          flushBatch();
+        }
+      }
+
+      /**
+       * Writes a batch of entities to Cloud Datastore.
+       *
+       * <p>If a commit fails, it will be retried (up to {@link DatastoreWriterFn#MAX_RETRIES}
+       * times). All entities in the batch will be committed again, even if the commit was partially
+       * successful. If the retry limit is exceeded, the last exception from the Datastore will be
+       * thrown.
+       *
+       * @throws DatastoreException if the commit fails or IOException or InterruptedException if
+       * backing off between retries fails.
+       */
+      private void flushBatch() throws DatastoreException, IOException, InterruptedException {
+        LOG.debug("Writing batch of {} entities", entities.size());
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
+
+        while (true) {
+          // Batch upsert entities.
+          try {
+            CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+            for (Entity entity: entities) {
+              commitRequest.addMutations(makeUpsert(entity));
+            }
+            commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+            datastore.commit(commitRequest.build());
+            // Break if the commit threw no exception.
+            break;
+          } catch (DatastoreException exception) {
+            // Only log the code and message for potentially-transient errors. The entire exception
+            // will be propagated upon the last retry.
+            LOG.error("Error writing to the Datastore ({}): {}", exception.getCode(),
+                exception.getMessage());
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              LOG.error("Aborting after {} retries.", MAX_RETRIES);
+              throw exception;
+            }
+          }
+        }
+        LOG.debug("Successfully wrote {} entities", entities.size());
+        entities.clear();
+      }
+
+      @Override
+      public void populateDisplayData(Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .addIfNotNull(DisplayData.item("projectId", projectId)
+                .withLabel("Output Project"));
+      }
     }
-
-    @Override
-    public DatastoreSink getSink() {
-      return sink;
-    }
-  }
-
-  /**
-   * {@link Writer} that writes entities to a Datastore Sink.  Entities are written in batches,
-   * where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.  Entities
-   * are committed as upsert mutations (either update if the key already exists, or insert if it is
-   * a new key).  If an entity does not have a complete key (i.e., it has no name or id), the bundle
-   * will fail.
-   *
-   * <p>See <a
-   * href="https://cloud.google.com/datastore/docs/concepts/entities#Datastore_Creating_an_entity">
-   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and upsert
-   * mutations.
-   *
-   * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
-   * times).
-   *
-   * <p>Visible for testing purposes.
-   */
-  @VisibleForTesting
-  static class DatastoreWriter extends Writer<Entity, DatastoreWriteResult> {
-    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriter.class);
-    private final DatastoreWriteOperation writeOp;
-    private final Datastore datastore;
-    private long totalWritten = 0;
-
-    // Visible for testing.
-    final List<Entity> entities = new ArrayList<>();
-
-    /**
-     * Since a bundle is written in batches, we should retry the commit of a batch in order to
-     * prevent transient errors from causing the bundle to fail.
-     */
-    private static final int MAX_RETRIES = 5;
-
-    /**
-     * Initial backoff time for exponential backoff for retry attempts.
-     */
-    private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
     /**
      * Returns true if a Datastore key is complete.  A key is complete if its last element
@@ -870,100 +830,38 @@ public class V1Beta3 {
       PathElement lastElement = elementList.get(elementList.size() - 1);
       return (lastElement.getId() != 0 || !lastElement.getName().isEmpty());
     }
-
-    DatastoreWriter(DatastoreWriteOperation writeOp, Datastore datastore) {
-      this.writeOp = writeOp;
-      this.datastore = datastore;
-    }
-
-    @Override
-    public void open(String uId) throws Exception {}
-
-    /**
-     * Writes an entity to the Datastore.  Writes are batched, up to {@link
-     * V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}. If an entity does not have a complete key, an
-     * {@link IllegalArgumentException} will be thrown.
-     */
-    @Override
-    public void write(Entity value) throws Exception {
-      // Verify that the entity to write has a complete key.
-      if (!isValidKey(value.getKey())) {
-        throw new IllegalArgumentException(
-            "Entities to be written to the Datastore must have complete keys");
-      }
-
-      entities.add(value);
-
-      if (entities.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
-        flushBatch();
-      }
-    }
-
-    /**
-     * Flushes any pending batch writes and returns a DatastoreWriteResult.
-     */
-    @Override
-    public DatastoreWriteResult close() throws Exception {
-      if (entities.size() > 0) {
-        flushBatch();
-      }
-      return new DatastoreWriteResult(totalWritten);
-    }
-
-    @Override
-    public DatastoreWriteOperation getWriteOperation() {
-      return writeOp;
-    }
-
-    /**
-     * Writes a batch of entities to the Datastore.
-     *
-     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriter#MAX_RETRIES}
-     * times).  All entities in the batch will be committed again, even if the commit was partially
-     * successful. If the retry limit is exceeded, the last exception from the Datastore will be
-     * thrown.
-     *
-     * @throws DatastoreException if the commit fails or IOException or InterruptedException if
-     * backing off between retries fails.
-     */
-    private void flushBatch() throws DatastoreException, IOException, InterruptedException {
-      LOG.debug("Writing batch of {} entities", entities.size());
-      Sleeper sleeper = Sleeper.DEFAULT;
-      BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
-
-      while (true) {
-        // Batch upsert entities.
-        try {
-          CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          for (Entity entity: entities) {
-            commitRequest.addMutations(makeUpsert(entity));
-          }
-          commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
-          datastore.commit(commitRequest.build());
-          // Break if the commit threw no exception.
-          break;
-        } catch (DatastoreException exception) {
-          // Only log the code and message for potentially-transient errors. The entire exception
-          // will be propagated upon the last retry.
-          LOG.error("Error writing to the Datastore ({}): {}", exception.getCode(),
-              exception.getMessage());
-          if (!BackOffUtils.next(sleeper, backoff)) {
-            LOG.error("Aborting after {} retries.", MAX_RETRIES);
-            throw exception;
-          }
-        }
-      }
-      totalWritten += entities.size();
-      LOG.debug("Successfully wrote {} entities", entities.size());
-      entities.clear();
-    }
   }
 
-  private static class DatastoreWriteResult implements Serializable {
-    final long entitiesWritten;
+  /**
+   * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
+   * {@link QuerySplitter}
+   *
+   * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
+   * wrapping them under this class, which implements {@link Serializable}.
+   */
+  @VisibleForTesting
+  static class V1Beta3DatastoreFactory implements Serializable {
 
-    public DatastoreWriteResult(long recordsWritten) {
-      this.entitiesWritten = recordsWritten;
+    /** Builds a Datastore client for the given pipeline options and project. */
+    public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+      DatastoreOptions.Builder builder =
+          new DatastoreOptions.Builder()
+              .projectId(projectId)
+              .initializer(
+                  new RetryHttpRequestInitializer()
+              );
+
+      Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      if (credential != null) {
+        builder.credential(credential);
+      }
+
+      return DatastoreFactory.get().create(builder.build());
+    }
+
+    /** Builds a Datastore {@link QuerySplitter}. */
+    public QuerySplitter getQuerySplitter() {
+      return DatastoreHelper.getQuerySplitter();
     }
   }
 }
