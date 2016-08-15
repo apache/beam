@@ -55,6 +55,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 
 import io.grpc.Status;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
 import javax.annotation.Nullable;
 
 /**
@@ -521,6 +523,10 @@ public class BigtableIO {
       @Setup
       public void setup() throws Exception {
         bigtableWriter = bigtableService.openForWriting(tableId);
+      }
+
+      @StartBundle
+      public void startBundle(Context c) {
         recordsWritten = 0;
       }
 
@@ -532,12 +538,17 @@ public class BigtableIO {
         ++recordsWritten;
       }
 
+      @FinishBundle
+      public void finishBundle(Context c) throws Exception {
+        bigtableWriter.flush();
+        checkForFailures();
+        logger.info("Wrote {} records", recordsWritten);
+      }
+
       @Teardown
       public void tearDown() throws Exception {
         bigtableWriter.close();
         bigtableWriter = null;
-        checkForFailures();
-        logger.info("Wrote {} records", recordsWritten);
       }
 
       @Override

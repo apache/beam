@@ -52,6 +52,13 @@ interface BigtableService extends Serializable {
         throws IOException;
 
     /**
+     * Flushes the writer.
+     *
+     * @throws IOException if any writes did not succeed
+     */
+    void flush() throws IOException;
+
+    /**
      * Closes the writer.
      *
      * @throws IOException if any writes did not succeed
