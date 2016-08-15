@@ -518,8 +518,8 @@ public class BigtableIO {
         this.failures = new ConcurrentLinkedQueue<>();
       }
 
-      @StartBundle
-      public void startBundle(Context c) throws Exception {
+      @Setup
+      public void setup() throws Exception {
         bigtableWriter = bigtableService.openForWriting(tableId);
         recordsWritten = 0;
       }
@@ -532,8 +532,8 @@ public class BigtableIO {
         ++recordsWritten;
       }
 
-      @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      @Teardown
+      public void tearDown() throws Exception {
         bigtableWriter.close();
         bigtableWriter = null;
         checkForFailures();
