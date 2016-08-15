@@ -515,9 +515,13 @@ public class BigtableIO {
         this.failures = new ConcurrentLinkedQueue<>();
       }
 
-      @StartBundle
-      public void startBundle(Context c) throws Exception {
+      @Setup
+      public void setup() throws Exception {
         bigtableWriter = bigtableService.openForWriting(tableId);
+      }
+
+      @StartBundle
+      public void startBundle(Context c) {
         recordsWritten = 0;
       }
 
@@ -531,10 +535,15 @@ public class BigtableIO {
 
       @FinishBundle
       public void finishBundle(Context c) throws Exception {
-        bigtableWriter.close();
-        bigtableWriter = null;
+        bigtableWriter.flush();
         checkForFailures();
         logger.info("Wrote {} records", recordsWritten);
+      }
+
+      @Teardown
+      public void tearDown() throws Exception {
+        bigtableWriter.close();
+        bigtableWriter = null;
       }
 
       @Override
