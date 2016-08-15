@@ -61,11 +61,15 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     return evaluator;
   }
 
+  @Override
+  public void cleanup() {}
+
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
       AppliedPTransform<
               PCollection<KeyedWorkItem<K, V>>,
               PCollection<KV<K, Iterable<V>>>,
-              DirectGroupAlsoByWindow<K, V>> application,
+              DirectGroupAlsoByWindow<K, V>>
+          application,
       CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
       EvaluationContext evaluationContext) {
     return new GroupAlsoByWindowEvaluator<>(

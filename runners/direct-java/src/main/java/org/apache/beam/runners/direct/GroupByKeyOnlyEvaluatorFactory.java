@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
-
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
@@ -60,6 +59,9 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
     return evaluator;
   }
+
+  @Override
+  public void cleanup() {}
 
   private <K, V> TransformEvaluator<KV<K, WindowedValue<V>>> createEvaluator(
       final AppliedPTransform<

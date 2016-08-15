@@ -339,6 +339,17 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
   private boolean aggregatorsAreFinal;
 
   /**
+   * Prepares this {@link DoFn} instance for processing bundles.
+   *
+   * <p>{@link #setup()} will be called at most once per {@link DoFn} instance, and before any other
+   * {@link DoFn} method is called.
+   *
+   * <p>By default, does nothing.
+   */
+  public void setup() throws Exception {
+  }
+
+  /**
    * Prepares this {@code OldDoFn} instance for processing a batch of elements.
    *
    * <p>By default, does nothing.
@@ -371,6 +382,20 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
    */
   public void finishBundle(Context c) throws Exception {
   }
+
+  /**
+   * Cleans up this {@link DoFn}.
+   *
+   * <p>{@link #teardown()} will be called before the {@link PipelineRunner} discards a {@link DoFn}
+   * instance, including due to another {@link DoFn} method throwing an {@link Exception}. No other
+   * {@link DoFn} methods will be called after a call to {@link #teardown()}.
+   *
+   * <p>By default, does nothing.
+   */
+  public void teardown() throws Exception {
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * {@inheritDoc}

@@ -342,6 +342,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
+
+  /**
+   * Annotation for the method to use to prepare an instance for processing bundles of elements. The
+   * method annotated with this must satisfy the following constraints
+   * <ul>
+   *   <li>It must have zero arguments.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface Setup {
+  }
+
   /**
    * Annotation for the method to use to prepare an instance for processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
@@ -371,7 +385,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface ProcessElement {}
 
   /**
-   * Annotation for the method to use to prepare an instance for processing a batch of elements.
+   * Annotation for the method to use to finish processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>
    *   <li>It must have at least one argument.
@@ -382,6 +396,21 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface FinishBundle {}
+
+
+  /**
+   * Annotation for the method to use to clean up this instance after processing bundles of
+   * elements. No other method will be called after a call to the annotated method is made.
+   * The method annotated with this must satisfy the following constraint:
+   * <ul>
+   *   <li>It must have zero arguments.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface Teardown {
+  }
 
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the

@@ -18,26 +18,28 @@
 
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.util.SerializableUtils;
-
-import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
- * A {@link ThreadLocal} that obtains the initial value by cloning an original value.
+ * Utility methods for interacting with {@link DoFnLifecycleManager DoFnLifecycleManagers}.
  */
-class CloningThreadLocal<T extends Serializable> extends ThreadLocal<T> {
-  public static <T extends Serializable> CloningThreadLocal<T> of(T original) {
-    return new CloningThreadLocal<>(original);
+class DoFnLifecycleManagers {
+  private DoFnLifecycleManagers() {
+    /* Do not instantiate */
   }
 
-  private final T original;
-
-  private CloningThreadLocal(T original) {
-    this.original = original;
-  }
-
-  @Override
-  public T initialValue() {
-    return SerializableUtils.clone(original);
+  static void removeAllFromManagers(Iterable<DoFnLifecycleManager> managers) throws Exception {
+    Collection<Exception> thrown = new ArrayList<>();
+    for (DoFnLifecycleManager manager : managers) {
+      thrown.addAll(manager.removeAll());
+    }
+    if (!thrown.isEmpty()) {
+      Exception overallException = new Exception("Exceptions thrown while tearing down DoFns");
+      for (Exception e : thrown) {
+        overallException.addSuppressed(e);
+      }
+      throw overallException;
+    }
   }
 }
