@@ -59,16 +59,12 @@ class DoFnRunner(Receiver):
                kwargs,
                side_inputs,
                windowing,
-               context=None,
-               tagged_receivers=None,
+               context,
+               tagged_receivers,
                logger=None,
                step_name=None,
                # Preferred alternative to logger
-               # TODO(robertwb): Remove once all runners are updated.
-               logging_context=None,
-               # Preferred alternative to context
-               # TODO(robertwb): Remove once all runners are updated.
-               state=None):
+               logging_context=None):
     if not args and not kwargs:
       self.dofn = fn
       self.dofn_process = fn.process
@@ -89,15 +85,9 @@ class DoFnRunner(Receiver):
       self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
 
     self.window_fn = windowing.windowfn
+    self.context = context
     self.tagged_receivers = tagged_receivers
     self.step_name = step_name
-
-    if state:
-      assert context is None
-      self.context = DoFnContext(self.step_name, state=state)
-    else:
-      assert context is not None
-      self.context = context
 
     if logging_context:
       self.logging_context = logging_context

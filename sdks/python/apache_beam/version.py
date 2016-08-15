@@ -15,6 +15,44 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK version information."""
+"""Apache Beam SDK version information and utilities."""
 
-__version__ = '0.3.0'
+
+import re
+
+
+__version__ = '0.3.0-incubating.dev'  # TODO: PEP 440 and incubating suffix
+
+
+# The following utilities are legacy code from the Maven integration;
+# see BEAM-378 for further details.
+
+
+# Reads the actual version from pom.xml file,
+def get_version_from_pom():
+  with open('pom.xml', 'r') as f:
+    pom = f.read()
+    regex = (r'.*<parent>\s*'
+             r'<groupId>[a-z\.]+</groupId>\s*'
+             r'<artifactId>[a-z\-]+</artifactId>\s*'
+             r'<version>([0-9a-zA-Z\.\-]+)</version>.*')
+    pattern = re.compile(str(regex))
+    search = pattern.search(pom)
+    version = search.group(1)
+    version = version.replace("-SNAPSHOT", ".dev")
+    # TODO: PEP 440 and incubating suffix
+    return version
+
+
+# Synchronizes apache_beam.__version__ field for later usage
+def sync_version(version):
+  init_path = 'apache_beam/__init__.py'
+  regex = r'^__version__\s*=\s*".*"'
+  with open(init_path, "r") as f:
+    lines = f.readlines()
+  with open(init_path, "w") as f:
+    for line in lines:
+      if re.search(regex, line):
+        f.write(re.sub(regex, '__version__ = "%s"' % version, line))
+      else:
+        f.write(line)
