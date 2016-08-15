@@ -313,7 +313,7 @@
     </dependency>
 
     <dependency>
-      <!-- Note: when package relocating guava, ensure guava-testlib is not also relocated by
+      <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
            excluding com.google.common.**.testing -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
