@@ -29,6 +29,7 @@ import os
 import re
 import StringIO
 import threading
+import traceback
 
 from apitools.base.py.exceptions import HttpError
 import apitools.base.py.transfer as transfer
@@ -586,7 +587,8 @@ class GcsBufferedWriter(object):
       self.client.objects.Insert(self.insert_request, upload=self.upload)
     except Exception as e:  # pylint: disable=broad-except
       logging.error(
-          'Error in _start_upload while inserting file %s: %s', self.path, e)
+          'Error in _start_upload while inserting file %s: %s', self.path,
+          traceback.format_exc())
       self.upload_thread.last_error = e
     finally:
       self.child_conn.close()
@@ -618,6 +620,9 @@ class GcsBufferedWriter(object):
     self.closed = True
     self.conn.close()
     self.upload_thread.join()
+    # Check for exception since the last _flush_write_buffer() call.
+    if self.upload_thread.last_error:
+      raise self.upload_thread.last_error  # pylint: disable=raising-bad-type
 
   def __enter__(self):
     return self
