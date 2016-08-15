@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.ExecutionEnvironment;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
+import cz.seznam.euphoria.flink.batch.io.DataSinkWrapper;
 import org.apache.flink.api.java.DataSet;
 
 import java.util.ArrayList;
@@ -71,12 +72,7 @@ public class BatchFlowTranslator extends FlowTranslator {
               DataSet<?> flinkOutput =
                       Objects.requireNonNull(executorContext.getOutputStream(op));
 
-              // FIXME process sink
-              try {
-                flinkOutput.print();
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
+              flinkOutput.output(new DataSinkWrapper<>((DataSink) sink));
             });
 
     return sinks;
