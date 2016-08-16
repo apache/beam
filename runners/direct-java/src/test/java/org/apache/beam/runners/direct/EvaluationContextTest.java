@@ -117,6 +117,7 @@ public class EvaluationContextTest {
     context =
         EvaluationContext.create(
             runner.getPipelineOptions(),
+            NanosOffsetClock.create(),
             ImmutableListBundleFactory.create(),
             rootTransforms,
             valueToConsumers,

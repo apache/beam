@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.options.DefaultValueFactory;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import org.joda.time.Instant;
 
 import java.util.concurrent.TimeUnit;
@@ -45,15 +42,5 @@ public class NanosOffsetClock implements Clock {
     return new Instant(
         baseMillis + (TimeUnit.MILLISECONDS.convert(
             System.nanoTime() - nanosAtBaseMillis, TimeUnit.NANOSECONDS)));
-  }
-
-  /**
-   * Creates instances of {@link NanosOffsetClock}.
-   */
-  public static class Factory implements DefaultValueFactory<Clock> {
-    @Override
-    public Clock create(PipelineOptions options) {
-      return new NanosOffsetClock();
-    }
   }
 }
