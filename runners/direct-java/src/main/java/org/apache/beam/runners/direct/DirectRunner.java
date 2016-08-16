@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
+import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
 import org.apache.beam.runners.direct.ViewEvaluatorFactory.ViewOverrideFactory;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -46,6 +48,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -58,6 +61,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
@@ -76,8 +80,9 @@ public class DirectRunner
   private static Map<Class<? extends PTransform>, PTransformOverrideFactory>
       defaultTransformOverrides =
           ImmutableMap.<Class<? extends PTransform>, PTransformOverrideFactory>builder()
-              .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
               .put(CreatePCollectionView.class, new ViewOverrideFactory())
+              .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
+              .put(TestStream.class, new DirectTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
               .build();
 
@@ -175,6 +180,8 @@ public class DirectRunner
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final DirectOptions options;
+  private Supplier<ExecutorService> executorServiceSupplier = new FixedThreadPoolSupplier();
+  private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
@@ -189,6 +196,14 @@ public class DirectRunner
    */
   public DirectOptions getPipelineOptions() {
     return options;
+  }
+
+  Supplier<Clock> getClockSupplier() {
+    return clockSupplier;
+  }
+
+  void setClockSupplier(Supplier<Clock> supplier) {
+    this.clockSupplier = supplier;
   }
 
   @Override
@@ -223,6 +238,7 @@ public class DirectRunner
     EvaluationContext context =
         EvaluationContext.create(
             getPipelineOptions(),
+            clockSupplier.get(),
             createBundleFactory(getPipelineOptions()),
             consumerTrackingVisitor.getRootTransforms(),
             consumerTrackingVisitor.getValueToConsumers(),
@@ -230,14 +246,15 @@ public class DirectRunner
             consumerTrackingVisitor.getViews());
 
     // independent executor service for each run
-    ExecutorService executorService =
-        context.getPipelineOptions().getExecutorServiceFactory().create();
+    ExecutorService executorService = executorServiceSupplier.get();
+
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry();
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,
             consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
-            TransformEvaluatorRegistry.defaultRegistry(),
+            registry,
             defaultModelEnforcements(options),
             context);
     executor.start(consumerTrackingVisitor.getRootTransforms());
@@ -390,6 +407,28 @@ public class DirectRunner
     public State waitUntilFinish(Duration duration) throws IOException {
       throw new UnsupportedOperationException(
           "DirectPipelineResult does not support waitUntilFinish.");
+    }
+  }
+
+  /**
+   * A {@link Supplier} that creates a {@link ExecutorService} based on
+   * {@link Executors#newFixedThreadPool(int)}.
+   */
+  private static class FixedThreadPoolSupplier implements Supplier<ExecutorService> {
+    @Override
+    public ExecutorService get() {
+      return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    }
+  }
+
+
+  /**
+   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
+   */
+  private static class NanosOffsetClockSupplier implements Supplier<Clock> {
+    @Override
+    public Clock get() {
+      return NanosOffsetClock.create();
     }
   }
 }

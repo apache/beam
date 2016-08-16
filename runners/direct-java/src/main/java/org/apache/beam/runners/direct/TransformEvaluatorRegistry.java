@@ -23,6 +23,7 @@ import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -61,6 +62,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             // Runner-specific primitives used in expansion of GroupByKey
             .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory())
             .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory())
+            .put(TestStream.class, new TestStreamEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -115,6 +117,15 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
         }
       }
       throw toThrow;
+    }
+  }
+
+  /**
+   * A factory to create Transform Evaluator Registries.
+   */
+  public static class Factory {
+    public TransformEvaluatorRegistry create() {
+      return TransformEvaluatorRegistry.defaultRegistry();
     }
   }
 }
