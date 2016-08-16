@@ -15,18 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.transforms.reflect;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.util.UserCodeException;
-
-import com.google.common.base.Preconditions;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
@@ -65,27 +65,34 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /** Dynamically generates {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
-abstract class DoFnInvokers {
+public class DoFnInvokers {
+  public static final DoFnInvokers INSTANCE = new DoFnInvokers();
+
+  private static final String FN_DELEGATE_FIELD_NAME = "delegate";
+
   /**
    * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
    * Needed because generating an invoker class is expensive, and to avoid generating an excessive
    * number of classes consuming PermGen memory.
    */
-  private static final Map<Class<?>, Constructor<?>> BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE =
+  private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
       new LinkedHashMap<>();
 
-  private static final String FN_DELEGATE_FIELD_NAME = "delegate";
-
-  /** This is a factory class that should not be instantiated. */
   private DoFnInvokers() {}
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
-  static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
+  public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
+      DoFn<InputT, OutputT> fn) {
+    return newByteBuddyInvoker(DoFnSignatures.INSTANCE.getOrParseSignature(fn.getClass()), fn);
+  }
+
+  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFnSignature signature, DoFn<InputT, OutputT> fn) {
-    Preconditions.checkArgument(
-        signature.getFnClass().equals(fn.getClass()),
+    checkArgument(
+        signature.fnClass().equals(fn.getClass()),
         "Signature is for class %s, but fn is of class %s",
-        signature.getFnClass(),
+        signature.fnClass(),
         fn.getClass());
     try {
       @SuppressWarnings("unchecked")
@@ -106,26 +113,25 @@ abstract class DoFnInvokers {
    * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class and
    * caches it.
    */
-  private static synchronized Constructor<?> getOrGenerateByteBuddyInvokerConstructor(
+  private synchronized Constructor<?> getOrGenerateByteBuddyInvokerConstructor(
       DoFnSignature signature) {
-    Class<? extends DoFn> fnClass = signature.getFnClass();
-    Constructor<?> constructor = BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE.get(fnClass);
-    if (constructor != null) {
-      return constructor;
+    Class<? extends DoFn> fnClass = signature.fnClass();
+    Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
+    if (constructor == null) {
+      Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+      try {
+        constructor = invokerClass.getConstructor(fnClass);
+      } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+        throw new RuntimeException(e);
+      }
+      byteBuddyInvokerConstructorCache.put(fnClass, constructor);
     }
-    Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
-    try {
-      constructor = invokerClass.getConstructor(fnClass);
-    } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-      throw new RuntimeException(e);
-    }
-    BYTE_BUDDY_INVOKER_CONSTRUCTOR_CACHE.put(fnClass, constructor);
     return constructor;
   }
 
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
   private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
-    Class<? extends DoFn> fnClass = signature.getFnClass();
+    Class<? extends DoFn> fnClass = signature.fnClass();
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
@@ -147,29 +153,28 @@ abstract class DoFnInvokers {
             .defineConstructor(Visibility.PUBLIC)
             .withParameter(fnClass)
             .intercept(new InvokerConstructor())
-            // Delegate processElement(), startBundle() and finishBundle() to the fn.
             .method(ElementMatchers.named("invokeProcessElement"))
-            .intercept(new ProcessElementDelegation(signature.getProcessElement()))
+            .intercept(new ProcessElementDelegation(signature.processElement()))
             .method(ElementMatchers.named("invokeStartBundle"))
             .intercept(
-                signature.getStartBundle() == null
+                signature.startBundle() == null
                     ? new NoopMethodImplementation()
-                    : new BundleMethodDelegation(signature.getStartBundle()))
+                    : new BundleMethodDelegation(signature.startBundle()))
             .method(ElementMatchers.named("invokeFinishBundle"))
             .intercept(
-                signature.getFinishBundle() == null
+                signature.finishBundle() == null
                     ? new NoopMethodImplementation()
-                    : new BundleMethodDelegation(signature.getFinishBundle()))
+                    : new BundleMethodDelegation(signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
             .intercept(
-                signature.getSetup() == null
+                signature.setup() == null
                     ? new NoopMethodImplementation()
-                    : new LifecycleMethodDelegation(signature.getSetup()))
+                    : new LifecycleMethodDelegation(signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
             .intercept(
-                signature.getTeardown() == null
+                signature.teardown() == null
                     ? new NoopMethodImplementation()
-                    : new LifecycleMethodDelegation(signature.getTeardown()));
+                    : new LifecycleMethodDelegation(signature.teardown()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -280,7 +285,8 @@ abstract class DoFnInvokers {
                 DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
         EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException(
+            "Failed to locate an ExtraContextFactory method that was expected to exist", e);
       }
     }
 
@@ -295,7 +301,7 @@ abstract class DoFnInvokers {
     protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
       MethodDescription targetMethod =
           new MethodCall.MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(signature.getTargetMethod()))
+                  new MethodDescription.ForLoadedMethod(signature.targetMethod()))
               .resolve(instrumentedMethod);
 
       // Parameters of the wrapper invoker method:
@@ -307,7 +313,7 @@ abstract class DoFnInvokers {
       parameters.add(MethodVariableAccess.REFERENCE.loadOffset(1));
       // Push the extra arguments in their actual order.
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(2);
-      for (DoFnSignature.ProcessElementMethod.Parameter param : signature.getExtraParameters()) {
+      for (DoFnSignature.ProcessElementMethod.Parameter param : signature.extraParameters()) {
         parameters.add(
             new StackManipulation.Compound(
                 pushExtraContextFactory,
@@ -340,7 +346,7 @@ abstract class DoFnInvokers {
     protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
       MethodDescription targetMethod =
           new MethodCall.MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).getTargetMethod()))
+                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).targetMethod()))
               .resolve(instrumentedMethod);
       return new StackManipulation.Compound(
           // Push the parameters
@@ -353,8 +359,8 @@ abstract class DoFnInvokers {
   }
 
   /**
-   * Implements {@link DoFnInvoker#invokeSetup} or {@link DoFnInvoker#invokeTeardown} by
-   * delegating respectively to the {@link Setup} and {@link Teardown} methods.
+   * Implements {@link DoFnInvoker#invokeSetup} or {@link DoFnInvoker#invokeTeardown} by delegating
+   * respectively to the {@link Setup} and {@link Teardown} methods.
    */
   private static final class LifecycleMethodDelegation extends MethodDelegation {
     private final DoFnSignature.LifecycleMethod signature;
@@ -367,7 +373,7 @@ abstract class DoFnInvokers {
     protected StackManipulation invokeTargetMethod(MethodDescription instrumentedMethod) {
       MethodDescription targetMethod =
           new MethodCall.MethodLocator.ForExplicitMethod(
-                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).getTargetMethod()))
+                  new MethodDescription.ForLoadedMethod(checkNotNull(signature).targetMethod()))
               .resolve(instrumentedMethod);
       return new StackManipulation.Compound(
           wrapWithUserCodeException(

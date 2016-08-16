@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.dofnreflector;
+package org.apache.beam.sdk.transforms.reflect;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnInvokersTest;
-import org.apache.beam.sdk.transforms.DoFnInvokersTest.Invocations;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokersTest.Invocations;
 
 /**
  * Test helper for {@link DoFnInvokersTest}, which needs to test package-private access

@@ -23,15 +23,14 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
-import org.apache.beam.sdk.transforms.DoFnInvoker;
-import org.apache.beam.sdk.transforms.DoFnReflector;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.joda.time.Instant;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -41,23 +40,22 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Benchmarks for {@link OldDoFn} and {@link DoFn} invocations, specifically
- * for measuring the overhead of {@link DoFnReflector}.
+ * Benchmarks for {@link OldDoFn} and {@link DoFn} invocations, specifically for measuring the
+ * overhead of {@link DoFnInvokers}.
  */
 @State(Scope.Benchmark)
 @Fork(1)
 @Warmup(iterations = 5)
-public class DoFnReflectorBenchmark {
+public class DoFnInvokersBenchmark {
 
   private static final String ELEMENT = "some string to use for testing";
 
   private OldDoFn<String, String> oldDoFn = new UpperCaseOldDoFn();
   private DoFn<String, String> doFn = new UpperCaseDoFn();
 
-  private StubOldDoFnProcessContext stubOldDoFnContext = new StubOldDoFnProcessContext(oldDoFn,
-      ELEMENT);
-  private StubDoFnProcessContext stubDoFnContext =
-      new StubDoFnProcessContext(doFn, ELEMENT);
+  private StubOldDoFnProcessContext stubOldDoFnContext =
+      new StubOldDoFnProcessContext(oldDoFn, ELEMENT);
+  private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(doFn, ELEMENT);
   private ExtraContextFactory<String, String> extraContextFactory =
       new DoFn.FakeExtraContextFactory<>();
 
@@ -68,7 +66,7 @@ public class DoFnReflectorBenchmark {
   @Setup
   public void setUp() {
     adaptedDoFnWithContext = DoFnAdapters.toOldDoFn(doFn);
-    invoker = DoFnReflector.newByteBuddyInvoker(doFn);
+    invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(doFn);
   }
 
   @Benchmark
@@ -161,24 +159,21 @@ public class DoFnReflectorBenchmark {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-    }
+    public <T> void sideOutput(TupleTag<T> tag, T output) {}
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-    }
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {}
 
     @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
-        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       return null;
     }
   }
 
-  private static class StubDoFnProcessContext
-      extends DoFn<String, String>.ProcessContext {
+  private static class StubDoFnProcessContext extends DoFn<String, String>.ProcessContext {
     private final String element;
-    private  String output;
+    private String output;
 
     public StubDoFnProcessContext(DoFn<String, String> fn, String element) {
       fn.super();
@@ -221,11 +216,9 @@ public class DoFnReflectorBenchmark {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-    }
+    public <T> void sideOutput(TupleTag<T> tag, T output) {}
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-    }
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {}
   }
 }

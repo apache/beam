@@ -15,7 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.transforms.reflect;
+
+import org.apache.beam.sdk.transforms.DoFn;
 
 import com.google.common.reflect.TypeToken;
 
@@ -28,9 +30,9 @@ import org.junit.runners.JUnit4;
 import java.lang.reflect.Method;
 import java.util.List;
 
-/** Tests for {@link DoFnReflector}. */
+/** Tests for {@link DoFnSignatures}. */
 @RunWith(JUnit4.class)
-public class DoFnReflectorTest {
+public class DoFnSignaturesTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -46,7 +48,7 @@ public class DoFnReflectorTest {
         getClass().getName()
             + "#missingProcessContext() must take a ProcessContext<> as its first argument");
 
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("missingProcessContext"),
         TypeToken.of(Integer.class),
@@ -63,7 +65,7 @@ public class DoFnReflectorTest {
         getClass().getName()
             + "#badProcessContext(String) must take a ProcessContext<> as its first argument");
 
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("badProcessContext", String.class),
         TypeToken.of(Integer.class),
@@ -80,7 +82,7 @@ public class DoFnReflectorTest {
         getClass().getName()
             + "#badExtraContext(Context, int) must have a single argument of type Context");
 
-    DoFnReflector.analyzeBundleMethod(
+    DoFnSignatures.analyzeBundleMethod(
         TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("badExtraContext", DoFn.Context.class, int.class),
         TypeToken.of(Integer.class),
@@ -99,7 +101,7 @@ public class DoFnReflectorTest {
             + "#badExtraProcessContext(ProcessContext, Integer)"
             + ". Should be one of [BoundedWindow]");
 
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         getClass()
             .getDeclaredMethod("badExtraProcessContext", DoFn.ProcessContext.class, Integer.class),
@@ -117,7 +119,7 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(getClass().getName() + "#badReturnType() must have a void return type");
 
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         getClass().getDeclaredMethod("badReturnType"),
         TypeToken.of(Integer.class),
@@ -139,7 +141,7 @@ public class DoFnReflectorTest {
                 DoFn.ProcessContext.class,
                 DoFn.InputProvider.class,
                 DoFn.OutputReceiver.class);
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         method,
         TypeToken.of(Integer.class),
@@ -157,7 +159,7 @@ public class DoFnReflectorTest {
 
   @Test
   public void testGoodTypeVariables() throws Exception {
-    DoFnReflector.getOrParseSignature(GoodTypeVariables.class);
+    DoFnSignatures.INSTANCE.getOrParseSignature(GoodTypeVariables.class);
   }
 
   private static class IdentityFn<T> extends DoFn<T, T> {
@@ -172,7 +174,7 @@ public class DoFnReflectorTest {
 
   @Test
   public void testIdentityFnApplied() throws Exception {
-    DoFnReflector.getOrParseSignature(new IdentityFn<String>() {}.getClass());
+    DoFnSignatures.INSTANCE.getOrParseSignature(new IdentityFn<String>() {}.getClass());
   }
 
   @SuppressWarnings("unused")
@@ -200,7 +202,7 @@ public class DoFnReflectorTest {
             + "OutputReceiver<Integer>, should be "
             + "OutputReceiver<String>");
 
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         method,
         TypeToken.of(Integer.class),
@@ -231,7 +233,7 @@ public class DoFnReflectorTest {
             + "OutputReceiver<? super Integer>, should be "
             + "OutputReceiver<String>");
 
-    DoFnReflector.analyzeProcessElementMethod(
+    DoFnSignatures.analyzeProcessElementMethod(
         TypeToken.of(FakeDoFn.class),
         method,
         TypeToken.of(Integer.class),
@@ -257,7 +259,7 @@ public class DoFnReflectorTest {
             + "OutputReceiver<InputT>, should be "
             + "OutputReceiver<OutputT>");
 
-    DoFnReflector.getOrParseSignature(BadTypeVariables.class);
+    DoFnSignatures.INSTANCE.getOrParseSignature(BadTypeVariables.class);
   }
 
   @Test
@@ -265,7 +267,7 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("No method annotated with @ProcessElement found");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(new DoFn<String, String>() {}.getClass());
+    DoFnSignatures.INSTANCE.getOrParseSignature(new DoFn<String, String>() {}.getClass());
   }
 
   @Test
@@ -275,7 +277,7 @@ public class DoFnReflectorTest {
     thrown.expectMessage("foo()");
     thrown.expectMessage("bar()");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void foo() {}
@@ -292,7 +294,7 @@ public class DoFnReflectorTest {
     thrown.expectMessage("bar()");
     thrown.expectMessage("baz()");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void foo() {}
@@ -312,7 +314,7 @@ public class DoFnReflectorTest {
     thrown.expectMessage("bar(Context)");
     thrown.expectMessage("baz(Context)");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void foo(ProcessContext context) {}
@@ -330,7 +332,7 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("process() must be public");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           private void process() {}
@@ -342,7 +344,7 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("startBundle() must be public");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void processElement() {}
@@ -357,7 +359,7 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("finishBundle() must be public");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnReflector.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void processElement() {}

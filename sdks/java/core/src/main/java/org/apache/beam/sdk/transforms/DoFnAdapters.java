@@ -19,6 +19,10 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -47,10 +51,10 @@ public class DoFnAdapters {
     }
   }
 
-  /** Create a {@link OldDoFn} that the {@link DoFn}. */
+  /** Creates an {@link OldDoFn} that delegates to the {@link DoFn}. */
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnReflector.getOrParseSignature(fn.getClass());
-    if (signature.getProcessElement().usesSingleWindow()) {
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature(fn.getClass());
+    if (signature.processElement().usesSingleWindow()) {
       return new WindowDoFnAdapter<>(fn);
     } else {
       return new SimpleDoFnAdapter<>(fn);
@@ -68,7 +72,7 @@ public class DoFnAdapters {
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.fn = fn;
-      this.invoker = DoFnReflector.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
     }
 
     @Override
@@ -121,7 +125,7 @@ public class DoFnAdapters {
     private void readObject(java.io.ObjectInputStream in)
         throws IOException, ClassNotFoundException {
       in.defaultReadObject();
-      this.invoker = DoFnReflector.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
     }
   }
 

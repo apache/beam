@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.transforms.reflect;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.transforms.dofnreflector.DoFnInvokersTestHelper;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,7 +50,7 @@ public class DoFnInvokersTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock private DoFn<String, String>.ProcessContext mockContext;
+  @Mock private DoFn.ProcessContext mockContext;
   @Mock private BoundedWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
@@ -86,7 +87,9 @@ public class DoFnInvokersTest {
           "Should not yet have called processElement on " + invocation.name,
           invocation.wasProcessElementInvoked);
     }
-    DoFnReflector.newByteBuddyInvoker(fn).invokeProcessElement(mockContext, extraContextFactory);
+    DoFnInvokers.INSTANCE
+        .newByteBuddyInvoker(fn)
+        .invokeProcessElement(mockContext, extraContextFactory);
     for (Invocations invocation : invocations) {
       assertTrue(
           "Should have called processElement on " + invocation.name,
@@ -102,7 +105,7 @@ public class DoFnInvokersTest {
           "Should not yet have called startBundle on " + invocation.name,
           invocation.wasStartBundleInvoked);
     }
-    DoFnReflector.newByteBuddyInvoker(fn).invokeStartBundle(mockContext);
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeStartBundle(mockContext);
     for (Invocations invocation : invocations) {
       assertTrue(
           "Should have called startBundle on " + invocation.name, invocation.wasStartBundleInvoked);
@@ -117,7 +120,7 @@ public class DoFnInvokersTest {
           "Should not yet have called finishBundle on " + invocation.name,
           invocation.wasFinishBundleInvoked);
     }
-    DoFnReflector.newByteBuddyInvoker(fn).invokeFinishBundle(mockContext);
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeFinishBundle(mockContext);
     for (Invocations invocation : invocations) {
       assertTrue(
           "Should have called finishBundle on " + invocation.name,
@@ -132,7 +135,7 @@ public class DoFnInvokersTest {
       assertFalse(
           "Should not yet have called setup on " + invocation.name, invocation.wasSetupInvoked);
     }
-    DoFnReflector.newByteBuddyInvoker(fn).invokeSetup();
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeSetup();
     for (Invocations invocation : invocations) {
       assertTrue("Should have called setup on " + invocation.name, invocation.wasSetupInvoked);
     }
@@ -146,7 +149,7 @@ public class DoFnInvokersTest {
           "Should not yet have called teardown on " + invocation.name,
           invocation.wasTeardownInvoked);
     }
-    DoFnReflector.newByteBuddyInvoker(fn).invokeTeardown();
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeTeardown();
     for (Invocations invocation : invocations) {
       assertTrue(
           "Should have called teardown on " + invocation.name, invocation.wasTeardownInvoked);
@@ -166,20 +169,23 @@ public class DoFnInvokersTest {
         };
 
     assertFalse(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
 
   @Test
   public void testDoFnInvokersReused() throws Exception {
-    // Ensures that we don't create a new Invoker class for every instance of the OldDoFn.
+    // Ensures that we don't create a new Invoker class for every instance of the DoFn.
     IdentityParent fn1 = new IdentityParent();
     IdentityParent fn2 = new IdentityParent();
     assertSame(
         "Invoker classes should only be generated once for each type",
-        DoFnReflector.newByteBuddyInvoker(fn1).getClass(),
-        DoFnReflector.newByteBuddyInvoker(fn2).getClass());
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn1).getClass(),
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn2).getClass());
   }
 
   interface InterfaceWithProcessElement {
@@ -205,7 +211,10 @@ public class DoFnInvokersTest {
   public void testDoFnWithProcessElementInterface() throws Exception {
     IdentityUsingInterfaceWithProcessElement fn = new IdentityUsingInterfaceWithProcessElement();
     assertFalse(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.invocations);
   }
 
@@ -235,7 +244,10 @@ public class DoFnInvokersTest {
   public void testDoFnWithMethodInSuperclass() throws Exception {
     IdentityChildWithoutOverride fn = new IdentityChildWithoutOverride();
     assertFalse(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.parentInvocations);
   }
 
@@ -243,7 +255,10 @@ public class DoFnInvokersTest {
   public void testDoFnWithMethodInSubclass() throws Exception {
     IdentityChildWithOverride fn = new IdentityChildWithOverride();
     assertFalse(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
     checkInvokeProcessElementWorks(fn, fn.parentInvocations, fn.childInvocations);
   }
 
@@ -261,7 +276,10 @@ public class DoFnInvokersTest {
         };
 
     assertTrue(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -280,7 +298,10 @@ public class DoFnInvokersTest {
         };
 
     assertFalse(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -299,7 +320,10 @@ public class DoFnInvokersTest {
         };
 
     assertFalse(
-        DoFnReflector.getOrParseSignature(fn.getClass()).getProcessElement().usesSingleWindow());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(fn.getClass())
+            .processElement()
+            .usesSingleWindow());
 
     checkInvokeProcessElementWorks(fn, invocations);
   }
@@ -433,7 +457,7 @@ public class DoFnInvokersTest {
 
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    DoFnReflector.newByteBuddyInvoker(fn).invokeProcessElement(null, null);
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeProcessElement(null, null);
   }
 
   @Test
@@ -451,7 +475,7 @@ public class DoFnInvokersTest {
 
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    DoFnReflector.newByteBuddyInvoker(fn).invokeStartBundle(null);
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeStartBundle(null);
   }
 
   @Test
@@ -469,6 +493,6 @@ public class DoFnInvokersTest {
 
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    DoFnReflector.newByteBuddyInvoker(fn).invokeFinishBundle(null);
+    DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeFinishBundle(null);
   }
 }

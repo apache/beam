@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
-import com.google.common.base.Preconditions;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
@@ -43,28 +45,21 @@ import java.util.Map;
 /**
  * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getOrParseSignature}.
  */
-public abstract class DoFnReflector {
-  private DoFnReflector() {}
+public class DoFnSignatures {
+  public static final DoFnSignatures INSTANCE = new DoFnSignatures();
 
-  private static final Map<Class<?>, DoFnSignature> SIGNATURE_CACHE = new LinkedHashMap<>();
+  private DoFnSignatures() {}
+
+  private final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn}. */
-  static synchronized DoFnSignature getOrParseSignature(
+  public synchronized DoFnSignature getOrParseSignature(
       @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
-    DoFnSignature signature = SIGNATURE_CACHE.get(fn);
-    if (signature != null) {
-      return signature;
+    DoFnSignature signature = signatureCache.get(fn);
+    if (signature == null) {
+      signatureCache.put(fn, signature = parseSignature(fn));
     }
-
-    signature = parseSignature(fn);
-    SIGNATURE_CACHE.put(fn, signature);
     return signature;
-  }
-
-  /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
-  public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
-      DoFn<InputT, OutputT> fn) {
-    return DoFnInvokers.newByteBuddyInvoker(getOrParseSignature(fn.getClass()), fn);
   }
 
   /** Analyzes a given {@link DoFn} class and extracts its {@link DoFnSignature}. */
@@ -86,7 +81,7 @@ public abstract class DoFnReflector {
       inputT = TypeToken.of(args[0]);
       outputT = TypeToken.of(args[1]);
     }
-    Preconditions.checkNotNull(inputT, "Unable to determine input type from %s", fnClass);
+    checkNotNull(inputT, "Unable to determine input type from %s", fnClass);
 
     Method processElementMethod = findAnnotatedMethod(DoFn.ProcessElement.class, fnClass, true);
     Method startBundleMethod = findAnnotatedMethod(DoFn.StartBundle.class, fnClass, false);
@@ -94,10 +89,8 @@ public abstract class DoFnReflector {
     Method setupMethod = findAnnotatedMethod(DoFn.Setup.class, fnClass, false);
     Method teardownMethod = findAnnotatedMethod(DoFn.Teardown.class, fnClass, false);
 
-    return new DoFnSignature(
+    return DoFnSignature.create(
         fnClass,
-        inputT,
-        outputT,
         analyzeProcessElementMethod(fnToken, processElementMethod, inputT, outputT),
         (startBundleMethod == null)
             ? null
@@ -146,6 +139,7 @@ public abstract class DoFnReflector {
         new TypeParameter<OutputT>() {}, inputT);
   }
 
+  @VisibleForTesting
   static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
       TypeToken<? extends DoFn> fnClass, Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
     checkArgument(
@@ -213,9 +207,10 @@ public abstract class DoFnReflector {
       }
     }
 
-    return new DoFnSignature.ProcessElementMethod(m, extraParameters);
+    return DoFnSignature.ProcessElementMethod.create(m, extraParameters);
   }
 
+  @VisibleForTesting
   static DoFnSignature.BundleMethod analyzeBundleMethod(
       TypeToken<? extends DoFn> fnToken, Method m, TypeToken<?> inputT, TypeToken<?> outputT) {
     checkArgument(
@@ -238,15 +233,15 @@ public abstract class DoFnReflector {
         formatType(contextToken),
         formatType(expectedContextToken));
 
-    return new DoFnSignature.BundleMethod(m);
+    return DoFnSignature.BundleMethod.create(m);
   }
 
-  static DoFnSignature.LifecycleMethod analyzeLifecycleMethod(Method m) {
+  private static DoFnSignature.LifecycleMethod analyzeLifecycleMethod(Method m) {
     checkArgument(
         void.class.equals(m.getReturnType()), "%s must have a void return type", format(m));
     checkArgument(
         m.getGenericParameterTypes().length == 0, "%s must take zero arguments", format(m));
-    return new DoFnSignature.LifecycleMethod(m);
+    return DoFnSignature.LifecycleMethod.create(m);
   }
 
   private static Collection<Method> declaredMethodsWithAnnotation(
