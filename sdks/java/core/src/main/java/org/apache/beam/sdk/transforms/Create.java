@@ -133,6 +133,21 @@ public class Create<T> {
   }
 
   /**
+   * Returns a new {@code Create.Values} transform that produces
+   * an empty {@link PCollection}.
+   *
+   * <p>The elements will have a timestamp of negative infinity, see
+   * {@link Create#timestamped} for a way of creating a {@code PCollection}
+   * with timestamped elements.
+   *
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
+   * Instead, the {@code Coder} is provided via the {@code coder} argument.
+   */
+  public static <T> Values<T> empty(Coder<T> coder) {
+    return new Values<>(new ArrayList<T>(), Optional.of(coder));
+  }
+
+  /**
    * Returns a new {@code Create.Values} transform that produces a
    * {@link PCollection} of {@link KV}s corresponding to the keys and
    * values of the specified {@code Map}.
