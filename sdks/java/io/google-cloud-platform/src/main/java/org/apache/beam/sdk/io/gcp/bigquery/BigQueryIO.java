@@ -165,7 +165,7 @@ import javax.annotation.Nullable;
  * <p>To read from a BigQuery table, apply a {@link BigQueryIO.Read} transformation.
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
- * PCollection<TableRow> shakespeare = pipeline.apply(
+ * PCollection<TableRow> weatherData = pipeline.apply(
  *     BigQueryIO.Read.from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
  *
@@ -176,7 +176,7 @@ import javax.annotation.Nullable;
  * input transform.
  *
  * <pre>{@code
- * PCollection<TableRow> shakespeare = pipeline.apply(
+ * PCollection<TableRow> meanTemperatureData = pipeline.apply(
  *     BigQueryIO.Read.fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
  *
