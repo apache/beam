@@ -23,8 +23,13 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestStream.Builder;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -35,8 +40,12 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.values.PCollection;
@@ -44,8 +53,10 @@ import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -56,6 +67,8 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class TestStreamTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
   @Category(NeedsRunner.class)
   public void testLateDataAccumulating() {
@@ -146,6 +159,152 @@ public class TestStreamTest implements Serializable {
     PAssert.that(sum).inEarlyGlobalWindowPanes().containsInAnyOrder(3L, 6L);
 
     p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDiscardingMode() {
+    TestStream<String> stream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(
+                TimestampedValue.of("firstPane", new Instant(100)),
+                TimestampedValue.of("alsoFirstPane", new Instant(200)))
+            .addElements(TimestampedValue.of("onTimePane", new Instant(500)))
+            .advanceWatermarkTo(new Instant(1001L))
+            .addElements(
+                TimestampedValue.of("finalLatePane", new Instant(750)),
+                TimestampedValue.of("alsoFinalLatePane", new Instant(250)))
+            .advanceWatermarkToInfinity();
+
+    TestPipeline p = TestPipeline.create();
+    FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
+    Duration allowedLateness = Duration.millis(5000L);
+    PCollection<String> values =
+        p.apply(stream)
+            .apply(
+                Window.<String>into(windowFn)
+                    .triggering(
+                        AfterWatermark.pastEndOfWindow()
+                            .withEarlyFirings(AfterPane.elementCountAtLeast(2))
+                            .withLateFirings(Never.ever()))
+                    .discardingFiredPanes()
+                    .withAllowedLateness(allowedLateness))
+            .apply(WithKeys.<Integer, String>of(1))
+            .apply(GroupByKey.<Integer, String>create())
+            .apply(Values.<Iterable<String>>create())
+            .apply(Flatten.<String>iterables());
+
+    IntervalWindow window = windowFn.assignWindow(new Instant(100));
+    PAssert.that(values)
+        .inWindow(window)
+        .containsInAnyOrder(
+            "firstPane", "alsoFirstPane", "onTimePane", "finalLatePane", "alsoFinalLatePane");
+    PAssert.that(values)
+        .inCombinedNonLatePanes(window)
+        .containsInAnyOrder("firstPane", "alsoFirstPane", "onTimePane");
+    PAssert.that(values).inOnTimePane(window).containsInAnyOrder("onTimePane");
+    PAssert.that(values)
+        .inFinalPane(window)
+        .containsInAnyOrder("finalLatePane", "alsoFinalLatePane");
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFirstElementLate() {
+    Instant lateElementTimestamp = new Instant(-1_000_000);
+    TestStream<String> stream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(TimestampedValue.of("late", lateElementTimestamp))
+            .addElements(TimestampedValue.of("onTime", new Instant(100)))
+            .advanceWatermarkToInfinity();
+
+    TestPipeline p = TestPipeline.create();
+    FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
+    Duration allowedLateness = Duration.millis(5000L);
+    PCollection<String> values = p.apply(stream)
+        .apply(Window.<String>into(windowFn).triggering(DefaultTrigger.of())
+            .discardingFiredPanes()
+            .withAllowedLateness(allowedLateness))
+        .apply(WithKeys.<Integer, String>of(1))
+        .apply(GroupByKey.<Integer, String>create())
+        .apply(Values.<Iterable<String>>create())
+        .apply(Flatten.<String>iterables());
+
+    PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
+    PAssert.that(values)
+        .inWindow(windowFn.assignWindow(new Instant(100)))
+        .containsInAnyOrder("onTime");
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testElementsAtAlmostPositiveInfinity() {
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
+    TestStream<String> stream = TestStream.create(StringUtf8Coder.of())
+        .addElements(TimestampedValue.of("foo", endOfGlobalWindow),
+            TimestampedValue.of("bar", endOfGlobalWindow))
+        .advanceWatermarkToInfinity();
+
+    TestPipeline p = TestPipeline.create();
+    FixedWindows windows = FixedWindows.of(Duration.standardHours(6));
+    PCollection<String> windowedValues = p.apply(stream)
+        .apply(Window.<String>into(windows))
+        .apply(WithKeys.<Integer, String>of(1))
+        .apply(GroupByKey.<Integer, String>create())
+        .apply(Values.<Iterable<String>>create())
+        .apply(Flatten.<String>iterables());
+
+    PAssert.that(windowedValues)
+        .inWindow(windows.assignWindow(GlobalWindow.INSTANCE.maxTimestamp()))
+        .containsInAnyOrder("foo", "bar");
+    p.run();
+  }
+
+  @Test
+  public void testElementAtPositiveInfinityThrows() {
+    Builder<Integer> stream =
+        TestStream.create(VarIntCoder.of())
+            .addElements(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L)));
+    thrown.expect(IllegalArgumentException.class);
+    stream.addElements(TimestampedValue.of(1, BoundedWindow.TIMESTAMP_MAX_VALUE));
+  }
+
+  @Test
+  public void testAdvanceWatermarkNonMonotonicThrows() {
+    Builder<Integer> stream =
+        TestStream.create(VarIntCoder.of())
+            .advanceWatermarkTo(new Instant(0L));
+    thrown.expect(IllegalArgumentException.class);
+    stream.advanceWatermarkTo(new Instant(-1L));
+  }
+
+  @Test
+  public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
+    Builder<Integer> stream =
+        TestStream.create(VarIntCoder.of())
+            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
+    thrown.expect(IllegalArgumentException.class);
+    stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
+  }
+
+  @Test
+  public void testUnsupportedRunnerThrows() {
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.setRunner(CrashingRunner.class);
+
+    Pipeline p = Pipeline.create(opts);
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("does not provide a required override");
+    thrown.expectMessage(TestStream.class.getSimpleName());
+    thrown.expectMessage(CrashingRunner.class.getSimpleName());
+    p.apply(TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity());
   }
 
   @Test

@@ -32,10 +32,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 
@@ -83,30 +81,30 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     this.events = checkNotNull(events);
   }
 
-  public Coder<Event<T>> getEventCoder() {
-    return EventCoder.of(coder);
-  }
-
   /**
    * An incomplete {@link TestStream}. Elements added to this builder will be produced in sequence
    * when the pipeline created by the {@link TestStream} is run.
    */
   public static class Builder<T> {
     private final Coder<T> coder;
-    private final ImmutableList.Builder<Event<T>> events;
-    private Instant currentWatermark;
+    private final ImmutableList<Event<T>> events;
+    private final Instant currentWatermark;
 
     private Builder(Coder<T> coder) {
-      this.coder = coder;
-      events = ImmutableList.builder();
+      this(coder, ImmutableList.<Event<T>>of(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
 
-      currentWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    private Builder(Coder<T> coder, ImmutableList<Event<T>> events, Instant currentWatermark) {
+      this.coder = coder;
+      this.events = events;
+      this.currentWatermark = currentWatermark;
     }
 
     /**
      * Adds the specified elements to the source with timestamp equal to the current watermark.
      *
-     * @return this {@link TestStream.Builder}
+     * @return A {@link TestStream.Builder} like this one that will add the provided elements
+     *         after all earlier events have completed.
      */
     @SafeVarargs
     public final Builder<T> addElements(T element, T... elements) {
@@ -122,22 +120,40 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     /**
      * Adds the specified elements to the source with the provided timestamps.
      *
-     * @return this {@link TestStream.Builder}
+     * @return A {@link TestStream.Builder} like this one that will add the provided elements
+     *         after all earlier events have completed.
      */
     @SafeVarargs
     public final Builder<T> addElements(
         TimestampedValue<T> element, TimestampedValue<T>... elements) {
-      events.add(ElementEvent.add(element, elements));
-      return this;
+      checkArgument(
+          element.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+          "Elements must have timestamps before %s. Got: %s",
+          BoundedWindow.TIMESTAMP_MAX_VALUE,
+          element.getTimestamp());
+      for (TimestampedValue<T> multiElement : elements) {
+        checkArgument(
+            multiElement.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+            "Elements must have timestamps before %s. Got: %s",
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            multiElement.getTimestamp());
+      }
+      ImmutableList<Event<T>> newEvents =
+          ImmutableList.<Event<T>>builder()
+              .addAll(events)
+              .add(ElementEvent.add(element, elements))
+              .build();
+      return new Builder<T>(coder, newEvents, currentWatermark);
     }
 
     /**
      * Advance the watermark of this source to the specified instant.
      *
-     * <p>The watermark must advance monotonically and to at most {@link
-     * BoundedWindow#TIMESTAMP_MAX_VALUE}.
+     * <p>The watermark must advance monotonically and cannot advance to {@link
+     * BoundedWindow#TIMESTAMP_MAX_VALUE} or beyond.
      *
-     * @return this {@link TestStream.Builder}
+     * @return A {@link TestStream.Builder} like this one that will advance the watermark to the
+     *         specified point after all earlier events have completed.
      */
     public Builder<T> advanceWatermarkTo(Instant newWatermark) {
       checkArgument(
@@ -147,23 +163,30 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
           "The Watermark cannot progress beyond the maximum. Got: %s. Maximum: %s",
           newWatermark,
           BoundedWindow.TIMESTAMP_MAX_VALUE);
-      events.add(WatermarkEvent.<T>advanceTo(newWatermark));
-      currentWatermark = newWatermark;
-      return this;
+      ImmutableList<Event<T>> newEvents = ImmutableList.<Event<T>>builder()
+          .addAll(events)
+          .add(WatermarkEvent.<T>advanceTo(newWatermark))
+          .build();
+      return new Builder<T>(coder, newEvents, newWatermark);
     }
 
     /**
      * Advance the processing time by the specified amount.
      *
-     * @return this {@link TestStream.Builder}
+     * @return A {@link TestStream.Builder} like this one that will advance the processing time by
+     *         the specified amount after all earlier events have completed.
      */
     public Builder<T> advanceProcessingTime(Duration amount) {
       checkArgument(
           amount.getMillis() > 0,
           "Must advance the processing time by a positive amount. Got: ",
           amount);
-      events.add(ProcessingTimeEvent.<T>advanceBy(amount));
-      return this;
+      ImmutableList<Event<T>> newEvents =
+          ImmutableList.<Event<T>>builder()
+              .addAll(events)
+              .add(ProcessingTimeEvent.<T>advanceBy(amount))
+              .build();
+      return new Builder<T>(coder, newEvents, currentWatermark);
     }
 
     /**
@@ -171,8 +194,12 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
      * same builder will not affect the returned {@link TestStream}.
      */
     public TestStream<T> advanceWatermarkToInfinity() {
-      events.add(WatermarkEvent.<T>advanceTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
-      return new TestStream<>(coder, events.build());
+      ImmutableList<Event<T>> newEvents =
+          ImmutableList.<Event<T>>builder()
+              .addAll(events)
+              .add(WatermarkEvent.<T>advanceTo(BoundedWindow.TIMESTAMP_MAX_VALUE))
+              .build();
+      return new TestStream<>(coder, newEvents);
     }
   }
 
@@ -230,12 +257,30 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
 
   @Override
   public PCollection<T> apply(PBegin input) {
-    return PCollection.<T>createPrimitiveOutputInternal(
-            input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-        .setCoder(coder);
+    throw new IllegalStateException(
+        String.format(
+            "Pipeline Runner %s does not provide a required override for %s",
+            input.getPipeline().getRunner().getClass().getSimpleName(),
+            getClass().getSimpleName()));
   }
 
-  public List<Event<T>> getStreamEvents() {
+  public Coder<T> getValueCoder() {
+    return coder;
+  }
+
+  /**
+   * Returns a coder suitable for encoding {@link TestStream.Event}.
+   */
+  public Coder<Event<T>> getEventCoder() {
+    return EventCoder.of(coder);
+  }
+
+  /**
+   * Returns the sequence of {@link Event Events} in this {@link TestStream}.
+   *
+   * <p>For use by {@link PipelineRunner} authors.
+   */
+  public List<Event<T>> getEvents() {
     return events;
   }
 
@@ -243,7 +288,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
    * A {@link Coder} that encodes and decodes {@link TestStream.Event Events}.
    *
    * @param <T> the type of elements in {@link ElementEvent ElementEvents} encoded and decoded by
-   *     this {@link EventCoder}
+   *            this {@link EventCoder}
    */
   @VisibleForTesting
   static final class EventCoder<T> extends StandardCoder<Event<T>> {
@@ -290,14 +335,15 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
           DURATION_CODER.encode(processingAdvance, outStream, context);
           break;
         default:
-          throw new AssertionError("Unreachable");
+          throw new AssertionError("Unreachable: Unsupported Event Type " + value.getType());
       }
     }
 
     @Override
     public Event<T> decode(
         InputStream inStream, Context context) throws IOException {
-      switch (EventType.values()[VarInt.decodeInt(inStream)]) {
+      EventType eventType = EventType.values()[VarInt.decodeInt(inStream)];
+      switch (eventType) {
         case ELEMENT:
           Iterable<TimestampedValue<T>> elements = elementCoder.decode(inStream, context);
           return ElementEvent.add(elements);
@@ -307,7 +353,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
           return ProcessingTimeEvent.advanceBy(
               DURATION_CODER.decode(inStream, context).toDuration());
         default:
-          throw new AssertionError("Unreachable");
+          throw new AssertionError("Unreachable: Unsupported Event Type " + eventType);
       }
     }
 
