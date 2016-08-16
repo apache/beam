@@ -1123,9 +1123,9 @@ public class BigQueryIO {
         BoundedSource<T> boundedSource,
         SerializableFunction<T, V> function,
         Coder<V> outputCoder) {
-      this.boundedSource = boundedSource;
-      this.function = function;
-      this.outputCoder = outputCoder;
+      this.boundedSource = checkNotNull(boundedSource, "boundedSource");
+      this.function = checkNotNull(function, "function");
+      this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     }
 
     @Override
@@ -1170,7 +1170,7 @@ public class BigQueryIO {
       private final BoundedReader<T> boundedReader;
 
       private TransformingReader(BoundedReader<T> boundedReader) {
-        this.boundedReader = boundedReader;
+        this.boundedReader = checkNotNull(boundedReader, "boundedReader");
       }
 
       @Override
@@ -1201,8 +1201,8 @@ public class BigQueryIO {
 
       @Override
       public synchronized BoundedSource<V> splitAtFraction(double fraction) {
-        return new TransformingSource<>(
-            boundedReader.splitAtFraction(fraction), function, outputCoder);
+        BoundedSource<T> split = boundedReader.splitAtFraction(fraction);
+        return split == null ? null : new TransformingSource<>(split, function, outputCoder);
       }
 
       @Override
