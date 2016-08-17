@@ -26,12 +26,14 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
-import org.junit.Assert;
+import com.google.common.collect.Sets;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for {@link SourceTestUtils}.
@@ -49,11 +51,16 @@ public class SourceTestUtilsTest {
     assertEquals(splits.get(0), unsplittableSource);
 
     BoundedReader<Long> unsplittableReader = unsplittableSource.createReader(options);
-    assertNull(unsplittableReader.splitAtFraction(0.5));
+    assertEquals(0, unsplittableReader.getFractionConsumed(), 1e-15);
 
-    Assert.assertEquals(0, unsplittableReader.getFractionConsumed(), 1e-15);
-    SourceTestUtils.readNItemsFromUnstartedReader(unsplittableReader, 50);
-    SourceTestUtils.readRemainingFromReader(unsplittableReader, true);
-    Assert.assertEquals(1, unsplittableReader.getFractionConsumed(), 1e-15);
+    Set<Long> expected = Sets.newHashSet(SourceTestUtils.readFromSource(baseSource, options));
+    Set<Long> actual = Sets.newHashSet();
+    actual.addAll(SourceTestUtils.readNItemsFromUnstartedReader(unsplittableReader, 40));
+    assertNull(unsplittableReader.splitAtFraction(0.5));
+    actual.addAll(SourceTestUtils.readRemainingFromReader(unsplittableReader, true /* started */));
+    assertEquals(1, unsplittableReader.getFractionConsumed(), 1e-15);
+
+    assertEquals(100, actual.size());
+    assertEquals(Sets.newHashSet(expected), Sets.newHashSet(actual));
   }
 }
