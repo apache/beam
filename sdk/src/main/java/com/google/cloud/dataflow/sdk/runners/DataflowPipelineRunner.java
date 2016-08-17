@@ -133,6 +133,7 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -228,6 +229,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
+
+  @VisibleForTesting
+  static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1 * 1024 * 1024;
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
@@ -334,6 +338,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           + "' invalid. Please make sure the value is non-negative.");
     }
 
+    if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
+      dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
+    }
     return new DataflowPipelineRunner(dataflowOptions);
   }
 
