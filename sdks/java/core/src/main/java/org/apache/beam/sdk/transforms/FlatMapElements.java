@@ -29,7 +29,7 @@ import java.lang.reflect.ParameterizedType;
  * {@link PCollection} and merging the results.
  */
 public class FlatMapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   /**
    * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
    * returns a {@link PTransform} that applies {@code fn} to every element of the input
@@ -130,7 +130,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
+  public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
     return input.apply(
         "FlatMap",
         ParDo.of(
