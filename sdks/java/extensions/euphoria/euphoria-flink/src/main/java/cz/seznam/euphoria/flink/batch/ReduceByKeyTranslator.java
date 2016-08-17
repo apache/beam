@@ -9,6 +9,8 @@ import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Arrays;
@@ -51,9 +53,26 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
             .setParallelism(operator.getParallelism())
             .returns((Class) Pair.class);
 
-    return tuples.reduce(new TypedReducer(reducer))
-          .setParallelism(operator.getParallelism())
-          .name(operator.getName());
+    // XXX require keyExtractor to deliver `Comparable`s
+    return tuples.groupBy((KeySelector) new TypedKeySelector<>())
+        .reduce(new TypedReducer(reducer))
+        .setParallelism(operator.getParallelism())
+        .name(operator.getName());
+  }
+
+  private static class TypedKeySelector<KEY>
+      implements KeySelector<Pair<KEY, Object>, KEY>, ResultTypeQueryable<KEY>
+  {
+    @Override
+    public KEY getKey(Pair<KEY, Object> pair) throws Exception {
+      return pair.getKey();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public TypeInformation<KEY> getProducedType() {
+      return TypeInformation.of((Class) Comparable.class);
+    }
   }
 
   private static class TypedReducer
