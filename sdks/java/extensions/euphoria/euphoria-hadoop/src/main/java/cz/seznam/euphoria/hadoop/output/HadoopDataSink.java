@@ -125,6 +125,14 @@ public class HadoopDataSink<K extends Writable, V extends Writable>
 
     @Override
     public void commit() throws IOException {
+      // ~ flush pending changes - if any
+      try {
+        hadoopWriter.close(ctx);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Interrupted from closing hadoop writer!");
+      }
+      // ~ now commit
       hadoopCommitter.commitTask(ctx);
     }
 
