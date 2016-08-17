@@ -210,17 +210,21 @@ public class BigQueryIOTest implements Serializable {
 
     private Object[] startJobReturns;
     private Object[] pollJobReturns;
+    private Object[] getJobReturns;
     private String executingProject;
     // Both counts will be reset back to zeros after serialization.
     // This is a work around for DoFn's verifyUnmodified check.
     private transient int startJobCallsCount;
     private transient int pollJobStatusCallsCount;
+    private transient int getJobCallsCount;
 
     public FakeJobService() {
       this.startJobReturns = new Object[0];
       this.pollJobReturns = new Object[0];
+      this.getJobReturns = new Object[0];
       this.startJobCallsCount = 0;
       this.pollJobStatusCallsCount = 0;
+      this.getJobCallsCount = 0;
     }
 
     /**
@@ -231,6 +235,16 @@ public class BigQueryIOTest implements Serializable {
      */
     public FakeJobService startJobReturns(Object... startJobReturns) {
       this.startJobReturns = startJobReturns;
+      return this;
+    }
+
+    /**
+     * Sets the return values to mock {@link JobService#getJob}.
+     *
+     * <p>Throws if the {@link Object} is a {@link InterruptedException}, returns otherwise.
+     */
+    public FakeJobService getJobReturns(Object... getJobReturns) {
+      this.getJobReturns = getJobReturns;
       return this;
     }
 
@@ -324,6 +338,32 @@ public class BigQueryIOTest implements Serializable {
     public JobStatistics dryRunQuery(String projectId, String query)
         throws InterruptedException, IOException {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Job getJob(JobReference jobRef) throws InterruptedException {
+      if (!Strings.isNullOrEmpty(executingProject)) {
+        checkArgument(
+            jobRef.getProjectId().equals(executingProject),
+            "Project id: %s is not equal to executing project: %s",
+            jobRef.getProjectId(), executingProject);
+      }
+
+      if (getJobCallsCount < getJobReturns.length) {
+        Object ret = getJobReturns[getJobCallsCount++];
+        if (ret == null) {
+          return null;
+        } else if (ret instanceof Job) {
+          return (Job) ret;
+        } else if (ret instanceof InterruptedException) {
+          throw (InterruptedException) ret;
+        } else {
+          throw new RuntimeException("Unexpected return type: " + ret.getClass());
+        }
+      } else {
+        throw new RuntimeException(
+            "Exceeded expected number of calls: " + getJobReturns.length);
+      }
     }
   }
 
@@ -518,7 +558,7 @@ public class BigQueryIOTest implements Serializable {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
             .startJobReturns("done", "done")
-            .pollJobReturns(Status.UNKNOWN)
+            .getJobReturns((Job) null)
             .verifyExecutingProject(bqOptions.getProject()))
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", 1)),
