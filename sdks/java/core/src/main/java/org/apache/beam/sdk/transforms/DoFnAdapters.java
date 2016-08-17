@@ -34,7 +34,13 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 
-/** Utility class containing adapters for running a {@link DoFn} as an {@link OldDoFn}. */
+/**
+ * Utility class containing adapters for running a {@link DoFn} as an {@link OldDoFn}.
+ *
+ * @deprecated This class will go away when we start running {@link DoFn}'s directly (using
+ * {@link DoFnInvoker}) rather than via {@link OldDoFn}.
+ */
+@Deprecated
 public class DoFnAdapters {
   /** Should not be instantiated. */
   private DoFnAdapters() {}

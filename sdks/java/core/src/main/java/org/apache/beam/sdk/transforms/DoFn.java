@@ -312,12 +312,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     OutputReceiver<OutputT> outputReceiver();
   }
 
-  /** A placeholder for testing purposes. */
+  /** A placeholder for testing handling of output types during {@link DoFn} reflection. */
   public interface OutputReceiver<T> {
     void output(T output);
   }
 
-  /** A placeholder for testing purposes. */
+  /** A placeholder for testing handling of input types during {@link DoFn} reflection. */
   public interface InputProvider<T> {
     T get();
   }
