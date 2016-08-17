@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -435,9 +436,15 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   private Object getValueFromJson(String propertyName, Method method) {
     try {
       JavaType type;
-      if (method.getReturnType().equals(ValueProvider.class)) {
-        // TODO: Handle other types besides strings with annotations.
-        type = MAPPER.getTypeFactory().constructType(String.class);
+      Type returnType = method.getReturnType();
+      if (returnType.equals(ValueProvider.class)) {
+        if (returnType instanceof ParameterizedType) {
+          Type innerType = ((ParameterizedType) returnType)
+            .getActualTypeArguments()[0];
+          type = MAPPER.getTypeFactory().constructType(innerType);
+        } else {
+          throw new RuntimeException("Unable to derive type for ValueProvider");
+        }
       } else {
         type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
       }

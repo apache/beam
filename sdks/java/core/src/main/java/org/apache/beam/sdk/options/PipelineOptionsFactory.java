@@ -879,9 +879,6 @@ public class PipelineOptionsFactory {
       // Validate that the getter and setter property types are the same.
       if (getterMethod != null) {
         Class<?> getterPropertyType = getterMethod.getReturnType();
-        if (getterPropertyType.equals(ValueProvider.class)) {
-          continue;
-        }
         Class<?> setterPropertyType = method.getParameterTypes()[0];
         if (getterPropertyType != setterPropertyType) {
           TypeMismatch mismatch = new TypeMismatch();
@@ -1118,6 +1115,7 @@ public class PipelineOptionsFactory {
         Sets.filter(
             Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
             NOT_SYNTHETIC_PREDICATE));
+    
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
