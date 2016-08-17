@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.util.common;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.AbstractSet;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A CounterSet maintains a set of {@link Counter}s.
@@ -30,7 +30,7 @@ import java.util.Iterator;
 public class CounterSet extends AbstractSet<Counter<?>> {
 
   /** Registered counters. */
-  private final HashMap<String, Counter<?>> counters = new HashMap<>();
+  private final ConcurrentHashMap<String, Counter<?>> counters = new ConcurrentHashMap<>();
 
   private final AddCounterMutator addCounterMutator = new AddCounterMutator();
 
