@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -204,9 +205,23 @@ public interface TimerInternals {
           .toString();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
+     * arbitrary.
+     */
     @Override
     public int compareTo(TimerData o) {
-      return Long.compare(timestamp.getMillis(), o.getTimestamp().getMillis());
+      ComparisonChain chain = ComparisonChain.start()
+          .compare(timestamp.getMillis(), o.getTimestamp().getMillis())
+          .compare(domain, o.domain);
+      if (chain.result() == 0) {
+        // Computing the string key may be expensive, so only do so if it is meaningful in this
+        // comparison.
+        chain = chain.compare(namespace.stringKey(), o.namespace.stringKey());
+      }
+      return chain.result();
     }
   }
 
