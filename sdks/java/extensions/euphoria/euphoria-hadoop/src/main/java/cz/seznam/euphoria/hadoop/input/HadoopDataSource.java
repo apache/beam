@@ -1,12 +1,12 @@
 package cz.seznam.euphoria.hadoop.input;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
-import cz.seznam.euphoria.core.client.util.Pair;
 import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
@@ -45,7 +45,7 @@ public class HadoopDataSource<K extends Writable, V extends Writable>
     return getHadoopFormatInstance()
             .getSplits(HadoopUtils.createJobContext(c))
             .stream()
-            .map(split -> new HadoopPartition<>(hadoopFormatCls, c, split))
+            .map(split -> new HadoopPartition<>(hadoopFormatCls, conf, split))
             .collect(Collectors.toList());
   }
 
@@ -59,6 +59,7 @@ public class HadoopDataSource<K extends Writable, V extends Writable>
    * You must always pass a valid configuration object
    * or {@code NullPointerException} might be thrown.
    */
+  @SuppressWarnings("unchecked")
   private InputFormat<K, V> getHadoopFormatInstance()
           throws InstantiationException, IllegalAccessException
   {
@@ -118,29 +119,35 @@ public class HadoopDataSource<K extends Writable, V extends Writable>
       implements Partition<Pair<K, V>> {
 
     private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
-    private final Configuration conf;
-    private final InputSplit hadoopSplit;
+    private SerializableWritable<Configuration> conf;
+    private Set<String> locations;
+    private final byte [] hadoopSplit; // ~ serialized
 
+    @SneakyThrows
     public HadoopPartition(Class<? extends InputFormat<K, V>> hadoopFormatCls,
-                           Configuration conf,
+                           SerializableWritable<Configuration> conf,
                            InputSplit hadoopSplit)
     {
       this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
       this.conf = Objects.requireNonNull(conf);
-      this.hadoopSplit = Objects.requireNonNull(hadoopSplit);
+      this.locations = Arrays.stream(hadoopSplit.getLocations())
+          .collect(Collectors.toSet());
+      this.hadoopSplit = HadoopUtils.serializeToBytes(hadoopSplit);
     }
 
     @Override
-    @SneakyThrows
     public Set<String> getLocations() {
-      return Arrays.stream(hadoopSplit.getLocations())
-              .collect(Collectors.toSet());
+      return locations;
     }
 
     @Override
     @SneakyThrows
     public Reader<Pair<K, V>> openReader() throws IOException {
+      InputSplit hadoopSplit =
+          (InputSplit) HadoopUtils.deserializeFromBytes(this.hadoopSplit);
+      Configuration conf = this.conf.getWritable();
       TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
+      @SuppressWarnings("unchecked")
       RecordReader<K, V> reader =
               HadoopUtils.instantiateHadoopFormat(
                       hadoopFormatCls,

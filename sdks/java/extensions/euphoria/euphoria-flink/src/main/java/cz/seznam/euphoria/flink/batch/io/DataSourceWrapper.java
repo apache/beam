@@ -44,8 +44,8 @@ public class DataSourceWrapper<T>
     List<Partition<T>> partitions = dataSource.getPartitions();
 
     @SuppressWarnings("unchecked")
-    PartitionWrapper<T>[] splits = new PartitionWrapper[minNumSplits];
-    for (int i = 0; i < minNumSplits; i++) {
+    PartitionWrapper<T>[] splits = new PartitionWrapper[partitions.size()];
+    for (int i = 0; i < partitions.size(); i++) {
       splits[i] = new PartitionWrapper<>(i, partitions.get(i));
     }
 
