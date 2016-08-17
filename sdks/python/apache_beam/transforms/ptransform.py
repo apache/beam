@@ -221,7 +221,7 @@ class PTransform(WithTypeHints):
     Args:
       args: A tuple of position arguments.
       kwargs: A dictionary of keyword arguments.
-      arg_name: The name of the second ergument.
+      arg_name: The name of the second argument.
 
     Returns:
       A (label, value) tuple. The label will be the one passed in or one
