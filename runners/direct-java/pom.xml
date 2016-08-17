@@ -194,7 +194,7 @@
                   <pattern>com.google.common</pattern>
                   <excludes>
                     <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                    <exclude>com.google.common.**.testing</exclude>
+                    <exclude>com.google.common.**.testing.*</exclude>
                   </excludes>
                   <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.common</shadedPattern>
                 </relocation>
@@ -269,7 +269,7 @@
 
     <dependency>
       <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
-     excluding com.google.common.**.testing -->
+     excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
       <scope>test</scope>
