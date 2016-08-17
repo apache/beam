@@ -39,10 +39,10 @@ public class ValueProviderTest {
   public static interface TestOptions extends PipelineOptions {
     @Default.String("bar")
     ValueProvider<String> getBar();
-    void setBar(String bar);
+    void setBar(ValueProvider<String> bar);
 
     ValueProvider<String> getFoo();
-    void setFoo(String foo);
+    void setFoo(ValueProvider<String> foo);
   }
 
   @Test
@@ -73,7 +73,8 @@ public class ValueProviderTest {
   @Test
   public void testNoDefaultRuntimeProviderWithOverride() {
     TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
-    runtime.setFoo("quux");
+    // TODO: Figure out the best way to pass this to the test options.
+    runtime.setFoo(StaticValueProvider.of("quux"));
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
@@ -86,7 +87,8 @@ public class ValueProviderTest {
   @Test
   public void testDefaultRuntimeProviderWithOverride() {
     TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
-    runtime.setBar("quux");
+    // TODO: Figure out the best way to pass this to the test options.
+    runtime.setBar(StaticValueProvider.of("quux"));
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
