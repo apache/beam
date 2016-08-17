@@ -219,6 +219,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
 
+  @VisibleForTesting
+  static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1 * 1024 * 1024;
+
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
   /**
@@ -311,8 +314,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
-      dataflowOptions.setGcsUploadBufferSizeBytes(
-          AbstractGoogleAsyncWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT);
+      dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
 
     return new DataflowRunner(dataflowOptions);
