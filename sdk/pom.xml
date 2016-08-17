@@ -361,7 +361,7 @@
                   <pattern>com.google.common</pattern>
                   <excludes>
                     <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                    <exclude>com.google.common.**.testing</exclude>
+                    <exclude>com.google.common.**.testing.*</exclude>
                   </excludes>
                   <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.common</shadedPattern>
                 </relocation>
@@ -783,7 +783,7 @@
 
     <dependency>
       <!-- Note: when relocating guava, ensure guava-testlib is not
-           also relocated by excluding com.google.common.**.testing -->
+           also relocated by excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
       <version>${guava.version}</version>
