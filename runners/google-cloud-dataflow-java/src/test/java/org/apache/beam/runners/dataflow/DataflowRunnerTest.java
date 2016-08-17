@@ -797,31 +797,38 @@ public class DataflowRunnerTest {
   }
 
   @Test
-  public void testGcsUploadBufferSizeDefault() throws IOException {
+  public void testGcsUploadBufferSizeIsUnsetForBatchWhenDefault() throws IOException {
     DataflowPipelineOptions batchOptions = buildPipelineOptions();
-    DataflowRunner.fromOptions(batchOptions);
+    batchOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(batchOptions);
     assertNull(batchOptions.getGcsUploadBufferSizeBytes());
+  }
 
+  @Test
+  public void testGcsUploadBufferSizeIsSetForStreamingWhenDefault() throws IOException {
     DataflowPipelineOptions streamingOptions = buildPipelineOptions();
     streamingOptions.setStreaming(true);
-    DataflowRunner.fromOptions(streamingOptions);
+    streamingOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(streamingOptions);
     assertEquals(
-        AbstractGoogleAsyncWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT,
+        DataflowRunner.GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT,
         streamingOptions.getGcsUploadBufferSizeBytes().intValue());
   }
 
   @Test
-  public void testGcsUploadBufferSize() throws IOException {
+  public void testGcsUploadBufferSizeUnchangedWhenNotDefault() throws IOException {
     int gcsUploadBufferSizeBytes = 12345678;
     DataflowPipelineOptions batchOptions = buildPipelineOptions();
     batchOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
-    DataflowRunner.fromOptions(batchOptions);
+    batchOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(batchOptions);
     assertEquals(gcsUploadBufferSizeBytes, batchOptions.getGcsUploadBufferSizeBytes().intValue());
 
     DataflowPipelineOptions streamingOptions = buildPipelineOptions();
     streamingOptions.setStreaming(true);
     streamingOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
-    DataflowRunner.fromOptions(streamingOptions);
+    streamingOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(streamingOptions);
     assertEquals(
         gcsUploadBufferSizeBytes, streamingOptions.getGcsUploadBufferSizeBytes().intValue());
   }
