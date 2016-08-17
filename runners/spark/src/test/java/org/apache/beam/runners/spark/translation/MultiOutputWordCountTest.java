@@ -100,7 +100,7 @@ public class MultiOutputWordCountTest {
   }
 
   /**
-   * A OldDoFn that tokenizes lines of text into individual words.
+   * A {@link DoFn} that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<String, String> {
 

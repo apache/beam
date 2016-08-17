@@ -22,15 +22,14 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.apache.beam.sdk.transforms.OldDoFn;
 
 /**
- * Annotation to mark {@link OldDoFn DoFns} as an internal component of the Dataflow SDK.
+ * Annotation to mark {@code DoFns} as an internal component of the Beam SDK.
  *
  * <p>Currently, the only effect of this is to mark any aggregators reported by an annotated
- * {@code OldDoFn} as a system counter (as opposed to a user counter).
+ * {@code DoFn} as a system counter (as opposed to a user counter).
  *
- * <p>This is internal to the Dataflow SDK.
+ * <p>This is internal to the Beam SDK.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

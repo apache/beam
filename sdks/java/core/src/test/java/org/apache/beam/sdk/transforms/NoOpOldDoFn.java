@@ -28,7 +28,7 @@ import org.joda.time.Instant;
 
 /**
  * A {@link OldDoFn} that does nothing with provided elements. Used for testing
- * methods provided by the OldDoFn abstract class.
+ * methods provided by the {@link OldDoFn} abstract class.
  *
  * @param <InputT> unused.
  * @param <OutputT> unused.
