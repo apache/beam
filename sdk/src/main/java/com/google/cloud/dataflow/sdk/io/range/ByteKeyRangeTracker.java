@@ -175,7 +175,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
   }
 
   @Override
-  public String toString() {
+  public synchronized String toString() {
     return toStringHelper(ByteKeyRangeTracker.class)
         .add("range", range)
         .add("position", position)
