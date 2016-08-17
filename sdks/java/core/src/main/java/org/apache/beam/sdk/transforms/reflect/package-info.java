@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 /**
- * Defines the {@link org.apache.beam.sdk.transforms.join.CoGroupByKey} transform
- * for joining multiple PCollections.
+ * Defines reflection-based utilities for analyzing {@link org.apache.beam.sdk.transforms.DoFn}'s
+ * and creating {@link org.apache.beam.sdk.transforms.reflect.DoFnSignature}'s and
+ * {@link org.apache.beam.sdk.transforms.reflect.DoFnInvoker}'s from them.
  */
 package org.apache.beam.sdk.transforms.reflect;
