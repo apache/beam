@@ -22,7 +22,6 @@ import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -37,7 +36,7 @@ public interface TransformEvaluatorFactory {
    * Create a new {@link TransformEvaluator} for the application of the {@link PTransform}.
    *
    * <p>Any work that must be done before input elements are processed (such as calling
-   * {@link OldDoFn#startBundle(OldDoFn.Context)}) must be done before the
+   * {@code DoFn.StartBundle}) must be done before the
    * {@link TransformEvaluator} is made available to the caller.
    *
    * <p>May return null if the application cannot produce an evaluator (for example, it is a

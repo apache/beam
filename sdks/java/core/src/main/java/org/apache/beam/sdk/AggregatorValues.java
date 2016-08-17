@@ -21,11 +21,11 @@ import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * A collection of values associated with an {@link Aggregator}. Aggregators declared in a
- * {@link OldDoFn} are emitted on a per-{@code OldDoFn}-application basis.
+ * {@link DoFn} are emitted on a per-{@link DoFn}-application basis.
  *
  * @param <T> the output type of the aggregator
  */
