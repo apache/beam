@@ -19,19 +19,21 @@ public abstract class FlowTranslator {
    * @return List of {@link DataSink} processed in given flow (leaf nodes)
    */
   @SuppressWarnings("unchecked")
-  public abstract List<DataSink<?>> translateInto(Flow flow,
-                                                  ExecutionEnvironment executionEnvironment);
+  public abstract List<DataSink<?>> translateInto(Flow flow);
 
   /**
    * Converts {@link Flow} to {@link DAG} of Flink specific {@link FlinkOperator}
    */
   protected DAG<FlinkOperator<?>> flowToDag(Flow flow) {
     DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, getSupportedOperators());
-    DAG<FlinkOperator<?>> dag = new FlowOptimizer().optimize(unfolded);
+    DAG<FlinkOperator<?>> dag = createOptimizer().optimize(unfolded);
 
     return dag;
   }
 
+  protected FlowOptimizer createOptimizer() {
+    return new FlowOptimizer();
+  }
 
   public abstract Set<Class<? extends Operator<?, ?>>> getSupportedOperators();
 }
