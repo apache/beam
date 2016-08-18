@@ -1216,6 +1216,37 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  public void testTransformingSourceUnsplittable() throws Exception {
+    int numElements = 10000;
+    @SuppressWarnings("deprecation")
+    BoundedSource<Long> longSource =
+        SourceTestUtils.toUnsplittableSource(CountingSource.upTo(numElements));
+    SerializableFunction<Long, String> toStringFn =
+        new SerializableFunction<Long, String>() {
+          @Override
+          public String apply(Long input) {
+            return input.toString();
+          }
+        };
+    BoundedSource<String> stringSource =
+        new TransformingSource<>(longSource, toStringFn, StringUtf8Coder.of());
+
+    List<String> expected = Lists.newArrayList();
+    for (int i = 0; i < numElements; i++) {
+      expected.add(String.valueOf(i));
+    }
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Assert.assertThat(
+        SourceTestUtils.readFromSource(stringSource, options), CoreMatchers.is(expected));
+    SourceTestUtils.assertSplitAtFractionBehavior(
+        stringSource, 100, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
+
+    SourceTestUtils.assertSourcesEqualReferenceSource(
+        stringSource, stringSource.splitIntoBundles(100, options), options);
+  }
+
+  @Test
   @Category(RunnableOnService.class)
   public void testPassThroughThenCleanup() throws Exception {
     Pipeline p = TestPipeline.create();
