@@ -65,6 +65,13 @@ public class NullableCoder<T> extends StandardCoder<T> {
     this.valueCoder = valueCoder;
   }
 
+  /**
+   * Returns the inner {@link Coder} wrapped by this {@link NullableCoder} instance.
+   */
+  public Coder<T> getValueCoder() {
+    return valueCoder;
+  }
+
   @Override
   public void encode(@Nullable T value, OutputStream outStream, Context context)
       throws IOException, CoderException  {
