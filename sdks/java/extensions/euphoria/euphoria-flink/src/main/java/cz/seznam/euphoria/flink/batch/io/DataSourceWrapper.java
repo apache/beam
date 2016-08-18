@@ -36,6 +36,8 @@ public class DataSourceWrapper<T>
 
   @Override
   public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
+    // TODO euphoria cannot provide the stats at the moment determine whether it is
+    // worth building an abstraction such that we could provide the stats to flink
     return null;
   }
 
@@ -69,7 +71,8 @@ public class DataSourceWrapper<T>
 
   @Override
   public T nextRecord(T reuse) throws IOException {
-    // TODO reader could reuse instance instead allocating a new one
+    // euphoria's readers cannot re-use instances as they're supposed
+    // to provide new, independent objects
     return reader.next();
   }
 
