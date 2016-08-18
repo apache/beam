@@ -51,47 +51,7 @@ import java.util.Map;
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
-public interface ValueProvider<T> {
-
-  static class Serializer extends JsonSerializer<ValueProvider<?>> {
-    @Override
-    public void serialize(ValueProvider<?> value, JsonGenerator jgen, SerializerProvider provider) throws IOException {
-      if (value.shouldValidate()) {
-        jgen.writeStartObject();
-        jgen.writeObject(value.get());
-        jgen.writeEndObject();
-      }
-    }
-  }
-
-  static class Deserializer<U>
-    extends JsonDeserializer<ValueProvider<U>>
-    implements ContextualDeserializer {
-
-    @Override
-    public JsonDeserializer<?> createContextual(DeserializationContext ctxt,
-                                                BeanProperty property)
-      throws JsonMappingException {
-      checkNotNull(ctxt);
-      JavaType type = checkNotNull(ctxt.getContextualType());
-      JavaType[] params = type.findTypeParameters(ValueProvider.class);
-      if (params.length != 1) {
-        throw new RuntimeException("Unable to derive type for ValueProvider: " + type.toString());
-      }
-      JavaType innerType = params[0];
-      // return new Deserializer<innerType.getRawClass()>();
-      return null;
-    }
-    
-    @Override
-    public ValueProvider<U> deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException, JsonProcessingException {
-      JsonDeserializer dser = ctxt.findRootValueDeserializer(U.class);
-      U o = (U) dser.deserialize(jp, ctxt);
-      return StaticValueProvider.of(o);
-    }
-  }
-  
+public interface ValueProvider<T> {  
   T get();
 
   /** Whether the contents of this ValueProvider is available to validation
@@ -168,7 +128,7 @@ public interface ValueProvider<T> {
         Method method = klass.getMethod(methodName);
         PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
-        return (T) handler.invoke(methodOptions, method, null);
+        return ((StaticValueProvider<T>) handler.invoke(methodOptions, method, null)).get();
       } catch (Throwable e) {
         throw new RuntimeException("Unable to load runtime value.", e);
       }
@@ -177,6 +137,57 @@ public interface ValueProvider<T> {
     @Override
     public boolean shouldValidate() {
       return defaultValue != null;
+    }
+  }
+
+  
+  static class Serializer extends JsonSerializer<ValueProvider<?>> {
+    @Override
+    public void serialize(ValueProvider<?> value, JsonGenerator jgen, SerializerProvider provider) throws IOException {
+      if (value.shouldValidate()) {
+        jgen.writeStartObject();
+        jgen.writeObject(value.get());
+        jgen.writeEndObject();
+      }
+    }
+  }
+
+  static class Deserializer extends JsonDeserializer<ValueProvider<?>>
+    implements ContextualDeserializer {
+    
+    final private JavaType innerType;
+
+    // A 0-arg constructor is required.
+    Deserializer() {
+      this.innerType = null;
+    }
+
+    Deserializer(JavaType innerType) {
+      this.innerType = innerType;
+    }
+
+    @Override
+    public JsonDeserializer<?> createContextual(DeserializationContext ctxt,
+                                                BeanProperty property)
+      throws JsonMappingException {
+      checkNotNull(ctxt);
+      JavaType type = checkNotNull(ctxt.getContextualType());
+      JavaType[] params = type.findTypeParameters(ValueProvider.class);
+      if (params.length != 1) {
+        throw new RuntimeException(
+          "Unable to derive type for ValueProvider: " + type.toString());
+      }
+      JavaType param = params[0];
+      return new Deserializer(param);
+    }
+    
+    @Override
+    public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      JsonDeserializer dser = ctxt.findRootValueDeserializer(
+        checkNotNull(innerType));
+      Object o = dser.deserialize(jp, ctxt);
+      return StaticValueProvider.of(o);
     }
   }
 }
