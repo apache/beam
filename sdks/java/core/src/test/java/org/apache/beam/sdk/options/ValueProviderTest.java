@@ -24,6 +24,9 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -60,6 +63,7 @@ public class ValueProviderTest {
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Not called from a runtime context");
+    provider.get();
   }
 
   @Test
@@ -71,10 +75,11 @@ public class ValueProviderTest {
   }
 
   @Test
-  public void testNoDefaultRuntimeProviderWithOverride() {
-    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
-    // TODO: Figure out the best way to pass this to the test options.
-    runtime.setFoo(StaticValueProvider.of("quux"));
+  public void testNoDefaultRuntimeProviderWithOverride() throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    TestOptions runtime = mapper.readValue(
+      "{ \"options\": { \"foo\": \"quux\" }}", PipelineOptions.class)
+      .as(TestOptions.class);
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
@@ -85,10 +90,11 @@ public class ValueProviderTest {
   }
 
   @Test
-  public void testDefaultRuntimeProviderWithOverride() {
-    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
-    // TODO: Figure out the best way to pass this to the test options.
-    runtime.setBar(StaticValueProvider.of("quux"));
+  public void testDefaultRuntimeProviderWithOverride() throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    TestOptions runtime = mapper.readValue(
+      "{ \"options\": { \"bar\": \"quux\" }}", PipelineOptions.class)
+      .as(TestOptions.class);
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
