@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
@@ -35,7 +36,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -44,6 +47,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DoFnTesterTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void processElement() throws Exception {
@@ -126,6 +130,16 @@ public class DoFnTesterTest {
   }
 
   @Test
+  public void processElementAfterFinish() throws Exception {
+    DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn());
+    tester.finishBundle();
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("finishBundle() has already been called");
+    tester.processElement(1L);
+  }
+
+  @Test
   public void processBatch() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
@@ -145,7 +159,25 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void processElementWithTimestamp() throws Exception {
+  public void processTimestampedElement() throws Exception {
+    DoFn<Long, TimestampedValue<Long>> reifyTimestamps = new ReifyTimestamps();
+
+    DoFnTester<Long, TimestampedValue<Long>> tester = DoFnTester.of(reifyTimestamps);
+
+    TimestampedValue<Long> input = TimestampedValue.of(1L, new Instant(100));
+    tester.processTimestampedElement(input);
+    assertThat(tester.takeOutputElements(), contains(input));
+  }
+
+  static class ReifyTimestamps extends DoFn<Long, TimestampedValue<Long>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(TimestampedValue.of(c.element(), c.timestamp()));
+    }
+  }
+
+  @Test
+  public void processElementWithOutputTimestamp() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
 
