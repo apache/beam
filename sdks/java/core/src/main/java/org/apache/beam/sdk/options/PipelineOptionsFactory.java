@@ -1480,7 +1480,7 @@ public class PipelineOptionsFactory {
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
-            throw new IllegalArgumentException("Unable to parse JSON value " + value, e);
+            throw new IllegalArgumentException("Unable to parse JSON value " + value + " for type " + type.toString(), e);
           }
         }
       } catch (IllegalArgumentException e) {
