@@ -10,7 +10,7 @@ import java.util.Collection;
  * Decorated representation of {@link Operator} by Flink specific information
  * that is needed for Euphoria to Flink translation.
  */
-public class FlinkOperator<OP extends Operator> extends Operator {
+public class FlinkOperator<OP extends Operator> extends Operator<Object, Object> {
 
   private final OP wrapped;
   private int parallelism;
@@ -22,13 +22,14 @@ public class FlinkOperator<OP extends Operator> extends Operator {
 
   @Override
   @SuppressWarnings("unchecked")
-  public Collection<Dataset<?>> listInputs() {
-    return  wrapped.listInputs();
+  public Collection<Dataset<Object>> listInputs() {
+    return (Collection) wrapped.listInputs();
   }
 
   @Override
-  public Dataset<?> output() {
-    return wrapped.output();
+  @SuppressWarnings("unchecked")
+  public Dataset<Object> output() {
+    return (Dataset) wrapped.output();
   }
 
   @Override
