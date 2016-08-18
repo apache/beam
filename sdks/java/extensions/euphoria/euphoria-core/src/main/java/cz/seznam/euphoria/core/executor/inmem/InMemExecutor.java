@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.executor.inmem;
 
+import cz.seznam.euphoria.core.client.dataset.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.WindowID;
@@ -103,9 +104,9 @@ public class InMemExecutor implements Executor {
         throw new EndOfStreamException();
       }
       T next = this.reader.next();
-      WindowID<Void, BatchWindowing.Batch> w =
-          BatchWindowing.get().assignWindows(next).iterator().next();
-      return new Datum<>(w.getGroup(), w.getLabel(), next);
+      // we assign it to batch
+      // which means null group, and batch label
+      return new WindowedElement<>(WindowID.aligned(BatchWindowing.Batch.get()), next);
     }
   }
 
@@ -343,9 +344,9 @@ public class InMemExecutor implements Executor {
                   continue;
                 }
                 // ~ unwrap the bare bone element from the inmem
-                // specific "Datum" cargo object
-                Datum datum = (Datum) elem;
-                writer.write(datum.element);
+                // specific "WindowedElement" cargo object
+                WindowedElement element = (WindowedElement) elem;
+                writer.write(element.get());
               }
             } catch (EndOfStreamException ex) {
               // end of the stream
@@ -484,7 +485,7 @@ public class InMemExecutor implements Executor {
       ret.add((Supplier) QueueSupplier.wrap(out));
       executor.execute(() -> {
         QueueCollector outQ = QueueCollector.wrap(out);
-        DatumCollector outC = new DatumCollector(outQ);
+        WindowedElementCollector outC = new WindowedElementCollector(outQ);
         try {
           for (;;) {
             // read input
@@ -492,10 +493,10 @@ public class InMemExecutor implements Executor {
             if (o instanceof EndOfWindow) {
               outQ.collect(o);
             } else {
-              Datum d = (Datum) o;
+              WindowedElement d = (WindowedElement) o;
               // transform
-              outC.assignWindowing(d.group, d.label);
-              mapper.apply(d.element, outC);
+              outC.assignWindowing(d.getWindowID());
+              mapper.apply(d.get(), outC);
             }
           }
         } catch (EndOfStreamException ex) {
@@ -626,14 +627,14 @@ public class InMemExecutor implements Executor {
                   }
                 }
               } else {
-                Datum d = (Datum) o;
+                WindowedElement elem = (WindowedElement) o;
                 // determine partition
-                Object key = keyExtractor.apply(d.element);
+                Object key = keyExtractor.apply(elem.get());
                 int partition
                     = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
                       % outputPartitions;
-                // write to the right partition
-                ret.get(partition).put(d);
+                // write to the correct partition
+                ret.get(partition).put(elem);
               }
             }
           } catch (EndOfStreamException ex) {
