@@ -23,15 +23,18 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
@@ -61,12 +64,14 @@ public interface ValueProvider<T> {
     }
   }
 
-  static class Deserializer extends JsonDeserializer<ValueProvider<?>> {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+  static class Deserializer<U>
+    extends JsonDeserializer<ValueProvider<U>>
+    implements ContextualDeserializer {
 
     @Override
-    public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException, JsonProcessingException {
+    public JsonDeserializer<?> createContextual(DeserializationContext ctxt,
+                                                BeanProperty property)
+      throws JsonMappingException {
       checkNotNull(ctxt);
       JavaType type = checkNotNull(ctxt.getContextualType());
       JavaType[] params = type.findTypeParameters(ValueProvider.class);
@@ -74,8 +79,15 @@ public interface ValueProvider<T> {
         throw new RuntimeException("Unable to derive type for ValueProvider: " + type.toString());
       }
       JavaType innerType = params[0];
-      JsonDeserializer dser = ctxt.findRootValueDeserializer(innerType);
-      Object o = dser.deserialize(jp, ctxt);
+      // return new Deserializer<innerType.getRawClass()>();
+      return null;
+    }
+    
+    @Override
+    public ValueProvider<U> deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      JsonDeserializer dser = ctxt.findRootValueDeserializer(U.class);
+      U o = (U) dser.deserialize(jp, ctxt);
       return StaticValueProvider.of(o);
     }
   }
