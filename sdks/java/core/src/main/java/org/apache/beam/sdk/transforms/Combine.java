@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -1815,7 +1816,14 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(final int hotKeyFanout) {
       return new PerKeyWithHotKeyFanout<>(name, fn, fnDisplayData,
-          new SerializableFunction<K, Integer>() {
+          new SimpleFunction<K, Integer>() {
+            @Override
+            public void populateDisplayData(Builder builder) {
+              super.populateDisplayData(builder);
+              builder.addIfNotDefault(DisplayData.item("fanout", hotKeyFanout)
+                  .withLabel("Key Fanout Size"), 0);
+            }
+
             @Override
             public Integer apply(K unused) {
               return hotKeyFanout;
@@ -1904,7 +1912,7 @@ public class Combine {
           new InputOrAccum.InputOrAccumCoder<InputT, AccumT>(
               inputCoder.getValueCoder(), accumCoder);
 
-      // A CombineFn's mergeAccumulator can be applied in a tree-like fashon.
+      // A CombineFn's mergeAccumulator can be applied in a tree-like fashion.
       // Here we shard the key using an integer nonce, combine on that partial
       // set of values, then drop the nonce and do a final combine of the
       // aggregates.  We do this by splitting the original CombineFn into two,
@@ -1943,6 +1951,16 @@ public class Combine {
                   CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                   throws CannotProvideCoderException {
                 return accumCoder;
+              }
+
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                super.populateDisplayData(builder);
+                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
+                    .withLabel("Fanout Function"));
+                if (hotKeyFanout instanceof HasDisplayData) {
+                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
+                }
               }
             };
         postCombine =
@@ -1988,6 +2006,15 @@ public class Combine {
                       throws CannotProvideCoderException {
                 return accumCoder;
               }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                super.populateDisplayData(builder);
+                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
+                    .withLabel("Fanout Function"));
+                if (hotKeyFanout instanceof HasDisplayData) {
+                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
+                }
+              }
             };
       } else {
         final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedFnWithContext =
@@ -2027,6 +2054,15 @@ public class Combine {
                   CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                   throws CannotProvideCoderException {
                 return accumCoder;
+              }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                super.populateDisplayData(builder);
+                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
+                    .withLabel("Fanout Function"));
+                if (hotKeyFanout instanceof HasDisplayData) {
+                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
+                }
               }
             };
         postCombine =
@@ -2073,6 +2109,15 @@ public class Combine {
                   throws CannotProvideCoderException {
                 return accumCoder;
               }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                super.populateDisplayData(builder);
+                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
+                    .withLabel("Fanout Function"));
+                if (hotKeyFanout instanceof HasDisplayData) {
+                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
+                }
+              }
             };
       }
 
@@ -2117,7 +2162,7 @@ public class Combine {
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
-          .apply("PreCombineHot", Combine.perKey(hotPreCombine))
+          .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
           .apply("StripNonce", MapElements.via(
               new SimpleFunction<KV<KV<K, Integer>, AccumT>,
                        KV<K, InputOrAccum<InputT, AccumT>>>() {
@@ -2147,7 +2192,7 @@ public class Combine {
       // Combine the union of the pre-processed hot and cold key results.
       return PCollectionList.of(precombinedHot).and(preprocessedCold)
           .apply(Flatten.<KV<K, InputOrAccum<InputT, AccumT>>>pCollections())
-          .apply("PostCombine", Combine.perKey(postCombine));
+          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
     }
 
     @Override
