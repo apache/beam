@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -17,7 +17,7 @@ import static java.util.Objects.requireNonNull;
 
 public class TopPerKey<
         IN, KEY, VALUE, SCORE extends Comparable<SCORE>,
-        WLABEL, W extends Window<?, WLABEL>>
+        WLABEL, W extends WindowContext<?, WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, WLABEL, W,
     TopPerKey<IN, KEY, VALUE, SCORE, WLABEL, W>>
@@ -121,7 +121,7 @@ public class TopPerKey<
       this.scoreFn = scoreFn;
     }
 
-    public <WLABEL, W extends Window<?, WLABEL>>
+    public <WLABEL, W extends WindowContext<?, WLABEL>>
     OutputBuilder<IN, K, V, S, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing)
     {
@@ -135,7 +135,7 @@ public class TopPerKey<
   }
 
   public static class OutputBuilder<
-      IN, K, V, S extends Comparable<S>, WLABEL, W extends Window<?, WLABEL>>
+      IN, K, V, S extends Comparable<S>, WLABEL, W extends WindowContext<?, WLABEL>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
   {
     private final Dataset<IN> input;

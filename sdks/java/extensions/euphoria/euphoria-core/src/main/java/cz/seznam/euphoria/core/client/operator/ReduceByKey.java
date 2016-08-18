@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -29,7 +29,7 @@ import java.util.Objects;
  * @param <OUT> Type of output value
  */
 public class ReduceByKey<
-    IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W extends Window<?, WLABEL>,
+    IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W extends WindowContext<?, WLABEL>,
     PAIROUT extends Pair<KEYOUT, OUT>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, KIN, KEY, PAIROUT, WLABEL, W,
@@ -133,7 +133,7 @@ public class ReduceByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
     }
-    public  <WLABEL, W extends Window<?, WLABEL>>
+    public  <WLABEL, W extends WindowContext<?, WLABEL>>
     DatasetBuilder5<IN, KEY, VALUE, OUT, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
@@ -149,7 +149,7 @@ public class ReduceByKey<
   }
 
   public static class DatasetBuilder5<
-          IN, KEY, VALUE, OUT, WLABEL, W extends Window<?, WLABEL>>
+          IN, KEY, VALUE, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
       extends PartitioningBuilder<KEY, DatasetBuilder5<IN, KEY, VALUE, OUT, WLABEL, W>>
       implements OutputBuilder<Pair<KEY, OUT>>
   {
@@ -277,7 +277,7 @@ public class ReduceByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
     }
-    public <WLABEL, W extends Window<?, WLABEL>>
+    public <WLABEL, W extends WindowContext<?, WLABEL>>
     GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
@@ -291,7 +291,7 @@ public class ReduceByKey<
   }
 
   public static class GroupedDatasetBuilder5<
-          IN, KIN, KEY, VALUE, OUT, WLABEL, W extends Window<?, WLABEL>>
+          IN, KIN, KEY, VALUE, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
       extends PartitioningBuilder<
           KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, WLABEL, W>>
       implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
