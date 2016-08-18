@@ -443,7 +443,10 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
             .getActualTypeArguments()[0];
           type = MAPPER.getTypeFactory().constructType(innerType);
         } else {
-          throw new RuntimeException("Unable to derive type for ValueProvider");
+          // This path is the one that executes, because the conditional fails.
+          //
+          type = MAPPER.getTypeFactory().constructType(String.class);
+          // throw new RuntimeException("Unable to derive type for ValueProvider: " + returnType.toString());
         }
       } else {
         type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
@@ -658,7 +661,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
     public PipelineOptions deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {
       ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
-      ObjectNode optionsNode = (ObjectNode) objectNode.get("options");
+      ObjectNode optionsNode = (ObjectNode) checkNotNull(objectNode.get("options"));
 
       Map<String, JsonNode> fields = Maps.newHashMap();
       for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();
