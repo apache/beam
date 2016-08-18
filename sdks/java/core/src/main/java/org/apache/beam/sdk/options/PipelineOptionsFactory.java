@@ -1464,7 +1464,8 @@ public class PipelineOptionsFactory {
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
+        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
+                   || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
                "Empty argument value is only allowed for String, String Array, "
