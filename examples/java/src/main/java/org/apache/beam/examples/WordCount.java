@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -211,7 +210,7 @@ public class WordCount {
     public static class InputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
-        if (options.getRunner().isAssignableFrom(SparkRunner.class)) {
+        if (options.getRunner().getName().contains("SparkRunner")) {
           return Resources.getResource("LICENSE").getPath();
         } else {
           return "gs://apache-beam-samples/apache/LICENSE";
