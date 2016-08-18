@@ -47,7 +47,8 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriterFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntityFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKeyFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3Options;
@@ -353,12 +354,12 @@ public class V1Beta3Test {
   public void testDeleteEntitiesWithIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
-    DeleteFn deleteFn = new DeleteFn();
+    DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Entities to be deleted from the Datastore must have complete keys");
 
-    deleteFn.apply(entity);
+    deleteEntityFn.apply(entity);
   }
 
   /**
@@ -368,10 +369,36 @@ public class V1Beta3Test {
   public void testDeleteEntities() throws Exception {
     Key key = makeKey("bird", "finch").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
-    DeleteFn deleteFn = new DeleteFn();
+    DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
 
     Mutation exceptedMutation = makeDelete(entity.getKey()).build();
-    assertEquals(deleteFn.apply(entity), exceptedMutation);
+    assertEquals(deleteEntityFn.apply(entity), exceptedMutation);
+  }
+
+  /**
+   * Test that incomplete keys cannot be deleted.
+   */
+  @Test
+  public void testDeleteIncompleteKeys() throws Exception {
+    Key key = makeKey("bird").build();
+    DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Keys to be deleted from the Datastore must be complete");
+
+    deleteKeyFn.apply(key);
+  }
+
+  /**
+   * Test that valid keys are transformed to delete mutations.
+   */
+  @Test
+  public void testDeleteKeys() throws Exception {
+    Key key = makeKey("bird", "finch").build();
+    DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
+
+    Mutation exceptedMutation = makeDelete(key).build();
+    assertEquals(deleteKeyFn.apply(key), exceptedMutation);
   }
 
   /** Tests {@link DatastoreWriterFn} with entities less than one batch. */

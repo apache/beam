@@ -133,12 +133,21 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>To delete a {@link PCollection} of entities from Datastore, use {@link V1Beta3#delete},
- * specifying the Cloud Datastore project to write to:
+ * <p>To delete a {@link PCollection} of {@link Entity Entities} from Datastore, use
+ * {@link V1Beta3#deleteEntity()}, specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1beta3().delete().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1beta3().deleteEntity().withProjectId(projectId));
+ * p.run();
+ * } </pre>
+ *
+ * <p>To delete a {@link PCollection} of {@link Key Keys} from Datastore, use
+ * {@link V1Beta3#deleteKey}, specifying the Cloud Datastore project to write to:
+ *
+ * <pre> {@code
+ * PCollection<Entity> entities = ...;
+ * entities.apply(DatastoreIO.v1beta3().deleteKey().withProjectId(projectId));
  * p.run();
  * } </pre>
  *
@@ -655,11 +664,19 @@ public class V1Beta3 {
   }
 
   /**
-   * Returns an empty {@link V1Beta3.Delete} builder. Configure the destination
-   * {@code projectId} using {@link V1Beta3.Delete#withProjectId}.
+   * Returns an empty {@link DeleteEntity} builder. Configure the destination
+   * {@code projectId} using {@link DeleteEntity#withProjectId}.
    */
-  public Delete delete() {
-    return new Delete(null);
+  public DeleteEntity deleteEntity() {
+    return new DeleteEntity(null);
+  }
+
+  /**
+   * Returns an empty {@link DeleteKey} builder. Configure the destination
+   * {@code projectId} using {@link DeleteKey#withProjectId}.
+   */
+  public DeleteKey deleteKey() {
+    return new DeleteKey(null);
   }
 
   /**
@@ -667,12 +684,12 @@ public class V1Beta3 {
    *
    * @see DatastoreIO
    */
-  public static class Write extends DatastoreMutation {
+  public static class Write extends Mutate<Entity> {
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    public Write(@Nullable String projectId) {
+    Write(@Nullable String projectId) {
       super(projectId, new UpsertFn());
     }
 
@@ -686,55 +703,81 @@ public class V1Beta3 {
   }
 
   /**
-   * A {@link PTransform} that deletes {@link Entity} objects from Cloud Datastore.
+   * A {@link PTransform} that deletes {@link Entity Entities} from Cloud Datastore.
    *
    * @see DatastoreIO
    */
-  public static class Delete extends DatastoreMutation {
+  public static class DeleteEntity extends Mutate<Entity> {
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    public Delete(@Nullable String projectId) {
-      super(projectId, new DeleteFn());
+    DeleteEntity(@Nullable String projectId) {
+      super(projectId, new DeleteEntityFn());
     }
 
     /**
-     * Returns a new {@link Delete} that deletes from the Cloud Datastore for the specified project.
+     * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore for the
+     * specified project.
      */
-    public Delete withProjectId(String projectId) {
+    public DeleteEntity withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new Delete(projectId);
+      return new DeleteEntity(projectId);
     }
   }
 
   /**
-   * A {@link PTransform} that writes mutations of {@link Entity} objects to Cloud Datastore.
+   * A {@link PTransform} that deletes {@link Entity Entities} associated with the given
+   * {@link Key Keys} from Cloud Datastore.
    *
-   * <p>It requires a {@link DoFn} that tranforms an {@code Entity} object to a {@link Mutation}
+   * @see DatastoreIO
+   */
+  public static class DeleteKey extends Mutate<Key> {
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    DeleteKey(@Nullable String projectId) {
+      super(projectId, new DeleteKeyFn());
+    }
+
+    /**
+     * Returns a new {@link DeleteKey} that deletes entities from the Cloud Datastore for the
+     * specified project.
+     */
+    public DeleteKey withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new DeleteKey(projectId);
+    }
+  }
+
+  /**
+   * A {@link PTransform} that writes mutations to Cloud Datastore.
+   *
+   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}
    * <b>Note:</b> Only idempotent Cloud Datastore mutation operations (upsert and delete) should
    * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
    */
-  private static class DatastoreMutation extends PTransform<PCollection<Entity>, PDone> {
+  private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     private final String projectId;
     // A function that transforms each entity into a mutation.
-    private final SimpleFunction<Entity, Mutation> mutationFn;
+    private final SimpleFunction<T, Mutation> mutationFn;
 
-    public DatastoreMutation(String projectId, SimpleFunction<Entity, Mutation> mutationFn) {
+    Mutate(String projectId, SimpleFunction<T, Mutation> mutationFn) {
       this.projectId = projectId;
       this.mutationFn = mutationFn;
     }
 
     @Override
-    public PDone apply(PCollection<Entity> input) {
-      input.apply(MapElements.via(mutationFn))
-          .apply(ParDo.of(new DatastoreWriterFn(projectId)));
+    public PDone apply(PCollection<T> input) {
+      input.apply("Convert to Mutation", MapElements.via(mutationFn))
+          .apply("Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId)));
 
       return PDone.in(input.getPipeline());
     }
 
     @Override
-    public void validate(PCollection<Entity> input) {
+    public void validate(PCollection<T> input) {
       checkNotNull(projectId, "projectId");
       checkNotNull(mutationFn, "mutationFn");
     }
@@ -753,8 +796,7 @@ public class V1Beta3 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"))
-          .addIfNotNull(DisplayData.item("mutationFn", mutationFn.getClass().getName())
-              .withLabel("Datastore Mutation Function"));
+          .include(mutationFn);
     }
 
     public String getProjectId() {
@@ -795,7 +837,7 @@ public class V1Beta3 {
      */
     private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
-    public DatastoreWriterFn(String projectId) {
+    DatastoreWriterFn(String projectId) {
       this(projectId, new V1Beta3DatastoreFactory());
     }
 
@@ -897,9 +939,16 @@ public class V1Beta3 {
       // Verify that the entity to write has a complete key.
       if (!isValidKey(entity.getKey())) {
         throw new IllegalArgumentException(
-            "Entities to be written to the Datastore must have complete keys");
+            String.format("Entities to be written to the Datastore must have complete keys:\n%s",
+                entity));
       }
       return makeUpsert(entity).build();
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.add(DisplayData.item("upsertFn", this.getClass().getName())
+          .withLabel("Constructs upsert Mutation from Entity"));
     }
   }
 
@@ -907,15 +956,45 @@ public class V1Beta3 {
    * A function that constructs a delete {@link Mutation} from an {@link Entity}.
    */
   @VisibleForTesting
-  static class DeleteFn extends SimpleFunction<Entity, Mutation> {
+  static class DeleteEntityFn extends SimpleFunction<Entity, Mutation> {
     @Override
     public Mutation apply(Entity entity) {
       // Verify that the entity to delete has a complete key.
       if (!isValidKey(entity.getKey())) {
         throw new IllegalArgumentException(
-            "Entities to be deleted from the Datastore must have complete keys");
+            String.format("Entities to be deleted from the Datastore must have complete keys:\n%s",
+                entity));
       }
       return makeDelete(entity.getKey()).build();
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.add(DisplayData.item("deleteEntityFn", this.getClass().getName())
+          .withLabel("Constructs delete Mutation from Entity"));
+    }
+  }
+
+  /**
+   * A function that constructs a delete {@link Mutation} from an {@link Key}.
+   */
+  @VisibleForTesting
+  static class DeleteKeyFn extends SimpleFunction<Key, Mutation> {
+    @Override
+    public Mutation apply(Key key) {
+      // Verify that the entity to delete has a complete key.
+      if (!isValidKey(key)) {
+        throw new IllegalArgumentException(
+            String.format("Keys to be deleted from the Datastore must be complete:\n%s",
+                key));
+      }
+      return makeDelete(key).build();
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.add(DisplayData.item("deleteKeyFn", this.getClass().getName())
+          .withLabel("Constructs delete Mutation from Key"));
     }
   }
 
