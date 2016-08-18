@@ -52,8 +52,12 @@ public interface ValueProvider<T> {
 
   static class Serializer extends JsonSerializer<ValueProvider<?>> {
     @Override
-    public void serialize(ValueProvider<?> value, JsonGenerator jgen, SerializerProvider provider) {
-      
+    public void serialize(ValueProvider<?> value, JsonGenerator jgen, SerializerProvider provider) throws IOException {
+      if (value.shouldValidate()) {
+        jgen.writeStartObject();
+        jgen.writeObject(value.get());
+        jgen.writeEndObject();
+      }
     }
   }
 
@@ -70,11 +74,8 @@ public interface ValueProvider<T> {
         throw new RuntimeException("Unable to derive type for ValueProvider: " + type.toString());
       }
       JavaType innerType = params[0];
-
-      ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
-      // Check exactly one field?
-      Map.Entry<String, JsonNode> field = objectNode.fields().next();
-      Object o = MAPPER.readValue(field.getValue().toString(), innerType);
+      JsonDeserializer dser = ctxt.findRootValueDeserializer(innerType);
+      Object o = dser.deserialize(jp, ctxt);
       return StaticValueProvider.of(o);
     }
   }
