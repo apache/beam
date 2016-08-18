@@ -57,7 +57,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     return tuples.groupBy((KeySelector) new TypedKeySelector<>())
         .reduce(new TypedReducer(reducer))
         .setParallelism(operator.getParallelism())
-        .name(operator.getName());
+        .name(operator.getName() + "::reduce");
   }
 
   private static class TypedKeySelector<KEY>

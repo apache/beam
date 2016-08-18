@@ -8,11 +8,12 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
-import cz.seznam.euphoria.flink.ExecutionEnvironment;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.FlowOptimizer;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.batch.io.DataSinkWrapper;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -34,17 +35,26 @@ public class BatchFlowTranslator extends FlowTranslator {
     TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
   }
 
+  private final ExecutionEnvironment env;
+
+  public BatchFlowTranslator(ExecutionEnvironment env) {
+    this.env = Objects.requireNonNull(env);
+  }
+
+  @Override
+  protected FlowOptimizer createOptimizer() {
+    FlowOptimizer opt = new FlowOptimizer();
+    opt.setMaxParallelism(env.getParallelism());
+    return opt;
+  }
 
   @Override
   @SuppressWarnings("unchecked")
-  public List<DataSink<?>> translateInto(Flow flow,
-                                         ExecutionEnvironment executionEnvironment)
-  {
+  public List<DataSink<?>> translateInto(Flow flow) {
     // transform flow to acyclic graph of supported operators
     DAG<FlinkOperator<?>> dag = flowToDag(flow);
 
-    BatchExecutorContext executorContext =
-            new BatchExecutorContext(executionEnvironment.getBatchEnv(), dag);
+    BatchExecutorContext executorContext = new BatchExecutorContext(env, dag);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {

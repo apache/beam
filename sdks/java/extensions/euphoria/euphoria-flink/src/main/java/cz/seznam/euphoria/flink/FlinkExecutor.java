@@ -51,12 +51,12 @@ public class FlinkExecutor implements Executor {
     ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
     FlowTranslator translator;
     if (mode == ExecutionEnvironment.Mode.BATCH) {
-      translator = new BatchFlowTranslator();
+      translator = new BatchFlowTranslator(environment.getBatchEnv());
     } else {
-      translator = new StreamingFlowTranslator();
+      translator = new StreamingFlowTranslator(environment.getStreamEnv());
     }
 
-    List<DataSink<?>> sinks = translator.translateInto(flow, environment);
+    List<DataSink<?>> sinks = translator.translateInto(flow);
 
     if (dumpExecPlan) {
       LOG.info("Flink execution plan for {}: {}",
