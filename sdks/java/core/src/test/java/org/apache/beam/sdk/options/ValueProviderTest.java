@@ -85,7 +85,7 @@ public class ValueProviderTest {
     provider.get();
   }
 
-  @Ignore
+  @Test
   public void testDefaultRuntimeProvider() {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
@@ -108,7 +108,7 @@ public class ValueProviderTest {
     RuntimeValueProvider.setRuntimeOptions(null);
   }
 
-  @Ignore
+  @Test
   public void testDefaultRuntimeProviderWithOverride() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     TestOptions runtime = mapper.readValue(
