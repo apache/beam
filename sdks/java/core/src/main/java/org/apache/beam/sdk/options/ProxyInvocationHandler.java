@@ -435,22 +435,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   private Object getValueFromJson(String propertyName, Method method) {
     try {
-      JavaType type;
-      Type returnType = method.getReturnType();
-      if (returnType.equals(ValueProvider.class)) {
-        if (returnType instanceof ParameterizedType) {
-          Type innerType = ((ParameterizedType) returnType)
-            .getActualTypeArguments()[0];
-          type = MAPPER.getTypeFactory().constructType(innerType);
-        } else {
-          // This path is the one that executes, because the conditional fails.
-          //
-          type = MAPPER.getTypeFactory().constructType(String.class);
-          // throw new RuntimeException("Unable to derive type for ValueProvider: " + returnType.toString());
-        }
-      } else {
-        type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
-      }
+      JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
       JsonNode jsonNode = jsonOptions.get(propertyName);
       return MAPPER.readValue(jsonNode.toString(), type);
     } catch (IOException e) {

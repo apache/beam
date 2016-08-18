@@ -17,17 +17,73 @@
  */
 package org.apache.beam.sdk.options;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Map;
 
 /** {@link ValueProvider} is an interface which abstracts the notion of
  * fetching a value that may or may not be currently available.  This can be
  * used to parameterize transforms that only read values in at runtime, for
  * example.
  */
+@JsonSerialize(using = ValueProvider.Serializer.class)
+@JsonDeserialize(using = ValueProvider.Deserializer.class)
 public interface ValueProvider<T> {
+
+  static class Serializer extends JsonSerializer<ValueProvider<?>> {
+    @Override
+    public void serialize(ValueProvider<?> value, JsonGenerator jgen, SerializerProvider provider) {
+      
+    }
+  }
+
+  static class Deserializer extends JsonDeserializer<ValueProvider<?>> {
+    @Override
+    public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      /*
+        if (method.getReturnType().equals(ValueProvider.class)) {
+        Type returnType = method.getGenericReturnType();
+        if (returnType instanceof ParameterizedType) {
+          // Try to deserialize to a provider, then return?
+          Type innerType = ((ParameterizedType) returnType)
+            .getActualTypeArguments()[0];
+          type = MAPPER.getTypeFactory().constructType(innerType);
+        } else {
+          throw new RuntimeException("Unable to derive type for ValueProvider: " + returnType.toString());
+        }
+      } else {
+      */
+      
+      /*
+      ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
+      // Check exactly one field?
+      Map.Entry<String, JsonNode> field = objectNode.fields().next();
+      return StaticValueProvider.of(field.getValue());
+      */
+    }
+  }
+  
   T get();
 
   /** Whether the contents of this ValueProvider is available to validation

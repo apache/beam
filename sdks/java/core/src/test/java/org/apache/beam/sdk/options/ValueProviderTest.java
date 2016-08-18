@@ -49,6 +49,26 @@ public class ValueProviderTest {
   }
 
   @Test
+  @Ignore
+  public void testCommandLineNoDefault() {
+    TestOptions options = PipelineOptionsFactory.fromArgs(
+      new String[]{"--foo=baz"}).as(TestOptions.class);
+    ValueProvider<String> provider = options.getFoo();
+    assertEquals("baz", provider.get());
+    assertTrue(provider.shouldValidate());
+  }
+
+  @Test
+  @Ignore
+  public void testCommandLineWithDefault() {
+    TestOptions options = PipelineOptionsFactory.fromArgs(
+      new String[]{"--bar=baz"}).as(TestOptions.class);
+    ValueProvider<String> provider = options.getBar();
+    assertEquals("baz", provider.get());
+    assertTrue(provider.shouldValidate());
+  }
+
+  @Test
   public void testStaticValueProvider() {
     ValueProvider<String> provider = StaticValueProvider.of("foo");
     assertEquals("foo", provider.get());
