@@ -56,7 +56,7 @@ public class StreamingFlowTranslator extends FlowTranslator {
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
       Operator<?, ?> originalOp = op.getOriginalOperator();
-      StreamingOperatorTranslator translator = TRANSLATORS.get(originalOp.getClass());
+      StreamingOperatorTranslator translator = TRANSLATORS.get((Class) originalOp.getClass());
       if (translator == null) {
         throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");
