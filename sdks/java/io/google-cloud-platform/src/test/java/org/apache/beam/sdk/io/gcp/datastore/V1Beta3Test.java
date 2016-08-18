@@ -22,9 +22,11 @@ import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.DEFAULT_BUNDLE_S
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.getEstimatedSizeBytes;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.makeRequest;
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.isValidKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
@@ -45,12 +47,17 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriterFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntity;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntityFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKey;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKeyFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3Options;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.V1Beta3DatastoreFactory;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Write;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Write.DatastoreWriterFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -67,6 +74,7 @@ import com.google.datastore.v1beta3.CommitRequest;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
 import com.google.datastore.v1beta3.Key;
+import com.google.datastore.v1beta3.Mutation;
 import com.google.datastore.v1beta3.PartitionId;
 import com.google.datastore.v1beta3.Query;
 import com.google.datastore.v1beta3.QueryResultBatch;
@@ -233,7 +241,7 @@ public class V1Beta3Test {
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write();
+    Write write =  DatastoreIO.v1beta3().write();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -242,15 +250,14 @@ public class V1Beta3Test {
   }
 
   @Test
-  public void testSinkValidationSucceedsWithProject() throws Exception {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
+  public void testWriteValidationSucceedsWithProject() throws Exception {
+    Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
     write.validate(null);
   }
 
   @Test
   public void testWriteDisplayData() {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write()
-        .withProjectId(PROJECT_ID);
+    Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -258,8 +265,74 @@ public class V1Beta3Test {
   }
 
   @Test
+  public void testDeleteEntityDoesNotAllowNullProject() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    DatastoreIO.v1beta3().deleteEntity().withProjectId(null);
+  }
+
+  @Test
+  public void testDeleteEntityValidationFailsWithNoProject() throws Exception {
+    DeleteEntity deleteEntity = DatastoreIO.v1beta3().deleteEntity();
+
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    deleteEntity.validate(null);
+  }
+
+  @Test
+  public void testDeleteEntityValidationSucceedsWithProject() throws Exception {
+    DeleteEntity deleteEntity = DatastoreIO.v1beta3().deleteEntity().withProjectId(PROJECT_ID);
+    deleteEntity.validate(null);
+  }
+
+  @Test
+  public void testDeleteEntityDisplayData() {
+    DeleteEntity deleteEntity =  DatastoreIO.v1beta3().deleteEntity().withProjectId(PROJECT_ID);
+
+    DisplayData displayData = DisplayData.from(deleteEntity);
+
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+  }
+
+  @Test
+  public void testDeleteKeyDoesNotAllowNullProject() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    DatastoreIO.v1beta3().deleteKey().withProjectId(null);
+  }
+
+  @Test
+  public void testDeleteKeyValidationFailsWithNoProject() throws Exception {
+    DeleteKey deleteKey = DatastoreIO.v1beta3().deleteKey();
+
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    deleteKey.validate(null);
+  }
+
+  @Test
+  public void testDeleteKeyValidationSucceedsWithProject() throws Exception {
+    DeleteKey deleteKey = DatastoreIO.v1beta3().deleteKey().withProjectId(PROJECT_ID);
+    deleteKey.validate(null);
+  }
+
+  @Test
+  public void testDeleteKeyDisplayData() {
+    DeleteKey deleteKey =  DatastoreIO.v1beta3().deleteKey().withProjectId(PROJECT_ID);
+
+    DisplayData displayData = DisplayData.from(deleteKey);
+
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+  }
+
+  @Test
   @Category(RunnableOnService.class)
-  public void testSinkPrimitiveDisplayData() {
+  public void testWritePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
         DatastoreIO.v1beta3().write().withProjectId("myProject");
@@ -267,6 +340,39 @@ public class V1Beta3Test {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
         displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat("DatastoreIO write should include the upsertFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("upsertFn")));
+
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testDeleteEntityPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1beta3().deleteEntity().withProjectId("myProject");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("DatastoreIO write should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat("DatastoreIO write should include the deleteEntityFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("deleteEntityFn")));
+
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testDeleteKeyPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PCollection<Key>, ?> write =
+        DatastoreIO.v1beta3().deleteKey().withProjectId("myProject");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("DatastoreIO write should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat("DatastoreIO write should include the deleteKeyFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("deleteKeyFn")));
+
   }
 
   /**
@@ -286,33 +392,33 @@ public class V1Beta3Test {
     Key key;
     // Complete with name, no ancestor
     key = makeKey("bird", "finch").build();
-    assertTrue(Write.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Complete with id, no ancestor
     key = makeKey("bird", 123).build();
-    assertTrue(Write.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Incomplete, no ancestor
     key = makeKey("bird").build();
-    assertFalse(Write.isValidKey(key));
+    assertFalse(isValidKey(key));
 
     // Complete with name and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", "horned").build();
-    assertTrue(Write.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Complete with id and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", 123).build();
-    assertTrue(Write.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Incomplete with ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird").build();
-    assertFalse(Write.isValidKey(key));
+    assertFalse(isValidKey(key));
 
     key = makeKey().build();
-    assertFalse(Write.isValidKey(key));
+    assertFalse(isValidKey(key));
   }
 
   /**
@@ -322,14 +428,86 @@ public class V1Beta3Test {
   public void testAddEntitiesWithIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
-    DatastoreWriterFn writer = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
-    DoFnTester<Entity, Void> doFnTester = DoFnTester.of(writer);
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    UpsertFn upsertFn = new UpsertFn();
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Entities to be written to the Datastore must have complete keys");
 
-    doFnTester.processBundle(entity);
+    upsertFn.apply(entity);
+  }
+
+  @Test
+  /**
+   * Test that entities with valid keys are transformed to upsert mutations.
+   */
+  public void testAddEntities() throws Exception {
+    Key key = makeKey("bird", "finch").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    UpsertFn upsertFn = new UpsertFn();
+
+    Mutation exceptedMutation = makeUpsert(entity).build();
+    assertEquals(upsertFn.apply(entity), exceptedMutation);
+  }
+
+  /**
+   * Test that entities with incomplete keys cannot be deleted.
+   */
+  @Test
+  public void testDeleteEntitiesWithIncompleteKeys() throws Exception {
+    Key key = makeKey("bird").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Entities to be deleted from the Datastore must have complete keys");
+
+    deleteEntityFn.apply(entity);
+  }
+
+  /**
+   * Test that entities with valid keys are transformed to delete mutations.
+   */
+  @Test
+  public void testDeleteEntities() throws Exception {
+    Key key = makeKey("bird", "finch").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
+
+    Mutation exceptedMutation = makeDelete(entity.getKey()).build();
+    assertEquals(deleteEntityFn.apply(entity), exceptedMutation);
+  }
+
+  /**
+   * Test that incomplete keys cannot be deleted.
+   */
+  @Test
+  public void testDeleteIncompleteKeys() throws Exception {
+    Key key = makeKey("bird").build();
+    DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Keys to be deleted from the Datastore must be complete");
+
+    deleteKeyFn.apply(key);
+  }
+
+  /**
+   * Test that valid keys are transformed to delete mutations.
+   */
+  @Test
+  public void testDeleteKeys() throws Exception {
+    Key key = makeKey("bird", "finch").build();
+    DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
+
+    Mutation exceptedMutation = makeDelete(key).build();
+    assertEquals(deleteKeyFn.apply(key), exceptedMutation);
+  }
+
+  @Test
+  public void testDatastoreWriteFnDisplayData() {
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID);
+    DisplayData displayData = DisplayData.from(datastoreWriter);
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
   }
 
   /** Tests {@link DatastoreWriterFn} with entities less than one batch. */
@@ -354,27 +532,26 @@ public class V1Beta3Test {
   }
 
   // A helper method to test DatastoreWriterFn for various batch sizes.
-  private void datastoreWriterFnTest(int numEntities) throws Exception {
+  private void datastoreWriterFnTest(int numMutations) throws Exception {
     // Create the requested number of mutations.
-    List<Entity> entities = new ArrayList<>(numEntities);
-    for (int i = 0; i < numEntities; ++i) {
-      entities.add(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build());
+    List<Mutation> mutations = new ArrayList<>(numMutations);
+    for (int i = 0; i < numMutations; ++i) {
+      mutations.add(
+          makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
     }
 
     DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
-    DoFnTester<Entity, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    doFnTester.processBundle(entities);
+    doFnTester.processBundle(mutations);
 
     int start = 0;
-    while (start < numEntities) {
-      int end = Math.min(numEntities, start + DATASTORE_BATCH_UPDATE_LIMIT);
+    while (start < numMutations) {
+      int end = Math.min(numMutations, start + DATASTORE_BATCH_UPDATE_LIMIT);
       CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
       commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
-      for (Entity entity: entities.subList(start, end)) {
-        commitRequest.addMutations(makeUpsert(entity));
-      }
-      // Verify all the batch requests were made with the expected entities.
+        commitRequest.addAllMutations(mutations.subList(start, end));
+      // Verify all the batch requests were made with the expected mutations.
       verify(mockDatastore, times(1)).commit(commitRequest.build());
       start = end;
     }
