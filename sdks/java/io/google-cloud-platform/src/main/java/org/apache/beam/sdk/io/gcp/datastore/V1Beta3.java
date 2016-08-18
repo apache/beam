@@ -760,13 +760,18 @@ public class V1Beta3 {
    * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+    @Nullable
     private final String projectId;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
-    Mutate(String projectId, SimpleFunction<T, Mutation> mutationFn) {
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    Mutate(@Nullable String projectId, SimpleFunction<T, Mutation> mutationFn) {
       this.projectId = projectId;
-      this.mutationFn = mutationFn;
+      this.mutationFn = checkNotNull(mutationFn);
     }
 
     @Override
