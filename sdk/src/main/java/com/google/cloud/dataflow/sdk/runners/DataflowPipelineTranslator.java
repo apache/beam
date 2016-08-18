@@ -426,6 +426,13 @@ public class DataflowPipelineTranslator {
         workerPool.setMachineType(options.getWorkerMachineType());
       }
 
+      if (options.getUsePublicIps() != null) {
+        if (options.getUsePublicIps()) {
+          workerPool.setIpConfiguration("WORKER_IP_PUBLIC");
+        } else {
+          workerPool.setIpConfiguration("WORKER_IP_PRIVATE");
+        }
+      }
       workerPool.setPackages(packages);
       workerPool.setNumWorkers(options.getNumWorkers());
 
