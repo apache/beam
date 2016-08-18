@@ -221,6 +221,25 @@ public class DoFnTester<InputT, OutputT> {
    * been finished
    */
   public void processElement(InputT element) throws Exception {
+    processTimestampedElement(TimestampedValue.of(element, null));
+  }
+
+  /**
+   * Calls {@link OldDoFn#processElement} on the {@code OldDoFn} under test, in a
+   * context where {@link OldDoFn.ProcessContext#element} returns the
+   * given element and timestamp.
+   *
+   * <p>Will call {@link #startBundle} automatically, if it hasn't
+   * already been called.
+   *
+   * <p>If the input timestamp is {@literal null}, the minimum timestamp will be used.
+   *
+   * @throws IllegalStateException if the {@code OldDoFn} under test has already
+   * been finished
+   */
+  public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
+    checkNotNull(element, "Timestamped element cannot be null");
+
     if (state == State.FINISHED) {
       throw new IllegalStateException("finishBundle() has already been called");
     }
@@ -522,10 +541,14 @@ public class DoFnTester<InputT, OutputT> {
 
   private TestProcessContext<InputT, OutputT> createProcessContext(
       OldDoFn<InputT, OutputT> fn,
-      InputT elem) {
+      TimestampedValue<InputT> elem) {
+    WindowedValue<InputT> windowedValue = elem.getTimestamp() == null
+      ? WindowedValue.valueInGlobalWindow(elem.getValue())
+      : WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp());
+
     return new TestProcessContext<>(fn,
         createContext(fn),
-        WindowedValue.valueInGlobalWindow(elem),
+        windowedValue,
         mainOutputTag,
         sideInputs);
   }
