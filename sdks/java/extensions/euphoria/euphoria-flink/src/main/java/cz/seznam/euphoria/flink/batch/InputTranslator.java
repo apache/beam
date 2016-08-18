@@ -17,8 +17,6 @@ class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOpera
 
     return context.getExecutionEnvironment()
             .createInput(new DataSourceWrapper<>(ds))
-            // FIXME parallelism should be lower than total number of slots in Flink
-            // or the app won't start at all
-            .setParallelism(10);
+            .setParallelism(operator.getParallelism());
   }
 }

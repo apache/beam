@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.PartitioningAware;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
-import cz.seznam.euphoria.flink.FlinkOperator;
 
 import java.util.HashMap;
 import java.util.List;
@@ -16,7 +15,17 @@ import java.util.stream.Collectors;
  * DAG of {@link FlinkOperator}. During the conversion some
  * kind of optimization can be made.
  */
-class FlowOptimizer {
+public class FlowOptimizer {
+
+  private int maxParallelism = Integer.MAX_VALUE;
+
+  public int getMaxParallelism() {
+    return maxParallelism;
+  }
+
+  public void setMaxParallelism(int maxParallelism) {
+    this.maxParallelism = maxParallelism;
+  }
 
   public DAG<FlinkOperator<?>> optimize(DAG<Operator<?, ?>> dag) {
     DAG<FlinkOperator<?>> flinkDag = convert(dag);
@@ -61,9 +70,11 @@ class FlowOptimizer {
       Operator<?, ?> op = flinkOp.getOriginalOperator();
 
       if (op instanceof FlowUnfolder.InputOperator) {
-        flinkOp.setParallelism(op.output().getSource().getPartitions().size());
+        int partitions = op.output().getSource().getPartitions().size();
+        flinkOp.setParallelism(Math.min(maxParallelism, partitions));
       } else if (op instanceof PartitioningAware) {
-        flinkOp.setParallelism(((PartitioningAware) op).getPartitioning().getNumPartitions());
+        int partitions = ((PartitioningAware) op).getPartitioning().getNumPartitions();
+        flinkOp.setParallelism(Math.min(maxParallelism, partitions));
       } else {
         // other operators inherit parallelism from their parents
         flinkOp.setParallelism(

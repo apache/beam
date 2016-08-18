@@ -10,10 +10,10 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
-import cz.seznam.euphoria.flink.ExecutionEnvironment;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -39,17 +39,19 @@ public class StreamingFlowTranslator extends FlowTranslator {
     TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
   }
 
+  private final StreamExecutionEnvironment env;
+
+  public StreamingFlowTranslator(StreamExecutionEnvironment env) {
+    this.env = Objects.requireNonNull(env);
+  }
 
   @Override
   @SuppressWarnings("unchecked")
-  public List<DataSink<?>> translateInto(Flow flow,
-                                         ExecutionEnvironment executionEnvironment)
-  {
+  public List<DataSink<?>> translateInto(Flow flow) {
     // transform flow to acyclic graph of supported operators
     DAG<FlinkOperator<?>> dag = flowToDag(flow);
 
-    StreamingExecutorContext executorContext =
-            new StreamingExecutorContext(executionEnvironment.getStreamEnv(), dag);
+    StreamingExecutorContext executorContext = new StreamingExecutorContext(env, dag);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
