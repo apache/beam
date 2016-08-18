@@ -58,29 +58,24 @@ public interface ValueProvider<T> {
   }
 
   static class Deserializer extends JsonDeserializer<ValueProvider<?>> {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     @Override
     public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {
-      /*
-        if (method.getReturnType().equals(ValueProvider.class)) {
-        Type returnType = method.getGenericReturnType();
-        if (returnType instanceof ParameterizedType) {
-          // Try to deserialize to a provider, then return?
-          Type innerType = ((ParameterizedType) returnType)
-            .getActualTypeArguments()[0];
-          type = MAPPER.getTypeFactory().constructType(innerType);
-        } else {
-          throw new RuntimeException("Unable to derive type for ValueProvider: " + returnType.toString());
-        }
-      } else {
-      */
-      
-      /*
+      checkNotNull(ctxt);
+      JavaType type = checkNotNull(ctxt.getContextualType());
+      JavaType[] params = type.findTypeParameters(ValueProvider.class);
+      if (params.length != 1) {
+        throw new RuntimeException("Unable to derive type for ValueProvider: " + type.toString());
+      }
+      JavaType innerType = params[0];
+
       ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
       // Check exactly one field?
       Map.Entry<String, JsonNode> field = objectNode.fields().next();
-      return StaticValueProvider.of(field.getValue());
-      */
+      Object o = MAPPER.readValue(field.getValue().toString(), innerType);
+      return StaticValueProvider.of(o);
     }
   }
   
