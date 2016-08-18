@@ -128,6 +128,18 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     @SafeVarargs
     public final Builder<T> addElements(
         TimestampedValue<T> element, TimestampedValue<T>... elements) {
+      checkArgument(
+          element.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+          "Elements must have timestamps before %s. Got: %s",
+          BoundedWindow.TIMESTAMP_MAX_VALUE,
+          element.getTimestamp());
+      for (TimestampedValue<T> multiElement : elements) {
+        checkArgument(
+            multiElement.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+            "Elements must have timestamps before %s. Got: %s",
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            multiElement.getTimestamp());
+      }
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()
               .addAll(events)
