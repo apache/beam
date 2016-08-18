@@ -1,12 +1,10 @@
 package cz.seznam.euphoria.core.client.dataset;
 
-import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -18,6 +16,8 @@ public final class BatchWindowing<T>
 {
   public static final class Batch implements Serializable {
     static final Batch INSTANCE = new Batch();
+
+    public static Batch get() { return INSTANCE; }
 
     private Batch() {}
 

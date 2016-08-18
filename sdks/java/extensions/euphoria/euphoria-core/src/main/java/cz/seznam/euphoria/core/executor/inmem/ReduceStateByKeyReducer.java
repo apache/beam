@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
+import cz.seznam.euphoria.core.client.dataset.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.WindowID;
@@ -252,12 +253,12 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       State state = keyStates.remove(itemKey);
       if (state == null) {
         // ~ collector decorating state output with a window label and item key
-        DatumCollector collector = new DatumCollector(stateOutput) {
+        WindowedElementCollector collector = new WindowedElementCollector(stateOutput) {
           @Override public void collect(Object elem) {
-            super.collect(WindowedPair.of(getAssignLabel(), itemKey, elem));
+            super.collect(WindowedPair.of(super.windowID.getLabel(), itemKey, elem));
           }
         };
-        collector.assignWindowing(w.getWindowID().getGroup(), w.getWindowID().getLabel());
+        collector.assignWindowing(w.getWindowID());
         state = (State) stateFactory.apply(collector);
         keyStates.put(itemKey, state);
       } else {
@@ -360,10 +361,9 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           toCombine.add(s.getValue());
           @SuppressWarnings("unchecked")
           State newState = (State) stateCombiner.apply(toCombine);
-          if (newState.getCollector() instanceof DatumCollector) {
-            ((DatumCollector) newState.getCollector())
-                .assignWindowing(dstWindow.getWindowID().getGroup(),
-                    dstWindow.getWindowID().getLabel());
+          if (newState.getCollector() instanceof WindowedElementCollector) {
+            ((WindowedElementCollector) newState.getCollector())
+                .assignWindowing(dstWindow.getWindowID());
           }
           dst.put(s.getKey(), newState);
         }
@@ -419,7 +419,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
                           EndOfWindowBroadcast eowBroadcast) {
     this.name = name;
     this.input = requireNonNull(input);
-    this.windowing = windowing == null ? DatumAttachedWindowing.INSTANCE : windowing;
+    this.windowing = windowing == null ? AttachedWindowing.INSTANCE : windowing;
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
     this.triggering = requireNonNull(triggering);
@@ -536,7 +536,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
           flushWindow(w);
           purgeWindow(w);
         } else {
-          final List<WindowContext> toEvict = processInput((Datum) item);
+          final List<WindowContext> toEvict = processInput((WindowedElement) item);
           for (WindowContext w : toEvict) {
             flushWindow(w);
             purgeWindow(w);
@@ -561,16 +561,16 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   // ~ returns a list of windows which are to be evicted
   @SuppressWarnings("unchecked")
-  private List<WindowContext> processInput(Datum datum) {
+  private List<WindowContext> processInput(WindowedElement element) {
 
-    Object item = datum.element;
+    Object item = element.get();
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
     Set<WindowID<Object, Object>> itemWindowLabels;
-    if (windowing == DatumAttachedWindowing.INSTANCE) {
-      windowing.updateTriggering(triggering, datum);
-      itemWindowLabels = windowing.assignWindows(datum);
+    if (windowing == AttachedWindowing.INSTANCE) {
+      windowing.updateTriggering(triggering, element);
+      itemWindowLabels = windowing.assignWindows(element);
     } else {
       windowing.updateTriggering(triggering, item);
       itemWindowLabels = windowing.assignWindows(item);
