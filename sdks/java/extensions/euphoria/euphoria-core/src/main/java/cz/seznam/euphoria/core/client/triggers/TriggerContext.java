@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 
 /**
  * A context is given to {@link Trigger} methods to allow them to register
@@ -14,7 +14,7 @@ public interface TriggerContext {
    * The trigger will be fired as close to the time as possible.
    * @return {@code true} when trigger was successfully scheduled
    */
-  boolean scheduleTriggerAt(long stamp, Window w, Trigger trigger);
+  boolean scheduleTriggerAt(long stamp, WindowContext w, Trigger trigger);
 
   /**
    * Return current timestamp from runtime (may be different from real

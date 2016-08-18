@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -15,7 +15,7 @@ import java.util.Collections;
  * Operator operating on window level with state information.
  */
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, WIN, KIN, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
+    IN, WIN, KIN, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>,
     OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, WLABEL, W, OP>>
     extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, WLABEL, W, OP> {
 

@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
@@ -23,7 +23,7 @@ import java.util.Objects;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
+public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>,
                   PAIROUT extends Pair<KEY, OUT>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
@@ -139,7 +139,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
 
-    public <WLABEL, W extends Window<?, WLABEL>>
+    public <WLABEL, W extends WindowContext<?, WLABEL>>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
     {
@@ -148,7 +148,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>,
   }
 
   public static class OutputBuilder<
-      LEFT, RIGHT, KEY, OUT, WLABEL, W extends Window<?, WLABEL>>
+      LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>>
   {
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;

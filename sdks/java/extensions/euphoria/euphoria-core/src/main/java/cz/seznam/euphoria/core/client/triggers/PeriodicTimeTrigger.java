@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +20,7 @@ public class PeriodicTimeTrigger implements Trigger {
   }
 
   @Override
-  public TriggerResult init(Window w, TriggerContext ctx) {
+  public TriggerResult init(WindowContext w, TriggerContext ctx) {
     long now = ctx.getCurrentTimestamp();
     long start = now - (now + interval) % interval;
 
@@ -32,8 +32,8 @@ public class PeriodicTimeTrigger implements Trigger {
   }
 
   @Override
-  public TriggerResult onTimeEvent(long time, Window w, TriggerContext ctx) {
-    LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, w.getLabel());
+  public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
+    LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, w.getWindowID());
 
     // ~ reschedule the trigger
     scheduleNext(time, w, ctx);
@@ -44,7 +44,7 @@ public class PeriodicTimeTrigger implements Trigger {
   /**
    * @return {@code false} when end of window reached
    */
-  private boolean scheduleNext(long currentTime, Window w, TriggerContext ctx) {
+  private boolean scheduleNext(long currentTime, WindowContext w, TriggerContext ctx) {
     long fire = currentTime;
     while ((fire += interval) <= lastFireTime) {
       if (ctx.scheduleTriggerAt(fire, w, this)) {

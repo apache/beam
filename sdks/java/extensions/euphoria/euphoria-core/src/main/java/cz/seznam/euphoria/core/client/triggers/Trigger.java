@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 
 import java.io.Serializable;
 
@@ -14,7 +14,7 @@ public interface Trigger extends Serializable {
    * Gives trigger a chance to schedule time-based events in provided context
    * @return {@code NOOP} or {@code PASSED} if desired trigger time passed
    */
-  TriggerResult init(Window w, TriggerContext ctx);
+  TriggerResult init(WindowContext w, TriggerContext ctx);
 
   /**
    * Called when a timer that was set using the trigger context fires.
@@ -22,7 +22,7 @@ public interface Trigger extends Serializable {
    * @param time The timestamp at which the timer fired.
    * @param ctx A context object that can be used to register timer callbacks.
    */
-  TriggerResult onTimeEvent(long time, Window w, TriggerContext ctx);
+  TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx);
 
   /**
    * Represents result returned from trigger methods. This determines what happens

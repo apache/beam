@@ -2,7 +2,8 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.WindowID;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -156,29 +157,10 @@ public class JoinTest extends OperatorTest {
   }
 
   
-  static class JoinWindow implements Window<Integer, Integer> {
-    
-    final int group;
-    final int label;
+  static class JoinWindowContext extends WindowContext<Integer, Integer> {
 
-    JoinWindow(int group, int label) {
-      this.group = group;
-      this.label = label;
-    }
-
-    @Override
-    public Integer getGroup() {
-      return group;
-    }
-
-    @Override
-    public Integer getLabel() {
-      return label;
-    }
-
-    @Override
-    public List<Trigger> createTriggers() {
-      return Collections.emptyList();
+    JoinWindowContext(int group, int label) {
+      super(WindowID.unaligned(group, label));
     }
   }
 
@@ -186,10 +168,10 @@ public class JoinTest extends OperatorTest {
    * Stable windowing for test purposes.
    */
   static class EvenOddWindowing implements
-      Windowing<Either<Integer, Long>, Integer, Integer, JoinWindow> {
+      Windowing<Either<Integer, Long>, Integer, Integer, JoinWindowContext> {
 
     @Override
-    public Set<JoinWindow> assignWindows(Either<Integer, Long> input) {
+    public Set<WindowID<Integer, Integer>> assignWindows(Either<Integer, Long> input) {
       int element;
       if (input.isLeft()) {
         element = input.left();
@@ -197,7 +179,12 @@ public class JoinTest extends OperatorTest {
         element = (int) (long) input.right();
       }
       final int label = element % 2 == 0 ? 0 : element;
-      return Collections.singleton(new JoinWindow(0, label));
+      return Collections.singleton(WindowID.unaligned(0, label));
+    }
+
+    @Override
+    public JoinWindowContext createWindowContext(WindowID<Integer, Integer> wid) {
+      return new JoinWindowContext(wid.getGroup(), wid.getLabel());
     }
 
   }

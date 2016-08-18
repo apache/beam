@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
@@ -9,7 +9,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
  * Operator working on some context.
  */
 public abstract class WindowWiseOperator<
-    IN, WIN, OUT, WLABEL, W extends Window<?, WLABEL>>
+    IN, WIN, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
     extends Operator<IN, OUT> implements WindowAware<WIN, W> {
 
   protected Windowing<WIN, ?, WLABEL, W> windowing;

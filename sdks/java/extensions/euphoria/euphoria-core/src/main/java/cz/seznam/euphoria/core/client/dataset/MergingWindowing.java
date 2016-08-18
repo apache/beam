@@ -4,7 +4,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;
 
-public interface MergingWindowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
+public interface MergingWindowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL>>
     extends Windowing<T, GROUP, LABEL, W>
 {
   /**
