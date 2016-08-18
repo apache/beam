@@ -4,7 +4,7 @@ import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ArrayListMultim
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimaps;
 import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import org.slf4j.Logger;
@@ -29,7 +29,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractTriggerScheduler.class);
 
   private transient ScheduledThreadPoolExecutor scheduler;
-  private final Multimap<Window, ScheduledTriggerTask> activeTasks =
+  private final Multimap<WindowContext, ScheduledTriggerTask> activeTasks =
           Multimaps.synchronizedMultimap(ArrayListMultimap.create());
 
   public AbstractTriggerScheduler() {
@@ -47,7 +47,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   }
 
   @Override
-  public ScheduledFuture<Void> scheduleAt(long stamp, Window w, Triggerable trigger) {
+  public ScheduledFuture<Void> scheduleAt(long stamp, WindowContext w, Triggerable trigger) {
     long duration = stamp - getCurrentTimestamp();
     if (duration < 0) {
       return null;
@@ -55,7 +55,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     return scheduleAfter(duration, w, new TriggerTask(stamp, w, trigger));
   }
 
-  private ScheduledFuture<Void> scheduleAfter(long duration, Window w, TriggerTask task) {
+  private ScheduledFuture<Void> scheduleAfter(long duration, WindowContext w, TriggerTask task) {
     ScheduledFuture<Void> future = scheduler.schedule(
             task,
             duration,
@@ -90,7 +90,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   }
 
   @Override
-  public void cancel(Window w) {
+  public void cancel(WindowContext w) {
     synchronized (activeTasks) {
       Collection<ScheduledTriggerTask> tasks = activeTasks.get(w);
       if (tasks != null && !tasks.isEmpty()) {
@@ -110,10 +110,10 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
    */
   class TriggerTask implements Callable<Void> {
     private final long timestamp;
-    private final Window window;
+    private final WindowContext window;
     private final Triggerable trigger;
 
-    public TriggerTask(long timestamp, Window w, Triggerable trigger) {
+    public TriggerTask(long timestamp, WindowContext w, Triggerable trigger) {
       this.timestamp = timestamp;
       this.window = w;
       this.trigger = trigger;
@@ -138,7 +138,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
       return trigger;
     }
 
-    public Window getWindow() {
+    public WindowContext getWindow() {
       return window;
     }
   }

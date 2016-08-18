@@ -4,7 +4,7 @@ import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionInterval;
-import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionWindow;
+import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionWindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.core.util.Util.sorted;
 import static java.util.Arrays.asList;
+import java.util.Map;
 import static org.junit.Assert.*;
 
 public class WindowingTest {
@@ -417,38 +418,55 @@ public class WindowingTest {
         Windowing.Session.of(Duration.ofSeconds(10))
             .using(e -> (Void) null, e -> e);
 
-    SessionWindow<Void> w1 = assertSessionWindow(
+    WindowID<Void, SessionInterval> w1 = assertSessionWindow(
         windowing.assignWindows(1_000L), null, 1_000L, 11_000L);
-    SessionWindow<Void> w2 = assertSessionWindow(
+    WindowID<Void, SessionInterval> w2 = assertSessionWindow(
         windowing.assignWindows(10_000L), null, 10_000L, 20_000L);
-    SessionWindow<Void> w3 = assertSessionWindow(
+    WindowID<Void, SessionInterval> w3 = assertSessionWindow(
         windowing.assignWindows(21_000L), null, 21_000L, 31_000L);
     // ~ a small window which is fully contained in w1
-    SessionWindow<Void> w4 = new SessionWindow<>(null,
-        new SessionInterval(3_000L, 8_000L), null);
+    WindowID<Void, SessionInterval> w4 = WindowID.aligned(
+        new SessionInterval(3_000L, 8_000L));
 
-    Collection<Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>>> merges
-        = windowing.mergeWindows(Arrays.asList(w4, w3, w2, w1));
-    assertEquals(1L, merges.size());
-    Pair<Collection<SessionWindow<Void>>, SessionWindow<Void>> m = merges.iterator().next();
-    assertEquals(3, m.getFirst().size());
-    assertTrue(m.getFirst().contains(w1));
-    assertTrue(m.getFirst().contains(w4));
-    assertTrue(m.getFirst().contains(w2));
-    assertSessionWindow(m.getSecond(), null, 1_000L, 20_000L);
+
+    
+    Map<WindowID<Void, SessionInterval>, WindowID<Void, SessionInterval>> merges;
+    merges = windowing.mergeWindows(
+        Arrays
+            .asList(w4, w3, w2, w1)
+            .stream()
+            .map(windowing::createWindowContext)
+            .collect(Collectors.toList()))
+        .stream()
+        .flatMap(p -> {
+          return p.getFirst().stream()
+              .map(w -> Pair.of(w.getWindowID(), p.getSecond().getWindowID()));
+        })
+        .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+
+    assertEquals(3L, merges.size());
+    assertNotNull(merges.get(w1));
+    assertNotNull(merges.get(w4));
+    assertNotNull(merges.get(w2));
+
+    Set<WindowID<Void, SessionInterval>> target = merges.values().stream().
+        collect(Collectors.toSet());
+    assertEquals(1, target.size());
+    WindowID<Void, SessionInterval> targetWindow = target.iterator().next();
+    assertSessionWindow(targetWindow, null, 1_000L, 20_000L);
   }
 
-  private <G> SessionWindow<G> assertSessionWindow(
-      Set<SessionWindow<G>> window,
+  private <G> WindowID<G, Windowing.Session.SessionInterval> assertSessionWindow(
+      Set<WindowID<G, Windowing.Session.SessionInterval>> window,
       G expectedGroup, long expectedStartMillis, long expectedEndMillis)
   {
-    SessionWindow<G> w = Iterables.getOnlyElement(window);
+    WindowID<G, SessionInterval> w = Iterables.getOnlyElement(window);
     assertSessionWindow(w, expectedGroup, expectedStartMillis, expectedEndMillis);
     return w;
   }
 
   private <G> void assertSessionWindow(
-      SessionWindow<G> window,
+      WindowID<G, Windowing.Session.SessionInterval> window,
       G expectedGroup, long expectedStartMillis, long expectedEndMillis)
   {
     assertNotNull(window);

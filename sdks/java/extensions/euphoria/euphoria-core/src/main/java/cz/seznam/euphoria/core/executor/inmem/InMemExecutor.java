@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.WindowID;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -102,7 +103,7 @@ public class InMemExecutor implements Executor {
         throw new EndOfStreamException();
       }
       T next = this.reader.next();
-      BatchWindowing.BatchWindow w =
+      WindowID<Void, BatchWindowing.Batch> w =
           BatchWindowing.get().assignWindows(next).iterator().next();
       return new Datum<>(w.getGroup(), w.getLabel(), next);
     }

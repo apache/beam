@@ -4,7 +4,8 @@ package cz.seznam.euphoria.core.executor;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.WindowID;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -264,8 +265,7 @@ public class InMemExecutorTest {
     @Override
     @SuppressWarnings("unchecked")
     public void flush() {
-      Collections.sort((List) data);
-      data.stream().forEachOrdered(
+      data.stream().sorted().forEachOrdered(
           c -> this.getCollector().collect(c));
     }
 
@@ -282,51 +282,40 @@ public class InMemExecutorTest {
 
   }
 
-  private void checkSortedSublists(
-      List<Pair<Integer, Integer>> list, int... lengths) {
-
-    int sublistIndex = 0;
-    for (int sublistLength : lengths) {
-      // sublists are of length 100, 100, 100, 100, 100, 50
-      int start = sublistIndex;
-      final List<List<Pair<Integer, Integer>>> sublists;
-      checkSorted(list.subList(start, start + sublistLength));
-      sublistIndex += sublistLength;
-    }
-
+  static class CountLabel {
+    final int count;
+    int get() { return count; }
+    // on purpose no hashcode or equals
+    CountLabel(int count) { this.count = count; }
+    @Override
+    public String toString() { return String.valueOf(count); }
   }
 
 
-  private static class CountWindow<GROUP> implements Window<GROUP, Integer> {
 
-    final GROUP group;
+  private static class CountWindowContext<GROUP>
+      extends WindowContext<GROUP, CountLabel> {
+
     final int maxSize;
-
     int size = 1;
 
-    public CountWindow(GROUP group, int maxSize) {
-      this.group = group;
+    public CountWindowContext(WindowID<GROUP, CountLabel> wid, int maxSize) {
+      super(wid);
       this.maxSize = maxSize;
     }
 
-    @Override
-    public GROUP getGroup() {
-      return group;
+    public CountWindowContext(GROUP group, int maxSize) {
+      this(WindowID.unaligned(group, new CountLabel(maxSize)), maxSize);
     }
 
-    @Override
-    public Integer getLabel() {
-      return hashCode();
+    public CountWindowContext(GROUP group, CountLabel label) {
+      this(WindowID.unaligned(group, label), label.get());
     }
 
-    @Override
-    public List<Trigger> createTriggers() {
-      return Collections.emptyList();
-    }
 
     @Override
     public String toString() {
-      return "CountWindow(" + group + ", " + size + ", " + maxSize + ")";
+      return "CountWindowContext(" + getWindowID() + ", " + size + ")";
     }
 
 
@@ -334,7 +323,7 @@ public class InMemExecutorTest {
 
 
   static class UnalignedCountWindowing<T, GROUP> implements
-      MergingWindowing<T, GROUP, Integer, CountWindow<GROUP>> {
+      MergingWindowing<T, GROUP, CountLabel, CountWindowContext<GROUP>> {
 
     final UnaryFunction<T, GROUP> groupExtractor;
     final UnaryFunction<GROUP, Integer> size;
@@ -347,16 +336,18 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public Collection<Pair<Collection<CountWindow<GROUP>>, CountWindow<GROUP>>> mergeWindows(
-        Collection<CountWindow<GROUP>> actives) {
+    public Collection<Pair<Collection<CountWindowContext<GROUP>>, CountWindowContext<GROUP>>> mergeWindows(
+        Collection<CountWindowContext<GROUP>> actives) {
 
       // we will merge together only windows with the same window size
 
-      List<Pair<Collection<CountWindow<GROUP>>, CountWindow<GROUP>>> ret = new ArrayList<>();
-      Map<Integer, List<CountWindow<GROUP>>> toMergeMap = new HashMap<>();
+      List<Pair<Collection<CountWindowContext<GROUP>>, CountWindowContext<GROUP>>> ret
+          = new ArrayList<>();
+
+      Map<Integer, List<CountWindowContext<GROUP>>> toMergeMap = new HashMap<>();
       Map<Integer, AtomicInteger> currentSizeMap = new HashMap<>();
 
-      for (CountWindow<GROUP> w : actives) {
+      for (CountWindowContext<GROUP> w : actives) {
         final int wSize = w.maxSize;
         AtomicInteger currentSize = currentSizeMap.get(wSize);
         if (currentSize == null) {
@@ -368,9 +359,10 @@ public class InMemExecutorTest {
           currentSize.addAndGet(w.size);
           toMergeMap.get(wSize).add(w);
         } else {
-          List<CountWindow<GROUP>> toMerge = toMergeMap.get(wSize);
+          List<CountWindowContext<GROUP>> toMerge = toMergeMap.get(wSize);
           if (!toMerge.isEmpty()) {
-            CountWindow<GROUP> res = new CountWindow<>(w.group, currentSize.get());
+            CountWindowContext<GROUP> res = new CountWindowContext<>(
+                w.getWindowID().getGroup(), currentSize.get());
             res.size = currentSize.get();
             ret.add(Pair.of(new ArrayList<>(toMerge), res));
             toMerge.clear();
@@ -380,10 +372,11 @@ public class InMemExecutorTest {
         }
       }
 
-      for (List<CountWindow<GROUP>> toMerge : toMergeMap.values()) {
+      for (List<CountWindowContext<GROUP>> toMerge : toMergeMap.values()) {
         if (!toMerge.isEmpty()) {
-          CountWindow<GROUP> first = toMerge.get(0);
-          CountWindow<GROUP> res = new CountWindow<>(first.group, first.maxSize);
+          CountWindowContext<GROUP> first = toMerge.get(0);
+          CountWindowContext<GROUP> res = new CountWindowContext<>(
+              first.getWindowID().getGroup(), first.maxSize);
           res.size = currentSizeMap.get(first.maxSize).get();
           ret.add(Pair.of(toMerge, res));
         }
@@ -392,20 +385,25 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public Set<CountWindow<GROUP>> assignWindows(T input) {
+    public Set<WindowID<GROUP, CountLabel>> assignWindows(T input) {
       GROUP g = groupExtractor.apply(input);
       int sizeForGroup = size.apply(g);
       return new HashSet<>(Arrays.asList(
-          new CountWindow<>(g, sizeForGroup),
-          new CountWindow<>(g, 2 * sizeForGroup)));
+          WindowID.unaligned(g, new CountLabel(sizeForGroup)),
+          WindowID.unaligned(g, new CountLabel(2 * sizeForGroup))));
     }
 
     
     @Override
-    public boolean isComplete(CountWindow<GROUP> window) {
+    public boolean isComplete(CountWindowContext<GROUP> window) {
       return window.size == window.maxSize;
     }
 
+    @Override
+    public CountWindowContext<GROUP> createWindowContext(
+        WindowID<GROUP, CountLabel> wid) {
+      return new CountWindowContext<>(wid, wid.getLabel().get());
+    }
 
   }
 
@@ -421,7 +419,7 @@ public class InMemExecutorTest {
         new UnalignedCountWindowing<>(i -> i % 10, i -> i + 1);
 
     // the key for sort will be the last digit
-    Dataset<WindowedPair<Integer, Integer, Integer>> output = ReduceStateByKey.of(ints)
+    Dataset<WindowedPair<CountLabel, Integer, Integer>> output = ReduceStateByKey.of(ints)
         .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
@@ -430,13 +428,13 @@ public class InMemExecutorTest {
         .outputWindowed();
 
     // collector of outputs
-    ListDataSink<WindowedPair<Integer, Integer, Integer>> outputSink = ListDataSink.get(2);
+    ListDataSink<WindowedPair<CountLabel, Integer, Integer>> outputSink = ListDataSink.get(2);
 
     output.persist(outputSink);
 
     executor.waitForCompletion(flow);
 
-    List<List<WindowedPair<Integer, Integer, Integer>>> outputs = outputSink.getOutputs();
+    List<List<WindowedPair<CountLabel, Integer, Integer>>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
 
     // each partition should have 550 items in each window set
@@ -447,39 +445,20 @@ public class InMemExecutorTest {
         .map(Pair::getFirst).distinct()
         .collect(Collectors.toSet());
 
+    // validate that the two partitions contain different keys
     outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
-        
+
     outputs.forEach(this::checkKeyAlignedSortedList);
 
   }
 
 
-  private static void checkSorted(List<Pair<Integer, Integer>> collection) {
-    Pair<Integer, Integer> last = null;
-    Set<Integer> passedKeys = new HashSet<>();
-    for (Pair<Integer, Integer> elem : collection) {
-      if (last != null && (int) last.getFirst() != (int) elem.getFirst()) {
-        assertTrue("Each key should be in the sequence in single continuous block. Key "
-            + last.getFirst() + " was seen multiple times. The sequence is not properly sorted",
-            passedKeys.add(last.getFirst()));
-        last = null;
-      }
-      if (last != null) {
-        assertTrue("Element " + last + " should be less than " + elem,
-            last.getSecond() < elem.getSecond());
-      }
-      last = elem;
-    }
-
-  }
-
-
   private void checkKeyAlignedSortedList(
-      List<WindowedPair<Integer, Integer, Integer>> list) {
+      List<WindowedPair<CountLabel, Integer, Integer>> list) {
 
-    Map<Integer, Map<Integer, List<Integer>>> sortedSequencesInWindow = new HashMap<>();
+    Map<CountLabel, Map<Integer, List<Integer>>> sortedSequencesInWindow = new HashMap<>();
 
-    for (WindowedPair<Integer, Integer, Integer> p : list) {
+    for (WindowedPair<CountLabel, Integer, Integer> p : list) {
       Map<Integer, List<Integer>> sortedSequences = sortedSequencesInWindow.get(
           p.getWindowLabel());
       if (sortedSequences == null) {
@@ -495,7 +474,7 @@ public class InMemExecutorTest {
 
     assertFalse(sortedSequencesInWindow.isEmpty());
     int totalCount = 0;
-    for (Map.Entry<Integer, Map<Integer, List<Integer>>> we : sortedSequencesInWindow.entrySet()) {
+    for (Map.Entry<CountLabel, Map<Integer, List<Integer>>> we : sortedSequencesInWindow.entrySet()) {
       assertFalse(we.getValue().isEmpty());
       for (Map.Entry<Integer, List<Integer>> e : we.getValue().entrySet()) {
         // now, each list must be sorted

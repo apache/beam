@@ -14,7 +14,7 @@ import java.util.Set;
  * batch processing.
  */
 public final class BatchWindowing<T>
-    implements AlignedWindowing<T, BatchWindowing.Batch, BatchWindowing.BatchWindow>
+    implements AlignedWindowing<T, BatchWindowing.Batch, BatchWindowing.BatchWindowContext>
 {
   public static final class Batch implements Serializable {
     static final Batch INSTANCE = new Batch();
@@ -36,21 +36,13 @@ public final class BatchWindowing<T>
     }
   } // ~ end of Batch
 
-  public static class BatchWindow implements AlignedWindow<Batch> {
+  public static class BatchWindowContext extends WindowContext<Void, Batch> {
 
-    static final BatchWindow INSTANCE = new BatchWindow();
-    static final Set<BatchWindow> INSTANCE_SET = Collections.singleton(INSTANCE);
+    static final BatchWindowContext INSTANCE = new BatchWindowContext();
+    static final Set<BatchWindowContext> INSTANCE_SET = Collections.singleton(INSTANCE);
 
-    private BatchWindow() {}
-
-    @Override
-    public Batch getLabel() {
-      return Batch.INSTANCE;
-    }
-
-    @Override
-    public List<Trigger> createTriggers() {
-      return Collections.emptyList();
+    private BatchWindowContext() {
+      super(WindowID.aligned(Batch.INSTANCE));
     }
 
     private Object readResolve() throws ObjectStreamException {
@@ -62,13 +54,18 @@ public final class BatchWindowing<T>
   private BatchWindowing() {}
 
   @Override
-  public Set<BatchWindow> assignWindows(T input) {
-    return BatchWindow.INSTANCE_SET;
+  public Set<WindowID<Void, Batch>> assignWindows(T input) {
+    return Collections.singleton(WindowID.aligned(Batch.INSTANCE));
   }
 
   @Override
   public void updateTriggering(TriggerScheduler triggering, T input) {
     // ~ no-op; batch windows are not registering any triggers
+  }
+
+  @Override
+  public BatchWindowContext createWindowContext(WindowID<Void, Batch> label) {
+    return BatchWindowContext.INSTANCE;
   }
 
   @SuppressWarnings("unchecked")

@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
-  private static final Map<ListDataSink/*<T>*/, List/*<List<T>>*/> storage =
+  private static final Map<ListDataSink<?>, List<List<?>>> storage =
           Collections.synchronizedMap(new WeakHashMap<>());
 
   public static <T> ListDataSink<T> get(int numPartitions) {
@@ -39,7 +39,7 @@ public class ListDataSink<T> implements DataSink<T> {
     }
 
     @Override
-    public void commit() throws IOException{
+    public synchronized void commit() throws IOException {
       sinkOutputs.set(partitionId, output);
     }
 
@@ -54,6 +54,7 @@ public class ListDataSink<T> implements DataSink<T> {
   private final int sinkId = System.identityHashCode(this);
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
+  @SuppressWarnings("unchecked")
   private ListDataSink(int numPartitions) {
     List<List<T>> outputs = new ArrayList<>();
 
@@ -62,11 +63,10 @@ public class ListDataSink<T> implements DataSink<T> {
     }
 
     // save outputs to static storage
-    storage.put(this, outputs);
+    storage.put((ListDataSink) this, (List) outputs);
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Writer<T> openWriter(int partitionId) {
     ListWriter w = new ListWriter(partitionId, getOutputs());
     writers.add(w);
@@ -85,7 +85,7 @@ public class ListDataSink<T> implements DataSink<T> {
 
   @SuppressWarnings("unchecked")
   public List<List<T>> getOutputs() {
-    return storage.get(this);
+    return (List) storage.get(this);
   }
 
   public List<T> getOutput(int partition) {
