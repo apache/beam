@@ -49,7 +49,6 @@ public class ValueProviderTest {
   }
 
   @Test
-  @Ignore
   public void testCommandLineNoDefault() {
     TestOptions options = PipelineOptionsFactory.fromArgs(
       new String[]{"--foo=baz"}).as(TestOptions.class);
