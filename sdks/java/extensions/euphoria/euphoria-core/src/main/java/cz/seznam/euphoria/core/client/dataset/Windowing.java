@@ -22,19 +22,20 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
+import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 
 
 /**
  * A windowing policy of a dataset.
  */
-public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
+public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL>>
     extends Serializable
 {
   /** Time windows. */
-  class Time<T>
-      implements AlignedWindowing<T, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
-  {
+  class Time<T> implements AlignedWindowing<
+      T, Windowing.Time.TimeInterval, Windowing.Time.TimeWindowContext> {
+
     public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
       private static final ProcessingTime INSTANCE = new ProcessingTime();
 
@@ -83,9 +84,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
       @Override
       public int hashCode() {
-        int result = (int) (startMillis ^ (startMillis >>> 32));
-        result = 31 * result + (int) (intervalMillis ^ (intervalMillis >>> 32));
-        return result;
+        return Objects.hash(startMillis, intervalMillis);
       }
 
       @Override
@@ -97,22 +96,16 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
     } // ~ end of TimeInterval
 
-    public static class TimeWindow
-        extends EarlyTriggeredWindow
-        implements AlignedWindow<TimeInterval>
-    {
-      private final TimeInterval label;
+    public static class TimeWindowContext
+        extends EarlyTriggeredWindowContext<Void, TimeInterval> {
+
       private final long fireStamp;
 
-      TimeWindow(long startMillis, long intervalMillis, Duration earlyTriggering) {
-        super(earlyTriggering, startMillis + intervalMillis);
-        this.label = new TimeInterval(startMillis, intervalMillis);
+      TimeWindowContext(long startMillis, long intervalMillis, Duration earlyTriggering) {
+        super(
+            WindowID.aligned(new TimeInterval(startMillis, intervalMillis)),
+            earlyTriggering, startMillis + intervalMillis);
         this.fireStamp = startMillis + intervalMillis;
-      }
-
-      @Override
-      public TimeInterval getLabel() {
-        return label;
       }
 
       @Override
@@ -126,7 +119,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
         return triggers;
       }
-    } // ~ end of TimeWindow
+    } // ~ end of TimeWindowContext
 
     // ~  an untyped variant of the Time windowing; does not dependent
     // on the input elements type
@@ -179,22 +172,42 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     @Override
-    public Set<TimeWindow> assignWindows(T input) {
+    public Set<WindowID<Void, TimeInterval>> assignWindows(T input) {
       long ts = eventTimeFn.apply(input);
-      return singleton(
-          new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis, earlyTriggeringPeriod));
+      return singleton(WindowID.aligned(new TimeInterval(
+          ts - (ts + durationMillis) % durationMillis, durationMillis)));
     }
 
     @Override
     public void updateTriggering(TriggerScheduler triggering, T input) {
       triggering.updateProcessed(eventTimeFn.apply(input));
     }
+
+    @Override
+    public TimeWindowContext createWindowContext(WindowID<Void, TimeInterval> id) {
+      return new TimeWindowContext(
+          id.getLabel().getStartMillis(),
+          id.getLabel().getIntervalMillis(),
+          earlyTriggeringPeriod);
+    }
+
+
+    public long getDuration() {
+      return durationMillis;
+    }
+
+    public UnaryFunction<T, Long> getEventTimeFn() {
+      return eventTimeFn;
+    }
   } // ~ end of Time
 
   final class Count<T>
-      implements AlignedWindowing<T, Windowing.Count.Counted, Windowing.Count.CountWindow>,
-                 MergingWindowing<T, Void, Windowing.Count.Counted, Windowing.Count.CountWindow>
-  {
+      implements
+          AlignedWindowing<
+              T, Windowing.Count.Counted, Windowing.Count.CountWindowContext>,
+          MergingWindowing<
+              T, Void, Windowing.Count.Counted, Windowing.Count.CountWindowContext> {
+
     private final int size;
 
     private Count(int size) {
@@ -205,36 +218,25 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       // ~ no equals/hashCode ... every instance is unique
     } // ~ end of Counted
 
-    public static class CountWindow
-        implements AlignedWindow<Counted>
-    {
-      private final Counted label = new Counted();
+    public static class CountWindowContext extends WindowContext<Void, Counted> {
+
       int currentCount;
 
-      CountWindow(int currentCount) {
+      CountWindowContext(int currentCount) {
+        super(WindowID.aligned(new Counted()));
         this.currentCount = currentCount;
-      }
-
-      @Override
-      public Counted getLabel() {
-        return label;
-      }
-
-      @Override
-      public List<Trigger> createTriggers() {
-        return Collections.emptyList();
       }
 
       @Override
       public String toString() {
         return "CountWindow { currentCount = " + currentCount
-            + ", label = " + label + " }";
+            + ", label = " + getWindowID().getLabel() + " }";
       }
-    } // ~ end of CountWindow
+    } // ~ end of CountWindowContext
 
     @Override
-    public Set<CountWindow> assignWindows(T input) {
-      return singleton(new CountWindow(1));
+    public Set<WindowID<Void, Counted>> assignWindows(T input) {
+      return singleton(WindowID.aligned(new Counted()));
     }
 
     @Override
@@ -243,27 +245,27 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     @Override
-    public Collection<Pair<Collection<CountWindow>, CountWindow>>
-    mergeWindows(Collection<CountWindow> actives)
+    public Collection<Pair<Collection<CountWindowContext>, CountWindowContext>>
+    mergeWindows(Collection<CountWindowContext> actives)
     {
-      Iterator<CountWindow> iter = actives.iterator();
-      CountWindow r = null;
+      Iterator<CountWindowContext> iter = actives.iterator();
+      CountWindowContext r = null;
       while (r == null && iter.hasNext()) {
-        CountWindow w = iter.next();
+        CountWindowContext w = iter.next();
         if (w.currentCount < size) {
           r = w;
         }
       }
       if (r == null) {
         return actives.stream()
-            .map(a -> Pair.of((Collection<CountWindow>) singleton(a), a))
+            .map(a -> Pair.of((Collection<CountWindowContext>) singleton(a), a))
             .collect(Collectors.toList());
       }
 
-      Set<CountWindow> merged = null;
+      Set<CountWindowContext> merged = null;
       iter = actives.iterator();
       while (iter.hasNext()) {
-        CountWindow w = iter.next();
+        CountWindowContext w = iter.next();
         if (r != w && r.currentCount + w.currentCount <= size) {
           r.currentCount += w.currentCount;
           if (merged == null) {
@@ -280,7 +282,13 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     @Override
-    public boolean isComplete(CountWindow window) {
+    public CountWindowContext createWindowContext(WindowID<Void, Counted> id) {
+      return new CountWindowContext(1);
+    }
+
+
+    @Override
+    public boolean isComplete(CountWindowContext window) {
       return window.currentCount >= size;
     }
 
@@ -291,41 +299,22 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
 
   final class TimeSliding<T>
-      implements AlignedWindowing<T, Long, TimeSliding.SlidingWindow> {
+      implements AlignedWindowing<T, Long, TimeSliding.SlidingWindowContext> {
 
-    public static class SlidingWindow implements AlignedWindow<Long> {
+    public static class SlidingWindowContext extends WindowContext<Void, Long> {
 
       private final long startTime;
       private final long duration;
 
-      private SlidingWindow(long startTime, long duration) {
+      private SlidingWindowContext(long startTime, long duration) {
+        super(WindowID.aligned(startTime));
         this.startTime = startTime;
         this.duration = duration;
       }
 
       @Override
-      public Long getLabel() {
-        return startTime;
-      }
-
-      @Override
       public List<Trigger> createTriggers() {
         return Collections.singletonList(new TimeTrigger(startTime + duration));
-      }
-
-      @Override
-      public boolean equals(Object obj) {
-        if (obj == this) return true;
-        if (obj instanceof SlidingWindow) {
-          SlidingWindow other = (SlidingWindow) obj;
-          return other.startTime == startTime;
-        }
-        return false;
-      }
-
-      @Override
-      public int hashCode() {
-        return (int) (startTime ^ (startTime >>> Integer.SIZE));
       }
 
       @Override
@@ -343,39 +332,48 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     private final long duration;
-    private final long step;
+    private final long slide;
     private final int stepsPerWindow;
     private final UnaryFunction<T, Long> eventTimeFn;
 
-    private TimeSliding(long duration, long step, UnaryFunction<T, Long> eventTimeFn) {
+    private TimeSliding(
+        long duration,
+        long slide,
+        UnaryFunction<T, Long> eventTimeFn) {
+
       this.duration = duration;
-      this.step = step;
+      this.slide = slide;
       this.eventTimeFn = requireNonNull(eventTimeFn);
 
-      if (duration % step != 0) {
+      if (duration % slide != 0) {
         throw new IllegalArgumentException(
             "This time sliding window can manage only aligned sliding windows");
       }
-      stepsPerWindow = (int) (duration / step);
+      stepsPerWindow = (int) (duration / slide);
     }
 
     /**
      * Specify the event time extraction function.
      */
     public <T> TimeSliding<T> using(UnaryFunction<T, Long> eventTimeFn) {
-      return new TimeSliding<>(this.duration, this.step, eventTimeFn);
+      return new TimeSliding<>(this.duration, this.slide, eventTimeFn);
     }
 
     @Override
-    public Set<SlidingWindow> assignWindows(T input) {
-      long now = eventTimeFn.apply(input) - duration + step;
-      long boundary = now / step * step;
-      Set<SlidingWindow> ret = new HashSet<>();
+    public Set<WindowID<Void, Long>> assignWindows(T input) {
+      long now = eventTimeFn.apply(input) - duration + slide;
+      long boundary = now / slide * slide;
+      Set<WindowID<Void, Long>> ret = new HashSet<>();
       for (int i = 0; i < stepsPerWindow; i++) {
-        ret.add(new SlidingWindow(boundary, duration));
-        boundary += step;
+        ret.add(WindowID.aligned(boundary));
+        boundary += slide;
       }
       return ret;
+    }
+
+    @Override
+    public SlidingWindowContext createWindowContext(WindowID<Void, Long> id) {
+      return new SlidingWindowContext(id.getLabel(), duration);
     }
 
     @Override
@@ -387,7 +385,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     public String toString() {
       return "TimeSliding{" +
           "duration=" + duration +
-          ", step=" + step +
+          ", step=" + slide +
           ", stepsPerWindow=" + stepsPerWindow +
           '}';
     }
@@ -395,7 +393,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
   /** Session windows. */
   final class Session<T, G>
-      implements MergingWindowing<T, G, Session.SessionInterval, Session.SessionWindow<G>>
+      implements MergingWindowing<T, G, Session.SessionInterval, Session.SessionWindowContext<G>>
   {
     public static final class SessionInterval
         implements Serializable, Comparable<SessionInterval>
@@ -462,48 +460,37 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
     } // ~ end of SessionInterval
 
-    public static final class SessionWindow<G>
-        extends EarlyTriggeredWindow
-        implements Window<G, SessionInterval>
-    {
-      private final G group;
-      private final SessionInterval label;
-
-      SessionWindow(G group, SessionInterval label, Duration earlyFiringDuration) {
-        super(earlyFiringDuration, label.getEndMillis());
-        this.group = group;
-        this.label = label;
-      }
-
-      @Override
-      public G getGroup() {
-        return group;
-      }
-
-      @Override
-      public SessionInterval getLabel() {
-        return label;
-      }
+    public static final class SessionWindowContext<G>         
+        extends EarlyTriggeredWindowContext<G, SessionInterval> {
+      
+      SessionWindowContext(
+          G group,
+          SessionInterval label,
+          Duration earlyFiringDuration) {
+        super(WindowID.unaligned(group, label),
+            earlyFiringDuration, label.getEndMillis());
+     }
 
       @Override
       public List<Trigger> createTriggers() {
         if (isEarlyTriggered()) {
           return Arrays.asList(
               getEarlyTrigger(),
-              new TimeTrigger(label.getEndMillis()));
+              new TimeTrigger(getWindowID().getLabel().getEndMillis()));
         } else {
-          return Collections.singletonList(new TimeTrigger(label.getEndMillis()));
+          return Collections.singletonList(
+              new TimeTrigger(getWindowID().getLabel().getEndMillis()));
         }
       }
 
       @Override
       public String toString() {
         return "SessionWindow{" +
-            "group=" + group +
-            ", label=" + label +
+            "id=" + getWindowID() +
             '}';
       }
-    } // ~ end of SessionWindow
+
+    } // ~ end of SessionWindowContext
 
     public static final class OfChain {
       private final long gapMillis;
@@ -574,40 +561,38 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     @Override
-    public Set<SessionWindow<G>> assignWindows(T input) {
+    public Set<WindowID<G, SessionInterval>> assignWindows(T input) {
       long evtMillis = this.eventTimeFn.apply(input);
-      SessionWindow<G> w = new SessionWindow<>(
+      WindowID<G, SessionInterval> ret = WindowID.unaligned(
           this.groupFn.apply(input),
-          new SessionInterval(evtMillis, evtMillis + gapDurationMillis),
-          earlyTriggeringPeriod);
-      return Collections.singleton(w);
+          new SessionInterval(evtMillis, evtMillis + gapDurationMillis));
+      return Collections.singleton(ret);
     }
 
     @Override
-    public Collection<Pair<Collection<SessionWindow<G>>, SessionWindow<G>>>
-    mergeWindows(Collection<SessionWindow<G>> actives)
-    {
+    public Collection<Pair<Collection<SessionWindowContext<G>>, SessionWindowContext<G>>>
+    mergeWindows(Collection<SessionWindowContext<G>> actives) {
       if (actives.size() < 2) {
         return Collections.emptyList();
       }
 
-      ArrayList<SessionWindow<G>> sorted = new ArrayList<>(actives);
-      sorted.sort(Comparator.comparing(SessionWindow<G>::getLabel));
+      ArrayList<SessionWindowContext<G>> sorted = new ArrayList<>(actives);
+      sorted.sort(Comparator.comparing(w -> w.getWindowID().getLabel()));
 
-      Iterator<SessionWindow<G>> windows = sorted.iterator();
+      Iterator<SessionWindowContext<G>> windows = sorted.iterator();
 
       // ~ the final collection of merges to be performed by the framework
-      List<Pair<Collection<SessionWindow<G>>, SessionWindow<G>>> merges = null;
+      List<Pair<Collection<SessionWindowContext<G>>, SessionWindowContext<G>>> merges = null;
 
       // ~ holds the list of existing session windows to be merged
-      List<SessionWindow<G>> toMerge = null;
+      List<SessionWindowContext<G>> toMerge = null;
       // ~ the current merge candidate
-      SessionWindow<G> mergeCandidate = windows.next();
+      SessionWindowContext<G> mergeCandidate = windows.next();
       // ~ true if `mergeCandidate` is a newly created window
       boolean transientCandidate = false;
       while (windows.hasNext()) {
-        SessionWindow<G> w = windows.next();
-        if (mergeCandidate.getLabel().intersects(w.getLabel())) {
+        SessionWindowContext<G> w = windows.next();
+        if (mergeCandidate.getWindowID().getLabel().intersects(w.getWindowID().getLabel())) {
           if (toMerge == null) {
             toMerge = new ArrayList<>();
           }
@@ -615,9 +600,12 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
             toMerge.add(mergeCandidate);
           }
           toMerge.add(w);
-          mergeCandidate = new SessionWindow<>(
-              mergeCandidate.getGroup(), mergeCandidate.getLabel().createSpanned(w.getLabel()),
+          mergeCandidate = new SessionWindowContext<>(
+              mergeCandidate.getWindowID().getGroup(),
+              mergeCandidate.getWindowID().getLabel()
+                  .createSpanned(w.getWindowID().getLabel()),
               earlyTriggeringPeriod);
+          
           transientCandidate = true;
         } else {
           if (toMerge != null && !toMerge.isEmpty()) {
@@ -643,12 +631,29 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
 
     @Override
+    public SessionWindowContext<G> createWindowContext(WindowID<G, SessionInterval> id) {
+      return new SessionWindowContext<>(
+          id.getGroup(),
+          id.getLabel(),
+          earlyTriggeringPeriod);
+    }
+
+
+    @Override
     public void updateTriggering(TriggerScheduler triggering, T input) {
       triggering.updateProcessed(eventTimeFn.apply(input));
     }
   } // ~ end of Session
 
-  Set<W> assignWindows(T input);
+  Set<WindowID<GROUP, LABEL>> assignWindows(T input);
+
+  /**
+   * Create the window context for given window ID.
+   * The context is created when processing elements belonging to the
+   * same group (i.e. after grouping the elements).
+   */
+  W createWindowContext(WindowID<GROUP, LABEL> id);
+
 
   /**
    * Update triggering by given input. This is needed to enable the windowing

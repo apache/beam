@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.WindowID;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.HashMap;
@@ -24,7 +25,7 @@ class EndOfWindowCountDown {
     }
   }
 
-  private final Map<Pair, CounterData> counters = new HashMap<>();
+  private final Map<WindowID, CounterData> counters = new HashMap<>();
 
   // ~ count down the arrival of the specified window `w`
   // ~ `expectedCountDowns` represents the awaited number of arrivals for the window
@@ -36,13 +37,12 @@ class EndOfWindowCountDown {
     }
 
     synchronized (counters) {
-      Window w = eow.getWindow();
-      Pair wkey = Pair.of(w.getGroup(), w.getLabel());
-      CounterData cd = counters.get(wkey);
+      WindowContext w = eow.getWindowContext();
+      CounterData cd = counters.get(w.getWindowID());
       if (cd == null) {
-        counters.put(wkey, new CounterData(expectedCountDowns - 1));
+        counters.put(w.getWindowID(), new CounterData(expectedCountDowns - 1));
       } else if (cd.countDown()) {
-        counters.remove(wkey);
+        counters.remove(w.getWindowID());
         return true;
       }
     }

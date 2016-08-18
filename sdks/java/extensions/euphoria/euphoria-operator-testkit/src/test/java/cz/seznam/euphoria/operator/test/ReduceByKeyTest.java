@@ -1,14 +1,14 @@
 
 package cz.seznam.euphoria.operator.test;
 
-import cz.seznam.euphoria.core.client.dataset.AlignedWindow;
 import cz.seznam.euphoria.core.client.dataset.AlignedWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.WindowID;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
-import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import java.util.Arrays;
@@ -89,32 +89,26 @@ public class ReduceByKeyTest extends OperatorTest {
     };
   }
   
-  static class TestWindow implements AlignedWindow<Integer> {
-
-    final int label;
-
-    public TestWindow(int label) {
-      this.label = label;
+  static class TestWindowContext extends WindowContext<Void, Integer> {
+   
+    public TestWindowContext(int label) {
+      super(WindowID.aligned(label));
     }
     
-    @Override
-    public Integer getLabel() {
-      return label;
-    }
-
-    @Override
-    public List<Trigger> createTriggers() {
-      return Collections.emptyList();
-    }
   }
 
   static class TestWindowing
-      implements AlignedWindowing<Integer, Integer, TestWindow> {
+      implements AlignedWindowing<Integer, Integer, TestWindowContext> {
 
     @Override
-    public Set<TestWindow> assignWindows(Integer input) {
+    public Set<WindowID<Void, Integer>> assignWindows(Integer input) {
       // we group items into windows by 4 elements
-      return Collections.singleton(new TestWindow(input / 4));
+      return Collections.singleton(WindowID.aligned(input / 4));
+    }
+
+    @Override
+    public TestWindowContext createWindowContext(WindowID<Void, Integer> wid) {
+      return new TestWindowContext(wid.getLabel());
     }
 
   }

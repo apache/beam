@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +18,7 @@ public class TimeTrigger implements Trigger {
   }
 
   @Override
-  public TriggerResult init(Window w, TriggerContext ctx) {
+  public TriggerResult init(WindowContext w, TriggerContext ctx) {
     if (ctx.scheduleTriggerAt(end, w, this)) {
       return TriggerResult.NOOP;
     }
@@ -27,8 +27,8 @@ public class TimeTrigger implements Trigger {
   }
 
   @Override
-  public TriggerResult onTimeEvent(long time, Window w, TriggerContext ctx) {
-    LOG.debug("Firing TimeTrigger, time {}, window: {}", time, w.getLabel());
+  public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
+    LOG.debug("Firing TimeTrigger, time {}, window: {}", time, w.getWindowID());
     return TriggerResult.FLUSH_AND_PURGE;
   }
 }

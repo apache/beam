@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -16,7 +16,7 @@ import java.util.Objects;
 /**
  * Operator outputting distinct (based on equals) elements.
  */
-public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
+public class Distinct<IN, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, IN, OUT, WLABEL, W, Distinct<IN, WLABEL, W, OUT>>
 {
@@ -46,7 +46,7 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
-    public <WLABEL, W extends Window<?, WLABEL>> OutputBuilder<IN, WLABEL, W>
+    public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
@@ -57,7 +57,7 @@ public class Distinct<IN, WLABEL, W extends Window<?, WLABEL>, OUT>
     }
   }
 
-  public static class OutputBuilder<IN, WLABEL, W extends Window<?, WLABEL>>
+  public static class OutputBuilder<IN, WLABEL, W extends WindowContext<?, WLABEL>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
   {
     private final WindowingBuilder<IN> prev;

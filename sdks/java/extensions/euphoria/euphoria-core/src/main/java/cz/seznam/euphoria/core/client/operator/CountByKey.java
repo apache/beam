@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Window;
+import cz.seznam.euphoria.core.client.dataset.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -16,7 +16,7 @@ import java.util.Objects;
 /**
  * Operator counting elements with same key.
  */
-public class CountByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
+public class CountByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
                         PAIROUT extends Pair<KEY, Long>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, PAIROUT,
@@ -60,7 +60,7 @@ public class CountByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
-    public <WLABEL, W extends Window<?, WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
+    public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
     windowBy(Windowing<IN, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
@@ -69,7 +69,7 @@ public class CountByKey<IN, KEY, WLABEL, W extends Window<?, WLABEL>,
       return new OutputBuilder<>(this, BatchWindowing.get()).output();
     }
   }
-  public static class OutputBuilder<IN, KEY, WLABEL, W extends Window<?, WLABEL>> {
+  public static class OutputBuilder<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>> {
     private final WindowingBuilder<IN, KEY> prev;
     private final Windowing<IN, ?, WLABEL, W> windowing;
     OutputBuilder(WindowingBuilder<IN, KEY> prev,
