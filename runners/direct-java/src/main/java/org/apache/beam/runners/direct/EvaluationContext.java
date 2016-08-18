@@ -436,7 +436,7 @@ class EvaluationContext {
     return clock.now();
   }
 
-  public Clock getClock() {
+  Clock getClock() {
     return clock;
   }
 }

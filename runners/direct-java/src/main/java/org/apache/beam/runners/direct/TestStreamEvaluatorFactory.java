@@ -56,7 +56,7 @@ import javax.annotation.Nullable;
  */
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private final AtomicBoolean inUse = new AtomicBoolean(false);
-  private AtomicReference<Evaluator<?>> evaluator = new AtomicReference<>();
+  private final AtomicReference<Evaluator<?>> evaluator = new AtomicReference<>();
 
   @Nullable
   @Override
@@ -99,7 +99,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       this.application = application;
       this.context = context;
       this.inUse = inUse;
-      this.events = application.getTransform().getStreamEvents();
+      this.events = application.getTransform().getEvents();
       index = 0;
       currentWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
