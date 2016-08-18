@@ -142,8 +142,8 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>To delete a {@link PCollection} of {@link Key Keys} from Datastore, use
- * {@link V1Beta3#deleteKey}, specifying the Cloud Datastore project to write to:
+ * <p>To delete entities associated with a {@link PCollection} of {@link Key Keys} from Datastore,
+ * use {@link V1Beta3#deleteKey}, specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
@@ -754,13 +754,14 @@ public class V1Beta3 {
   /**
    * A {@link PTransform} that writes mutations to Cloud Datastore.
    *
-   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}
+   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}.
+   * {@code T} is usually either an {@link Entity} or a {@link Key}
    * <b>Note:</b> Only idempotent Cloud Datastore mutation operations (upsert and delete) should
    * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     private final String projectId;
-    // A function that transforms each entity into a mutation.
+    /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
     Mutate(String projectId, SimpleFunction<T, Mutation> mutationFn) {
@@ -976,7 +977,7 @@ public class V1Beta3 {
   }
 
   /**
-   * A function that constructs a delete {@link Mutation} from an {@link Key}.
+   * A function that constructs a delete {@link Mutation} from a {@link Key}.
    */
   @VisibleForTesting
   static class DeleteKeyFn extends SimpleFunction<Key, Mutation> {
