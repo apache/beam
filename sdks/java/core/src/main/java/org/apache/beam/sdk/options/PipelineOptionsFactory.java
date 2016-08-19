@@ -1456,8 +1456,8 @@ public class PipelineOptionsFactory {
           if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
-                  "Empty argument value is only allowed for String, String Array, and Collection,"
-                  + " but received: " + returnType);
+                  "Empty argument value is only allowed for String, String Array, "
+                  + "and Collections of Strings, but received: " + returnType);
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
