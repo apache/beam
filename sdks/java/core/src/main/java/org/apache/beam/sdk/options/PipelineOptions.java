@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.lang.reflect.Proxy;
 import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -285,6 +286,24 @@ public interface PipelineOptions extends HasDisplayData {
                 + "    Adding the DirectRunner to the classpath%n"
                 + "    Calling 'PipelineOptions.setRunner(PipelineRunner)' directly"));
       }
+    }
+  }
+
+  /**
+   * Provides a unique ID for this Options object, assigned at graph construction
+   * time.
+   */
+  @Hidden
+  @Default.InstanceFactory(AtomicLongFactory.class)
+  Long getOptionsId();
+  void setOptionsId(Long id);
+
+  class AtomicLongFactory implements DefaultValueFactory<Long> {
+    private static final AtomicLong NEXT_ID = new AtomicLong(0);
+    
+    @Override
+    public Long create(PipelineOptions options) {
+      return NEXT_ID.getAndIncrement();
     }
   }
 }

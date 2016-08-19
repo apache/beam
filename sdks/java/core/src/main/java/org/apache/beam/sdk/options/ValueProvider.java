@@ -43,6 +43,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** {@link ValueProvider} is an interface which abstracts the notion of
  * fetching a value that may or may not be currently available.  This can be
@@ -93,31 +94,36 @@ public interface ValueProvider<T> {
    * get() on the worker, which will provide the value of OPTIONS.
    */
   public static class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
-    private static PipelineOptions options = null;
+    private static ConcurrentHashMap<Long, PipelineOptions> optionsMap =
+      new ConcurrentHashMap<>();
 
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
     private final T defaultValue;
+    private final Long optionsId;
 
-    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass) {
+    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass, Long optionsId) {
       this.methodName = methodName;
       this.klass = klass;
       this.defaultValue = null;
+      this.optionsId = optionsId;
     }
 
     RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
-      T defaultValue) {
+      T defaultValue, Long optionsId) {
       this.methodName = methodName;
       this.klass = klass;
       this.defaultValue = defaultValue;
+      this.optionsId = optionsId;
     }
 
     static void setRuntimeOptions(PipelineOptions runtimeOptions) {
-      options = runtimeOptions;
+      optionsMap.put(runtimeOptions.getOptionsId(), runtimeOptions);
     }
 
     @Override
     public T get() {
+      PipelineOptions options = optionsMap.get(optionsId);
       if (options == null) {
         if (defaultValue != null) {
           return defaultValue;
