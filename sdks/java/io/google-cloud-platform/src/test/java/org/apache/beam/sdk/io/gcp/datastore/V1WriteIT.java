@@ -18,13 +18,13 @@
 
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3TestUtil.countEntities;
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3TestUtil.deleteAllEntities;
+import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
+import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.deleteAllEntities;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3TestUtil.CreateEntityFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -38,37 +38,37 @@ import org.junit.runners.JUnit4;
 import java.util.UUID;
 
 /**
- * End-to-end tests for Datastore V1Beta3.Write.
+ * End-to-end tests for Datastore DatastoreV1.Write.
  */
 @RunWith(JUnit4.class)
-public class V1Beta3WriteIT {
-  private V1Beta3TestOptions options;
+public class V1WriteIT {
+  private V1TestOptions options;
   private String ancestor;
   private final long numEntities = 1000;
 
   @Before
   public void setup() {
-    PipelineOptionsFactory.register(V1Beta3TestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(V1Beta3TestOptions.class);
+    PipelineOptionsFactory.register(V1TestOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     ancestor = UUID.randomUUID().toString();
   }
 
   /**
-   * An end-to-end test for {@link V1Beta3.Write}.
+   * An end-to-end test for {@link DatastoreV1.Write}.
    *
    * Write some test entities to datastore through a dataflow pipeline.
    * Read and count all the entities. Verify that the count matches the
    * number of entities written.
    */
   @Test
-  public void testE2EV1Beta3Write() throws Exception {
+  public void testE2EV1Write() throws Exception {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
     p.apply(CountingInput.upTo(numEntities))
         .apply(ParDo.of(new CreateEntityFn(
             options.getKind(), options.getNamespace(), ancestor)))
-        .apply(DatastoreIO.v1beta3().write().withProjectId(options.getProject()));
+        .apply(DatastoreIO.v1().write().withProjectId(options.getProject()));
 
     p.run();
 

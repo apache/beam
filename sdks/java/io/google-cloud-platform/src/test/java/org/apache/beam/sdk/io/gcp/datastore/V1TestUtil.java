@@ -18,12 +18,12 @@
 
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import static com.google.datastore.v1beta3.QueryResultBatch.MoreResultsType.NOT_FINISHED;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.QueryResultBatch.MoreResultsType.NOT_FINISHED;
+import static com.google.datastore.v1.client.DatastoreHelper.makeDelete;
+import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,21 +35,21 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.datastore.v1beta3.CommitRequest;
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.EntityResult;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.Key.PathElement;
-import com.google.datastore.v1beta3.Mutation;
-import com.google.datastore.v1beta3.PropertyFilter;
-import com.google.datastore.v1beta3.Query;
-import com.google.datastore.v1beta3.QueryResultBatch;
-import com.google.datastore.v1beta3.RunQueryRequest;
-import com.google.datastore.v1beta3.RunQueryResponse;
-import com.google.datastore.v1beta3.client.Datastore;
-import com.google.datastore.v1beta3.client.DatastoreException;
-import com.google.datastore.v1beta3.client.DatastoreFactory;
-import com.google.datastore.v1beta3.client.DatastoreOptions;
+import com.google.datastore.v1.CommitRequest;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Key.PathElement;
+import com.google.datastore.v1.Mutation;
+import com.google.datastore.v1.PropertyFilter;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.QueryResultBatch;
+import com.google.datastore.v1.RunQueryRequest;
+import com.google.datastore.v1.RunQueryResponse;
+import com.google.datastore.v1.client.Datastore;
+import com.google.datastore.v1.client.DatastoreException;
+import com.google.datastore.v1.client.DatastoreFactory;
+import com.google.datastore.v1.client.DatastoreOptions;
 import com.google.protobuf.Int32Value;
 
 import org.slf4j.Logger;
@@ -62,8 +62,8 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
-class V1Beta3TestUtil {
-  private static final Logger LOG = LoggerFactory.getLogger(V1Beta3TestUtil.class);
+class V1TestUtil {
+  private static final Logger LOG = LoggerFactory.getLogger(V1TestUtil.class);
 
   /**
    * A helper function to create the ancestor key for all created and queried entities.
@@ -161,13 +161,13 @@ class V1Beta3TestUtil {
   /**
    * Delete all entities with the given ancestor.
    */
-  static void deleteAllEntities(V1Beta3TestOptions options, String ancestor) throws Exception {
+  static void deleteAllEntities(V1TestOptions options, String ancestor) throws Exception {
     Datastore datastore = getDatastore(options, options.getProject());
-    Query query = V1Beta3TestUtil.makeAncestorKindQuery(
+    Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
-    V1Beta3TestReader reader = new V1Beta3TestReader(datastore, query, options.getNamespace());
-    V1Beta3TestWriter writer = new V1Beta3TestWriter(datastore, new DeleteMutationBuilder());
+    V1TestReader reader = new V1TestReader(datastore, query, options.getNamespace());
+    V1TestWriter writer = new V1TestWriter(datastore, new DeleteMutationBuilder());
 
     long numEntities = 0;
     while (reader.advance()) {
@@ -183,13 +183,13 @@ class V1Beta3TestUtil {
   /**
    * Returns the total number of entities for the given datastore.
    */
-  static long countEntities(V1Beta3TestOptions options, String ancestor) throws Exception {
+  static long countEntities(V1TestOptions options, String ancestor) throws Exception {
     // Read from datastore.
-    Datastore datastore = V1Beta3TestUtil.getDatastore(options, options.getProject());
-    Query query = V1Beta3TestUtil.makeAncestorKindQuery(
+    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject());
+    Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
-    V1Beta3TestReader reader = new V1Beta3TestReader(datastore, query, options.getNamespace());
+    V1TestReader reader = new V1TestReader(datastore, query, options.getNamespace());
 
     long numEntitiesRead = 0;
     while (reader.advance()) {
@@ -228,8 +228,8 @@ class V1Beta3TestUtil {
   /**
    * A helper class to write entities to datastore.
    */
-  static class V1Beta3TestWriter {
-    private static final Logger LOG = LoggerFactory.getLogger(V1Beta3TestWriter.class);
+  static class V1TestWriter {
+    private static final Logger LOG = LoggerFactory.getLogger(V1TestWriter.class);
     // Limits the number of entities updated per batch
     private static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
     // Number of times to retry on update failure
@@ -252,7 +252,7 @@ class V1Beta3TestUtil {
     private final MutationBuilder mutationBuilder;
     private final List<Entity> entities = new ArrayList<>();
 
-    V1Beta3TestWriter(Datastore datastore, MutationBuilder mutationBuilder) {
+    V1TestWriter(Datastore datastore, MutationBuilder mutationBuilder) {
       this.datastore = datastore;
       this.mutationBuilder = mutationBuilder;
     }
@@ -312,7 +312,7 @@ class V1Beta3TestUtil {
   /**
    * A helper class to read entities from datastore.
    */
-  static class V1Beta3TestReader {
+  static class V1TestReader {
     private static final int QUERY_BATCH_LIMIT = 500;
     private final Datastore datastore;
     private final Query query;
@@ -324,7 +324,7 @@ class V1Beta3TestUtil {
     private QueryResultBatch currentBatch;
     private Entity currentEntity;
 
-    V1Beta3TestReader(Datastore datastore, Query query, @Nullable String namespace) {
+    V1TestReader(Datastore datastore, Query query, @Nullable String namespace) {
       this.datastore = datastore;
       this.query = query;
       this.namespace = namespace;
@@ -368,7 +368,7 @@ class V1Beta3TestUtil {
       int numFetch = currentBatch.getEntityResultsCount();
       // All indications from the API are that there are/may be more results.
       moreResults = ((numFetch == QUERY_BATCH_LIMIT)
-              || (currentBatch.getMoreResults() == NOT_FINISHED));
+          || (currentBatch.getMoreResults() == NOT_FINISHED));
 
       // May receive a batch of 0 results if the number of records is a multiple
       // of the request limit.
