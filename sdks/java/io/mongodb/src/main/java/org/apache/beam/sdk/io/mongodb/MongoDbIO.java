@@ -41,6 +41,8 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -98,6 +100,8 @@ import javax.annotation.Nullable;
 //  DBObject ??
 public class MongoDbIO {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIO.class);
+
   public static Read read() {
     return new Read();
   }
@@ -133,12 +137,12 @@ public class MongoDbIO {
       return new Read(uri, database, collection, filter, numSplits);
     }
 
-    protected String uri;
-    protected String database;
-    protected String collection;
+    private String uri;
+    private String database;
+    private String collection;
     @Nullable
-    protected String filter;
-    protected int numSplits;
+    private String filter;
+    private int numSplits;
 
     private Read() {}
 
@@ -188,13 +192,12 @@ public class MongoDbIO {
 
   private static class BoundedMongoDbSource extends BoundedSource {
 
-    private String uri;
-    private String database;
-    private String collection;
+    private final String uri;
+    private final String database;
+    private final String collection;
     @Nullable
-    private String filter;
-    private int numSplits;
-    private Long avgSize;
+    private final String filter;
+    private final int numSplits;
 
     public BoundedMongoDbSource(String uri, String database, String collection, String filter,
                                 int numSplits) {
@@ -224,13 +227,13 @@ public class MongoDbIO {
 
     @Override
     public BoundedReader createReader(PipelineOptions options) {
-      return new BoundedMongoDbReader(uri, database, collection, filter);
+      return new BoundedMongoDbReader(uri, database, collection, filter, this);
     }
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      Long estimatedByteSize = 0L;
-      Long totalCfByteSize = 0L;
+      long estimatedByteSize = 0L;
+      long totalCfByteSize = 0L;
 
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
@@ -241,12 +244,12 @@ public class MongoDbIO {
       stat.append("collStats", collection);
       Document stats = mongoDatabase.runCommand(stat);
       totalCfByteSize = Long.valueOf(stats.get("size").toString());
-      avgSize = Long.valueOf(stats.get("avgObjSize").toString());
+      long avgSize = Long.valueOf(stats.get("avgObjSize").toString());
       if (filter != null && !filter.isEmpty()) {
         try {
           estimatedByteSize = getFilterResultByteSize(mongoCollection, avgSize);
         } catch (Exception e) {
-          e.printStackTrace();
+          LOGGER.warn("Can't estimate size", e);
         }
       } else {
         estimatedByteSize = totalCfByteSize;
@@ -254,9 +257,9 @@ public class MongoDbIO {
       return estimatedByteSize;
     }
 
-    private Long getFilterResultByteSize(MongoCollection mongoCollection, Long avgSize)
+    private long getFilterResultByteSize(MongoCollection mongoCollection, long avgSize)
         throws Exception {
-      Long totalFilterByteSize = 0L;
+      long totalFilterByteSize = 0L;
       Document bson = Document.parse(filter);
       long countFilter = mongoCollection.count(bson);
       totalFilterByteSize = countFilter * avgSize;
@@ -266,11 +269,11 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource> splitIntoBundles(long desiredBundleSizeBytes,
                                                 PipelineOptions options) {
-      Long numberSplitsCalculated = 0L;
+      long numberSplitsCalculated = 0L;
       List<BoundedSource> listEntireCollection = new ArrayList<>();
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
-      Long collectionEstimatedSize = getEstimatedSizeBytes(options);
+      long collectionEstimatedSize = getEstimatedSizeBytes(options);
       ArrayList splitIDFromMongo;
       double initialRatio = 1.6;
       if (numSplits > 0) {
@@ -285,7 +288,7 @@ public class MongoDbIO {
         listEntireCollection.add(this);
         return listEntireCollection;
       }
-      int maxChunkSize = 64000;
+      int maxChunkSizeBytes = 64000;
       // get the key ranges with splitVector
       BasicDBObject split = new BasicDBObject();
       split.append("splitVector", database + "." + collection);
@@ -293,7 +296,7 @@ public class MongoDbIO {
       keyPatternValue.append("_id", 1);
       split.append("keyPattern", keyPatternValue);
       split.append("force", false);
-      split.append("maxChunkSizeBytes", maxChunkSize);
+      split.append("maxChunkSizeBytes", maxChunkSizeBytes);
       Document data = mongoDatabase.runCommand(split);
       splitIDFromMongo = (ArrayList) data.get("splitKeys");
       // ratio between number of splits from mongo and splits defined by runner or user
@@ -340,7 +343,6 @@ public class MongoDbIO {
       String lastID = null; // Lower boundary of the first min split
       int listIndex = 0;
       for (final Object splitIdValue : splitIDList) {
-//          final Document  currentDoc = (Document) aSplitData;
         String currentID = splitIdValue.toString();
         String newFilter;
         if (filter != null && !filter.isEmpty()) {
@@ -390,16 +392,19 @@ public class MongoDbIO {
     private String database;
     private String collection;
     private String filter;
+    private BoundedSource source;
 
     private MongoClient client;
     private MongoCursor<Document> cursor;
     private String current;
 
-    public BoundedMongoDbReader(String uri, String database, String collection, String filter) {
+    public BoundedMongoDbReader(String uri, String database, String collection, String filter,
+                                BoundedSource source) {
       this.uri = uri;
       this.database = database;
       this.collection = collection;
       this.filter = filter;
+      this.source = source;
     }
 
     @Override
@@ -422,7 +427,6 @@ public class MongoDbIO {
 
     @Override
     public boolean advance() {
-
       if (cursor.hasNext()) {
         current = cursor.next().toJson();
         return true;
@@ -433,7 +437,7 @@ public class MongoDbIO {
 
     @Override
     public BoundedSource getCurrentSource() {
-      return null;
+      return source;
     }
 
     @Override
@@ -443,8 +447,16 @@ public class MongoDbIO {
 
     @Override
     public void close() {
-      cursor.close();
-      client.close();
+      try {
+        cursor.close();
+      } catch (Exception e) {
+        LOGGER.warn("Error closing MongoDB cursor", e);
+      }
+      try {
+        client.close();
+      } catch (Exception e) {
+        LOGGER.warn("Error closing MongoDB client", e);
+      }
     }
 
   }
