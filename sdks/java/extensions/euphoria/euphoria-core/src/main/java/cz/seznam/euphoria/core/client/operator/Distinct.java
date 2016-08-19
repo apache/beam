@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -47,7 +47,7 @@ public class Distinct<IN, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
       this.input = Objects.requireNonNull(input);
     }
     public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, WLABEL, W>
-    windowBy(ElementWindowing<IN, ?, WLABEL, W> windowing) {
+    windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new OutputBuilder<>(this, windowing);
     }
     @Override
@@ -60,8 +60,8 @@ public class Distinct<IN, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
   {
     private final WindowingBuilder<IN> prev;
-    private final ElementWindowing<IN, ?, WLABEL, W> windowing;
-    OutputBuilder(WindowingBuilder<IN> prev, ElementWindowing<IN, ?, WLABEL, W> windowing) {
+    private final Windowing<IN, ?, WLABEL, W> windowing;
+    OutputBuilder(WindowingBuilder<IN> prev, Windowing<IN, ?, WLABEL, W> windowing) {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
@@ -96,7 +96,7 @@ public class Distinct<IN, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
   Distinct(String name,
            Flow flow,
            Dataset<IN> input,
-           ElementWindowing<IN, ?, WLABEL, W> windowing,
+           Windowing<IN, ?, WLABEL, W> windowing,
            Partitioning<IN> partitioning,
            boolean windowedOutput)
   {
