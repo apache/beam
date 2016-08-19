@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.WindowID;
-import cz.seznam.euphoria.core.client.dataset.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.Collector;
 
 import java.util.Objects;

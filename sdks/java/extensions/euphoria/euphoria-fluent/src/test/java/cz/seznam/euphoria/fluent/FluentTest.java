@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.fluent;
 
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
-import cz.seznam.euphoria.core.client.dataset.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;

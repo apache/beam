@@ -1,11 +1,10 @@
-package cz.seznam.euphoria.core.client.dataset;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
-import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionInterval;
-import cz.seznam.euphoria.core.client.dataset.Windowing.Session.SessionWindowContext;
-import cz.seznam.euphoria.core.client.dataset.Windowing.Time.TimeInterval;
+package cz.seznam.euphoria.core.client.dataset.windowing;
+
+import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing.Session.SessionInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
@@ -38,6 +37,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.core.util.Util.sorted;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import static java.util.Arrays.asList;
 import java.util.Map;
 import static org.junit.Assert.*;

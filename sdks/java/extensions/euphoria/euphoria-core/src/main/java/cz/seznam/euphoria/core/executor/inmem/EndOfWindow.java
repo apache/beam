@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 
 import java.util.Objects;
 

@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.dataset.windowing;
 
 /**
  * A single data element flowing in dataset. Every such element
