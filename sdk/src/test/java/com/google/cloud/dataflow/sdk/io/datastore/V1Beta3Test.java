@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io.datastore;
 
+import static com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT;
 import static com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
 import static com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.getEstimatedSizeBytes;
@@ -25,10 +26,9 @@ import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
@@ -43,17 +43,18 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.DatastoreWriter;
+import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.DatastoreWriterFn;
 import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.ReadFn;
 import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.SplitQueryFn;
-import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.V1Beta3DatastoreFactory;
 import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.Read.V1Beta3Options;
+import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3.V1Beta3DatastoreFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester.CloningBehavior;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.common.collect.Lists;
+import com.google.datastore.v1beta3.CommitRequest;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
 import com.google.datastore.v1beta3.Key;
@@ -78,7 +79,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -252,33 +252,33 @@ public class V1Beta3Test {
     Key key;
     // Complete with name, no ancestor
     key = makeKey("bird", "finch").build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Complete with id, no ancestor
     key = makeKey("bird", 123).build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Incomplete, no ancestor
     key = makeKey("bird").build();
-    assertFalse(DatastoreWriter.isValidKey(key));
+    assertFalse(V1Beta3.isValidKey(key));
 
     // Complete with name and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", "horned").build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Complete with id and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", 123).build();
-    assertTrue(DatastoreWriter.isValidKey(key));
+    assertTrue(V1Beta3.isValidKey(key));
 
     // Incomplete with ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird").build();
-    assertFalse(DatastoreWriter.isValidKey(key));
+    assertFalse(V1Beta3.isValidKey(key));
 
     key = makeKey().build();
-    assertFalse(DatastoreWriter.isValidKey(key));
+    assertFalse(V1Beta3.isValidKey(key));
   }
 
   /**
@@ -288,35 +288,62 @@ public class V1Beta3Test {
   public void testAddEntitiesWithIncompleteKeys() throws Exception {
     Key key = makeKey("bird").build();
     Entity entity = Entity.newBuilder().setKey(key).build();
-    DatastoreWriter writer = new DatastoreWriter(null, mockDatastore);
+    DatastoreWriterFn writer = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
+    DoFnTester<Entity, Void> doFnTester = DoFnTester.of(writer);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(UserCodeException.class);
     thrown.expectMessage("Entities to be written to the Datastore must have complete keys");
 
-    writer.write(entity);
+    doFnTester.processBatch(entity);
+  }
+
+  /** Tests {@link DatastoreWriterFn} with entities less than one batch. */
+  @Test
+  public void testDatatoreWriterFnWithOneBatch() throws Exception {
+    datastoreWriterFnTest(100);
+  }
+
+  /** Tests {@link DatastoreWriterFn} with entities of more than one batches, but not a multiple. */
+  @Test
+  public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
+    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_LIMIT * 3 + 100);
   }
 
   /**
-   * Test that entities are added to the batch to update.
+   * Tests {@link DatastoreWriterFn} with entities of several batches, using an exact multiple of
+   * write batch size.
    */
   @Test
-  public void testAddingEntities() throws Exception {
-    List<Entity> expected = Lists.newArrayList(
-        Entity.newBuilder().setKey(makeKey("bird", "jay").build()).build(),
-        Entity.newBuilder().setKey(makeKey("bird", "condor").build()).build(),
-        Entity.newBuilder().setKey(makeKey("bird", "robin").build()).build());
+  public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
+    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_LIMIT * 2);
+  }
 
-    List<Entity> allEntities = Lists.newArrayList(expected);
-    Collections.shuffle(allEntities);
-
-    DatastoreWriter writer = new DatastoreWriter(null, mockDatastore);
-    writer.open("test_id");
-    for (Entity entity : allEntities) {
-      writer.write(entity);
+  // A helper method to test DatastoreWriterFn for various batch sizes.
+  private void datastoreWriterFnTest(int numEntities) throws Exception {
+    // Create the requested number of mutations.
+    List<Entity> entities = new ArrayList<>(numEntities);
+    for (int i = 0; i < numEntities; ++i) {
+      entities.add(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build());
     }
 
-    assertEquals(expected.size(), writer.entities.size());
-    assertThat(writer.entities, containsInAnyOrder(expected.toArray()));
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
+    DoFnTester<Entity, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    doFnTester.processBatch(entities);
+
+    int start = 0;
+    while (start < numEntities) {
+      int end = Math.min(numEntities, start + DATASTORE_BATCH_UPDATE_LIMIT);
+      CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+      commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+      for (Entity entity: entities.subList(start, end)) {
+        commitRequest.addMutations(makeUpsert(entity));
+      }
+      // Verify all the batch requests were made with the expected entities.
+      verify(mockDatastore, times(1)).commit(commitRequest.build());
+      start = end;
+    }
   }
 
   /**
