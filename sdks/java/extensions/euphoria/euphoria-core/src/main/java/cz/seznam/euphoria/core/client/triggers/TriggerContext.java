@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 
 /**
  * A context is given to {@link Trigger} methods to allow them to register
