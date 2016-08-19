@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -1819,14 +1818,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(final int hotKeyFanout) {
       return new PerKeyWithHotKeyFanout<>(name, fn, fnDisplayData,
-          new SimpleFunction<K, Integer>() {
-            @Override
-            public void populateDisplayData(Builder builder) {
-              super.populateDisplayData(builder);
-              builder.addIfNotDefault(DisplayData.item("fanout", hotKeyFanout)
-                  .withLabel("Key Fanout Size"), 0);
-            }
-
+          new SerializableFunction<K, Integer>() {
             @Override
             public Integer apply(K unused) {
               return hotKeyFanout;
@@ -1958,12 +1950,7 @@ public class Combine {
 
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                super.populateDisplayData(builder);
-                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
-                    .withLabel("Fanout Function"));
-                if (hotKeyFanout instanceof HasDisplayData) {
-                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
-                }
+                builder.include(keyedFn);
               }
             };
         postCombine =
@@ -2011,12 +1998,7 @@ public class Combine {
               }
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                super.populateDisplayData(builder);
-                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
-                    .withLabel("Fanout Function"));
-                if (hotKeyFanout instanceof HasDisplayData) {
-                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
-                }
+                builder.include(keyedFn);
               }
             };
       } else {
@@ -2060,12 +2042,7 @@ public class Combine {
               }
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                super.populateDisplayData(builder);
-                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
-                    .withLabel("Fanout Function"));
-                if (hotKeyFanout instanceof HasDisplayData) {
-                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
-                }
+                builder.include(keyedFnWithContext);
               }
             };
         postCombine =
@@ -2114,12 +2091,7 @@ public class Combine {
               }
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                super.populateDisplayData(builder);
-                builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
-                    .withLabel("Fanout Function"));
-                if (hotKeyFanout instanceof HasDisplayData) {
-                  ((HasDisplayData) hotKeyFanout).populateDisplayData(builder);
-                }
+                builder.include(keyedFnWithContext);
               }
             };
       }
