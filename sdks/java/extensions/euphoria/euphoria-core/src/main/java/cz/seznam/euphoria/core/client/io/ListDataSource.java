@@ -4,9 +4,11 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -14,31 +16,53 @@ import java.util.stream.Collectors;
  */
 public class ListDataSource<T> implements DataSource<T> {
 
+  // global storage for all existing ListDataSources
+  private static final Map<ListDataSource<?>, List<List<?>>> storage =
+      Collections.synchronizedMap(new WeakHashMap<>());
+
   @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
-    return new ListDataSource<>(Arrays.asList(partitions), true);
+    return new ListDataSource<>(true, Arrays.asList(partitions));
   }
 
   @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
-    return new ListDataSource<>(Arrays.asList(partitions), false);
+    return new ListDataSource<>(false, Arrays.asList(partitions));
   }
 
 
-  final Collection<List<T>> partitions;
   final boolean bounded;
   long sleepMs = 0;
 
-  private ListDataSource(Collection<List<T>> partitions, boolean bounded) {
-    this.partitions = partitions;
+  private final int id = System.identityHashCode(this);
+
+  @SuppressWarnings("unchecked")
+  private ListDataSource(boolean bounded, List<List<T>> partitions) {
     this.bounded = bounded;
+
+    // save partitions to static storage
+    storage.put(this, (List) partitions);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof ListDataSource) {
+      ListDataSource that = (ListDataSource) o;
+      return this.id == that.id;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return id;
   }
 
   @Override
   public List<Partition<T>> getPartitions() {
-    return partitions.stream().map(data -> {
+    return storage.get(this).stream().map(data -> {
       return new Partition<T>() {
 
         @Override
@@ -47,6 +71,7 @@ public class ListDataSource<T> implements DataSource<T> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Reader<T> openReader() throws IOException {
           return new Reader<T>() {
 
@@ -71,7 +96,7 @@ public class ListDataSource<T> implements DataSource<T> {
               } catch (InterruptedException ex) {
                 // nop
               }
-              return data.get(pos++);
+              return (T) data.get(pos++);
             }
 
           };

@@ -120,6 +120,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Void call() {
       try {
         trigger.fire(timestamp, window);
