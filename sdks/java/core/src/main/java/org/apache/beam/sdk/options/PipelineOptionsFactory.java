@@ -65,7 +65,6 @@ import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -1408,8 +1407,16 @@ public class PipelineOptionsFactory {
                       klass, entry.getKey(), closestMatches));
           }
         }
-
+        // We need to pull the method directly from klass, to retain generic information.
         Method method = propertyNamesToGetters.get(entry.getKey());
+        /*
+        String methodName = propertyNamesToGetters.get(entry.getKey()).getName();
+        try {
+          method = klass.getMethod(methodName);
+        } catch (Exception e) {
+          throw new RuntimeException("Unable to find method: " + methodName, e);
+        }
+        */
         // Only allow empty argument values for String, String Array, and Collection.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
@@ -1446,7 +1453,7 @@ public class PipelineOptionsFactory {
                   return Arrays.asList(input.split(","));
                 }
           }).toList();
-          
+
           if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
@@ -1454,19 +1461,18 @@ public class PipelineOptionsFactory {
                   + " but received: " + returnType);
             }
           }
-          if (Collection.class.isAssignableFrom(returnType)) {
-            ParameterizedType t = (ParameterizedType) method.getGenericReturnType();
-            Type inner = t.getActualTypeArguments()[0];
-            JavaType jinner = MAPPER.getTypeFactory().constructType(inner);
+          convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
+          /*
+          if (returnType.equals(List.class)) {
+            JavaType[] params = type.findTypeParameters(List.class);
             List l = new ArrayList(values.size());
             for (String s : values) {
-              l.add(MAPPER.convertValue(s, jinner));
+              l.add(MAPPER.convertValue(s, params[0]));
             }
             convertedOptions.put(
               entry.getKey(), MAPPER.convertValue(l, type));
           } else {
-            convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-          }
+          }*/
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),

@@ -768,13 +768,14 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testListInt() {
+    PipelineOptionsFactory.register(Lists.class);
     String[] args =
         new String[] {"--integer=1", "--integer=2", "--integer=3"};
 
     Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
     assertEquals(ImmutableList.of(1, 2, 3), options.getInteger());
   }
-  
+
   @Test
   public void testListShorthand() {
     String[] args = new String[] {"--string=stringValue1,stringValue2,stringValue3"};
