@@ -234,7 +234,8 @@ public class BasicOperatorTest {
     results.containsAll(asList("one-4", "three-2", "two-5"));
   }
 
-  private List<String> sublist(List<? extends Pair<String, Long>> xs, int start, int len) {
+  private List<String> sublist(
+      List<? extends Pair<String, Long>> xs, int start, int len) {
     return sublist(xs, start, len, true);
   }
 
@@ -409,6 +410,7 @@ public class BasicOperatorTest {
 
     List<Pair<TimeInterval, String>> out = f.getOutput(0);
     assertNotNull(out);
+
     long firstWindowStart =
         assertWindowedOutput(out.subList(0, 4), 1000L, "four", "one", "three", "two");
     long secondWindowStart =
@@ -420,6 +422,7 @@ public class BasicOperatorTest {
       List<Pair<TimeInterval, S>> window,
       long expectedIntervalMillis, String ... expectedFirstAndSecond)
   {
+    //System.out.println(" **** " + window);
     assertEquals(
         asList(expectedFirstAndSecond),
         window.stream().map(Pair::getSecond).sorted().collect(toList()));

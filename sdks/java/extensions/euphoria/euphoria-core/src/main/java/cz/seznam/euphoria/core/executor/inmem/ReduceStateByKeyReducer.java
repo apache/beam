@@ -15,7 +15,6 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
-import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor.QueueCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
 
-class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscriber {
+class ReduceStateByKeyReducer implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
 
@@ -53,9 +51,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   private static final class WindowStorage {
     private final WindowContext<Object, Object> windowContext;
     private final Map<Object, State<?, ?>> keyStates;
-    // ~ initialized lazily; peers which have seen this window (and will eventually
-    // emit or have already emitted a corresponding EoW)
-    private List<EndOfWindowBroadcast.Subscriber> eowPeers;
     WindowStorage(WindowContext<Object, Object> windowContext, int maxKeysStates) {
       this.windowContext = requireNonNull(windowContext);
       if (maxKeysStates > 0) {
@@ -63,29 +58,17 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       } else {
         this.keyStates = new HashMap<>();
       }
-      this.eowPeers = null;
     }
     // ~ make a copy of 'base' with the specified 'window' assigned
     WindowStorage(WindowContext<Object, Object> windowContext, WindowStorage base) {
       this.windowContext = requireNonNull(windowContext);
       this.keyStates = base.keyStates;
-      this.eowPeers = base.eowPeers;
     }
     WindowContext<Object, Object> getWindowContext() {
       return windowContext;
     }
     Map<Object, State<?, ?>> getKeyStates() {
       return keyStates;
-    }
-    List<EndOfWindowBroadcast.Subscriber> getEowPeers() {
-      return eowPeers;
-    }
-    void addEowPeer(EndOfWindowBroadcast.Subscriber eow) {
-      if (eowPeers == null) {
-        eowPeers = new CopyOnWriteArrayList<>(Collections.singletonList(eow));
-      } else if (!eowPeers.contains(requireNonNull(eow))) {
-        eowPeers.add(eow);
-      }
     }
   } // ~ end of WindowStorage
 
@@ -152,8 +135,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
 
-    final Collector<Object> stateOutput;
-    final BlockingQueue<Object> rawOutput;
+    final Collector<Datum> stateOutput;
+    final BlockingQueue<Datum> rawOutput;
     final TriggerScheduler triggering;
     final UnaryFunction stateFactory;
     final CombinableReduceFunction stateCombiner;
@@ -168,7 +151,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
     @SuppressWarnings("unchecked")
     private ProcessingState(
-        BlockingQueue output,
+        BlockingQueue<Datum> output,
         TriggerScheduler triggering,
         UnaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
@@ -187,7 +170,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     // ~ signal eos further down the output channel
     public void closeOutput() {
       try {
-        this.rawOutput.put(EndOfStream.get());
+        this.rawOutput.put(Datum.endOfStream());
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -388,7 +371,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   } // ~ end of ProcessingState
 
-  private final BlockingQueue input;
+  private final BlockingQueue<Datum> input;
+  private final BlockingQueue<Datum> output;
 
   private final Windowing windowing;
   private final UnaryFunction keyExtractor;
@@ -400,14 +384,9 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   private final TriggerScheduler triggering;
 
-  private final EndOfWindowBroadcast eowBroadcast;
-
-  private final String name;
-
   @SuppressWarnings("rawtypes")
-  ReduceStateByKeyReducer(String name,
-                          BlockingQueue input,
-                          BlockingQueue output,
+  ReduceStateByKeyReducer(BlockingQueue<Datum> input,
+                          BlockingQueue<Datum> output,
                           Windowing windowing,
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
@@ -415,21 +394,18 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
                           CombinableReduceFunction stateCombiner,
                           TriggerScheduler triggering,
                           boolean isBounded,
-                          int maxKeyStatesPerWindow,
-                          EndOfWindowBroadcast eowBroadcast) {
-    this.name = name;
+                          int maxKeyStatesPerWindow) {
     this.input = requireNonNull(input);
+    this.output = requireNonNull(output);
     this.windowing = windowing == null ? AttachedWindowing.INSTANCE : windowing;
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
     this.triggering = requireNonNull(triggering);
-    this.eowBroadcast = requireNonNull(eowBroadcast);
     this.processing = new ProcessingState(
         output, triggering,
         stateFactory, stateCombiner,
         isBounded,
         maxKeyStatesPerWindow);
-    this.eowBroadcast.subscribe(this);
   }
 
   private Triggerable<Object, Object> createTriggerHandler(Trigger t) {
@@ -453,29 +429,9 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
    * @param windowContext window context instance to processed
    */
   private void flushWindow(WindowContext<Object, Object> windowContext) {
-    // ~ notify others we're about to evict the window
-    @SuppressWarnings("unchecked")
-    EndOfWindow eow = new EndOfWindow<>(windowContext);
-
-    // ~ notify others we're about to evict the window
-    List<EndOfWindowBroadcast.Subscriber> eowPeers = null;
-    synchronized (processing) {
-      WindowStorage ws = this.processing.wRegistry.getWindowStorage(windowContext.getWindowID());
-      if (ws != null) {
-        eowPeers = ws.getEowPeers();
-      }
-    }
-    eowBroadcast.notifyEndOfWindow(eow, this,
-        eowPeers == null ? Collections.emptyList() : eowPeers);
-
-    synchronized (processing) {
-      if (!processing.active) {
-        return;
-      }
-      Collection<State<?, ?>> evicted = processing.flushWindowStates(windowContext);
-      evicted.stream().forEachOrdered(State::flush);
-    }
-    processing.stateOutput.collect(eow);
+    Collection<State<?, ?>> evicted = processing.flushWindowStates(windowContext);
+    evicted.stream().forEachOrdered(State::flush);
+    output.add(Datum.windowTrigger(windowContext.getWindowID(), getCurrentWatermark()));
   }
 
   /**
@@ -496,47 +452,30 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     evicted.stream().forEachOrdered(State::close);
   }
 
-  // ~ notified by peer partitions about the end-of-an-window; we'll
-  // resend the event to our own partition output unless we know the
-  // window
-  @Override
-  @SuppressWarnings("unchecked")
-  public void onEndOfWindowBroadcast(
-      EndOfWindow eow, EndOfWindowBroadcast.Subscriber src)
-  {
-    final boolean known;
-    synchronized (processing) {
-      WindowStorage ws = processing.wRegistry.getWindowStorage(
-          eow.getWindowContext().getWindowID());
-      if (ws == null) {
-        known = false;
-      } else {
-        known = true;
-        ws.addEowPeer(src);
-      }
-    }
-    if (!known) {
-      processing.stateOutput.collect(eow);
-    }
-  }
-
   @SuppressWarnings("unchecked")
   @Override
   public void run() {
     for (;;) {
       try {
         // ~ now process incoming data
-        Object item = input.take();
-        if (item instanceof EndOfStream) {
-          break;
-        }
-
-        if (item instanceof EndOfWindow) {
-          WindowContext w = ((EndOfWindow) item).getWindowContext();
-          flushWindow(w);
-          purgeWindow(w);
+        Datum item = input.take();
+        if (item.isBroadcast()) {
+          if (item.isEndOfStream()) {
+            // ~ stop triggers
+            triggering.close();
+            // close all states
+            synchronized (processing) {
+              processing.active = false;
+              processing.purgeAllWindowStates().stream()
+                  .forEachOrdered(s -> { s.flush(); s.close(); });
+              processing.closeOutput();
+            }
+            output.put(item);
+            return;
+          }
+          output.put(item);          
         } else {
-          final List<WindowContext> toEvict = processInput((WindowedElement) item);
+          final List<WindowContext> toEvict = processInput(item);
           for (WindowContext w : toEvict) {
             flushWindow(w);
             purgeWindow(w);
@@ -545,15 +484,6 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       } catch (InterruptedException ex) {
         throw new RuntimeException(ex);
       }
-    }
-    // ~ stop triggers
-    triggering.close();
-    // close all states
-    synchronized (processing) {
-      processing.active = false;
-      processing.purgeAllWindowStates().stream()
-          .forEachOrdered(s -> { s.flush(); s.close(); });
-      processing.closeOutput();
     }
   }
 
@@ -623,4 +553,11 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
     return toEvict;
   }
+
+  // retrieve current watermark stamp
+  private long getCurrentWatermark() {    
+    // FIXME
+    return System.currentTimeMillis();
+  }
+
 }
