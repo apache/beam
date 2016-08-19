@@ -3,8 +3,8 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -16,12 +16,13 @@ import java.util.Objects;
 /**
  * Operator for summing of elements by key.
  */
-public class SumByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
-                      PAIROUT extends Pair<KEY, Long>>
+public class SumByKey<
+    IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
+    PAIROUT extends Pair<KEY, Long>>
     extends StateAwareWindowWiseSingleInputOperator<
-    IN, IN, IN, KEY, PAIROUT, WLABEL, W, SumByKey<IN, KEY, WLABEL, W, PAIROUT>>
-{
-
+        IN, IN, IN, KEY, PAIROUT, WLABEL, W,
+        SumByKey<IN, KEY, WLABEL, W, PAIROUT>> {
+  
   public static class OfBuilder {
     private final String name;
 
@@ -66,7 +67,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
       return this;
     }
     public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
-    windowBy(Windowing<IN, ?, WLABEL, W> windowing)
+    windowBy(ElementWindowing<IN, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(
               name, input, keyExtractor, valueExtractor, windowing, this);
@@ -87,12 +88,12 @@ public class SumByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, Long> valueExtractor;
-    private final Windowing<IN, ?, WLABEL, W> windowing; /* may be null */
+    private final ElementWindowing<IN, ?, WLABEL, W> windowing; /* may be null */
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
-                  Windowing<IN, ?, WLABEL, W> windowing,
+                  ElementWindowing<IN, ?, WLABEL, W> windowing,
                   PartitioningBuilder<KEY, ?> partitioning)
     {
       super(partitioning);
@@ -133,7 +134,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
            Dataset<IN> input,
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
-           Windowing<IN, ?, WLABEL, W> windowing,
+           ElementWindowing<IN, ?, WLABEL, W> windowing,
            Partitioning<KEY> partitioning)
   {
     super(name, flow, input, keyExtractor, windowing, partitioning);

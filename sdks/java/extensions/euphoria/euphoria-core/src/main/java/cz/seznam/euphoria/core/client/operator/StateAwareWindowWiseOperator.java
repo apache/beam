@@ -3,8 +3,8 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
@@ -21,7 +21,7 @@ public abstract class StateAwareWindowWiseOperator<
   protected Partitioning<KEY> partitioning;
 
   protected StateAwareWindowWiseOperator(
-          String name, Flow flow, Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
+          String name, Flow flow, ElementWindowing<WIN, ?, WLABEL, W> windowing /* optional */,
           UnaryFunction<KIN, KEY> keyExtractor,
           Partitioning<KEY> partitioning) {
     
