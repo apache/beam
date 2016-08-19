@@ -850,9 +850,11 @@ public class PipelineOptionsFactory {
       Class<? extends PipelineOptions> beanClass)
       throws IntrospectionException {
     // The sorting is important to make this method stable.
-    SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
-    methods.addAll(
-        Collections2.filter(Arrays.asList(beanClass.getMethods()), NOT_SYNTHETIC_PREDICATE));
+    SortedSet<Method> methods =
+        FluentIterable
+            .from(ReflectHelpers.getClosureOfMethodsOnInterface(beanClass))
+            .filter(NOT_SYNTHETIC_PREDICATE)
+            .toSortedSet(MethodComparator.INSTANCE);
 
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
