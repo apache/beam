@@ -17,16 +17,29 @@
  */
 package ${package}.common;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Options that can be used to configure the Dataflow examples.
+ * Options that can be used to configure Pub/Sub topic/subscription in Beam examples.
  */
-public interface DataflowExampleOptions extends DataflowPipelineOptions {
-  @Description("Whether to keep jobs running on the Dataflow service after local process exit")
-  @Default.Boolean(false)
-  boolean getKeepJobsRunning();
-  void setKeepJobsRunning(boolean keepJobsRunning);
+public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubTopicOptions {
+  @Description("Pub/Sub subscription")
+  @Default.InstanceFactory(PubsubSubscriptionFactory.class)
+  String getPubsubSubscription();
+  void setPubsubSubscription(String subscription);
+
+  /**
+   * Returns a default Pub/Sub subscription based on the project and the job names.
+   */
+  static class PubsubSubscriptionFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      return "projects/" + options.as(GcpOptions.class).getProject()
+          + "/subscriptions/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
+    }
+  }
 }

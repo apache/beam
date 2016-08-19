@@ -17,17 +17,18 @@
  */
 package ${package};
 
-import ${package}.WordCount.CountWords;
-import ${package}.WordCount.ExtractWordsFn;
-import ${package}.WordCount.FormatAsTextFn;
+import org.apache.beam.examples.WordCount.CountWords;
+import org.apache.beam.examples.WordCount.ExtractWordsFn;
+import org.apache.beam.examples.WordCount.FormatAsTextFn;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.hamcrest.CoreMatchers;
@@ -46,7 +47,7 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class WordCountTest {
 
-  /** Example test that tests a specific DoFn. */
+  /** Example test that tests a specific {@link DoFn}. */
   @Test
   public void testExtractWordsFn() throws Exception {
     DoFnTester<String, String> extractWordsFn =
@@ -78,7 +79,7 @@ public class WordCountTest {
     PCollection<String> input = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output = input.apply(new CountWords())
-      .apply(ParDo.of(new FormatAsTextFn()));
+      .apply(MapElements.via(new FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
     p.run();

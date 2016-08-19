@@ -18,6 +18,7 @@
 package ${package};
 
 import ${package}.WordCount;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -25,7 +26,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
@@ -69,7 +70,7 @@ import java.util.regex.Pattern;
  * below, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=BlockingDataflowRunner
  *   --workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}
  * }
@@ -108,7 +109,7 @@ import java.util.regex.Pattern;
  */
 public class DebuggingWordCount {
   /** A DoFn that filters for a specific key based upon a regular expression. */
-  public static class FilterTextFn extends OldDoFn<KV<String, Long>, KV<String, Long>> {
+  public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
     /**
      * Concept #1: The logger below uses the fully qualified class name of FilterTextFn
      * as the logger. All log statements emitted by this logger will be referenced by this name
@@ -134,7 +135,7 @@ public class DebuggingWordCount {
     private final Aggregator<Long, Long> unmatchedWords =
         createAggregator("umatchedWords", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (filter.matcher(c.element().getKey()).matches()) {
         // Log at the "DEBUG" level each element that we match. When executing this pipeline
@@ -152,7 +153,7 @@ public class DebuggingWordCount {
       }
     }
   }
-  
+
   /**
    * Options supported by {@link DebuggingWordCount}.
    *
