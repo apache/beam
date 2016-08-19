@@ -9,9 +9,8 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import java.util.Collections;
 import java.util.Set;
 
-class AttachedWindowing
-    implements Windowing<Object, Object, Object, AttachedWindowing.AttachedWindowContext>
-{
+class AttachedWindowing implements
+    Windowing<Object, Object, Object, AttachedWindowing.AttachedWindowContext> {
 
   static class AttachedWindowContext extends WindowContext<Object, Object> {
 
@@ -45,4 +44,5 @@ class AttachedWindowing
 
 
   private AttachedWindowing() {}
+  
 }
