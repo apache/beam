@@ -201,7 +201,7 @@ public class ApproximateQuantiles {
    * <p>Values are ordered using either a specified
    * {@code Comparator} or the values' natural ordering.
    *
-   * <p>To evaluate the quantiles we use the "New Algorithm" described here:
+   * <p>To evaluate the quantiles we use the "Munro-Paterson Algorithm" described here:
    * <pre>
    *   [MRL98] Manku, Rajagopalan &amp; Lindsay, "Approximate Medians and other
    *   Quantiles in One Pass and with Limited Memory", Proc. 1998 ACM
