@@ -21,6 +21,7 @@ public class WatermarkTriggerScheduler extends AbstractTriggerScheduler {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void updateProcessed(long stamp) {
     long newWatermark = stamp - watermarkDuration;
     if (currentWatermark < newWatermark) {
