@@ -1,10 +1,10 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -343,6 +343,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
       return true;
     }
 
+    @SuppressWarnings("unchecked")
     private void mergeWindowKeyStates(
         Map<Object, State<?, ?>> src,
         Map<Object, State<?, ?>> dst,
@@ -390,7 +391,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   private final BlockingQueue input;
 
-  private final Windowing windowing;
+  private final ElementWindowing windowing;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
 
@@ -408,7 +409,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   ReduceStateByKeyReducer(String name,
                           BlockingQueue input,
                           BlockingQueue output,
-                          Windowing windowing,
+                          ElementWindowing windowing,
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
                           UnaryFunction stateFactory,
@@ -551,7 +552,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     // close all states
     synchronized (processing) {
       processing.active = false;
-      processing.purgeAllWindowStates().stream().forEachOrdered(s -> {s.flush(); s.close(); });
+      processing.purgeAllWindowStates().stream()
+          .forEachOrdered(s -> { s.flush(); s.close(); });
       processing.closeOutput();
     }
   }
@@ -568,13 +570,8 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
     Object itemValue = valueExtractor.apply(item);
 
     Set<WindowID<Object, Object>> itemWindowLabels;
-    if (windowing == AttachedWindowing.INSTANCE) {
-      windowing.updateTriggering(triggering, element);
-      itemWindowLabels = windowing.assignWindows(element);
-    } else {
-      windowing.updateTriggering(triggering, item);
-      itemWindowLabels = windowing.assignWindows(item);
-    }
+    windowing.updateTriggering(triggering, element.get());
+    itemWindowLabels = windowing.assignWindowsToElement(element);
     
     List<WindowContext> itemWindows = itemWindowLabels.stream()
         .map(windowing::createWindowContext)

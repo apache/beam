@@ -4,8 +4,8 @@ package cz.seznam.euphoria.core.executor.inmem;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -561,7 +561,7 @@ public class InMemExecutor implements Executor {
 
     final UnaryFunction stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
-    final Windowing windowing = reduceStateByKey.getWindowing();
+    final ElementWindowing windowing = reduceStateByKey.getWindowing();
     final CombinableReduceFunction stateCombiner = reduceStateByKey.getStateCombiner();
 
     List<BlockingQueue> repartitioned =
