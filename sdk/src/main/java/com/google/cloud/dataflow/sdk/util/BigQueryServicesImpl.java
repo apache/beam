@@ -28,10 +28,12 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
@@ -104,9 +106,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public void startLoadJob(
@@ -122,9 +124,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
@@ -140,9 +142,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery queryConfig)
@@ -151,6 +153,24 @@ public class BigQueryServicesImpl implements BigQueryServices {
           .setJobReference(jobRef)
           .setConfiguration(
               new JobConfiguration().setQuery(queryConfig));
+
+      startJob(job, errorExtractor, client);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     */
+    @Override
+    public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
+        throws IOException, InterruptedException {
+      Job job = new Job()
+          .setJobReference(jobRef)
+          .setConfiguration(
+              new JobConfiguration().setCopy(copyConfig));
 
       startJob(job, errorExtractor, client);
     }
@@ -310,9 +330,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public Table getTable(String projectId, String datasetId, String tableId)
@@ -331,9 +351,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public void deleteTable(String projectId, String datasetId, String tableId)
@@ -349,12 +369,46 @@ public class BigQueryServicesImpl implements BigQueryServices {
           backoff);
     }
 
+    public boolean isTableEmpty(String projectId, String datasetId, String tableId)
+        throws IOException, InterruptedException {
+      BackOff backoff =
+          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+      TableDataList dataList = executeWithRetries(
+          client.tabledata().list(projectId, datasetId, tableId),
+          String.format(
+              "Unable to list table data: %s, aborting after %d retries.",
+              tableId, MAX_RPC_ATTEMPTS),
+          Sleeper.DEFAULT,
+          backoff);
+      return dataList.getRows() == null || dataList.getRows().isEmpty();
+    }
+
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     */
+    public Dataset getDataset(String projectId, String datasetId)
+        throws IOException, InterruptedException {
+      BackOff backoff =
+          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+      return executeWithRetries(
+          client.datasets().get(projectId, datasetId),
+          String.format(
+              "Unable to get dataset: %s, aborting after %d retries.",
+              datasetId, MAX_RPC_ATTEMPTS),
+          Sleeper.DEFAULT,
+          backoff);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public void createDataset(
@@ -410,9 +464,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC .
+     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
      */
     @Override
     public void deleteDataset(String projectId, String datasetId)

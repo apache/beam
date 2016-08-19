@@ -20,6 +20,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
@@ -81,6 +82,12 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     /**
+     * Start a BigQuery copy job.
+     */
+    void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
+        throws IOException, InterruptedException;
+
+    /**
      * Waits for the job is Done, and returns the job.
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
@@ -105,7 +112,7 @@ public interface BigQueryServices extends Serializable {
   /**
    * An interface to get, create and delete Cloud BigQuery datasets and tables.
    */
-  public interface DatasetService {
+  interface DatasetService {
     /**
      * Gets the specified {@link Table} resource by table ID.
      */
