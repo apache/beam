@@ -768,7 +768,6 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testListInt() {
-    PipelineOptionsFactory.register(Lists.class);
     String[] args =
         new String[] {"--integer=1", "--integer=2", "--integer=3"};
 

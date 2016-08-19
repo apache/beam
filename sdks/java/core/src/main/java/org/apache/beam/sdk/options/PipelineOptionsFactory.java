@@ -66,7 +66,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1409,14 +1408,14 @@ public class PipelineOptionsFactory {
         }
         // We need to pull the method directly from klass, to retain generic information.
         Method method = propertyNamesToGetters.get(entry.getKey());
-        /*
-        String methodName = propertyNamesToGetters.get(entry.getKey()).getName();
+        String methodName = method.getName();
         try {
           method = klass.getMethod(methodName);
-        } catch (Exception e) {
-          throw new RuntimeException("Unable to find method: " + methodName, e);
+        } catch (NoSuchMethodException e) {
+          // If the method is not found, fall back to just using the registered value.  This
+          // is possible if a method is on a registered PipelineOptions but not on the
+          // interface for klass.
         }
-        */
         // Only allow empty argument values for String, String Array, and Collection.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
@@ -1461,10 +1460,9 @@ public class PipelineOptionsFactory {
                   + " but received: " + returnType);
             }
           }
-          convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-          /*
-          if (returnType.equals(List.class)) {
-            JavaType[] params = type.findTypeParameters(List.class);
+          JavaType[] params = type.findTypeParameters(returnType);
+          if (Collection.class.isAssignableFrom(returnType) && params.length == 1) {
+            // Convert values to the correct inner type.
             List l = new ArrayList(values.size());
             for (String s : values) {
               l.add(MAPPER.convertValue(s, params[0]));
@@ -1472,7 +1470,8 @@ public class PipelineOptionsFactory {
             convertedOptions.put(
               entry.getKey(), MAPPER.convertValue(l, type));
           } else {
-          }*/
+            convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
+          }
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
