@@ -731,6 +731,25 @@ public class CombineTest implements Serializable {
         displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
   }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCombinePerKeyWithHotKeyFanoutPrimitiveDisplayData() {
+    int hotKeyFanout = 2;
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+    PTransform<PCollection<KV<Integer, Integer>>, PCollection<KV<Integer, Set<Integer>>>> combine =
+        Combine.<Integer, Integer, Set<Integer>>perKey(combineFn).withHotKeyFanout(hotKeyFanout);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
+        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+    assertThat("Combine.perKey.withHotKeyFanout should include the combineFn in its primitive "
+        + "transform", displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
+    assertThat("Combine.perKey.withHotKeyFanout(int) should include the fanout in its primitive "
+        + "transform", displayData, hasItem(hasDisplayItem("fanout", hotKeyFanout)));
+  }
+
   ////////////////////////////////////////////////////////////////////////////
   // Test classes, for different kinds of combining fns.
 
