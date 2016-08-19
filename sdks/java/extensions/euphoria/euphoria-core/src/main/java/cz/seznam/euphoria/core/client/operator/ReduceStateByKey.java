@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -152,7 +152,7 @@ public class ReduceStateByKey<
     }
     public <WIN, WLABEL, W extends WindowContext<?, WLABEL>>
     DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>
-    windowBy(ElementWindowing<WIN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<WIN, ?, WLABEL, W> windowing)
     {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
@@ -178,7 +178,7 @@ public class ReduceStateByKey<
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final ElementWindowing<WIN, ?, WLABEL, W> windowing;
+    private final Windowing<WIN, ?, WLABEL, W> windowing;
 
     DatasetBuilder6(String name,
                     Dataset<IN> input,
@@ -186,7 +186,7 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     UnaryFunction<Collector<OUT>, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
-                    ElementWindowing<WIN, ?, WLABEL, W> windowing /* optional */,
+                    Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -323,7 +323,7 @@ public class ReduceStateByKey<
     }
     public <WIN, WLABEL, W extends WindowContext<?, WLABEL>>
     GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>
-    windowBy(ElementWindowing<WIN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<WIN, ?, WLABEL, W> windowing)
     {
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
@@ -350,7 +350,7 @@ public class ReduceStateByKey<
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final ElementWindowing<WIN, ?, WLABEL, W> windowing;
+    private final Windowing<WIN, ?, WLABEL, W> windowing;
 
     GroupedDatasetBuilder6(String name,
                            GroupedDataset<IN, KIN> input,
@@ -358,7 +358,7 @@ public class ReduceStateByKey<
                            UnaryFunction<KIN, VALUE> valueExtractor,
                            UnaryFunction<Collector<OUT>, STATE> stateFactory,
                            CombinableReduceFunction<STATE> stateCombiner,
-                           ElementWindowing<WIN, ?, WLABEL, W> windowing /* optional */,
+                           Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
                            PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -418,7 +418,7 @@ public class ReduceStateByKey<
                    Dataset<IN> input,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   ElementWindowing<WIN, ?, WLABEL, W> windowing,
+                   Windowing<WIN, ?, WLABEL, W> windowing,
                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
@@ -433,7 +433,7 @@ public class ReduceStateByKey<
                    GroupedDataset<IN, KIN> groupedInput,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   ElementWindowing<WIN, ?, WLABEL, W> windowing,
+                   Windowing<WIN, ?, WLABEL, W> windowing,
                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
@@ -448,7 +448,7 @@ public class ReduceStateByKey<
                    boolean grouped,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   ElementWindowing<WIN, ?, WLABEL, W> windowing,
+                   Windowing<WIN, ?, WLABEL, W> windowing,
                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)

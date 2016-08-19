@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -391,7 +390,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
 
   private final BlockingQueue input;
 
-  private final ElementWindowing windowing;
+  private final Windowing windowing;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
 
@@ -409,7 +408,7 @@ class ReduceStateByKeyReducer implements Runnable, EndOfWindowBroadcast.Subscrib
   ReduceStateByKeyReducer(String name,
                           BlockingQueue input,
                           BlockingQueue output,
-                          ElementWindowing windowing,
+                          Windowing windowing,
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
                           UnaryFunction stateFactory,

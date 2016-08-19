@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -135,7 +135,7 @@ public class ReduceByKey<
     }
     public  <WLABEL, W extends WindowContext<?, WLABEL>>
     DatasetBuilder5<IN, KEY, VALUE, OUT, WLABEL, W>
-    windowBy(ElementWindowing<IN, ?, WLABEL, W> windowing) {
+    windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
               reducer, Objects.requireNonNull(windowing), this);
     }
@@ -158,14 +158,14 @@ public class ReduceByKey<
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
-    private final ElementWindowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, ?, WLABEL, W> windowing;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
-                    ElementWindowing<IN, ?, WLABEL, W> windowing /* optional */,
+                    Windowing<IN, ?, WLABEL, W> windowing /* optional */,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize default partitioning according to input
@@ -279,7 +279,7 @@ public class ReduceByKey<
     }
     public <WLABEL, W extends WindowContext<?, WLABEL>>
     GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, WLABEL, W>
-    windowBy(ElementWindowing<IN, ?, WLABEL, W> windowing) {
+    windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
               reducer, Objects.requireNonNull(windowing), this);
     }
@@ -301,13 +301,13 @@ public class ReduceByKey<
     private final UnaryFunction<KIN, KEY> keyExtractor;
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
-    private final ElementWindowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, ?, WLABEL, W> windowing;
     GroupedDatasetBuilder5(String name,
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
                            ReduceFunction<VALUE, OUT> reducer,
-                           ElementWindowing<IN, ?, WLABEL, W> windowing,
+                           Windowing<IN, ?, WLABEL, W> windowing,
                            PartitioningBuilder<KEY, ?> partitioning)
     {
       super(partitioning);
@@ -361,7 +361,7 @@ public class ReduceByKey<
               Dataset<IN> input,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              ElementWindowing<IN, ?, WLABEL, W> windowing,
+              Windowing<IN, ?, WLABEL, W> windowing,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning)
   {
@@ -377,7 +377,7 @@ public class ReduceByKey<
               GroupedDataset<IN, KIN> groupedInput,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              ElementWindowing<IN, ?, WLABEL, W> windowing,
+              Windowing<IN, ?, WLABEL, W> windowing,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning)
   {
