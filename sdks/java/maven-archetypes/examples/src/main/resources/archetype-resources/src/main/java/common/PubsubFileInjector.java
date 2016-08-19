@@ -17,15 +17,15 @@
  */
 package ${package}.common;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.IntraBundleParallelization;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.Transport;
 
 import com.google.api.services.pubsub.Pubsub;
@@ -71,7 +71,7 @@ public class PubsubFileInjector {
     }
   }
 
-  /** A DoFn that publishes non-empty lines to Google Cloud PubSub. */
+  /** A OldDoFn that publishes non-empty lines to Google Cloud PubSub. */
   public static class Bound extends OldDoFn<String, Void> {
     private final String outputTopic;
     private final String timestampLabelKey;
@@ -85,7 +85,7 @@ public class PubsubFileInjector {
     @Override
     public void startBundle(Context context) {
       this.pubsub =
-          Transport.newPubsubClient(context.getPipelineOptions().as(DataflowPipelineOptions.class))
+          Transport.newPubsubClient(context.getPipelineOptions().as(PubsubOptions.class))
               .build();
     }
 
