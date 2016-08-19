@@ -735,6 +735,43 @@ public class DataflowPipelineRunnerTest {
     }
   }
 
+  @Test
+  public void testGcsUploadBufferSizeIsUnsetForBatchWhenDefault() throws IOException {
+    DataflowPipelineOptions batchOptions = buildPipelineOptions();
+    batchOptions.setRunner(DataflowPipelineRunner.class);
+    Pipeline.create(batchOptions);
+    assertNull(batchOptions.getGcsUploadBufferSizeBytes());
+  }
+
+  @Test
+  public void testGcsUploadBufferSizeIsSetForStreamingWhenDefault() throws IOException {
+    DataflowPipelineOptions streamingOptions = buildPipelineOptions();
+    streamingOptions.setStreaming(true);
+    streamingOptions.setRunner(DataflowPipelineRunner.class);
+    Pipeline.create(streamingOptions);
+    assertEquals(
+        DataflowPipelineRunner.GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT,
+        streamingOptions.getGcsUploadBufferSizeBytes().intValue());
+  }
+
+  @Test
+  public void testGcsUploadBufferSizeUnchangedWhenNotDefault() throws IOException {
+    int gcsUploadBufferSizeBytes = 12345678;
+    DataflowPipelineOptions batchOptions = buildPipelineOptions();
+    batchOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
+    batchOptions.setRunner(DataflowPipelineRunner.class);
+    Pipeline.create(batchOptions);
+    assertEquals(gcsUploadBufferSizeBytes, batchOptions.getGcsUploadBufferSizeBytes().intValue());
+
+    DataflowPipelineOptions streamingOptions = buildPipelineOptions();
+    streamingOptions.setStreaming(true);
+    streamingOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
+    streamingOptions.setRunner(DataflowPipelineRunner.class);
+    Pipeline.create(streamingOptions);
+    assertEquals(
+        gcsUploadBufferSizeBytes, streamingOptions.getGcsUploadBufferSizeBytes().intValue());
+  }
+
   /**
    * A fake PTransform for testing.
    */
