@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
@@ -141,7 +141,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
     public <WLABEL, W extends WindowContext<?, WLABEL>>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W>
-    windowBy(ElementWindowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
+    windowBy(Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
     }
@@ -152,10 +152,10 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>>
   {
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
-    private final ElementWindowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
+    private final Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
 
     OutputBuilder(WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev,
-                  ElementWindowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
+                  Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
     {
       this.prev = prev;
       this.windowing = windowing;
@@ -200,7 +200,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
   Join(String name,
       Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
-      ElementWindowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing,
+      Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing,
       Partitioning<KEY> partitioning,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,

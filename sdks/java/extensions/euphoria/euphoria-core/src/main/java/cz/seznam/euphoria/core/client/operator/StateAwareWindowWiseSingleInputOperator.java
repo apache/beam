@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -24,7 +24,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
           String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-          ElementWindowing<WIN, ?, WLABEL, W> windowing /* optional */,
+          Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, extractor, partitioning);
@@ -34,7 +34,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
       String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-      ElementWindowing<WIN, ?, WLABEL,  W> windowing) {
+      Windowing<WIN, ?, WLABEL,  W> windowing) {
     this(name, flow, input, extractor, windowing, input.getPartitioning());
   }
 

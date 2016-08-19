@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -123,7 +123,7 @@ public class TopPerKey<
 
     public <WLABEL, W extends WindowContext<?, WLABEL>>
     OutputBuilder<IN, K, V, S, WLABEL, W>
-    windowBy(ElementWindowing<IN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<IN, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(input, keyFn, valueFn, scoreFn, requireNonNull(windowing));
     }
@@ -142,11 +142,11 @@ public class TopPerKey<
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
-    private final ElementWindowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, ?, WLABEL, W> windowing;
 
     OutputBuilder(Dataset<IN> input, UnaryFunction<IN, K> keyFn,
                   UnaryFunction<IN, V> valueFn, UnaryFunction<IN, S> scoreFn,
-                  ElementWindowing<IN, ?, WLABEL, W> windowing)
+                  Windowing<IN, ?, WLABEL, W> windowing)
     {
       this.input = input;
       this.keyFn = keyFn;
@@ -178,7 +178,7 @@ public class TopPerKey<
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
-            ElementWindowing<IN, ?, WLABEL, W> windowing)
+            Windowing<IN, ?, WLABEL, W> windowing)
   {
     super("Top", flow, input, keyFn, windowing);
     this.valueFn = valueFn;

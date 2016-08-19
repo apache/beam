@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 
 /**
@@ -9,6 +9,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
  */
 public interface WindowAware<IN, W extends WindowContext<?, ?>> {
 
-  ElementWindowing<IN, ?, ?, W> getWindowing();
+  Windowing<IN, ?, ?, W> getWindowing();
 
 }
