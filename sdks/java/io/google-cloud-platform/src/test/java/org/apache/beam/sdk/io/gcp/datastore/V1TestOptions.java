@@ -25,9 +25,9 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import javax.annotation.Nullable;
 
 /**
- * V1Beta3 Datastore related pipeline options.
+ * DatastoreV1 Datastore related pipeline options.
  */
-public interface V1Beta3TestOptions extends TestPipelineOptions {
+public interface V1TestOptions extends TestPipelineOptions {
   @Description("Project ID to read from datastore")
   @Default.String("apache-beam-testing")
   String getProject();
