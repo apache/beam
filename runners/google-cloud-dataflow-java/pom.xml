@@ -409,7 +409,7 @@
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
+      <artifactId>datastore-v1-protos</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
