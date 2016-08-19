@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.DEFAULT_BUNDLE_S
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.getEstimatedSizeBytes;
 import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.makeRequest;
+import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.isValidKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
@@ -47,13 +48,16 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriterFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntity;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntityFn;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKey;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKeyFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3Options;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.V1Beta3DatastoreFactory;
+import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -237,7 +241,7 @@ public class V1Beta3Test {
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write();
+    Write write =  DatastoreIO.v1beta3().write();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -246,15 +250,14 @@ public class V1Beta3Test {
   }
 
   @Test
-  public void testSinkValidationSucceedsWithProject() throws Exception {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
+  public void testWriteValidationSucceedsWithProject() throws Exception {
+    Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
     write.validate(null);
   }
 
   @Test
   public void testWriteDisplayData() {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write()
-        .withProjectId(PROJECT_ID);
+    Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -262,8 +265,74 @@ public class V1Beta3Test {
   }
 
   @Test
+  public void testDeleteEntityDoesNotAllowNullProject() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    DatastoreIO.v1beta3().deleteEntity().withProjectId(null);
+  }
+
+  @Test
+  public void testDeleteEntityValidationFailsWithNoProject() throws Exception {
+    DeleteEntity deleteEntity = DatastoreIO.v1beta3().deleteEntity();
+
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    deleteEntity.validate(null);
+  }
+
+  @Test
+  public void testDeleteEntityValidationSucceedsWithProject() throws Exception {
+    DeleteEntity deleteEntity = DatastoreIO.v1beta3().deleteEntity().withProjectId(PROJECT_ID);
+    deleteEntity.validate(null);
+  }
+
+  @Test
+  public void testDeleteEntityDisplayData() {
+    DeleteEntity deleteEntity =  DatastoreIO.v1beta3().deleteEntity().withProjectId(PROJECT_ID);
+
+    DisplayData displayData = DisplayData.from(deleteEntity);
+
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+  }
+
+  @Test
+  public void testDeleteKeyDoesNotAllowNullProject() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    DatastoreIO.v1beta3().deleteKey().withProjectId(null);
+  }
+
+  @Test
+  public void testDeleteKeyValidationFailsWithNoProject() throws Exception {
+    DeleteKey deleteKey = DatastoreIO.v1beta3().deleteKey();
+
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId");
+
+    deleteKey.validate(null);
+  }
+
+  @Test
+  public void testDeleteKeyValidationSucceedsWithProject() throws Exception {
+    DeleteKey deleteKey = DatastoreIO.v1beta3().deleteKey().withProjectId(PROJECT_ID);
+    deleteKey.validate(null);
+  }
+
+  @Test
+  public void testDeleteKeyDisplayData() {
+    DeleteKey deleteKey =  DatastoreIO.v1beta3().deleteKey().withProjectId(PROJECT_ID);
+
+    DisplayData displayData = DisplayData.from(deleteKey);
+
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+  }
+
+  @Test
   @Category(RunnableOnService.class)
-  public void testSinkPrimitiveDisplayData() {
+  public void testWritePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
         DatastoreIO.v1beta3().write().withProjectId("myProject");
@@ -271,6 +340,39 @@ public class V1Beta3Test {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
         displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat("DatastoreIO write should include the upsertFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("upsertFn")));
+
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testDeleteEntityPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PCollection<Entity>, ?> write =
+        DatastoreIO.v1beta3().deleteEntity().withProjectId("myProject");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("DatastoreIO write should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat("DatastoreIO write should include the deleteEntityFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("deleteEntityFn")));
+
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testDeleteKeyPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PCollection<Key>, ?> write =
+        DatastoreIO.v1beta3().deleteKey().withProjectId("myProject");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("DatastoreIO write should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat("DatastoreIO write should include the deleteKeyFn in its primitive display data",
+        displayData, hasItem(hasDisplayItem("deleteKeyFn")));
+
   }
 
   /**
@@ -290,33 +392,33 @@ public class V1Beta3Test {
     Key key;
     // Complete with name, no ancestor
     key = makeKey("bird", "finch").build();
-    assertTrue(V1Beta3.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Complete with id, no ancestor
     key = makeKey("bird", 123).build();
-    assertTrue(V1Beta3.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Incomplete, no ancestor
     key = makeKey("bird").build();
-    assertFalse(V1Beta3.isValidKey(key));
+    assertFalse(isValidKey(key));
 
     // Complete with name and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", "horned").build();
-    assertTrue(V1Beta3.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Complete with id and ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird", 123).build();
-    assertTrue(V1Beta3.isValidKey(key));
+    assertTrue(isValidKey(key));
 
     // Incomplete with ancestor
     key = makeKey("bird", "owl").build();
     key = makeKey(key, "bird").build();
-    assertFalse(V1Beta3.isValidKey(key));
+    assertFalse(isValidKey(key));
 
     key = makeKey().build();
-    assertFalse(V1Beta3.isValidKey(key));
+    assertFalse(isValidKey(key));
   }
 
   /**
@@ -399,6 +501,13 @@ public class V1Beta3Test {
 
     Mutation exceptedMutation = makeDelete(key).build();
     assertEquals(deleteKeyFn.apply(key), exceptedMutation);
+  }
+
+  @Test
+  public void testDatastoreWriteFnDisplayData() {
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID);
+    DisplayData displayData = DisplayData.from(datastoreWriter);
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
   }
 
   /** Tests {@link DatastoreWriterFn} with entities less than one batch. */

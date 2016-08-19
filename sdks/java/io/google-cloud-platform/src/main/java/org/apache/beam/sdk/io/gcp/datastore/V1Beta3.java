@@ -943,11 +943,9 @@ public class V1Beta3 {
     @Override
     public Mutation apply(Entity entity) {
       // Verify that the entity to write has a complete key.
-      if (!isValidKey(entity.getKey())) {
-        throw new IllegalArgumentException(
-            String.format("Entities to be written to the Datastore must have complete keys:\n%s",
-                entity));
-      }
+      checkArgument(isValidKey(entity.getKey()),
+          "Entities to be written to the Datastore must have complete keys:\n%s", entity);
+
       return makeUpsert(entity).build();
     }
 
@@ -966,11 +964,9 @@ public class V1Beta3 {
     @Override
     public Mutation apply(Entity entity) {
       // Verify that the entity to delete has a complete key.
-      if (!isValidKey(entity.getKey())) {
-        throw new IllegalArgumentException(
-            String.format("Entities to be deleted from the Datastore must have complete keys:\n%s",
-                entity));
-      }
+      checkArgument(isValidKey(entity.getKey()),
+          "Entities to be deleted from the Datastore must have complete keys:\n%s", entity);
+
       return makeDelete(entity.getKey()).build();
     }
 
@@ -989,11 +985,9 @@ public class V1Beta3 {
     @Override
     public Mutation apply(Key key) {
       // Verify that the entity to delete has a complete key.
-      if (!isValidKey(key)) {
-        throw new IllegalArgumentException(
-            String.format("Keys to be deleted from the Datastore must be complete:\n%s",
-                key));
-      }
+      checkArgument(isValidKey(key),
+          "Keys to be deleted from the Datastore must be complete:\n%s", key);
+
       return makeDelete(key).build();
     }
 
