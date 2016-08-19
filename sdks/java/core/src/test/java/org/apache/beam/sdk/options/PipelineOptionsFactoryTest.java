@@ -754,25 +754,44 @@ public class PipelineOptionsFactoryTest {
     void setString(List<String> value);
     List<Integer> getInteger();
     void setInteger(List<Integer> value);
+    List getList();
+    void setList(List value);
+  }
+
+  @Test
+  public void testListRaw() {
+    String[] manyArgs =
+        new String[] {"--list=stringValue1", "--list=stringValue2", "--list=stringValue3"};
+
+    Lists options = PipelineOptionsFactory.fromArgs(manyArgs).as(Lists.class);
+    assertEquals(ImmutableList.of("stringValue1", "stringValue2", "stringValue3"),
+        options.getList());
   }
 
   @Test
   public void testListString() {
-    String[] args =
+    String[] manyArgs =
         new String[] {"--string=stringValue1", "--string=stringValue2", "--string=stringValue3"};
+    String[] oneArg = new String[] {"--string=stringValue1"};
 
-    Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
+    Lists options = PipelineOptionsFactory.fromArgs(manyArgs).as(Lists.class);
     assertEquals(ImmutableList.of("stringValue1", "stringValue2", "stringValue3"),
         options.getString());
-  }
+
+    options = PipelineOptionsFactory.fromArgs(oneArg).as(Lists.class);
+    assertEquals(ImmutableList.of("stringValue1"), options.getString());
+}
 
   @Test
   public void testListInt() {
-    String[] args =
+    String[] manyArgs =
         new String[] {"--integer=1", "--integer=2", "--integer=3"};
+    String[] oneArg = new String[] {"--integer=1"};
 
-    Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
+    Lists options = PipelineOptionsFactory.fromArgs(manyArgs).as(Lists.class);
     assertEquals(ImmutableList.of(1, 2, 3), options.getInteger());
+    options = PipelineOptionsFactory.fromArgs(oneArg).as(Lists.class);
+    assertEquals(ImmutableList.of(1), options.getInteger());
   }
 
   @Test

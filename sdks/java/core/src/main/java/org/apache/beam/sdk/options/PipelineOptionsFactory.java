@@ -1460,18 +1460,7 @@ public class PipelineOptionsFactory {
                   + " but received: " + returnType);
             }
           }
-          JavaType[] params = type.findTypeParameters(returnType);
-          if (Collection.class.isAssignableFrom(returnType) && params.length == 1) {
-            // Convert values to the correct inner type.
-            List l = new ArrayList(values.size());
-            for (String s : values) {
-              l.add(MAPPER.convertValue(s, params[0]));
-            }
-            convertedOptions.put(
-              entry.getKey(), MAPPER.convertValue(l, type));
-          } else {
-            convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-          }
+          convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
