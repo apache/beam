@@ -951,8 +951,8 @@ public class V1Beta3 {
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("upsertFn", this.getClass().getName())
-          .withLabel("Constructs upsert Mutation from Entity"));
+      builder.add(DisplayData.item("upsertFn", this.getClass())
+          .withLabel("Create Upsert Mutation"));
     }
   }
 
@@ -972,8 +972,8 @@ public class V1Beta3 {
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("deleteEntityFn", this.getClass().getName())
-          .withLabel("Constructs delete Mutation from Entity"));
+      builder.add(DisplayData.item("deleteEntityFn", this.getClass())
+          .withLabel("Create Delete Mutation"));
     }
   }
 
@@ -993,8 +993,8 @@ public class V1Beta3 {
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("deleteKeyFn", this.getClass().getName())
-          .withLabel("Constructs delete Mutation from Key"));
+      builder.add(DisplayData.item("deleteKeyFn", this.getClass())
+          .withLabel("Create Delete Mutation"));
     }
   }
 
