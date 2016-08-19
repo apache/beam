@@ -457,11 +457,11 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
         if (annotation instanceof Default.String) {
           return new RuntimeValueProvider<String>(
             method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-            ((Default.String) annotation).value());
+            ((Default.String) annotation).value(), proxy.getOptionsId());
         }
       }
       return new RuntimeValueProvider<String>(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass());
+        method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(), proxy.getOptionsId());
     }
     for (Annotation annotation : method.getAnnotations()) {
       if (annotation instanceof Default.Class) {
