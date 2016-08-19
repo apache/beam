@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.BatchWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -53,7 +53,7 @@ public class Distinct<IN, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
     }
     @Override
     public Dataset<IN> output() {
-      return new OutputBuilder<>(this, BatchWindowing.get()).output();
+      return new OutputBuilder<>(this, Batch.get()).output();
     }
   }
 

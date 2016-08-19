@@ -5,7 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.AlignedWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -50,7 +50,7 @@ public class ReduceByKeyTest extends OperatorTest {
               .valueBy(e -> 1L)
               .combineBy(Sums.ofLongs())
               .setPartitioner(e -> e % 2)
-              .windowBy(Windowing.Count.of(30))
+              .windowBy(Count.of(30))
               .output();
         }
       }

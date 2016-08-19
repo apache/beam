@@ -1,10 +1,12 @@
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing.Time.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -80,7 +82,7 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
     streamOutput.persist(URI.create("inmem:///tmp/output"));
@@ -128,7 +130,7 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .outputWindowed();
 
     MapElements.of(streamOutput)
@@ -206,7 +208,7 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(10))
+        .windowBy(Time.of(Duration.ofSeconds(10))
             .earlyTriggering(Duration.ofSeconds(1)))
         .output();
 
@@ -264,7 +266,7 @@ public class BasicOperatorTest {
         .keyBy(w -> w)
         .valueBy(w -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Count.of(6))
+        .windowBy(Count.of(6))
         .output()
         .persist(output);
 
@@ -363,7 +365,7 @@ public class BasicOperatorTest {
         .output();
 
     Dataset<String> output = Distinct.of(words)
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
     ListDataSink<String> f = ListDataSink.get(1);
@@ -397,7 +399,7 @@ public class BasicOperatorTest {
 
     Dataset<Pair<TimeInterval, String>> output =
         Distinct.of(words)
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .outputWindowed();
 
     ListDataSink<Pair<TimeInterval, String>> f = ListDataSink.get(1);

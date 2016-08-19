@@ -1,8 +1,10 @@
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import org.junit.Test;
@@ -18,7 +20,7 @@ public class DistinctTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Windowing.Time<String> windowing = Windowing.Time.of(Duration.ofHours(1));
+    Time<String> windowing = Time.of(Duration.ofHours(1));
     Dataset<String> uniq =
         Distinct.named("Distinct1")
             .of(dataset)
@@ -56,11 +58,11 @@ public class DistinctTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
     Dataset<String> uniq = Distinct.of(dataset)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
-    assertTrue(distinct.getWindowing() instanceof Windowing.Time);
+    assertTrue(distinct.getWindowing() instanceof Time);
   }
 
   @Test
