@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
@@ -58,7 +58,7 @@ public class FlowUnfolderTest {
     Dataset<Pair<Object, Long>> reduced = ReduceByKey
         .of(mapped)
         .keyBy(e -> e).reduceBy(values -> 1L)
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
     Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
@@ -66,7 +66,7 @@ public class FlowUnfolderTest {
         .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> {
           c.collect(r.getSecond());
         })
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
     output.persist(URI.create("stdout:///"));

@@ -1,10 +1,11 @@
+
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.BatchWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
@@ -33,7 +34,7 @@ public class SumByKeyTest {
     assertNotNull(sum.keyExtractor);
     assertEquals(counted, sum.output());
     // batch windowing by default
-    assertEquals(BatchWindowing.get(), sum.getWindowing());
+    assertEquals(Batch.get(), sum.getWindowing());
 
     // default partitioning used
     assertTrue(sum.getPartitioning().getPartitioner() instanceof HashPartitioner);
@@ -61,11 +62,11 @@ public class SumByKeyTest {
     Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
-    assertTrue(sum.getWindowing() instanceof Windowing.Time);
+    assertTrue(sum.getWindowing() instanceof Time);
   }
 
   @Test
@@ -75,7 +76,7 @@ public class SumByKeyTest {
 
     Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
             .keyBy(s -> s)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 

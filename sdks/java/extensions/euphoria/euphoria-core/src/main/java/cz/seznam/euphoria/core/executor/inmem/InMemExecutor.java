@@ -2,7 +2,7 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
-import cz.seznam.euphoria.core.client.dataset.windowing.BatchWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -106,7 +106,7 @@ public class InMemExecutor implements Executor {
       T next = this.reader.next();
       // we assign it to batch
       // which means null group, and batch label
-      return new WindowedElement<>(WindowID.aligned(BatchWindowing.Batch.get()), next);
+      return new WindowedElement<>(WindowID.aligned(Batch.Label.get()), next);
     }
   }
 
@@ -569,7 +569,7 @@ public class InMemExecutor implements Executor {
 
     EndOfWindowBroadcast eowBroadcast =
         // ~ no need for broadcasts upon "batched and attached windowing"
-        windowing == null || windowing == BatchWindowing.get()
+        windowing == null || windowing == Batch.get()
             ? new EndOfWindowBroadcast.NoopInstance()
             : new EndOfWindowBroadcast.NotifyingInstance();
 

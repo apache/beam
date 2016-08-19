@@ -6,7 +6,7 @@ import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.databind.node.ValueNode;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
@@ -80,7 +80,7 @@ public class ExerciseKafkaSource {
           }
           return s;
         })
-        .windowBy(Windowing.Time.of(Duration.ofMinutes(1))
+        .windowBy(Time.of(Duration.ofMinutes(1))
             .earlyTriggering(Duration.ofSeconds(10)))
         .output();
 

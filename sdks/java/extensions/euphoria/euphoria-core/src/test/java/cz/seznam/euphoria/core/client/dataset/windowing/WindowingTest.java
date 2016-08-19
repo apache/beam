@@ -3,8 +3,8 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing.Session.SessionInterval;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing.Time.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Session.SessionInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
@@ -114,7 +114,7 @@ public class WindowingTest {
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
         // ~ windowing by one second using a user supplied event-time-fn
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1))
+        .windowBy(Time.of(Duration.ofSeconds(1))
             .using((Pair<Item, Long> x) -> x.getFirst().evtTs))
         .output();
 
@@ -140,22 +140,21 @@ public class WindowingTest {
   @Test
   public void testTimeBuilders() {
     assertTimeWindowing(
-        Windowing.Time.of(Duration.ofSeconds(100)),
+        Time.of(Duration.ofSeconds(100)),
         100 * 1000,
         null,
-        Windowing.Time.ProcessingTime.<String>get());
+        Time.ProcessingTime.<String>get());
 
     assertTimeWindowing(
-        Windowing.Time.of(Duration.ofSeconds(20))
-            .earlyTriggering(Duration.ofSeconds(10)),
+        Time.of(Duration.ofSeconds(20)).earlyTriggering(Duration.ofSeconds(10)),
         20 * 1000,
         Duration.ofSeconds(10),
-        Windowing.Time.ProcessingTime.<Pair<Long, String>>get());
+        Time.ProcessingTime.<Pair<Long, String>>get());
 
     UnaryFunction<Pair<Long, Long>, Long> evtf = event-> 0L;
 
     assertTimeWindowing(
-        Windowing.Time.of(Duration.ofSeconds(4))
+        Time.of(Duration.ofSeconds(4))
             .earlyTriggering(Duration.ofSeconds(10))
             .using(evtf),
         4 * 1000,
@@ -163,7 +162,7 @@ public class WindowingTest {
         evtf);
 
     assertTimeWindowing(
-        Windowing.Time.of(Duration.ofSeconds(3))
+        Time.of(Duration.ofSeconds(3))
             .earlyTriggering(Duration.ofHours(1))
             .using(evtf),
         3 * 1000,
@@ -171,13 +170,13 @@ public class WindowingTest {
         evtf);
 
     assertTimeWindowing(
-        Windowing.Time.of(Duration.ofSeconds(8)).using(evtf),
+        Time.of(Duration.ofSeconds(8)).using(evtf),
         8 * 1000,
         null,
         evtf);
   }
 
-  private <T> void assertTimeWindowing(Windowing.Time<T> w,
+  private <T> void assertTimeWindowing(Time<T> w,
                                        long expectDurationMillis,
                                        Duration expectEarlyTriggeringPeriod,
                                        UnaryFunction<T, Long> expectedFn)
@@ -205,7 +204,7 @@ public class WindowingTest {
         .keyBy(e -> "")
         .valueBy(e -> e)
         .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
-        .windowBy(Windowing.Count.of(3))
+        .windowBy(Count.of(3))
         .output();
 
     // ~ consume the output of the previous operator and forward to the next
@@ -307,7 +306,7 @@ public class WindowingTest {
         .keyBy(Pair::getFirst)
         .valueBy(e -> (Void) null)
         .combineBy(e -> null)
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(1)).using(Pair::getSecond))
+        .windowBy(Time.of(Duration.ofSeconds(1)).using(Pair::getSecond))
         .outputWindowed();
 
     Dataset<Pair<TimeInterval, Long>> counts = ReduceByKey.of(distinctRBK)
@@ -359,7 +358,7 @@ public class WindowingTest {
         .valueBy(e -> e)
         .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
         .setNumPartitions(dataPartitions)
-        .windowBy(Windowing.Count.of(3))
+        .windowBy(Count.of(3))
         .output();
     // ~ strip the needless key and flatten out the elements thereby
     // creating multiple elements in the output belonging to the same window
@@ -416,8 +415,8 @@ public class WindowingTest {
 
   @Test
   public void testWindowing_SessionMergeWindows() {
-    Windowing.Session<Long, Void> windowing =
-        Windowing.Session.of(Duration.ofSeconds(10))
+    Session<Long, Void> windowing =
+        Session.of(Duration.ofSeconds(10))
             .using(e -> (Void) null, e -> e);
 
     WindowID<Void, SessionInterval> w1 = assertSessionWindow(
@@ -458,8 +457,8 @@ public class WindowingTest {
     assertSessionWindow(targetWindow, null, 1_000L, 20_000L);
   }
 
-  private <G> WindowID<G, Windowing.Session.SessionInterval> assertSessionWindow(
-      Set<WindowID<G, Windowing.Session.SessionInterval>> window,
+  private <G> WindowID<G, Session.SessionInterval> assertSessionWindow(
+      Set<WindowID<G, Session.SessionInterval>> window,
       G expectedGroup, long expectedStartMillis, long expectedEndMillis)
   {
     WindowID<G, SessionInterval> w = Iterables.getOnlyElement(window);
@@ -468,7 +467,7 @@ public class WindowingTest {
   }
 
   private <G> void assertSessionWindow(
-      WindowID<G, Windowing.Session.SessionInterval> window,
+      WindowID<G, Session.SessionInterval> window,
       G expectedGroup, long expectedStartMillis, long expectedEndMillis)
   {
     assertNotNull(window);
@@ -502,7 +501,7 @@ public class WindowingTest {
         .keyBy(e -> e.word.charAt(0) - '0')
         .valueBy(e -> e.word)
         .reduceBy(Sets::newHashSet)
-        .windowBy(Windowing.Session.of(Duration.ofSeconds(5))
+        .windowBy(Session.of(Duration.ofSeconds(5))
             .using((Item e) -> e.word.charAt(0), e -> NOW + e.evtTs * 1_000L))
         .setNumPartitions(1)
         .outputWindowed()
