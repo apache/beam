@@ -752,10 +752,12 @@ public class PipelineOptionsFactoryTest {
   public static interface Lists extends PipelineOptions {
     List<String> getString();
     void setString(List<String> value);
+    List<Integer> getInteger();
+    void setInteger(List<Integer> value);
   }
 
   @Test
-  public void testList() {
+  public void testListString() {
     String[] args =
         new String[] {"--string=stringValue1", "--string=stringValue2", "--string=stringValue3"};
 
@@ -764,6 +766,15 @@ public class PipelineOptionsFactoryTest {
         options.getString());
   }
 
+  @Test
+  public void testListInt() {
+    String[] args =
+        new String[] {"--integer=1", "--integer=2", "--integer=3"};
+
+    Lists options = PipelineOptionsFactory.fromArgs(args).as(Lists.class);
+    assertEquals(ImmutableList.of(1, 2, 3), options.getInteger());
+  }
+  
   @Test
   public void testListShorthand() {
     String[] args = new String[] {"--string=stringValue1,stringValue2,stringValue3"};

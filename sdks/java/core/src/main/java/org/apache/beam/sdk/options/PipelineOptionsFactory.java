@@ -36,6 +36,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -65,7 +66,9 @@ import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1444,7 +1447,7 @@ public class PipelineOptionsFactory {
                   return Arrays.asList(input.split(","));
                 }
           }).toList();
-
+          
           if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
@@ -1452,7 +1455,19 @@ public class PipelineOptionsFactory {
                   + " but received: " + returnType);
             }
           }
-          convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
+          if (Collection.class.isAssignableFrom(returnType)) {
+            ParameterizedType t = (ParameterizedType) method.getGenericReturnType();
+            Type inner = t.getActualTypeArguments()[0];
+            JavaType jinner = MAPPER.getTypeFactory().constructType(inner);
+            List l = new ArrayList();
+            for (String s : values) {
+              ImmutableList.of(MAPPER.convertValue(s, jinner));
+            }
+            convertedOptions.put(
+              entry.getKey(), MAPPER.convertValue(l, type));
+          } else {
+            convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
+          }
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
