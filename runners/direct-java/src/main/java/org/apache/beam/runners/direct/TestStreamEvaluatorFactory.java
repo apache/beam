@@ -34,8 +34,10 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -177,14 +179,16 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     private static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final TestStream<T> original;
 
-      DirectTestStream(TestStream transform) {
+      private DirectTestStream(TestStream transform) {
         this.original = transform;
       }
 
       @Override
       public PCollection<T> apply(PBegin input) {
         setup(input.getPipeline());
-        return original.apply(input);
+        return PCollection.<T>createPrimitiveOutputInternal(
+                input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
+            .setCoder(original.getValueCoder());
       }
 
       private void setup(Pipeline p) {
