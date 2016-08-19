@@ -58,7 +58,6 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -467,7 +466,8 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
         }
       }
       return new RuntimeValueProvider(
-        method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(), proxy.getOptionsId());
+        method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+        proxy.getOptionsId());
     }
     for (Annotation annotation : method.getAnnotations()) {
       Object o = returnDefaultHelper(annotation, proxy, method);

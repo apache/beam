@@ -19,7 +19,6 @@ package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,21 +27,17 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** {@link ValueProvider} is an interface which abstracts the notion of
@@ -52,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
-public interface ValueProvider<T> {  
+public interface ValueProvider<T> {
   T get();
 
   /** Whether the contents of this ValueProvider is available to validation
@@ -102,13 +97,22 @@ public interface ValueProvider<T> {
     private final T defaultValue;
     private final Long optionsId;
 
-    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass, Long optionsId) {
+    /**
+     * Creates a {@link RuntimeValueProvider} that will query the provided
+     * optionsId for a value.
+     */
+    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
+                         Long optionsId) {
       this.methodName = methodName;
       this.klass = klass;
       this.defaultValue = null;
       this.optionsId = optionsId;
     }
 
+    /**
+     * Creates a {@link RuntimeValueProvider} that will query the provided
+     * optionsId for a value, or use the default if no value is available.
+     */
     RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
       T defaultValue, Long optionsId) {
       this.methodName = methodName;
@@ -146,10 +150,13 @@ public interface ValueProvider<T> {
     }
   }
 
-  
+  /**
+   * Serializer for {@link ValueProvider}.
+   */
   static class Serializer extends JsonSerializer<ValueProvider<?>> {
     @Override
-    public void serialize(ValueProvider<?> value, JsonGenerator jgen, SerializerProvider provider) throws IOException {
+    public void serialize(ValueProvider<?> value, JsonGenerator jgen,
+                          SerializerProvider provider) throws IOException {
       if (value.shouldValidate()) {
         jgen.writeStartObject();
         jgen.writeObject(value.get());
@@ -158,10 +165,13 @@ public interface ValueProvider<T> {
     }
   }
 
+  /**
+   * Deserializer for {@link ValueProvider}, which handles type marshalling.
+   */
   static class Deserializer extends JsonDeserializer<ValueProvider<?>>
     implements ContextualDeserializer {
-    
-    final private JavaType innerType;
+
+    private final JavaType innerType;
 
     // A 0-arg constructor is required.
     Deserializer() {
@@ -186,7 +196,7 @@ public interface ValueProvider<T> {
       JavaType param = params[0];
       return new Deserializer(param);
     }
-    
+
     @Override
     public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {

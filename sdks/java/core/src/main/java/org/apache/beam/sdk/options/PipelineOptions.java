@@ -298,9 +298,13 @@ public interface PipelineOptions extends HasDisplayData {
   Long getOptionsId();
   void setOptionsId(Long id);
 
+  /**
+   * ValueFactory which supplies an ID that is guaranteed to be unique within the given
+   * process.
+   */
   class AtomicLongFactory implements DefaultValueFactory<Long> {
     private static final AtomicLong NEXT_ID = new AtomicLong(0);
-    
+
     @Override
     public Long create(PipelineOptions options) {
       return NEXT_ID.getAndIncrement();

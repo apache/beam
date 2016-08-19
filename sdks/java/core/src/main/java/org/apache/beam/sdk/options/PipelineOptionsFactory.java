@@ -1115,7 +1115,7 @@ public class PipelineOptionsFactory {
         Sets.filter(
             Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
             NOT_SYNTHETIC_PREDICATE));
-    
+
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1469,7 +1469,8 @@ public class PipelineOptionsFactory {
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
-            throw new IllegalArgumentException("Unable to parse JSON value " + value + " for type " + type.toString(), e);
+            throw new IllegalArgumentException("Unable to parse JSON value " + value
+                                               + " for type " + type.toString(), e);
           }
         }
       } catch (IllegalArgumentException e) {
