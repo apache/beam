@@ -40,7 +40,7 @@ import javax.xml.bind.Unmarshaller;
 public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private final Class<T> jaxbClass;
-  private transient JAXBContext jaxbContext;
+  private transient volatile JAXBContext jaxbContext;
 
   public Class<T> getJAXBClass() {
     return jaxbClass;
