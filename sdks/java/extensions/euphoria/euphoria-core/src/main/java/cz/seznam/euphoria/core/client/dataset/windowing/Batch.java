@@ -11,19 +11,19 @@ import java.util.Set;
  * Windowing with single window across the whole dataset. Suitable for
  * batch processing.
  */
-public final class BatchWindowing<T>
-    implements AlignedWindowing<T, BatchWindowing.Batch, BatchWindowing.BatchWindowContext>
+public final class Batch<T>
+    implements AlignedWindowing<T, Batch.Label, Batch.BatchWindowContext>
 {
-  public static final class Batch implements Serializable {
-    static final Batch INSTANCE = new Batch();
+  public static final class Label implements Serializable {
+    static final Label INSTANCE = new Label();
 
-    public static Batch get() { return INSTANCE; }
+    public static Label get() { return INSTANCE; }
 
-    private Batch() {}
+    private Label() {}
 
     @Override
     public boolean equals(Object other) {
-      return other instanceof Batch;
+      return other instanceof Label;
     }
 
     @Override
@@ -34,15 +34,15 @@ public final class BatchWindowing<T>
     private Object readResolve() throws ObjectStreamException {
       return INSTANCE;
     }
-  } // ~ end of Batch
+  } // ~ end of Label
 
-  public static class BatchWindowContext extends WindowContext<Void, Batch> {
+  public static class BatchWindowContext extends WindowContext<Void, Label> {
 
     static final BatchWindowContext INSTANCE = new BatchWindowContext();
     static final Set<BatchWindowContext> INSTANCE_SET = Collections.singleton(INSTANCE);
 
     private BatchWindowContext() {
-      super(WindowID.aligned(Batch.INSTANCE));
+      super(WindowID.aligned(Label.INSTANCE));
     }
 
     private Object readResolve() throws ObjectStreamException {
@@ -50,12 +50,12 @@ public final class BatchWindowing<T>
     }
   } // ~ end of BatchWindow
 
-  private final static BatchWindowing<?> INSTANCE = new BatchWindowing<>();
-  private BatchWindowing() {}
+  private final static Batch<?> INSTANCE = new Batch<>();
+  private Batch() {}
 
   @Override
-  public Set<WindowID<Void, Batch>> assignWindows(T input) {
-    return Collections.singleton(WindowID.aligned(Batch.INSTANCE));
+  public Set<WindowID<Void, Label>> assignWindows(T input) {
+    return Collections.singleton(WindowID.aligned(Label.INSTANCE));
   }
 
   @Override
@@ -64,13 +64,13 @@ public final class BatchWindowing<T>
   }
 
   @Override
-  public BatchWindowContext createWindowContext(WindowID<Void, Batch> label) {
+  public BatchWindowContext createWindowContext(WindowID<Void, Label> label) {
     return BatchWindowContext.INSTANCE;
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> BatchWindowing<T> get() {
-    return (BatchWindowing) INSTANCE;
+  public static <T> Batch<T> get() {
+    return (Batch) INSTANCE;
   }
 
   private Object readResolve() throws ObjectStreamException {
