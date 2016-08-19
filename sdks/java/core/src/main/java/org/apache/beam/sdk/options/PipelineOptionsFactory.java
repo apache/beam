@@ -66,6 +66,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -847,19 +848,14 @@ public class PipelineOptionsFactory {
    * resolved.
    */
   private static List<PropertyDescriptor> getPropertyDescriptors(
-      Class<? extends PipelineOptions> beanClass)
+    Set<Method> methods, Class<? extends PipelineOptions> beanClass)
       throws IntrospectionException {
-    // The sorting is important to make this method stable.
-    SortedSet<Method> methods =
-        FluentIterable
-            .from(ReflectHelpers.getClosureOfMethodsOnInterface(beanClass))
-            .filter(NOT_SYNTHETIC_PREDICATE)
-            .toSortedSet(MethodComparator.INSTANCE);
-
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
         PipelineOptionsReflector.getPropertyNamesToGetters(methods).entries()) {
-      propertyNamesToGetters.put(entry.getKey(), entry.getValue());
+      if (entry.getValue().getDeclaringClass().equals(beanClass)) {
+        propertyNamesToGetters.put(entry.getKey(), entry.getValue());
+      }
     }
 
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
@@ -880,8 +876,8 @@ public class PipelineOptionsFactory {
 
       // Validate that the getter and setter property types are the same.
       if (getterMethod != null) {
-        Class<?> getterPropertyType = getterMethod.getReturnType();
-        Class<?> setterPropertyType = method.getParameterTypes()[0];
+        Type getterPropertyType = getterMethod.getGenericReturnType();
+        Type setterPropertyType = method.getGenericParameterTypes()[0];
         if (getterPropertyType != setterPropertyType) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;
@@ -907,8 +903,8 @@ public class PipelineOptionsFactory {
 
   private static class TypeMismatch {
     private String propertyName;
-    private Class<?> getterPropertyType;
-    private Class<?> setterPropertyType;
+    private Type getterPropertyType;
+    private Type setterPropertyType;
   }
 
   private static void throwForTypeMismatches(List<TypeMismatch> mismatches) {
@@ -918,8 +914,8 @@ public class PipelineOptionsFactory {
           "Type mismatch between getter and setter methods for property [%s]. "
           + "Getter is of type [%s] whereas setter is of type [%s].",
           mismatch.propertyName,
-          mismatch.getterPropertyType.getName(),
-          mismatch.setterPropertyType.getName()));
+          mismatch.getterPropertyType.toString(),
+          mismatch.setterPropertyType.toString()));
     } else if (mismatches.size() > 1) {
       StringBuilder builder = new StringBuilder(
           "Type mismatches between getters and setters detected:");
@@ -927,8 +923,8 @@ public class PipelineOptionsFactory {
         builder.append(String.format(
             "%n  - Property [%s]: Getter is of type [%s] whereas setter is of type [%s].",
             mismatch.propertyName,
-            mismatch.getterPropertyType.getName(),
-            mismatch.setterPropertyType.getName()));
+            mismatch.getterPropertyType.toString(),
+            mismatch.setterPropertyType.toString()));
       }
       throw new IllegalArgumentException(builder.toString());
     }
@@ -1023,7 +1019,7 @@ public class PipelineOptionsFactory {
 
     // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
     // that no setter has @JsonIgnore.
-    Iterable<Method> allInterfaceMethods =
+    SortedSet<Method> allInterfaceMethods =
         FluentIterable.from(
                 ReflectHelpers.getClosureOfMethodsOnInterfaces(
                     validatedPipelineOptionsInterfaces))
@@ -1036,7 +1032,7 @@ public class PipelineOptionsFactory {
       methodNameToAllMethodMap.put(method, method);
     }
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(klass);
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, klass);
 
     List<InconsistentlyIgnoredGetters> incompletelyIgnoredGetters = new ArrayList<>();
     List<IgnoredSetter> ignoredSetters = new ArrayList<>();
@@ -1408,17 +1404,8 @@ public class PipelineOptionsFactory {
                       klass, entry.getKey(), closestMatches));
           }
         }
-        // We need to pull the method directly from klass, to retain generic information.
         Method method = propertyNamesToGetters.get(entry.getKey());
-        String methodName = method.getName();
-        try {
-          method = klass.getMethod(methodName);
-        } catch (NoSuchMethodException e) {
-          // If the method is not found, fall back to just using the registered value.  This
-          // is possible if a method is on a registered PipelineOptions but not on the
-          // interface for klass.
-        }
-        // Only allow empty argument values for String, String Array, and Collection.
+        // Only allow empty argument values for String, String Array, and Collection<String>.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
