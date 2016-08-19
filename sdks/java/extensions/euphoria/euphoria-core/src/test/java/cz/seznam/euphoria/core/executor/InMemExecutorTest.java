@@ -4,9 +4,9 @@ package cz.seznam.euphoria.core.executor;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -22,7 +22,6 @@ import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
@@ -572,7 +571,7 @@ public class InMemExecutorTest {
         .keyBy(e -> "") // reduce all
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
+        .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -633,7 +632,7 @@ public class InMemExecutorTest {
         .keyBy(e -> "") // reduce all
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
+        .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
         .setNumPartitions(1)
         .output()
         .persist(outputs);

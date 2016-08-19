@@ -4,7 +4,8 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -22,7 +23,7 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Windowing.Time<String> windowing = Windowing.Time.of(Duration.ofHours(1));
+    Time<String> windowing = Time.of(Duration.ofHours(1));
     Dataset<Pair<String, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
             .of(dataset)
             .keyBy(s -> s)
@@ -76,11 +77,11 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
-    assertTrue(reduce.getWindowing() instanceof Windowing.Time);
+    assertTrue(reduce.getWindowing() instanceof Time);
   }
 
   @Test
@@ -93,7 +94,7 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 
@@ -133,7 +134,7 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .output();
 
-    Windowing.Count<Object> windowing = Windowing.Count.of(10);
+    Count<Object> windowing = Count.of(10);
     Dataset<Pair<CompositeKey<String, String>, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
             .of(grouped)
             .keyBy(s -> s)
@@ -195,11 +196,11 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) ((List)flow.operators()).get(1);
-    assertTrue(reduce.getWindowing() instanceof Windowing.Time);
+    assertTrue(reduce.getWindowing() instanceof Time);
   }
 
   @Test
@@ -216,7 +217,7 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 

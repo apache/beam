@@ -2,7 +2,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
@@ -84,7 +84,7 @@ public class DistinctTest extends OperatorTest {
       @Override
       protected Dataset<Integer> getOutput(Dataset<Integer> input) {
         return Distinct.of(input)
-            .windowBy(Windowing.Count.of(2))
+            .windowBy(Count.of(2))
             .output();
       }
 
@@ -125,7 +125,7 @@ public class DistinctTest extends OperatorTest {
         return Distinct.of(input)
             .setNumPartitions(2)
             .setPartitioner(e -> e)
-            .windowBy(Windowing.Count.of(8))
+            .windowBy(Count.of(8))
             .output();
       }
 

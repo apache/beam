@@ -1,9 +1,11 @@
+
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.BatchWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -39,7 +41,7 @@ public class JoinTest {
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
     // batch windowing by default
-    assertEquals(BatchWindowing.get(), join.getWindowing());
+    assertEquals(Batch.get(), join.getWindowing());
     assertFalse(join.outer);
 
     // default partitioning used
@@ -89,11 +91,11 @@ public class JoinTest {
             .of(left, right)
             .by(String::length, String::length)
             .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .windowBy(Windowing.Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
-    assertTrue(join.getWindowing() instanceof Windowing.Time);
+    assertTrue(join.getWindowing() instanceof Time);
   }
 
   @Test

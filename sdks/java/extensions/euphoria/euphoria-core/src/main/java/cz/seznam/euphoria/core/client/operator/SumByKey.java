@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.BatchWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -75,7 +75,7 @@ public class SumByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
     public Dataset<Pair<KEY, Long>> output() {
       // use default windowing
       return new OutputBuilder<>(name, input,
-          keyExtractor, valueExtractor, BatchWindowing.get(), this)
+          keyExtractor, valueExtractor, Batch.get(), this)
           .output();
     }
   }

@@ -2,7 +2,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.CountByKey;
@@ -37,7 +37,7 @@ public class CountByKeyTest extends OperatorTest {
         return CountByKey.of(input)
             .keyBy(e -> e)
             .setPartitioner(e -> e)
-            .windowBy(Windowing.Count.of(7))
+            .windowBy(Count.of(7))
             .output();
       }
 
@@ -139,7 +139,7 @@ public class CountByKeyTest extends OperatorTest {
           Dataset<Integer> input) {
         return CountByKey.of(input)
             .keyBy(e -> e)
-            .windowBy(Windowing.Count.of(3))
+            .windowBy(Count.of(3))
             .output();
       }
 

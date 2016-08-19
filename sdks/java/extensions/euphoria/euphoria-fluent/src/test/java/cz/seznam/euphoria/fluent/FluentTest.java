@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.fluent;
 
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
@@ -31,7 +31,7 @@ public class FluentTest {
             .valueBy(e -> e)
             .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
             .setNumPartitions(1)
-            .windowBy(Windowing.Count.of(3)))
+            .windowBy(Count.of(3)))
         // ~ strip the needless key and flatten out the elements thereby
         // creating multiple elements in the output belonging to the same window
         .flatMap((Pair<String, Set<String>> e, Collector<String> c) ->
