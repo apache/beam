@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
@@ -36,6 +37,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.collect.Iterables;
 
@@ -199,6 +201,17 @@ public class DataflowAssertTest implements Serializable {
         });
 
     pipeline.run();
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  public void testContainsInAnyOrderIterableView() {
+    Pipeline p = TestPipeline.create();
+    PCollectionView<Iterable<Integer>> iterableView =
+        p.apply(Create.of(1, 2, 3, 4)).apply(View.<Integer>asIterable());
+
+    DataflowAssert.thatIterable(iterableView).containsInAnyOrder(4, 3, 2, 1);
+    p.run();
   }
 
   /**

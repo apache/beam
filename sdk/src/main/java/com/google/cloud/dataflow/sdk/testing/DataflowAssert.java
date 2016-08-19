@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -60,6 +61,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -344,11 +347,13 @@ public class DataflowAssert {
 
   /**
    * Constructs an {@link IterableAssert} for the value of the provided {@link PCollectionView}.
+   *
+   * @deprecated use {@link #thatSingletonIterable(PCollection)},
+   *             {@link #thatSingleton(PCollection)} or {@link #that(PCollection)} instead.
    */
   @Deprecated
   public static <T> IterableAssert<T> thatIterable(PCollectionView<Iterable<T>> actual) {
-    // TODO Before PR complete. Required for backwards compatibility purposes.
-    return null;
+    return new PCollectionViewIterableAssert<T>(actual);
   }
 
   /**
@@ -672,6 +677,134 @@ public class DataflowAssert {
       return satisfies(
           new CheckRelationAgainstExpected<Iterable<T>>(
               relation, expectedElements, IterableCoder.of(elementCoder)));
+    }
+  }
+
+  private static class PCollectionViewIterableAssert<T> implements IterableAssert<T> {
+    private final PCollectionView<Iterable<T>> actual;
+    private Optional<Coder<T>> valueCoder;
+
+    private PCollectionViewIterableAssert(
+        PCollectionView<Iterable<T>> actual) {
+      this.actual = actual;
+      valueCoder = Optional.absent();
+    }
+
+    @Override
+    public IterableAssert<T> setCoder(Coder<T> coderOrNull) {
+      valueCoder = Optional.fromNullable(coderOrNull);
+      return this;
+    }
+
+    @Override
+    public Coder<T> getCoder() {
+      if (valueCoder.isPresent()) {
+        return valueCoder.get();
+      } else {
+        throw new IllegalArgumentException("Blah");
+      }
+    }
+
+    @Override
+    public IterableAssert<T> inWindow(BoundedWindow window) {
+      throw new UnsupportedOperationException(
+          "IterableAssert of an PCollectionView does not support windowed assertions");
+    }
+
+    @Override
+    public IterableAssert<T> inFinalPane(BoundedWindow window) {
+      // TODO: Can maybe be supported?
+      throw new UnsupportedOperationException(
+          "IterableAssert of an PCollectionView does not support windowed assertions");
+    }
+
+    @Override
+    public IterableAssert<T> inOnTimePane(BoundedWindow window) {
+      throw new UnsupportedOperationException(
+          "IterableAssert of an PCollectionView does not support windowed assertions");
+    }
+
+    @Override
+    public IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
+      throw new UnsupportedOperationException(
+          "IterableAssert of an PCollectionView does not support windowed assertions");
+    }
+
+    @Override
+    public IterableAssert<T> containsInAnyOrder(T... expectedElements) {
+      return containsInAnyOrder(ImmutableList.copyOf(expectedElements));
+    }
+
+    @Override
+    public IterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
+      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+    }
+
+    private IterableAssert<T> satisfies(
+        AssertRelation<Iterable<T>, Iterable<T>> relation,
+        Iterable<T> expectedElements) {
+      Coder<T> elemCoder;
+      if (valueCoder.isPresent()) {
+        elemCoder = valueCoder.get();
+      } else {
+        try {
+          elemCoder =
+              Create.of(expectedElements).getDefaultOutputCoder(actual.getPipeline().begin());
+        } catch (CannotProvideCoderException e) {
+          throw new IllegalArgumentException(
+              "Attempted to infer the Coder of an IterableAssert, but no Coder was explicitly set "
+                  + "and no coder could be inferred", e);
+        }
+      }
+      return satisfies(new CheckRelationAgainstExpected<Iterable<T>>(
+          relation, expectedElements, IterableCoder.of(elemCoder)));
+    }
+
+    @Override
+    public IterableAssert<T> empty() {
+      return containsInAnyOrder();
+    }
+
+    @Override
+    public IterableAssert<T> satisfies(SerializableFunction<Iterable<T>, Void> checkerFn) {
+      PTransform<PBegin, PCollectionView<Iterable<T>>> identity =
+          new PTransform<PBegin, PCollectionView<Iterable<T>>>() {
+            @Override
+            public PCollectionView<Iterable<T>> apply(PBegin input) {
+              return actual;
+            }
+          };
+      actual.getPipeline()
+          .apply(nextAssertionName(),
+              new OneSideInputAssert<>(
+                  identity,
+                  Window.<Integer>into(new GlobalWindows()),
+                  checkerFn));
+      return this;
+    }
+
+    /**
+     * @throws UnsupportedOperationException always
+     * @deprecated {@link Object#equals(Object)} is not supported on DataflowAssert objects.
+     *    If you meant to test object equality, use a variant of {@link #containsInAnyOrder}
+     *    instead.
+     */
+    @Deprecated
+    @Override
+    public boolean equals(Object o) {
+      throw new UnsupportedOperationException(
+          "If you meant to test object equality, use .containsInAnyOrder instead.");
+    }
+
+    /**
+     * @throws UnsupportedOperationException always.
+     * @deprecated {@link Object#hashCode()} is not supported on DataflowAssert objects.
+     */
+    @Deprecated
+    @Override
+    public int hashCode() {
+      throw new UnsupportedOperationException(
+          String.format("%s.hashCode() is not supported.", IterableAssert.class.getSimpleName()));
     }
   }
 
