@@ -16,12 +16,12 @@ import java.util.Objects;
 /**
  * Operator counting elements with same key.
  */
-public class CountByKey<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
-                        PAIROUT extends Pair<KEY, Long>>
+public class CountByKey<
+    IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
+    PAIROUT extends Pair<KEY, Long>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, PAIROUT,
-        WLABEL, W, CountByKey<IN, KEY, WLABEL, W, PAIROUT>>
-{
+        WLABEL, W, CountByKey<IN, KEY, WLABEL, W, PAIROUT>> {
 
   public static class OfBuilder {
     private final String name;
