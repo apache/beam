@@ -72,22 +72,17 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    * @throws IllegalArgumentException if a counter with the same
    * name but an incompatible kind had already been added
    */
-  public synchronized <T> Counter<T> addOrReuseCounter(Counter<T> counter) {
-    Counter<?> oldCounter = counters.get(counter.getName());
-    if (oldCounter == null) {
-      // A new counter.
-      counters.put(counter.getName(), counter);
-      return counter;
-    }
-    if (counter.isCompatibleWith(oldCounter)) {
+  public <T> Counter<T> addOrReuseCounter(Counter<T> counter) {
+    Counter<?> oldCounter = counters.putIfAbsent(counter.getName(), counter);
+    if (oldCounter != null) {
+      checkArgument(counter.isCompatibleWith(oldCounter),
+        "Counter %s duplicates incompatible counter %s in %s", counter, oldCounter, this);
       // Return the counter to reuse.
       @SuppressWarnings("unchecked")
       Counter<T> compatibleCounter = (Counter<T>) oldCounter;
       return compatibleCounter;
     }
-    throw new IllegalArgumentException(
-        "Counter " + counter + " duplicates incompatible counter "
-        + oldCounter + " in " + this);
+    return counter;
   }
 
   /**
@@ -105,33 +100,29 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    * Returns the Counter with the given name in this CounterSet;
    * returns null if no such Counter exists.
    */
-  public synchronized Counter<?> getExistingCounter(String name) {
+  public Counter<?> getExistingCounter(String name) {
     return counters.get(name);
   }
 
   @Override
-  public synchronized Iterator<Counter<?>> iterator() {
+  public Iterator<Counter<?>> iterator() {
     return counters.values().iterator();
   }
 
   @Override
-  public synchronized int size() {
+  public int size() {
     return counters.size();
   }
 
   @Override
-  public synchronized boolean add(Counter<?> e) {
+  public boolean add(Counter<?> e) {
     if (null == e) {
       return false;
     }
-    if (counters.containsKey(e.getName())) {
-      return false;
-    }
-    counters.put(e.getName(), e);
-    return true;
+    return counters.putIfAbsent(e.getName(), e) == null;
   }
 
-  public synchronized void merge(CounterSet that) {
+  public void merge(CounterSet that) {
     for (Counter<?> theirCounter : that) {
       Counter<?> myCounter = counters.get(theirCounter.getName());
       if (myCounter != null) {
