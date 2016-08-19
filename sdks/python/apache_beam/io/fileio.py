@@ -25,7 +25,6 @@ from multiprocessing.pool import ThreadPool
 import os
 import re
 import shutil
-import tempfile
 import threading
 import time
 import zlib
@@ -34,33 +33,11 @@ import weakref
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
-from apache_beam.utils import processes
-from apache_beam.utils import retry
 
 
 __all__ = ['TextFileSource', 'TextFileSink']
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
-
-
-# Retrying is needed because there are transient errors that can happen.
-@retry.with_exponential_backoff(num_retries=4, retry_filter=lambda _: True)
-def _gcs_file_copy(from_path, to_path, encoding=''):
-  """Copy a local file to a GCS location with retries for transient errors."""
-  if not encoding:
-    command_args = ['gsutil', '-m', '-q', 'cp', from_path, to_path]
-  else:
-    encoding = 'Content-Type:' + encoding
-    command_args = ['gsutil', '-m', '-q', '-h', encoding, 'cp', from_path,
-                    to_path]
-  logging.info('Executing command: %s', command_args)
-  popen = processes.Popen(command_args, stdout=processes.PIPE,
-                          stderr=processes.PIPE)
-  stdoutdata, stderrdata = popen.communicate()
-  if popen.returncode != 0:
-    raise ValueError(
-        'Failed to copy GCS file from %s to %s (stdout=%s, stderr=%s).' % (
-            from_path, to_path, stdoutdata, stderrdata))
 
 
 # -----------------------------------------------------------------------------
@@ -901,17 +878,15 @@ class TextFileWriter(iobase.NativeSinkWriter):
 
   def __enter__(self):
     if self.sink.is_gcs_sink:
-      # TODO(silviuc): Use the storage library instead of gsutil for writes.
-      self.temp_path = os.path.join(tempfile.mkdtemp(), 'gcsfile')
-      self._file = open(self.temp_path, 'wb')
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.io import gcsio
+      self._file = gcsio.GcsIO().open(self.sink.file_path, 'wb')
     else:
       self._file = open(self.sink.file_path, 'wb')
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
     self._file.close()
-    if hasattr(self, 'temp_path'):
-      _gcs_file_copy(self.temp_path, self.sink.file_path, 'text/plain')
 
   def Write(self, line):
     self._file.write(self.sink.coder.encode(line))
