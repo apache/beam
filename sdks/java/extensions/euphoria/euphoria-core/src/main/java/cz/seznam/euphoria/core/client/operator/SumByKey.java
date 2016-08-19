@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -67,7 +67,7 @@ public class SumByKey<
       return this;
     }
     public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
-    windowBy(ElementWindowing<IN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<IN, ?, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(
               name, input, keyExtractor, valueExtractor, windowing, this);
@@ -88,12 +88,12 @@ public class SumByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, Long> valueExtractor;
-    private final ElementWindowing<IN, ?, WLABEL, W> windowing; /* may be null */
+    private final Windowing<IN, ?, WLABEL, W> windowing; /* may be null */
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
-                  ElementWindowing<IN, ?, WLABEL, W> windowing,
+                  Windowing<IN, ?, WLABEL, W> windowing,
                   PartitioningBuilder<KEY, ?> partitioning)
     {
       super(partitioning);
@@ -134,7 +134,7 @@ public class SumByKey<
            Dataset<IN> input,
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
-           ElementWindowing<IN, ?, WLABEL, W> windowing,
+           Windowing<IN, ?, WLABEL, W> windowing,
            Partitioning<KEY> partitioning)
   {
     super(name, flow, input, keyExtractor, windowing, partitioning);

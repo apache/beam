@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.ElementWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -10,8 +10,7 @@ import java.util.Collections;
 import java.util.Set;
 
 class AttachedWindowing
-    implements ElementWindowing<Object, Object,
-                         Object, AttachedWindowing.AttachedWindowContext>
+    implements Windowing<Object, Object, Object, AttachedWindowing.AttachedWindowContext>
 {
 
   static class AttachedWindowContext extends WindowContext<Object, Object> {
@@ -30,7 +29,7 @@ class AttachedWindowing
   @Override
   @SuppressWarnings("unchecked, rawtypes")
   public Set<WindowID<Object, Object>> assignWindowsToElement(
-      WindowedElement input) {
+      WindowedElement<Object, Object, Object> input) {
     return Collections.singleton(input.getWindowID());
   }
 
