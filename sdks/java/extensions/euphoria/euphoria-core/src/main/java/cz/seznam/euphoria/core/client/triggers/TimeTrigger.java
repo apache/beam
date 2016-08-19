@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

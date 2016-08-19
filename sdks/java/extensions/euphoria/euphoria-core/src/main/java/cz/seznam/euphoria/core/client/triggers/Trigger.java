@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 
 import java.io.Serializable;
 

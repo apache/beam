@@ -1,11 +1,11 @@
 
 package cz.seznam.euphoria.operator.test;
 
-import cz.seznam.euphoria.core.client.dataset.AlignedWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.WindowID;
-import cz.seznam.euphoria.core.client.dataset.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.AlignedWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;

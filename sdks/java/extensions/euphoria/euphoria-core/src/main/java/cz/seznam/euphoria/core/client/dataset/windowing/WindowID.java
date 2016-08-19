@@ -1,5 +1,5 @@
 
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import java.util.Objects;
 
