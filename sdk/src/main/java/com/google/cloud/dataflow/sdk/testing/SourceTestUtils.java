@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -28,8 +30,11 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.collect.ImmutableList;
 
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +42,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import javax.annotation.Nullable;
 
 /**
  * Helper functions and test harnesses for checking correctness of {@link Source}
@@ -671,5 +679,127 @@ public class SourceTestUtils {
         source, expectedItems, currentItems, splitSources.getKey(), splitSources.getValue(),
         numItemsToReadBeforeSplitting, fraction, options);
     return (res.numResidualItems > 0);
+  }
+
+  /**
+   * Returns an equivalent unsplittable {@code BoundedSource<T>}.
+   *
+   * <p>It forwards most methods to the given {@code boundedSource}, except:
+   * <ol>
+   * <li> {@link BoundedSource#splitIntoBundles} rejects initial splitting
+   * by returning itself in a list.
+   * <li> {@link BoundedReader#splitAtFraction} rejects dynamic splitting by returning null.
+   * </ol>
+   */
+  public static <T> BoundedSource<T> toUnsplittableSource(BoundedSource<T> boundedSource) {
+    return new UnsplittableSource<>(boundedSource);
+  }
+
+  private static class UnsplittableSource<T> extends BoundedSource<T> {
+
+    private final BoundedSource<T> boundedSource;
+
+    private UnsplittableSource(BoundedSource<T> boundedSource) {
+      this.boundedSource = checkNotNull(boundedSource, "boundedSource");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      this.boundedSource.populateDisplayData(builder);
+    }
+
+    @Override
+    public List<? extends BoundedSource<T>> splitIntoBundles(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      return ImmutableList.of(this);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return boundedSource.getEstimatedSizeBytes(options);
+    }
+
+    @Override
+    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+      return boundedSource.producesSortedKeys(options);
+    }
+
+    @Override
+    public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+      return new UnsplittableReader<>(boundedSource, boundedSource.createReader(options));
+    }
+
+    @Override
+    public void validate() {
+      boundedSource.validate();
+    }
+
+    @Override
+    public Coder<T> getDefaultOutputCoder() {
+      return boundedSource.getDefaultOutputCoder();
+    }
+
+    private static class UnsplittableReader<T> extends BoundedReader<T> {
+
+      private final BoundedSource<T> boundedSource;
+      private final BoundedReader<T> boundedReader;
+
+      private UnsplittableReader(BoundedSource<T> boundedSource, BoundedReader<T> boundedReader) {
+        this.boundedSource = checkNotNull(boundedSource, "boundedSource");
+        this.boundedReader = checkNotNull(boundedReader, "boundedReader");
+      }
+
+      @Override
+      public BoundedSource<T> getCurrentSource() {
+        return boundedSource;
+      }
+
+      @Override
+      public boolean start() throws IOException {
+        return boundedReader.start();
+      }
+
+      @Override
+      public boolean advance() throws IOException {
+        return boundedReader.advance();
+      }
+
+      @Override
+      public T getCurrent() throws NoSuchElementException {
+        return boundedReader.getCurrent();
+      }
+
+      @Override
+      public void close() throws IOException {
+        boundedReader.close();
+      }
+
+      @Override
+      @Nullable
+      public BoundedSource<T> splitAtFraction(double fraction) {
+        return null;
+      }
+
+      @Override
+      @Nullable
+      public Double getFractionConsumed() {
+        return boundedReader.getFractionConsumed();
+      }
+
+      @Override
+      public long getSplitPointsConsumed() {
+        return boundedReader.getSplitPointsConsumed();
+      }
+
+      @Override
+      public long getSplitPointsRemaining() {
+        return boundedReader.getSplitPointsRemaining();
+      }
+
+      @Override
+      public Instant getCurrentTimestamp() throws NoSuchElementException {
+        return boundedReader.getCurrentTimestamp();
+      }
+    }
   }
 }
