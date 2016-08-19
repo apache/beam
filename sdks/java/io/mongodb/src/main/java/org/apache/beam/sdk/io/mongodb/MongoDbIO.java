@@ -90,7 +90,7 @@ import javax.annotation.Nullable;
  *     .withUri("mongodb://localhost:27017")
  *     .withDatabase("my-database")
  *     .withCollection("my-collection")
- *     .withNumberSplit(30)
+ *     .withNumSplits(30)
  *
  * }</pre>
  */
@@ -114,23 +114,23 @@ public class MongoDbIO {
   public static class Read extends PTransform<PBegin, PCollection<String>> {
 
     public Read withUri(String uri) {
-      return new Read(uri, database, collection, filter, numberSplit);
+      return new Read(uri, database, collection, filter, numSplits);
     }
 
     public Read withDatabase(String database) {
-      return new Read(uri, database, collection, filter, numberSplit);
+      return new Read(uri, database, collection, filter, numSplits);
     }
 
     public Read withCollection(String collection) {
-      return new Read(uri, database, collection, filter, numberSplit);
+      return new Read(uri, database, collection, filter, numSplits);
     }
 
     public Read withFilter(String filter) {
-      return new Read(uri, database, collection, filter, numberSplit);
+      return new Read(uri, database, collection, filter, numSplits);
     }
 
-    public Read withNumberSplit(int numberSplit) {
-      return new Read(uri, database, collection, filter, numberSplit);
+    public Read withNumSplits(int numSplits) {
+      return new Read(uri, database, collection, filter, numSplits);
     }
 
     protected String uri;
@@ -138,16 +138,16 @@ public class MongoDbIO {
     protected String collection;
     @Nullable
     protected String filter;
-    protected int numberSplit;
+    protected int numSplits;
 
     private Read() {}
 
-    private Read(String uri, String database, String collection, String filter, int numberSplit) {
+    private Read(String uri, String database, String collection, String filter, int numSplits) {
       this.uri = uri;
       this.database = database;
       this.collection = collection;
       this.filter = filter;
-      this.numberSplit = numberSplit;
+      this.numSplits = numSplits;
     }
 
     @Override
@@ -163,7 +163,7 @@ public class MongoDbIO {
      */
     @VisibleForTesting
     BoundedSource createSource() {
-      return new BoundedMongoDbSource(uri, database, collection, filter, numberSplit);
+      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
     }
 
     @Override
@@ -181,7 +181,7 @@ public class MongoDbIO {
       builder.addIfNotNull(DisplayData.item("database", database));
       builder.addIfNotNull(DisplayData.item("collection", collection));
       builder.addIfNotNull(DisplayData.item("filter", filter));
-      builder.addIfNotNull(DisplayData.item("numberSplit", numberSplit));
+      builder.addIfNotNull(DisplayData.item("numSplits", numSplits));
     }
 
   }
@@ -193,16 +193,16 @@ public class MongoDbIO {
     private String collection;
     @Nullable
     private String filter;
-    private int numberSplit;
+    private int numSplits;
     private Long avgSize;
 
     public BoundedMongoDbSource(String uri, String database, String collection, String filter,
-                                int numberSplit) {
+                                int numSplits) {
       this.uri = uri;
       this.database = database;
       this.collection = collection;
       this.filter = filter;
-      this.numberSplit = numberSplit;
+      this.numSplits = numSplits;
     }
 
     @Override
@@ -273,8 +273,8 @@ public class MongoDbIO {
       Long collectionEstimatedSize = getEstimatedSizeBytes(options);
       ArrayList splitIDFromMongo;
       double initialRatio = 1.6;
-      if (numberSplit > 0) {
-        numberSplitsCalculated = new Long(numberSplit);
+      if (numSplits > 0) {
+        numberSplitsCalculated = new Long(numSplits);
       } else if (desiredBundleSizeBytes > 0) {
         numberSplitsCalculated = collectionEstimatedSize / desiredBundleSizeBytes;
         if (numberSplitsCalculated <= 0) {
@@ -353,7 +353,7 @@ public class MongoDbIO {
                 + "\")," + "$lt:ObjectId(\"" + currentID
                 + "\")}}, " + filter + " ]}";
             splitSourceList.add(new BoundedMongoDbSource
-                (uri, database, collection, newFilter, numberSplit));
+                (uri, database, collection, newFilter, numSplits));
             newFilter = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + currentID
                 + "\")}}, " + filter + " ]}";
           } else {
@@ -368,7 +368,7 @@ public class MongoDbIO {
             newFilter = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
                 + "$lt:ObjectId(\"" + currentID + "\")}}";
             splitSourceList.add(new BoundedMongoDbSource
-                (uri, database, collection, newFilter, numberSplit));
+                (uri, database, collection, newFilter, numSplits));
             newFilter = "{\"_id\":{$gt:ObjectId(\"" + currentID + "\")}}";
           } else {
             newFilter = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
@@ -376,7 +376,7 @@ public class MongoDbIO {
           }
         }
         splitSourceList.add(new BoundedMongoDbSource
-            (uri, database, collection, newFilter, numberSplit));
+            (uri, database, collection, newFilter, numSplits));
         lastID = currentID;
         listIndex++;
       }
