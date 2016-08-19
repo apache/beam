@@ -1459,9 +1459,9 @@ public class PipelineOptionsFactory {
             ParameterizedType t = (ParameterizedType) method.getGenericReturnType();
             Type inner = t.getActualTypeArguments()[0];
             JavaType jinner = MAPPER.getTypeFactory().constructType(inner);
-            List l = new ArrayList();
+            List l = new ArrayList(values.size());
             for (String s : values) {
-              ImmutableList.of(MAPPER.convertValue(s, jinner));
+              l.add(MAPPER.convertValue(s, jinner));
             }
             convertedOptions.put(
               entry.getKey(), MAPPER.convertValue(l, type));
