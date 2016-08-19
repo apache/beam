@@ -1453,7 +1453,7 @@ public class PipelineOptionsFactory {
                 }
           }).toList();
 
-          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
+          if (returnType.isArray() && !returnType.getComponentType().equals(String.class) || Collection.class.isAssignableFrom(returnType)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
                   "Empty argument value is only allowed for String, String Array, "
