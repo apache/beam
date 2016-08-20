@@ -37,13 +37,14 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence.
  */
 @RunWith(JUnit4.class)
-public class ParDoLifecycleTest {
+public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testOldFnCallSequence() {
