@@ -1408,7 +1408,12 @@ public class PipelineOptionsFactory {
           }
         }
 
-        Method method = propertyNamesToGetters.get(entry.getKey());
+        Method method;
+        try {
+          method = klass.getMethod(propertyNamesToGetters.get(entry.getKey()).getName());
+        } catch (Exception e) {
+          method = propertyNamesToGetters.get(entry.getKey());
+        }
         // Only allow empty argument values for String, String Array, and Collection.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
