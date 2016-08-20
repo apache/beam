@@ -62,13 +62,22 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
       FlinkRunnerResult result = delegate.run(pipeline);
 
       return result;
-    } catch (RuntimeException e) {
+    } catch (Throwable e) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.
-      if (e.getCause() != null
-          && e.getCause() instanceof JobExecutionException
-          && e.getCause().getCause() instanceof AssertionError) {
-          throw (AssertionError) e.getCause().getCause();
+      Throwable cause = e;
+      Throwable oldCause = e;
+      do {
+        if (cause.getCause() == null) {
+          break;
+        }
+
+        oldCause = cause;
+        cause = cause.getCause();
+
+      } while (!oldCause.equals(cause));
+      if (cause instanceof AssertionError) {
+        throw (AssertionError) cause;
       } else {
         throw e;
       }
