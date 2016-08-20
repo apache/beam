@@ -26,7 +26,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -49,7 +48,6 @@ public class ValueProviderTest {
   }
 
   @Test
-  @Ignore
   public void testCommandLineNoDefault() {
     TestOptions options = PipelineOptionsFactory.fromArgs(
       new String[]{"--foo=baz"}).as(TestOptions.class);
@@ -59,7 +57,6 @@ public class ValueProviderTest {
   }
 
   @Test
-  @Ignore
   public void testCommandLineWithDefault() {
     TestOptions options = PipelineOptionsFactory.fromArgs(
       new String[]{"--bar=baz"}).as(TestOptions.class);
