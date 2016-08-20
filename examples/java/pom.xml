@@ -323,12 +323,12 @@
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-proto-client</artifactId>
+      <artifactId>datastore-v1-proto-client</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
+      <artifactId>datastore-v1-protos</artifactId>
     </dependency>
 
     <dependency>

@@ -17,21 +17,21 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT;
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.DEFAULT_BUNDLE_SIZE_BYTES;
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.QUERY_BATCH_LIMIT;
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.getEstimatedSizeBytes;
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.makeRequest;
-import static org.apache.beam.sdk.io.gcp.datastore.V1Beta3.isValidKey;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.DEFAULT_BUNDLE_SIZE_BYTES;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.QUERY_BATCH_LIMIT;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.getEstimatedSizeBytes;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.makeRequest;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.isValidKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
-import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.PropertyFilter.Operator.EQUAL;
+import static com.google.datastore.v1.PropertyOrder.Direction.DESCENDING;
+import static com.google.datastore.v1.client.DatastoreHelper.makeDelete;
+import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
+import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -47,17 +47,17 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DatastoreWriterFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntity;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteEntityFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKey;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.DeleteKeyFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.ReadFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.SplitQueryFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Read.V1Beta3Options;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.UpsertFn;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.V1Beta3DatastoreFactory;
-import org.apache.beam.sdk.io.gcp.datastore.V1Beta3.Write;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DatastoreWriterFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntityFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKey;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKeyFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.ReadFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.UpsertFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.V1DatastoreFactory;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -70,18 +70,18 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 
-import com.google.datastore.v1beta3.CommitRequest;
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.EntityResult;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.Mutation;
-import com.google.datastore.v1beta3.PartitionId;
-import com.google.datastore.v1beta3.Query;
-import com.google.datastore.v1beta3.QueryResultBatch;
-import com.google.datastore.v1beta3.RunQueryRequest;
-import com.google.datastore.v1beta3.RunQueryResponse;
-import com.google.datastore.v1beta3.client.Datastore;
-import com.google.datastore.v1beta3.client.QuerySplitter;
+import com.google.datastore.v1.CommitRequest;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Mutation;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.QueryResultBatch;
+import com.google.datastore.v1.RunQueryRequest;
+import com.google.datastore.v1.RunQueryResponse;
+import com.google.datastore.v1.client.Datastore;
+import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
 
 import org.junit.Before;
@@ -103,29 +103,29 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Tests for {@link V1Beta3}.
+ * Tests for {@link DatastoreV1}.
  */
 @RunWith(JUnit4.class)
-public class V1Beta3Test {
+public class DatastoreV1Test {
   private static final String PROJECT_ID = "testProject";
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
-  private static final V1Beta3Options v1Beta3Options;
+  private static final V1Options V_1_OPTIONS;
   static {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName(KIND);
     QUERY = q.build();
-    v1Beta3Options = V1Beta3Options.from(PROJECT_ID, QUERY, NAMESPACE);
+    V_1_OPTIONS = V1Options.from(PROJECT_ID, QUERY, NAMESPACE);
   }
-  private V1Beta3.Read initialRead;
+  private DatastoreV1.Read initialRead;
 
   @Mock
   Datastore mockDatastore;
   @Mock
   QuerySplitter mockQuerySplitter;
   @Mock
-  V1Beta3DatastoreFactory mockDatastoreFactory;
+  V1DatastoreFactory mockDatastoreFactory;
 
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
@@ -134,7 +134,7 @@ public class V1Beta3Test {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    initialRead = DatastoreIO.v1beta3().read()
+    initialRead = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
     when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class)))
@@ -145,7 +145,7 @@ public class V1Beta3Test {
 
   @Test
   public void testBuildRead() throws Exception {
-    V1Beta3.Read read = DatastoreIO.v1beta3().read()
+    DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
@@ -157,7 +157,7 @@ public class V1Beta3Test {
    */
   @Test
   public void testBuildReadAlt() throws Exception {
-    V1Beta3.Read read =  DatastoreIO.v1beta3().read()
+    DatastoreV1.Read read =  DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
@@ -166,7 +166,7 @@ public class V1Beta3Test {
 
   @Test
   public void testReadValidationFailsProject() throws Exception {
-    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withQuery(QUERY);
+    DatastoreV1.Read read =  DatastoreIO.v1().read().withQuery(QUERY);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("project");
     read.validate(null);
@@ -174,7 +174,7 @@ public class V1Beta3Test {
 
   @Test
   public void testReadValidationFailsQuery() throws Exception {
-    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withProjectId(PROJECT_ID);
+    DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("query");
     read.validate(null);
@@ -186,7 +186,7 @@ public class V1Beta3Test {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid query limit 0: must be positive");
 
-    DatastoreIO.v1beta3().read().withQuery(invalidLimit);
+    DatastoreIO.v1().read().withQuery(invalidLimit);
   }
 
   @Test
@@ -195,22 +195,22 @@ public class V1Beta3Test {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid query limit -5: must be positive");
 
-    DatastoreIO.v1beta3().read().withQuery(invalidLimit);
+    DatastoreIO.v1().read().withQuery(invalidLimit);
   }
 
   @Test
   public void testReadValidationSucceedsNamespace() throws Exception {
-    V1Beta3.Read read =  DatastoreIO.v1beta3().read().withProjectId(PROJECT_ID).withQuery(QUERY);
+    DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY);
     /* Should succeed, as a null namespace is fine. */
     read.validate(null);
   }
 
   @Test
   public void testReadDisplayData() {
-    V1Beta3.Read read =  DatastoreIO.v1beta3().read()
-      .withProjectId(PROJECT_ID)
-      .withQuery(QUERY)
-      .withNamespace(NAMESPACE);
+    DatastoreV1.Read read =  DatastoreIO.v1().read()
+        .withProjectId(PROJECT_ID)
+        .withQuery(QUERY)
+        .withNamespace(NAMESPACE);
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -223,7 +223,7 @@ public class V1Beta3Test {
   @Category(RunnableOnService.class)
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1beta3().read().withProjectId(
+    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1().read().withProjectId(
         "myProject").withQuery(Query.newBuilder().build());
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
@@ -236,12 +236,12 @@ public class V1Beta3Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
 
-    DatastoreIO.v1beta3().write().withProjectId(null);
+    DatastoreIO.v1().write().withProjectId(null);
   }
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
-    Write write =  DatastoreIO.v1beta3().write();
+    Write write =  DatastoreIO.v1().write();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -251,13 +251,13 @@ public class V1Beta3Test {
 
   @Test
   public void testWriteValidationSucceedsWithProject() throws Exception {
-    Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
+    Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     write.validate(null);
   }
 
   @Test
   public void testWriteDisplayData() {
-    Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
+    Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -269,12 +269,12 @@ public class V1Beta3Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
 
-    DatastoreIO.v1beta3().deleteEntity().withProjectId(null);
+    DatastoreIO.v1().deleteEntity().withProjectId(null);
   }
 
   @Test
   public void testDeleteEntityValidationFailsWithNoProject() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1beta3().deleteEntity();
+    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -284,13 +284,13 @@ public class V1Beta3Test {
 
   @Test
   public void testDeleteEntityValidationSucceedsWithProject() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1beta3().deleteEntity().withProjectId(PROJECT_ID);
+    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
     deleteEntity.validate(null);
   }
 
   @Test
   public void testDeleteEntityDisplayData() {
-    DeleteEntity deleteEntity =  DatastoreIO.v1beta3().deleteEntity().withProjectId(PROJECT_ID);
+    DeleteEntity deleteEntity =  DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteEntity);
 
@@ -302,12 +302,12 @@ public class V1Beta3Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
 
-    DatastoreIO.v1beta3().deleteKey().withProjectId(null);
+    DatastoreIO.v1().deleteKey().withProjectId(null);
   }
 
   @Test
   public void testDeleteKeyValidationFailsWithNoProject() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1beta3().deleteKey();
+    DeleteKey deleteKey = DatastoreIO.v1().deleteKey();
 
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -317,13 +317,13 @@ public class V1Beta3Test {
 
   @Test
   public void testDeleteKeyValidationSucceedsWithProject() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1beta3().deleteKey().withProjectId(PROJECT_ID);
+    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
     deleteKey.validate(null);
   }
 
   @Test
   public void testDeleteKeyDisplayData() {
-    DeleteKey deleteKey =  DatastoreIO.v1beta3().deleteKey().withProjectId(PROJECT_ID);
+    DeleteKey deleteKey =  DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteKey);
 
@@ -335,7 +335,7 @@ public class V1Beta3Test {
   public void testWritePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
-        DatastoreIO.v1beta3().write().withProjectId("myProject");
+        DatastoreIO.v1().write().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
@@ -350,7 +350,7 @@ public class V1Beta3Test {
   public void testDeleteEntityPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
-        DatastoreIO.v1beta3().deleteEntity().withProjectId("myProject");
+        DatastoreIO.v1().deleteEntity().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
@@ -365,7 +365,7 @@ public class V1Beta3Test {
   public void testDeleteKeyPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Key>, ?> write =
-        DatastoreIO.v1beta3().deleteKey().withProjectId("myProject");
+        DatastoreIO.v1().deleteKey().withProjectId("myProject");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("DatastoreIO write should include the project in its primitive display data",
@@ -380,7 +380,7 @@ public class V1Beta3Test {
    */
   @Test
   public void testBuildWrite() throws Exception {
-    V1Beta3.Write write =  DatastoreIO.v1beta3().write().withProjectId(PROJECT_ID);
+    DatastoreV1.Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
   }
 
@@ -550,7 +550,7 @@ public class V1Beta3Test {
       int end = Math.min(numMutations, start + DATASTORE_BATCH_UPDATE_LIMIT);
       CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
       commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
-        commitRequest.addAllMutations(mutations.subList(start, end));
+      commitRequest.addAllMutations(mutations.subList(start, end));
       // Verify all the batch requests were made with the expected mutations.
       verify(mockDatastore, times(1)).commit(commitRequest.build());
       start = end;
@@ -558,7 +558,7 @@ public class V1Beta3Test {
   }
 
   /**
-   * Tests {@link V1Beta3.Read#getEstimatedSizeBytes} to fetch and return estimated size for a
+   * Tests {@link DatastoreV1.Read#getEstimatedSizeBytes} to fetch and return estimated size for a
    * query.
    */
   @Test
@@ -585,7 +585,7 @@ public class V1Beta3Test {
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, numSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(v1Beta3Options, numSplits, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
@@ -623,7 +623,7 @@ public class V1Beta3Test {
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class)))
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(v1Beta3Options, numSplits, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
@@ -636,7 +636,7 @@ public class V1Beta3Test {
   }
 
   /**
-   * Tests {@link V1Beta3.Read.SplitQueryFn} when the query has a user specified limit.
+   * Tests {@link DatastoreV1.Read.SplitQueryFn} when the query has a user specified limit.
    */
   @Test
   public void testSplitQueryFnWithQueryLimit() throws Exception {
@@ -644,7 +644,7 @@ public class V1Beta3Test {
         .setLimit(Int32Value.newBuilder().setValue(1))
         .build();
 
-    SplitQueryFn splitQueryFn = new SplitQueryFn(v1Beta3Options, 10, mockDatastoreFactory);
+    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
     DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
@@ -687,10 +687,10 @@ public class V1Beta3Test {
   /**
    * A helper function that creates mock {@link Entity} results in response to a query. Always
    * indicates that more results are available, unless the batch is limited to fewer than
-   * {@link V1Beta3.Read#QUERY_BATCH_LIMIT} results.
+   * {@link DatastoreV1.Read#QUERY_BATCH_LIMIT} results.
    */
   private static RunQueryResponse mockResponseForQuery(Query q) {
-    // Every query V1Beta3 sends should have a limit.
+    // Every query DatastoreV1 sends should have a limit.
     assertTrue(q.hasLimit());
 
     // The limit should be in the range [1, QUERY_BATCH_LIMIT]
@@ -736,7 +736,7 @@ public class V1Beta3Test {
           }
         });
 
-    ReadFn readFn = new ReadFn(v1Beta3Options, mockDatastoreFactory);
+    ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
     /**
      * Although Datastore client is marked transient in {@link ReadFn}, when injected through
