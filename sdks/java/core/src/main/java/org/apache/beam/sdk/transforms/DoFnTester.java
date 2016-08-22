@@ -543,9 +543,8 @@ public class DoFnTester<InputT, OutputT> {
   private TestProcessContext<InputT, OutputT> createProcessContext(
       OldDoFn<InputT, OutputT> fn,
       TimestampedValue<InputT> elem) {
-    WindowedValue<InputT> windowedValue = elem.getTimestamp() == null
-      ? WindowedValue.valueInGlobalWindow(elem.getValue())
-      : WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp());
+    WindowedValue<InputT> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
+        elem.getValue(), elem.getTimestamp());
 
     return new TestProcessContext<>(fn,
         createContext(fn),
