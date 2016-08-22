@@ -17,19 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
-
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -43,7 +35,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -71,22 +62,6 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGloballyTimestampFn() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Long> output =
-        p.apply(Create.of(100L, 300L, 200L))
-          .apply(Latest.globally(new SerializableFunction<Long, Instant>() {
-            @Override public Instant apply(Long input) {
-              return new Instant(input);
-          }
-        }));
-
-    PAssert.that(output).containsInAnyOrder(300L);
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
   public void testGloballyEmptyCollection() {
     TestPipeline p = TestPipeline.create();
     PCollection<String> output =
@@ -95,25 +70,6 @@ public class LatestTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder((String) null);
     p.run();
-  }
-
-  @Test
-  public void testGloballyNullTimestampFn() {
-    thrown.expect(NullPointerException.class);
-    Latest.globally(null);
-  }
-
-  @Test
-  public void testGloballyDisplayData() {
-    SerializableFunction<Instant, Instant> timestampFn =
-        new SerializableFunction<Instant, Instant>() {
-          @Override public Instant apply(Instant input) {
-            return input;
-          }
-        };
-
-    DisplayData displayData = DisplayData.from(Latest.globally(timestampFn));
-    assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
   }
 
   @Test
@@ -134,26 +90,6 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKeyTimestampFn() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<KV<String, Long>> output =
-        p.apply(Create.of(
-            KV.of("A", 100L),
-            KV.of("B", 300L),
-            KV.of("A", 200L)))
-          .apply(Latest.perKey(new SerializableFunction<KV<String, Long>, Instant>() {
-              @Override public Instant apply(KV<String, Long> input) {
-                return new Instant(input.getValue());
-              }
-            }));
-
-    PAssert.that(output).containsInAnyOrder(KV.of("A", 200L), KV.of("B", 300L));
-    p.run();
-  }
-
-
-  @Test
-  @Category(NeedsRunner.class)
   public void testPerKeyEmptyCollection() {
     TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
@@ -163,43 +99,6 @@ public class LatestTest implements Serializable {
 
     PAssert.that(output).empty();
     p.run();
-  }
-
-  @Test
-  public void testPerKeyNullTimestampFn() {
-    thrown.expect(NullPointerException.class);
-    Latest.perKey(null);
-  }
-
-  @Test
-  public void testPerKeyDisplayData() {
-    SerializableFunction<KV<Long, Instant>, Instant> timestampFn =
-        new SerializableFunction<KV<Long, Instant>, Instant>() {
-          @Override
-          public Instant apply(KV<Long, Instant> input) {
-            return input.getValue();
-          }
-        };
-
-    DisplayData displayData = DisplayData.from(Latest.perKey(timestampFn));
-    assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testPrimitiveDisplayData() {
-    SerializableFunction<Instant, Instant> timestampFn =
-        new SerializableFunction<Instant, Instant>() {
-          @Override public Instant apply(Instant input) {
-            return input;
-          }
-        };
-
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(
-        Latest.globally(timestampFn));
-
-    assertThat(displayData, hasItem(hasDisplayItem("timestampFn", timestampFn.getClass())));
   }
 
   /** Helper method to easily create a timestamped value. */

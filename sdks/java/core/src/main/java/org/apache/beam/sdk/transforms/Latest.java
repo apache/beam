@@ -117,38 +117,7 @@ public class Latest {
    * @param <T> The type of the elements being combined.
    */
   public static <T> PTransform<PCollection<T>, PCollection<T>> globally() {
-    return new Globally<>(new TimestampFn<T>() {
-      @Override
-      public Instant extractTimestamp(DoFn<T, ?>.ProcessContext c) {
-        return c.timestamp();
-      }
-    });
-  }
-
-  /**
-   * Returns a {@link PTransform} that takes as input a {@link PCollection} and a timestamp
-   * mapping function, and returns a {@link PCollection} whose contents is the latest element
-   * according to the timestamp mapping function, or {@literal null} if there are no elements.
-   *
-   * @param timestampFn Mapping function to extract a timestamp from the element.
-   * @param <T> The type of the elements being combined.
-   */
-  public static <T> PTransform<PCollection<T>, PCollection<T>> globally(
-      final SerializableFunction<T, Instant> timestampFn) {
-    checkNotNull(timestampFn, "timestampFn must be non-null");
-
-    return new Globally<>(new TimestampFn<T>() {
-      @Override
-      public Instant extractTimestamp(DoFn<T, ?>.ProcessContext c) {
-        return timestampFn.apply(c.element());
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        Latest.populateDisplayData(builder, timestampFn);
-      }
-    });
+    return new Globally<>();
   }
 
   /**
@@ -160,39 +129,7 @@ public class Latest {
    * @param <V> The value type of the elements being combined.
    */
   public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> perKey() {
-    return new PerKey<>(new TimestampFn<KV<K, V>>() {
-      @Override
-      public Instant extractTimestamp(DoFn<KV<K, V>, ?>.ProcessContext c) {
-        return c.timestamp();
-      }
-    });
-  }
-
-  /**
-   * Returns a {@link PTransform} that takes as input a {@code PCollection<KV<K, V>>} and a
-   * timestamp mapping function, and returns a {@code PCollection<KV<K, V>>} whose contents is the
-   * latest element per-key according to the timestamp mapping function.
-   *
-   * @param timestampFn Mapping function to extract a timestamp from the element.
-   * @param <K> The key type of the elements being combined.
-   * @param <V> The value type of the elements being combined.
-   */
-  public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> perKey(
-      final SerializableFunction<KV<K, V>, Instant> timestampFn) {
-    checkNotNull(timestampFn, "timestampFn must be non-null");
-
-    return new PerKey<>(new TimestampFn<KV<K, V>>() {
-      @Override
-      public Instant extractTimestamp(DoFn<KV<K, V>, ?>.ProcessContext c) {
-        return timestampFn.apply(c.element());
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        Latest.populateDisplayData(builder, timestampFn);
-      }
-    });
+    return new PerKey<>();
   }
 
   private abstract static class TimestampFn<T> implements Serializable, HasDisplayData {
@@ -201,43 +138,21 @@ public class Latest {
   }
 
   private static class Globally<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private final TimestampFn<T> timestampFn;
-    public Globally(TimestampFn<T> timestampFn) {
-      this.timestampFn = timestampFn;
-    }
-
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return input
         .apply("Reify Timestamps", ParDo.of(new DoFn<T, TimestampedValue<T>>() {
           @ProcessElement
           public void processElement(DoFn<T, TimestampedValue<T>>.ProcessContext c) {
-            c.output(TimestampedValue.of(c.element(), timestampFn.extractTimestamp(c)));
-          }
-
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            super.populateDisplayData(builder);
-            builder.include(timestampFn);
+            c.output(TimestampedValue.of(c.element(), c.timestamp()));
           }
         }))
         .apply("Latest Value", Combine.globally(new LatestFn<T>()));
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder.include(timestampFn);
     }
   }
 
   private static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
-    private final TimestampFn<KV<K, V>> timestampFn;
-    public PerKey(TimestampFn<KV<K, V>> timestampFn) {
-      this.timestampFn = timestampFn;
-    }
-
     @Override
     public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
       return input.apply("Reify Timestamps", ParDo.of(
@@ -245,28 +160,10 @@ public class Latest {
             @ProcessElement
             public void processElement(ProcessContext c) {
               c.output(KV.of(c.element().getKey(), TimestampedValue.of(c.element().getValue(),
-                  timestampFn.extractTimestamp(c))));
-            }
-
-            @Override
-            public void populateDisplayData(DisplayData.Builder builder) {
-              super.populateDisplayData(builder);
-              builder.include(timestampFn);
+                  c.timestamp())));
             }
           }))
           .apply("Latest Value", Combine.<K, TimestampedValue<V>, V>perKey(new LatestFn<V>()));
     }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder.include(timestampFn);
-    }
-  }
-
-  private static void populateDisplayData(DisplayData.Builder builder,
-      SerializableFunction<?, Instant> timestampFn) {
-    builder.add(DisplayData.item("timestampFn", timestampFn.getClass())
-        .withLabel("Timestamp Function"));
   }
 }
