@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
@@ -241,10 +242,8 @@ public class DoFnTester<InputT, OutputT> {
    */
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
     checkNotNull(element, "Timestamped element cannot be null");
+    checkState(state != State.FINISHED, "finishBundle() has already been called");
 
-    if (state == State.FINISHED) {
-      throw new IllegalStateException("finishBundle() has already been called");
-    }
     if (state == State.UNSTARTED) {
       startBundle();
     }
