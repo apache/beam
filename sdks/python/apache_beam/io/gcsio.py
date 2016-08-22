@@ -111,10 +111,11 @@ class GcsIO(object):
       ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
-      return GcsBufferedReader(self.client, filename,
+      return GcsBufferedReader(self.client, filename, mode=mode,
                                buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      return GcsBufferedWriter(self.client, filename, mime_type=mime_type)
+      return GcsBufferedWriter(self.client, filename, mode=mode,
+                               mime_type=mime_type)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -262,11 +263,13 @@ class GcsIO(object):
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""
 
-  def __init__(self, client, path, buffer_size=DEFAULT_READ_BUFFER_SIZE):
+  def __init__(self, client, path, mode='r',
+               buffer_size=DEFAULT_READ_BUFFER_SIZE):
     self.client = client
     self.path = path
     self.bucket, self.name = parse_gcs_path(path)
     self.buffer_size = buffer_size
+    self.mode = mode
 
     # Get object state.
     get_request = (
@@ -545,10 +548,12 @@ class GcsBufferedWriter(object):
       if self.closed:
         raise IOError('Stream is closed.')
 
-  def __init__(self, client, path, mime_type='application/octet-stream'):
+  def __init__(self, client, path, mode='w',
+               mime_type='application/octet-stream'):
     self.client = client
     self.path = path
     self.bucket, self.name = parse_gcs_path(path)
+    self.mode = mode
 
     self.closed = False
     self.position = 0
