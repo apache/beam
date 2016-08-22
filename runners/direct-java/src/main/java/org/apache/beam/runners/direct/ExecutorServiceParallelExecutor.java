@@ -338,8 +338,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   private class MonitorRunnable implements Runnable {
-    // arbitrary termination condition to ensure progress in the presence of pushback
-    private final long maxTimeProcessingUpdatesNanos = TimeUnit.MILLISECONDS.toNanos(5L);
     private final String runnableName = String.format("%s$%s-monitor",
         evaluationContext.getPipelineOptions().getAppName(),
         ExecutorServiceParallelExecutor.class.getSimpleName());
