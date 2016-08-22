@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -221,7 +223,7 @@ public class DoFnTester<InputT, OutputT> {
    * been finished
    */
   public void processElement(InputT element) throws Exception {
-    processTimestampedElement(TimestampedValue.of(element, null));
+    processTimestampedElement(TimestampedValue.of(element));
   }
 
   /**
