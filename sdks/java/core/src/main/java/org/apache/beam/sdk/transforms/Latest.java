@@ -55,6 +55,8 @@ import java.io.Serializable;
  *  }
  * }
  * </code></pre>
+ *
+ * <p>For elements with the same timestamp, the element chosen for output is arbitrary.
  */
 public class Latest {
   // Do not instantiate
