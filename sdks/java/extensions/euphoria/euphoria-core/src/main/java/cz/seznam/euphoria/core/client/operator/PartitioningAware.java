@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 import java.util.Objects;
 
@@ -58,6 +59,12 @@ public interface PartitioningAware<KEY> {
     public BUILDER setNumPartitions(int numPartitions) {
       this.defaultPartitioning.setNumPartitions(numPartitions);
       return (BUILDER) this;
+    }
+
+    @SuppressWarnings("unchecked")
+    public BUILDER applyIf(boolean cond, UnaryFunction<BUILDER, BUILDER> apply) {
+      Objects.requireNonNull(apply);
+      return cond ? apply.apply((BUILDER) this) : (BUILDER) this;
     }
   }
 
