@@ -144,6 +144,10 @@ public class TimestampedValue<V> {
       return Arrays.<Coder<?>>asList(valueCoder);
     }
 
+    public Coder<T> getValueCoder() {
+      return valueCoder;
+    }
+
     public static <T> List<Object> getInstanceComponents(TimestampedValue<T> exampleValue) {
       return Arrays.<Object>asList(exampleValue.getValue());
     }

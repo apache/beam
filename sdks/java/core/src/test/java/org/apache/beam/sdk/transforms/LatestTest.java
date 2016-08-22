@@ -17,8 +17,20 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+
+import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,9 +45,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Unit tests for {@link Latest} {@link PTransform} and {@link Combine.CombineFn}.
@@ -61,14 +70,29 @@ public class LatestTest implements Serializable {
   }
 
   @Test
+  public void testGloballyOutputCoder() {
+    TestPipeline p = TestPipeline.create();
+    BigEndianLongCoder inputCoder = BigEndianLongCoder.of();
+
+    PCollection<Long> output =
+        p.apply(Create.of(1L, 2L).withCoder(inputCoder))
+            .apply(Latest.<Long>globally());
+
+    Coder<Long> outputCoder = output.getCoder();
+    assertThat(outputCoder, instanceOf(NullableCoder.class));
+    assertEquals(inputCoder, ((NullableCoder<?>) outputCoder).getValueCoder());
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testGloballyEmptyCollection() {
     TestPipeline p = TestPipeline.create();
-    PCollection<String> output =
-        p.apply(Create.<String>of())
-            .apply(Latest.<String>globally());
+    PCollection<Long> emptyInput = p.apply(Create.<Long>of()
+        // Explicitly set coder such that then runner enforces encodability.
+        .withCoder(VarLongCoder.of()));
+    PCollection<Long> output = emptyInput.apply(Latest.<Long>globally());
 
-    PAssert.that(output).containsInAnyOrder((String) null);
+    PAssert.that(output).containsInAnyOrder((Long) null);
     p.run();
   }
 
@@ -86,6 +110,27 @@ public class LatestTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(KV.of("B", "bar"), KV.of("A", "baz"));
     p.run();
+  }
+
+  @Test
+  public void testPerKeyOutputCoder() {
+    TestPipeline p = TestPipeline.create();
+    Coder<String> keyCoder = AvroCoder.of(String.class);
+    Coder<Long> valueCoder = AvroCoder.of(Long.class);
+
+    PCollection<KV<String, Long>> output =
+        p.apply(Create.of(KV.of("foo", 1L)).withCoder(KvCoder.of(keyCoder, valueCoder)))
+            .apply(Latest.<String, Long>perKey());
+
+    assertThat("Coder must be KvCoder", output.getCoder(), instanceOf(KvCoder.class));
+    KvCoder<String, Long> outputKvCoder = (KvCoder<String, Long>) output.getCoder();
+
+    assertEquals("Should use input key coder", keyCoder, outputKvCoder.getKeyCoder());
+
+    Coder<Long> outputValueCoder = outputKvCoder.getValueCoder();
+    assertThat("Value coder must support nulls", outputValueCoder, instanceOf(NullableCoder.class));
+    assertEquals("Value coder should wrap input coder",
+        valueCoder, ((NullableCoder<?>) outputValueCoder).getValueCoder());
   }
 
   @Test

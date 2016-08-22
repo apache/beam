@@ -18,7 +18,17 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Preconditions;
+
+import java.io.Serializable;
+
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -26,8 +36,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.joda.time.Instant;
-
-import java.io.Serializable;
 
 /**
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element
@@ -67,10 +75,13 @@ public class Latest {
    * particularly useful as an {@link Aggregator}.
    *
    * @param <T> Type of input element.
-   * @see {@link Latest}
+   * @see Latest
    */
   public static class LatestFn<T>
       extends Combine.CombineFn<TimestampedValue<T>, TimestampedValue<T>, T> {
+    /** Construct a new {@link LatestFn} instance. */
+    public LatestFn() {}
+
     @Override
     public TimestampedValue<T> createAccumulator() {
       return TimestampedValue.of(null);
@@ -87,6 +98,23 @@ public class Latest {
       } else {
         return input;
       }
+    }
+
+    @Override
+    public Coder<TimestampedValue<T>> getAccumulatorCoder(CoderRegistry registry,
+        Coder<TimestampedValue<T>> inputCoder) throws CannotProvideCoderException {
+      return NullableCoder.of(inputCoder);
+    }
+
+    @Override
+    public Coder<T> getDefaultOutputCoder(CoderRegistry registry,
+        Coder<TimestampedValue<T>> inputCoder) throws CannotProvideCoderException {
+      checkState(inputCoder instanceof TimestampedValue.TimestampedValueCoder,
+          "inputCoder must be a TimestampedValueCoder");
+
+      TimestampedValue.TimestampedValueCoder<T> inputTVCoder =
+          (TimestampedValue.TimestampedValueCoder<T>) inputCoder;
+      return NullableCoder.of(inputTVCoder.<T>getValueCoder());
     }
 
     @Override
@@ -138,14 +166,19 @@ public class Latest {
   private static class Globally<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
+      Coder<T> inputCoder = input.getCoder();
+
       return input
-        .apply("Reify Timestamps", ParDo.of(new DoFn<T, TimestampedValue<T>>() {
-          @ProcessElement
-          public void processElement(DoFn<T, TimestampedValue<T>>.ProcessContext c) {
-            c.output(TimestampedValue.of(c.element(), c.timestamp()));
-          }
-        }))
-        .apply("Latest Value", Combine.globally(new LatestFn<T>()));
+          .apply("Reify Timestamps", ParDo.of(
+            new DoFn<T, TimestampedValue<T>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                c.output(TimestampedValue.of(c.element(), c.timestamp()));
+              }
+            })).setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
+
+          .apply("Latest Value", Combine.globally(new LatestFn<T>()))
+            .setCoder(NullableCoder.of(inputCoder));
     }
   }
 
@@ -153,15 +186,28 @@ public class Latest {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     @Override
     public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
-      return input.apply("Reify Timestamps", ParDo.of(
-          new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              c.output(KV.of(c.element().getKey(), TimestampedValue.of(c.element().getValue(),
-                  c.timestamp())));
-            }
-          }))
-          .apply("Latest Value", Combine.<K, TimestampedValue<V>, V>perKey(new LatestFn<V>()));
+      checkNotNull(input);
+      Preconditions.checkArgument(input.getCoder() instanceof KvCoder,
+          "Input specifiedCoder must be an instance of KvCoder");
+
+      @SuppressWarnings("unchecked")
+      KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
+      Coder<V> valueCoder = inputCoder.getValueCoder();
+
+      return input
+          .apply("Reify Timestamps", ParDo.of(
+            new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                c.output(KV.of(c.element().getKey(), TimestampedValue.of(c.element().getValue(),
+                    c.timestamp())));
+              }
+            })).setCoder(KvCoder.of(
+                inputCoder.getKeyCoder(),
+                TimestampedValue.TimestampedValueCoder.of(valueCoder)))
+
+          .apply("Latest Value", Combine.<K, TimestampedValue<V>, V>perKey(new LatestFn<V>()))
+            .setCoder(KvCoder.of(inputCoder.getKeyCoder(), NullableCoder.of(valueCoder)));
     }
   }
 }

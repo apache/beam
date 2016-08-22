@@ -20,9 +20,9 @@ package org.apache.beam.sdk.values;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
 import com.google.common.testing.EqualsTester;
+
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 import org.joda.time.Instant;
 import org.junit.Rule;
