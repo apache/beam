@@ -110,6 +110,7 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
+import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
@@ -159,7 +160,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -168,6 +168,8 @@ import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -607,16 +609,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     if (!Strings.isNullOrEmpty(options.getDataflowJobFile())) {
-      try (PrintWriter printWriter = new PrintWriter(
-          new File(options.getDataflowJobFile()))) {
-        String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
-        printWriter.print(workSpecJson);
-        LOG.info("Printed workflow specification to {}", options.getDataflowJobFile());
-      } catch (IllegalStateException ex) {
-        LOG.warn("Cannot translate workflow spec to json for debug.");
-      } catch (FileNotFoundException ex) {
-        LOG.warn("Cannot create workflow spec output file.");
-      }
+      runJobFileHooks(newJob);
+    }
+    if (hooks != null && !hooks.shouldActuallyRunJob()) {
+      return null;
     }
 
     String jobIdToUpdate = null;
@@ -748,6 +744,34 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           + "which may cause memory and/or performance problems. Future major versions of "
           + "Dataflow will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
+    }
+  }
+
+  private void runJobFileHooks(Job newJob) {
+    try {
+      WritableByteChannel writer =
+          IOChannelUtils.create(options.getDataflowJobFile(), MimeTypes.TEXT);
+      PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer));
+      String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
+      printWriter.print(workSpecJson);
+      printWriter.flush();
+      printWriter.close();
+      LOG.info("Printed job specification to {}", options.getDataflowJobFile());
+    } catch (IllegalStateException ex) {
+      String error = "Cannot translate workflow spec to JSON.";
+      if (hooks != null && hooks.failOnJobFileWriteFailure()) {
+        throw new RuntimeException(error, ex);
+      } else {
+        LOG.warn(error, ex);
+      }
+    } catch (IOException ex) {
+      String error =
+          String.format("Cannot create output file at {}", options.getDataflowJobFile());
+      if (hooks != null && hooks.failOnJobFileWriteFailure()) {
+        throw new RuntimeException(error, ex);
+      } else {
+        LOG.warn(error, ex);
+      }
     }
   }
 

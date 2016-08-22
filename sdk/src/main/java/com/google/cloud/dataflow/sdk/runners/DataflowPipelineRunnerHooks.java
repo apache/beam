@@ -34,4 +34,14 @@ public class DataflowPipelineRunnerHooks {
    *     to change the environment with which their job executes on the service.
    */
   public void modifyEnvironmentBeforeSubmission(Environment environment) {}
+
+  /** Allows the user to specify whether the job should actually be executed. */
+  public boolean shouldActuallyRunJob() {
+    return true;
+  }
+
+  /** Specifies whether the runner should fail if it fails to write to a job file. */
+  public boolean failOnJobFileWriteFailure() {
+    return false;
+  }
 }
