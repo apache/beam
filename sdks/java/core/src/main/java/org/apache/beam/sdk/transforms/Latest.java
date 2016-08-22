@@ -31,8 +31,17 @@ import java.io.Serializable;
 
 /**
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element
- * in a {@link PCollection}. This is particularly useful as an {@link Aggregator}:
+ * in a {@link PCollection}.
  *
+ * <p>Example 1: compute the latest value for each session:
+ * <pre><code>
+ * PCollection<Long> input = ...;
+ * PCollection<Long> sessioned = input
+ *    .apply(Window.<Long>into(Sessions.withGapDuration(Duration.standardMinutes(5)));
+ * PCollection<Long> latestValues = sessioned.apply(Latest.<Long>globally());
+ * </code></pre>
+ *
+ * <p>Example 2: track a latest computed value in an aggregator:
  * <pre><code>
  * class MyDoFn extends DoFn<String, String> {
  *  private Aggregator<TimestampedValue<Double>, Double> latestValue =
