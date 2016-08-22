@@ -71,29 +71,29 @@ public class Latest {
       extends Combine.CombineFn<TimestampedValue<T>, TimestampedValue<T>, T> {
     @Override
     public TimestampedValue<T> createAccumulator() {
-      return null;
+      return TimestampedValue.of(null);
     }
 
     @Override
     public TimestampedValue<T> addInput(TimestampedValue<T> accumulator,
         TimestampedValue<T> input) {
+      checkNotNull(accumulator, "accumulator must be non-null");
       checkNotNull(input, "input must be non-null");
 
-      if (accumulator == null || input.getTimestamp().isAfter(accumulator.getTimestamp())) {
-        return input;
-      } else {
+      if (input.getTimestamp().isBefore(accumulator.getTimestamp())) {
         return accumulator;
+      } else {
+        return input;
       }
     }
 
     @Override
     public TimestampedValue<T> mergeAccumulators(Iterable<TimestampedValue<T>> accumulators) {
       checkNotNull(accumulators, "accumulators must be non-null");
-      TimestampedValue<T> merged = null;
+
+      TimestampedValue<T> merged = createAccumulator();
       for (TimestampedValue<T> accum : accumulators) {
-        if (accum != null) {
-          merged = addInput(merged, accum);
-        }
+        merged = addInput(merged, accum);
       }
 
       return merged;
@@ -101,10 +101,6 @@ public class Latest {
 
     @Override
     public T extractOutput(TimestampedValue<T> accumulator) {
-      if (accumulator == null) {
-        return null;
-      }
-
       return accumulator.getValue();
     }
   }

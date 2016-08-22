@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.collect.Lists;
@@ -55,13 +56,19 @@ public class LatestFnTests {
 
   @Test
   public void testCreateAccumulator() {
-    assertEquals(null, fn.createAccumulator());
+    assertEquals(TimestampedValue.<Long>of(null), fn.createAccumulator());
   }
 
   @Test
   public void testAddInputInitialAdd() {
     TimestampedValue<Long> input = timestamped(baseTimestamp);
-    assertEquals(input, fn.addInput(null, input));
+    assertEquals(input, fn.addInput(fn.createAccumulator(), input));
+  }
+
+  @Test
+  public void testAddInputMinTimestamp() {
+    TimestampedValue<Long> input = timestamped(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    assertEquals(input, fn.addInput(fn.createAccumulator(), input));
   }
 
   @Test
@@ -89,7 +96,14 @@ public class LatestFnTests {
   }
 
   @Test
-  public void tesAddInputNull() {
+  public void testAddInputNullAccumulator() {
+    TimestampedValue<Long> input = timestamped(baseTimestamp);
+    thrown.expect(NullPointerException.class);
+    fn.addInput(null, input);
+  }
+
+  @Test
+  public void testAddInputNullInput() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     thrown.expect(NullPointerException.class);
     fn.addInput(accum, null);
@@ -102,7 +116,7 @@ public class LatestFnTests {
 
     assertEquals("Null values are allowed", input, fn.addInput(accum, input));
   }
-  
+
   @Test
   public void testMergeAccumulatorsMultipleValues() {
     TimestampedValue<Long> latest = timestamped(baseTimestamp.plus(100));
@@ -124,7 +138,7 @@ public class LatestFnTests {
   @Test
   public void testMergeAccumulatorsEmptyIterable() {
     ArrayList<TimestampedValue<Long>> emptyAccums = Lists.newArrayList();
-    assertThat(fn.mergeAccumulators(emptyAccums), nullValue());
+    assertEquals(TimestampedValue.of(null), fn.mergeAccumulators(emptyAccums));
   }
 
   @Test
