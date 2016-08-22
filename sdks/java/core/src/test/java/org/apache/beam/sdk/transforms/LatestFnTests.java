@@ -89,7 +89,7 @@ public class LatestFnTests {
   }
 
   @Test
-  public void tesAddInput_null() {
+  public void tesAddInputNull() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     thrown.expect(NullPointerException.class);
     fn.addInput(accum, null);
