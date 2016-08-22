@@ -102,16 +102,7 @@ public class LatestFnTests {
 
     assertEquals("Null values are allowed", input, fn.addInput(accum, input));
   }
-
-  @Test
-  public void testAddInputNullTimestamp() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    TimestampedValue<Long> input = timestamped(null);
-
-    thrown.expect(NullPointerException.class);
-    fn.addInput(accum, input);
-  }
-
+  
   @Test
   public void testMergeAccumulatorsMultipleValues() {
     TimestampedValue<Long> latest = timestamped(baseTimestamp.plus(100));
