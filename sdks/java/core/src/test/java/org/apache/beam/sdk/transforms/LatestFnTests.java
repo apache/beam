@@ -59,20 +59,20 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testAddInput_initialAdd() {
+  public void testAddInputInitialAdd() {
     TimestampedValue<Long> input = timestamped(baseTimestamp);
     assertEquals(input, fn.addInput(null, input));
   }
 
   @Test
-  public void testAddInput_earlierValue() {
+  public void testAddInputEarlierValue() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> input = timestamped(baseTimestamp.minus(10));
     assertEquals(accum, fn.addInput(accum, input));
   }
 
   @Test
-  public void testAddInput_laterValue() {
+  public void testAddInputLaterValue() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> input = timestamped(baseTimestamp.plus(10));
 
@@ -80,7 +80,7 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testAddInput_sameTimestamp() {
+  public void testAddInputSameTimestamp() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> input = timestamped(baseTimestamp.plus(10));
 
@@ -96,7 +96,7 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testAddInput_nullValue() {
+  public void testAddInputNullValue() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> input = TimestampedValue.of(null, baseTimestamp.plus(10));
 
@@ -104,7 +104,7 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testAddInput_nullTimestamp() {
+  public void testAddInputNullTimestamp() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> input = timestamped(null);
 
@@ -113,7 +113,7 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testMergeAccumulators_multipleValues() {
+  public void testMergeAccumulatorsMultipleValues() {
     TimestampedValue<Long> latest = timestamped(baseTimestamp.plus(100));
     Iterable<TimestampedValue<Long>> accums = Lists.newArrayList(
         timestamped(baseTimestamp),
@@ -125,33 +125,33 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testMergeAccumulators_singleValue() {
+  public void testMergeAccumulatorsSingleValue() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     assertEquals(accum, fn.mergeAccumulators(Lists.newArrayList(accum)));
   }
 
   @Test
-  public void testMergeAccumulators_emptyIterable() {
+  public void testMergeAccumulatorsEmptyIterable() {
     ArrayList<TimestampedValue<Long>> emptyAccums = Lists.newArrayList();
     assertThat(fn.mergeAccumulators(emptyAccums), nullValue());
   }
 
   @Test
-  public void testMergeAccumulators_defaultAccumulator() {
+  public void testMergeAccumulatorsDefaultAccumulator() {
     TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> defaultAccum = fn.createAccumulator();
     assertEquals(accum, fn.mergeAccumulators(Lists.newArrayList(accum, defaultAccum)));
   }
 
   @Test
-  public void testMergeAccumulators_allDefaultAccumulators() {
+  public void testMergeAccumulatorsAllDefaultAccumulators() {
     TimestampedValue<Long> defaultAccum = fn.createAccumulator();
     assertEquals(defaultAccum, fn.mergeAccumulators(
         Lists.newArrayList(defaultAccum, defaultAccum)));
   }
 
   @Test
-  public void testMergeAccumulators_nullIterable() {
+  public void testMergeAccumulatorsNullIterable() {
     thrown.expect(NullPointerException.class);
     fn.mergeAccumulators(null);
   }
@@ -163,13 +163,13 @@ public class LatestFnTests {
   }
 
   @Test
-  public void testExtractOutput_defaultAggregator() {
+  public void testExtractOutputDefaultAggregator() {
     TimestampedValue<Long> accum = fn.createAccumulator();
     assertThat(fn.extractOutput(accum), nullValue());
   }
 
   @Test
-  public void testExtractOutput_nullValue() {
+  public void testExtractOutputNullValue() {
     TimestampedValue<Long> accum = TimestampedValue.of(null, baseTimestamp);
     assertEquals(null, fn.extractOutput(accum));
   }

@@ -55,7 +55,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGlobally_eventTimestamp() {
+  public void testGloballyEventTimestamp() {
     TestPipeline p = TestPipeline.create();
     PCollection<String> output =
         p.apply(Create.timestamped(
@@ -71,7 +71,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGlobally_timestampFn() {
+  public void testGloballyTimestampFn() {
     TestPipeline p = TestPipeline.create();
     PCollection<Long> output =
         p.apply(Create.of(100L, 300L, 200L))
@@ -87,7 +87,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGlobally_emptyCollection() {
+  public void testGloballyEmptyCollection() {
     TestPipeline p = TestPipeline.create();
     PCollection<String> output =
         p.apply(Create.<String>of())
@@ -98,13 +98,13 @@ public class LatestTest implements Serializable {
   }
 
   @Test
-  public void testGlobally_nullTimestampFn() {
+  public void testGloballyNullTimestampFn() {
     thrown.expect(NullPointerException.class);
     Latest.globally(null);
   }
 
   @Test
-  public void testGlobally_displayData() {
+  public void testGloballyDisplayData() {
     SerializableFunction<Instant, Instant> timestampFn =
         new SerializableFunction<Instant, Instant>() {
           @Override public Instant apply(Instant input) {
@@ -118,7 +118,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKey_eventTimestamp() {
+  public void testPerKeyEventTimestamp() {
     TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
         p.apply(Create.timestamped(
@@ -134,7 +134,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKey_timestampFn() {
+  public void testPerKeyTimestampFn() {
     TestPipeline p = TestPipeline.create();
     PCollection<KV<String, Long>> output =
         p.apply(Create.of(
@@ -154,7 +154,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKey_emptyCollection() {
+  public void testPerKeyEmptyCollection() {
     TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
         p.apply(Create.<KV<String, String>>of().withCoder(KvCoder.of(
@@ -166,13 +166,13 @@ public class LatestTest implements Serializable {
   }
 
   @Test
-  public void testPerKey_nullTimestampFn() {
+  public void testPerKeyNullTimestampFn() {
     thrown.expect(NullPointerException.class);
     Latest.perKey(null);
   }
 
   @Test
-  public void testPerKey_displayData() {
+  public void testPerKeyDisplayData() {
     SerializableFunction<KV<Long, Instant>, Instant> timestampFn =
         new SerializableFunction<KV<Long, Instant>, Instant>() {
           @Override
