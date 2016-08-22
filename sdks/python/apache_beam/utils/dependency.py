@@ -55,6 +55,7 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 import glob
 import logging
 import os
+import re
 import shutil
 import tempfile
 
