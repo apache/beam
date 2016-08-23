@@ -19,11 +19,15 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -31,9 +35,12 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -377,5 +384,64 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectMessage("Input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
+  }
+
+  @Test
+  public void testUnencodableOutputElement() throws Exception {
+    Pipeline p = getPipeline();
+    PCollection<Long> pcollection =
+        p.apply(Create.of((Void) null)).apply(ParDo.of(new DoFn<Void, Long>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            c.output(null);
+          }
+        })).setCoder(VarLongCoder.of());
+    pcollection
+        .apply(
+            ParDo.of(
+                new DoFn<Long, Long>() {
+                  @ProcessElement
+                  public void unreachable(ProcessContext c) {
+                    fail("Pipeline should fail to encode a null Long in VarLongCoder");
+                  }
+                }));
+
+    thrown.expectCause(isA(CoderException.class));
+    thrown.expectMessage("cannot encode a null Long");
+    p.run();
+  }
+
+  @Test
+  public void testUnencodableOutputFromBoundedRead() throws Exception {
+    Pipeline p = getPipeline();
+    PCollection<Long> pCollection =
+        p.apply(CountingInput.upTo(10)).setCoder(new LongNoDecodeCoder());
+
+    thrown.expectCause(isA(CoderException.class));
+    thrown.expectMessage("Cannot decode a long");
+    p.run();
+  }
+
+  @Test
+  public void testUnencodableOutputFromUnboundedRead() {
+    Pipeline p = getPipeline();
+    PCollection<Long> pCollection =
+        p.apply(CountingInput.unbounded()).setCoder(new LongNoDecodeCoder());
+
+    thrown.expectCause(isA(CoderException.class));
+    thrown.expectMessage("Cannot decode a long");
+    p.run();
+  }
+
+  private static class LongNoDecodeCoder extends AtomicCoder<Long> {
+    @Override
+    public void encode(
+        Long value, OutputStream outStream, Context context) throws IOException {
+    }
+
+    @Override
+    public Long decode(InputStream inStream, Context context) throws IOException {
+      throw new CoderException("Cannot decode a long");
+    }
   }
 }
