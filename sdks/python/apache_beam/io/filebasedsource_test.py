@@ -253,7 +253,8 @@ class TestFileBasedSource(unittest.TestCase):
 
   def _run_dataflow_test(self, pattern, expected_data, splittable=True):
     pipeline = beam.Pipeline('DirectPipelineRunner')
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(pattern, splittable=splittable))
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+        pattern, splittable=splittable))
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 

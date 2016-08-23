@@ -324,5 +324,3 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     return self._range_tracker.fraction_consumed()
-
-
