@@ -2,10 +2,10 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.AlignedWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -90,19 +90,17 @@ public class ReduceByKeyTest extends OperatorTest {
   }
   
   static class TestWindowContext extends WindowContext<Void, Integer> {
-   
+
     public TestWindowContext(int label) {
       super(WindowID.aligned(label));
-    }
-    
+    }    
   }
 
   static class TestWindowing
-      implements AlignedWindowing<Integer, Integer, TestWindowContext> {
+      implements Windowing<Integer, Void, Integer, TestWindowContext> {
 
     @Override
     public Set<WindowID<Void, Integer>> assignWindows(Integer input) {
-      // we group items into windows by 4 elements
       return Collections.singleton(WindowID.aligned(input / 4));
     }
 
