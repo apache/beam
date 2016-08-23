@@ -80,8 +80,12 @@ public class BigQueryTableInserter {
   private final TableReference defaultRef;
   private final long maxRowsPerBatch;
 
-  private static final ExecutorService executor = MoreExecutors.getExitingExecutorService(
-      (ThreadPoolExecutor) Executors.newFixedThreadPool(100), 10, TimeUnit.SECONDS);
+  private static final ExecutorService executor;
+  static {
+    ThreadPoolExecutor tempExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(100);
+    tempExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    executor = MoreExecutors.getExitingExecutorService(tempExecutor, 10, TimeUnit.SECONDS);
+  }
 
   /**
    * Constructs a new row inserter.
