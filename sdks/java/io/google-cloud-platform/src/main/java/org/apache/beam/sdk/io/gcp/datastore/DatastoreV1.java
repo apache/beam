@@ -242,6 +242,7 @@ public class DatastoreV1 {
       int numSplits;
       try {
         long estimatedSizeBytes = getEstimatedSizeBytes(datastore, query, namespace);
+        LOG.info("Estimated size bytes for the query is: {}", estimatedSizeBytes);
         numSplits = (int) Math.min(NUM_QUERY_SPLITS_MAX,
             Math.round(((double) estimatedSizeBytes) / DEFAULT_BUNDLE_SIZE_BYTES));
       } catch (Exception e) {
@@ -250,6 +251,33 @@ public class DatastoreV1 {
         numSplits = NUM_QUERY_SPLITS_MIN;
       }
       return Math.max(numSplits, NUM_QUERY_SPLITS_MIN);
+    }
+
+    /**
+     * Datastore system tables with statistics are periodically updated. This method fetches
+     * the latest timestamp (in microseconds) of statistics update using the {@code __Stat_Total__}
+     * table.
+     */
+    private static long queryLatestStatisticsTimestamp(Datastore datastore,
+        @Nullable String namespace)  throws DatastoreException {
+      Query.Builder query = Query.newBuilder();
+      if (namespace == null) {
+        query.addKindBuilder().setName("__Stat_Total__");
+      } else {
+        query.addKindBuilder().setName("__Stat_Ns_Total__");
+      }
+      query.addOrder(makeOrder("timestamp", DESCENDING));
+      query.setLimit(Int32Value.newBuilder().setValue(1));
+      RunQueryRequest request = makeRequest(query.build(), namespace);
+
+      RunQueryResponse response = datastore.runQuery(request);
+      QueryResultBatch batch = response.getBatch();
+      if (batch.getEntityResultsCount() == 0) {
+        throw new NoSuchElementException(
+            "Datastore total statistics unavailable");
+      }
+      Entity entity = batch.getEntityResults(0).getEntity();
+      return entity.getProperties().get("timestamp").getTimestampValue().getSeconds() * 1000000;
     }
 
     /**
@@ -264,17 +292,17 @@ public class DatastoreV1 {
     static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
         throws DatastoreException {
       String ourKind = query.getKind(0).getName();
+      long latestTimestamp = queryLatestStatisticsTimestamp(datastore, namespace);
+      LOG.info("Latest stats timestamp : {}", latestTimestamp);
+
       Query.Builder queryBuilder = Query.newBuilder();
       if (namespace == null) {
         queryBuilder.addKindBuilder().setName("__Stat_Kind__");
       } else {
-        queryBuilder.addKindBuilder().setName("__Ns_Stat_Kind__");
+        queryBuilder.addKindBuilder().setName("__Stat_Ns_Kind__");
       }
       queryBuilder.setFilter(makeFilter("kind_name", EQUAL, makeValue(ourKind).build()));
-
-      // Get the latest statistics
-      queryBuilder.addOrder(makeOrder("timestamp", DESCENDING));
-      queryBuilder.setLimit(Int32Value.newBuilder().setValue(1));
+      queryBuilder.setFilter(makeFilter("timestamp", EQUAL, makeValue(latestTimestamp).build()));
 
       RunQueryRequest request = makeRequest(queryBuilder.build(), namespace);
 
@@ -550,6 +578,7 @@ public class DatastoreV1 {
           estimatedNumSplits = numSplits;
         }
 
+        LOG.info("Splitting the query into {} splits", estimatedNumSplits);
         List<Query> querySplits;
         try {
           querySplits = splitQuery(query, options.getNamespace(), datastore, querySplitter,
@@ -869,7 +898,7 @@ public class DatastoreV1 {
 
     @FinishBundle
     public void finishBundle(Context c) throws Exception {
-      if (mutations.size() > 0) {
+      if (!mutations.isEmpty()) {
         flushBatch();
       }
     }
