@@ -638,7 +638,8 @@ class RangeTracker(object):
       position: suggested position where the current range should try to
                 be split at.
     Returns:
-      a tuple containing the split position and split fraction.
+      a tuple containing the split position and split fraction if split is
+      successful. Returns ``None`` otherwise.
     """
     raise NotImplementedError
 
