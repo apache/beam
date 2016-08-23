@@ -41,7 +41,7 @@ class StreamWindower {
       return (WindowedStream) timeSlidingWindow(
           input, keyExtractor, valueExtractor, (TimeSliding<T>) windowing);
     } else {
-      throw new UnsupportedOperationException("Not yet supported");
+      throw new UnsupportedOperationException("Not yet supported: " + windowing);
     }
   }
 
