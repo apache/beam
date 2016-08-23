@@ -22,6 +22,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
 import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
 import static com.google.datastore.v1beta3.QueryResultBatch.MoreResultsType.NOT_FINISHED;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
@@ -38,8 +39,10 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
 import com.google.cloud.dataflow.sdk.transforms.Values;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
@@ -57,6 +60,7 @@ import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.EntityResult;
 import com.google.datastore.v1beta3.Key;
 import com.google.datastore.v1beta3.Key.PathElement;
+import com.google.datastore.v1beta3.Mutation;
 import com.google.datastore.v1beta3.PartitionId;
 import com.google.datastore.v1beta3.Query;
 import com.google.datastore.v1beta3.QueryResultBatch;
@@ -82,7 +86,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * <p>{@link V1Beta3} provides an API to Read and Write {@link PCollection PCollections} of
+ * <p>{@link V1Beta3} provides an API to Read, Write and Delete {@link PCollection PCollections} of
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1beta3
  * {@link Entity} objects.
  *
@@ -127,7 +131,25 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
+ * <p>To delete a {@link PCollection} of {@link Entity Entities} from Datastore, use
+ * {@link V1Beta3#deleteEntity()}, specifying the Cloud Datastore project to write to:
+ *
+ * <pre> {@code
+ * PCollection<Entity> entities = ...;
+ * entities.apply(DatastoreIO.v1beta3().deleteEntity().withProjectId(projectId));
+ * p.run();
+ * } </pre>
+ *
+ * <p>To delete entities associated with a {@link PCollection} of {@link Key Keys} from Datastore,
+ * use {@link V1Beta3#deleteKey}, specifying the Cloud Datastore project to write to:
+ *
+ * <pre> {@code
+ * PCollection<Entity> entities = ...;
+ * entities.apply(DatastoreIO.v1beta3().deleteKey().withProjectId(projectId));
+ * p.run();
+ * } </pre>
+ *
+ * <p>{@link Entity Entities} in the {@code PCollection} to be written or deleted must have complete
  * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
  * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than
  * {@code projectId} default may be used by specifying it in the {@code Entity} {@code Keys}.
@@ -137,9 +159,9 @@ import javax.annotation.Nullable;
  * keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
  * }</pre>
  *
- * <p>{@code Entities} will be committed as upsert (update or insert) mutations. Please read
- * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
- * Keys</a> for more information about {@code Entity} keys.
+ * <p>{@code Entities} will be committed as upsert (update or insert) or delete mutations. Please
+ * read <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties,
+ * and Keys</a> for more information about {@code Entity} keys.
  *
  * <p><h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
@@ -640,20 +662,33 @@ public class V1Beta3 {
   }
 
   /**
+   * Returns an empty {@link DeleteEntity} builder. Configure the destination
+   * {@code projectId} using {@link DeleteEntity#withProjectId}.
+   */
+  public DeleteEntity deleteEntity() {
+    return new DeleteEntity(null);
+  }
+
+  /**
+   * Returns an empty {@link DeleteKey} builder. Configure the destination
+   * {@code projectId} using {@link DeleteKey#withProjectId}.
+   */
+  public DeleteKey deleteKey() {
+    return new DeleteKey(null);
+  }
+
+  /**
    * A {@link PTransform} that writes {@link Entity} objects to Cloud Datastore.
    *
    * @see DatastoreIO
    */
-  public static class Write extends PTransform<PCollection<Entity>, PDone> {
-    @Nullable
-    private final String projectId;
-
+  public static class Write extends Mutate<Entity> {
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    public Write(@Nullable String projectId) {
-      this.projectId = projectId;
+    Write(@Nullable String projectId) {
+      super(projectId, new UpsertFn());
     }
 
     /**
@@ -663,27 +698,99 @@ public class V1Beta3 {
       checkNotNull(projectId, "projectId");
       return new Write(projectId);
     }
+  }
+
+  /**
+   * A {@link PTransform} that deletes {@link Entity Entities} from Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class DeleteEntity extends Mutate<Entity> {
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    DeleteEntity(@Nullable String projectId) {
+      super(projectId, new DeleteEntityFn());
+    }
+
+    /**
+     * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore for the
+     * specified project.
+     */
+    public DeleteEntity withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new DeleteEntity(projectId);
+    }
+  }
+
+  /**
+   * A {@link PTransform} that deletes {@link Entity Entities} associated with the given
+   * {@link Key Keys} from Cloud Datastore.
+   *
+   * @see DatastoreIO
+   */
+  public static class DeleteKey extends Mutate<Key> {
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    DeleteKey(@Nullable String projectId) {
+      super(projectId, new DeleteKeyFn());
+    }
+
+    /**
+     * Returns a new {@link DeleteKey} that deletes entities from the Cloud Datastore for the
+     * specified project.
+     */
+    public DeleteKey withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return new DeleteKey(projectId);
+    }
+  }
+
+  /**
+   * A {@link PTransform} that writes mutations to Cloud Datastore.
+   *
+   * <p>It requires a {@link DoFn} that tranforms an object of type {@code T} to a {@link Mutation}.
+   * {@code T} is usually either an {@link Entity} or a {@link Key}
+   * <b>Note:</b> Only idempotent Cloud Datastore mutation operations (upsert and delete) should
+   * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
+   */
+  private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+    @Nullable
+    private final String projectId;
+    /** A function that transforms each {@code T} into a mutation. */
+    private final SimpleFunction<T, Mutation> mutationFn;
+
+    /**
+     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
+     * it is {@code null} at instantiation time, an error will be thrown.
+     */
+    Mutate(@Nullable String projectId, SimpleFunction<T, Mutation> mutationFn) {
+      this.projectId = projectId;
+      this.mutationFn = checkNotNull(mutationFn);
+    }
 
     @Override
-    public PDone apply(PCollection<Entity> input) {
-      input.apply(ParDo.of(new DatastoreWriterFn(projectId)));
+    public PDone apply(PCollection<T> input) {
+      input.apply("Convert to Mutation", MapElements.via(mutationFn))
+          .apply("Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId)));
+
       return PDone.in(input.getPipeline());
     }
 
     @Override
-    public void validate(PCollection<Entity> input) {
+    public void validate(PCollection<T> input) {
       checkNotNull(projectId, "projectId");
-    }
-
-    @Nullable
-    public String getProjectId() {
-      return projectId;
+      checkNotNull(mutationFn, "mutationFn");
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
           .add("projectId", projectId)
+          .add("mutationFn", mutationFn.getClass().getName())
           .toString();
     }
 
@@ -692,33 +799,38 @@ public class V1Beta3 {
       super.populateDisplayData(builder);
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"));
+              .withLabel("Output Project"))
+          .add(DisplayData.item("mutationFn", mutationFn.getClass())
+              .withLabel("Datastore Mutation Function"));
+    }
+
+    public String getProjectId() {
+      return projectId;
     }
   }
 
   /**
-   * A {@link DoFn} that writes {@link Entity} objects to Cloud Datastore. Entities are written in
+   * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
    * batches, where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.
-   * Entities are committed as upsert mutations (either update if the key already exists, or
-   * insert if it is a new key). If an entity does not have a complete key (i.e., it has no name
-   * or id), the bundle will fail.
    *
    * <p>See <a
    * href="https://cloud.google.com/datastore/docs/concepts/entities">
-   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and entities.
+   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
    * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
-   * times).
+   * times). This means that the mutation operation should be idempotent. Thus, the writer should
+   * only be used for {code upsert} and {@code delete} mutation operations, as these are the only
+   * two Cloud Datastore mutations that are idempotent.
    */
   @VisibleForTesting
-  static class DatastoreWriterFn extends DoFn<Entity, Void> {
+  static class DatastoreWriterFn extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final String projectId;
     private transient Datastore datastore;
     private final V1Beta3DatastoreFactory datastoreFactory;
-    // Current batch of entities to be written.
-    private final List<Entity> entities = new ArrayList<>();
+    // Current batch of mutations to be written.
+    private final List<Mutation> mutations = new ArrayList<>();
     /**
      * Since a bundle is written in batches, we should retry the commit of a batch in order to
      * prevent transient errors from causing the bundle to fail.
@@ -730,7 +842,7 @@ public class V1Beta3 {
      */
     private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
-    public DatastoreWriterFn(String projectId) {
+    DatastoreWriterFn(String projectId) {
       this(projectId, new V1Beta3DatastoreFactory());
     }
 
@@ -747,30 +859,24 @@ public class V1Beta3 {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      // Verify that the entity to write has a complete key.
-      if (!isValidKey(c.element().getKey())) {
-        throw new IllegalArgumentException(
-            "Entities to be written to the Datastore must have complete keys");
-      }
-
-      entities.add(c.element());
-      if (entities.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
+      mutations.add(c.element());
+      if (mutations.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
         flushBatch();
       }
     }
 
     @Override
     public void finishBundle(Context c) throws Exception {
-      if (entities.size() > 0) {
+      if (mutations.size() > 0) {
         flushBatch();
       }
     }
 
     /**
-     * Writes a batch of entities to Cloud Datastore.
+     * Writes a batch of mutations to Cloud Datastore.
      *
      * <p>If a commit fails, it will be retried (up to {@link DatastoreWriterFn#MAX_RETRIES}
-     * times). All entities in the batch will be committed again, even if the commit was partially
+     * times). All mutations in the batch will be committed again, even if the commit was partially
      * successful. If the retry limit is exceeded, the last exception from the Datastore will be
      * thrown.
      *
@@ -778,7 +884,7 @@ public class V1Beta3 {
      * backing off between retries fails.
      */
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
-      LOG.debug("Writing batch of {} entities", entities.size());
+      LOG.debug("Writing batch of {} mutations", mutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
 
@@ -786,9 +892,7 @@ public class V1Beta3 {
         // Batch upsert entities.
         try {
           CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
-          for (Entity entity: entities) {
-            commitRequest.addMutations(makeUpsert(entity));
-          }
+          commitRequest.addAllMutations(mutations);
           commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
           datastore.commit(commitRequest.build());
           // Break if the commit threw no exception.
@@ -804,8 +908,8 @@ public class V1Beta3 {
           }
         }
       }
-      LOG.debug("Successfully wrote {} entities", entities.size());
-      entities.clear();
+      LOG.debug("Successfully wrote {} mutations", mutations.size());
+      mutations.clear();
     }
 
     @Override
@@ -818,7 +922,7 @@ public class V1Beta3 {
   }
 
   /**
-   * Returns true if a Datastore key is complete.  A key is complete if its last element
+   * Returns true if a Datastore key is complete. A key is complete if its last element
    * has either an id or a name.
    */
   static boolean isValidKey(Key key) {
@@ -831,6 +935,51 @@ public class V1Beta3 {
   }
 
   /**
+   * A function that constructs an upsert {@link Mutation} from an {@link Entity}.
+   */
+  @VisibleForTesting
+  static class UpsertFn extends SimpleFunction<Entity, Mutation> {
+    @Override
+    public Mutation apply(Entity entity) {
+      // Verify that the entity to write has a complete key.
+      checkArgument(isValidKey(entity.getKey()),
+          "Entities to be written to the Datastore must have complete keys:\n%s", entity);
+
+      return makeUpsert(entity).build();
+    }
+  }
+
+  /**
+   * A function that constructs a delete {@link Mutation} from an {@link Entity}.
+   */
+  @VisibleForTesting
+  static class DeleteEntityFn extends SimpleFunction<Entity, Mutation> {
+    @Override
+    public Mutation apply(Entity entity) {
+      // Verify that the entity to delete has a complete key.
+      checkArgument(isValidKey(entity.getKey()),
+          "Entities to be deleted from the Datastore must have complete keys:\n%s", entity);
+
+      return makeDelete(entity.getKey()).build();
+    }
+  }
+
+  /**
+   * A function that constructs a delete {@link Mutation} from a {@link Key}.
+   */
+  @VisibleForTesting
+  static class DeleteKeyFn extends SimpleFunction<Key, Mutation> {
+    @Override
+    public Mutation apply(Key key) {
+      // Verify that the entity to delete has a complete key.
+      checkArgument(isValidKey(key),
+          "Keys to be deleted from the Datastore must be complete:\n%s", key);
+
+      return makeDelete(key).build();
+    }
+  }
+
+  /**
    * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
    * {@link QuerySplitter}
    *
@@ -840,9 +989,7 @@ public class V1Beta3 {
   @VisibleForTesting
   static class V1Beta3DatastoreFactory implements Serializable {
 
-    /**
-     * Builds a Datastore client for the given pipeline options and project.
-     */
+    /** Builds a Datastore client for the given pipeline options and project. */
     public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
       DatastoreOptions.Builder builder =
           new DatastoreOptions.Builder()
@@ -859,9 +1006,7 @@ public class V1Beta3 {
       return DatastoreFactory.get().create(builder.build());
     }
 
-    /**
-     * Builds a Datastore {@link QuerySplitter}.
-     */
+    /** Builds a Datastore {@link QuerySplitter}. */
     public QuerySplitter getQuerySplitter() {
       return DatastoreHelper.getQuerySplitter();
     }
