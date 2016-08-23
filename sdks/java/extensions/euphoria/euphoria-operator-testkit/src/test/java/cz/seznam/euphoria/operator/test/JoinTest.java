@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -157,10 +158,11 @@ public class JoinTest extends OperatorTest {
 
   
   static class JoinWindowContext extends WindowContext<Integer, Integer> {
-
-    JoinWindowContext(int group, int label) {
-      super(WindowID.unaligned(group, label));
+    
+    JoinWindowContext(WindowID<Integer, Integer> wid) {
+      super(wid);
     }
+
   }
 
   /**
@@ -183,7 +185,7 @@ public class JoinTest extends OperatorTest {
 
     @Override
     public JoinWindowContext createWindowContext(WindowID<Integer, Integer> wid) {
-      return new JoinWindowContext(wid.getGroup(), wid.getLabel());
+      return new JoinWindowContext(wid);
     }
 
   }
