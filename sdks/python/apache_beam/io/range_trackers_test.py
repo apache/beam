@@ -319,6 +319,30 @@ class GroupedShuffleRangeTrackerTest(unittest.TestCase):
         self.bytes_to_position([3, 2, 1])))
 
 
+class UnsplittableRangeTrackerTest(unittest.TestCase):
+
+  def test_try_claim(self):
+    tracker = range_trackers.UnsplittableRangeTracker(
+        range_trackers.OffsetRangeTracker(100, 200))
+    self.assertTrue(tracker.try_claim(110))
+    self.assertTrue(tracker.try_claim(140))
+    self.assertTrue(tracker.try_claim(183))
+    self.assertFalse(tracker.try_claim(210))
+
+  def test_try_split_fails(self):
+    tracker = range_trackers.UnsplittableRangeTracker(
+        range_trackers.OffsetRangeTracker(100, 200))
+    self.assertTrue(tracker.try_claim(110))
+    # Out of range
+    self.assertFalse(tracker.try_split(109))
+    self.assertFalse(tracker.try_split(210))
+
+    # Within range. But splitting is still unsuccessful.
+    self.assertFalse(copy.copy(tracker).try_split(111))
+    self.assertFalse(copy.copy(tracker).try_split(130))
+    self.assertFalse(copy.copy(tracker).try_split(199))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
