@@ -12,6 +12,7 @@ import static java.util.Collections.singleton;
 import java.util.List;
 import java.util.Objects;
 import static java.util.Objects.requireNonNull;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -161,11 +162,7 @@ public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.Time
         ts - (ts + durationMillis) % durationMillis, durationMillis)));
   }
 
-  @Override
-  public void updateTriggering(TriggerScheduler triggering, T input) {
-    triggering.updateProcessed(eventTimeFn.apply(input));
-  }
-
+  
   @Override
   public TimeWindowContext createWindowContext(WindowID<Void, TimeInterval> id) {
     return new TimeWindowContext(
@@ -182,6 +179,20 @@ public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.Time
   public UnaryFunction<T, Long> getEventTimeFn() {
     return eventTimeFn;
   }
+
+  @Override
+  public Type getType() {
+    return eventTimeFn.getClass() == Time.ProcessingTime.class
+        ? Type.PROCESSING : Type.EVENT;
+  }
+
+  @Override
+  public Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+    if (getType() == Type.EVENT)
+      return Optional.of(eventTimeFn);
+    return Optional.empty();
+  }
+
   
 }
 

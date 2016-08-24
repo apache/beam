@@ -1,9 +1,11 @@
 
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
 
 import java.io.Serializable;
+import java.util.Optional;
 import java.util.Set;
 
 
@@ -17,6 +19,12 @@ import java.util.Set;
 public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL>>
     extends Serializable {
 
+  static enum Type {
+    /** Processing time based. */
+    PROCESSING,
+    /** Event time. */
+    EVENT
+  }
 
   /**
    * Assign window IDs to given input element.
@@ -47,11 +55,19 @@ public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL
 
 
   /**
-   * Update triggering by given input. This is needed to enable the windowing
-   * to move triggering in watermarking processing schemes based on event time.
+   * Retrieve time characteristic of this windowing.
    */
-  default void updateTriggering(TriggerScheduler triggering, T input) {
-    triggering.updateProcessed(System.currentTimeMillis());
+  default Type getType() {
+    return Type.PROCESSING;
   }
+
+
+  /**
+   * Retrieve time-assignment function if event time is used.
+   */
+  default Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+    return Optional.empty();
+  }
+
 
 }

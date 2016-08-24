@@ -17,6 +17,7 @@ class AttachedWindowing implements
     AttachedWindowContext(Object group, Object label) {
       super(WindowID.unaligned(group, label));
     }
+    
     AttachedWindowContext(WindowID<Object, Object> id) {
       super(id);
     }
@@ -32,10 +33,6 @@ class AttachedWindowing implements
     return Collections.singleton(input.getWindowID());
   }
 
-  @Override
-  public void updateTriggering(TriggerScheduler triggering, Object input) {
-
-  }
 
   @Override
   public AttachedWindowContext createWindowContext(WindowID<Object, Object> id) {

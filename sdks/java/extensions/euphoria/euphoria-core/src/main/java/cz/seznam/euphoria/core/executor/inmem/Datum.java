@@ -3,7 +3,6 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
-import java.util.Objects;
 
 /**
  * Object passed inside inmem processing pipelines.
@@ -37,6 +36,10 @@ class Datum extends WindowedElement<Object, Object, Object> {
     public boolean isEndOfStream() {
       return true;
     }
+    @Override
+    public String toString() {
+      return "EndOfStream";
+    }
   }
 
   static class Watermark extends Datum {
@@ -51,14 +54,17 @@ class Datum extends WindowedElement<Object, Object, Object> {
     public boolean isWatermark() {
       return true;
     }
+    @Override
+    public String toString() {
+      return "Watermark(" + stamp + ")";
+    }
   }
 
   static class WindowTrigger extends Datum {
     final long stamp;
-    final WindowID windowID;
     WindowTrigger(WindowID windowID, long stamp) {
+      super(windowID, null);
       this.stamp = stamp;
-      this.windowID = windowID;
     }
     @Override
     public boolean isWindowTrigger() {
@@ -67,6 +73,10 @@ class Datum extends WindowedElement<Object, Object, Object> {
     public long getStamp() {
       return stamp;
     }
+    @Override
+    public String toString() {
+      return "WindowTrigger(" + getWindowID() + ", " + stamp + ")";
+    }
   }
 
   private Datum() {
@@ -74,7 +84,7 @@ class Datum extends WindowedElement<Object, Object, Object> {
   }
 
   private Datum(WindowID<Object, Object> windowID, Object element) {
-    super(windowID, Objects.requireNonNull(element));
+    super(windowID, element);
   }
 
 
@@ -96,15 +106,6 @@ class Datum extends WindowedElement<Object, Object, Object> {
   /** Is this window trigger event? */
   public boolean isWindowTrigger() {
     return false;
-  }
-
-  /**
-   * Is this a broadcast message (message that has to be replicated to all
-   *  downstream partitions?
-   **/
-  public boolean isBroadcast() {
-    // this is true following
-    return isWatermark() || isEndOfStream() || isWindowTrigger();
   }
 
 
