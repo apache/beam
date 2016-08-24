@@ -40,9 +40,12 @@ import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.SubscriberGrpc;
 
 import io.grpc.ManagedChannel;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -51,6 +54,7 @@ import java.util.List;
 /**
  * Tests for PubsubGrpcClient.
  */
+@RunWith(JUnit4.class)
 public class PubsubGrpcClientTest {
   private ManagedChannel mockChannel;
   private GoogleCredentials mockCredentials;
