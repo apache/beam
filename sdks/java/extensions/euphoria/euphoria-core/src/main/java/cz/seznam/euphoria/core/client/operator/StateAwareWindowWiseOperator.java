@@ -17,6 +17,7 @@ public abstract class StateAwareWindowWiseOperator<
     extends WindowWiseOperator<IN, WIN, OUT, WLABEL, W>
     implements StateAware<KIN, KEY>
 {
+  
   protected final UnaryFunction<KIN, KEY> keyExtractor;
   protected Partitioning<KEY> partitioning;
 

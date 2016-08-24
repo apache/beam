@@ -21,4 +21,5 @@ public interface TriggerContext {
    * clock time).
    */
   long getCurrentTimestamp();
+  
 }

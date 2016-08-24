@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import static java.util.Objects.requireNonNull;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -271,8 +272,19 @@ public final class Session<T, G> implements
 
 
   @Override
-  public void updateTriggering(TriggerScheduler triggering, T input) {
-    triggering.updateProcessed(eventTimeFn.apply(input));
+  public Type getType() {
+    return eventTimeFn.getClass() == Time.ProcessingTime.class
+        ? Type.PROCESSING : Type.EVENT;
   }
+  
+
+  @Override
+  public Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+    if (getType() == Type.EVENT)
+      return Optional.of(eventTimeFn);
+    return Optional.empty();
+  }
+
+
 
 }
