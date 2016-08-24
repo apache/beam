@@ -1,5 +1,5 @@
 
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
@@ -563,8 +563,6 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(sequenceInts(0, N)).setSleepTime(2));
 
-    // FIXME: there is something wrong with repartition inside
-    // the Reduce(State)ByKey - setNumPartitions seems not to work
     ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
 
     ReduceByKey.of(input)
@@ -621,11 +619,9 @@ public class InMemExecutorTest {
     // in 10s windows
 
     Dataset<Integer> input = flow.createInput(
-        ListDataSource.unbounded(
-            reversed(sequenceInts(0, N))).setSleepTime(2));
+        ListDataSource.unbounded(reversed(sequenceInts(0, N)))
+            .setSleepTime(2));
 
-    // FIXME: there is something wrong with repartition inside
-    // the Reduce(State)ByKey - setNumPartitions seems not to work
     ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
 
     ReduceByKey.of(input)
@@ -643,7 +639,9 @@ public class InMemExecutorTest {
     executor.waitForCompletion(flow);
 
     // there should be only one element on output - the first element
+    // all other windows are discarded
     List<Pair<String, Long>> output = outputs.getOutputs().get(0);
+    System.err.println(output);
     assertEquals(1, output.size());
   }
 

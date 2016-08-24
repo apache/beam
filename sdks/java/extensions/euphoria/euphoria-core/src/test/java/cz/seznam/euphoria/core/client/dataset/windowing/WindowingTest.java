@@ -29,7 +29,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +40,7 @@ import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import static java.util.Arrays.asList;
+import java.util.Collection;
 import java.util.Map;
 import static org.junit.Assert.*;
 
@@ -199,11 +199,10 @@ public class WindowingTest {
     ).setSleepTime(READ_DELAY_MS));
 
     // ~ emits after 3 input elements received due to "count windowing"
-    Dataset<Pair<String, Set<String>>> first =
-        ReduceByKey.of(input)
+    Dataset<Pair<String, HashSet<String>>> first = ReduceByKey.of(input)
         .keyBy(e -> "")
         .valueBy(e -> e)
-        .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+        .reduceBy(Sets::newHashSet)
         .windowBy(Count.of(3))
         .output();
 
@@ -211,8 +210,7 @@ public class WindowingTest {
     // serving merely as another operator in the pipeline; must emit its
     // inputs elements as soon they arrive (note: this is a
     // non-window-wise operator)
-    Dataset<Pair<String, Set<String>>> mediator =
-        MapElements.of(first)
+    Dataset<Pair<String, HashSet<String>>> mediator = MapElements.of(first)
         .using(e -> e)
         .output();
 
@@ -222,11 +220,11 @@ public class WindowingTest {
     // further, the operator is supposed to emit the windows as soon as possible,
     // i.e. once the last item for a window from the preceding window-wise operator
     // is received.
-    Dataset<Pair<String, Set<String>>> second = ReduceByKey.of(mediator)
+    Dataset<Pair<String, HashSet<String>>> second = ReduceByKey.of(mediator)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
-        .reduceBy((CombinableReduceFunction<Set<String>>) what -> {
-          Set<String> s = new HashSet<>();
+        .reduceBy(what -> {
+          HashSet<String> s = new HashSet<>();
           s.add("!");
           for (Set<String> x : what) {
             s.addAll(x);
@@ -237,12 +235,12 @@ public class WindowingTest {
 
     // ~ consume the output and put a timestamp on each element. emits output
     // itself as soon as it receives input, due to the operator's streaming nature.
-    Dataset<Pair<Long, Pair<String, Set<String>>>> third =
+    Dataset<Pair<Long, Pair<String, HashSet<String>>>> third =
         MapElements.of(second)
         .using(what -> Pair.of(System.currentTimeMillis(), what))
         .output();
 
-    ListDataSink<Pair<Long, Pair<String, Set<String>>>> output = ListDataSink.get(1);
+    ListDataSink<Pair<Long, Pair<String, HashSet<String>>>> output = ListDataSink.get(1);
     third.persist(output);
 
     executor.waitForCompletion(flow);
@@ -256,14 +254,14 @@ public class WindowingTest {
       assertNotNull(x.getSecond().getFirst());
       assertNotNull(x.getSecond().getSecond());
     });
-    List<Pair<Long, Pair<String, Set<String>>>> ordered =
+    List<Pair<Long, Pair<String, HashSet<String>>>> ordered =
         output.getOutput(0)
             .stream()
             .sorted(Comparator.comparing(Pair::getFirst))
             .collect(Collectors.toList());
     assertEquals(3, ordered.size());
-    // ~ if no threads got blocked (e.g. system overload) we shall receive at
-    // output element approx. every 3*READ_DELAY_MS (READ_DELAY_MS for every read
+    // ~ if no threads got blocked (e.g. system overload) we shall receive an
+    // output element approx. every 3*READ_DELAY (READ_DELAY for every read
     // element from the input source times window-of-3-items) except for the very
     // last item which is triggered earlier due to "end-of-stream"
     assertSmaller(ordered.get(0).getFirst() + READ_DELAY_MS - 1, ordered.get(1).getFirst());

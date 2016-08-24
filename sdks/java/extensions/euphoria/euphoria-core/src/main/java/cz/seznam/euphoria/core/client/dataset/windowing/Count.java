@@ -51,11 +51,6 @@ public final class Count<T> implements
   }
 
   @Override
-  public void updateTriggering(TriggerScheduler triggering, T input) {
-    // ~ no-op; count windows is not registering any triggers
-  }
-
-  @Override
   public Collection<Pair<Collection<CountWindowContext>, CountWindowContext>>
   mergeWindows(Collection<CountWindowContext> actives)
   {

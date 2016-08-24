@@ -14,6 +14,7 @@ import java.util.Set;
 public final class Batch<T>
     implements AlignedWindowing<T, Batch.Label, Batch.BatchWindowContext>
 {
+
   public static final class Label implements Serializable {
     static final Label INSTANCE = new Label();
 
@@ -56,11 +57,6 @@ public final class Batch<T>
   @Override
   public Set<WindowID<Void, Label>> assignWindows(T input) {
     return Collections.singleton(WindowID.aligned(Label.INSTANCE));
-  }
-
-  @Override
-  public void updateTriggering(TriggerScheduler triggering, T input) {
-    // ~ no-op; batch windows are not registering any triggers
   }
 
   @Override

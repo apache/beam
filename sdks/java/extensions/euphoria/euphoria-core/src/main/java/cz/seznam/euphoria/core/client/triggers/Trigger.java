@@ -14,7 +14,7 @@ public interface Trigger extends Serializable {
    * Gives trigger a chance to schedule time-based events in provided context
    * @return {@code NOOP} or {@code PASSED} if desired trigger time passed
    */
-  TriggerResult init(WindowContext w, TriggerContext ctx);
+  TriggerResult schedule(WindowContext w, TriggerContext ctx);
 
   /**
    * Called when a timer that was set using the trigger context fires.
@@ -25,8 +25,7 @@ public interface Trigger extends Serializable {
   TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx);
 
   /**
-   * Represents result returned from trigger methods. This determines what happens
-   * with the window.
+   * Represents result returned from scheduling methods.
    */
   enum TriggerResult {
 

@@ -53,7 +53,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -64,10 +64,9 @@ public class InMemExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(InMemExecutor.class);
 
-
   @FunctionalInterface
   private interface Supplier {
-    Datum get();
+    Datum get() throws InterruptedException;
   }
 
 
@@ -163,12 +162,8 @@ public class InMemExecutor implements Executor {
     }
 
     @Override
-    public Datum get() {
-      try {
-        return queue.take();
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
-      }
+    public Datum get() throws InterruptedException {
+      return queue.take();
     }
 
   }
@@ -233,11 +228,18 @@ public class InMemExecutor implements Executor {
       });
 
   private TriggerScheduler triggering = new ProcessingTimeTriggerScheduler();
+  private java.util.function.Supplier<WatermarkEmitStrategy> watermarkEmitStrategySupplier
+      = WatermarkEmitStrategy.Default::get;
 
   private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
 
   public void setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
     this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
+  }
+
+  public void setWatermarEmitStrategySupplier(
+      java.util.function.Supplier<WatermarkEmitStrategy> supplier) {
+    this.watermarkEmitStrategySupplier = supplier;
   }
 
   @Override
@@ -337,15 +339,11 @@ public class InMemExecutor implements Executor {
               }
             }
           } catch (IOException ex) {
-            try {
-              writer.rollback();
-              // propagate exception
-              throw new RuntimeException(ex);
-            } catch (IOException ioex) {
-              LOG.warn("Something went wrong", ioex);
-              // swallow exception
-            }
+            rollbackWriterUnchecked(writer);
+            // propagate exception
             throw new RuntimeException(ex);
+          } catch (InterruptedException ex) {
+            rollbackWriterUnchecked(writer);
           } finally {
             try {
               writer.close();
@@ -358,6 +356,15 @@ public class InMemExecutor implements Executor {
       }
     }
     return tasks;
+  }
+
+  // rollback writer and do not throw checked exceptions
+  private void rollbackWriterUnchecked(Writer writer) {
+    try {
+      writer.rollback();
+    } catch (IOException ex) {
+      LOG.error("Failed to rollback writer", ex);
+    }
   }
 
   // ~ unchecked: all is fine, except javac (1.8.0_91) has some issue
@@ -423,16 +430,21 @@ public class InMemExecutor implements Executor {
         executor.execute(() -> {
           // copy the original data to all queues
           for (;;) {
-            Datum item = partSup.get();
-            for (BlockingQueue ch : outputs) {
-              try {
-                ch.put(item);
-              } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
+            try {
+              Datum item = partSup.get();
+              for (BlockingQueue ch : outputs) {
+                try {
+                  ch.put(item);
+                } catch (InterruptedException ex) {
+                  Thread.currentThread().interrupt();
+                }
               }
-            }
-            if (item.isEndOfStream()) {
-              return;
+              if (item.isEndOfStream()) {
+                return;
+              }
+            } catch (InterruptedException ex) {
+              Thread.currentThread().interrupt();
+              break;
             }
           }
         });
@@ -461,17 +473,22 @@ public class InMemExecutor implements Executor {
         QueueCollector outQ = QueueCollector.wrap(out);
         WindowedElementCollector outC = new WindowedElementCollector(outQ);
         for (;;) {
-          // read input
-          Datum datum = s.get();
-          if (datum.isBroadcast()) {
-            outQ.collect(datum);
-            if (datum.isEndOfStream()) {
-              return;
+          try {
+            // read input
+            Datum item = s.get();
+            if (item.isElement()) {
+              // transform
+              outC.assignWindowing(item.getWindowID());
+              mapper.apply(item.get(), outC);
+            } else {
+              out.put(item);
+              if (item.isEndOfStream()) {
+                break;
+              }
             }
-          } else {
-            // transform
-            outC.assignWindowing(datum.getWindowID());
-            mapper.apply(datum.get(), outC);
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            break;
           }
         }
       });
@@ -547,7 +564,11 @@ public class InMemExecutor implements Executor {
       executor.execute(new ReduceStateByKeyReducer(
           q, output, windowing,
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
-          SerializableUtils.cloneSerializable(triggering),
+          // if using attached windowing, we have to use watermark triggering
+          windowing != null
+              ? SerializableUtils.cloneSerializable(triggering)
+              : new WatermarkTriggerScheduler(0),
+          watermarkEmitStrategySupplier.get(),
           reduceStateByKey.input().isBounded(),
           reduceStateByKeyMaxKeysPerWindow));
     }
@@ -570,8 +591,16 @@ public class InMemExecutor implements Executor {
 
     // count running partition readers
     CountDownLatch workers = new CountDownLatch(numInputPartitions);
-    
+    // vector clocks associated with each output partition
+    List<VectorClock> clocks = new ArrayList<>(outputPartitions);
+    for (int i = 0; i < outputPartitions; i++) {
+      // each vector clock has as many
+      clocks.add(new VectorClock(numInputPartitions));
+    }
+
+    int i = 0;
     for (Supplier s : suppliers) {
+      final int readerId = i++;
       executor.execute(() -> {
         try {
           for (;;) {
@@ -580,7 +609,7 @@ public class InMemExecutor implements Executor {
             if (datum.isEndOfStream()) {
               break;
             }
-            if (!handleBroadcasts(datum, ret)) {
+            if (!handleMetaData(datum, ret, readerId, clocks)) {
               // determine partition
               Object key = keyExtractor.apply(datum.get());
               int partition
@@ -591,7 +620,7 @@ public class InMemExecutor implements Executor {
             }
           }
         } catch (InterruptedException ex) {
-          throw new RuntimeException(ex);
+          Thread.currentThread().interrupt();
         } finally {
           workers.countDown();
         }
@@ -653,27 +682,50 @@ public class InMemExecutor implements Executor {
 
   // utility method used after extracting element from upstream
   // queue, the element is passed to the downstream partitions
-  // if it is a broadcast element
+  // if it is a metadata element
   // @returns true if the element was handled
-  static boolean handleBroadcasts(Datum item,
-      List<BlockingQueue<Datum>> downstream) {
-    if (item.isBroadcast()) {
-      // propagate broadcasts to downstream consumers
-      for (BlockingQueue ch : downstream) {
-        try {
-          if (!item.isEndOfStream()) {
-            // do not forward end of stream, because we need to wait till
-            // all input partitions finish
-            ch.put(item);
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
+  static boolean handleMetaData(
+      Datum item,
+      List<BlockingQueue<Datum>> downstream,
+      int readerId,
+      List<VectorClock> clocks) {
+
+    // do no hadle elements
+    if (item.isElement()) return false;
+    
+    // propagate window triggers to downstream consumers
+    if (item.isWindowTrigger()) {
+      try {
+        for (BlockingQueue ch : downstream) {
+          // do not forward end of stream, because we need to wait till
+          // all input partitions finish
+          ch.put(item);
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
-      return true;
+    } else if (item.isWatermark()) {
+      // update vector clocks by the watermark
+      // if any update occurs, emit the updates time downstream
+      int i = 0;
+      Datum.Watermark watermark = (Datum.Watermark) item;
+      for (VectorClock clock : clocks) {
+        long current = clock.getCurrent();
+        clock.update(watermark.getWatermark(), readerId);
+        long after = clock.getCurrent();
+        if (current != after) {
+          try {
+            // we have updated the stamp, emit the new watermark
+            downstream.get(i).put(Datum.watermark(after));
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+          }
+        }
+        i++;
+      }
     }
-    return false;
+    // was handled
+    return true;
   }
 
-  
 }

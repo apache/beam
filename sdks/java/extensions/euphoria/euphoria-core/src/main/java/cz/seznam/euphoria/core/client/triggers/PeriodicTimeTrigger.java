@@ -20,7 +20,7 @@ public class PeriodicTimeTrigger implements Trigger {
   }
 
   @Override
-  public TriggerResult init(WindowContext w, TriggerContext ctx) {
+  public TriggerResult schedule(WindowContext w, TriggerContext ctx) {
     long now = ctx.getCurrentTimestamp();
     long start = now - (now + interval) % interval;
 

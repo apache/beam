@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A state of grouping of input elements. Within euphoria,
@@ -19,7 +20,7 @@ public abstract class WindowContext<GROUP, LABEL> implements Serializable {
   protected final WindowID<GROUP, LABEL> windowID;
 
   protected WindowContext(WindowID<GROUP, LABEL> windowID) {
-    this.windowID = windowID;
+    this.windowID = Objects.requireNonNull(windowID);
   }
 
   /** Retrieve window ID. */

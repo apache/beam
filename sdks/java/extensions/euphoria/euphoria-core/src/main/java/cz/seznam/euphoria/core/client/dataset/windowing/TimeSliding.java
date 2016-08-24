@@ -4,12 +4,12 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import static java.util.Objects.requireNonNull;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -94,11 +94,6 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public void updateTriggering(TriggerScheduler triggering, T input) {
-    triggering.updateProcessed(eventTimeFn.apply(input));
-  }
-
-  @Override
   public String toString() {
     return "TimeSliding{" +
         "duration=" + duration +
@@ -118,6 +113,20 @@ public final class TimeSliding<T>
   public UnaryFunction<T, Long> getEventTimeFn() {
     return eventTimeFn;
   }
+
+  @Override
+  public Type getType() {
+    return eventTimeFn.getClass() == Time.ProcessingTime.class
+        ? Type.PROCESSING : Type.EVENT;
+  }
+
+  @Override
+  public Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+    if (getType() == Type.EVENT)
+      return Optional.of(eventTimeFn);
+    return Optional.empty();
+  }
+
 
 }
 

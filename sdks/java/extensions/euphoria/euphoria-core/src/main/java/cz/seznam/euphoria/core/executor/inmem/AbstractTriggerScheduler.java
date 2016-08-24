@@ -48,7 +48,8 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
 
   @Override
   public ScheduledFuture<Void> scheduleAt(long stamp, WindowContext w, Triggerable trigger) {
-    long duration = stamp - getCurrentTimestamp();
+    long currentStamp = getCurrentTimestamp();
+    long duration = stamp - currentStamp;
     if (duration < 0) {
       return null;
     }

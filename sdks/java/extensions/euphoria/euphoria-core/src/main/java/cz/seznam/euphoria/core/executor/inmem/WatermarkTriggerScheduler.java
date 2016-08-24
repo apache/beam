@@ -22,7 +22,7 @@ public class WatermarkTriggerScheduler extends AbstractTriggerScheduler {
 
   @Override
   @SuppressWarnings("unchecked")
-  public void updateProcessed(long stamp) {
+  public void updateStamp(long stamp) {
     long newWatermark = stamp - watermarkDuration;
     if (currentWatermark < newWatermark) {
       // reschedule all active triggers
