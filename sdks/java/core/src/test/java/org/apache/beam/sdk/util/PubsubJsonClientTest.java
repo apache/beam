@@ -38,6 +38,8 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -46,6 +48,7 @@ import java.util.List;
 /**
  * Tests for PubsubJsonClient.
  */
+@RunWith(JUnit4.class)
 public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;
