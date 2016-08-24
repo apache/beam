@@ -19,14 +19,14 @@ package com.google.cloud.dataflow.sdk.io.datastore;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verify;
-import static com.google.datastore.v1beta3.PropertyFilter.Operator.EQUAL;
-import static com.google.datastore.v1beta3.PropertyOrder.Direction.DESCENDING;
-import static com.google.datastore.v1beta3.QueryResultBatch.MoreResultsType.NOT_FINISHED;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeDelete;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeOrder;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeUpsert;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.PropertyFilter.Operator.EQUAL;
+import static com.google.datastore.v1.PropertyOrder.Direction.DESCENDING;
+import static com.google.datastore.v1.QueryResultBatch.MoreResultsType.NOT_FINISHED;
+import static com.google.datastore.v1.client.DatastoreHelper.makeDelete;
+import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
+import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
+import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
@@ -55,23 +55,23 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.datastore.v1beta3.CommitRequest;
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.EntityResult;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.Key.PathElement;
-import com.google.datastore.v1beta3.Mutation;
-import com.google.datastore.v1beta3.PartitionId;
-import com.google.datastore.v1beta3.Query;
-import com.google.datastore.v1beta3.QueryResultBatch;
-import com.google.datastore.v1beta3.RunQueryRequest;
-import com.google.datastore.v1beta3.RunQueryResponse;
-import com.google.datastore.v1beta3.client.Datastore;
-import com.google.datastore.v1beta3.client.DatastoreException;
-import com.google.datastore.v1beta3.client.DatastoreFactory;
-import com.google.datastore.v1beta3.client.DatastoreHelper;
-import com.google.datastore.v1beta3.client.DatastoreOptions;
-import com.google.datastore.v1beta3.client.QuerySplitter;
+import com.google.datastore.v1.CommitRequest;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Key.PathElement;
+import com.google.datastore.v1.Mutation;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.QueryResultBatch;
+import com.google.datastore.v1.RunQueryRequest;
+import com.google.datastore.v1.RunQueryResponse;
+import com.google.datastore.v1.client.Datastore;
+import com.google.datastore.v1.client.DatastoreException;
+import com.google.datastore.v1.client.DatastoreFactory;
+import com.google.datastore.v1.client.DatastoreHelper;
+import com.google.datastore.v1.client.DatastoreOptions;
+import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
 
 import org.slf4j.Logger;
@@ -86,21 +86,21 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * <p>{@link V1Beta3} provides an API to Read, Write and Delete {@link PCollection PCollections} of
- * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1beta3
+ * <p>{@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
+ * of <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1
  * {@link Entity} objects.
  *
- * <p>This API currently requires an authentication workaround. To use {@link V1Beta3}, users
+ * <p>This API currently requires an authentication workaround. To use {@link DatastoreV1}, users
  * must use the {@code gcloud} command line tool to get credentials for Datastore:
  * <pre>
  * $ gcloud auth login
  * </pre>
  *
- * <p>To read a {@link PCollection} from a query to Datastore, use {@link V1Beta3#read} and
- * its methods {@link V1Beta3.Read#withProjectId} and {@link V1Beta3.Read#withQuery} to
+ * <p>To read a {@link PCollection} from a query to Datastore, use {@link DatastoreV1#read} and
+ * its methods {@link DatastoreV1.Read#withProjectId} and {@link DatastoreV1.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
- * to query within using {@link V1Beta3.Read#withNamespace}. You could also optionally specify
- * how many splits you want for the query using {@link V1Beta3.Read#withNumQuerySplits}.
+ * to query within using {@link DatastoreV1.Read#withNamespace}. You could also optionally specify
+ * how many splits you want for the query using {@link DatastoreV1.Read#withNumQuerySplits}.
  *
  * <p>For example:
  *
@@ -112,40 +112,40 @@ import javax.annotation.Nullable;
  *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
- *     DatastoreIO.v1beta3().read()
+ *     DatastoreIO.v1().read()
  *         .withProjectId(projectId)
  *         .withQuery(query));
  * } </pre>
  *
  * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
  * many workers. However, when the {@link Query} is configured with a limit using
- * {@link com.google.datastore.v1beta3.Query.Builder#setLimit(Int32Value)}, then
+ * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)}, then
  * all returned results will be read by a single Dataflow worker in order to ensure correct data.
  *
- * <p>To write a {@link PCollection} to a Datastore, use {@link V1Beta3#write},
+ * <p>To write a {@link PCollection} to a Datastore, use {@link DatastoreV1#write},
  * specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1beta3().write().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1().write().withProjectId(projectId));
  * p.run();
  * } </pre>
  *
  * <p>To delete a {@link PCollection} of {@link Entity Entities} from Datastore, use
- * {@link V1Beta3#deleteEntity()}, specifying the Cloud Datastore project to write to:
+ * {@link DatastoreV1#deleteEntity()}, specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1beta3().deleteEntity().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1().deleteEntity().withProjectId(projectId));
  * p.run();
  * } </pre>
  *
  * <p>To delete entities associated with a {@link PCollection} of {@link Key Keys} from Datastore,
- * use {@link V1Beta3#deleteKey}, specifying the Cloud Datastore project to write to:
+ * use {@link DatastoreV1#deleteKey}, specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
- * entities.apply(DatastoreIO.v1beta3().deleteKey().withProjectId(projectId));
+ * entities.apply(DatastoreIO.v1().deleteKey().withProjectId(projectId));
  * p.run();
  * } </pre>
  *
@@ -174,10 +174,10 @@ import javax.annotation.Nullable;
  * @see com.google.cloud.dataflow.sdk.runners.PipelineRunner
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class V1Beta3 {
+public class DatastoreV1 {
 
   // A package-private constructor to prevent direct instantiation from outside of this package
-  V1Beta3() {}
+  DatastoreV1() {}
 
   /**
    * Datastore has a limit of 500 mutations per batch operation, so we flush
@@ -187,13 +187,13 @@ public class V1Beta3 {
   static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
-   * Returns an empty {@link V1Beta3.Read} builder. Configure the source {@code projectId},
+   * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
    * {@code query}, and optionally {@code namespace} and {@code numQuerySplits} using
-   * {@link V1Beta3.Read#withProjectId}, {@link V1Beta3.Read#withQuery},
-   * {@link V1Beta3.Read#withNamespace}, {@link V1Beta3.Read#withNumQuerySplits}.
+   * {@link DatastoreV1.Read#withProjectId}, {@link DatastoreV1.Read#withQuery},
+   * {@link DatastoreV1.Read#withNamespace}, {@link DatastoreV1.Read#withNumQuerySplits}.
    */
-  public V1Beta3.Read read() {
-    return new V1Beta3.Read(null, null, null, 0);
+  public DatastoreV1.Read read() {
+    return new DatastoreV1.Read(null, null, null, 0);
   }
 
   /**
@@ -327,37 +327,38 @@ public class V1Beta3 {
     }
 
     /**
-     * Returns a new {@link V1Beta3.Read} that reads from the Datastore for the specified project.
+     * Returns a new {@link DatastoreV1.Read} that reads from the Datastore for the specified
+     * project.
      */
-    public V1Beta3.Read withProjectId(String projectId) {
+    public DatastoreV1.Read withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new V1Beta3.Read(projectId, query, namespace, numQuerySplits);
+      return new DatastoreV1.Read(projectId, query, namespace, numQuerySplits);
     }
 
     /**
-     * Returns a new {@link V1Beta3.Read} that reads the results of the specified query.
+     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified query.
      *
      * <p><b>Note:</b> Normally, {@code DatastoreIO} will read from Cloud Datastore in parallel
      * across many workers. However, when the {@link Query} is configured with a limit using
      * {@link Query.Builder#setLimit}, then all results will be read by a single worker in order
      * to ensure correct results.
      */
-    public V1Beta3.Read withQuery(Query query) {
+    public DatastoreV1.Read withQuery(Query query) {
       checkNotNull(query, "query");
       checkArgument(!query.hasLimit() || query.getLimit().getValue() > 0,
           "Invalid query limit %s: must be positive", query.getLimit().getValue());
-      return new V1Beta3.Read(projectId, query, namespace, numQuerySplits);
+      return new DatastoreV1.Read(projectId, query, namespace, numQuerySplits);
     }
 
     /**
-     * Returns a new {@link V1Beta3.Read} that reads from the given namespace.
+     * Returns a new {@link DatastoreV1.Read} that reads from the given namespace.
      */
-    public V1Beta3.Read withNamespace(String namespace) {
-      return new V1Beta3.Read(projectId, query, namespace, numQuerySplits);
+    public DatastoreV1.Read withNamespace(String namespace) {
+      return new DatastoreV1.Read(projectId, query, namespace, numQuerySplits);
     }
 
     /**
-     * Returns a new {@link V1Beta3.Read} that reads by splitting the given {@code query} into
+     * Returns a new {@link DatastoreV1.Read} that reads by splitting the given {@code query} into
      * {@code numQuerySplits}.
      *
      * <p>The semantics for the query splitting is defined below:
@@ -372,8 +373,8 @@ public class V1Beta3 {
      *   splits. In such cases we just use whatever the Datastore returns.
      * </ul>
      */
-    public V1Beta3.Read withNumQuerySplits(int numQuerySplits) {
-      return new V1Beta3.Read(projectId, query, namespace,
+    public DatastoreV1.Read withNumQuerySplits(int numQuerySplits) {
+      return new DatastoreV1.Read(projectId, query, namespace,
           Math.min(Math.max(numQuerySplits, 0), NUM_QUERY_SPLITS_MAX));
     }
 
@@ -398,7 +399,7 @@ public class V1Beta3 {
      */
     @Override
     public PCollection<Entity> apply(PBegin input) {
-      V1Beta3Options v1Beta3Options = V1Beta3Options.from(getProjectId(), getQuery(),
+      V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
           getNamespace());
 
       /*
@@ -420,7 +421,7 @@ public class V1Beta3 {
        */
       PCollection<KV<Integer, Query>> queries = input
           .apply(Create.of(query))
-          .apply(ParDo.of(new SplitQueryFn(v1Beta3Options, numQuerySplits)));
+          .apply(ParDo.of(new SplitQueryFn(v1Options, numQuerySplits)));
 
       PCollection<Query> shardedQueries = queries
           .apply(GroupByKey.<Integer, Query>create())
@@ -428,7 +429,7 @@ public class V1Beta3 {
           .apply(Flatten.<Query>iterables());
 
       PCollection<Entity> entities = shardedQueries
-          .apply(ParDo.of(new ReadFn(v1Beta3Options)));
+          .apply(ParDo.of(new ReadFn(v1Options)));
 
       return entities;
     }
@@ -461,23 +462,23 @@ public class V1Beta3 {
     }
 
     /**
-     * A class for v1beta3 Datastore related options.
+     * A class for v1 Datastore related options.
      */
     @VisibleForTesting
-    static class V1Beta3Options implements Serializable {
+    static class V1Options implements Serializable {
       private final Query query;
       private final String projectId;
       @Nullable
       private final String namespace;
 
-      private V1Beta3Options(String projectId, Query query, @Nullable String namespace) {
+      private V1Options(String projectId, Query query, @Nullable String namespace) {
         this.projectId = checkNotNull(projectId, "projectId");
         this.query = checkNotNull(query, "query");
         this.namespace = namespace;
       }
 
-      public static V1Beta3Options from(String projectId, Query query, @Nullable String namespace) {
-        return new V1Beta3Options(projectId, query, namespace);
+      public static V1Options from(String projectId, Query query, @Nullable String namespace) {
+        return new V1Options(projectId, query, namespace);
       }
 
       public Query getQuery() {
@@ -500,23 +501,23 @@ public class V1Beta3 {
      */
     @VisibleForTesting
     static class SplitQueryFn extends DoFn<Query, KV<Integer, Query>> {
-      private final V1Beta3Options options;
+      private final V1Options options;
       // number of splits to make for a given query
       private final int numSplits;
 
-      private final V1Beta3DatastoreFactory datastoreFactory;
+      private final V1DatastoreFactory datastoreFactory;
       // Datastore client
       private transient Datastore datastore;
       // Query splitter
       private transient QuerySplitter querySplitter;
 
-      public SplitQueryFn(V1Beta3Options options, int numSplits) {
-        this(options, numSplits, new V1Beta3DatastoreFactory());
+      public SplitQueryFn(V1Options options, int numSplits) {
+        this(options, numSplits, new V1DatastoreFactory());
       }
 
       @VisibleForTesting
-      SplitQueryFn(V1Beta3Options options, int numSplits,
-          V1Beta3DatastoreFactory datastoreFactory) {
+      SplitQueryFn(V1Options options, int numSplits,
+          V1DatastoreFactory datastoreFactory) {
         this.options = options;
         this.numSplits = numSplits;
         this.datastoreFactory = datastoreFactory;
@@ -580,17 +581,17 @@ public class V1Beta3 {
      */
     @VisibleForTesting
     static class ReadFn extends DoFn<Query, Entity> {
-      private final V1Beta3Options options;
-      private final V1Beta3DatastoreFactory datastoreFactory;
+      private final V1Options options;
+      private final V1DatastoreFactory datastoreFactory;
       // Datastore client
       private transient Datastore datastore;
 
-      public ReadFn(V1Beta3Options options) {
-        this(options, new V1Beta3DatastoreFactory());
+      public ReadFn(V1Options options) {
+        this(options, new V1DatastoreFactory());
       }
 
       @VisibleForTesting
-      ReadFn(V1Beta3Options options, V1Beta3DatastoreFactory datastoreFactory) {
+      ReadFn(V1Options options, V1DatastoreFactory datastoreFactory) {
         this.options = options;
         this.datastoreFactory = datastoreFactory;
       }
@@ -654,8 +655,8 @@ public class V1Beta3 {
   }
 
   /**
-   * Returns an empty {@link V1Beta3.Write} builder. Configure the destination
-   * {@code projectId} using {@link V1Beta3.Write#withProjectId}.
+   * Returns an empty {@link DatastoreV1.Write} builder. Configure the destination
+   * {@code projectId} using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
     return new Write(null);
@@ -811,14 +812,14 @@ public class V1Beta3 {
 
   /**
    * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
-   * batches, where the maximum batch size is {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}.
+   * batches, where the maximum batch size is {@link DatastoreV1#DATASTORE_BATCH_UPDATE_LIMIT}.
    *
    * <p>See <a
    * href="https://cloud.google.com/datastore/docs/concepts/entities">
    * Datastore: Entities, Properties, and Keys</a> for information about entity keys and mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link V1Beta3#DATASTORE_BATCH_UPDATE_LIMIT}
+   * group, the commit will be retried (up to {@link DatastoreV1#DATASTORE_BATCH_UPDATE_LIMIT}
    * times). This means that the mutation operation should be idempotent. Thus, the writer should
    * only be used for {code upsert} and {@code delete} mutation operations, as these are the only
    * two Cloud Datastore mutations that are idempotent.
@@ -828,7 +829,7 @@ public class V1Beta3 {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final String projectId;
     private transient Datastore datastore;
-    private final V1Beta3DatastoreFactory datastoreFactory;
+    private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
     /**
@@ -843,11 +844,11 @@ public class V1Beta3 {
     private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
     DatastoreWriterFn(String projectId) {
-      this(projectId, new V1Beta3DatastoreFactory());
+      this(projectId, new V1DatastoreFactory());
     }
 
     @VisibleForTesting
-    DatastoreWriterFn(String projectId, V1Beta3DatastoreFactory datastoreFactory) {
+    DatastoreWriterFn(String projectId, V1DatastoreFactory datastoreFactory) {
       this.projectId = checkNotNull(projectId, "projectId");
       this.datastoreFactory = datastoreFactory;
     }
@@ -860,7 +861,7 @@ public class V1Beta3 {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       mutations.add(c.element());
-      if (mutations.size() >= V1Beta3.DATASTORE_BATCH_UPDATE_LIMIT) {
+      if (mutations.size() >= DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT) {
         flushBatch();
       }
     }
@@ -987,7 +988,7 @@ public class V1Beta3 {
    * wrapping them under this class, which implements {@link Serializable}.
    */
   @VisibleForTesting
-  static class V1Beta3DatastoreFactory implements Serializable {
+  static class V1DatastoreFactory implements Serializable {
 
     /** Builds a Datastore client for the given pipeline options and project. */
     public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {

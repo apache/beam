@@ -16,16 +16,16 @@
 
 package com.google.cloud.dataflow.examples.cookbook;
 
-import static com.google.datastore.v1beta3.client.DatastoreHelper.getString;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeFilter;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.client.DatastoreHelper.getString;
+import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.cloud.dataflow.examples.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.datastore.DatastoreIO;
-import com.google.cloud.dataflow.sdk.io.datastore.V1Beta3;
+import com.google.cloud.dataflow.sdk.io.datastore.DatastoreV1;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -34,11 +34,11 @@ import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.PropertyFilter;
-import com.google.datastore.v1beta3.Query;
-import com.google.datastore.v1beta3.Value;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.PropertyFilter;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.Value;
 
 import java.util.Map;
 import java.util.UUID;
@@ -195,7 +195,7 @@ public class DatastoreWordCount {
     Pipeline p = Pipeline.create(options);
     p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
         .apply(ParDo.of(new CreateEntityFn(options.getNamespace(), options.getKind())))
-        .apply(DatastoreIO.v1beta3().write().withProjectId(options.getDataset()));
+        .apply(DatastoreIO.v1().write().withProjectId(options.getDataset()));
 
     p.run();
   }
@@ -226,7 +226,7 @@ public class DatastoreWordCount {
     Query query = makeAncestorKindQuery(options);
 
     // For Datastore sources, the read namespace can be set on the entire query.
-    V1Beta3.Read read = DatastoreIO.v1beta3().read()
+    DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(options.getDataset())
         .withQuery(query)
         .withNamespace(options.getNamespace());

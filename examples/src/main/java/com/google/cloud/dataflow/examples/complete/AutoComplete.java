@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.examples.complete;
 
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
-import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -59,9 +59,9 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.datastore.v1beta3.Entity;
-import com.google.datastore.v1beta3.Key;
-import com.google.datastore.v1beta3.Value;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Value;
 
 import org.joda.time.Duration;
 
@@ -499,7 +499,7 @@ public class AutoComplete {
       toWrite
           .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind(),
               options.getDatastoreAncestorKey())))
-          .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
+          .apply(DatastoreIO.v1().write().withProjectId(MoreObjects.firstNonNull(
               options.getOutputDataset(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {

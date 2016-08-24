@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
  * versions of the Datastore Client libraries.
  *
- * <p>To use the v1beta3 version see {@link V1Beta3}.
+ * <p>To use the v1 version see {@link DatastoreV1}.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreIO {
@@ -31,10 +31,10 @@ public class DatastoreIO {
   private DatastoreIO() {}
 
   /**
-   * Returns a {@link V1Beta3} that provides an API for accessing Datastore through v1beta3 version
+   * Returns a {@link DatastoreV1} that provides an API for accessing Datastore through v1 version
    * of Datastore Client library.
    */
-  public static V1Beta3 v1beta3() {
-    return new V1Beta3();
+  public static DatastoreV1 v1() {
+    return new DatastoreV1();
   }
 }
