@@ -53,7 +53,7 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
+ * A Beam Example that runs in both batch and streaming modes with traffic sensor data.
  * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
  * <p>Concepts: The batch and streaming runners, sliding windows,
@@ -329,7 +329,7 @@ public class TrafficMaxLaneFlow {
         .withValidation()
         .as(TrafficMaxLaneFlowOptions.class);
     options.setBigQuerySchema(FormatMaxesFn.getSchema());
-    // Using DataflowExampleUtils to set up required resources.
+    // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
 
