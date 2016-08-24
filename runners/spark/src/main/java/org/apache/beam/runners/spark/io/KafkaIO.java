@@ -19,16 +19,14 @@ package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Map;
+import java.util.Set;
+import kafka.serializer.Decoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
-
-import java.util.Map;
-import java.util.Set;
-
-import kafka.serializer.Decoder;
 
 /**
  * Read stream from Kafka.

@@ -20,6 +20,9 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.Iterables;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
@@ -29,13 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.Iterables;
-
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Combine globally test.

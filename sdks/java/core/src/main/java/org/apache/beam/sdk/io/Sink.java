@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.io.Serializable;
 
 /**
  * A {@code Sink} represents a resource that can be written to using the {@link Write} transform.

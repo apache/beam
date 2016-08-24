@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from

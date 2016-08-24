@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import org.apache.beam.sdk.transforms.DoFn;
-
 import com.google.auto.value.AutoValue;
-
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra

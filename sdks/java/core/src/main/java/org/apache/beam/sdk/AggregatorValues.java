@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk;
 
+import java.util.Collection;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
-
-import java.util.Collection;
-import java.util.Map;
 
 /**
  * A collection of values associated with an {@link Aggregator}. Aggregators declared in a

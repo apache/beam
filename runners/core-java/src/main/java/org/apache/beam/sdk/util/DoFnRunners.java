@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -25,8 +26,6 @@ import org.apache.beam.sdk.util.DoFnRunner.ReduceFnExecutor;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.util.List;
 
 /**
  * Static utility methods that provide {@link DoFnRunner} implementations.

@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;

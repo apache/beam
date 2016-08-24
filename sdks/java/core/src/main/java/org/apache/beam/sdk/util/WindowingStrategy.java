@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.MoreObjects;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -27,15 +31,8 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
-import com.google.common.base.MoreObjects;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.Objects;
 
 /**
  * A {@code WindowingStrategy} describes the windowing behavior for a specific collection of values.

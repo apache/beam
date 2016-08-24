@@ -17,18 +17,15 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import java.nio.ByteBuffer;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-
-import java.nio.ByteBuffer;
 
 /**
  * {@link KeySelector} that retrieves a key from a {@link KeyedWorkItem}. This will return

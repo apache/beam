@@ -23,6 +23,11 @@ import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.getDatastore;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.makeAncestorKey;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.makeEntity;
 
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.client.Datastore;
+import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.UpsertMutationBuilder;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.V1TestWriter;
@@ -31,19 +36,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.datastore.v1.Entity;
-import com.google.datastore.v1.Key;
-import com.google.datastore.v1.Query;
-import com.google.datastore.v1.client.Datastore;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.UUID;
 
 /**
  * End-to-end tests for Datastore DatastoreV1.Read.

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
-import org.apache.beam.sdk.Pipeline;
-
 import java.util.Collection;
+import org.apache.beam.sdk.Pipeline;
 
 /**
  * The interface for things that might be input to a

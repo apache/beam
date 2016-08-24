@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
@@ -33,9 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the

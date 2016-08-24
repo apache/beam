@@ -19,16 +19,13 @@ package org.apache.beam.sdk.util.state;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
-import org.joda.time.Instant;
-
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 
 /**
  * Helpers for merging state.

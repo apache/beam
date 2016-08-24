@@ -20,12 +20,11 @@ package org.apache.beam.sdk.testing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.concurrent.TimeUnit;
 
 /** Tests for {@link FastNanoClockAndSleeper}. */
 @RunWith(JUnit4.class)

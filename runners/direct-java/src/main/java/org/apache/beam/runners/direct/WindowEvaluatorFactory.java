@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.Iterables;
+import java.util.Collection;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -28,14 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.Iterables;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-
-import javax.annotation.Nullable;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the

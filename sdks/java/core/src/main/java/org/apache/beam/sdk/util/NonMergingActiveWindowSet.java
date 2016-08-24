@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Collection;
 import java.util.Set;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
  * Implementation of {@link ActiveWindowSet} used with {@link WindowFn WindowFns} that don't

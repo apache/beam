@@ -20,20 +20,10 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
-
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CharStreams;
-
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
@@ -41,6 +31,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Matcher to verify file checksum in E2E test.

@@ -17,20 +17,17 @@
  */
 package org.apache.beam.examples.common;
 
+import com.google.common.base.MoreObjects;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.common.base.MoreObjects;
-
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Options that can be used to configure the Beam examples.

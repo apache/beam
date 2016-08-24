@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -26,9 +28,6 @@ import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-
-import java.util.IdentityHashMap;
-import java.util.Map;
 
 /**
  * {@link ModelEnforcement} that enforces elements are not modified over the course of processing

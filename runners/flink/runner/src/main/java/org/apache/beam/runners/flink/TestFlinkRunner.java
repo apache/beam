@@ -26,8 +26,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-import org.apache.flink.runtime.client.JobExecutionException;
-
 public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   private FlinkRunner delegate;

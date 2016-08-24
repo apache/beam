@@ -17,16 +17,14 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
-import org.apache.beam.sdk.transforms.Aggregator;
-
-import org.joda.time.Duration;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.joda.time.Duration;
 
 /**
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This

@@ -19,15 +19,12 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.util.ExecutableTrigger;
-
 import com.google.common.base.Joiner;
-
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.util.ExecutableTrigger;
+import org.joda.time.Instant;
 
 /**
  * A composite {@link Trigger} that executes its sub-triggers in order.

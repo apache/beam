@@ -20,18 +20,16 @@ package org.apache.beam.sdk.util;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.BaseExecutionContext.StepContext;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Tests for base {@link DoFnRunnerBase} functionality.

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.coders;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

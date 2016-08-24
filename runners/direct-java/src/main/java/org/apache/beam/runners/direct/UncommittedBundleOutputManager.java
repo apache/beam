@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.util.Map;
 
 /**
  * An {@link OutputManager} that outputs to {@link CommittedBundle Bundles} used by the

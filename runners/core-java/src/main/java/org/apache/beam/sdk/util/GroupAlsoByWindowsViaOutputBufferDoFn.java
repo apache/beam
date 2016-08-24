@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.collect.Iterables;
+import java.util.List;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.collect.Iterables;
-
 import org.joda.time.Instant;
-
-import java.util.List;
 
 /**
  * The default batch {@link GroupAlsoByWindowsDoFn} implementation, if no specialized "fast path"
