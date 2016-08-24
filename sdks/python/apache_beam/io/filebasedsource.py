@@ -91,7 +91,7 @@ class _ConcatSource(iobase.BoundedSource):
 class FileBasedSource(iobase.BoundedSource):
   """A ``BoundedSource`` for reading a file glob of a given type."""
 
-  def __init__(self, file_pattern, min_bundle_size=0):
+  def __init__(self, file_pattern, min_bundle_size=0, splittable=True):
     """Initializes ``FileBasedSource``.
 
     Args:
@@ -102,6 +102,7 @@ class FileBasedSource(iobase.BoundedSource):
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
+    self._splittable = splittable
 
   def _get_concat_source(self):
     if self._concat_source is None:
@@ -174,6 +175,10 @@ class FileBasedSource(iobase.BoundedSource):
     """
     raise NotImplementedError
 
+  @property
+  def splittable(self):
+    return self._splittable
+
 
 class _SingleFileSource(iobase.BoundedSource):
   """Denotes a source for a specific file type.
@@ -207,22 +212,36 @@ class _SingleFileSource(iobase.BoundedSource):
     if stop_offset is None:
       stop_offset = self._stop_offset
 
-    bundle_size = max(desired_bundle_size, self._min_bundle_size)
+    if self._file_based_source.splittable:
+      bundle_size = max(desired_bundle_size, self._min_bundle_size)
 
-    bundle_start = start_offset
-    while bundle_start < stop_offset:
-      bundle_stop = min(bundle_start + bundle_size, stop_offset)
+      bundle_start = start_offset
+      while bundle_start < stop_offset:
+        bundle_stop = min(bundle_start + bundle_size, stop_offset)
+        yield iobase.SourceBundle(
+            bundle_stop - bundle_start,
+            _SingleFileSource(
+                self._file_based_source,
+                self._file_name,
+                bundle_start,
+                bundle_stop,
+                min_bundle_size=self._min_bundle_size),
+            bundle_start,
+            bundle_stop)
+        bundle_start = bundle_stop
+    else:
       yield iobase.SourceBundle(
-          bundle_stop - bundle_start,
+          stop_offset - start_offset,
           _SingleFileSource(
               self._file_based_source,
               self._file_name,
-              bundle_start,
-              bundle_stop,
-              min_bundle_size=self._min_bundle_size),
-          bundle_start,
-          bundle_stop)
-      bundle_start = bundle_stop
+              start_offset,
+              stop_offset,
+              min_bundle_size=self._min_bundle_size
+          ),
+          start_offset,
+          stop_offset
+      )
 
   def estimate_size(self):
     return self._stop_offset - self._start_offset
@@ -233,7 +252,12 @@ class _SingleFileSource(iobase.BoundedSource):
     if stop_position is None:
       stop_position = self._stop_offset
 
-    return range_trackers.OffsetRangeTracker(start_position, stop_position)
+    range_tracker = range_trackers.OffsetRangeTracker(
+        start_position, stop_position)
+    if not self._file_based_source.splittable:
+      range_tracker = range_trackers.UnsplittableRangeTracker(range_tracker)
+
+    return range_tracker
 
   def read(self, range_tracker):
     return self._file_based_source.read_records(self._file_name, range_tracker)
