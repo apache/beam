@@ -466,15 +466,15 @@ public class KafkaIO {
 
     ////////////////////////////////////////////////////////////////////////////////////////
 
-    protected final List<String> topics;
+    public final List<String> topics;
     protected final List<TopicPartition> topicPartitions; // mutually exclusive with topics
-    protected final Coder<K> keyCoder;
-    protected final Coder<V> valueCoder;
-    @Nullable protected final SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn;
-    @Nullable protected final SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn;
+    public final Coder<K> keyCoder;
+    public final Coder<V> valueCoder;
+    @Nullable public final SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn;
+    @Nullable public final SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn;
     protected final
       SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn;
-    protected final Map<String, Object> consumerConfig;
+    public final Map<String, Object> consumerConfig;
     protected final long maxNumRecords; // bounded read, mainly for testing
     protected final Duration maxReadTime; // bounded read, mainly for testing
 
@@ -539,7 +539,7 @@ public class KafkaIO {
    */
   public static class TypedWithoutMetadata<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
-    private final TypedRead<K, V> typedRead;
+    public final TypedRead<K, V> typedRead;
 
     TypedWithoutMetadata(TypedRead<K, V> read) {
       super("KafkaIO.Read");
