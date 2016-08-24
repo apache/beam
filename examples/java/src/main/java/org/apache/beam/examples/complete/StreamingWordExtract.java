@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 
 /**
- * A streaming Dataflow Example using BigQuery output.
+ * A streaming Beam Example using BigQuery output.
  *
  * <p>This pipeline example reads lines of the input text file, splits each line
  * into individual words, capitalizes those words, and writes the output to

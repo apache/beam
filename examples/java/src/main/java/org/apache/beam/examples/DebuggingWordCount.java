@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * An example that verifies word counts in Shakespeare and includes Dataflow best practices.
+ * An example that verifies word counts in Shakespeare and includes Beam best practices.
  *
  * <p>This class, {@link DebuggingWordCount}, is the third in a series of four successively more
  * detailed 'word count' examples. You may first want to take a look at {@link MinimalWordCount}
