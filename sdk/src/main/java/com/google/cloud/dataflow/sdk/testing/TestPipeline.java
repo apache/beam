@@ -41,16 +41,23 @@ import javax.annotation.Nullable;
  * configured to run locally or against the live service.
  *
  * <p>It is recommended to tag hand-selected tests for this purpose using the
- * RunnableOnService Category annotation, as each test run against the service
- * will spin up and tear down a single VM.
+ * {@code @RunnableOnService} category annotation, and use a category aware
+ * test executor such as JUnit. Each test run against the service will spin
+ * up and tear down VMs.
  *
- * <p>In order to run tests on the dataflow pipeline service, the following
+ * <p>In order to run tests on Google Cloud Dataflow, the following
  * conditions must be met:
  * <ul>
- * <li> runIntegrationTestOnService System property must be set to true.
- * <li> System property "projectName" must be set to your Cloud project.
- * <li> System property "temp_gcs_directory" must be set to a valid GCS bucket.
- * <li> Jars containing the SDK and test classes must be added to the test classpath.
+ *   <li>System property {@code runIntegrationTestOnService} must be set to true.</li>
+ *   <li>System property {@code dataflowOptions} must contain a JSON delimited list
+ *   of pipeline options with all options that the Google Cloud Dataflow service requires.
+ *   For example:
+ *   <pre>{@code [
+ *     "--project=mygcpproject",
+ *     "--stagingLocation=gs://mygcsbucket/path"
+ *     ]}</pre>
+ *   Note that the set of pipeline options required can also be test specific.</li>
+ *   <li>Jars containing the SDK and test classes must be available on the classpath.</li>
  * </ul>
  *
  * <p>Use {@link DataflowAssert} for tests, as it integrates with this test
