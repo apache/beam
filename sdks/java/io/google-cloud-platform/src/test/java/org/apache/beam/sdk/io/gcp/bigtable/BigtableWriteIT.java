@@ -48,6 +48,7 @@ import com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -97,6 +98,7 @@ public class BigtableWriteIT implements Serializable {
     tableAdminClient = session.getTableAdminClient();
   }
 
+  @Ignore
   @Test
   public void testE2EBigtableWrite() throws Exception {
     final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
