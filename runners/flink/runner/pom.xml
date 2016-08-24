@@ -52,11 +52,17 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
+                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <parallel>none</parallel>
+                  <failIfNoTests>true</failIfNoTests>
+                  <dependenciesToScan>
+                    <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                  </dependenciesToScan>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
-                        "--runner=TestFlinkRunner",
-                        "--streaming=false"
+                      "--runner=TestFlinkRunner",
+                      "--streaming=false"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
@@ -71,7 +77,6 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <skip>true</skip>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
