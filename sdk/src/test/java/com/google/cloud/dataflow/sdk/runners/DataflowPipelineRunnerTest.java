@@ -951,11 +951,6 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testTextIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write", true);
-  }
-
-  @Test
   public void testBatchViewAsSingletonToIsmRecord() throws Exception {
     DoFnTester<KV<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>,
                IsmRecord<WindowedValue<String>>> doFnTester =

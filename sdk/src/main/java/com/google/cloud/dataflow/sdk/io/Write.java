@@ -13,9 +13,9 @@
  */
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -37,8 +37,10 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
+import com.google.common.collect.Lists;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +103,10 @@ public class Write {
 
     @Override
     public PDone apply(PCollection<T> input) {
+      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+          "%s can only be applied to a Bounded PCollection",
+          Write.class.getSimpleName());
+
       PipelineOptions options = input.getPipeline().getOptions();
       sink.validate(options);
       return createWrite(input, sink.createWriteOperation(options));

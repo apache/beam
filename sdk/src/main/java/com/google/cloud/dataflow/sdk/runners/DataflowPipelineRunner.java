@@ -360,11 +360,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       builder.put(View.AsSingleton.class, StreamingViewAsSingleton.class);
       builder.put(View.AsList.class, StreamingViewAsList.class);
       builder.put(View.AsIterable.class, StreamingViewAsIterable.class);
-      builder.put(Write.Bound.class, StreamingWrite.class);
       builder.put(Read.Unbounded.class, StreamingUnboundedRead.class);
       builder.put(Read.Bounded.class, StreamingBoundedRead.class);
       builder.put(AvroIO.Write.Bound.class, UnsupportedIO.class);
-      builder.put(TextIO.Write.Bound.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
