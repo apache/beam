@@ -100,7 +100,15 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="com.google.api.client.repackaged, com.google.api.client.util.util.ByteStreams, com.google.api.client.util.Charsets, com.google.api.client.util.Collections2, com.google.api.client.util.Joiner, com.google.api.client.util.Lists, com.google.api.client.util.Maps, com.google.api.client.util.Objects, com.google.api.client.util.Preconditions, com.google.api.client.util.Sets, com.google.api.client.util.Strings, com.google.api.client.util.Throwables, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="com.google.api.client.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <!--
+        IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+        code and some useful code. So we need to fall back to Regexp.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
     </module>
 
     <module name="UnusedImports">
