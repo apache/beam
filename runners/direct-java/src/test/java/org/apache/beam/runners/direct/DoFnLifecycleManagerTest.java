@@ -29,6 +29,8 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Tests for {@link DoFnLifecycleManager}.
  */
+@RunWith(JUnit4.class)
 public class DoFnLifecycleManagerTest {
   private TestFn fn = new TestFn();
   private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn);
