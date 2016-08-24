@@ -23,6 +23,7 @@ import logging
 import unittest
 
 
+from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 
 
@@ -156,6 +157,28 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(120))
     with self.assertRaises(Exception):
       tracker.try_claim(110)
+
+  def test_try_split_points(self):
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertEqual(tracker.split_points(),
+                     (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(120))
+    self.assertEqual(tracker.split_points(),
+                     (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(140))
+    self.assertEqual(tracker.split_points(),
+                     (1, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(190))
+    self.assertEqual(tracker.split_points(),
+                     (2, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(199))
+    self.assertEqual(tracker.split_points(),
+                     (3, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertFalse(tracker.try_claim(210))
+    self.assertEqual(tracker.split_points(),
+                     (3, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    tracker.set_done()
+    self.assertEqual(tracker.split_points(), (4, 0))
 
 
 class GroupedShuffleRangeTrackerTest(unittest.TestCase):
@@ -317,6 +340,31 @@ class GroupedShuffleRangeTrackerTest(unittest.TestCase):
         self.bytes_to_position([3, 2, 0])))
     self.assertFalse(tracker.try_claim(
         self.bytes_to_position([3, 2, 1])))
+
+  def test_split_points(self):
+    tracker = range_trackers.GroupedShuffleRangeTracker(
+        self.bytes_to_position([1, 0, 0]),
+        self.bytes_to_position([5, 0, 0]))
+    self.assertEqual(tracker.split_points(),
+                     (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(self.bytes_to_position([1, 2, 3])))
+    self.assertEqual(tracker.split_points(),
+                     (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(self.bytes_to_position([1, 2, 5])))
+    self.assertEqual(tracker.split_points(),
+                     (1, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(self.bytes_to_position([3, 6, 8])))
+    self.assertEqual(tracker.split_points(),
+                     (2, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertTrue(tracker.try_claim(self.bytes_to_position([4, 255, 255])))
+    self.assertEqual(tracker.split_points(),
+                     (3, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    self.assertFalse(tracker.try_claim(self.bytes_to_position([5, 1, 0])))
+    self.assertEqual(tracker.split_points(),
+                     (3, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
+    tracker.set_done()
+    self.assertEqual(tracker.split_points(),
+                     (4, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
 
 
 class UnsplittableRangeTrackerTest(unittest.TestCase):

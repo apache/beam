@@ -55,6 +55,11 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
 
+    self._split_points_seen = 0
+    self._split_points_remaining = iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+    self._split_points_remaining_callback = None
+    self._first_claim_done = False
+
   def start_position(self):
     return self._start_offset
 
@@ -101,11 +106,40 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
   def try_claim(self, record_start):
     with self._lock:
+      if self.done():
+        raise ValueError('Trying to claim record at %r after already closing '
+                         'RangeTracker by invoking \'set_done()\'',
+                         record_start)
+
       self._validate_record_start(record_start, True)
       if record_start >= self.stop_position():
         return False
       self._offset_of_last_split_point = record_start
       self._last_record_start = record_start
+      self._split_points_seen += 1
+      if self._split_points_remaining_callback:
+        if (self._split_points_remaining ==
+            iobase.RangeTracker.SPLIT_POINTS_UNKNOWN):
+          if not self._first_claim_done:
+            # Trying to set the initial value for remaining number of split
+            # points.
+            # We only try to do this at first claim and when stop position gets
+            # updated so that we do not unnecessarily keep calling the callback
+            # for every call to try_claim().
+            self._split_points_remaining = (
+                self._split_points_remaining_callback(self.stop_position()))
+        else:
+          # Split points remaining already set. Updating.
+          self._split_points_remaining -= 1
+          if self._split_points_remaining <= 0:
+            raise ValueError('try_claim() for position %r was successful but '
+                             'remaining number of split points was %d. '
+                             'Remaining number of split points should not '
+                             'reach zero until RangeTracker.done() is '
+                             '\'True\'',
+                             record_start, self._split_points_remaining)
+
+      self._first_claim_done = True
       return True
 
   def set_current_position(self, record_start):
@@ -143,6 +177,12 @@ class OffsetRangeTracker(iobase.RangeTracker):
       split_fraction = (float(split_offset - self._start_offset) / (
           self._stop_offset - self._start_offset))
 
+      if self._split_points_remaining_callback:
+        # Updating remaining number of split points after successfully updating
+        # the stop offset.
+        self._split_points_remaining = self._split_points_remaining_callback(
+            self.stop_position())
+
       return self._stop_offset, split_fraction
 
   def fraction_consumed(self):
@@ -167,6 +207,28 @@ class OffsetRangeTracker(iobase.RangeTracker):
     return int(math.ceil(self.start_position() + fraction * (
         self.stop_position() - self.start_position())))
 
+  def split_points(self):
+    with self._lock:
+      if self._split_points_seen == 0:
+        splits_points_consumed = 0
+      elif self.done():
+        splits_points_consumed = self._split_points_seen
+      else:
+        splits_points_consumed = self._split_points_seen - 1
+
+      return (splits_points_consumed, self._split_points_remaining)
+
+  def set_split_points_remaining_callback(self, callback):
+    self._split_points_remaining_callback = callback
+
+  def set_done(self):
+    # Overriding to update remaining number of split points.
+    with self._lock:
+      super(OffsetRangeTracker, self).set_done()
+      # After set_done() is invoked, we surely know that there are no remaining
+      # split points.
+      self._split_points_remaining = 0
+
 
 class GroupedShuffleRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for positions used by'GroupedShuffleReader'.
@@ -184,6 +246,7 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
     self._decoded_stop_pos = decoded_stop_pos
     self._decoded_last_group_start = None
     self._last_group_was_at_a_split_point = False
+    self._split_points_seen = 0
     self._lock = threading.Lock()
 
   def start_position(self):
@@ -233,6 +296,11 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
 
   def try_claim(self, decoded_group_start):
     with self._lock:
+      if self.done():
+        raise ValueError('Trying to claim record at %r after already closing '
+                         'RangeTracker by invoking \'set_done()\'',
+                         decoded_group_start)
+
       self._validate_decoded_group_start(decoded_group_start, True)
       if (self.stop_position()
           and decoded_group_start >= self.stop_position()):
@@ -240,6 +308,7 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
 
       self._decoded_last_group_start = decoded_group_start
       self._last_group_was_at_a_split_point = True
+      self._split_points_seen += 1
       return True
 
   def set_current_position(self, decoded_group_start):
@@ -285,6 +354,17 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
                        ' consumed due to positions being opaque strings'
                        ' that are interpreted by the service')
 
+  def split_points(self):
+    with self._lock:
+      if self._split_points_seen == 0:
+        splits_points_consumed = 0
+      elif self.done():
+        splits_points_consumed = self._split_points_seen
+      else:
+        splits_points_consumed = self._split_points_seen - 1
+
+      return (splits_points_consumed, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+
 
 class UnsplittableRangeTracker(iobase.RangeTracker):
   """A RangeTracker that always ignores split requests.
@@ -301,7 +381,7 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
       range_tracker: a ``RangeTracker`` to which all method calls expect calls
       to ``try_split()`` will be delegated.
     """
-    assert range_tracker
+    assert isinstance(range_tracker, iobase.RangeTracker)
     self._range_tracker = range_tracker
 
   def start_position(self):
@@ -324,3 +404,15 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     return self._range_tracker.fraction_consumed()
+
+  def split_points(self):
+    return self._range_tracker.split_points()
+
+  def set_split_points_remaining_callback(self, callback):
+    self._range_tracker.set_split_points_remaining_callback(callback)
+
+  def done(self):
+    return self._range_tracker.done()
+
+  def set_done(self):
+    self._range_tracker.set_done()
