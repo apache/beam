@@ -181,7 +181,7 @@ public class TopWikipediaSessions {
   /**
    * Options supported by this class.
    *
-   * <p>Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Beam configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description(
