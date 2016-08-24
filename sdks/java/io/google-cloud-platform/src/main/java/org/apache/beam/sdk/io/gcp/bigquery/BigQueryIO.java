@@ -1423,8 +1423,8 @@ public class BigQueryIO {
       // Maximum number of files in a single partition.
       static final int MAX_NUM_FILES = 10000;
 
-      // Maximum number of bytes in a single partition.
-      static final long MAX_SIZE_BYTES = 3 * (1L << 40);
+      // Maximum number of bytes in a single partition -- 11 TiB just under BQ's 12 TiB limit.
+      static final long MAX_SIZE_BYTES = 11 * (1L << 40);
 
       // The maximum number of retry jobs.
       static final int MAX_RETRY_JOBS = 3;
