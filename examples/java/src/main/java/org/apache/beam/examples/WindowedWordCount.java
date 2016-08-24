@@ -183,8 +183,7 @@ public class WindowedWordCount {
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     options.setBigQuerySchema(getSchema());
-    // DataflowExampleUtils creates the necessary input sources to simplify execution of this
-    // Pipeline.
+    // ExampleUtils creates the necessary input sources to simplify execution of this Pipeline.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
 
