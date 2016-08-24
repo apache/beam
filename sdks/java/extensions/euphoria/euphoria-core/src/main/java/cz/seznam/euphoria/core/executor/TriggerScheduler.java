@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.util.concurrent.ScheduledFuture;
 
 /**
- * Schedules and fires registered triggers according to internal time
+ * Schedules and fires registered triggers according to internal time.
  */
 public interface TriggerScheduler extends Serializable {
 
@@ -20,7 +20,12 @@ public interface TriggerScheduler extends Serializable {
    */
   ScheduledFuture<Void> scheduleAt(long stamp, WindowContext w, Triggerable trigger);
 
-  long getCurrentTimestamp();
+  /**
+   * Retrieve current timestamp this triggering is on.
+   * This can be either a real system timestamp or the last
+   * timestamp updated by call to `updateStamp'.
+   */
+  public long getCurrentTimestamp();
 
   /**
    * Cancel all scheduled tasks
@@ -33,9 +38,9 @@ public interface TriggerScheduler extends Serializable {
   void cancel(WindowContext w);
 
   /**
-   * Update the internal timestamp by processed element (optional operation).
+   * Update the internal timestamp (optional operation).
    */
-  default void updateProcessed(long stamp) {
+  default void updateStamp(long stamp) {
     // nop
   }
 
@@ -43,5 +48,5 @@ public interface TriggerScheduler extends Serializable {
    * Close all triggers and destroy the triggering.
    */
   void close();
-  
+
 }
