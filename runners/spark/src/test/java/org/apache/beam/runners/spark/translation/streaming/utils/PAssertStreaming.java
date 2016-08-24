@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming.utils;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -27,10 +28,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Assert;
-
-import java.io.Serializable;
 
 /**
  * Since PAssert doesn't propagate assert exceptions, use Aggregators to assert streaming

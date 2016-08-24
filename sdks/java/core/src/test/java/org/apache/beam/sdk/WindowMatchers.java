@@ -17,21 +17,18 @@
  */
 package org.apache.beam.sdk;
 
+import com.google.common.collect.Lists;
+import java.util.Collection;
+import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-
-import com.google.common.collect.Lists;
-
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.Objects;
 
 /**
  * Matchers that are useful for working with Windowing, Timestamps, etc.

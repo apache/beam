@@ -19,15 +19,13 @@ package org.apache.beam.runners.dataflow.options;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Options that are used to control logging configuration on the Dataflow worker.

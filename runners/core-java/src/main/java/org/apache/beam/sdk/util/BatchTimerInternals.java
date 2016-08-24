@@ -19,17 +19,13 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
 import com.google.common.base.MoreObjects;
-
-import org.joda.time.Instant;
-
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 
 /**
  * TimerInternals that uses priority queues to manage the timers that are ready to fire.

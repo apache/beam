@@ -18,15 +18,12 @@
 
 package org.apache.beam.runners.direct;
 
+import com.google.auto.value.AutoValue;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-
-import com.google.auto.value.AutoValue;
-
-import java.util.Set;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link TransformResult} that has been committed.

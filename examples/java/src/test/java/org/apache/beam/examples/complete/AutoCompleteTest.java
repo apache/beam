@@ -17,6 +17,11 @@
  */
 package org.apache.beam.examples.complete;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import org.apache.beam.examples.complete.AutoComplete.CompletionCandidate;
 import org.apache.beam.examples.complete.AutoComplete.ComputeTopCompletions;
 import org.apache.beam.sdk.Pipeline;
@@ -33,18 +38,11 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * Tests of AutoComplete.

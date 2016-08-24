@@ -17,18 +17,14 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
-import com.google.common.base.Converter;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.joda.time.Instant;
-
+import com.google.common.base.Converter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.joda.time.Instant;
 
 /**
  * A {@link Coder} for joda {@link Instant} that encodes it as a big endian {@link Long}

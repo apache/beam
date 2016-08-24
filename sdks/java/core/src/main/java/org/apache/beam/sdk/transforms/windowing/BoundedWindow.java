@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.joda.time.Instant;
-
 import java.util.concurrent.TimeUnit;
+import org.joda.time.Instant;
 
 /**
  * A {@code BoundedWindow} represents a finite grouping of elements, with an

@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-
-import java.io.Serializable;
 
 /**
  * A factory for providing {@link StateInternals} for a particular key.

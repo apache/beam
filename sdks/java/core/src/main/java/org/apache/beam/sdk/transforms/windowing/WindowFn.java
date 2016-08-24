@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.io.Serializable;
+import java.util.Collection;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-
 import org.joda.time.Instant;
-
-import java.io.Serializable;
-import java.util.Collection;
 
 /**
  * The argument to the {@link Window} transform used to assign elements into

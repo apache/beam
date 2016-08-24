@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.apache.beam.sdk.transforms.OldDoFn;
 
 /**
  * Annotation to mark {@link OldDoFn DoFns} as an internal component of the Dataflow SDK.

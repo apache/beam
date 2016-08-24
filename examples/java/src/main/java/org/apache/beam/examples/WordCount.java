@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples;
 
+import com.google.common.base.Strings;
+import com.google.common.io.Resources;
+import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -36,11 +39,6 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.Strings;
-import com.google.common.io.Resources;
-
-import java.io.IOException;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.

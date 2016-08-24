@@ -20,7 +20,6 @@ package org.apache.beam.sdk.options;
 import com.google.api.client.googleapis.services.AbstractGoogleClient;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;

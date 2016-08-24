@@ -17,6 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -29,11 +35,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
-
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -45,10 +46,6 @@ import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayInputStream;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Wrapper for executing {@link UnboundedSource UnboundedSources} as a Flink Source.

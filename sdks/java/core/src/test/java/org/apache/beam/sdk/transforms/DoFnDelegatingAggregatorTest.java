@@ -25,7 +25,6 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

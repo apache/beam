@@ -17,18 +17,16 @@
  */
 package org.apache.beam.sdk.io.hdfs.simpleauth;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.hdfs.AvroHDFSFileSource;
 import org.apache.beam.sdk.io.hdfs.HDFSFileSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.apache.hadoop.mapreduce.InputSplit;
-
-import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Source for Avros on Hadoop/HDFS with Simple Authentication.

@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-
 import java.io.Serializable;
 import java.util.Comparator;
+import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /**
  * {@code PTransform}s for computing the minimum of the elements in a {@code PCollection}, or the

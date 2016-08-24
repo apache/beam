@@ -20,12 +20,9 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.options.PubsubOptions;
-
 import com.google.api.client.util.Clock;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,8 +31,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for

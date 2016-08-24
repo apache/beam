@@ -20,6 +20,9 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -27,13 +30,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.Iterables;
-
 import org.junit.Test;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Empty input test.

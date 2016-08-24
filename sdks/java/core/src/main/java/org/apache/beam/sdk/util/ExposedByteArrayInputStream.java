@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * {@link ByteArrayInputStream} that allows accessing the entire internal buffer without copying.

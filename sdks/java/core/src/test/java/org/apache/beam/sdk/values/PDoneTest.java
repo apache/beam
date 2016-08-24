@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static org.apache.beam.sdk.TestUtils.LINES;
 
+import java.io.File;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -26,7 +27,6 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,8 +34,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
 
 /**
  * Tests for PDone.

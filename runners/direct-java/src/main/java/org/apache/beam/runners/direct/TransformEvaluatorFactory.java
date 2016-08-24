@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-
-import javax.annotation.Nullable;
 
 /**
  * A factory for creating instances of {@link TransformEvaluator} for the application of a

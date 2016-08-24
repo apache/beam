@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
-
 import java.util.Collections;
 import java.util.Objects;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
 
 /**
  * Static utility methods that provide {@link KeyedWorkItem} implementations.

@@ -23,16 +23,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.io.Files;
-
+import java.io.File;
+import java.nio.charset.StandardCharsets;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Tests for IOChannelUtils.

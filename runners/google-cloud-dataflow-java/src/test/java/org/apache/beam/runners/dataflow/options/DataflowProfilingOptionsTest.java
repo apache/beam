@@ -20,10 +20,8 @@ package org.apache.beam.runners.dataflow.options;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;

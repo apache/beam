@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.examples.streaming;
 
+import java.util.Properties;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSource;
 import org.apache.beam.sdk.Pipeline;
@@ -35,12 +36,9 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.joda.time.Duration;
-
-import java.util.Properties;
 
 public class KafkaWindowedWordCountExample {
 

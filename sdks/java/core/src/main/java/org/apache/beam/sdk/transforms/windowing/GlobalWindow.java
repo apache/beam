@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.coders.AtomicCoder;
-
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * The default window into which all data is placed (via {@link GlobalWindows}).

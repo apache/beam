@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import com.google.common.base.MoreObjects;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -27,12 +31,6 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-
-import com.google.common.base.MoreObjects;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Objects;
 
 /**
  * Static utility methods for creating {@link StateTag} instances.

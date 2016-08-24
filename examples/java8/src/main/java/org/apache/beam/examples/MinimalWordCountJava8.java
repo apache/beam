@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,8 +28,6 @@ import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
-import java.util.Arrays;
 
 /**
  * An example that counts words in Shakespeare, using Java 8 language features.

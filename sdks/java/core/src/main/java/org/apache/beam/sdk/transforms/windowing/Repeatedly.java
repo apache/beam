@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.util.ExecutableTrigger;
-
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.util.ExecutableTrigger;
+import org.joda.time.Instant;
 
 /**
  * Repeat a trigger, either until some condition is met or forever.

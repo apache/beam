@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -33,12 +37,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypedPValue;
-
-import com.google.common.collect.ImmutableList;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * {@link ParDo} is the core element-wise transform in Google Cloud

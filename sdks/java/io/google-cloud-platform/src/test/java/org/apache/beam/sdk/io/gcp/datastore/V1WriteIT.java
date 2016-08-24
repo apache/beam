@@ -22,20 +22,18 @@ import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.deleteAllEntities;
 import static org.junit.Assert.assertEquals;
 
+import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.UUID;
 
 /**
  * End-to-end tests for Datastore DatastoreV1.Write.
