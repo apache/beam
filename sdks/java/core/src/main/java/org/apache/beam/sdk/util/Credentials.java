@@ -33,15 +33,18 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * Provides support for loading credentials.
@@ -105,7 +108,10 @@ public class Credentials {
     String keyFile = options.getServiceAccountKeyfile();
     String accountName = options.getServiceAccountName();
 
-    if (keyFile != null && accountName != null) {
+    if (keyFile != null || accountName != null) {
+      if (keyFile == null) {
+        throw new IOException("If accountName is given, also supply a keyFile");
+      }
       try {
         return getCredentialFromFile(keyFile, accountName, SCOPES);
       } catch (GeneralSecurityException e) {
@@ -132,15 +138,29 @@ public class Credentials {
    * Loads OAuth2 credential from a local file.
    */
   private static Credential getCredentialFromFile(
-      String keyFile, String accountId, Collection<String> scopes)
+          String keyFile, @Nullable String accountName, Collection<String> scopes)
       throws IOException, GeneralSecurityException {
-    GoogleCredential credential = new GoogleCredential.Builder()
+
+    GoogleCredential credential;
+    if (keyFile.toLowerCase().endsWith("json")) {
+      if (accountName != null) {
+        throw new IOException("Only use an accountName with legacy P12 key files");
+      }
+      credential = GoogleCredential.fromStream(new FileInputStream(keyFile))
+        .createScoped(SCOPES);
+    } else {
+      if (accountName == null) {
+        throw new IOException("You need an accountName with P12 key files "
+          + "or use preferred JSON key files");
+      }
+      credential = new GoogleCredential.Builder()
         .setTransport(Transport.getTransport())
         .setJsonFactory(Transport.getJsonFactory())
-        .setServiceAccountId(accountId)
+        .setServiceAccountId(accountName)
         .setServiceAccountScopes(scopes)
         .setServiceAccountPrivateKeyFromP12File(new File(keyFile))
         .build();
+    }
 
     LOG.info("Created credential from file {}", keyFile);
     return credential;
