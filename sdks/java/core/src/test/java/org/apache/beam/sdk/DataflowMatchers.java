@@ -18,11 +18,9 @@
 package org.apache.beam.sdk;
 
 import com.google.protobuf.ByteString;
-
+import java.io.Serializable;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-
-import java.io.Serializable;
 
 /**
  * Matchers that are useful when writing Dataflow tests.

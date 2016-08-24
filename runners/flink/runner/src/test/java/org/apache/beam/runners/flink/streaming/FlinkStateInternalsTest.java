@@ -22,6 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkStateInternals;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -42,7 +44,6 @@ import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -53,9 +54,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 /**
  * Tests for {@link FlinkStateInternals}. This is based on the tests for {@code InMemoryStateInternals}.

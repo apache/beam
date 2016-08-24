@@ -20,10 +20,10 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
-
 import com.google.common.collect.ImmutableList;
-
+import java.util.ArrayList;
+import java.util.Collection;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -33,9 +33,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.ArrayList;
-import java.util.Collection;
 
 /**
  * Tests for {@link DoFnLifecycleManagers}.

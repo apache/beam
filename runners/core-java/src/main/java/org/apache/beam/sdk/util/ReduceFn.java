@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.StateAccessor;
-
 import org.joda.time.Instant;
-
-import java.io.Serializable;
 
 /**
  * Specification for processing to happen after elements have been grouped by key.

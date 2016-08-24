@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.util.TimerInternals;
-
 import org.joda.time.Instant;
-
-import javax.annotation.Nullable;
 
 /**
  * An implementation of {@link TimerInternals} where all relevant data exists in memory.

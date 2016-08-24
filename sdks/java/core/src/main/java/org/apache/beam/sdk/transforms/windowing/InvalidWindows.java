@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.coders.Coder;
-
-import org.joda.time.Instant;
-
 import java.util.Collection;
+import org.apache.beam.sdk.coders.Coder;
+import org.joda.time.Instant;
 
 /**
  * A {@link WindowFn} that represents an invalid pipeline state.

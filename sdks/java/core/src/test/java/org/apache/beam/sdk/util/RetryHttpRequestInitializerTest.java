@@ -46,7 +46,11 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.Storage.Objects.Get;
-
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.security.PrivateKey;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -58,12 +62,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import java.io.IOException;
-import java.net.SocketTimeoutException;
-import java.security.PrivateKey;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Tests for RetryHttpRequestInitializer.

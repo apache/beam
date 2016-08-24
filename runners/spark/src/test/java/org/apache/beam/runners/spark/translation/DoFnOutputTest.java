@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import java.io.Serializable;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
@@ -28,10 +29,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Test;
-
-import java.io.Serializable;
 
 /**
  * DoFN output test.

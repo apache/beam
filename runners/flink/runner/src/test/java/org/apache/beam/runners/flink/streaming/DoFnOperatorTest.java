@@ -20,6 +20,10 @@ package org.apache.beam.runners.flink.streaming;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.HashMap;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -36,9 +40,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.collect.ImmutableList;
-
 import org.apache.flink.shaded.com.google.common.base.Function;
 import org.apache.flink.shaded.com.google.common.base.Predicate;
 import org.apache.flink.shaded.com.google.common.collect.FluentIterable;
@@ -52,10 +53,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Collections;
-import java.util.HashMap;
-import javax.annotation.Nullable;
 
 /**
  * Tests for {@link DoFnOperator}.

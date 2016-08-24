@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -24,8 +25,6 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
-import java.io.Serializable;
 
 /**
  * {@code Partition} takes a {@code PCollection<T>} and a

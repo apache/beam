@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

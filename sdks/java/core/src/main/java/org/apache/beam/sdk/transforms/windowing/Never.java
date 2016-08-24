@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.util.List;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-
 import org.joda.time.Instant;
-
-import java.util.List;
 
 /**
  * A trigger which never fires.

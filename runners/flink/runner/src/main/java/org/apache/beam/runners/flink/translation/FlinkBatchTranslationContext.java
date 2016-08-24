@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,13 +31,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Helper for {@link FlinkBatchPipelineTranslator} and translators in

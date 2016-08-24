@@ -19,7 +19,6 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

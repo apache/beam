@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import java.util.Collections;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
-
-import java.util.Collections;
 
 public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
 

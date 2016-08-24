@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.common.collect.Lists;
-
-import org.joda.time.Instant;
-
 import java.util.List;
+import org.joda.time.Instant;
 
 /**
  * No-op {@link OnceTrigger} implementation for testing.

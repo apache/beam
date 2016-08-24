@@ -17,18 +17,15 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import org.apache.beam.sdk.transforms.DoFn;
-
 import com.google.common.reflect.TypeToken;
-
+import java.lang.reflect.Method;
+import java.util.List;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.lang.reflect.Method;
-import java.util.List;
 
 /** Tests for {@link DoFnSignatures}. */
 @RunWith(JUnit4.class)

@@ -17,6 +17,13 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -29,18 +36,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
-
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Special version of {@link FlinkPartialReduceFunction} that supports merging windows. This

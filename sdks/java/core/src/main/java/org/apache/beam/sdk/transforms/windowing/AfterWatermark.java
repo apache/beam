@@ -19,19 +19,15 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
-
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
-
-import java.util.List;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a

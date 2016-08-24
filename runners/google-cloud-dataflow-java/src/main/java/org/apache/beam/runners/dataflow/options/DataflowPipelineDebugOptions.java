@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.services.dataflow.Dataflow;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
@@ -27,13 +31,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
-
-import com.google.api.services.dataflow.Dataflow;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Internal. Options used to control execution of the Dataflow SDK for

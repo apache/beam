@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.options;
 
 import org.apache.beam.sdk.testing.CrashingRunner;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO.Read;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * {@link PBegin} is the "input" to a root {@link PTransform}, such as {@link Read Read} or

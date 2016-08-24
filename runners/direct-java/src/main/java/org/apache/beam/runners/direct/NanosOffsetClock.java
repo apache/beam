@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.joda.time.Instant;
-
 import java.util.concurrent.TimeUnit;
+import org.joda.time.Instant;
 
 /**
  * A {@link Clock} that uses {@link System#nanoTime()} to track the progress of time.

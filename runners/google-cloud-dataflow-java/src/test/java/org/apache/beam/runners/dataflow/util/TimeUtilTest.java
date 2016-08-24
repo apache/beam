@@ -21,7 +21,6 @@ import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudDuration;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.toCloudDuration;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.toCloudTime;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 

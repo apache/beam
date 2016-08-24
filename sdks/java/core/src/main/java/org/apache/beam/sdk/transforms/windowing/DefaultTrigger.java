@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.util.TimeDomain;
-
 import org.joda.time.Instant;
-
-import java.util.List;
 
 /**
  * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.

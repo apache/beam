@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
@@ -39,10 +41,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Collections;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the

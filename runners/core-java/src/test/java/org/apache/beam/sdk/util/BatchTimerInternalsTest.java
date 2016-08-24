@@ -20,7 +20,6 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaceForTest;
-
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
