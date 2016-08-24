@@ -17,9 +17,14 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
@@ -36,12 +41,6 @@ import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.BlockingDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -28,14 +30,9 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link PipelineRunner} that's like {@link DataflowRunner}

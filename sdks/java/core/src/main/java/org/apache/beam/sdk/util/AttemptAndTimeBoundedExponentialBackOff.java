@@ -21,10 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.NanoClock;
-
-import java.util.concurrent.TimeUnit;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Extension of {@link AttemptBoundedExponentialBackOff} that bounds the total time that the backoff

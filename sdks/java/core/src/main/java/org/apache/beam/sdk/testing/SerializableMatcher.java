@@ -19,9 +19,8 @@ package org.apache.beam.sdk.testing;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.hamcrest.Matcher;
-
 import java.io.Serializable;
+import org.hamcrest.Matcher;
 
 /**
  * A {@link Matcher} that is also {@link Serializable}.

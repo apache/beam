@@ -20,6 +20,12 @@ package org.apache.beam.sdk.coders.protobuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageWithMap;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -28,14 +34,6 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageWithMap;
-import com.google.common.collect.ImmutableList;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

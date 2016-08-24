@@ -21,12 +21,9 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.options.PubsubOptions;
-
 import com.google.api.client.util.DateTime;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -34,8 +31,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * An (abstract) helper class for talking to Pubsub via an underlying transport.

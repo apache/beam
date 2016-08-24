@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.microbenchmarks.coders;
 
+import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.CoderUtils;
-
-import java.io.IOException;
 
 /**
  * Utilities for writing coder benchmarks.

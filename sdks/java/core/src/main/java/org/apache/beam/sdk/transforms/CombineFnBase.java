@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.collect.ImmutableMap;
+import java.io.Serializable;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -27,12 +31,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableMap;
-
-import java.io.Serializable;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 
 /**
  * This class contains the shared interfaces and abstract classes for different types of combine

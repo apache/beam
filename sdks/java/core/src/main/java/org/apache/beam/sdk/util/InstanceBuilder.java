@@ -20,18 +20,15 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.values.TypeDescriptor;
-
 import com.google.common.base.Joiner;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedList;
 import java.util.List;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Utility for creating objects dynamically.

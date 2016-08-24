@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import java.io.Serializable;
 
 /**
  * Wrapper class holding the necessary information to serialize a OldDoFn.

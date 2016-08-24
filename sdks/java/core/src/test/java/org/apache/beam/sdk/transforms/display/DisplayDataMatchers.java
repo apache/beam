@@ -19,10 +19,9 @@ package org.apache.beam.sdk.transforms.display;
 
 import static org.hamcrest.Matchers.allOf;
 
-import org.apache.beam.sdk.transforms.display.DisplayData.Item;
-
 import com.google.common.collect.Sets;
-
+import java.util.Collection;
+import org.apache.beam.sdk.transforms.display.DisplayData.Item;
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
@@ -31,8 +30,6 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.Collection;
 
 /**
  * Hamcrest matcher for making assertions on {@link DisplayData} instances.

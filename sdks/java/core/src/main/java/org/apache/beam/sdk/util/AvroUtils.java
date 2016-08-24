@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.avro.file.DataFileConstants;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.DecoderFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.util.Arrays;
+import org.apache.avro.file.DataFileConstants;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.DecoderFactory;
 
 /**
  * A set of utilities for working with Avro files.

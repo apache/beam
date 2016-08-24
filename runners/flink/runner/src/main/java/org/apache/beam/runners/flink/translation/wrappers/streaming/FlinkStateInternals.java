@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -38,19 +43,11 @@ import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
-
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.joda.time.Instant;
-
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * {@link StateInternals} that uses a Flink {@link AbstractStateBackend} to

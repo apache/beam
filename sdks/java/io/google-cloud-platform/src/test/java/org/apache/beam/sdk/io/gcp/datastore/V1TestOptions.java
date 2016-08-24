@@ -18,11 +18,10 @@
 
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-
-import javax.annotation.Nullable;
 
 /**
  * DatastoreV1 Datastore related pipeline options.

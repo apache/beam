@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
-import java.lang.reflect.ParameterizedType;
 
 /**
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import com.google.common.base.MoreObjects;
-
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;

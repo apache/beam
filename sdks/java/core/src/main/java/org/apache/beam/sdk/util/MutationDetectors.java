@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-
 import java.util.Arrays;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 
 /**
  * Static methods for creating and working with {@link MutationDetector}.

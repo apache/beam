@@ -19,6 +19,8 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -26,9 +28,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * {@link PTransform PTransforms} which take an {@link Iterable} of {@link WindowedValue

@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
-import org.apache.beam.sdk.transforms.ParDo;
-
 import com.google.common.collect.ImmutableList;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.transforms.ParDo;
 
 /**
  * A {@link TupleTagList} is an immutable list of heterogeneously

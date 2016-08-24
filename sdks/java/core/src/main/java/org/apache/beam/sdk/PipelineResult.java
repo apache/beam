@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk;
 
-import org.apache.beam.sdk.transforms.Aggregator;
-
-import org.joda.time.Duration;
-
 import java.io.IOException;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.joda.time.Duration;
 
 /**
  * Result of {@link Pipeline#run()}.

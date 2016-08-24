@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
-
 import java.util.List;
 
 /**

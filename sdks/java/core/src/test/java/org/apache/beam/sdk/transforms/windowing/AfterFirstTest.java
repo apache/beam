@@ -25,7 +25,6 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.TriggerTester;
 import org.apache.beam.sdk.util.TriggerTester.SimpleTriggerTester;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
