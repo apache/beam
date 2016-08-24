@@ -32,6 +32,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.List;
@@ -40,6 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Tests for PubsubTestClient.
  */
+@RunWith(JUnit4.class)
 public class PubsubTestClientTest {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final SubscriptionPath SUBSCRIPTION =

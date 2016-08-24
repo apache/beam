@@ -29,10 +29,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DoFnInvokers}. */
+@RunWith(JUnit4.class)
 public class DoFnInvokersTest {
   /** A convenience struct holding flags that indicate whether a particular method was invoked. */
   public static class Invocations {
