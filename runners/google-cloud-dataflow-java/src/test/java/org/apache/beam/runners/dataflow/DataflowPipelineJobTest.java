@@ -60,7 +60,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
@@ -111,22 +110,21 @@ public class DataflowPipelineJobTest {
    * AttemptBoundedExponentialBackOff given the number of retries and
    * an initial polling interval.
    *
-   * @param pollingIntervalMillis The initial polling interval given.
-   * @param attempts The number of attempts made
+   * @param pollingInterval The initial polling interval given.
+   * @param retries The number of retries made
    * @param timeSleptMillis The amount of time slept by the clock. This is checked
    * against the valid interval.
    */
-  void checkValidInterval(long pollingIntervalMillis, int attempts, long timeSleptMillis) {
+  private void checkValidInterval(Duration pollingInterval, int retries, long timeSleptMillis) {
     long highSum = 0;
     long lowSum = 0;
-    for (int i = 1; i < attempts; i++) {
+    for (int i = 0; i < retries; i++) {
       double currentInterval =
-          pollingIntervalMillis
-          * Math.pow(AttemptBoundedExponentialBackOff.DEFAULT_MULTIPLIER, i - 1);
-      double offset =
-          AttemptBoundedExponentialBackOff.DEFAULT_RANDOMIZATION_FACTOR * currentInterval;
-      highSum += Math.round(currentInterval + offset);
-      lowSum += Math.round(currentInterval - offset);
+          pollingInterval.getMillis()
+          * Math.pow(DataflowPipelineJob.DEFAULT_BACKOFF_EXPONENT, i);
+      double randomOffset = 0.5 * currentInterval;
+      highSum += Math.round(currentInterval + randomOffset);
+      lowSum += Math.round(currentInterval - randomOffset);
     }
     assertThat(timeSleptMillis, allOf(greaterThanOrEqualTo(lowSum), lessThanOrEqualTo(highSum)));
   }
@@ -228,7 +226,7 @@ public class DataflowPipelineJobTest {
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(DataflowPipelineJob.MESSAGES_POLLING_INTERVAL,
-        DataflowPipelineJob.MESSAGES_POLLING_ATTEMPTS, timeDiff);
+        DataflowPipelineJob.MESSAGES_POLLING_RETRIES, timeDiff);
   }
 
   @Test
@@ -246,8 +244,8 @@ public class DataflowPipelineJobTest {
     State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
-    // Should only sleep for the 4 ms remaining.
-    assertEquals(timeDiff, 4L);
+    // Should only have slept for the 4 ms allowed.
+    assertEquals(4L, timeDiff);
   }
 
   @Test
@@ -268,7 +266,7 @@ public class DataflowPipelineJobTest {
 
     assertEquals(
         State.RUNNING,
-        job.getStateWithRetries(DataflowPipelineJob.STATUS_POLLING_ATTEMPTS, fastClock));
+        job.getStateWithRetries(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff(), fastClock));
   }
 
   @Test
@@ -286,10 +284,10 @@ public class DataflowPipelineJobTest {
     long startTime = fastClock.nanoTime();
     assertEquals(
         State.UNKNOWN,
-        job.getStateWithRetries(DataflowPipelineJob.STATUS_POLLING_ATTEMPTS, fastClock));
+        job.getStateWithRetries(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff(), fastClock));
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(DataflowPipelineJob.STATUS_POLLING_INTERVAL,
-        DataflowPipelineJob.STATUS_POLLING_ATTEMPTS, timeDiff);
+        DataflowPipelineJob.STATUS_POLLING_RETRIES, timeDiff);
   }
 
   @Test
