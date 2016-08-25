@@ -110,7 +110,7 @@
     <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.WatermarkHold"/>
+    <Class name="org.apache.beam.runners.core.WatermarkHold"/>
     <Field name="timerInternals"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->

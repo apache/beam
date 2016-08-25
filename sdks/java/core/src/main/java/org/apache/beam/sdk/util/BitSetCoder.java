@@ -28,7 +28,7 @@ import org.apache.beam.sdk.coders.CoderException;
 /**
  * Coder for the BitSet used to track child-trigger finished states.
  */
-class BitSetCoder extends AtomicCoder<BitSet> {
+public class BitSetCoder extends AtomicCoder<BitSet> {
 
   private static final BitSetCoder INSTANCE = new BitSetCoder();
   private static final ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
