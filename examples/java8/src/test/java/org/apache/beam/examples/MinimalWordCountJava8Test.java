@@ -60,7 +60,7 @@ public class MinimalWordCountJava8Test implements Serializable {
     Pipeline p = TestPipeline.create();
     p.getOptions().as(GcsOptions.class).setGcsUtil(buildMockGcsUtil());
 
-    p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
+    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
      .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
          .withOutputType(TypeDescriptors.strings()))
      .apply(Filter.by((String word) -> !word.isEmpty()))

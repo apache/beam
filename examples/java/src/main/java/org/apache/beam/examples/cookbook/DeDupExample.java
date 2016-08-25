@@ -47,7 +47,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  * and an output prefix on GCS:
  *   --output=gs://YOUR_OUTPUT_PREFIX
  *
- * <p>The input defaults to {@code gs://dataflow-samples/shakespeare/*} and can be
+ * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be
  * overridden with {@code --input}.
  */
 public class DeDupExample {
@@ -59,7 +59,7 @@ public class DeDupExample {
    */
   private static interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/*")
+    @Default.String("gs://apache-beam-samples/shakespeare/*")
     String getInput();
     void setInput(String value);
 
