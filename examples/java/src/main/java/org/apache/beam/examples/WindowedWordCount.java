@@ -66,13 +66,8 @@ import org.joda.time.Instant;
  *   5. Writing to BigQuery
  * </pre>
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- *
- * <p>To change the runner, specify:
+ * <p>By default, the examples will run with the {@code DirectRunner}.
+ * To change the runner, specify:
  * <pre>{@code
  *   --runner=YOUR_SELECTED_RUNNER
  * }

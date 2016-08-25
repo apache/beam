@@ -66,8 +66,7 @@ public class MinimalWordCount {
 
     // In order to run your pipeline, you need to make following runner specific changes:
     //
-    // CHANGE 1/3: Select a Beam runner, such as DataflowRunner
-    // or FlinkRunner.
+    // CHANGE 1/3: Select a Beam runner, such as DataflowRunner or FlinkRunner.
     // CHANGE 2/3: Specify runner-required options.
     // For DataflowRunner, set project and temp location as follows:
     //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);

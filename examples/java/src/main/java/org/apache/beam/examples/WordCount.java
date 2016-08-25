@@ -48,6 +48,11 @@ import org.apache.beam.sdk.values.PCollection;
  * After you've looked at this example, then see the {@link DebuggingWordCount}
  * pipeline, for introduction of additional concepts.
  *
+ * <p>For a detailed walkthrough of this example, see
+ *   <a href="http://beam.incubator.apache.org/use/walkthroughs/">
+ *   http://beam.incubator.apache.org/use/walkthroughs/
+ *   </a>
+ *
  * <p>Basic concepts, also in the MinimalWordCount example:
  * Reading text files; counting a PCollection; writing to GCS.
  *

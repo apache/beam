@@ -54,7 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To change the runner, specify:
  * <pre>{@code
  *   --runner=YOUR_SELECTED_RUNNER
- * }
+ * }</pre>
  * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations }
