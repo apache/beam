@@ -75,11 +75,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 /**
- * Flink operator for executing {@link DoFn DoFns}.
+ * Flink operator for executing {@link OldDoFn DoFns}.
  *
- * @param <InputT>
- * @param <FnOutputT>
- * @param <OutputT>
+ * @param <InputT> the input type of the {@link OldDoFn}
+ * @param <FnOutputT> the output type of the {@link OldDoFn}
+ * @param <OutputT> the output type of the operator, this can be different from the fn output type when we have
+ *                 side outputs
  */
 public class DoFnOperator<InputT, FnOutputT, OutputT>
     extends AbstractStreamOperator<OutputT>
@@ -94,8 +95,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected final Collection<PCollectionView<?>> sideInputs;
   protected final Map<Integer, PCollectionView<?>> sideInputTagMapping;
-
-  protected final boolean hasSideInputs;
 
   protected final WindowingStrategy<?, ?> windowingStrategy;
 
@@ -135,8 +134,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
-
-    this.hasSideInputs = !sideInputs.isEmpty();
 
     this.pushedBackWatermarkDescriptor =
         new ReducingStateDescriptor<>(
