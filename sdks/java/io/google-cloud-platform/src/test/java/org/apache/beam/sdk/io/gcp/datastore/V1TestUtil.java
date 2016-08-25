@@ -54,8 +54,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,7 +233,7 @@ class V1TestUtil {
     // Number of times to retry on update failure
     private static final int MAX_RETRIES = 5;
     //Initial backoff time for exponential backoff for retry attempts.
-    private static final int INITIAL_BACKOFF_MILLIS = 5000;
+    private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(5);
 
     // Returns true if a Datastore key is complete. A key is complete if its last element
     // has either an id or a name.
@@ -279,7 +280,9 @@ class V1TestUtil {
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
       LOG.info("Writing batch of {} entities", entities.size());
       Sleeper sleeper = Sleeper.DEFAULT;
-      BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF).backoff();
 
       while (true) {
         // Batch mutate entities.
