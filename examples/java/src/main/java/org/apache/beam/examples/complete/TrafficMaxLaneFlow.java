@@ -66,7 +66,7 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>The pipeline reads traffic sensor data from {@literal --inputFile}.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Dataflow pipeline).
+ * (there are no defaults for a general Beam pipeline).
  * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
  * options. If the BigQuery table do not exist, the example will try to create them.
  *
@@ -354,7 +354,7 @@ public class TrafficMaxLaneFlow {
     // Run the pipeline.
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
   }
 

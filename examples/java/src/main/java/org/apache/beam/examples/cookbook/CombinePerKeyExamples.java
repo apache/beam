@@ -52,27 +52,17 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and the BigQuery table for the output:
+ * <p>To execute this pipeline locally, specify the BigQuery table for the output:
  * <pre>{@code
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://<STAGING DIRECTORY>
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and the BigQuery table for the output:
- * <pre>{@code
- *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can
  * be overridden with {@code --input}.

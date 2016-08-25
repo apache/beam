@@ -35,17 +35,15 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  * Demonstrates {@link org.apache.beam.sdk.io.TextIO.Read}/
  * {@link RemoveDuplicates}/{@link org.apache.beam.sdk.io.TextIO.Write}.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- *   --project=YOUR_PROJECT_ID
- * and a local output file or output prefix on GCS:
+ * <p>To execute this pipeline locally, specify a local output file or output prefix on GCS:
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- * and an output prefix on GCS:
- *   --output=gs://YOUR_OUTPUT_PREFIX
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be
  * overridden with {@code --input}.
