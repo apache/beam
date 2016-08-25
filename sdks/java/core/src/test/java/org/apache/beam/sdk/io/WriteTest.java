@@ -192,11 +192,12 @@ public class WriteTest {
       inputs.add(String.format("elt%04d", i));
     }
 
+    int numShards = 10;
     runShardedWrite(
         inputs,
         new WindowAndReshuffle<>(
             Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
-        Optional.of(10));
+        Optional.of(numShards));
 
     // Check that both the min and max number of results per shard are close to the expected.
     int min = Integer.MAX_VALUE;
@@ -205,7 +206,9 @@ public class WriteTest {
       min = Math.min(min, i);
       max = Math.max(max, i);
     }
-    assertThat((double) min, Matchers.greaterThanOrEqualTo(max * 0.9));
+    double expected = numElements / (double) numShards;
+    assertThat((double) min, Matchers.greaterThanOrEqualTo(expected * 0.6));
+    assertThat((double) max, Matchers.lessThanOrEqualTo(expected * 1.4));
   }
 
   /**
