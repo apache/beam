@@ -36,6 +36,9 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 public class FlinkRunnerRegistrar {
   private FlinkRunnerRegistrar() { }
 
+  /**
+   * Pipeline runner registrar.
+   */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -46,6 +49,9 @@ public class FlinkRunnerRegistrar {
     }
   }
 
+  /**
+   * Pipeline options registrar.
+   */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

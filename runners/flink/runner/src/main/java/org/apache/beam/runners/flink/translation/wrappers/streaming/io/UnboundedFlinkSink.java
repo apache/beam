@@ -62,7 +62,8 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       }
 
       @Override
-      public void finalize(Iterable<Object> writerResults, PipelineOptions options) throws Exception {
+      public void finalize(Iterable<Object> writerResults, PipelineOptions options)
+          throws Exception {
 
       }
 
@@ -70,12 +71,14 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       public Coder<Object> getWriterResultCoder() {
         return new Coder<Object>() {
           @Override
-          public void encode(Object value, OutputStream outStream, Context context) throws CoderException, IOException {
+          public void encode(Object value, OutputStream outStream, Context context)
+              throws CoderException, IOException {
 
           }
 
           @Override
-          public Object decode(InputStream inStream, Context context) throws CoderException, IOException {
+          public Object decode(InputStream inStream, Context context)
+              throws CoderException, IOException {
             return null;
           }
 
@@ -110,7 +113,9 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
           }
 
           @Override
-          public void registerByteSizeObserver(Object value, ElementByteSizeObserver observer, Context context) throws Exception {
+          public void registerByteSizeObserver(Object value,
+                                               ElementByteSizeObserver observer,
+                                               Context context) throws Exception {
 
           }
 

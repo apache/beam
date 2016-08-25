@@ -36,6 +36,9 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+/**
+ * Test for GroupByNullKey.
+ */
 public class GroupByNullKeyTest extends StreamingProgramTestBase implements Serializable {
 
 
@@ -58,6 +61,9 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
   }
 
+  /**
+   * DoFn extracting user and timestamp.
+   */
   public static class ExtractUserAndTimestamp extends OldDoFn<KV<Integer, String>, String> {
     private static final long serialVersionUID = 0;
 
