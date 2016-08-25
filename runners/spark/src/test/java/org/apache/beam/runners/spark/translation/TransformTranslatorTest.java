@@ -56,7 +56,7 @@ public class TransformTranslatorTest {
 
   /**
    * Builds a simple pipeline with TextIO.Read and TextIO.Write, runs the pipeline
-   * in DirectRunner and on SparkRunner, with the mapped dataflow-to-spark
+   * in DirectRunner and on SparkRunner, with the mapped beam-to-spark
    * transforms. Finally it makes sure that the results are the same for both runs.
    */
   @Test

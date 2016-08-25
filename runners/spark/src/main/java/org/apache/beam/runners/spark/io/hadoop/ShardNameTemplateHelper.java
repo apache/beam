@@ -36,9 +36,9 @@ public final class ShardNameTemplateHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardNameTemplateHelper.class);
 
-  public static final String OUTPUT_FILE_PREFIX = "spark.dataflow.fileoutputformat.prefix";
-  public static final String OUTPUT_FILE_TEMPLATE = "spark.dataflow.fileoutputformat.template";
-  public static final String OUTPUT_FILE_SUFFIX = "spark.dataflow.fileoutputformat.suffix";
+  public static final String OUTPUT_FILE_PREFIX = "spark.beam.fileoutputformat.prefix";
+  public static final String OUTPUT_FILE_TEMPLATE = "spark.beam.fileoutputformat.template";
+  public static final String OUTPUT_FILE_SUFFIX = "spark.beam.fileoutputformat.suffix";
 
   private ShardNameTemplateHelper() {
   }
