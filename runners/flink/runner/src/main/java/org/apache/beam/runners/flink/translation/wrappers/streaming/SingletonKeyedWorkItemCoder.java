@@ -35,7 +35,13 @@ import org.apache.beam.sdk.util.KeyedWorkItemCoder;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.WindowedValue;
 
-public class SingletonKeyedWorkItemCoder<K, ElemT> extends StandardCoder<SingletonKeyedWorkItem<K, ElemT>> {
+/**
+ * Singleton keyed word iteam coder.
+ * @param <K>
+ * @param <ElemT>
+ */
+public class SingletonKeyedWorkItemCoder<K, ElemT>
+    extends StandardCoder<SingletonKeyedWorkItem<K, ElemT>> {
   /**
    * Create a new {@link KeyedWorkItemCoder} with the provided key coder, element coder, and window
    * coder.
@@ -68,7 +74,7 @@ public class SingletonKeyedWorkItemCoder<K, ElemT> extends StandardCoder<Singlet
     this.keyCoder = keyCoder;
     this.elemCoder = elemCoder;
     this.windowCoder = windowCoder;
-    valueCoder= WindowedValue.FullWindowedValueCoder.of(elemCoder, windowCoder);
+    valueCoder = WindowedValue.FullWindowedValueCoder.of(elemCoder, windowCoder);
   }
 
   public Coder<K> getKeyCoder() {
@@ -80,7 +86,9 @@ public class SingletonKeyedWorkItemCoder<K, ElemT> extends StandardCoder<Singlet
   }
 
   @Override
-  public void encode(SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream, Context context)
+  public void encode(SingletonKeyedWorkItem<K, ElemT> value,
+                     OutputStream outStream,
+                     Context context)
       throws CoderException, IOException {
     Context nestedContext = context.nested();
     keyCoder.encode(value.key(), outStream, nestedContext);

@@ -40,7 +40,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * {@link FlinkBatchTransformTranslators}.
  */
 public class FlinkBatchTranslationContext {
-  
+
   private final Map<PValue, DataSet<?>> dataSets;
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 
@@ -55,9 +55,9 @@ public class FlinkBatchTranslationContext {
   private final PipelineOptions options;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
-  
+
   // ------------------------------------------------------------------------
-  
+
   public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
     this.env = env;
     this.options = options;
@@ -66,7 +66,7 @@ public class FlinkBatchTranslationContext {
 
     this.danglingDataSets = new HashMap<>();
   }
-  
+
   // ------------------------------------------------------------------------
 
   public Map<PValue, DataSet<?>> getDanglingDataSets() {
@@ -80,7 +80,7 @@ public class FlinkBatchTranslationContext {
   public PipelineOptions getPipelineOptions() {
     return options;
   }
-  
+
   @SuppressWarnings("unchecked")
   public <T> DataSet<WindowedValue<T>> getInputDataSet(PValue value) {
     // assume that the DataSet is used as an input if retrieved here
