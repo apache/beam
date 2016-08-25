@@ -37,7 +37,9 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.streaming.Durations;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Simple word count streaming test.
@@ -51,12 +53,19 @@ public class SimpleStreamingWordCountTest implements Serializable {
   private static final String[] EXPECTED_COUNTS = {"hi: 5", "there: 1", "sue: 2", "bob: 2"};
   private static final long TEST_TIMEOUT_MSEC = 1000L;
 
+  @Rule
+  public TemporaryFolder checkpointParentDir = new TemporaryFolder();
+
   @Test
   public void testRun() throws Exception {
+    checkpointParentDir.create();
+
     SparkPipelineOptions options =
         PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     options.setStreaming(true);
+    options.setCheckpointDir(checkpointParentDir.getRoot().getAbsolutePath()
+        + "/tmp/wordcount-streaming-test");
     options.setBatchIntervalMillis(Durations.seconds(1).milliseconds());
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);

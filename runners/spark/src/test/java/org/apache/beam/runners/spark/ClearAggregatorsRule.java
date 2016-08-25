@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
+package org.apache.beam.runners.spark;
+
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.junit.rules.ExternalResource;
 
 /**
- * Translator to support translation between Beam transformations and Spark transformations.
+ * A rule that clears the {@link org.apache.beam.runners.spark.aggregators.AccumulatorSingleton}
+ * which represents the Beam {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
-public interface SparkPipelineTranslator {
-
-  boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz);
-
-  <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
-  translate(Class<TransformT> clazz, PCollection.IsBounded isBounded);
+class ClearAggregatorsRule extends ExternalResource {
+  @Override
+  protected void before() throws Throwable {
+    AccumulatorSingleton.clear();
+  }
 }

@@ -28,13 +28,16 @@ import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Test Flatten (union) implementation for streaming.
@@ -53,12 +56,19 @@ public class FlattenStreamingTest {
           "one", "two", "three", "four", "five", "six", "seven", "eight"};
   private static final long TEST_TIMEOUT_MSEC = 1000L;
 
+  @Rule
+  public TemporaryFolder checkpointParentDir = new TemporaryFolder();
+
   @Test
-  public void testRun() throws Exception {
+  public void testFlattenUnbounded() throws Exception {
+    checkpointParentDir.create();
+
     SparkPipelineOptions options =
         PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
     options.setStreaming(true);
+    options.setCheckpointDir(checkpointParentDir.getRoot().getAbsolutePath()
+        + "/tmp/flatten-streaming-test");
     // using the default 1000 msec interval
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
@@ -69,6 +79,37 @@ public class FlattenStreamingTest {
             w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollection<String> w2 =
             p.apply(CreateStream.fromQueue(WORDS_QUEUE_2)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedW2 =
+            w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
+    PCollection<String> union = list.apply(Flatten.<String>pCollections());
+
+    PAssertStreaming.assertContents(union, EXPECTED_UNION);
+
+    EvaluationResult res = (EvaluationResult) p.run();
+    res.close();
+  }
+
+  @Test
+  public void testFlattenBoundedUnbounded() throws Exception {
+    checkpointParentDir.create();
+
+    SparkPipelineOptions options =
+            PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setStreaming(true);
+    options.setCheckpointDir(checkpointParentDir.getRoot().getAbsolutePath()
+            + "/tmp/flatten-streaming-test");
+    // using the default 1000 msec interval
+    options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
+    Pipeline p = Pipeline.create(options);
+
+    PCollection<String> w1 =
+            p.apply(CreateStream.fromQueue(WORDS_QUEUE_1)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedW1 =
+            w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollection<String> w2 =
+            p.apply(Create.of(WORDS_ARRAY_2)).setCoder(StringUtf8Coder.of());
     PCollection<String> windowedW2 =
             w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);

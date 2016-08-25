@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+
 import org.apache.beam.runners.spark.aggregators.metrics.sink.InMemoryMetrics;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
@@ -52,6 +53,9 @@ public class SimpleWordCountTest {
 
   @Rule
   public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
+
+  @Rule
+  public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
 
   private static final String[] WORDS_ARRAY = {
       "hi there", "hi", "hi sue bob",
