@@ -25,8 +25,8 @@ import kafka.serializer.Decoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 
 /**
  * Read stream from Kafka.
@@ -68,7 +68,7 @@ public final class KafkaIO {
     /**
      * A {@link PTransform} reading from Kafka topics and providing {@link PCollection}.
      */
-    public static class Unbound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
+    public static class Unbound<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
       private final Class<? extends Decoder<K>> keyDecoderClass;
       private final Class<? extends Decoder<V>> valueDecoderClass;
@@ -120,7 +120,7 @@ public final class KafkaIO {
       }
 
       @Override
-      public PCollection<KV<K, V>> apply(PInput input) {
+      public PCollection<KV<K, V>> apply(PBegin input) {
         // Spark streaming micro batches are bounded by default
         return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
             WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);

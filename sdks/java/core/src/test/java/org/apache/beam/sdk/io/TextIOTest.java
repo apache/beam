@@ -210,7 +210,7 @@ public class TextIOTest {
         .from("foobar")
         .withoutValidation();
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("TextIO.Read should include the file prefix in its primitive display data",
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }

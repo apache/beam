@@ -101,8 +101,8 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Description;
@@ -970,7 +970,7 @@ public class DataflowRunnerTest {
     return options;
   }
 
-  private void testUnsupportedSource(PTransform<PInput, ?> source, String name, boolean streaming)
+  private void testUnsupportedSource(PTransform<PBegin, ?> source, String name, boolean streaming)
       throws Exception {
     String mode = streaming ? "streaming" : "batch";
     thrown.expect(UnsupportedOperationException.class);
