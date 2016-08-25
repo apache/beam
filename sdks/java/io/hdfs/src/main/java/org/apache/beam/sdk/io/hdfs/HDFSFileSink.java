@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.hdfs;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Map;
