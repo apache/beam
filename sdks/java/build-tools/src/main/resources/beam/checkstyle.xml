@@ -103,6 +103,10 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="illegalPkgs" value="com.google.api.client.repackaged, io.netty.util.internal"/>
     </module>
 
+    <!--
+        IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+        code and some useful code. So we need to fall back to Regexp.
+    -->
     <module name="RegexpSinglelineJava">
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
     </module>
