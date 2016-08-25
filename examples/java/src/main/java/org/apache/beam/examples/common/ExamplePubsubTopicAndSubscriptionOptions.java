@@ -39,7 +39,7 @@ public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubT
     @Override
     public String create(PipelineOptions options) {
       return "projects/" + options.as(GcpOptions.class).getProject()
-          + "/subscriptions/" + options.as(ExampleOptions.class).getNormalizedUniqueName();
+          + "/subscriptions/" + options.getJobName();
     }
   }
 }
