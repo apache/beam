@@ -68,7 +68,7 @@ import scala.Tuple2;
 
 
 /**
- * Supports translation between a DataFlow transform, and Spark's operations on DStreams.
+ * Supports translation between a Beam transform, and Spark's operations on DStreams.
  */
 public final class StreamingTransformTranslator {
 
@@ -349,13 +349,13 @@ public final class StreamingTransformTranslator {
         (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
     if (transform == null) {
       if (UNSUPPORTED_EVALUATORS.contains(clazz)) {
-        throw new UnsupportedOperationException("Dataflow transformation " + clazz
+        throw new UnsupportedOperationException("Beam transformation " + clazz
           .getCanonicalName()
           + " is currently unsupported by the Spark streaming pipeline");
       }
       // DStream transformations will transform an RDD into another RDD
       // Actions will create output
-      // In Dataflow it depends on the PTransform's Input and Output class
+      // In Beam it depends on the PTransform's Input and Output class
       Class<?> pTOutputClazz = getPTransformOutputClazz(clazz);
       if (PDone.class.equals(pTOutputClazz)) {
         return foreachRDD(rddTranslator);
@@ -373,7 +373,7 @@ public final class StreamingTransformTranslator {
   }
 
   /**
-   * Translator matches Dataflow transformation with the appropriate Spark streaming evaluator.
+   * Translator matches Beam transformation with the appropriate Spark streaming evaluator.
    * rddTranslator uses Spark evaluators in transform/foreachRDD to evaluate the transformation
    */
   public static class Translator implements SparkPipelineTranslator {

@@ -330,7 +330,7 @@
               </goals>
               <configuration>
                 <relocations>
-                  <!-- relocate Guava used by Dataflow (v18) since it conflicts with 
+                  <!-- relocate Guava used by Beam (v18) since it conflicts with
                     version used by Hadoop (v11) -->
                   <relocation>
                     <pattern>com.google.common</pattern>

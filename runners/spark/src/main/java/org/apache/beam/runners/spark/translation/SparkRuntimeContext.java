@@ -57,7 +57,7 @@ public class SparkRuntimeContext implements Serializable {
   private final String serializedPipelineOptions;
 
   /**
-   * Map fo names to dataflow aggregators.
+   * Map fo names to Beam aggregators.
    */
   private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;

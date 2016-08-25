@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.POutput;
 
 /**
  * The SparkRunner translate operations defined on a pipeline to a representation executable
- * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a dataflow
+ * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam
  * pipeline with the default options of a single threaded spark instance in local mode, we would do
  * the following:
  *
