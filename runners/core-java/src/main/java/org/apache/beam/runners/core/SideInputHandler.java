@@ -60,7 +60,11 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   /** The list of side inputs that we're handling. */
   protected final Collection<PCollectionView<?>> sideInputs;
 
-  /** State internals that are scoped not to the key of a value but instead to one key group. */
+  /**
+   * State internals that are scoped not to the key of a value but are global. The state can still
+   * be keep locally but if side inputs are broadcast to all parallel operators then all will
+   * have the same view of the state.
+   */
   private final StateInternals<Void> stateInternals;
 
   /**
