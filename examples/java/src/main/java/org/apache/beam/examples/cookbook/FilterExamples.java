@@ -18,7 +18,7 @@
 package org.apache.beam.examples.cookbook;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -99,7 +99,7 @@ public class FilterExamples {
    * is interested in-- the mean_temp and year, month, and day-- as a bigquery table row.
    */
   static class ProjectionFn extends DoFn<TableRow, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       // Grab year, month, day, mean_temp from the row
@@ -128,7 +128,7 @@ public class FilterExamples {
       this.monthFilter = monthFilter;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       Integer month;
@@ -144,7 +144,7 @@ public class FilterExamples {
    * reading for that row ('mean_temp').
    */
   static class ExtractTempFn extends DoFn<TableRow, Double> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c){
       TableRow row = c.element();
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
@@ -192,7 +192,7 @@ public class FilterExamples {
           .apply("ParseAndFilter", ParDo
               .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   Double meanTemp = Double.parseDouble(c.element().get("mean_temp").toString());
                   Double gTemp = c.sideInput(globalMeanTemp);

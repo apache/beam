@@ -166,7 +166,7 @@ public class Write {
         this.writeOperationView = writeOperationView;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         // Lazily initialize the Writer
         if (writer == null) {
@@ -195,7 +195,7 @@ public class Write {
         }
       }
 
-      @Override
+      @FinishBundle
       public void finishBundle(Context c) throws Exception {
         if (writer != null) {
           WriteT result = writer.close();
@@ -224,7 +224,7 @@ public class Write {
         this.writeOperationView = writeOperationView;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         // In a sharded write, single input element represents one shard. We can open and close
         // the writer in each call to processElement.
@@ -297,9 +297,10 @@ public class Write {
      * ParDo over the PCollection of elements to write. In this bundle-writing phase,
      * {@link WriteOperation#createWriter} is called to obtain a {@link Writer}.
      * {@link Writer#open} and {@link Writer#close} are called in {@link DoFn#startBundle} and
-     * {@link DoFn#finishBundle}, respectively, and {@link Writer#write} method is called for every
-     * element in the bundle. The output of this ParDo is a PCollection of <i>writer result</i>
-     * objects (see {@link Sink} for a description of writer results)-one for each bundle.
+     * {@link DoFn#finishBundle}, respectively, and {@link Writer#write} method is called for
+     * every element in the bundle. The output of this ParDo is a PCollection of
+     * <i>writer result</i> objects (see {@link Sink} for a description of writer results)-one for
+     * each bundle.
      *
      * <p>The final do-once ParDo uses the singleton collection of the WriteOperation as input and
      * the collection of writer results as a side-input. In this ParDo,
@@ -334,7 +335,7 @@ public class Write {
       operationCollection = operationCollection
           .apply("Initialize", ParDo.of(
               new DoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
               LOG.info("Initializing write operation {}", writeOperation);
@@ -388,7 +389,7 @@ public class Write {
       // collection as a side input), so it will happen after the parallel write.
       operationCollection
           .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
               LOG.info("Finalizing write operation {}.", writeOperation);

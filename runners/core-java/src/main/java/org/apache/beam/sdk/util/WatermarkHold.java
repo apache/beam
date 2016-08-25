@@ -37,7 +37,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.Serializable;
-
 import javax.annotation.Nullable;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;

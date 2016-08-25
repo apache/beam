@@ -108,7 +108,7 @@ public class Count {
       return
           input
           .apply("Init", ParDo.of(new DoFn<T, KV<T, Void>>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               c.output(KV.of(c.element(), (Void) null));
             }

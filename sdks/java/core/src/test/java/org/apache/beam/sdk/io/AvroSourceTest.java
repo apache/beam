@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -196,14 +197,14 @@ public class AvroSourceTest {
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     try (BoundedSource.BoundedReader<FixedRecord> reader = source.createReader(null)) {
-      assertEquals(new Double(0.0), reader.getFractionConsumed());
+      assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
     }
 
     List<? extends BoundedSource<FixedRecord>> splits =
         source.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
-        assertEquals(new Double(0.0), reader.getFractionConsumed());
+        assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
       }
     }
   }

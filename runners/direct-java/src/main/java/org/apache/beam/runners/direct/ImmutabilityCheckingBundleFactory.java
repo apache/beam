@@ -23,7 +23,7 @@ import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
@@ -42,7 +42,7 @@ import org.joda.time.Instant;
  * elements added to the bundle will be encoded by the {@link Coder} of the underlying
  * {@link PCollection}.
  *
- * <p>This catches errors during the execution of a {@link DoFn} caused by modifying an element
+ * <p>This catches errors during the execution of a {@link OldDoFn} caused by modifying an element
  * after it is added to an output {@link PCollection}.
  */
 class ImmutabilityCheckingBundleFactory implements BundleFactory {

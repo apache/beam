@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -24,6 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -100,6 +103,70 @@ public class FlatMapElementsTest implements Serializable {
 
     // Make sure the pipeline runs
     pipeline.run();
+  }
+
+  /**
+   * A {@link SimpleFunction} to test that the coder registry can propagate coders
+   * that are bound to type variables.
+   */
+  private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, Iterable<T>> {
+    @Override
+    public Iterable<T> apply(T input) {
+      return Collections.<T>emptyList();
+    }
+  }
+
+  /**
+   * Basic test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}.
+   */
+  @Test
+  public void testPolymorphicSimpleFunction() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+
+        // This is the function that needs to propagate the input T to output T
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<Integer>()))
+
+        // This is a consumer to ensure that all coder inference logic is executed.
+        .apply("Test Consumer", MapElements.via(new SimpleFunction<Iterable<Integer>, Integer>() {
+          @Override
+          public Integer apply(Iterable<Integer> input) {
+            return 42;
+          }
+        }));
+  }
+
+  @Test
+  public void testSimpleFunctionClassDisplayData() {
+    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
+      @Override
+      public List<Integer> apply(Integer input) {
+        return Collections.emptyList();
+      }
+    };
+
+    FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+  }
+
+  @Test
+  public void testSimpleFunctionDisplayData() {
+    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
+      @Override
+      public List<Integer> apply(Integer input) {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "baz"));
+      }
+    };
+
+    FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("foo", "baz"));
   }
 
   @Test

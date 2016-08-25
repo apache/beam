@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,11 +56,13 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 
 /**
  * Tests for {@link TransformExecutor}.
@@ -130,6 +133,26 @@ public class TransformExecutorTest {
 
     assertThat(finishCalled.get(), is(true));
     assertThat(completionCallback.handledResult, equalTo(result));
+    assertThat(completionCallback.handledThrowable, is(nullValue()));
+  }
+
+  @Test
+  public void nullTransformEvaluatorTerminates() throws Exception {
+    when(registry.forApplication(created.getProducingTransformInternal(),
+        null,
+        evaluationContext)).thenReturn(null);
+
+    TransformExecutor<Object> executor = TransformExecutor.create(registry,
+        Collections.<ModelEnforcementFactory>emptyList(),
+        evaluationContext,
+        null,
+        created.getProducingTransformInternal(),
+        completionCallback,
+        transformEvaluationState);
+    executor.run();
+
+    assertThat(completionCallback.handledResult, is(nullValue()));
+    assertThat(completionCallback.handledEmpty, equalTo(true));
     assertThat(completionCallback.handledThrowable, is(nullValue()));
   }
 
@@ -471,6 +494,7 @@ public class TransformExecutorTest {
 
   private static class RegisteringCompletionCallback implements CompletionCallback {
     private TransformResult handledResult = null;
+    private boolean handledEmpty = false;
     private Throwable handledThrowable = null;
     private final CountDownLatch onMethod;
 
@@ -492,7 +516,14 @@ public class TransformExecutorTest {
           inputBundle == null ? null : inputBundle.withElements(unprocessedElements);
       return CommittedResult.create(result,
           unprocessedBundle,
-          Collections.<CommittedBundle<?>>emptyList());
+          Collections.<CommittedBundle<?>>emptyList(),
+          EnumSet.noneOf(OutputType.class));
+    }
+
+    @Override
+    public void handleEmpty(AppliedPTransform<?, ?, ?> transform) {
+      handledEmpty = true;
+      onMethod.countDown();
     }
 
     @Override

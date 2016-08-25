@@ -30,8 +30,8 @@ import java.io.IOException;
 import java.util.Collection;
 
 /**
- * Interface that may be required by some (internal) {@code DoFn}s to implement windowing. It should
- * not be necessary for general user code to interact with this at all.
+ * Interface that may be required by some (internal) {@code OldDoFn}s to implement windowing. It
+ * should not be necessary for general user code to interact with this at all.
  *
  * <p>This interface should be provided by runner implementors to support windowing on their runner.
  *

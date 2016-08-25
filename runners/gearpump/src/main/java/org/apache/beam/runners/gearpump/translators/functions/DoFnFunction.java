@@ -22,6 +22,7 @@ import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.utils.GearpumpDoFnRunner;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.DoFnRunner;
 import org.apache.beam.sdk.util.DoFnRunners;
 import org.apache.beam.sdk.util.SideInputReader;
@@ -50,7 +51,7 @@ public class DoFnFunction<InputT, OutputT> implements
 
   public DoFnFunction(
       GearpumpPipelineOptions pipelineOptions,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       SideInputReader sideInputReader) {
     this.doFnRunner = new GearpumpDoFnRunner<>(

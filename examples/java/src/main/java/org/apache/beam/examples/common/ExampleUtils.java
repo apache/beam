@@ -306,12 +306,12 @@ public class ExampleUtils {
         addShutdownHook(jobsToCancel);
       }
       try {
-        job.waitToFinish(-1, TimeUnit.SECONDS, new MonitoringUtil.LoggingHandler());
+        job.waitUntilFinish();
       } catch (Exception e) {
         throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
       }
     } else {
-      // Do nothing if the given PipelineResult doesn't support waitToFinish(),
+      // Do nothing if the given PipelineResult doesn't support waitUntilFinish(),
       // such as EvaluationResults returned by DirectRunner.
       tearDown();
       printPendingMessages();

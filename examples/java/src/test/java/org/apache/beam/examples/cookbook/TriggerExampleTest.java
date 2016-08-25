@@ -142,7 +142,7 @@ public class TriggerExampleTest {
   }
 
   static class FormatResults extends DoFn<TableRow, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       TableRow element = c.element();
       TableRow row = new TableRow()

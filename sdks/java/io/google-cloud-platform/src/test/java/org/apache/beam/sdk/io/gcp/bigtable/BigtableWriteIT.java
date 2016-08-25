@@ -109,7 +109,7 @@ public class BigtableWriteIT implements Serializable {
     Pipeline p = Pipeline.create(options);
     p.apply(CountingInput.upTo(numRows))
         .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             int index = c.element().intValue();
 

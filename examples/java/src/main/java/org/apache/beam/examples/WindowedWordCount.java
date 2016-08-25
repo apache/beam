@@ -22,8 +22,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -118,7 +118,7 @@ public class WindowedWordCount {
       this.minTimestamp = new Instant(System.currentTimeMillis());
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // Generate a timestamp that falls somewhere in the past two hours.
       long randMillis = (long) (Math.random() * RAND_RANGE.getMillis());
@@ -132,7 +132,7 @@ public class WindowedWordCount {
 
   /** A DoFn that converts a Word and Count into a BigQuery table row. */
   static class FormatAsTableRowFn extends DoFn<KV<String, Long>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("word", c.element().getKey())

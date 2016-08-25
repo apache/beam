@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.util.TriggerTester;
 import org.apache.beam.sdk.util.TriggerTester.SimpleTriggerTester;
 import org.apache.beam.sdk.values.TimestampedValue;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;

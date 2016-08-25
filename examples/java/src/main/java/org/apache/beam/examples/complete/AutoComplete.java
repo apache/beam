@@ -18,6 +18,7 @@
 package org.apache.beam.examples.complete;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
 
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
@@ -27,8 +28,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -61,7 +62,6 @@ import com.google.common.base.MoreObjects;
 import com.google.datastore.v1beta3.Entity;
 import com.google.datastore.v1beta3.Key;
 import com.google.datastore.v1beta3.Value;
-import com.google.datastore.v1beta3.client.DatastoreHelper;
 
 import org.joda.time.Duration;
 
@@ -131,7 +131,7 @@ public class AutoComplete {
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(new CompletionCandidate(c.element().getKey(), c.element().getValue()));
               }
@@ -210,7 +210,7 @@ public class AutoComplete {
 
     private static class FlattenTops
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -273,8 +273,8 @@ public class AutoComplete {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
-    @Override
-      public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
         c.output(KV.of(word.substring(0, i), c.element()));
@@ -342,7 +342,7 @@ public class AutoComplete {
    * Takes as input a set of strings, and emits each #hashtag found therein.
    */
   static class ExtractHashtags extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
@@ -352,7 +352,7 @@ public class AutoComplete {
   }
 
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
@@ -384,18 +384,23 @@ public class AutoComplete {
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
    * suitable for writing to Datastore.
+   *
+   * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
+   * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
+   * Structuring Data for Strong Consistency</a>
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
     private String kind;
-
-    public FormatForDatastore(String kind) {
+    private String ancestorKey;
+    public FormatForDatastore(String kind, String ancestorKey) {
       this.kind = kind;
+      this.ancestorKey = ancestorKey;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();
+      Key key = makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
@@ -444,6 +449,11 @@ public class AutoComplete {
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
+    @Description("Datastore ancestor key")
+    @Default.String("root")
+    String getDatastoreAncestorKey();
+    void setDatastoreAncestorKey(String value);
+
     @Description("Datastore output project ID, defaults to project ID")
     String getOutputProject();
     void setOutputProject(String value);
@@ -476,7 +486,8 @@ public class AutoComplete {
 
     if (options.getOutputToDatastore()) {
       toWrite
-      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
+      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind(),
+          options.getDatastoreAncestorKey())))
       .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
           options.getOutputProject(), options.getProject())));
     }

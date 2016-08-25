@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 
 import com.google.common.collect.Iterables;
@@ -37,29 +38,28 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
    extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
   private final WindowingStrategy<?, W> strategy;
+  private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
 
   public GroupAlsoByWindowsViaOutputBufferDoFn(
       WindowingStrategy<?, W> windowingStrategy,
+      StateInternalsFactory<K> stateInternalsFactory,
       SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
     this.strategy = windowingStrategy;
     this.reduceFn = reduceFn;
+    this.stateInternalsFactory = stateInternalsFactory;
   }
 
   @Override
   public void processElement(
-      DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>>.ProcessContext c)
+      OldDoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>>.ProcessContext c)
           throws Exception {
     K key = c.element().getKey();
     // Used with Batch, we know that all the data is available for this key. We can't use the
     // timer manager from the context because it doesn't exist. So we create one and emulate the
     // watermark, knowing that we have all data and it is in timestamp order.
     BatchTimerInternals timerInternals = new BatchTimerInternals(Instant.now());
-
-    // It is the responsibility of the user of GroupAlsoByWindowsViaOutputBufferDoFn to only
-    // provide a WindowingInternals instance with the appropriate key type for StateInternals.
-    @SuppressWarnings("unchecked")
-    StateInternals<K> stateInternals = (StateInternals<K>) c.windowingInternals().stateInternals();
+    StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
         new ReduceFnRunner<K, InputT, OutputT, W>(

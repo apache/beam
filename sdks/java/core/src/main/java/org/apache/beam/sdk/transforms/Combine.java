@@ -1474,8 +1474,8 @@ public class Combine {
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
           .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
               new DoFn<Void, OutputT>() {
-                @Override
-                public void processElement(DoFn<Void, OutputT>.ProcessContext c) {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
                   Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
                   if (!combined.hasNext()) {
                     c.output(defaultValue);
@@ -2099,13 +2099,13 @@ public class Combine {
       PCollectionTuple split = input.apply("AddNonce", ParDo.of(
           new DoFn<KV<K, InputT>, KV<K, InputT>>() {
             transient int counter;
-            @Override
+            @StartBundle
             public void startBundle(Context c) {
               counter = ThreadLocalRandom.current().nextInt(
                   Integer.MAX_VALUE);
             }
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               KV<K, InputT> kv = c.element();
               int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
@@ -2136,8 +2136,8 @@ public class Combine {
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
           .apply("StripNonce", ParDo.of(
               new DoFn<KV<KV<K, Integer>, AccumT>,
-                       KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @Override
+                                     KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(
                       c.element().getKey().getKey(),
@@ -2152,7 +2152,7 @@ public class Combine {
           .setCoder(inputCoder)
           .apply("PrepareCold", ParDo.of(
               new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(c.element().getKey(),
                                  InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
@@ -2359,7 +2359,7 @@ public class Combine {
       final PerKeyCombineFnRunner<? super K, ? super InputT, ?, OutputT> combineFnRunner =
           PerKeyCombineFnRunners.create(fn);
       PCollection<KV<K, OutputT>> output = input.apply(ParDo.of(
-          new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
+          new OldDoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
             @Override
             public void processElement(ProcessContext c) {
               K key = c.element().getKey();

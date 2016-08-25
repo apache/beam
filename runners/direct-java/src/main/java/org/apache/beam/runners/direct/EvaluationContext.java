@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -48,7 +48,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import org.joda.time.Instant;
+
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,7 +67,7 @@ import javax.annotation.Nullable;
  * <p>{@link EvaluationContext} contains shared state for an execution of the
  * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
  * consists of views into underlying state and watermark implementations, access to read and write
- * {@link PCollectionView PCollectionViews}, and constructing {@link CounterSet CounterSets} and
+ * {@link PCollectionView PCollectionViews}, and managing the {@link AggregatorContainer} and
  * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
  * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
  * known to be empty).
@@ -80,6 +83,7 @@ class EvaluationContext {
 
   /** The options that were used to create this {@link Pipeline}. */
   private final DirectOptions options;
+  private final Clock clock;
 
   private final BundleFactory bundleFactory;
   /** The current processing time and event time watermarks and timers. */
@@ -94,7 +98,7 @@ class EvaluationContext {
 
   private final SideInputContainer sideInputContainer;
 
-  private final CounterSet mergedCounters;
+  private final AggregatorContainer mergedAggregators;
 
   public static EvaluationContext create(
       DirectOptions options,
@@ -115,6 +119,7 @@ class EvaluationContext {
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     this.options = checkNotNull(options);
+    this.clock = options.getClock();
     this.bundleFactory = checkNotNull(bundleFactory);
     checkNotNull(rootTransforms);
     checkNotNull(valueToConsumers);
@@ -122,13 +127,11 @@ class EvaluationContext {
     checkNotNull(views);
     this.stepNames = stepNames;
 
-    this.watermarkManager =
-        WatermarkManager.create(
-            NanosOffsetClock.create(), rootTransforms, valueToConsumers);
+    this.watermarkManager = WatermarkManager.create(clock, rootTransforms, valueToConsumers);
     this.sideInputContainer = SideInputContainer.create(this, views);
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.mergedCounters = new CounterSet();
+    this.mergedAggregators = AggregatorContainer.create();
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
@@ -156,19 +159,26 @@ class EvaluationContext {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
+    EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());
+    if (Iterables.isEmpty(committedBundles)) {
+      outputTypes.remove(OutputType.BUNDLE);
+    } else {
+      outputTypes.add(OutputType.BUNDLE);
+    }
     CommittedResult committedResult = CommittedResult.create(result,
         completedBundle == null
             ? null
             : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
-        committedBundles);
+        committedBundles,
+        outputTypes);
     watermarkManager.updateWatermarks(
         completedBundle,
         result.getTimerUpdate().withCompletedTimers(completedTimers),
         committedResult,
         result.getWatermarkHold());
-    // Update counters
-    if (result.getCounters() != null) {
-      mergedCounters.merge(result.getCounters());
+    // Commit aggregator changes
+    if (result.getAggregatorChanges() != null) {
+      result.getAggregatorChanges().commit();
     }
     // Update state internals
     CopyOnAccessInMemoryStateInternals<?> theirState = result.getState();
@@ -306,7 +316,7 @@ class EvaluationContext {
       AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {
     StepAndKey stepAndKey = StepAndKey.of(application, key);
     return new DirectExecutionContext(
-        options.getClock(),
+        clock,
         key,
         (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
@@ -340,25 +350,18 @@ class EvaluationContext {
     return sideInputContainer.createReaderForViews(sideInputs);
   }
 
-
   /**
-   * Create a {@link CounterSet} for this {@link Pipeline}. The {@link CounterSet} is independent
-   * of all other {@link CounterSet CounterSets} created by this call.
-   *
-   * The {@link EvaluationContext} is responsible for unifying the counters present in
-   * all created {@link CounterSet CounterSets} when the transforms that call this method
-   * complete.
+   * Returns a new mutator for the {@link AggregatorContainer}.
    */
-  public CounterSet createCounterSet() {
-    return new CounterSet();
+  public AggregatorContainer.Mutator getAggregatorMutator() {
+    return mergedAggregators.createMutator();
   }
 
   /**
-   * Returns all of the counters that have been merged into this context via calls to
-   * {@link CounterSet#merge(CounterSet)}.
+   * Returns the counter container for this context.
    */
-  public CounterSet getCounters() {
-    return mergedCounters;
+  public AggregatorContainer getAggregatorContainer() {
+    return mergedAggregators;
   }
 
   @VisibleForTesting
@@ -425,5 +428,9 @@ class EvaluationContext {
       }
     }
     return true;
+  }
+
+  public Instant now() {
+    return clock.now();
   }
 }

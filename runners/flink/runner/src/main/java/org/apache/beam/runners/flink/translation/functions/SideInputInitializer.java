@@ -67,7 +67,7 @@ public class SideInputInitializer<ElemT, ViewT, W extends BoundedWindow>
       Iterable<WindowedValue<?>> elementsIterable =
           (List<WindowedValue<?>>) (List<?>) elements.getValue();
 
-      resultMap.put(elements.getKey(), view.fromIterableInternal(elementsIterable));
+      resultMap.put(elements.getKey(), view.getViewFn().apply(elementsIterable));
     }
 
     return resultMap;

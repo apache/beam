@@ -18,15 +18,14 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
-import org.apache.beam.sdk.transforms.DoFnWithContext.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
-import org.apache.beam.sdk.transforms.DoFnWithContext.StartBundle;
+import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -42,16 +42,18 @@ import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy.SuffixingRandom;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.ParameterList;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeDescription.Generic;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.MethodCall.MethodLocator;
 import net.bytebuddy.implementation.StubMethod;
@@ -70,7 +72,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
-
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -89,12 +91,12 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 
 /**
- * Utility implementing the necessary reflection for working with {@link DoFnWithContext}s.
+ * Utility implementing the necessary reflection for working with {@link DoFn}s.
  */
 public abstract class DoFnReflector {
 
@@ -104,12 +106,12 @@ public abstract class DoFnReflector {
     /** Indicates parameters only available in {@code @ProcessElement} methods. */
     PROCESS_ELEMENT_ONLY,
     /** Indicates parameters available in all methods. */
-    EVERYWHERE;
+    EVERYWHERE
   }
 
   /**
    * Enumeration of the parameters available from the {@link ExtraContextFactory} to use as
-   * additional parameters for {@link DoFnWithContext} methods.
+   * additional parameters for {@link DoFn} methods.
    * <p>
    * We don't rely on looking for properly annotated methods within {@link ExtraContextFactory}
    * because erasure would make it impossible to completely fill in the type token for context
@@ -120,30 +122,53 @@ public abstract class DoFnReflector {
     /** Any {@link BoundedWindow} parameter is populated by the window of the current element. */
     WINDOW_OF_ELEMENT(Availability.PROCESS_ELEMENT_ONLY, BoundedWindow.class, "window") {
       @Override
-      public <InputT, OutputT> TypeToken<?>
-          tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+      public <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
         return TypeToken.of(BoundedWindow.class);
       }
     },
 
-    WINDOWING_INTERNALS(Availability.PROCESS_ELEMENT_ONLY,
-        WindowingInternals.class, "windowingInternals") {
+    INPUT_PROVIDER(Availability.PROCESS_ELEMENT_ONLY, DoFn.InputProvider.class, "inputProvider") {
       @Override
-      public <InputT, OutputT> TypeToken<?> tokenFor(
-          TypeToken<InputT> in, TypeToken<OutputT> out) {
-        return new TypeToken<WindowingInternals<InputT, OutputT>>() {}
-            .where(new TypeParameter<InputT>() {}, in)
-            .where(new TypeParameter<OutputT>() {}, out);
+      public <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+        return new TypeToken<DoFn.InputProvider<InputT>>() {}.where(
+            new TypeParameter<InputT>() {}, in);
+      }
+
+      @Override
+      public boolean isHidden() {
+        return true;
+      }
+    },
+
+    OUTPUT_RECEIVER(
+        Availability.PROCESS_ELEMENT_ONLY, DoFn.OutputReceiver.class, "outputReceiver") {
+      @Override
+      public <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+        return new TypeToken<DoFn.OutputReceiver<OutputT>>() {}.where(
+            new TypeParameter<OutputT>() {}, out);
+      }
+
+      @Override
+      public boolean isHidden() {
+        return true;
       }
     };
 
     /**
      * Create a type token representing the given parameter. May use the type token associated
-     * with the input and output types of the {@link DoFnWithContext}, depending on the extra
+     * with the input and output types of the {@link DoFn}, depending on the extra
      * context.
      */
     abstract <InputT, OutputT> TypeToken<?> tokenFor(
         TypeToken<InputT> in, TypeToken<OutputT> out);
+
+    /**
+     * Indicates whether this enum is for testing only, hence should not appear in error messages,
+     * etc. Defaults to {@code false}.
+     */
+    boolean isHidden() {
+      return false;
+    }
 
     private final Class<?> rawType;
     private final Availability availability;
@@ -190,22 +215,22 @@ public abstract class DoFnReflector {
   }
 
   /**
-   * @return true if the reflected {@link DoFnWithContext} uses a Single Window.
+   * @return true if the reflected {@link DoFn} uses a Single Window.
    */
   public abstract boolean usesSingleWindow();
 
-  /** Create an {@link DoFnInvoker} bound to the given {@link DoFn}. */
+  /** Create an {@link DoFnInvoker} bound to the given {@link OldDoFn}. */
   public abstract <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(
-      DoFnWithContext<InputT, OutputT> fn);
+      DoFn<InputT, OutputT> fn);
 
   private static final Map<Class<?>, DoFnReflector> REFLECTOR_CACHE =
       new LinkedHashMap<Class<?>, DoFnReflector>();
 
   /**
-   * @return the {@link DoFnReflector} for the given {@link DoFnWithContext}.
+   * @return the {@link DoFnReflector} for the given {@link DoFn}.
    */
   public static DoFnReflector of(
-      @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> fn) {
+      @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
     DoFnReflector reflector = REFLECTOR_CACHE.get(fn);
     if (reflector != null) {
       return reflector;
@@ -217,9 +242,9 @@ public abstract class DoFnReflector {
   }
 
   /**
-   * Create a {@link DoFn} that the {@link DoFnWithContext}.
+   * Create a {@link OldDoFn} that the {@link DoFn}.
    */
-  public <InputT, OutputT> DoFn<InputT, OutputT> toDoFn(DoFnWithContext<InputT, OutputT> fn) {
+  public <InputT, OutputT> OldDoFn<InputT, OutputT> toDoFn(DoFn<InputT, OutputT> fn) {
     if (usesSingleWindow()) {
       return new WindowDoFnAdapter<InputT, OutputT>(this, fn);
     } else {
@@ -240,16 +265,17 @@ public abstract class DoFnReflector {
       final TypeToken<?> in, final TypeToken<?> out) {
     return FluentIterable
         .from(extraProcessContexts.values())
-        .transform(new Function<AdditionalParameter, String>() {
-
+        .filter(new Predicate<AdditionalParameter>() {
           @Override
-          @Nullable
-          public String apply(@Nullable AdditionalParameter input) {
-            if (input == null) {
-              return null;
-            } else {
-              return formatType(input.tokenFor(in, out));
-            }
+          public boolean apply(@Nonnull AdditionalParameter additionalParameter) {
+            return !additionalParameter.isHidden();
+          }
+        })
+        .transform(new Function<AdditionalParameter, String>() {
+          @Override
+          @Nonnull
+          public String apply(@Nonnull AdditionalParameter input) {
+            return formatType(input.tokenFor(in, out));
           }
         })
         .toSortedSet(String.CASE_INSENSITIVE_ORDER);
@@ -259,7 +285,7 @@ public abstract class DoFnReflector {
   static <InputT, OutputT> List<AdditionalParameter> verifyProcessMethodArguments(Method m) {
     return verifyMethodArguments(m,
         EXTRA_PROCESS_CONTEXTS,
-        new TypeToken<DoFnWithContext<InputT, OutputT>.ProcessContext>() {},
+        new TypeToken<DoFn<InputT, OutputT>.ProcessContext>() {},
         new TypeParameter<InputT>() {},
         new TypeParameter<OutputT>() {});
   }
@@ -271,23 +297,22 @@ public abstract class DoFnReflector {
     }
     return verifyMethodArguments(m,
         EXTRA_CONTEXTS,
-        new TypeToken<DoFnWithContext<InputT, OutputT>.Context>() {},
+        new TypeToken<DoFn<InputT, OutputT>.Context>() {},
         new TypeParameter<InputT>() {},
         new TypeParameter<OutputT>() {});
   }
 
   /**
-   * Verify the method arguments for a given {@link DoFnWithContext} method.
+   * Verify the method arguments for a given {@link DoFn} method.
    *
    * <p>The requirements for a method to be valid, are:
    * <ol>
    * <li>The method has at least one argument.
    * <li>The first argument is of type firstContextArg.
    * <li>The remaining arguments have raw types that appear in {@code contexts}
-   * <li>Any generics on the extra context arguments match what is expected. Eg.,
-   *     {@code WindowingInternals<InputT, OutputT>} either matches the
-   *     {@code InputT} and {@code OutputT} parameters of the
-   *     {@code DoFn<InputT, OutputT>.ProcessContext}, or it uses a wildcard, etc.
+   * <li>Any generics on the extra context arguments match what is expected. Currently, this
+   * is exercised only by placeholders. For example, {@code InputReceiver<InputT> must either match
+   * the {@code InputT} {@code OldDoFn<InputT, OutputT>.ProcessContext} or use a wildcard, etc.
    * </ol>
    *
    * @param m the method to verify
@@ -297,7 +322,8 @@ public abstract class DoFnReflector {
    * @param iParam TypeParameter representing the input type
    * @param oParam TypeParameter representing the output type
    */
-  @VisibleForTesting static <InputT, OutputT> List<AdditionalParameter> verifyMethodArguments(
+  @VisibleForTesting
+  static <InputT, OutputT> List<AdditionalParameter> verifyMethodArguments(
       Method m,
       Map<Class<?>, AdditionalParameter> contexts,
       TypeToken<?> firstContextArg,
@@ -328,9 +354,9 @@ public abstract class DoFnReflector {
     AdditionalParameter[] contextInfos = new AdditionalParameter[params.length - 1];
 
     // Fill in the generics in the allExtraContextArgs interface from the types in the
-    // Context or ProcessContext DoFn.
+    // Context or ProcessContext OldDoFn.
     ParameterizedType pt = (ParameterizedType) contextToken.getType();
-    // We actually want the owner, since ProcessContext and Context are owned by DoFnWithContext.
+    // We actually want the owner, since ProcessContext and Context are owned by DoFn.
     pt = (ParameterizedType) pt.getOwnerType();
     @SuppressWarnings("unchecked")
     TypeToken<InputT> iActual = (TypeToken<InputT>) TypeToken.of(pt.getActualTypeArguments()[0]);
@@ -364,25 +390,25 @@ public abstract class DoFnReflector {
     return ImmutableList.copyOf(contextInfos);
   }
 
-  /** Interface for invoking the {@code DoFn} processing methods. */
+  /** Interface for invoking the {@code OldDoFn} processing methods. */
   public interface DoFnInvoker<InputT, OutputT>  {
-    /** Invoke {@link DoFn#startBundle} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#startBundle} on the bound {@code OldDoFn}. */
     void invokeStartBundle(
-        DoFnWithContext<InputT, OutputT>.Context c,
+        DoFn<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
-    /** Invoke {@link DoFn#finishBundle} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#finishBundle} on the bound {@code OldDoFn}. */
     void invokeFinishBundle(
-        DoFnWithContext<InputT, OutputT>.Context c,
+        DoFn<InputT, OutputT>.Context c,
         ExtraContextFactory<InputT, OutputT> extra);
 
-    /** Invoke {@link DoFn#processElement} on the bound {@code DoFn}. */
+    /** Invoke {@link OldDoFn#processElement} on the bound {@code OldDoFn}. */
     public void invokeProcessElement(
-        DoFnWithContext<InputT, OutputT>.ProcessContext c,
+        DoFn<InputT, OutputT>.ProcessContext c,
         ExtraContextFactory<InputT, OutputT> extra);
   }
 
   /**
-   * Implementation of {@link DoFnReflector} for the arbitrary {@link DoFnWithContext}.
+   * Implementation of {@link DoFnReflector} for the arbitrary {@link DoFn}.
    */
   private static class GenericDoFnReflector extends DoFnReflector {
 
@@ -395,7 +421,7 @@ public abstract class DoFnReflector {
     private final Constructor<?> constructor;
 
     private GenericDoFnReflector(
-        @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> fn) {
+        @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
       // Locate the annotated methods
       this.processElement = findAnnotatedMethod(ProcessElement.class, fn, true);
       this.startBundle = findAnnotatedMethod(StartBundle.class, fn, false);
@@ -442,10 +468,10 @@ public abstract class DoFnReflector {
     private static Method findAnnotatedMethod(
         Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
       Collection<Method> matches = declaredMethodsWithAnnotation(
-          anno, fnClazz, DoFnWithContext.class);
+          anno, fnClazz, DoFn.class);
 
       if (matches.size() == 0) {
-        if (required == true) {
+        if (required) {
           throw new IllegalStateException(String.format(
               "No method annotated with @%s found in %s",
               anno.getSimpleName(), fnClazz.getName()));
@@ -493,14 +519,26 @@ public abstract class DoFnReflector {
 
     /**
      * Use ByteBuddy to generate the code for a {@link DoFnInvoker} that invokes the given
-     * {@link DoFnWithContext}.
+     * {@link DoFn}.
      * @param clazz
      * @return
      */
     private Constructor<? extends DoFnInvoker<?, ?>> createInvokerConstructor(
-        @SuppressWarnings("rawtypes") Class<? extends DoFnWithContext> clazz) {
+        @SuppressWarnings("rawtypes") Class<? extends DoFn> clazz) {
+
+      final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(clazz);
+
       DynamicType.Builder<?> builder = new ByteBuddy()
-          .subclass(DoFnInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
+          // Create subclasses inside the target class, to have access to
+          // private and package-private bits
+          .with(new SuffixingRandom("auxiliary") {
+                @Override
+                public String subclass(Generic superClass) {
+                  return super.name(clazzDescription);
+                }
+              })
+          // Create a subclass of DoFnInvoker
+          .subclass(DoFnInvoker.class, Default.NO_CONSTRUCTORS)
           .defineField(FN_DELEGATE_FIELD_NAME, clazz, Visibility.PRIVATE, FieldManifestation.FINAL)
           // Define a constructor to populate fields appropriately.
           .defineConstructor(Visibility.PUBLIC)
@@ -533,7 +571,7 @@ public abstract class DoFnReflector {
 
     @Override
     public <InputT, OutputT> DoFnInvoker<InputT, OutputT> bindInvoker(
-        DoFnWithContext<InputT, OutputT> fn) {
+        DoFn<InputT, OutputT> fn) {
       try {
         @SuppressWarnings("unchecked")
         DoFnInvoker<InputT, OutputT> invoker =
@@ -550,13 +588,13 @@ public abstract class DoFnReflector {
   }
 
   private static class ContextAdapter<InputT, OutputT>
-      extends DoFnWithContext<InputT, OutputT>.Context
-      implements DoFnWithContext.ExtraContextFactory<InputT, OutputT> {
+      extends DoFn<InputT, OutputT>.Context
+      implements DoFn.ExtraContextFactory<InputT, OutputT> {
 
-    private DoFn<InputT, OutputT>.Context context;
+    private OldDoFn<InputT, OutputT>.Context context;
 
     private ContextAdapter(
-        DoFnWithContext<InputT, OutputT> fn, DoFn<InputT, OutputT>.Context context) {
+        DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
       fn.super();
       this.context = context;
     }
@@ -588,29 +626,31 @@ public abstract class DoFnReflector {
 
     @Override
     public BoundedWindow window() {
-      // The DoFnWithContext doesn't allow us to ask for these outside ProcessElements, so this
+      // The DoFn doesn't allow us to ask for these outside ProcessElements, so this
       // should be unreachable.
       throw new UnsupportedOperationException("Can only get the window in ProcessElements");
     }
 
     @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      // The DoFnWithContext doesn't allow us to ask for these outside ProcessElements, so this
-      // should be unreachable.
-      throw new UnsupportedOperationException(
-          "Can only get the windowingInternals in ProcessElements");
+    public DoFn.InputProvider<InputT> inputProvider() {
+      throw new UnsupportedOperationException("inputProvider() exists only for testing");
+    }
+
+    @Override
+    public DoFn.OutputReceiver<OutputT> outputReceiver() {
+      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
     }
   }
 
   private static class ProcessContextAdapter<InputT, OutputT>
-      extends DoFnWithContext<InputT, OutputT>.ProcessContext
-      implements DoFnWithContext.ExtraContextFactory<InputT, OutputT> {
+      extends DoFn<InputT, OutputT>.ProcessContext
+      implements DoFn.ExtraContextFactory<InputT, OutputT> {
 
-    private DoFn<InputT, OutputT>.ProcessContext context;
+    private OldDoFn<InputT, OutputT>.ProcessContext context;
 
     private ProcessContextAdapter(
-        DoFnWithContext<InputT, OutputT> fn,
-        DoFn<InputT, OutputT>.ProcessContext context) {
+        DoFn<InputT, OutputT> fn,
+        OldDoFn<InputT, OutputT>.ProcessContext context) {
       fn.super();
       this.context = context;
     }
@@ -666,12 +706,17 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return context.windowingInternals();
+    public DoFn.InputProvider<InputT> inputProvider() {
+      throw new UnsupportedOperationException("inputProvider() exists only for testing");
+    }
+
+    @Override
+    public DoFn.OutputReceiver<OutputT> outputReceiver() {
+      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
     }
   }
 
-  public static Class<?> getDoFnClass(DoFn<?, ?> fn) {
+  public static Class<?> getDoFnClass(OldDoFn<?, ?> fn) {
     if (fn instanceof SimpleDoFnAdapter) {
       return ((SimpleDoFnAdapter<?, ?>) fn).fn.getClass();
     } else {
@@ -679,31 +724,31 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class SimpleDoFnAdapter<InputT, OutputT> extends DoFn<InputT, OutputT> {
+  private static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
 
-    private final DoFnWithContext<InputT, OutputT> fn;
+    private final DoFn<InputT, OutputT> fn;
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
-    private SimpleDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
+    private SimpleDoFnAdapter(DoFnReflector reflector, DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.fn = fn;
       this.invoker = reflector.bindInvoker(fn);
     }
 
     @Override
-    public void startBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
+    public void startBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       invoker.invokeStartBundle(adapter, adapter);
     }
 
     @Override
-    public void finishBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
+    public void finishBundle(OldDoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       invoker.invokeFinishBundle(adapter, adapter);
     }
 
     @Override
-    public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
+    public void processElement(OldDoFn<InputT, OutputT>.ProcessContext c) throws Exception {
       ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
       invoker.invokeProcessElement(adapter, adapter);
     }
@@ -719,6 +764,11 @@ public abstract class DoFnReflector {
     }
 
     @Override
+    public Duration getAllowedTimestampSkew() {
+      return fn.getAllowedTimestampSkew();
+    }
+
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.include(fn);
     }
@@ -731,9 +781,9 @@ public abstract class DoFnReflector {
   }
 
   private static class WindowDoFnAdapter<InputT, OutputT>
-  extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresWindowAccess {
+  extends SimpleDoFnAdapter<InputT, OutputT> implements OldDoFn.RequiresWindowAccess {
 
-    private WindowDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
+    private WindowDoFnAdapter(DoFnReflector reflector, DoFn<InputT, OutputT> fn) {
       super(reflector, fn);
     }
   }
@@ -758,7 +808,7 @@ public abstract class DoFnReflector {
         try {
           prepareMethod = new MethodLocator.ForExplicitMethod(
               new MethodDescription.ForLoadedMethod(
-                  DoFnWithContext.class.getDeclaredMethod("prepareForProcessing")))
+                  DoFn.class.getDeclaredMethod("prepareForProcessing")))
           .resolve(instrumentedMethod);
         } catch (NoSuchMethodException | SecurityException e) {
           throw new RuntimeException("Unable to locate prepareForProcessing method", e);
@@ -805,7 +855,7 @@ public abstract class DoFnReflector {
 
   /**
    * A byte-buddy {@link Implementation} that delegates a call that receives
-   * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
+   * {@link AdditionalParameter} to the given {@link DoFn} method.
    */
   private static final class InvokerDelegation implements Implementation {
     @Nullable
@@ -833,7 +883,7 @@ public abstract class DoFnReflector {
 
     /**
      * Generate the {@link Implementation} of one of the life-cycle methods of a
-     * {@link DoFnWithContext}.
+     * {@link DoFn}.
      */
     private static Implementation create(
         @Nullable final Method target, BeforeDelegation before, List<AdditionalParameter> args) {
@@ -857,7 +907,7 @@ public abstract class DoFnReflector {
     }
 
     /**
-     * Stack manipulation to push the {@link DoFnWithContext} reference stored in the
+     * Stack manipulation to push the {@link DoFn} reference stored in the
      * delegate field of the invoker on to the top of the stack.
      *
      * <p>This implementation is derived from the code for
@@ -1006,7 +1056,7 @@ public abstract class DoFnReflector {
   /**
    * A constructor {@link Implementation} for a {@link DoFnInvoker class}. Produces the byte code
    * for a constructor that takes a single argument and assigns it to the delegate field.
-   * {@link AdditionalParameter} to the given {@link DoFnWithContext} method.
+   * {@link AdditionalParameter} to the given {@link DoFn} method.
    */
   private static final class InvokerConstructor implements Implementation {
     @Override

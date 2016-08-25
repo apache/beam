@@ -51,7 +51,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
           @Override
           public PCollection<String> apply(PCollection<String> input) {
             return input.apply(ParDo.of(new DoFn<String, String>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) throws Exception {
                 c.output(c.element());
               }
@@ -80,7 +80,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
   public void testPrimitiveTransform() {
     PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform = ParDo.of(
         new DoFn<Integer, Integer>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {}
 
       @Override

@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -62,19 +64,18 @@ public class TransformTranslatorTest {
    */
   @Test
   public void testTextIOReadAndWriteTransforms() throws IOException {
-    String directOut = runPipeline(DirectRunner.class);
     String sparkOut = runPipeline(SparkRunner.class);
 
-    File directOutFile = new File(directOut);
-    List<String> directOutput =
-            readFromOutputFiles(directOutFile.getParentFile(), directOutFile.getName());
+    List<String> lines =
+        Files.readLines(
+            Paths.get("src/test/resources/test_text.txt").toFile(), StandardCharsets.UTF_8);
 
     File sparkOutFile = new File(sparkOut);
     List<String> sparkOutput =
             readFromOutputFiles(sparkOutFile.getParentFile(), sparkOutFile.getName());
 
     // sort output to get a stable result (PCollections are not ordered)
-    assertThat(sparkOutput, containsInAnyOrder(directOutput.toArray()));
+    assertThat(sparkOutput, containsInAnyOrder(lines.toArray()));
   }
 
   private String runPipeline(Class<? extends PipelineRunner<?>> runner) throws IOException {
