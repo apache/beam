@@ -25,9 +25,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PInput;
 import org.joda.time.Duration;
 
 /**
@@ -87,7 +87,7 @@ public class Read {
   /**
    * {@link PTransform} that reads from a {@link BoundedSource}.
    */
-  public static class Bounded<T> extends PTransform<PInput, PCollection<T>> {
+  public static class Bounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
 
     private Bounded(@Nullable String name, BoundedSource<T> source) {
@@ -101,7 +101,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> apply(PInput input) {
+    public final PCollection<T> apply(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
@@ -134,7 +134,7 @@ public class Read {
   /**
    * {@link PTransform} that reads from a {@link UnboundedSource}.
    */
-  public static class Unbounded<T> extends PTransform<PInput, PCollection<T>> {
+  public static class Unbounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
 
     private Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {
@@ -169,7 +169,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> apply(PInput input) {
+    public final PCollection<T> apply(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(

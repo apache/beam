@@ -291,7 +291,7 @@ public class AvroIOTest {
         .withSchema(Schema.create(Schema.Type.STRING))
         .withoutValidation();
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("AvroIO.Read should include the file pattern in its primitive transform",
         displayData, hasItem(hasDisplayItem("filePattern")));
   }
