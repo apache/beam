@@ -151,7 +151,7 @@ public class DatastoreWordCount {
    */
   public static interface Options extends PipelineOptions {
     @Description("Path of the file to read from and store to Datastore")
-    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInput();
     void setInput(String value);
 
