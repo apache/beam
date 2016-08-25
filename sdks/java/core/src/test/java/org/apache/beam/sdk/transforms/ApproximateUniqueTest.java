@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -223,7 +224,7 @@ public class ApproximateUniqueTest implements Serializable {
 
     PCollection<KV<Long, Long>> approximateAndExact = approximate
         .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(KV.of(c.element(), c.sideInput(exact)));
               }

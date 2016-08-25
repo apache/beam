@@ -55,7 +55,7 @@ public class CombineGloballyTest {
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = inputWords.apply(Combine.globally(new WordMerger()));
 
-    EvaluationResult res = SparkRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     assertEquals("hi there,hi,hi sue bob,hi sue,,bob hi",
         Iterables.getOnlyElement(res.get(output)));
     res.close();

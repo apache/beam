@@ -23,9 +23,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -33,19 +34,15 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,21 +58,21 @@ import java.util.Set;
  */
 public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
-  /** The DoFn being run. */
-  public final DoFn<InputT, OutputT> fn;
+  /** The OldDoFn being run. */
+  public final OldDoFn<InputT, OutputT> fn;
 
-  /** The context used for running the DoFn. */
+  /** The context used for running the OldDoFn. */
   public final DoFnContext<InputT, OutputT> context;
 
   protected DoFnRunnerBase(
       PipelineOptions options,
-      DoFn<InputT, OutputT> fn,
+      OldDoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator,
+      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.context = new DoFnContext<>(
@@ -86,13 +83,13 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
         mainOutputTag,
         sideOutputTags,
         stepContext,
-        addCounterMutator,
+        aggregatorFactory,
         windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
   /**
    * An implementation of {@code OutputManager} using simple lists, for testing and in-memory
-   * contexts such as the {@link DirectRunner}.
+   * contexts such as the {@code DirectRunner}.
    */
   public static class ListOutputManager implements OutputManager {
 
@@ -148,7 +145,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
   }
 
   /**
-   * Invokes {@link DoFn#processElement} after certain pre-processings has been done in
+   * Invokes {@link OldDoFn#processElement} after certain pre-processings has been done in
    * {@link DoFnRunnerBase#processElement}.
    */
   protected abstract void invokeProcessElement(WindowedValue<InputT> elem);
@@ -165,22 +162,22 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
   }
 
   /**
-   * A concrete implementation of {@code DoFn.Context} used for running a {@link DoFn}.
+   * A concrete implementation of {@code OldDoFn.Context} used for running a {@link OldDoFn}.
    *
-   * @param <InputT> the type of the DoFn's (main) input elements
-   * @param <OutputT> the type of the DoFn's (main) output elements
+   * @param <InputT> the type of the OldDoFn's (main) input elements
+   * @param <OutputT> the type of the OldDoFn's (main) output elements
    */
   private static class DoFnContext<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.Context {
+      extends OldDoFn<InputT, OutputT>.Context {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
-    final DoFn<InputT, OutputT> fn;
+    final OldDoFn<InputT, OutputT> fn;
     final SideInputReader sideInputReader;
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final CounterSet.AddCounterMutator addCounterMutator;
+    final AggregatorFactory aggregatorFactory;
     final WindowFn<?, ?> windowFn;
 
     /**
@@ -190,13 +187,13 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     private Set<TupleTag<?>> outputTags;
 
     public DoFnContext(PipelineOptions options,
-                       DoFn<InputT, OutputT> fn,
+                       OldDoFn<InputT, OutputT> fn,
                        SideInputReader sideInputReader,
                        OutputManager outputManager,
                        TupleTag<OutputT> mainOutputTag,
                        List<TupleTag<?>> sideOutputTags,
                        StepContext stepContext,
-                       CounterSet.AddCounterMutator addCounterMutator,
+                       AggregatorFactory aggregatorFactory,
                        WindowFn<?, ?> windowFn) {
       fn.super();
       this.options = options;
@@ -212,7 +209,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       }
 
       this.stepContext = stepContext;
-      this.addCounterMutator = addCounterMutator;
+      this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
       super.setupDelegateAggregators();
     }
@@ -320,8 +317,8 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     }
 
     // Following implementations of output, outputWithTimestamp, and sideOutput
-    // are only accessible in DoFn.startBundle and DoFn.finishBundle, and will be shadowed by
-    // ProcessContext's versions in DoFn.processElement.
+    // are only accessible in OldDoFn.startBundle and OldDoFn.finishBundle, and will be shadowed by
+    // ProcessContext's versions in OldDoFn.processElement.
     @Override
     public void output(OutputT output) {
       outputWindowedValue(output, null, null, PaneInfo.NO_FIRING);
@@ -344,25 +341,19 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
-    private String generateInternalAggregatorName(String userName) {
-      boolean system = fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
-      return (system ? "" : "user-") + stepContext.getStepName() + "-" + userName;
-    }
-
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner,
-          "Combiner passed to createAggregator cannot be null");
-      return new CounterAggregator<>(generateInternalAggregatorName(name),
-          combiner, addCounterMutator);
+      checkNotNull(combiner, "Combiner passed to createAggregatorForDoFn cannot be null");
+      return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
   }
 
   /**
-   * Returns a new {@code DoFn.ProcessContext} for the given element.
+   * Returns a new {@code OldDoFn.ProcessContext} for the given element.
    */
-  protected DoFn<InputT, OutputT>.ProcessContext createProcessContext(WindowedValue<InputT> elem) {
+  protected OldDoFn<InputT, OutputT>.ProcessContext createProcessContext(
+      WindowedValue<InputT> elem) {
     return new DoFnProcessContext<InputT, OutputT>(fn, context, elem);
   }
 
@@ -375,21 +366,21 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
   }
 
   /**
-   * A concrete implementation of {@code DoFn.ProcessContext} used for
-   * running a {@link DoFn} over a single element.
+   * A concrete implementation of {@code OldDoFn.ProcessContext} used for
+   * running a {@link OldDoFn} over a single element.
    *
-   * @param <InputT> the type of the DoFn's (main) input elements
-   * @param <OutputT> the type of the DoFn's (main) output elements
+   * @param <InputT> the type of the OldDoFn's (main) input elements
+   * @param <OutputT> the type of the OldDoFn's (main) output elements
    */
   static class DoFnProcessContext<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.ProcessContext {
+      extends OldDoFn<InputT, OutputT>.ProcessContext {
 
 
-    final DoFn<InputT, OutputT> fn;
+    final OldDoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;
     final WindowedValue<InputT> windowedValue;
 
-    public DoFnProcessContext(DoFn<InputT, OutputT> fn,
+    public DoFnProcessContext(OldDoFn<InputT, OutputT> fn,
                               DoFnContext<InputT, OutputT> context,
                               WindowedValue<InputT> windowedValue) {
       fn.super();
@@ -436,7 +427,8 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     public BoundedWindow window() {
       if (!(fn instanceof RequiresWindowAccess)) {
         throw new UnsupportedOperationException(
-            "window() is only available in the context of a DoFn marked as RequiresWindowAccess.");
+            "window() is only available in the context of a OldDoFn marked as"
+                + "RequiresWindowAccess.");
       }
       return Iterables.getOnlyElement(windows());
     }
@@ -494,7 +486,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
         throw new IllegalArgumentException(String.format(
             "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
             + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
-            + "DoFn#getAllowedTimestampSkew() Javadoc for details on changing the allowed skew.",
+            + "OldDoFn#getAllowedTimestampSkew() Javadoc for details on changing the allowed skew.",
             timestamp, windowedValue.getTimestamp(),
             PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod())));
       }

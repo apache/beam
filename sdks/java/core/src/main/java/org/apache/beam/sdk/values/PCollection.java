@@ -19,13 +19,12 @@ package org.apache.beam.sdk.values;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -40,19 +39,15 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * be passed as the inputs of other PTransforms.
  *
  * <p>Some root transforms produce bounded {@code PCollections} and others
- * produce unbounded ones.  For example, {@link TextIO.Read} reads a static set
- * of files, so it produces a bounded {@link PCollection}.
- * {@link PubsubIO.Read}, on the other hand, receives a potentially infinite stream
- * of Pubsub messages, so it produces an unbounded {@link PCollection}.
+ * produce unbounded ones. For example, {@link CountingInput#upTo} produces a fixed set of integers,
+ * so it produces a bounded {@link PCollection}. {@link CountingInput#unbounded} produces all
+ * integers as an infinite stream, so it produces an unbounded {@link PCollection}.
  *
- * <p>Each element in a {@link PCollection} may have an associated implicit
- * timestamp.  Readers assign timestamps to elements when they create
- * {@link PCollection PCollections}, and other {@link PTransform PTransforms} propagate these
- * timestamps from their input to their output. For example, {@link PubsubIO.Read}
- * assigns pubsub message timestamps to elements, and {@link TextIO.Read} assigns
- * the default value {@link BoundedWindow#TIMESTAMP_MIN_VALUE} to elements. User code can
- * explicitly assign timestamps to elements with
- * {@link org.apache.beam.sdk.transforms.DoFn.Context#outputWithTimestamp}.
+ * <p>Each element in a {@link PCollection} has an associated timestamp. Readers assign timestamps
+ * to elements when they create {@link PCollection PCollections}, and other
+ * {@link PTransform PTransforms} propagate these timestamps from their input to their output. See
+ * the documentation on {@link BoundedReader} and {@link UnboundedReader} for more information on
+ * how these readers produce timestamps and watermarks.
  *
  * <p>Additionally, a {@link PCollection} has an associated
  * {@link WindowFn} and each element is assigned to a set of windows.
@@ -73,14 +68,11 @@ public class PCollection<T> extends TypedPValue<T> {
    */
   public enum IsBounded {
     /**
-     * Indicates that a {@link PCollection} contains bounded data elements, such as
-     * {@link PCollection PCollections} from {@link TextIO}, {@link BigQueryIO},
-     * {@link Create} e.t.c.
+     * Indicates that a {@link PCollection} contains a bounded number of elements.
      */
     BOUNDED,
     /**
-     * Indicates that a {@link PCollection} contains unbounded data elements, such as
-     * {@link PCollection PCollections} from {@link PubsubIO}.
+     * Indicates that a {@link PCollection} contains an unbounded number of elements.
      */
     UNBOUNDED;
 

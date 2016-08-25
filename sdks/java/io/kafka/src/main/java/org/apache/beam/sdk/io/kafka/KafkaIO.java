@@ -94,7 +94,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
 
 /**
@@ -551,7 +550,7 @@ public class KafkaIO {
           .apply(begin)
           .apply("Remove Kafka Metadata",
               ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext ctx) {
                   ctx.output(ctx.element().getKV());
                 }
@@ -1059,7 +1058,7 @@ public class KafkaIO {
         try {
           offsetConsumer.seekToEnd(p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
-          p.setLatestOffset(offset);;
+          p.setLatestOffset(offset);
         } catch (Exception e) {
           LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
           p.setLatestOffset(-1L); // reset
@@ -1316,7 +1315,7 @@ public class KafkaIO {
       return input
         .apply("Kafka values with default key",
           ParDo.of(new DoFn<V, KV<Void, V>>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
               ctx.output(KV.<Void, V>of(null, ctx.element()));
             }
@@ -1328,7 +1327,7 @@ public class KafkaIO {
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       // Producer initialization is fairly costly. Move this to future initialization api to avoid
       // creating a producer for each bundle.
@@ -1341,7 +1340,7 @@ public class KafkaIO {
       }
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
       checkForFailures();
 
@@ -1351,7 +1350,7 @@ public class KafkaIO {
           new SendCallback());
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       producer.flush();
       producer.close();

@@ -55,7 +55,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 
 import io.grpc.Status;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +64,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import javax.annotation.Nullable;
 
 /**
@@ -520,13 +518,13 @@ public class BigtableIO {
         this.failures = new ConcurrentLinkedQueue<>();
       }
 
-      @Override
+      @StartBundle
       public void startBundle(Context c) throws Exception {
         bigtableWriter = bigtableService.openForWriting(tableId);
         recordsWritten = 0;
       }
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         checkForFailures();
         Futures.addCallback(
@@ -534,7 +532,7 @@ public class BigtableIO {
         ++recordsWritten;
       }
 
-      @Override
+      @FinishBundle
       public void finishBundle(Context c) throws Exception {
         bigtableWriter.close();
         bigtableWriter = null;
@@ -808,6 +806,19 @@ public class BigtableIO {
     @Override
     public void validate() {
       checkArgument(!tableId.isEmpty(), "tableId cannot be empty");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add(DisplayData.item("tableId", tableId)
+          .withLabel("Table ID"));
+
+      if (filter != null) {
+        builder.add(DisplayData.item("rowFilter", filter.toString())
+            .withLabel("Table Row Filter"));
+      }
     }
 
     @Override

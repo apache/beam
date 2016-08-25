@@ -41,6 +41,8 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +52,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link TestDataflowRunner} is a pipeline runner that wraps a
@@ -131,7 +132,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             }
           }
         });
-        State finalState = job.waitToFinish(10L, TimeUnit.MINUTES, messageHandler);
+        State finalState = job.waitUntilFinish(Duration.standardMinutes(10L), messageHandler);
         if (finalState == null || finalState == State.RUNNING) {
           LOG.info("Dataflow job {} took longer than 10 minutes to complete, cancelling.",
               job.getJobId());
@@ -139,7 +140,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
         result = resultFuture.get();
       } else {
-        job.waitToFinish(-1, TimeUnit.SECONDS, messageHandler);
+        job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
         result = checkForSuccess(job);
       }
       if (!result.isPresent()) {

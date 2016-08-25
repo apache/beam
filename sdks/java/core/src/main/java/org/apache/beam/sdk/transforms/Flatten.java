@@ -175,7 +175,7 @@ public class Flatten {
 
       return in.apply("FlattenIterables", ParDo.of(
           new DoFn<Iterable<T>, T>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               for (T i : c.element()) {
                 c.output(i);

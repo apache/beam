@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
+import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -77,7 +79,12 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public TransformResult finishBundle() {
         writer.add(elements);
-        return StepTransformResult.withoutHold(application).build();
+        Builder resultBuilder = StepTransformResult.withoutHold(application);
+        if (!elements.isEmpty()) {
+          resultBuilder = resultBuilder.withAdditionalOutput(OutputType.PCOLLECTION_VIEW);
+        }
+        return resultBuilder
+            .build();
       }
     };
   }
@@ -126,8 +133,9 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * An in-process implementation of the {@link CreatePCollectionView} primitive.
    *
-   * This implementation requires the input {@link PCollection} to be an iterable, which is provided
-   * to {@link PCollectionView#fromIterableInternal(Iterable)}.
+   * This implementation requires the input {@link PCollection} to be an iterable
+   * of {@code WindowedValue<ElemT>}, which is provided
+   * to {@link PCollectionView#getViewFn()} for conversion to {@link ViewT}.
    */
   public static final class WriteView<ElemT, ViewT>
       extends PTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {

@@ -33,7 +33,6 @@ import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import com.google.common.base.MoreObjects;
 
@@ -138,13 +137,14 @@ public interface DataflowPipelineOptions
 
     @Override
     public String create(PipelineOptions options) {
-      String gcpTempLocation = options.as(GcpOptions.class).getGcpTempLocation();
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+      String gcpTempLocation = gcsOptions.getGcpTempLocation();
       checkArgument(!isNullOrEmpty(gcpTempLocation),
           "Error constructing default value for stagingLocation: gcpTempLocation is missing."
           + "Either stagingLocation must be set explicitly or a valid value must be provided"
           + "for gcpTempLocation.");
       try {
-        GcsPath.fromUri(gcpTempLocation);
+        gcsOptions.getPathValidator().validateOutputFilePrefixSupported(gcpTempLocation);
       } catch (Exception e) {
         throw new IllegalArgumentException(String.format(
             "Error constructing default value for stagingLocation: gcpTempLocation is not"

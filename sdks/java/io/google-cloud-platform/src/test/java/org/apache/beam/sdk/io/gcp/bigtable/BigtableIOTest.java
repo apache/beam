@@ -45,6 +45,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -86,6 +87,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -426,6 +428,29 @@ public class BigtableIOTest {
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
+  }
+
+  @Test
+  public void testReadingPrimitiveDisplayData() throws IOException, InterruptedException {
+    final String table = "fooTable";
+    service.createTable(table);
+
+    RowFilter rowFilter = RowFilter.newBuilder()
+        .setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*"))
+        .build();
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    BigtableIO.Read read = BigtableIO.read()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId(table)
+        .withRowFilter(rowFilter)
+        .withBigtableService(service);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+    assertThat("BigtableIO.Read should include the table id in its primitive display data",
+        displayData, Matchers.hasItem(hasDisplayItem("tableId")));
+    assertThat("BigtableIO.Read should include the row filter, if it exists, in its primitive "
+        + "display data", displayData, Matchers.hasItem(hasDisplayItem("rowFilter")));
   }
 
   /** Tests that a record gets written to the service and messages are logged. */

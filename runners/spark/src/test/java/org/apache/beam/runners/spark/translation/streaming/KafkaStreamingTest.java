@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
 import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -40,6 +40,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.spark.streaming.Durations;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -56,10 +57,9 @@ import kafka.serializer.StringDecoder;
  */
 public class KafkaStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
-          new EmbeddedKafkaCluster.EmbeddedZookeeper(17001);
+          new EmbeddedKafkaCluster.EmbeddedZookeeper();
   private static final EmbeddedKafkaCluster EMBEDDED_KAFKA_CLUSTER =
-          new EmbeddedKafkaCluster(EMBEDDED_ZOOKEEPER.getConnection(),
-                  new Properties(), Collections.singletonList(6667));
+          new EmbeddedKafkaCluster(EMBEDDED_ZOOKEEPER.getConnection(), new Properties());
   private static final String TOPIC = "kafka_dataflow_test_topic";
   private static final Map<String, String> KAFKA_MESSAGES = ImmutableMap.of(
       "k1", "v1", "k2", "v2", "k3", "v3", "k4", "v4"
@@ -89,10 +89,11 @@ public class KafkaStreamingTest {
   @Test
   public void testRun() throws Exception {
     // test read from Kafka
-    SparkStreamingPipelineOptions options =
-        PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
-    options.setAppName(this.getClass().getSimpleName());
+    SparkPipelineOptions options =
+        PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setRunner(SparkRunner.class);
+    options.setStreaming(true);
+    options.setBatchIntervalMillis(Durations.seconds(1).milliseconds());
     options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
 
@@ -112,7 +113,7 @@ public class KafkaStreamingTest {
 
     PAssertStreaming.assertContents(formattedKV, EXPECTED);
 
-    EvaluationResult res = SparkRunner.create(options).run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 
@@ -123,7 +124,7 @@ public class KafkaStreamingTest {
   }
 
   private static class FormatKVFn extends DoFn<KV<String, String>, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + "," + c.element().getValue());
     }

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.common.CounterTestUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,10 +58,10 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
                                    new byte[][]{{ 0xa, 0xb, 0xc }});
 
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
                                    new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 

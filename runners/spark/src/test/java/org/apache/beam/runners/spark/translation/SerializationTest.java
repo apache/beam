@@ -140,19 +140,19 @@ public class SerializationTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = SparkRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 
   /**
-   * A DoFn that tokenizes lines of text into individual words.
+   * A OldDoFn that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<StringHolder, StringHolder> {
     private static final Pattern WORD_BOUNDARY = Pattern.compile("[^a-zA-Z']+");
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // Split the line into words.
       String[] words = WORD_BOUNDARY.split(c.element().toString());
@@ -173,10 +173,10 @@ public class SerializationTest {
   }
 
   /**
-   * A DoFn that converts a Word and Count into a printable string.
+   * A OldDoFn that converts a Word and Count into a printable string.
    */
   private static class FormatCountsFn extends DoFn<KV<StringHolder, Long>, StringHolder> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new StringHolder(c.element().getKey() + ": " + c.element().getValue()));
     }

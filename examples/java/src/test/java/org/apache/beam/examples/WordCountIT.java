@@ -86,7 +86,7 @@ public class WordCountIT {
 
     private static final Logger LOG = LoggerFactory.getLogger(WordCountOnSuccessMatcher.class);
 
-    private static final String EXPECTED_CHECKSUM = "8ae94f799f97cfd1cb5e8125951b32dfb52e1f12";
+    private static final String EXPECTED_CHECKSUM = "c04722202dee29c442b55ead54c6000693e85e77";
     private String actualChecksum;
 
     private final String outputPath;

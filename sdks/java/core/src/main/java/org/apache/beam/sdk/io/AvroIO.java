@@ -87,8 +87,7 @@ import javax.annotation.Nullable;
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}), and optionally
- * {@link AvroIO.Write#named} to specify the name of the pipeline step.
+ * {@code "gs://<bucket>/<filepath>"}).
  *
  * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an

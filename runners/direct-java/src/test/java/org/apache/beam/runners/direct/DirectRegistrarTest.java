@@ -20,7 +20,8 @@ package org.apache.beam.runners.direct;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.runners.direct.DirectRegistrar.DirectRunner;
+import org.apache.beam.runners.direct.DirectRegistrar.Options;
+import org.apache.beam.runners.direct.DirectRegistrar.Runner;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
@@ -33,42 +34,42 @@ import org.junit.runners.JUnit4;
 
 import java.util.ServiceLoader;
 
-/** Tests for {@link DirectRunner}. */
+/** Tests for {@link DirectRegistrar}. */
 @RunWith(JUnit4.class)
 public class DirectRegistrarTest {
   @Test
   public void testCorrectOptionsAreReturned() {
     assertEquals(
         ImmutableList.of(DirectOptions.class),
-        new DirectRegistrar.DirectOptions().getPipelineOptions());
+        new Options().getPipelineOptions());
   }
 
   @Test
   public void testCorrectRunnersAreReturned() {
     assertEquals(
         ImmutableList.of(org.apache.beam.runners.direct.DirectRunner.class),
-        new DirectRunner().getPipelineRunners());
+        new Runner().getPipelineRunners());
   }
 
   @Test
   public void testServiceLoaderForOptions() {
     for (PipelineOptionsRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class).iterator())) {
-      if (registrar instanceof DirectRegistrar.DirectOptions) {
+      if (registrar instanceof Options) {
         return;
       }
     }
-    fail("Expected to find " + DirectRegistrar.DirectOptions.class);
+    fail("Expected to find " + Options.class);
   }
 
   @Test
   public void testServiceLoaderForRunner() {
     for (PipelineRunnerRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class).iterator())) {
-      if (registrar instanceof DirectRunner) {
+      if (registrar instanceof Runner) {
         return;
       }
     }
-    fail("Expected to find " + DirectRunner.class);
+    fail("Expected to find " + Runner.class);
   }
 }

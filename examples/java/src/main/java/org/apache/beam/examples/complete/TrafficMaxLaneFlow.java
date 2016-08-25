@@ -24,8 +24,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -149,7 +149,7 @@ public class TrafficMaxLaneFlow {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
-    @Override
+    @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
       String[] items = c.element().split(",");
       if (items.length > 0) {
@@ -172,7 +172,7 @@ public class TrafficMaxLaneFlow {
    */
   static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
       if (items.length < 48) {
@@ -227,7 +227,7 @@ public class TrafficMaxLaneFlow {
    * Add the timestamp from the window context.
    */
   static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
 
       LaneInfo laneInfo = c.element().getValue();

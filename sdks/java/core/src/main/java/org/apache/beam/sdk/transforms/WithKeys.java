@@ -114,7 +114,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   public PCollection<KV<K, V>> apply(PCollection<V> in) {
     PCollection<KV<K, V>> result =
         in.apply("AddKeys", ParDo.of(new DoFn<V, KV<K, V>>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             c.output(KV.of(fn.apply(c.element()),
                 c.element()));

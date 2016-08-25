@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+
 import org.joda.time.Instant;
 
 import java.io.IOException;

@@ -22,8 +22,8 @@ import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -55,9 +55,9 @@ import java.util.ArrayList;
  */
 public class StreamingWordExtract {
 
-  /** A DoFn that tokenizes lines of text into individual words. */
+  /** A {@link DoFn} that tokenizes lines of text into individual words. */
   static class ExtractWords extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z']+");
       for (String word : words) {
@@ -68,9 +68,9 @@ public class StreamingWordExtract {
     }
   }
 
-  /** A DoFn that uppercases a word. */
+  /** A {@link DoFn} that uppercases a word. */
   static class Uppercase extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().toUpperCase());
     }
@@ -83,7 +83,7 @@ public class StreamingWordExtract {
     /**
      * In this example, put the whole string into single BigQuery field.
      */
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TableRow().set("string_field", c.element()));
     }

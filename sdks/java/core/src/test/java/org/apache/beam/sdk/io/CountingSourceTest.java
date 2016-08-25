@@ -160,7 +160,7 @@ public class CountingSourceTest {
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.element() - c.timestamp().getMillis());
     }

@@ -60,7 +60,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
 
 class V1Beta3TestUtil {
@@ -124,7 +123,7 @@ class V1Beta3TestUtil {
       ancestorKey = makeAncestorKey(namespace, kind, ancestor);
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(makeEntity(c.element(), ancestorKey, kind, namespace));
     }

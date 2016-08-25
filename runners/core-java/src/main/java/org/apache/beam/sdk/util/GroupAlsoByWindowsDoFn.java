@@ -19,13 +19,14 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * DoFn that merges windows and groups elements in those windows, optionally
+ * OldDoFn that merges windows and groups elements in those windows, optionally
  * combining values.
  *
  * @param <K> key type
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.values.KV;
  */
 @SystemDoFnInternal
 public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
-    extends DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> {
+    extends OldDoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> {
   public static final String DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER = "DroppedDueToClosedWindow";
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";
 
@@ -51,9 +52,12 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
    * @param windowingStrategy The window function and trigger to use for grouping
    * @param inputCoder the input coder to use
    */
-  public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
-      createDefault(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
+  public static <K, V, W extends BoundedWindow>
+      GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> createDefault(
+          WindowingStrategy<?, W> windowingStrategy,
+          StateInternalsFactory<K> stateInternalsFactory,
+          Coder<V> inputCoder) {
     return new GroupAlsoByWindowsViaOutputBufferDoFn<>(
-        windowingStrategy, SystemReduceFn.<K, V, W>buffering(inputCoder));
+        windowingStrategy, stateInternalsFactory, SystemReduceFn.<K, V, W>buffering(inputCoder));
   }
 }

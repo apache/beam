@@ -23,9 +23,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
@@ -78,7 +78,8 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
           Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
               .withAllowedLateness(Duration.ZERO)
               .discardingFiredPanes());
-      final PCollectionView<Long> numRecords = records.apply(Count.<T>globally().asSingletonView());
+      final PCollectionView<Long> numRecords = records
+          .apply("CountRecords", Count.<T>globally().asSingletonView());
       PCollection<T> resharded =
           records
               .apply(
@@ -100,14 +101,14 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
   }
 
   @VisibleForTesting
-  static class KeyBasedOnCountFn<T> extends DoFn<T, KV<Integer, T>> {
+  static class KeyBasedOnCountFn<T> extends OldDoFn<T, KV<Integer, T>> {
     @VisibleForTesting
     static final int MIN_SHARDS_FOR_LOG = 3;
 
     private final PCollectionView<Long> numRecords;
     private final int randomExtraShards;
     private int currentShard;
-    private int maxShards;
+    private int maxShards = 0;
 
     KeyBasedOnCountFn(PCollectionView<Long> numRecords, int extraShards) {
       this.numRecords = numRecords;
@@ -116,7 +117,7 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      if (maxShards == 0L) {
+      if (maxShards == 0) {
         maxShards = calculateShards(c.sideInput(numRecords));
         currentShard = ThreadLocalRandom.current().nextInt(maxShards);
       }

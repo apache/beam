@@ -17,16 +17,18 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 import org.joda.time.Instant;
+
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -52,10 +54,10 @@ public interface TransformResult {
   Iterable<? extends WindowedValue<?>> getUnprocessedElements();
 
   /**
-   * Returns the {@link CounterSet} used by this {@link PTransform}, or null if this transform did
-   * not use a {@link CounterSet}.
+   * Returns the {@link AggregatorContainer.Mutator} used by this {@link PTransform}, or null if
+   * this transform did not use an {@link AggregatorContainer.Mutator}.
    */
-  @Nullable CounterSet getCounters();
+  @Nullable AggregatorContainer.Mutator getAggregatorChanges();
 
   /**
    * Returns the Watermark Hold for the transform at the time this result was produced.
@@ -81,4 +83,10 @@ public interface TransformResult {
    * <p>If this evaluation did not add or remove any timers, returns an empty TimerUpdate.
    */
   TimerUpdate getTimerUpdate();
+
+  /**
+   * Returns the types of output produced by this {@link PTransform}. This may not include
+   * {@link OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
+   */
+  Set<OutputType> getOutputTypes();
 }

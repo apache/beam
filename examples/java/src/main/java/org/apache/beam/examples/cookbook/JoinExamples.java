@@ -18,8 +18,8 @@
 package org.apache.beam.examples.cookbook;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -100,7 +100,7 @@ public class JoinExamples {
     PCollection<KV<String, String>> finalResultCollection =
       kvpCollection.apply("Process", ParDo.of(
         new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             KV<String, CoGbkResult> e = c.element();
             String countryCode = e.getKey();
@@ -117,7 +117,7 @@ public class JoinExamples {
     // write to GCS
     PCollection<String> formattedResults = finalResultCollection
         .apply("Format", ParDo.of(new DoFn<KV<String, String>, String>() {
-          @Override
+          @ProcessElement
           public void processElement(ProcessContext c) {
             String outputstring = "Country code: " + c.element().getKey()
                 + ", " + c.element().getValue();
@@ -132,7 +132,7 @@ public class JoinExamples {
    * code of the event, and the value a string encoding event information.
    */
   static class ExtractEventDataFn extends DoFn<TableRow, KV<String, String>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       String countryCode = (String) row.get("ActionGeo_CountryCode");
@@ -150,7 +150,7 @@ public class JoinExamples {
    * code, and the value the country name.
    */
   static class ExtractCountryInfoFn extends DoFn<TableRow, KV<String, String>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
       String countryCode = (String) row.get("FIPSCC");

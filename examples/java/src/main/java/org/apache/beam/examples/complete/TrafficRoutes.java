@@ -24,8 +24,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -153,7 +153,7 @@ public class TrafficRoutes {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
-    @Override
+    @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
       String[] items = c.element().split(",");
       String timestamp = tryParseTimestamp(items);
@@ -173,7 +173,7 @@ public class TrafficRoutes {
    */
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
       String stationType = tryParseStationType(items);
@@ -201,7 +201,7 @@ public class TrafficRoutes {
    */
   static class GatherStats
       extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
       String route = c.element().getKey();
       double speedSum = 0.0;
@@ -244,7 +244,7 @@ public class TrafficRoutes {
    * Format the results of the slowdown calculations to a TableRow, to save to BigQuery.
    */
   static class FormatStatsFn extends DoFn<KV<String, RouteInfo>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       RouteInfo routeInfo = c.element().getValue();
       TableRow row = new TableRow()

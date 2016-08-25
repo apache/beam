@@ -20,10 +20,11 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.AggregatorValues;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.ApproximateUnique;
@@ -68,7 +69,9 @@ public class MultiOutputWordCountTest {
 
   @Test
   public void testRun() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(SparkRunner.class);
+    Pipeline p = Pipeline.create(options);
     PCollection<String> regex = p.apply(Create.of("[^a-zA-Z']+"));
     PCollection<String> w1 = p.apply(Create.of("Here are some words to count", "and some others"));
     PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));
@@ -81,7 +84,7 @@ public class MultiOutputWordCountTest {
     PCollection<Long> unique = luc.get(lowerCnts).apply(
         ApproximateUnique.<KV<String, Long>>globally(16));
 
-    EvaluationResult res = SparkRunner.create().run(p);
+    EvaluationResult res = (EvaluationResult) p.run();
     PAssert.that(luc.get(lowerCnts).apply(ParDo.of(new FormatCountsFn())))
         .containsInAnyOrder(EXPECTED_LOWER_COUNTS);
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
@@ -100,7 +103,7 @@ public class MultiOutputWordCountTest {
   }
 
   /**
-   * A DoFn that tokenizes lines of text into individual words.
+   * A OldDoFn that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<String, String> {
 
@@ -114,7 +117,7 @@ public class MultiOutputWordCountTest {
       this.regex = regex;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] words = c.element().split(c.sideInput(regex));
       for (String word : words) {
@@ -168,7 +171,7 @@ public class MultiOutputWordCountTest {
   }
 
   private static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + ": " + c.element().getValue());
     }
