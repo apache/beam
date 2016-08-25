@@ -85,7 +85,7 @@ public class StateSampler implements Closeable {
               @Override
               public void run() {
                 long delay = ThreadLocalRandom.current().nextInt((int) samplingPeriodMs);
-                synchronized (this) {
+                synchronized (sampler) {
                   if (invocationFuture != null) {
                     invocationFuture.cancel(false);
                   }
@@ -107,7 +107,7 @@ public class StateSampler implements Closeable {
 
         @Override
         public void close() throws IOException {
-          synchronized (this) {
+          synchronized (sampler) {
             if (invocationTriggerFuture != null) {
               invocationTriggerFuture.cancel(false);
               invocationTriggerFuture = null;
