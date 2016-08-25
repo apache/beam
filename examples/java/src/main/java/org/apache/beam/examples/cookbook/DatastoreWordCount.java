@@ -58,14 +58,15 @@ import org.apache.beam.sdk.transforms.ParDo;
  *
  * <p>To run this pipeline locally, the following options must be provided:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PATH]
  * }</pre>
  *
- * <p>To run this example using Dataflow service, you must additionally
- * provide either {@literal --tempLocation} or {@literal --tempLocation}, and
- * select one of the Dataflow pipeline runners, eg
- * {@literal --runner=BlockingDataflowRunner}.
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p><b>Note:</b> this example creates entities with <i>Ancestor keys</i> to ensure that all
  * entities created are in the same entity group. Similarly, the query used to read from the Cloud
@@ -239,13 +240,9 @@ public class DatastoreWordCount {
   }
 
   /**
-   * An example to demo how to use {@link DatastoreIO}.  The runner here is
-   * customizable, which means users could pass either {@code DirectRunner}
-   * or {@code DataflowRunner} in the pipeline options.
+   * An example to demo how to use {@link DatastoreIO}.
    */
   public static void main(String args[]) {
-    // The options are used in two places, for Dataflow service, and
-    // building DatastoreIO.Read object
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     if (!options.isReadOnly()) {

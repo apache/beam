@@ -48,11 +48,6 @@ import org.apache.beam.sdk.values.PCollection;
  * After you've looked at this example, then see the {@link DebuggingWordCount}
  * pipeline, for introduction of additional concepts.
  *
- * <p>For a detailed walkthrough of this example, see
- *   <a href="https://cloud.google.com/dataflow/java-sdk/wordcount-example">
- *   https://cloud.google.com/dataflow/java-sdk/wordcount-example
- *   </a>
- *
  * <p>Basic concepts, also in the MinimalWordCount example:
  * Reading text files; counting a PCollection; writing to GCS.
  *
@@ -67,27 +62,17 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>Concept #1: you can execute this pipeline either locally or using the selected runner.
  * These are now command-line options and not hard-coded as they were in the MinimalWordCount
  * example.
- * To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and a local output file or output prefix on GCS:
+ * To execute this pipeline locally, specify a local output file or output prefix on GCS:
  * <pre>{@code
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and an output prefix on GCS:
- * <pre>{@code
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}
  * and can be overridden with {@code --inputFile}.

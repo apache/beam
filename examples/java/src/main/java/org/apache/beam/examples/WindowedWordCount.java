@@ -54,7 +54,7 @@ import org.joda.time.Instant;
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using the Dataflow service; defining DoFns; creating a custom aggregator;
+ * and using a selected runner; defining DoFns; creating a custom aggregator;
  * user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
@@ -72,13 +72,12 @@ import org.joda.time.Instant;
  * }
  * </pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>Optionally specify the input file path via:
  * {@code --inputFile=gs://INPUT_PATH},
@@ -86,7 +85,7 @@ import org.joda.time.Instant;
  *
  * <p>Specify an output BigQuery dataset and optionally, a table for the output. If you don't
  * specify the table, one will be created for you using the job name. If you don't specify the
- * dataset, a dataset called {@code dataflow-examples} must already exist in your project.
+ * dataset, a dataset called {@code beam_examples} must already exist in your project.
  * {@code --bigQueryDataset=YOUR-DATASET --bigQueryTable=YOUR-NEW-TABLE-NAME}.
  *
  * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
@@ -190,7 +189,7 @@ public class WindowedWordCount {
     Pipeline pipeline = Pipeline.create(options);
 
     /**
-     * Concept #1: the Dataflow SDK lets us run the same pipeline with either a bounded or
+     * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
      */
     PCollection<String> input = pipeline
@@ -229,7 +228,7 @@ public class WindowedWordCount {
 
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline before the program exists.
+    // ExampleUtils will try to cancel the pipeline before the program exists.
     exampleUtils.waitToFinish(result);
   }
 }

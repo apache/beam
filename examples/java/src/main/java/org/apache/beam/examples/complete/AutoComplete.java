@@ -77,24 +77,17 @@ import org.joda.time.Duration;
  * <p>Concepts: Using the same pipeline in both streaming and batch, combiners,
  *              composite transforms.
  *
- * <p>To execute this pipeline using the Dataflow service in batch mode,
- * specify pipeline configuration:
+ * <p>To execute this pipeline in streaming mode, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowRunner
- *   --inputFile=gs://path/to/input*.txt
- * }</pre>
- *
- * <p>To execute this pipeline using the Dataflow service in streaming mode,
- * specify pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=DataflowRunner
- *   --inputFile=gs://YOUR_INPUT_DIRECTORY/*.txt
  *   --streaming
  * }</pre>
+ *
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>This will update the datastore every 10 seconds based on the last
  * 30 minutes of data received.
@@ -417,7 +410,7 @@ public class AutoComplete {
   /**
    * Options supported by this class.
    *
-   * <p>Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Beam example configuration options.
    */
   private static interface Options
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
@@ -510,7 +503,7 @@ public class AutoComplete {
     // Run the pipeline.
     PipelineResult result = p.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
   }
 }

@@ -52,17 +52,13 @@ import org.joda.time.Instant;
  * <p>It is not recommended to execute this pipeline locally, given the size of the default input
  * data.
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using a selected runner and an output prefix on GCS, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
+ *   --output=gs://YOUR_OUTPUT_PREFIX
  * }
  * </pre>
- * and an output prefix on GCS:
- * <pre>{@code
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>The default input is {@code gs://apache-beam-samples/wikipedia_edits/*.json} and can be
  * overridden with {@code --input}.

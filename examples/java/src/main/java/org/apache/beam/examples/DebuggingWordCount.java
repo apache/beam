@@ -46,12 +46,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Basic concepts, also in the MinimalWordCount and WordCount examples:
  * Reading text files; counting a PCollection; executing a Pipeline both locally
- * and using the Dataflow service; defining DoFns.
+ * and using a selected runner; defining DoFns.
  *
  * <p>New Concepts:
  * <pre>
  *   1. Logging to Cloud Logging
- *   2. Controlling Dataflow worker log levels
+ *   2. Controlling worker log levels
  *   3. Creating a custom aggregator
  *   4. Testing your Pipeline via PAssert
  * </pre>
@@ -62,12 +62,14 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>To execute this pipeline using the Dataflow service and the additional logging discussed
- * below, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ *
+ * <p>To use the additional logging discussed below, specify:
+ * <pre>{@code
  *   --workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}
  * }
  * </pre>
