@@ -52,6 +52,9 @@ import org.junit.Test;
  */
 public class PipelineOptionsTest {
 
+  /**
+   * Pipeline options.
+   */
   public interface MyOptions extends FlinkPipelineOptions {
     @Description("Bla bla bla")
     @Default.String("Hello")

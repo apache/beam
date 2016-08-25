@@ -33,7 +33,7 @@ public class SerializedPipelineOptions implements Serializable {
 
   private final byte[] serializedOptions;
 
-  /** Lazily initialized copy of deserialized options */
+  /** Lazily initialized copy of deserialized options. */
   private transient PipelineOptions pipelineOptions;
 
   public SerializedPipelineOptions(PipelineOptions options) {
