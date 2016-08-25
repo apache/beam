@@ -201,8 +201,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       if (timer != null && timer.f1.getTimestamp().getMillis() < actualInputWatermark) {
         fire = true;
 
-        System.out.println("FIRING: " + timer);
-
         watermarkTimersQueue.remove();
         watermarkTimers.remove(timer);
 
