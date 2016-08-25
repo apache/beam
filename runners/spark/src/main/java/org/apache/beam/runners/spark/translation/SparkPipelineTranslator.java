@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * Translator to support translation between Dataflow transformations and Spark transformations.
+ * Translator to support translation between Beam transformations and Spark transformations.
  */
 public interface SparkPipelineTranslator {
 
