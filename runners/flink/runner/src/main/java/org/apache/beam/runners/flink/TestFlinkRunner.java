@@ -26,6 +26,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
+/**
+ * Test Flink runner.
+ */
 public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   private FlinkRunner delegate;
@@ -37,7 +40,8 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   }
 
   public static TestFlinkRunner fromOptions(PipelineOptions options) {
-    FlinkPipelineOptions flinkOptions = PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
+    FlinkPipelineOptions flinkOptions =
+        PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
     return new TestFlinkRunner(flinkOptions);
   }
 
@@ -50,7 +54,7 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT,OutputT> transform, InputT input) {
+      OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
     return delegate.apply(transform, input);
   }
 

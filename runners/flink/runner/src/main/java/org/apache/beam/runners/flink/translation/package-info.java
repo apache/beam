@@ -15,17 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
 
 /**
- * The translation mode of the Beam Pipeline.
+ * Internal implementation of the Beam runner for Apache Flink.
  */
-public enum TranslationMode {
-
-  /** Uses the batch mode of Flink. */
-  BATCH,
-
-  /** Uses the streaming mode of Flink. */
-  STREAMING
-
-}
+package org.apache.beam.runners.flink.translation;

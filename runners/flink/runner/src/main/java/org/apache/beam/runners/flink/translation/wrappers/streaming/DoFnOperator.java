@@ -169,7 +169,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     currentInputWatermark = Long.MIN_VALUE;
     currentOutputWatermark = currentInputWatermark;
 
-   	Aggregator.AggregatorFactory aggregatorFactory = new Aggregator.AggregatorFactory() {
+    Aggregator.AggregatorFactory aggregatorFactory = new Aggregator.AggregatorFactory() {
       @Override
       public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
           Class<?> fnClass,

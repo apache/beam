@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * {@link java.io.OutputStream}.
  */
 public class DataOutputViewWrapper extends OutputStream {
-  
+
   private DataOutputView outputView;
 
   public DataOutputViewWrapper(DataOutputView outputView) {
