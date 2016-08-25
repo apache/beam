@@ -83,7 +83,7 @@ import org.slf4j.LoggerFactory;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p>The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
+ * <p>The default input is {@code gs://apache-beam-samples/shakespeare/} and can be overridden with
  * {@code --input}.
  */
 public class TfIdf {
@@ -94,7 +94,7 @@ public class TfIdf {
    */
   private static interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/")
+    @Default.String("gs://apache-beam-samples/shakespeare/")
     String getInput();
     void setInput(String value);
 

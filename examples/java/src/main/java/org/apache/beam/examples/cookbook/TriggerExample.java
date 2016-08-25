@@ -420,7 +420,7 @@ public class TriggerExample {
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
 
     @Description("Input file to read from")
-    @Default.String("gs://dataflow-samples/traffic_sensor/"
+    @Default.String("gs://apache-beam-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15.csv")
     String getInput();
     void setInput(String value);
