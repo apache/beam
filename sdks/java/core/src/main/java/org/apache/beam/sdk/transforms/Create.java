@@ -46,8 +46,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -218,7 +218,7 @@ public class Create<T> {
   /**
    * A {@code PTransform} that creates a {@code PCollection} from a set of in-memory objects.
    */
-  public static class Values<T> extends PTransform<PInput, PCollection<T>> {
+  public static class Values<T> extends PTransform<PBegin, PCollection<T>> {
     /**
      * Returns a {@link Create.Values} PTransform like this one that uses the given
      * {@code Coder<T>} to decode each of the objects into a
@@ -240,7 +240,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> apply(PInput input) {
+    public PCollection<T> apply(PBegin input) {
       try {
         Coder<T> coder = getDefaultOutputCoder(input);
         try {
@@ -257,7 +257,7 @@ public class Create<T> {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder(PInput input) throws CannotProvideCoderException {
+    public Coder<T> getDefaultOutputCoder(PBegin input) throws CannotProvideCoderException {
       if (coder.isPresent()) {
         return coder.get();
       } else {
@@ -421,7 +421,7 @@ public class Create<T> {
    * A {@code PTransform} that creates a {@code PCollection} whose elements have
    * associated timestamps.
    */
-  public static class TimestampedValues<T> extends PTransform<PInput, PCollection<T>>{
+  public static class TimestampedValues<T> extends PTransform<PBegin, PCollection<T>>{
     /**
      * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
      * {@code Coder<T>} to decode each of the objects into a
@@ -440,7 +440,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> apply(PInput input) {
+    public PCollection<T> apply(PBegin input) {
       try {
         Iterable<T> rawElements =
             Iterables.transform(

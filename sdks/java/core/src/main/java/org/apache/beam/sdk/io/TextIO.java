@@ -43,9 +43,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 
 /**
  * {@link PTransform}s for reading and writing text files.
@@ -189,7 +189,7 @@ public class TextIO {
      * may use {@link #withCoder(Coder)} to supply a {@code Coder<T>} to produce a
      * {@code PCollection<T>} instead.
      */
-    public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
+    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
       /** The filepattern to read from. */
       @Nullable private final String filepattern;
 
@@ -269,7 +269,7 @@ public class TextIO {
       }
 
       @Override
-      public PCollection<T> apply(PInput input) {
+      public PCollection<T> apply(PBegin input) {
         if (filepattern == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
         }

@@ -51,7 +51,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -140,7 +139,7 @@ public class JmsIO {
       // handles unbounded source to bounded conversion if maxNumRecords is set.
       Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
 
-      PTransform<PInput, PCollection<JmsRecord>> transform = unbounded;
+      PTransform<PBegin, PCollection<JmsRecord>> transform = unbounded;
 
       if (maxNumRecords != Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords);

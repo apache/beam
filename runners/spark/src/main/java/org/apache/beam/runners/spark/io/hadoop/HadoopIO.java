@@ -26,9 +26,9 @@ import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
@@ -58,7 +58,7 @@ public final class HadoopIO {
      * @param <K> the type of the keys
      * @param <V> the type of the values
      */
-    public static class Bound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
+    public static class Bound<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
       private final String filepattern;
       private final Class<? extends FileInputFormat<K, V>> formatClass;
@@ -94,7 +94,7 @@ public final class HadoopIO {
       }
 
       @Override
-      public PCollection<KV<K, V>> apply(PInput input) {
+      public PCollection<KV<K, V>> apply(PBegin input) {
         return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
             WindowingStrategy.globalDefault(), PCollection.IsBounded.BOUNDED);
       }

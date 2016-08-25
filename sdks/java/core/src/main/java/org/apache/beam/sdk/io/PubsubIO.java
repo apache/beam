@@ -46,9 +46,9 @@ import org.apache.beam.sdk.util.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.util.PubsubJsonClient;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -481,7 +481,7 @@ public class PubsubIO {
      * A {@link PTransform} that reads from a Cloud Pub/Sub source and returns
      * a unbounded {@link PCollection} containing the items from the stream.
      */
-    public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
+    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
       /** The Cloud Pub/Sub topic to read from. */
       @Nullable private final PubsubTopic topic;
 
@@ -610,7 +610,7 @@ public class PubsubIO {
       }
 
       @Override
-      public PCollection<T> apply(PInput input) {
+      public PCollection<T> apply(PBegin input) {
         if (topic == null && subscription == null) {
           throw new IllegalStateException("Need to set either the topic or the subscription for "
               + "a PubsubIO.Read transform");
