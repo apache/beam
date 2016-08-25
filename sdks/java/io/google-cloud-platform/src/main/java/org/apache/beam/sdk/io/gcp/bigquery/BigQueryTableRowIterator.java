@@ -58,7 +58,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FlexibleBackoff;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -426,7 +426,8 @@ class BigQueryTableRowIterator implements AutoCloseable {
       Object... errorArgs) throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backOff =
-        new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_TIME.getMillis());
+        FlexibleBackoff.of()
+            .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF_TIME);
 
     T result = null;
     while (true) {

@@ -70,6 +70,7 @@ import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -365,7 +366,9 @@ public class GcsUtilTest {
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff =
+        FlexibleBackoff.of()
+            .withMaxRetries(2).withInitialBackoff(Duration.millis(200));
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
@@ -376,7 +379,7 @@ public class GcsUtilTest {
 
     assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"),
         mockBackOff, new FastNanoClockAndSleeper()));
-    assertEquals(mockBackOff.nextBackOffMillis(), BackOff.STOP);
+    assertEquals(BackOff.STOP, mockBackOff.nextBackOffMillis());
   }
 
   @Test
@@ -390,7 +393,9 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff =
+        FlexibleBackoff.of()
+            .withMaxRetries(3).withInitialBackoff(Duration.millis(200));
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -413,7 +418,9 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff =
+        FlexibleBackoff.of()
+            .withMaxRetries(3).withInitialBackoff(Duration.millis(200));
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
             "Waves hand mysteriously", "These aren't the buckets your looking for");
@@ -438,7 +445,9 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff mockBackOff =
+        FlexibleBackoff.of()
+            .withMaxRetries(3).withInitialBackoff(Duration.millis(200));
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);

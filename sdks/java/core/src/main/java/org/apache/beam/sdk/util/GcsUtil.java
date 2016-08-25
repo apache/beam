@@ -66,6 +66,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,7 +178,7 @@ public class GcsUtil {
         // the request has strong global consistency.
         ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(getObject),
-            new AttemptBoundedExponentialBackOff(3, 200),
+            FlexibleBackoff.of().withMaxRetries(3).withInitialBackoff(Duration.millis(200)),
             RetryDeterminer.SOCKET_ERRORS,
             IOException.class);
         return ImmutableList.of(gcsPattern);
@@ -216,7 +217,7 @@ public class GcsUtil {
       try {
         objects = ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(listObject),
-            new AttemptBoundedExponentialBackOff(3, 200),
+            FlexibleBackoff.of().withMaxRetries(3).withInitialBackoff(Duration.millis(200)),
             RetryDeterminer.SOCKET_ERRORS,
             IOException.class);
       } catch (Exception e) {
@@ -257,7 +258,10 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
-    return fileSize(path, new AttemptBoundedExponentialBackOff(4, 200), Sleeper.DEFAULT);
+    return fileSize(
+        path,
+        FlexibleBackoff.of().withMaxRetries(4).withInitialBackoff(Duration.millis(200)),
+        Sleeper.DEFAULT);
   }
 
   /**
@@ -335,7 +339,10 @@ public class GcsUtil {
    * be accessible otherwise the permissions exception will be propagated.
    */
   public boolean bucketExists(GcsPath path) throws IOException {
-    return bucketExists(path, new AttemptBoundedExponentialBackOff(4, 200), Sleeper.DEFAULT);
+    return bucketExists(
+        path,
+        FlexibleBackoff.of().withMaxRetries(4).withInitialBackoff(Duration.millis(200)),
+        Sleeper.DEFAULT);
   }
 
   /**

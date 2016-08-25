@@ -53,14 +53,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.IntervalBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FlexibleBackoff;
 import org.apache.beam.sdk.util.Transport;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,14 +71,14 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 
-  // The maximum number of attempts to execute a BigQuery RPC.
-  private static final int MAX_RPC_ATTEMPTS = 10;
+  // The maximum number of retries to execute a BigQuery RPC.
+  private static final int MAX_RPC_RETRIES = 9;
 
   // The initial backoff for executing a BigQuery RPC.
-  private static final long INITIAL_RPC_BACKOFF_MILLIS = TimeUnit.SECONDS.toMillis(1);
+  private static final Duration INITIAL_RPC_BACKOFF = Duration.standardSeconds(1);
 
   // The initial backoff for polling the status of a BigQuery job.
-  private static final long INITIAL_JOB_STATUS_POLL_BACKOFF_MILLIS = TimeUnit.SECONDS.toMillis(1);
+  private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
 
   @Override
   public JobService getJobService(BigQueryOptions options) {
@@ -121,9 +120,9 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void startLoadJob(
@@ -139,9 +138,9 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
@@ -157,9 +156,9 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery queryConfig)
@@ -175,9 +174,9 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
@@ -194,7 +193,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       ApiErrorExtractor errorExtractor,
       Bigquery client) throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       startJob(job, errorExtractor, client, Sleeper.DEFAULT, backoff);
     }
 
@@ -227,15 +227,16 @@ class BigQueryServicesImpl implements BigQueryServices {
       throw new IOException(
           String.format(
               "Unable to insert job: %s, aborting after %d .",
-              jobRef.getJobId(), MAX_RPC_ATTEMPTS),
+              jobRef.getJobId(), MAX_RPC_RETRIES),
           lastException);
     }
 
     @Override
     public Job pollJob(JobReference jobRef, int maxAttempts)
         throws InterruptedException {
-      BackOff backoff = new AttemptBoundedExponentialBackOff(
-          maxAttempts, INITIAL_JOB_STATUS_POLL_BACKOFF_MILLIS);
+      BackOff backoff =
+          FlexibleBackoff.of()
+              .withMaxRetries(maxAttempts).withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF);
       return pollJob(jobRef, Sleeper.DEFAULT, backoff);
     }
 
@@ -270,12 +271,13 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .setQuery(query))
               .setDryRun(true));
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       return executeWithRetries(
           client.jobs().insert(projectId, job),
           String.format(
               "Unable to dry run query: %s, aborting after %d retries.",
-              query, MAX_RPC_ATTEMPTS),
+              query, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff).getStatistics();
     }
@@ -295,9 +297,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     // The initial backoff after a failure inserting rows into BigQuery.
     private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
 
-    // Backoff time bounds for rate limit exceeded errors.
-    private static final long INITIAL_RATE_LIMIT_EXCEEDED_BACKOFF_MS = TimeUnit.SECONDS.toMillis(1);
-    private static final long MAX_RATE_LIMIT_EXCEEDED_BACKOFF_MS = TimeUnit.MINUTES.toMillis(2);
+    // A backoff for rate limit exceeded errors. Retries forever.
+    private static final FlexibleBackoff defaultBackoff =
+        FlexibleBackoff.of()
+            .withInitialBackoff(Duration.standardSeconds(1))
+            .withMaxBackoff(Duration.standardMinutes(2));
 
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
@@ -335,20 +339,21 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public Table getTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       return executeWithRetries(
           client.tables().get(projectId, datasetId, tableId),
           String.format(
               "Unable to get table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_ATTEMPTS),
+              tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff);
     }
@@ -356,20 +361,21 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       executeWithRetries(
           client.tables().delete(projectId, datasetId, tableId),
           String.format(
               "Unable to delete table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_ATTEMPTS),
+              tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff);
     }
@@ -378,12 +384,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     public boolean isTableEmpty(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       TableDataList dataList = executeWithRetries(
           client.tabledata().list(projectId, datasetId, tableId),
           String.format(
               "Unable to list table data: %s, aborting after %d retries.",
-              tableId, MAX_RPC_ATTEMPTS),
+              tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff);
       return dataList.getRows() == null || dataList.getRows().isEmpty();
@@ -392,20 +399,21 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public Dataset getDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       return executeWithRetries(
           client.datasets().get(projectId, datasetId),
           String.format(
               "Unable to get dataset: %s, aborting after %d retries.",
-              datasetId, MAX_RPC_ATTEMPTS),
+              datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff);
     }
@@ -413,21 +421,21 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void createDataset(
         String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       createDataset(projectId, datasetId, location, description, Sleeper.DEFAULT, backoff);
     }
 
-    @VisibleForTesting
-    void createDataset(
+    private void createDataset(
         String projectId,
         String datasetId,
         String location,
@@ -464,27 +472,28 @@ class BigQueryServicesImpl implements BigQueryServices {
       throw new IOException(
           String.format(
               "Unable to create dataset: %s, aborting after %d .",
-              datasetId, MAX_RPC_ATTEMPTS),
+              datasetId, MAX_RPC_RETRIES),
           lastException);
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Tries executing the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
-     * @throws IOException if it exceeds {@code MAX_RPC_ATTEMPTS} attempts.
+     * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
       executeWithRetries(
           client.datasets().delete(projectId, datasetId),
           String.format(
               "Unable to delete table: %s, aborting after %d retries.",
-              datasetId, MAX_RPC_ATTEMPTS),
+              datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff);
     }
@@ -502,9 +511,10 @@ class BigQueryServicesImpl implements BigQueryServices {
             + "as many elements as rowList");
       }
 
-      AttemptBoundedExponentialBackOff backoff = new AttemptBoundedExponentialBackOff(
-          MAX_INSERT_ATTEMPTS,
-          INITIAL_INSERT_BACKOFF_INTERVAL_MS);
+      BackOff backoff =
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_INSERT_ATTEMPTS)
+              .withInitialBackoff(Duration.millis(INITIAL_INSERT_BACKOFF_INTERVAL_MS));
 
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
@@ -547,8 +557,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                 executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
                   @Override
                   public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                    BackOff backoff = new IntervalBoundedExponentialBackOff(
-                        MAX_RATE_LIMIT_EXCEEDED_BACKOFF_MS, INITIAL_RATE_LIMIT_EXCEEDED_BACKOFF_MS);
+                    BackOff backoff = defaultBackoff.copy();
                     while (true) {
                       try {
                         return insert.execute().getInsertErrors();
@@ -603,21 +612,24 @@ class BigQueryServicesImpl implements BigQueryServices {
           throw new RuntimeException(e.getCause());
         }
 
-        if (!allErrors.isEmpty() && !backoff.atMaxAttempts()) {
-          try {
-            Thread.sleep(backoff.nextBackOffMillis());
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException(
-                "Interrupted while waiting before retrying insert of " + retryRows);
-          }
-          LOG.info("Retrying failed inserts to BigQuery");
-          rowsToPublish = retryRows;
-          idsToPublish = retryIds;
-          allErrors.clear();
-        } else {
+        if (allErrors.isEmpty()) {
           break;
         }
+        long nextBackoffMillis = backoff.nextBackOffMillis();
+        if (nextBackoffMillis == BackOff.STOP) {
+          break;
+        }
+        try {
+          Thread.sleep(backoff.nextBackOffMillis());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IOException(
+              "Interrupted while waiting before retrying insert of " + retryRows);
+        }
+        LOG.info("Retrying failed inserts to BigQuery");
+        rowsToPublish = retryRows;
+        idsToPublish = retryIds;
+        allErrors.clear();
       }
       if (!allErrors.isEmpty()) {
         throw new IOException("Insert failed: " + allErrors);
@@ -628,7 +640,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {
-    BigQueryTableRowIterator iterator;
+    private BigQueryTableRowIterator iterator;
 
     private BigQueryJsonReaderImpl(BigQueryTableRowIterator iterator) {
       this.iterator = iterator;
@@ -706,7 +718,6 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   /**
    * Identical to {@link BackOffUtils#next} but without checked IOException.
-   * @throws InterruptedException
    */
   private static boolean nextBackOff(Sleeper sleeper, BackOff backoff) throws InterruptedException {
     try {

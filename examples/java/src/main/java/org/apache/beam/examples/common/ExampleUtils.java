@@ -45,8 +45,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FlexibleBackoff;
 import org.apache.beam.sdk.util.Transport;
+import org.joda.time.Duration;
 
 /**
  * The utility class that sets up and tears down external resources,
@@ -79,7 +80,9 @@ public class ExampleUtils {
    */
   public void setup() throws IOException {
     Sleeper sleeper = Sleeper.DEFAULT;
-    BackOff backOff = new AttemptBoundedExponentialBackOff(3, 200);
+    BackOff backOff =
+        FlexibleBackoff.of()
+            .withMaxRetries(3).withInitialBackoff(Duration.millis(200));
     Throwable lastException = null;
     try {
       do {

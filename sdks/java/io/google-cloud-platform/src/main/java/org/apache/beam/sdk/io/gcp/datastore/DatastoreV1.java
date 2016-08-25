@@ -76,12 +76,13 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FlexibleBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -871,7 +872,7 @@ public class DatastoreV1 {
     /**
      * Initial backoff time for exponential backoff for retry attempts.
      */
-    private static final int INITIAL_BACKOFF_MILLIS = 5000;
+    private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(5);
 
     DatastoreWriterFn(String projectId) {
       this(projectId, new V1DatastoreFactory());
@@ -917,7 +918,9 @@ public class DatastoreV1 {
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
       LOG.debug("Writing batch of {} mutations", mutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
-      BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
+      BackOff backoff =
+          FlexibleBackoff.of()
+              .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF);
 
       while (true) {
         // Batch upsert entities.
