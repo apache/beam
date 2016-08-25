@@ -142,7 +142,7 @@ public class SerializationTest {
   }
 
   /**
-   * A OldDoFn that tokenizes lines of text into individual words.
+   * A {@link DoFn} that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<StringHolder, StringHolder> {
     private static final Pattern WORD_BOUNDARY = Pattern.compile("[^a-zA-Z']+");
@@ -170,7 +170,7 @@ public class SerializationTest {
   }
 
   /**
-   * A OldDoFn that converts a Word and Count into a printable string.
+   * A {@link DoFn} that converts a Word and Count into a printable string.
    */
   private static class FormatCountsFn extends DoFn<KV<StringHolder, Long>, StringHolder> {
     @ProcessElement

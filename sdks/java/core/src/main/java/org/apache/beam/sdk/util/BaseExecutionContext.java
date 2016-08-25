@@ -106,7 +106,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link OldDoFn.Context#output}
+   * {@code DoFn.Context#output}
    * is called.
    */
   @Override
@@ -114,7 +114,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link OldDoFn.Context#sideOutput}
+   * {@code DoFn.Context#sideOutput}
    * is called.
    */
   @Override

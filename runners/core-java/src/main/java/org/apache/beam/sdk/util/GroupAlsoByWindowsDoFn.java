@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * OldDoFn that merges windows and groups elements in those windows, optionally
+ * {@link OldDoFn} that merges windows and groups elements in those windows, optionally
  * combining values.
  *
  * @param <K> key type

@@ -69,7 +69,7 @@ public class PubsubFileInjector {
     }
   }
 
-  /** A OldDoFn that publishes non-empty lines to Google Cloud PubSub. */
+  /** A {@link OldDoFn} that publishes non-empty lines to Google Cloud PubSub. */
   public static class Bound extends OldDoFn<String, Void> {
     private final String outputTopic;
     private final String timestampLabelKey;
