@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.kinesis;
 
 
-import com.google.common.collect.Lists;
-
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
@@ -32,10 +30,11 @@ import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededExcepti
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamDescription;
-import org.joda.time.Instant;
+import com.google.common.collect.Lists;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
+import org.joda.time.Instant;
 
 /***
  * Wraps {@link AmazonKinesis} class providing much simpler interface and

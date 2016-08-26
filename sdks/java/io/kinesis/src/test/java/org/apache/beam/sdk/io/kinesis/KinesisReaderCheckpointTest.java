@@ -18,17 +18,17 @@
 package org.apache.beam.sdk.io.kinesis;
 
 
-import com.google.common.collect.Iterables;
-
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.google.common.collect.Iterables;
+import java.util.Iterator;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import static java.util.Arrays.asList;
-import java.util.Iterator;
-import java.util.List;
 
 /***
  *

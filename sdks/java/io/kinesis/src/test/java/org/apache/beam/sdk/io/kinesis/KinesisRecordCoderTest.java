@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import java.nio.ByteBuffer;
 import org.apache.beam.sdk.testing.CoderProperties;
-
 import org.joda.time.Instant;
 import org.junit.Test;
-import java.nio.ByteBuffer;
 
 /**
  * Created by p.pastuszka on 20.07.2016.

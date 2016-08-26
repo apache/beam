@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.util.NoSuchElementException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import static java.util.Arrays.asList;
-import java.io.IOException;
-import java.util.NoSuchElementException;
 
 /**
  * Created by ppastuszka on 12.12.15.

@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.google.common.collect.Lists;
-
 import static org.mockito.BDDMockito.given;
+
+import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import java.util.Collections;
-import java.util.List;
 
 
 /***

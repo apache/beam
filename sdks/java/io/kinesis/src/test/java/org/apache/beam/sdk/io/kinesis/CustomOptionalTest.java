@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import org.junit.Test;
 import java.util.NoSuchElementException;
+import org.junit.Test;
 
 /**
  * Created by ppastuszka on 12.12.15.
