@@ -35,27 +35,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <gearpump.version>0.8.1-SNAPSHOT</gearpump.version>
+    <gearpump.version>0.8.1</gearpump.version>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>apache.snapshots</id>
-      <name>Apache Development Snapshot Repository</name>
-      <url>https://repository.apache.org/content/repositories/snapshots/</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>gearpump-shaded-repo</id>
-      <name>Vincent at Bintray</name>
-      <url>http://dl.bintray.com/fvunicorn/maven</url>
-    </repository>
-  </repositories>
 
   <profiles>
     <profile>
