@@ -32,6 +32,7 @@ import java.util.NoSuchElementException;
 
 /***
  * Reads data from multiple kinesis shards in a single thread.
+ * It uses simple round robin algorithm when fetching data from shards.
  */
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);
@@ -45,12 +46,10 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     public KinesisReader(SimplifiedKinesisClient kinesis,
                          CheckpointGenerator initialCheckpointGenerator,
                          UnboundedSource<KinesisRecord, ?> source) {
-        checkNotNull(kinesis);
-        checkNotNull(initialCheckpointGenerator);
-
-        this.kinesis = kinesis;
+        this.kinesis = checkNotNull(kinesis, "kinesis");
+        this.initialCheckpointGenerator =
+                checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
         this.source = source;
-        this.initialCheckpointGenerator = initialCheckpointGenerator;
     }
 
     /***
@@ -92,7 +91,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
                 }
             }
         } catch (TransientKinesisException e) {
-            LOG.warn("Transient exception occurred: {}", e);
+            LOG.warn("Transient exception occurred", e);
         }
         return false;
     }

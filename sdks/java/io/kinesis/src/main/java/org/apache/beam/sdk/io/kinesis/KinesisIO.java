@@ -59,7 +59,7 @@ import org.joda.time.Instant;
  *     <li>{@link InitialPositionInStream#TRIM_HORIZON} - reading will begin at
  *        the very beginning of the stream</li>
  *   </ul>
- *   <li>data used to initialize {@link AmazonKinesis} client></li>
+ *   <li>data used to initialize {@link AmazonKinesis} client</li>
  *   <ul>
  *     <li>credentials (aws key, aws secret)</li>
  *    <li>region where the stream is located</li>
@@ -126,6 +126,10 @@ public final class KinesisIO {
                     checkNotNull(initialPosition, "initialPosition")));
         }
 
+        /***
+         * Specify reading from streamName beginning at given {@link Instant}.
+         * This {@link Instant} must be in the past, i.e. before {@link Instant#now()}.
+         */
         public static Read from(String streamName, Instant initialTimestamp) {
             return new Read(streamName, new StartingPoint(
                     checkNotNull(initialTimestamp, "initialTimestamp")));

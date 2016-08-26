@@ -32,7 +32,7 @@ import java.util.List;
 
 
 /***
- *
+ * Represents source for single stream in Kinesis.
  */
 class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoint> {
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSource.class);
@@ -52,6 +52,11 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
         validate();
     }
 
+    /***
+     * Generate splits for reading from the stream.
+     * Basically, it'll try to evenly split set of shards in the stream into
+     * {@code desiredNumSplits} partitions. Each partition is then a split.
+     */
     @Override
     public List<KinesisSource> generateInitialSplits(int desiredNumSplits,
                                                      PipelineOptions options) throws Exception {
@@ -68,6 +73,11 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
         return sources;
     }
 
+    /***
+     * Creates reader based on given {@link KinesisReaderCheckpoint}.
+     * If {@link KinesisReaderCheckpoint} is not given, then we use
+     * {@code initialCheckpointGenerator} to generate new checkpoint.
+     */
     @Override
     public UnboundedReader<KinesisRecord> createReader(PipelineOptions options,
                                                 KinesisReaderCheckpoint checkpointMark) {

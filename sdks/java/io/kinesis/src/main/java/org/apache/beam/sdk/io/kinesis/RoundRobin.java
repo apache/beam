@@ -32,7 +32,7 @@ class RoundRobin<T> implements Iterable<T> {
 
     public RoundRobin(Iterable<T> collection) {
         this.deque = newArrayDeque(collection);
-        checkArgument(!deque.isEmpty());
+        checkArgument(!deque.isEmpty(), "Tried to initialize RoundRobin with empty collection");
     }
 
     public T getCurrent() {

@@ -33,7 +33,6 @@ import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 import org.joda.time.Instant;
-import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -97,7 +96,7 @@ class SimplifiedKinesisClient {
      * Gets records from Kinesis and deaggregates them if needed.
      *
      * @return list of deaggregated records
-     * @throws IOException - in case of recoverable situation
+     * @throws TransientKinesisException - in case of recoverable situation
      */
     public GetKinesisRecordsResult getRecords(String shardIterator, String streamName,
                                               String shardId) throws TransientKinesisException {
@@ -108,7 +107,7 @@ class SimplifiedKinesisClient {
      * Gets records from Kinesis and deaggregates them if needed.
      *
      * @return list of deaggregated records
-     * @throws IOException - in case of recoverable situation
+     * @throws TransientKinesisException - in case of recoverable situation
      */
     public GetKinesisRecordsResult getRecords(final String shardIterator, final String streamName,
                                               final String shardId, final Integer limit)
@@ -131,7 +130,7 @@ class SimplifiedKinesisClient {
     /***
      * Wraps Amazon specific exceptions into more friendly format.
      *
-     * @throws IOException              - in case of recoverable situation, i.e.
+     * @throws TransientKinesisException              - in case of recoverable situation, i.e.
      *                                  the request rate is too high, Kinesis remote service
      *                                  failed, network issue, etc.
      * @throws ExpiredIteratorException - if iterator needs to be refreshed

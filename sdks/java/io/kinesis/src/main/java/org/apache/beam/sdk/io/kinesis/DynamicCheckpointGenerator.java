@@ -34,11 +34,8 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
     private final StartingPoint startingPoint;
 
     public DynamicCheckpointGenerator(String streamName, StartingPoint startingPoint) {
-        checkNotNull(streamName);
-        checkNotNull(startingPoint);
-
-        this.streamName = streamName;
-        this.startingPoint = startingPoint;
+        this.streamName = checkNotNull(streamName, "streamName");
+        this.startingPoint = checkNotNull(startingPoint, "startingPoint");
     }
 
     @Override

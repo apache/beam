@@ -49,12 +49,10 @@ class ShardRecordsIterator {
                                 SimplifiedKinesisClient simplifiedKinesisClient,
                                 RecordFilter filter) throws
             TransientKinesisException {
-        checkNotNull(initialCheckpoint);
-        checkNotNull(simplifiedKinesisClient);
 
-        this.checkpoint = initialCheckpoint;
-        this.filter = filter;
-        this.kinesis = simplifiedKinesisClient;
+        this.checkpoint = checkNotNull(initialCheckpoint, "initialCheckpoint");
+        this.filter = checkNotNull(filter, "filter");
+        this.kinesis = checkNotNull(simplifiedKinesisClient, "simplifiedKinesisClient");
         shardIterator = checkpoint.getShardIterator(kinesis);
     }
 

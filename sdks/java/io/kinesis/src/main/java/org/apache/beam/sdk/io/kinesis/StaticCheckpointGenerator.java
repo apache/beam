@@ -26,7 +26,7 @@ class StaticCheckpointGenerator implements CheckpointGenerator {
     private final KinesisReaderCheckpoint checkpoint;
 
     public StaticCheckpointGenerator(KinesisReaderCheckpoint checkpoint) {
-        checkNotNull(checkpoint);
+        checkNotNull(checkpoint, "checkpoint");
         this.checkpoint = checkpoint;
     }
 

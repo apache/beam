@@ -71,9 +71,9 @@ class ShardCheckpoint implements Serializable {
 
     private ShardCheckpoint(String streamName, String shardId, ShardIteratorType shardIteratorType,
                             String sequenceNumber, Long subSequenceNumber, Instant timestamp) {
-        checkNotNull(streamName);
-        checkNotNull(shardId);
-        checkNotNull(shardIteratorType);
+        this.shardIteratorType = checkNotNull(shardIteratorType, "shardIteratorType");
+        this.streamName = checkNotNull(streamName, "streamName");
+        this.shardId = checkNotNull(shardId, "shardId");
         if (shardIteratorType == AT_SEQUENCE_NUMBER || shardIteratorType == AFTER_SEQUENCE_NUMBER) {
             checkNotNull(sequenceNumber,
                     "You must provide sequence number for AT_SEQUENCE_NUMBER"
@@ -92,9 +92,6 @@ class ShardCheckpoint implements Serializable {
         }
 
         this.subSequenceNumber = subSequenceNumber;
-        this.shardIteratorType = shardIteratorType;
-        this.streamName = streamName;
-        this.shardId = shardId;
         this.sequenceNumber = sequenceNumber;
         this.timestamp = timestamp;
     }
