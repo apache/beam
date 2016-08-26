@@ -31,7 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Dataflow's Do functions correspond to Spark's FlatMap functions.
+ * Beam's Do functions correspond to Spark's FlatMap functions.
  *
  * @param <InputT> Input element type.
  * @param <OutputT> Output element type.

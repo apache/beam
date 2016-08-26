@@ -94,7 +94,7 @@ import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
 /**
- * Supports translation between a DataFlow transform, and Spark's operations on RDDs.
+ * Supports translation between a Beam transform, and Spark's operations on RDDs.
  */
 public final class TransformTranslator {
 
@@ -895,7 +895,7 @@ public final class TransformTranslator {
   }
 
   /**
-   * Translator matches Dataflow transformation with the appropriate evaluator.
+   * Translator matches Beam transformation with the appropriate evaluator.
    */
   public static class Translator implements SparkPipelineTranslator {
 

@@ -110,7 +110,7 @@ public class WordCount {
    */
   public static interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    @Default.String("gs://beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
     void setInputFile(String value);
 
