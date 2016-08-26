@@ -23,7 +23,7 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /**
- * Created by p.pastuszka on 20.07.2016.
+ * Tests {@link KinesisRecordCoder}.
  */
 public class KinesisRecordCoderTest {
     @Test

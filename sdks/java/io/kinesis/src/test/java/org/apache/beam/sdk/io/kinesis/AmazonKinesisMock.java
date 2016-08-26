@@ -74,7 +74,7 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 
 /**
- * Created by p.pastuszka on 21.07.2016.
+ * Mock implemenation of {@link AmazonKinesis} for testing.
  */
 class AmazonKinesisMock implements AmazonKinesis {
 

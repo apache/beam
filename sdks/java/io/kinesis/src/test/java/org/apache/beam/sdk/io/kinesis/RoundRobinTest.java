@@ -25,7 +25,7 @@ import java.util.List;
 import org.junit.Test;
 
 /**
- * Created by ppastuszka on 12.12.15.
+ * Tests {@link RoundRobin}.
  */
 public class RoundRobinTest {
     @Test(expected = IllegalArgumentException.class)

@@ -36,7 +36,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
 /**
- * Created by ppastuszka on 12.12.15.
+ * Tests {@link ShardRecordsIterator}.
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ShardRecordsIteratorTest {

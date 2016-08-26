@@ -21,7 +21,7 @@ import java.util.NoSuchElementException;
 import org.junit.Test;
 
 /**
- * Created by ppastuszka on 12.12.15.
+ * Tests {@link CustomOptional}.
  */
 public class CustomOptionalTest {
     @Test(expected = NoSuchElementException.class)

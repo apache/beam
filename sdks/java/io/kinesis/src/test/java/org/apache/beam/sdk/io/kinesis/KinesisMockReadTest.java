@@ -32,7 +32,7 @@ import org.joda.time.DateTime;
 import org.junit.Test;
 
 /**
- * Created by p.pastuszka on 22.07.2016.
+ * Tests {@link AmazonKinesisMock}.
  */
 public class KinesisMockReadTest {
     @Test
