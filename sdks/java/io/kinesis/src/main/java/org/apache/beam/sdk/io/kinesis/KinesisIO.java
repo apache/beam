@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.kinesis;
 
 
-import org.apache.beam.sdk.transforms.PTransform;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -28,6 +27,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.joda.time.Instant;
 
 /**

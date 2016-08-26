@@ -17,11 +17,16 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Mockito.when;
+
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+import java.io.IOException;
+import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,10 +34,6 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import java.io.IOException;
-import java.util.Collections;
 
 /**
  * Created by ppastuszka on 12.12.15.

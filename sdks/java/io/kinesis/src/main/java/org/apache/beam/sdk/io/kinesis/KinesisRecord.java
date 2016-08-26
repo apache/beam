@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.google.common.base.Charsets;
+import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
-import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.joda.time.Instant;
+import com.google.common.base.Charsets;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.joda.time.Instant;
 
 /**
  * {@link UserRecord} enhanced with utility methods.

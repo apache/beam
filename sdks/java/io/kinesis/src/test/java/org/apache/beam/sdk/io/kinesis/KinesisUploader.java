@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.collect.Lists.newArrayList;
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.internal.StaticCredentialsProvider;
@@ -30,6 +28,8 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
 import java.util.List;
 

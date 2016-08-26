@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.collect.Lists.transform;
-import com.google.common.base.Function;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
+import com.google.common.base.Function;
 import java.util.List;
 import javax.annotation.Nullable;
 

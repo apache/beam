@@ -20,10 +20,8 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Lists.transform;
 
-
-import com.google.common.base.Function;
-
 import com.amazonaws.services.kinesis.model.Shard;
+import com.google.common.base.Function;
 
 /**
  * Creates {@link KinesisReaderCheckpoint}, which spans over all shards in given stream.

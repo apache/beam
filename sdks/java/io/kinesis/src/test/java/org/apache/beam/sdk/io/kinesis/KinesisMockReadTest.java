@@ -17,20 +17,19 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import static com.google.common.collect.Lists.newArrayList;
+
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.google.common.collect.Iterables;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import static com.google.common.collect.Lists.newArrayList;
-
-import com.google.common.collect.Iterables;
-
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import org.joda.time.DateTime;
 import org.junit.Test;
-import java.util.List;
 
 /**
  * Created by p.pastuszka on 22.07.2016.

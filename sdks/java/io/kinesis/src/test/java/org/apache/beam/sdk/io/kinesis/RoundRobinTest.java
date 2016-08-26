@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.collect.Lists.newArrayList;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.Test;
+
 import java.util.Collections;
 import java.util.List;
+import org.junit.Test;
 
 /**
  * Created by ppastuszka on 12.12.15.

@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.transform;
-import com.google.common.base.Function;
+import static java.lang.Integer.parseInt;
+import static java.lang.Math.min;
+import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.ResponseMetadata;
@@ -63,15 +65,13 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.SplitShardRequest;
 import com.amazonaws.services.kinesis.model.SplitShardResult;
 import com.amazonaws.services.kinesis.model.StreamDescription;
-import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.joda.time.Instant;
-import static java.lang.Integer.parseInt;
-import static java.lang.Math.min;
+import com.google.common.base.Function;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.joda.time.Instant;
 
 /**
  * Created by p.pastuszka on 21.07.2016.

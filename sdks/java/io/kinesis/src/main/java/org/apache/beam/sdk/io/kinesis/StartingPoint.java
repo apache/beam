@@ -22,9 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-import org.joda.time.Instant;
 import java.io.Serializable;
 import java.util.Objects;
+import org.joda.time.Instant;
 
 /***
  * Denotes a point at which the reader should start reading from a Kinesis stream.

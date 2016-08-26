@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Queues.newArrayDeque;
 
-
 import java.util.Deque;
 import java.util.Iterator;
 

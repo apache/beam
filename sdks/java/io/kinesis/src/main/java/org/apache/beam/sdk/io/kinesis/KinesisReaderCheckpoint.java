@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import org.apache.beam.sdk.io.UnboundedSource;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.partition;
 
-
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.UnboundedSource;
 
 /***
  * Checkpoint representing a total progress in a set of shards in single stream.
