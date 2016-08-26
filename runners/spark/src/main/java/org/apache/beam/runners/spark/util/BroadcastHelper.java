@@ -58,7 +58,7 @@ public abstract class BroadcastHelper<T> implements Serializable {
    * A {@link BroadcastHelper} that relies on the underlying
    * Spark serialization (Kryo) to broadcast values. This is appropriate when
    * broadcasting very large values, since no copy of the object is made.
-   * @param <T>
+   * @param <T> the type of the value stored in the broadcast variable
    */
   static class DirectBroadcastHelper<T> extends BroadcastHelper<T> {
     private Broadcast<T> bcast;
@@ -86,7 +86,7 @@ public abstract class BroadcastHelper<T> implements Serializable {
    * A {@link BroadcastHelper} that uses a
    * {@link Coder} to encode values as byte arrays
    * before broadcasting.
-   * @param <T>
+   * @param <T> the type of the value stored in the broadcast variable
    */
   static class CodedBroadcastHelper<T> extends BroadcastHelper<T> {
     private Broadcast<byte[]> bcast;
