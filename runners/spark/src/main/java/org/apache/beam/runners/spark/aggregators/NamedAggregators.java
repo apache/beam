@@ -18,13 +18,18 @@
 
 package org.apache.beam.runners.spark.aggregators;
 
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
+
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -67,6 +72,22 @@ public class NamedAggregators implements Serializable {
    */
   public <T> T getValue(String name, Class<T> typeClass) {
     return typeClass.cast(mNamedAggregators.get(name).render());
+  }
+
+  /**
+   * @return a map of all the aggregator names and their <b>rendered </b>values
+   */
+  public Map<String, ?> renderAll() {
+    return
+        ImmutableMap.copyOf(
+            Maps.transformValues(mNamedAggregators,
+                new Function<State<?, ?, ?>, Object>() {
+
+                  @Override
+                  public Object apply(State<?, ?, ?> state) {
+                    return state.render();
+                  }
+                }));
   }
 
   /**
@@ -116,6 +137,7 @@ public class NamedAggregators implements Serializable {
    * @param <OutputT>   Output data type
    */
   public interface State<InputT, InterT, OutputT> extends Serializable {
+
     /**
      * @param element new element to update state
      */
@@ -133,16 +155,16 @@ public class NamedAggregators implements Serializable {
   /**
    * =&gt; combineFunction in data flow.
    */
-  public static class CombineFunctionState<InputT, InterT, OutpuT>
-      implements State<InputT, InterT, OutpuT> {
+  public static class CombineFunctionState<InputT, InterT, OutputT>
+      implements State<InputT, InterT, OutputT> {
 
-    private Combine.CombineFn<InputT, InterT, OutpuT> combineFn;
+    private Combine.CombineFn<InputT, InterT, OutputT> combineFn;
     private Coder<InputT> inCoder;
     private SparkRuntimeContext ctxt;
     private transient InterT state;
 
     public CombineFunctionState(
-        Combine.CombineFn<InputT, InterT, OutpuT> combineFn,
+        Combine.CombineFn<InputT, InterT, OutputT> combineFn,
         Coder<InputT> inCoder,
         SparkRuntimeContext ctxt) {
       this.combineFn = combineFn;
@@ -157,7 +179,7 @@ public class NamedAggregators implements Serializable {
     }
 
     @Override
-    public State<InputT, InterT, OutpuT> merge(State<InputT, InterT, OutpuT> other) {
+    public State<InputT, InterT, OutputT> merge(State<InputT, InterT, OutputT> other) {
       this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
       return this;
     }
@@ -168,12 +190,12 @@ public class NamedAggregators implements Serializable {
     }
 
     @Override
-    public OutpuT render() {
+    public OutputT render() {
       return combineFn.extractOutput(state);
     }
 
     @Override
-    public Combine.CombineFn<InputT, InterT, OutpuT> getCombineFn() {
+    public Combine.CombineFn<InputT, InterT, OutputT> getCombineFn() {
       return combineFn;
     }
 
@@ -192,7 +214,7 @@ public class NamedAggregators implements Serializable {
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
       ctxt = (SparkRuntimeContext) ois.readObject();
-      combineFn = (Combine.CombineFn<InputT, InterT, OutpuT>) ois.readObject();
+      combineFn = (Combine.CombineFn<InputT, InterT, OutputT>) ois.readObject();
       inCoder = (Coder<InputT>) ois.readObject();
       try {
         state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)

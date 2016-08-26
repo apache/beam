@@ -37,6 +37,7 @@
     <spark.version>1.6.2</spark.version>
     <hadoop.version>2.2.0</hadoop.version>
     <kafka.version>0.8.2.1</kafka.version>
+    <dropwizard.metrics.version>3.1.2</dropwizard.metrics.version>
   </properties>
 
   <profiles>
@@ -230,6 +231,11 @@
           <artifactId>servlet-api</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+      <version>${dropwizard.metrics.version}</version>
     </dependency>
 
     <!-- test dependencies -->
