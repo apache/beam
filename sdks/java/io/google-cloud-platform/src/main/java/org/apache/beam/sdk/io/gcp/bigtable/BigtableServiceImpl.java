@@ -183,6 +183,14 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
+    public void flush() throws IOException {
+      if (bulkMutation != null) {
+        bulkMutation.flush();
+        executor.flush();
+      }
+    }
+
+    @Override
     public void close() throws IOException {
       try {
         if (bulkMutation != null) {
