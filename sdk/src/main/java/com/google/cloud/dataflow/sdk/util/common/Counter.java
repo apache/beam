@@ -20,9 +20,12 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoValue;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.util.concurrent.AtomicDouble;
 
 import java.util.Objects;
@@ -114,6 +117,14 @@ public abstract class Counter<T> {
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
   public static Counter<Integer> ints(String name, AggregationKind kind) {
+    return new IntegerCounter(Name.withoutStructure(name), kind);
+  }
+
+  /**
+   * Like {@link #ints(String, AggregationKind)}, but takes a {@link Counter.Name} instead of a
+   * string.
+   */
+  public static Counter<Integer> ints(Counter.Name name, AggregationKind kind) {
     return new IntegerCounter(name, kind);
   }
 
@@ -129,6 +140,14 @@ public abstract class Counter<T> {
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
   public static Counter<Long> longs(String name, AggregationKind kind) {
+    return new LongCounter(Name.withoutStructure(name), kind);
+  }
+
+  /**
+   * Like {@link #longs(String, AggregationKind)}, but takes a {@link Counter.Name} instead of a
+   * string.
+   */
+  public static Counter<Long> longs(Counter.Name name, AggregationKind kind) {
     return new LongCounter(name, kind);
   }
 
@@ -144,6 +163,14 @@ public abstract class Counter<T> {
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
   public static Counter<Double> doubles(String name, AggregationKind kind) {
+    return new DoubleCounter(Name.withoutStructure(name), kind);
+  }
+
+  /**
+   * Like {@link #doubles(String, AggregationKind)}, but takes a {@link Counter.Name} instead of a
+   * string.
+   */
+  public static Counter<Double> doubles(Counter.Name name, AggregationKind kind) {
     return new DoubleCounter(name, kind);
   }
 
@@ -158,6 +185,14 @@ public abstract class Counter<T> {
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
   public static Counter<Boolean> booleans(String name, AggregationKind kind) {
+    return new BooleanCounter(Name.withoutStructure(name), kind);
+  }
+
+  /**
+   * Like {@link #booleans(String, AggregationKind)}, but takes a {@link Counter.Name} instead of a
+   * string.
+   */
+  public static Counter<Boolean> booleans(Counter.Name name, AggregationKind kind) {
     return new BooleanCounter(name, kind);
   }
 
@@ -173,9 +208,17 @@ public abstract class Counter<T> {
    */
   @SuppressWarnings("unused")
   private static Counter<String> strings(String name, AggregationKind kind) {
-    return new StringCounter(name, kind);
+    return new StringCounter(Name.withoutStructure(name), kind);
   }
 
+  /**
+   * Like {@link #strings(String, AggregationKind)}, but takes a {@link Counter.Name} instead of a
+   * string.
+   */
+  @SuppressWarnings("unused")
+  private static Counter<String> strings(Counter.Name name, AggregationKind kind) {
+    return new StringCounter(name, kind);
+  }
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -218,7 +261,12 @@ public abstract class Counter<T> {
    * Returns the counter's name.
    */
   public String getName() {
-    return name;
+    return this.name.counterName();
+  }
+
+  /** Returns a Name object which uniquely identifies this counter. */
+  public Name getUniqueName() {
+    return this.name;
   }
 
   /**
@@ -342,28 +390,26 @@ public abstract class Counter<T> {
    */
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append(getName());
-    sb.append(":");
-    sb.append(getKind());
-    sb.append("(");
+    String valueString;
     switch (kind) {
       case SUM:
       case MAX:
       case MIN:
       case AND:
       case OR:
-        sb.append(getAggregate());
+        valueString = getAggregate().toString();
         break;
       case MEAN:
-        sb.append(getMean());
+        valueString = getMean().toString();
         break;
       default:
         throw illegalArgumentException();
     }
-    sb.append(")");
-
-    return sb.toString();
+    return MoreObjects.toStringHelper(this)
+      .add("Name", name)
+      .add("Kind", getKind())
+      .add("Value", valueString)
+      .toString();
   }
 
   @Override
@@ -418,17 +464,58 @@ public abstract class Counter<T> {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  /** The name of this counter. */
-  protected final String name;
-
   /** The kind of aggregation function to apply to this counter. */
   protected final AggregationKind kind;
 
   /** The commit state of this counter. **/
   protected final AtomicReference<CommitState> commitState;
 
+  /**
+   * {@link Counter.Name} is the full unique name of the counter. Counters must have
+   * at least a name, and optionally may be associated with a {@code systemName}, an
+   * {@code originalName}, or both. All of these names together define a counter uniquely.
+   */
+  @AutoValue
+  public abstract static class Name {
+    /** Create a {@link Counter.Name} with the {@code originalName} from a {@link NameContext}. */
+    public static Name withOriginalName(String name, NameContext context) {
+      return new AutoValue_Counter_Name(name, null,
+          checkNotNull(context.originalName(), "Expected original name in context %s", context));
+    }
+
+    /** Create a {@link Counter.Name} with the {@code systemName} from a {@link NameContext}. */
+    public static Name withSystemName(String name, NameContext context) {
+      return new AutoValue_Counter_Name(name,
+          checkNotNull(context.systemName(), "Expected system name in context %s", context),
+          null);
+    }
+
+    /** Create a {@link Counter.Name} without a {@link NameContext}. */
+    public static Name withoutStructure(String name) {
+      return new AutoValue_Counter_Name(name, null, null);
+    }
+
+    /** Returns the non-unique {@code counterName}. */
+    public abstract String counterName();
+
+    /** Returns an optional {@code contextSystemName}. */
+    @Nullable public abstract String contextSystemName();
+
+    /** Returns an optional {@code contextOriginalName}. */
+    @Nullable public abstract String contextOriginalName();
+  }
+
+  /** The name of this counter. */
+  protected final Name name;
+
   protected Counter(String name, AggregationKind kind) {
-    this.name = name;
+    this.name = Name.withoutStructure(name);
+    this.kind = kind;
+    this.commitState = new AtomicReference<>(CommitState.COMMITTED);
+  }
+
+  protected Counter(Name name, AggregationKind kind) {
+    this.name = checkNotNull(name);
     this.kind = kind;
     this.commitState = new AtomicReference<>(CommitState.COMMITTED);
   }
@@ -445,7 +532,7 @@ public abstract class Counter<T> {
     private final AtomicReference<LongCounterMean> deltaMean;
 
     /** Initializes a new {@link Counter} for {@link Long} values. */
-    private LongCounter(String name, AggregationKind kind) {
+    private LongCounter(Counter.Name name, AggregationKind kind) {
       super(name, kind);
       switch (kind) {
         case MEAN:
@@ -657,7 +744,7 @@ public abstract class Counter<T> {
     AtomicReference<DoubleCounterMean> deltaMean;
 
     /** Initializes a new {@link Counter} for {@link Double} values. */
-    private DoubleCounter(String name, AggregationKind kind) {
+    private DoubleCounter(Counter.Name name, AggregationKind kind) {
       super(name, kind);
       switch (kind) {
         case MEAN:
@@ -867,7 +954,7 @@ public abstract class Counter<T> {
     private final AtomicBoolean deltaAggregate;
 
     /** Initializes a new {@link Counter} for {@link Boolean} values. */
-    private BooleanCounter(String name, AggregationKind kind) {
+    private BooleanCounter(Counter.Name name, AggregationKind kind) {
       super(name, kind);
       aggregate = new AtomicBoolean();
       deltaAggregate = new AtomicBoolean();
@@ -952,7 +1039,7 @@ public abstract class Counter<T> {
    */
   private static class StringCounter extends Counter<String> {
     /** Initializes a new {@link Counter} for {@link String} values. */
-    private StringCounter(String name, AggregationKind kind) {
+    private StringCounter(Counter.Name name, AggregationKind kind) {
       super(name, kind);
       // TODO: Support MIN, MAX of Strings.
       throw illegalArgumentException();
@@ -1036,7 +1123,7 @@ public abstract class Counter<T> {
     private final AtomicReference<IntegerCounterMean> deltaMean;
 
     /** Initializes a new {@link Counter} for {@link Integer} values. */
-    private IntegerCounter(String name, AggregationKind kind) {
+    private IntegerCounter(Counter.Name name, AggregationKind kind) {
       super(name, kind);
       switch (kind) {
         case MEAN:

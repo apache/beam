@@ -18,11 +18,15 @@ package com.google.cloud.dataflow.sdk.util.common;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
@@ -38,6 +42,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CounterSetTest {
   private CounterSet set;
+
+  private static final String counterName = "counter-name";
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -222,4 +228,118 @@ public class CounterSetTest {
     assertThat(set, containsInAnyOrder(c1, c2));
   }
 
+  @Test
+  public void testNullCounterBeforeAdd() {
+    // getting a nonexistent counter returns null, then after add a value is
+    // returned
+    assertThat(set.getExistingCounter(counterName), is(nullValue()));
+    Counter<Integer> counterAddCheck = Counter.ints(counterName, SUM);
+    set.addNewCounter(counterAddCheck);
+    assertThat(set.getExistingCounter(counterName), is(notNullValue()));
+  }
+
+  @Test
+  public void testAddDuplicate() {
+    // adding an already existing counter using addNewCounter throws an exception
+    Counter<Integer> counterAddCheck = Counter.ints(counterName, SUM);
+    set.addNewCounter(counterAddCheck);
+    thrown.expect(IllegalArgumentException.class);
+    set.addNewCounter(counterAddCheck);
+    assertThat(set.getExistingCounter(counterName), is(notNullValue()));
+  }
+
+  /**
+   * CounterSet mutators with different contexts should not conflict with one another.
+   * The below tests creates a few counter mutators, some with and without an associated
+   * NameContext, and verify the counters added through the mutators are as
+   * expected.
+   */
+  @Test
+  public void testMutatorsDoNotConflict() {
+    NameContext context = NameContext.create("original_name", "optimized_name");
+    Counter.Name structuredName =
+        Counter.Name.withOriginalName(counterName, context);
+
+    // Create an unstructured counter with a value
+    Counter<Integer> counterUnstructured = Counter.ints(counterName, SUM);
+    set.addNewCounter(counterUnstructured);
+    counterUnstructured.addValue(10);
+
+    // create a counter with the same name, but a different context and value
+    CounterSet.AddCounterMutator adder = set.getAddCounterMutator(context);
+    @SuppressWarnings("unchecked")
+    Counter<Integer> counterStructured = Counter.ints(structuredName, SUM);
+    adder.addCounter(counterStructured);
+    counterStructured.addValue(-10);
+
+    // now read back both counters and check values
+    @SuppressWarnings("unchecked")
+    Counter<Integer> counterUnstructuredToo =
+        (Counter<Integer>) set.getExistingCounter(counterName);
+
+    @SuppressWarnings("unchecked")
+    Counter<Integer> counterStructuredToo =
+        (Counter<Integer>) set.getExistingCounter(structuredName);
+    assertThat(counterUnstructuredToo.getAggregate(), is(10));
+    assertThat(counterStructuredToo.getAggregate(), is(-10));
+
+    // grab a regular mutator, first check that adding an existing counter simply reuses
+    adder = set.getAddCounterMutator();
+    int size = set.size();
+    counterUnstructuredToo = adder.addCounter(counterUnstructuredToo);
+    assertThat(set.size(), is(size));
+    assertThat(counterUnstructuredToo.getAggregate(), is(10));
+
+    // This counter should still be unstructured, ie the two mutators should not interfere with one
+    // another
+    Counter.Name unstructured = counterUnstructuredToo.getUniqueName();
+    assertThat(unstructured.counterName(), is(notNullValue()));
+    assertThat(unstructured.contextSystemName(), is(nullValue()));
+    assertThat(unstructured.contextOriginalName(), is(nullValue()));
+  }
+
+  /**
+   * Adding counters to a CounterSet via mutator should be equivalent to
+   * directly adding counters to a CounterSet.
+   */
+  @Test
+  public void testMutatorsAndConstructorAreEquivalent() {
+    // First a regular counterset created with an array of counters
+    CounterSet cs1 =
+        new CounterSet(
+            Counter.longs("counter-1", SUM).resetToValue(0L),
+            Counter.longs("counter-2", SUM).resetToValue(0L));
+
+    // Now add via counter mutator
+    CounterSet cs2 = new CounterSet();
+    CounterSet.AddCounterMutator adder = cs2.getAddCounterMutator();
+    adder.addCounter(Counter.longs("counter-1", SUM).resetToValue(0L));
+    adder.addCounter(Counter.longs("counter-2", SUM).resetToValue(0L));
+    assertEquals(cs1, cs2);
+
+    // Now add unstructured counters with a counter mutator
+    CounterSet cs3 = new CounterSet();
+    NameContext context = NameContext.create("original_name", "optimized_name");
+    adder = cs3.getAddCounterMutator(context);
+    Counter<Long> c1 = Counter.longs("counter-1", SUM).resetToValue(0L);
+    Counter<Long> c2 = Counter.longs("counter-2", SUM).resetToValue(0L);
+    adder.addCounter(c1);
+    adder.addCounter(c2);
+    assertEquals(cs3, cs2);
+
+    // now try two cases with structured names
+    c1 = Counter.longs(
+        Counter.Name.withOriginalName(
+            "counter-1", context), SUM).resetToValue(0L);
+    c2 = Counter.longs(
+        Counter.Name.withOriginalName(
+            "counter-2", context), SUM).resetToValue(0L);
+    cs1 = new CounterSet(c1, c2);
+
+    cs2 = new CounterSet();
+    adder = cs2.getAddCounterMutator(context);
+    adder.addCounter(c1);
+    adder.addCounter(c2);
+    assertEquals(cs1, cs2);
+  }
 }

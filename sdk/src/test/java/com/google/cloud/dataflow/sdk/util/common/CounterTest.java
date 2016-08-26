@@ -23,6 +23,10 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MIN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -92,8 +96,17 @@ public class CounterTest {
     assertTrue(
         Counter.longs("c", SUM).resetToValue(666L).isCompatibleWith(
             Counter.longs("c", SUM).resetToValue(42L)));
-  }
 
+    // now a structured counter should not be compatible
+    final String counterName = "counter-name";
+    Counter<Integer> counter1 = Counter.ints(counterName, SUM);
+    NameContext context = NameContext.create("original_name", "optimized_name");
+
+    Counter<Integer> counterStructured = Counter.ints(
+        Counter.Name.withOriginalName(counterName, context), SUM);
+    assertThat(counter1.isCompatibleWith(counterStructured), is(false));
+    assertThat(counterStructured.isCompatibleWith(counter1), is(false));
+  }
 
   private void assertOK(long total, long delta, Counter<Long> c) {
     assertEquals(total, c.getAggregate().longValue());

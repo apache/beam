@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.AbstractSet;
 import java.util.Iterator;
@@ -30,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CounterSet extends AbstractSet<Counter<?>> {
 
   /** Registered counters. */
-  private final ConcurrentHashMap<String, Counter<?>> counters = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<Counter.Name, Counter<?>> counters = new ConcurrentHashMap<>();
 
   private final AddCounterMutator addCounterMutator = new AddCounterMutator();
 
@@ -49,6 +50,15 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    */
   public AddCounterMutator getAddCounterMutator() {
     return addCounterMutator;
+  }
+
+  /**
+   * Returns an object that supports adding additional counters into
+   * this {@link CounterSet} with the supplied {@link NameContext}.
+   */
+  public AddCounterMutator getAddCounterMutator(NameContext context) {
+    AddCounterMutator addCounterWithContextMutator = new AddCounterMutator(context);
+    return addCounterWithContextMutator;
   }
 
   /**
@@ -73,7 +83,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    * name but an incompatible kind had already been added
    */
   public <T> Counter<T> addOrReuseCounter(Counter<T> counter) {
-    Counter<?> oldCounter = counters.putIfAbsent(counter.getName(), counter);
+    Counter<?> oldCounter = counters.putIfAbsent(counter.getUniqueName(), counter);
     if (oldCounter != null) {
       checkArgument(counter.isCompatibleWith(oldCounter),
         "Counter %s duplicates incompatible counter %s in %s", counter, oldCounter, this);
@@ -97,11 +107,20 @@ public class CounterSet extends AbstractSet<Counter<?>> {
   }
 
   /**
+   * Returns the {@link Counter} with the given {@link Counter.Name} in this {@link CounterSet};
+   * returns null if no such {@link Counter} exists.
+   */
+  public synchronized Counter<?> getExistingCounter(Counter.Name name) {
+    return counters.get(name);
+  }
+
+  /**
    * Returns the Counter with the given name in this CounterSet;
    * returns null if no such Counter exists.
    */
   public Counter<?> getExistingCounter(String name) {
-    return counters.get(name);
+    Counter.Name unstructuredName = Counter.Name.withoutStructure(name);
+    return counters.get(unstructuredName);
   }
 
   @Override
@@ -119,12 +138,12 @@ public class CounterSet extends AbstractSet<Counter<?>> {
     if (null == e) {
       return false;
     }
-    return counters.putIfAbsent(e.getName(), e) == null;
+    return counters.putIfAbsent(e.getUniqueName(), e) == null;
   }
 
   public void merge(CounterSet that) {
     for (Counter<?> theirCounter : that) {
-      Counter<?> myCounter = counters.get(theirCounter.getName());
+      Counter<?> myCounter = counters.get(theirCounter.getUniqueName());
       if (myCounter != null) {
         mergeCounters(myCounter, theirCounter);
       } else {
@@ -151,6 +170,26 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    * public methods of the CounterSet.
    */
   public class AddCounterMutator {
+
+    /**
+     * The {@link NameContext} to add counters into, optional.
+     */
+    private final NameContext context;
+
+    /**
+     * Constructor which takes a {@link NameContext}.
+     */
+    public AddCounterMutator(NameContext context) {
+      this.context = checkNotNull(context);
+    }
+
+    /**
+     * Default Constructor has no context associated.
+     */
+    public AddCounterMutator() {
+      this.context = null;
+    }
+
     /**
      * Adds the given Counter into the enclosing CounterSet.
      *
@@ -163,6 +202,13 @@ public class CounterSet extends AbstractSet<Counter<?>> {
      */
     public <T> Counter<T> addCounter(Counter<T> counter) {
       return addOrReuseCounter(counter);
+    }
+
+    /**
+     * Returns the {@link NameContext} associated with this mutator, if any.
+     */
+    public NameContext getNameContext() {
+      return this.context;
     }
   }
 }
