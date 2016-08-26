@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
 /**
@@ -34,10 +35,37 @@ import org.joda.time.Instant;
 public abstract class BoundedWindow {
   // The min and max timestamps that won't overflow when they are converted to
   // usec.
-  public static final Instant TIMESTAMP_MIN_VALUE =
+  public static final Instant NEGATIVE_INFINITY =
       new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
-  public static final Instant TIMESTAMP_MAX_VALUE =
+  /**
+   * The minimum timestamp.
+   *
+   * @deprecated instead use {@link #NEGATIVE_INFINITY}
+   */
+  @Deprecated
+  public static final Instant TIMESTAMP_MIN_VALUE = NEGATIVE_INFINITY;
+  /**
+   * The timestamp that represents positive infinity.
+   *
+   * <p>Elements must have timestamps that are before this value. {@link BoundedWindow Windows} must
+   * {@link #maxTimestamp() end} before this value. A window which does not end before
+   * POSITIVE_INFINITY cannot be produced using any watermark-based {@link Trigger}, such as {@link
+   * AfterWatermark} or the {@link DefaultTrigger}.
+   *
+   * <p>After a watermark reaches this value, all future elements that arrive are droppably late. As
+   * such, the runner is permitted to shut down sources after their watermark reaches this value,
+   * and the pipeline is complete and permitted to shut down after the watermark for all
+   * {@link PCollection PCollections} has reached this value.
+   */
+  public static final Instant POSITIVE_INFINITY =
       new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
+  /**
+   * The maximum timestamp.
+   *
+   * @deprecated instead use {@link #POSITIVE_INFINITY}
+   */
+  @Deprecated
+  public static final Instant TIMESTAMP_MAX_VALUE = POSITIVE_INFINITY;
 
   /**
    * Returns the inclusive upper bound of timestamps for values in this window.

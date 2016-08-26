@@ -81,7 +81,7 @@ public interface TimerInternals {
    *
    * <p>This value:
    * <ol>
-   * <li>Is never {@literal null}, but may be {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   * <li>Is never {@literal null}, but may be {@link BoundedWindow#NEGATIVE_INFINITY}.
    * <li>Is monotonically increasing.
    * <li>May differ between workers due to network and other delays.
    * <li>Will never be ahead of the global input watermark for this computation. But it

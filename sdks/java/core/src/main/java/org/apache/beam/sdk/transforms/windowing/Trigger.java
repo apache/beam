@@ -405,7 +405,7 @@ public abstract class Trigger implements Serializable {
    * that does not depend on its state.
    *
    * <p>For triggers that do not fire based on the watermark advancing, returns
-   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+   * {@link BoundedWindow#POSITIVE_INFINITY}.
    *
    * <p>This estimate is used to determine that there are no elements in a side-input window, which
    * causes the default value to be used instead.

@@ -65,7 +65,7 @@ public abstract class WindowedValue<T> {
       PaneInfo pane) {
     checkNotNull(pane);
 
-    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    if (windows.size() == 0 && BoundedWindow.NEGATIVE_INFINITY.equals(timestamp)) {
       return valueInEmptyWindows(value, pane);
     } else if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);
@@ -85,7 +85,7 @@ public abstract class WindowedValue<T> {
     checkNotNull(pane);
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
-    if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    if (isGlobal && BoundedWindow.NEGATIVE_INFINITY.equals(timestamp)) {
       return valueInGlobalWindow(value, pane);
     } else if (isGlobal) {
       return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
@@ -115,7 +115,7 @@ public abstract class WindowedValue<T> {
    * {@code GlobalWindow} and default pane.
    */
   public static <T> WindowedValue<T> timestampedValueInGlobalWindow(T value, Instant timestamp) {
-    if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    if (BoundedWindow.NEGATIVE_INFINITY.equals(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
       return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
@@ -248,7 +248,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public Instant getTimestamp() {
-      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+      return BoundedWindow.NEGATIVE_INFINITY;
     }
   }
 

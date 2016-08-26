@@ -133,7 +133,7 @@ public class AfterAllTest {
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(BoundedWindow.POSITIVE_INFINITY,
         AfterAll.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(1))
             .getWatermarkThatGuaranteesFiring(window));
   }

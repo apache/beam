@@ -63,8 +63,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link BoundedSource} is read directly without calling {@link BoundedSource#splitIntoBundles},
  * and element timestamps are propagated. While any elements remain, the watermark is the beginning
- * of time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, and after all elements have been produced
- * the watermark goes to the end of time {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+ * of time {@link BoundedWindow#NEGATIVE_INFINITY}, and after all elements have been produced
+ * the watermark goes to the end of time {@link BoundedWindow#POSITIVE_INFINITY}.
  *
  * <p>Checkpoints are created by calling {@link BoundedReader#splitAtFraction} on inner
  * {@link BoundedSource}.
@@ -350,7 +350,7 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PInput
 
       @Override
       public Instant getWatermark() {
-        return done ? BoundedWindow.TIMESTAMP_MAX_VALUE : BoundedWindow.TIMESTAMP_MIN_VALUE;
+        return done ? BoundedWindow.POSITIVE_INFINITY : BoundedWindow.NEGATIVE_INFINITY;
       }
 
       /**

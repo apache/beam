@@ -185,7 +185,7 @@ public class OrFinallyTriggerTest {
             .orFinally(AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));
 
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(BoundedWindow.POSITIVE_INFINITY,
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
         .orFinally(AfterPane.elementCountAtLeast(10))
         .getWatermarkThatGuaranteesFiring(window));

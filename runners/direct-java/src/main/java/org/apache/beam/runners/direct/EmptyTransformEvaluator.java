@@ -25,7 +25,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  * A {@link TransformEvaluator} that ignores all input and produces no output. The result of
  * invoking {@link #finishBundle()} on this evaluator is to return an
  * {@link TransformResult} with no elements and a timestamp hold equal to
- * {@link BoundedWindow#TIMESTAMP_MIN_VALUE}. Because the result contains no elements, this hold
+ * {@link BoundedWindow#NEGATIVE_INFINITY}. Because the result contains no elements, this hold
  * will not affect the watermark.
  */
 final class EmptyTransformEvaluator<T> implements TransformEvaluator<T> {
@@ -44,7 +44,7 @@ final class EmptyTransformEvaluator<T> implements TransformEvaluator<T> {
 
   @Override
   public TransformResult finishBundle() throws Exception {
-    return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MIN_VALUE)
+    return StepTransformResult.withHold(transform, BoundedWindow.NEGATIVE_INFINITY)
         .build();
   }
 }

@@ -1294,7 +1294,7 @@ public class ReduceFnRunnerTest {
       assertEquals(3, Iterables.size(output.get(i).getValue()));
     }
 
-    tester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    tester.advanceInputWatermark(BoundedWindow.POSITIVE_INFINITY);
 
     output = tester.extractOutput();
     assertEquals(1, output.size());
@@ -1331,7 +1331,7 @@ public class ReduceFnRunnerTest {
       assertEquals(4, Iterables.size(output.get(i).getValue()));
     }
 
-    tester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    tester.advanceInputWatermark(BoundedWindow.POSITIVE_INFINITY);
 
     output = tester.extractOutput();
     assertEquals(1, output.size());

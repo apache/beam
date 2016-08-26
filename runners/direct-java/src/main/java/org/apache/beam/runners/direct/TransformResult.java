@@ -60,7 +60,7 @@ public interface TransformResult {
    * Returns the Watermark Hold for the transform at the time this result was produced.
    *
    * If the transform does not set any watermark hold, returns
-   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+   * {@link BoundedWindow#POSITIVE_INFINITY}.
    */
   Instant getWatermarkHold();
 

@@ -83,7 +83,7 @@ public class WindowEvaluatorFactoryTest {
           PaneInfo.NO_FIRING);
 
   private IntervalWindow intervalWindow1 =
-      new IntervalWindow(EPOCH, BoundedWindow.TIMESTAMP_MAX_VALUE);
+      new IntervalWindow(EPOCH, BoundedWindow.POSITIVE_INFINITY);
 
   private IntervalWindow intervalWindow2 =
       new IntervalWindow(

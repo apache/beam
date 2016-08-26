@@ -573,7 +573,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
                                                              MIN);
       minReadTimestampMsSinceEpoch = newFun(MIN);
       lastReceivedMsSinceEpoch = -1;
-      lastWatermarkMsSinceEpoch = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+      lastWatermarkMsSinceEpoch = BoundedWindow.NEGATIVE_INFINITY.getMillis();
       current = null;
       lastLogTimestampMsSinceEpoch = -1;
       numReceived = 0L;
@@ -973,7 +973,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       if (pubsubClient.isEOF() && notYetRead.isEmpty()) {
         // For testing only: Advance the watermark to the end of time to signal
         // the test is complete.
-        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+        return BoundedWindow.POSITIVE_INFINITY;
       }
 
       // NOTE: We'll allow the watermark to go backwards. The underlying runner is responsible

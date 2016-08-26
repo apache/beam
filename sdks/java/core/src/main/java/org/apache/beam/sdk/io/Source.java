@@ -171,7 +171,7 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
      * Returns the timestamp associated with the current data item.
      *
      * <p>If the source does not support timestamps, this should return
-     * {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
+     * {@code BoundedWindow.NEGATIVE_INFINITY}.
      *
      * <p>Multiple calls to this method without an intervening call to {@link #advance} should
      * return the same result.

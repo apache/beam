@@ -107,7 +107,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     TransformResult result = evaluator.finishBundle();
     assertThat(result.getOutputBundles(), Matchers.<UncommittedBundle<?>>contains(outputBundle));
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     assertThat(result.getAggregatorChanges(), equalTo(mutator));
 
     assertThat(
@@ -162,7 +162,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     TransformResult result = evaluator.finishBundle();
     assertThat(
         result.getOutputBundles(), Matchers.<UncommittedBundle<?>>containsInAnyOrder(outputBundle));
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     assertThat(result.getAggregatorChanges(), equalTo(mutator));
   }
 

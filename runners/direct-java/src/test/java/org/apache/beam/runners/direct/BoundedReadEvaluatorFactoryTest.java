@@ -83,9 +83,9 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     TransformResult result = evaluator.finishBundle();
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     assertThat(
-        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(),
+        output.commit(BoundedWindow.POSITIVE_INFINITY).getElements(),
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
@@ -103,9 +103,9 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     TransformResult result = evaluator.finishBundle();
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     Iterable<? extends WindowedValue<Long>> outputElements =
-        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
+        output.commit(BoundedWindow.POSITIVE_INFINITY).getElements();
     assertThat(
         outputElements,
         containsInAnyOrder(
@@ -136,16 +136,16 @@ public class BoundedReadEvaluatorFactoryTest {
     assertThat(secondEvaluator, nullValue());
 
     TransformResult result = evaluator.finishBundle();
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     Iterable<? extends WindowedValue<Long>> outputElements =
-        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
+        output.commit(BoundedWindow.POSITIVE_INFINITY).getElements();
 
     assertThat(
         outputElements,
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
     assertThat(
-        secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
+        secondOutput.commit(BoundedWindow.POSITIVE_INFINITY).getElements(), emptyIterable());
     assertThat(
         outputElements,
         containsInAnyOrder(

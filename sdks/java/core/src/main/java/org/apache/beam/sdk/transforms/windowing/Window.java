@@ -584,7 +584,7 @@ public class Window {
       if (allowedLateness != null) {
         builder.addIfNotDefault(DisplayData.item("allowedLateness", allowedLateness)
               .withLabel("Allowed Lateness"),
-            Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+            Duration.millis(BoundedWindow.POSITIVE_INFINITY.getMillis()));
       }
 
       if (trigger != null && !(trigger instanceof DefaultTrigger)) {

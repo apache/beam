@@ -232,8 +232,8 @@ public class StateMerging {
       }
       // Update directly from window-derived hold.
       Instant hold = result.getOutputTimeFn().assignOutputTime(
-          BoundedWindow.TIMESTAMP_MIN_VALUE, resultWindow);
-      checkState(hold.isAfter(BoundedWindow.TIMESTAMP_MIN_VALUE));
+          BoundedWindow.NEGATIVE_INFINITY, resultWindow);
+      checkState(hold.isAfter(BoundedWindow.NEGATIVE_INFINITY));
       result.add(hold);
     } else {
       // Prefetch.

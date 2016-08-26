@@ -104,7 +104,7 @@ public class AfterEachTest {
                           AfterPane.elementCountAtLeast(4))
             .getWatermarkThatGuaranteesFiring(window));
 
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(BoundedWindow.POSITIVE_INFINITY,
         AfterEach.inOrder(AfterPane.elementCountAtLeast(2), AfterWatermark.pastEndOfWindow())
             .getWatermarkThatGuaranteesFiring(window));
   }

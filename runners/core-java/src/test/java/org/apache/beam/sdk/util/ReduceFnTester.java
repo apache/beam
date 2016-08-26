@@ -609,14 +609,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     /** Current input watermark. */
     @Nullable
-    private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    private Instant inputWatermarkTime = BoundedWindow.NEGATIVE_INFINITY;
 
     /** Current output watermark. */
     @Nullable
     private Instant outputWatermarkTime = null;
 
     /** Current processing time. */
-    private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    private Instant processingTime = BoundedWindow.NEGATIVE_INFINITY;
 
     /** Current synchronized processing time. */
     @Nullable

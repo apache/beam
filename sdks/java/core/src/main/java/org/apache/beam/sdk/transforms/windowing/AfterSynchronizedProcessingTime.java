@@ -40,7 +40,7 @@ class AfterSynchronizedProcessingTime extends AfterDelayFromFirstElement {
 
   @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
-    return BoundedWindow.TIMESTAMP_MAX_VALUE;
+    return BoundedWindow.POSITIVE_INFINITY;
   }
 
   @Override

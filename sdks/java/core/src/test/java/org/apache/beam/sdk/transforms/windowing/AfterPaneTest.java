@@ -109,7 +109,7 @@ public class AfterPaneTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(BoundedWindow.POSITIVE_INFINITY,
         AfterPane.elementCountAtLeast(1).getWatermarkThatGuaranteesFiring(
             new IntervalWindow(new Instant(0), new Instant(10))));
   }

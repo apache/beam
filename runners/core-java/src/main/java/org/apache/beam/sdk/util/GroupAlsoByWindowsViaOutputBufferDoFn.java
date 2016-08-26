@@ -87,10 +87,10 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
     }
 
     // Finish any pending windows by advancing the input watermark to infinity.
-    timerInternals.advanceInputWatermark(reduceFnRunner, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    timerInternals.advanceInputWatermark(reduceFnRunner, BoundedWindow.POSITIVE_INFINITY);
 
     // Finally, advance the processing time to infinity to fire any timers.
-    timerInternals.advanceProcessingTime(reduceFnRunner, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    timerInternals.advanceProcessingTime(reduceFnRunner, BoundedWindow.POSITIVE_INFINITY);
 
     reduceFnRunner.persist();
   }

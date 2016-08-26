@@ -34,7 +34,7 @@ import org.joda.time.Instant;
 public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private final List<Message> messages = new ArrayList<>();
-  private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private Instant oldestPendingTimestamp = BoundedWindow.NEGATIVE_INFINITY;
 
   public JmsCheckpointMark() {
   }

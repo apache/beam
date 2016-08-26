@@ -61,7 +61,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                     originalStrategy.getWindowFn().windowCoder()))
             .triggering(new ReshuffleTrigger<>())
             .discardingFiredPanes()
-            .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+            .withAllowedLateness(Duration.millis(BoundedWindow.POSITIVE_INFINITY.getMillis()));
 
     return input.apply(rewindow)
         .apply(GroupByKey.<K, V>create())

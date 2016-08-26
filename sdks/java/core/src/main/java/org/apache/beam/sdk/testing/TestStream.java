@@ -66,7 +66,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
 
   /**
    * Create a new {@link TestStream.Builder} with no elements and watermark equal to {@link
-   * BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   * BoundedWindow#NEGATIVE_INFINITY}.
    */
   public static <T> Builder<T> create(Coder<T> coder) {
     return new Builder<>(coder);
@@ -87,7 +87,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     private final Instant currentWatermark;
 
     private Builder(Coder<T> coder) {
-      this(coder, ImmutableList.<Event<T>>of(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+      this(coder, ImmutableList.<Event<T>>of(), BoundedWindow.NEGATIVE_INFINITY);
     }
 
     private Builder(Coder<T> coder, ImmutableList<Event<T>> events, Instant currentWatermark) {
@@ -123,15 +123,15 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     public final Builder<T> addElements(
         TimestampedValue<T> element, TimestampedValue<T>... elements) {
       checkArgument(
-          element.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+          element.getTimestamp().isBefore(BoundedWindow.POSITIVE_INFINITY),
           "Elements must have timestamps before %s. Got: %s",
-          BoundedWindow.TIMESTAMP_MAX_VALUE,
+          BoundedWindow.POSITIVE_INFINITY,
           element.getTimestamp());
       for (TimestampedValue<T> multiElement : elements) {
         checkArgument(
-            multiElement.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+            multiElement.getTimestamp().isBefore(BoundedWindow.POSITIVE_INFINITY),
             "Elements must have timestamps before %s. Got: %s",
-            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            BoundedWindow.POSITIVE_INFINITY,
             multiElement.getTimestamp());
       }
       ImmutableList<Event<T>> newEvents =
@@ -146,7 +146,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
      * Advance the watermark of this source to the specified instant.
      *
      * <p>The watermark must advance monotonically and cannot advance to {@link
-     * BoundedWindow#TIMESTAMP_MAX_VALUE} or beyond.
+     * BoundedWindow#POSITIVE_INFINITY} or beyond.
      *
      * @return A {@link TestStream.Builder} like this one that will advance the watermark to the
      *         specified point after all earlier events have completed.
@@ -155,10 +155,10 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
       checkArgument(
           newWatermark.isAfter(currentWatermark), "The watermark must monotonically advance");
       checkArgument(
-          newWatermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+          newWatermark.isBefore(BoundedWindow.POSITIVE_INFINITY),
           "The Watermark cannot progress beyond the maximum. Got: %s. Maximum: %s",
           newWatermark,
-          BoundedWindow.TIMESTAMP_MAX_VALUE);
+          BoundedWindow.POSITIVE_INFINITY);
       ImmutableList<Event<T>> newEvents = ImmutableList.<Event<T>>builder()
           .addAll(events)
           .add(WatermarkEvent.<T>advanceTo(newWatermark))
@@ -193,7 +193,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()
               .addAll(events)
-              .add(WatermarkEvent.<T>advanceTo(BoundedWindow.TIMESTAMP_MAX_VALUE))
+              .add(WatermarkEvent.<T>advanceTo(BoundedWindow.POSITIVE_INFINITY))
               .build();
       return new TestStream<>(coder, newEvents);
     }
