@@ -97,6 +97,12 @@
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <optional>true</optional>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>jul-to-slf4j</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
 
         <dependency>
