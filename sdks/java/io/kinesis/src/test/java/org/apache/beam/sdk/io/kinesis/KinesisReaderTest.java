@@ -30,7 +30,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 /**
- * Created by ppastuszka on 12.12.15.
+ * Tests {@link KinesisReader}.
  */
 @RunWith(MockitoJUnitRunner.class)
 public class KinesisReaderTest {
