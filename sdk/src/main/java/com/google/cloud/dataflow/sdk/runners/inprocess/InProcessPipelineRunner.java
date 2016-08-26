@@ -19,6 +19,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.io.Write;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.AggregatorPipelineExtractor;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
@@ -50,9 +51,7 @@ import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import org.joda.time.Instant;
-
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -78,6 +77,7 @@ public class InProcessPipelineRunner
               .put(Create.Values.class, new InProcessCreateOverrideFactory())
               .put(GroupByKey.class, new InProcessGroupByKeyOverrideFactory())
               .put(CreatePCollectionView.class, new InProcessViewOverrideFactory())
+              .put(Write.Bound.class, new WriteWithShardingFactory())
               .build();
 
   /**

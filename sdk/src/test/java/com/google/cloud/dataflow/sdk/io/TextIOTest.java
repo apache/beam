@@ -269,11 +269,19 @@ public class TextIOTest {
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    for (int i = 0; i < numShards; i++) {
-      expectedFiles.add(
-          new File(
-              rootLocation.getRoot(),
-              IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+    if (numShards == 0) {
+      String pattern =
+          IOChannelUtils.resolve(rootLocation.getRoot().getAbsolutePath(), outputName + "*");
+      for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
+        expectedFiles.add(new File(expected));
+      }
+    } else {
+      for (int i = 0; i < numShards; i++) {
+        expectedFiles.add(
+            new File(
+                rootLocation.getRoot(),
+                IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
+      }
     }
 
     List<String> actual = new ArrayList<>();

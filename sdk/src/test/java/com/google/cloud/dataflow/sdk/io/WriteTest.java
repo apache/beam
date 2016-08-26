@@ -19,6 +19,7 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -137,7 +138,7 @@ public class WriteTest {
   public void testEmptyWrite() {
     runWrite(Collections.<String>emptyList(), IDENTITY_MAP);
     // Note we did not request a sharded write, so runWrite will not validate the number of shards.
-    assertEquals(1, numShards.intValue());
+    assertThat(numShards.intValue(), greaterThan(0));
   }
 
   /**
