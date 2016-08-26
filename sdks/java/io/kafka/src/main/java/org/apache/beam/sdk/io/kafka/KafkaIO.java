@@ -73,7 +73,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -450,7 +449,7 @@ public class KafkaIO {
       Unbounded<KafkaRecord<K, V>> unbounded =
           org.apache.beam.sdk.io.Read.from(makeSource());
 
-      PTransform<PInput, PCollection<KafkaRecord<K, V>>> transform = unbounded;
+      PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
       if (maxNumRecords < Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords);

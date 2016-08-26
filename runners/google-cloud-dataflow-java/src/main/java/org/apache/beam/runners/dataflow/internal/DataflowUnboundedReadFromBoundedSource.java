@@ -51,8 +51,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * time dependency. It should be replaced in the dataflow worker as an execution time dependency.
  */
 @Deprecated
-public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
+public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(DataflowUnboundedReadFromBoundedSource.class);
@@ -93,7 +93,7 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PInput
   }
 
   @Override
-  public PCollection<T> apply(PInput input) {
+  public PCollection<T> apply(PBegin input) {
     return input.getPipeline().apply(
         Read.from(new BoundedToUnboundedSourceAdapter<>(source)));
   }

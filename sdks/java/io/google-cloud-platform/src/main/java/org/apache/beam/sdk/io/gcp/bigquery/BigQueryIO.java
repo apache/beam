@@ -122,11 +122,11 @@ import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Instant;
@@ -377,7 +377,7 @@ public class BigQueryIO {
      * A {@link PTransform} that reads from a BigQuery table and returns a bounded
      * {@link PCollection} of {@link TableRow TableRows}.
      */
-    public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
+    public static class Bound extends PTransform<PBegin, PCollection<TableRow>> {
       @Nullable final String jsonTableRef;
       @Nullable final String query;
 
@@ -480,7 +480,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public void validate(PInput input) {
+      public void validate(PBegin input) {
         // Even if existence validation is disabled, we need to make sure that the BigQueryIO
         // read is properly specified.
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
@@ -524,7 +524,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public PCollection<TableRow> apply(PInput input) {
+      public PCollection<TableRow> apply(PBegin input) {
         String uuid = randomUUIDString();
         final String jobIdToken = "beam_job_" + uuid;
 

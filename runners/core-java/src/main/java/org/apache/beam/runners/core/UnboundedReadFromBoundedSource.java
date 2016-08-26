@@ -51,8 +51,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  * <p>This transform is intended to be used by a runner during pipeline translation to convert
  * a Read.Bounded into a Read.Unbounded.
  */
-public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PCollection<T>> {
+public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
 
@@ -88,7 +88,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
   }
 
   @Override
-  public PCollection<T> apply(PInput input) {
+  public PCollection<T> apply(PBegin input) {
     return input.getPipeline().apply(
         Read.from(new BoundedToUnboundedSourceAdapter<>(source)));
   }

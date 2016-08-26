@@ -111,7 +111,7 @@ public class PubsubIOTest {
         PubsubIO.Read.subscription("projects/project/subscriptions/subscription")
             .maxNumRecords(1);
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("PubsubIO.Read should include the subscription in its primitive display data",
         displayData, hasItem(hasDisplayItem("subscription")));
   }
