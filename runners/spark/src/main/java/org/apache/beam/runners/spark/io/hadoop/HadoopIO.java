@@ -55,8 +55,8 @@ public final class HadoopIO {
 
     /**
      * A {@link PTransform} reading bounded collection of data from HDFS.
-     * @param <K>
-     * @param <V>
+     * @param <K> the type of the keys
+     * @param <V> the type of the values
      */
     public static class Bound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
 
