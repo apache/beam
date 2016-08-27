@@ -182,7 +182,7 @@ public class JmsIO {
     protected String queue;
     @Nullable
     protected String topic;
-    protected long maxNumRecords;
+    protected long maxNumRecords = Long.MAX_VALUE;
     protected Duration maxReadTime;
 
     private Read() {}
