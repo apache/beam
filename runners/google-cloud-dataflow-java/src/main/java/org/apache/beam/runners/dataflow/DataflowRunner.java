@@ -400,7 +400,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return windowed;
     } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
         && ((PCollectionList<?>) input).size() == 0) {
-      return (OutputT) Pipeline.applyTransform((PBegin) input, Create.of());
+      return (OutputT) Pipeline.applyTransform(input.getPipeline().begin(), Create.of());
     } else if (overrides.containsKey(transform.getClass())) {
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")
