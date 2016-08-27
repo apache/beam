@@ -101,11 +101,11 @@ public class JmsIO {
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
   public static Read read() {
-    return new Read();
+    return new Read(null, null, null, Long.MAX_VALUE, null);
   }
 
   public static Write write() {
-    return new Write();
+    return new Write(null, null, null);
   }
 
   /**
@@ -182,10 +182,8 @@ public class JmsIO {
     protected String queue;
     @Nullable
     protected String topic;
-    protected long maxNumRecords = Long.MAX_VALUE;
+    protected long maxNumRecords;
     protected Duration maxReadTime;
-
-    private Read() {}
 
     private Read(
         ConnectionFactory connectionFactory,
@@ -427,8 +425,6 @@ public class JmsIO {
     public Write withTopic(String topic) {
       return new Write(connectionFactory, queue, topic);
     }
-
-    private Write() {}
 
     private Write(ConnectionFactory connectionFactory, String queue, String topic) {
       this.connectionFactory = connectionFactory;
