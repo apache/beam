@@ -257,20 +257,20 @@ Some interesting classes to navigate to:
 
 ## Some Simple Examples
 
-### Hello world
+### Basic pipeline
 
 Create a transform from an iterable and use the pipe operator to chain
 transforms:
 
 ```python
 # Standard imports
-import google.cloud.dataflow as df
+import apache_beam as beam
 # Create a pipeline executing on a direct runner (local, non-cloud).
-p = df.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectPipelineRunner')
 # Create a PCollection with names and write it to a file.
 (p
- | df.Create('add names', ['Ann', 'Joe'])
- | df.Write('save', df.io.TextFileSink('./names')))
+ | 'add names' >> beam.Create(['Ann', 'Joe'])
+ | 'save' >> beam.io.Write(beam.io.TextFileSink('./names')))
 # Execute the pipeline.
 p.run()
 ```
