@@ -91,6 +91,8 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.storage.StorageLevel;
+
 import scala.Tuple2;
 
 /**
@@ -530,7 +532,7 @@ public final class TransformTranslator {
             (JavaRDDLike<WindowedValue<InputT>, ?>) context.getInputRDD(transform);
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
             .mapPartitionsToPair(multifn)
-            .cache();
+            .persist(StorageLevel.MEMORY_ONLY_SER());
 
         PCollectionTuple pct = context.getOutput(transform);
         for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {

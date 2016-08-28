@@ -22,12 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.AggregatorRetrievalException;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.storage.StorageLevel;
 import org.joda.time.Duration;
 
 
@@ -107,26 +110,26 @@ public class EvaluationContext implements EvaluationResult {
     Iterable<WindowedValue<T>> getValues(PCollection<T> pcollection) {
       if (windowedValues == null) {
         WindowFn<?, ?> windowFn =
-                pcollection.getWindowingStrategy().getWindowFn();
+            pcollection.getWindowingStrategy().getWindowFn();
         Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
         final WindowedValue.WindowedValueCoder<T> windowedValueCoder;
-            if (windowFn instanceof GlobalWindows) {
-              windowedValueCoder =
-                  WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
-            } else {
-              windowedValueCoder =
-                  WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
-            }
+        if (windowFn instanceof GlobalWindows) {
+          windowedValueCoder =
+              WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
+        } else {
+          windowedValueCoder =
+              WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
+        }
         JavaRDDLike<byte[], ?> bytesRDD =
             rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
         List<byte[]> clientBytes = bytesRDD.collect();
         windowedValues = Iterables.transform(clientBytes,
             new Function<byte[], WindowedValue<T>>() {
-          @Override
-          public WindowedValue<T> apply(byte[] bytes) {
-            return CoderHelpers.fromByteArray(bytes, windowedValueCoder);
-          }
-        });
+              @Override
+              public WindowedValue<T> apply(byte[] bytes) {
+                return CoderHelpers.fromByteArray(bytes, windowedValueCoder);
+              }
+            });
       }
       return windowedValues;
     }
@@ -168,13 +171,13 @@ public class EvaluationContext implements EvaluationResult {
     return output;
   }
 
-  protected  <T> void setOutputRDD(PTransform<?, ?> transform,
-      JavaRDDLike<WindowedValue<T>, ?> rdd) {
+  protected <T> void setOutputRDD(PTransform<?, ?> transform,
+                                  JavaRDDLike<WindowedValue<T>, ?> rdd) {
     setRDD((PValue) getOutput(transform), rdd);
   }
 
-  protected  <T> void setOutputRDDFromValues(PTransform<?, ?> transform, Iterable<T> values,
-      Coder<T> coder) {
+  protected <T> void setOutputRDDFromValues(PTransform<?, ?> transform, Iterable<T> values,
+                                            Coder<T> coder) {
     pcollections.put((PValue) getOutput(transform), new RDDHolder<>(values, coder));
   }
 
@@ -193,7 +196,7 @@ public class EvaluationContext implements EvaluationResult {
     leafRdds.remove(rddHolder);
     if (multireads.contains(pvalue)) {
       // Ensure the RDD is marked as cached
-      rdd.rdd().cache();
+      rdd.rdd().persist(StorageLevel.MEMORY_ONLY_SER());
     } else {
       multireads.add(pvalue);
     }
@@ -228,7 +231,8 @@ public class EvaluationContext implements EvaluationResult {
   public void computeOutputs() {
     for (RDDHolder<?> rddHolder : leafRdds) {
       JavaRDDLike<?, ?> rdd = rddHolder.getRDD();
-      rdd.rdd().cache(); // cache so that any subsequent get() is cheap
+      // cache so that any subsequent get() is cheap
+      rdd.rdd().persist(StorageLevel.MEMORY_ONLY_SER());
       rdd.count(); // force the RDD to be computed
     }
   }
