@@ -28,7 +28,6 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -235,33 +234,36 @@ public class MongoDbIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      long estimatedByteSize = 0L;
-      long totalCfByteSize = 0L;
+      long estimatedSizeBytes = 0L;
 
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
       MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
 
-      // get the stats object
+      // get the Mongo collStats object
+      // it gives the size for the entire collection
       BasicDBObject stat = new BasicDBObject();
       stat.append("collStats", collection);
       Document stats = mongoDatabase.runCommand(stat);
-      totalCfByteSize = Long.valueOf(stats.get("size").toString());
+      estimatedSizeBytes = Long.valueOf(stats.get("size").toString());
       long avgSize = Long.valueOf(stats.get("avgObjSize").toString());
       if (filter != null && !filter.isEmpty()) {
+        // as the user is using a filter, we improve the estimated size
+        // by counting number of document returned by the filter
+        // and using the average object size from collStats
         try {
-          estimatedByteSize = getFilterResultByteSize(mongoCollection, avgSize);
+          estimatedSizeBytes = getFilterResultByteSize(mongoCollection, avgSize);
         } catch (Exception e) {
           LOGGER.warn("Can't estimate size", e);
         }
-      } else {
-        estimatedByteSize = totalCfByteSize;
       }
-      return estimatedByteSize;
+      return estimatedSizeBytes;
     }
 
     private long getFilterResultByteSize(MongoCollection mongoCollection, long avgSize)
         throws Exception {
+      // count the number of documents selected by the filter and estimate the size of the
+      // filter using the average object size * the number of documents
       long totalFilterByteSize = 0L;
       Document bson = Document.parse(filter);
       long countFilter = mongoCollection.count(bson);
@@ -272,118 +274,84 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource> splitIntoBundles(long desiredBundleSizeBytes,
                                                 PipelineOptions options) {
-      long numberSplitsCalculated = 0L;
-      List<BoundedSource> listEntireCollection = new ArrayList<>();
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
-      long collectionEstimatedSize = getEstimatedSizeBytes(options);
-      ArrayList splitIDFromMongo;
-      double initialRatio = 1.6;
+
+      ArrayList splitKeys = null;
       if (numSplits > 0) {
-        numberSplitsCalculated = new Long(numSplits);
-      } else if (desiredBundleSizeBytes > 0) {
-        numberSplitsCalculated = collectionEstimatedSize / desiredBundleSizeBytes;
-        if (numberSplitsCalculated <= 0) {
-          numberSplitsCalculated = 1L;
-        }
+        // the user defines his desired number of splits
+        // calculate the bundle size
+        long estimatedSizeBytes = getEstimatedSizeBytes(options);
+        desiredBundleSizeBytes = estimatedSizeBytes / numSplits;
       }
-      if (numberSplitsCalculated == 1) {
-        listEntireCollection.add(this);
-        return listEntireCollection;
-      }
-      int maxChunkSizeBytes = 64000;
-      // get the key ranges with splitVector
-      BasicDBObject split = new BasicDBObject();
-      split.append("splitVector", database + "." + collection);
-      BasicDBObject keyPatternValue = new BasicDBObject();
-      keyPatternValue.append("_id", 1);
-      split.append("keyPattern", keyPatternValue);
-      split.append("force", false);
-      split.append("maxChunkSizeBytes", maxChunkSizeBytes);
-      Document data = mongoDatabase.runCommand(split);
-      splitIDFromMongo = (ArrayList) data.get("splitKeys");
-      // ratio between number of splits from mongo and splits defined by runner or user
-      double calculatedRatio = (double) splitIDFromMongo.size() / numberSplitsCalculated;
-      if (((calculatedRatio < initialRatio)
-          && (splitIDFromMongo.size() > numberSplitsCalculated))) {
-        ArrayList splitIDCalculated = new ArrayList();
-        double mod = splitIDFromMongo.size() % numberSplitsCalculated;
-        HashMap<Integer, Integer> idRanges = new HashMap<Integer, Integer>();
-        // get the ranges
-        for (int i = 0; i < numberSplitsCalculated; i++) {
-          if (mod >= 0.0) {
-            idRanges.put(i, (int) Math.ceil(calculatedRatio));
-          } else {
-            idRanges.put(i, (int) Math.round((calculatedRatio * 100) / 100));
-          }
-          mod--;
-        }
-        // compute the ranges from the split Vector command
-        Object splitId = 0L;
-        int indexPosition = 0;
-        // isPreviousTwo is used to managed the change of value for the range (from 2 to 1)
-        boolean isPreviousTwo = true;
-        for (Integer range : idRanges.values()) {
-          if (range == 2) {
-            splitId = splitIDFromMongo.get(indexPosition + 1);
-          } else {
-            if (isPreviousTwo) {
-              indexPosition++;
-              isPreviousTwo = false;
-            }
-            splitId = splitIDFromMongo.get(indexPosition);
-          }
-          indexPosition++;
-          splitIDCalculated.add(splitId);
-        }
-        return createSourceList(splitIDCalculated);
-      }
-      return createSourceList(splitIDFromMongo);
+
+      // now we have the desized bundle size (provided by user or provided by the runner)
+      // we use Mongo splitVector command to get the split keys
+      BasicDBObject splitVectorCommand = new BasicDBObject();
+      splitVectorCommand.append("splitVector", database + "." + collection);
+      splitVectorCommand.append("keyPattern", new BasicDBObject().append("_id", 1));
+      splitVectorCommand.append("force", false);
+      // maxChunkSize is the Mongo partition size in MB
+      splitVectorCommand.append("maxChunkSize", desiredBundleSizeBytes / 1024 / 1024);
+      Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
+      splitKeys = (ArrayList) splitVectorCommandResult.get("splitKeys");
+
+      return createSourceList(splitKeys);
     }
 
-    private List<BoundedSource> createSourceList(ArrayList splitIDList) {
+    /**
+     * Create a sources list. Each source in the list has a subset of keys to deal with (split).
+     *
+     * @param splitKeys List of split keys to create sources.
+     * @return The list of sources.
+     */
+    private List<BoundedSource> createSourceList(ArrayList splitKeys) {
       List<BoundedSource> splitSourceList = new ArrayList<>();
-      String lastID = null; // Lower boundary of the first min split
-      int listIndex = 0;
-      for (final Object splitIdValue : splitIDList) {
-        String currentID = splitIdValue.toString();
-        String newFilter;
-        if (filter != null && !filter.isEmpty()) {
-          if (listIndex == 0) {
-            newFilter = "{ $and: [ {\"_id\":{$lte:ObjectId(\""
-                + currentID + "\")}}, "
-                + filter + " ]}";
-          } else if (listIndex == (splitIDList.size() - 1)) {
-            newFilter = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + lastID
-                + "\")," + "$lt:ObjectId(\"" + currentID
-                + "\")}}, " + filter + " ]}";
-            splitSourceList.add(new BoundedMongoDbSource
-                (uri, database, collection, newFilter, numSplits));
-            newFilter = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + currentID
-                + "\")}}, " + filter + " ]}";
+      if (splitKeys == null) {
+        splitSourceList.add(new BoundedMongoDbSource(uri, database, collection, filter, numSplits));
+      } else {
+        String lastID = null; // lower boundary of the first min split
+        int listIndex = 0;
+        for (final Object splitKey : splitKeys) {
+          String currentID = splitKey.toString();
+          String filterWithBoundaries;
+          if (filter != null && !filter.isEmpty()) {
+            if (listIndex == 0) {
+              filterWithBoundaries = "{ $and: [ {\"_id\":{$lte:ObjectId(\""
+                  + currentID + "\")}}, "
+                  + filter + " ]}";
+            } else if (listIndex == (splitKeys.size() - 1)) {
+              filterWithBoundaries = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + lastID
+                  + "\")," + "$lt:ObjectId(\"" + currentID
+                  + "\")}}, " + filter + " ]}";
+              splitSourceList.add(new BoundedMongoDbSource
+                  (uri, database, collection, filterWithBoundaries, numSplits));
+              filterWithBoundaries = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + currentID
+                  + "\")}}, " + filter + " ]}";
+            } else {
+              filterWithBoundaries = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + lastID
+                  + "\")," + "$lte:ObjectId(\"" + currentID + "\")}}, "
+                  + filter + " ]}";
+            }
           } else {
-            newFilter = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + lastID
-                + "\")," + "$lte:ObjectId(\"" + currentID + "\")}}, "
-                + filter + " ]}";
+            if (listIndex == 0) {
+              filterWithBoundaries = "{\"_id\":{$lte:ObjectId(\"" + currentID + "\")}}";
+            } else if (listIndex == (splitKeys.size() - 1)) {
+              filterWithBoundaries = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
+                  + "$lt:ObjectId(\"" + currentID + "\")}}";
+              splitSourceList.add(new BoundedMongoDbSource
+                  (uri, database, collection, filterWithBoundaries, numSplits));
+              filterWithBoundaries = "{\"_id\":{$gt:ObjectId(\"" + currentID + "\")}}";
+            } else {
+              filterWithBoundaries = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
+                  + "$lte:ObjectId(\"" + currentID + "\")}}";
+            }
           }
-        } else {
-          if (listIndex == 0) {
-            newFilter = "{\"_id\":{$lte:ObjectId(\"" + currentID + "\")}}";
-          } else if (listIndex == (splitIDList.size() - 1)) {
-            newFilter = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
-                + "$lt:ObjectId(\"" + currentID + "\")}}";
-            splitSourceList.add(new BoundedMongoDbSource
-                (uri, database, collection, newFilter, numSplits));
-            newFilter = "{\"_id\":{$gt:ObjectId(\"" + currentID + "\")}}";
-          } else {
-            newFilter = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
-                + "$lte:ObjectId(\"" + currentID + "\")}}";
-          }
+          splitSourceList.add(new BoundedMongoDbSource
+              (uri, database, collection, filterWithBoundaries, numSplits));
+          lastID = currentID;
+          listIndex++;
         }
-        splitSourceList.add(new BoundedMongoDbSource
-            (uri, database, collection, newFilter, numSplits));
-        lastID = currentID;
-        listIndex++;
       }
       return splitSourceList;
     }
