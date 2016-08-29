@@ -20,12 +20,12 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -40,13 +40,13 @@ public class DoFnOutputTest implements Serializable {
   @Test
   public void test() throws Exception {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkPipelineRunner.class);
-    Pipeline pipeline = Pipeline.create(options);
+    options.setRunner(SparkRunner.class);
+    Pipeline p = Pipeline.create(options);
 
-    PCollection<String> strings = pipeline.apply(Create.of("a"));
+    PCollection<String> strings = p.apply(Create.of("a"));
     // Test that values written from startBundle() and finishBundle() are written to
     // the output
-    PCollection<String> output = strings.apply(ParDo.of(new DoFn<String, String>() {
+    PCollection<String> output = strings.apply(ParDo.of(new OldDoFn<String, String>() {
       @Override
       public void startBundle(Context c) throws Exception {
         c.output("start");
@@ -63,7 +63,7 @@ public class DoFnOutputTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("start", "a", "finish");
 
-    EvaluationResult res = SparkPipelineRunner.create().run(pipeline);
+    EvaluationResult res = (EvaluationResult) p.run();
     res.close();
   }
 }

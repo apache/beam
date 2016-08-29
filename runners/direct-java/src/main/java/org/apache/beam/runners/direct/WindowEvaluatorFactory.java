@@ -29,6 +29,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
+import com.google.common.collect.Iterables;
+
 import org.joda.time.Instant;
 
 import java.util.Collection;
@@ -82,11 +84,13 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public void processElement(WindowedValue<InputT> element) throws Exception {
-      Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
-      outputBundle.add(
-          WindowedValue.<InputT>of(
-              element.getValue(), element.getTimestamp(), windows, PaneInfo.NO_FIRING));
+    public void processElement(WindowedValue<InputT> compressedElement) throws Exception {
+      for (WindowedValue<InputT> element : compressedElement.explodeWindows()) {
+        Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
+        outputBundle.add(
+            WindowedValue.<InputT>of(
+                element.getValue(), element.getTimestamp(), windows, PaneInfo.NO_FIRING));
+      }
     }
 
     private <W extends BoundedWindow> Collection<? extends BoundedWindow> assignWindows(
@@ -123,8 +127,8 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return value.getWindows();
+    public BoundedWindow window() {
+      return Iterables.getOnlyElement(value.getWindows());
     }
 
   }

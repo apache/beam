@@ -22,12 +22,13 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Converter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link Coder} for joda {@link Instant} that encodes it as a big endian {@link Long}
@@ -48,6 +49,9 @@ public class InstantCoder extends AtomicCoder<Instant> {
 
   private InstantCoder() {}
 
+  private static final Converter<Instant, Long> ORDER_PRESERVING_CONVERTER =
+      new LexicographicLongConverter();
+
   /**
    * Converts {@link Instant} to a {@code Long} representing its millis-since-epoch,
    * but shifted so that the byte representation of negative values are lexicographically
@@ -56,19 +60,21 @@ public class InstantCoder extends AtomicCoder<Instant> {
    * <p>This deliberately utilizes the well-defined overflow for {@code Long} values.
    * See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
    */
-  private static final Converter<Instant, Long> ORDER_PRESERVING_CONVERTER =
-      new Converter<Instant, Long>() {
+  @SuppressFBWarnings(value = "HE_INHERITS_EQUALS_USE_HASHCODE",
+      justification = "Converter overrides .equals() to add documentation "
+          + "but does not change behavior")
+  private static class LexicographicLongConverter extends Converter<Instant, Long> {
 
-        @Override
-        protected Long doForward(Instant instant) {
-          return instant.getMillis() - Long.MIN_VALUE;
-        }
+    @Override
+    protected Long doForward(Instant instant) {
+      return instant.getMillis() - Long.MIN_VALUE;
+    }
 
-        @Override
-        protected Instant doBackward(Long shiftedMillis) {
-          return new Instant(shiftedMillis + Long.MIN_VALUE);
-        }
-  };
+    @Override
+    protected Instant doBackward(Long shiftedMillis) {
+      return new Instant(shiftedMillis + Long.MIN_VALUE);
+    }
+  }
 
   @Override
   public void encode(Instant value, OutputStream outStream, Context context)

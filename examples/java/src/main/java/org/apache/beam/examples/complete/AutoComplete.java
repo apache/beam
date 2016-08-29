@@ -17,20 +17,23 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.examples.common.DataflowExampleUtils;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.datastore.v1beta3.client.DatastoreHelper.makeValue;
+
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
-import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
+import org.apache.beam.examples.common.ExampleOptions;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.DatastoreIO;
-import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
@@ -55,18 +57,19 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.api.services.datastore.DatastoreV1.Entity;
-import com.google.api.services.datastore.DatastoreV1.Key;
-import com.google.api.services.datastore.DatastoreV1.Value;
-import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
+import com.google.datastore.v1beta3.Entity;
+import com.google.datastore.v1beta3.Key;
+import com.google.datastore.v1beta3.Value;
+import com.google.datastore.v1beta3.client.DatastoreHelper;
 
 import org.joda.time.Duration;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -126,9 +129,9 @@ public class AutoComplete {
         .apply(new Count.PerElement<String>())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
-        .apply(ParDo.named("CreateCompletionCandidates").of(
+        .apply("CreateCompletionCandidates", ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(new CompletionCandidate(c.element().getKey(), c.element().getValue()));
               }
@@ -207,7 +210,7 @@ public class AutoComplete {
 
     private static class FlattenTops
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -270,8 +273,8 @@ public class AutoComplete {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
-    @Override
-      public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
         c.output(KV.of(word.substring(0, i), c.element()));
@@ -339,7 +342,7 @@ public class AutoComplete {
    * Takes as input a set of strings, and emits each #hashtag found therein.
    */
   static class ExtractHashtags extends DoFn<String, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
@@ -349,7 +352,7 @@ public class AutoComplete {
   }
 
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
@@ -389,23 +392,22 @@ public class AutoComplete {
       this.kind = kind;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
       Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
+      Map<String, Value> properties = new HashMap<>();
       for (CompletionCandidate tag : c.element().getValue()) {
         Entity.Builder tagEntity = Entity.newBuilder();
-        tagEntity.addProperty(
-            DatastoreHelper.makeProperty("tag", DatastoreHelper.makeValue(tag.value)));
-        tagEntity.addProperty(
-            DatastoreHelper.makeProperty("count", DatastoreHelper.makeValue(tag.count)));
-        candidates.add(DatastoreHelper.makeValue(tagEntity).setIndexed(false).build());
+        properties.put("tag", makeValue(tag.value).build());
+        properties.put("count", makeValue(tag.count).build());
+        candidates.add(makeValue(tagEntity).build());
       }
-      entityBuilder.addProperty(
-          DatastoreHelper.makeProperty("candidates", DatastoreHelper.makeValue(candidates)));
+      properties.put("candidates", makeValue(candidates).build());
+      entityBuilder.putAllProperties(properties);
       c.output(entityBuilder.build());
     }
   }
@@ -415,7 +417,8 @@ public class AutoComplete {
    *
    * <p>Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+  private static interface Options
+      extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     @Validation.Required
     String getInputFile();
@@ -426,7 +429,7 @@ public class AutoComplete {
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("Dataset entity kind")
+    @Description("Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
@@ -441,49 +444,44 @@ public class AutoComplete {
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
-    @Description("Datastore output dataset ID, defaults to project ID")
-    String getOutputDataset();
-    void setOutputDataset(String value);
+    @Description("Datastore output project ID, defaults to project ID")
+    String getOutputProject();
+    void setOutputProject(String value);
   }
 
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    ExampleUtils exampleUtils = new ExampleUtils(options);
 
     // We support running the same pipeline in either
     // batch or windowed streaming mode.
-    PTransform<? super PBegin, PCollection<String>> readSource;
     WindowFn<Object, ?> windowFn;
     if (options.isStreaming()) {
-      Preconditions.checkArgument(
+      checkArgument(
           !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
-      dataflowUtils.setupPubsub();
-
-      readSource = PubsubIO.Read.topic(options.getPubsubTopic());
       windowFn = SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5));
     } else {
-      readSource = TextIO.Read.from(options.getInputFile());
       windowFn = new GlobalWindows();
     }
 
     // Create the pipeline.
     Pipeline p = Pipeline.create(options);
     PCollection<KV<String, List<CompletionCandidate>>> toWrite = p
-      .apply(readSource)
+      .apply(TextIO.Read.from(options.getInputFile()))
       .apply(ParDo.of(new ExtractHashtags()))
       .apply(Window.<String>into(windowFn))
       .apply(ComputeTopCompletions.top(10, options.getRecursive()));
 
     if (options.getOutputToDatastore()) {
       toWrite
-      .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
-          options.getOutputDataset(), options.getProject())));
+      .apply("FormatForDatastore", ParDo.of(new FormatForDatastore(options.getKind())))
+      .apply(DatastoreIO.v1beta3().write().withProjectId(MoreObjects.firstNonNull(
+          options.getOutputProject(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
-      dataflowUtils.setupBigQueryTable();
+      exampleUtils.setupBigQueryTable();
 
       TableReference tableRef = new TableReference();
       tableRef.setProjectId(options.getProject());
@@ -504,12 +502,7 @@ public class AutoComplete {
     // Run the pipeline.
     PipelineResult result = p.run();
 
-    if (options.isStreaming() && !options.getInputFile().isEmpty()) {
-      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
-      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
-    }
-
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }

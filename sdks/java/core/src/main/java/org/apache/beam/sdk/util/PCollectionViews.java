@@ -165,8 +165,8 @@ public class PCollectionViews {
             throw new RuntimeException("Unexpected IOException: ", e);
           }
         }
+        return defaultValue;
       }
-      return defaultValue;
     }
 
     @Override
@@ -412,7 +412,7 @@ public class PCollectionViews {
 
     @Override
     public boolean equals(Object other) {
-      if (!(other instanceof PCollectionView) || other == null) {
+      if (!(other instanceof PCollectionView)) {
         return false;
       }
       @SuppressWarnings("unchecked")

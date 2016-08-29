@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import org.apache.beam.examples.common.DataflowExampleUtils;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -28,7 +28,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -123,14 +123,13 @@ public class GameStats extends LeaderBoard {
 
       // Filter the user sums using the global mean.
       PCollection<KV<String, Integer>> filtered = sumScores
-          .apply(ParDo
-              .named("ProcessAndFilter")
+          .apply("ProcessAndFilter", ParDo
               // use the derived mean total score as a side input
               .withSideInputs(globalMeanScore)
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
                 private final Aggregator<Long, Long> numSpammerUsers =
                   createAggregator("SpammerUsers", new Sum.SumLongFn());
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   Integer score = c.element().getValue();
                   Double gmc = c.sideInput(globalMeanScore);
@@ -150,12 +149,10 @@ public class GameStats extends LeaderBoard {
   /**
    * Calculate and output an element's session duration.
    */
-  private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer>
-      implements RequiresWindowAccess {
-
-    @Override
-    public void processElement(ProcessContext c) {
-      IntervalWindow w = (IntervalWindow) c.window();
+  private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
+      IntervalWindow w = (IntervalWindow) window;
       int duration = new Duration(
           w.start(), w.end()).toPeriod().toStandardMinutes().getMinutes();
       c.output(duration);
@@ -243,13 +240,13 @@ public class GameStats extends LeaderBoard {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    ExampleUtils exampleUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents = pipeline
         .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
-        .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()));
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
     PCollection<KV<String, Integer>> userEvents =
@@ -261,10 +258,8 @@ public class GameStats extends LeaderBoard {
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
     final PCollectionView<Map<String, Integer>> spammersView = userEvents
-      .apply(Window.named("FixedWindowsUser")
-          .<KV<String, Integer>>into(FixedWindows.of(
-              Duration.standardMinutes(options.getFixedWindowDuration())))
-          )
+      .apply("FixedWindowsUser", Window.<KV<String, Integer>>into(
+          FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
 
       // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
       // These might be robots/spammers.
@@ -279,15 +274,13 @@ public class GameStats extends LeaderBoard {
     // suspected robots-- to filter out scores from those users from the sum.
     // Write the results to BigQuery.
     rawEvents
-      .apply(Window.named("WindowIntoFixedWindows")
-          .<GameActionInfo>into(FixedWindows.of(
-              Duration.standardMinutes(options.getFixedWindowDuration())))
-          )
+      .apply("WindowIntoFixedWindows", Window.<GameActionInfo>into(
+          FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
       // Filter out the detected spammer users, using the side input derived above.
-      .apply(ParDo.named("FilterOutSpammers")
+      .apply("FilterOutSpammers", ParDo
               .withSideInputs(spammersView)
               .of(new DoFn<GameActionInfo, GameActionInfo>() {
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   // If the user is not in the spammers Map, output the data element.
                   if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
@@ -300,8 +293,8 @@ public class GameStats extends LeaderBoard {
       // [END DocInclude_FilterAndCalc]
       // Write the result to BigQuery
       .apply("WriteTeamSums",
-             new WriteWindowedToBigQuery<KV<String, Integer>>(
-                options.getTablePrefix() + "_team", configureWindowedWrite()));
+          new WriteWindowedToBigQuery<KV<String, Integer>>(
+              options.getTablePrefix() + "_team", configureWindowedWrite()));
 
 
     // [START DocInclude_SessionCalc]
@@ -310,10 +303,9 @@ public class GameStats extends LeaderBoard {
     // This information could help the game designers track the changing user engagement
     // as their set of games changes.
     userEvents
-      .apply(Window.named("WindowIntoSessions")
-            .<KV<String, Integer>>into(
-                  Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
-        .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
+      .apply("WindowIntoSessions", Window.<KV<String, Integer>>into(
+          Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
+          .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
       // For this use, we care only about the existence of the session, not any particular
       // information aggregated over it, so the following is an efficient way to do that.
       .apply(Combine.perKey(x -> 0))
@@ -322,9 +314,8 @@ public class GameStats extends LeaderBoard {
       // [END DocInclude_SessionCalc]
       // [START DocInclude_Rewindow]
       // Re-window to process groups of session sums according to when the sessions complete.
-      .apply(Window.named("WindowToExtractSessionMean")
-            .<Integer>into(
-                FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
+      .apply("WindowToExtractSessionMean", Window.<Integer>into(
+          FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
       // Find the mean session duration in each window.
       .apply(Mean.<Integer>globally().withoutDefaults())
       // Write this info to a BigQuery table.
@@ -337,6 +328,6 @@ public class GameStats extends LeaderBoard {
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.
     PipelineResult result = pipeline.run();
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 }

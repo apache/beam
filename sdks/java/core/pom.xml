@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -71,7 +71,7 @@
                 <location>${basedir}/../javadoc/apiclient-docs</location>
               </offlineLink>
               <offlineLink>
-                <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+                <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
                 <location>${basedir}/../javadoc/avro-docs</location>
               </offlineLink>
               <offlineLink>
@@ -133,21 +133,6 @@
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>analyze-only</goal>
-            </goals>
-            <configuration>
-              <failOnWarning>true</failOnWarning>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
@@ -249,6 +234,11 @@
         </executions>
       </plugin>
 
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+      </plugin>
+
       <!-- Coverage analysis for unit tests. -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -301,7 +291,25 @@
   <dependencies>
     <dependency>
       <groupId>io.grpc</groupId>
+      <artifactId>grpc-auth</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
+    </dependency>
+
+    <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+         scope and depend on it at runtime. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -321,7 +329,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
-      <version>4.1.0.Beta8</version>
     </dependency>
 
     <dependency>
@@ -334,6 +341,12 @@
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+        <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+          scope and depend on it at runtime. -->
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-all</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -393,11 +406,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-datastore-protobuf</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcsio</artifactId>
     </dependency>
@@ -425,7 +433,7 @@
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
+      <artifactId>annotations</artifactId>
     </dependency>
 
     <dependency>
@@ -446,6 +454,11 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
     </dependency>
 
     <dependency>

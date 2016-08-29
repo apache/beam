@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.base.Preconditions;
 
 import java.util.Deque;
 import java.util.HashMap;
@@ -65,7 +65,7 @@ public class TransformHierarchy {
    */
   public void popNode() {
     transformStack.pop();
-    Preconditions.checkState(!transformStack.isEmpty());
+    checkState(!transformStack.isEmpty());
   }
 
   /**
@@ -76,9 +76,7 @@ public class TransformHierarchy {
   public void addInput(TransformTreeNode node, PInput input) {
     for (PValue i : input.expand()) {
       TransformTreeNode producer = producingTransformNode.get(i);
-      if (producer == null) {
-        throw new IllegalStateException("Producer unknown for input: " + i);
-      }
+      checkState(producer != null, "Producer unknown for input: %s", i);
 
       producer.finishSpecifying();
       node.addInputProducer(i, producer);

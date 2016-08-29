@@ -176,8 +176,7 @@ public class AfterProcessingTimeTest {
     Trigger trigger = AfterWatermark.pastEndOfWindow()
         .withLateFirings(AfterProcessingTime
             .pastFirstElementInPane()
-            .plusDelayOf(Duration.standardMinutes(10)))
-        .buildTrigger();
+            .plusDelayOf(Duration.standardMinutes(10)));
 
     String expected = "AfterWatermark.pastEndOfWindow()"
         + ".withLateFirings(AfterProcessingTime"

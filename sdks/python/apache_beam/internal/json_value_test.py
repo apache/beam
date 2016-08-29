@@ -41,6 +41,9 @@ class JsonValueTest(unittest.TestCase):
   def test_float_to(self):
     self.assertEquals(JsonValue(double_value=2.75), to_json_value(2.75))
 
+  def test_none_to(self):
+    self.assertEquals(JsonValue(is_null=True), to_json_value(None))
+
   def test_string_from(self):
     self.assertEquals('WXYZ', from_json_value(to_json_value('WXYZ')))
 
@@ -60,6 +63,9 @@ class JsonValueTest(unittest.TestCase):
     rt = from_json_value(to_json_value('abcd', with_type=True))
     self.assertEquals('http://schema.org/Text', rt['@type'])
     self.assertEquals('abcd', rt['value'])
+
+  def test_none_from(self):
+    self.assertIsNone(from_json_value(to_json_value(None)))
 
 
 if __name__ == '__main__':

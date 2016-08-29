@@ -17,17 +17,15 @@
  */
 package org.apache.beam.examples.complete;
 
-import org.apache.beam.examples.common.DataflowExampleOptions;
-import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
-import org.apache.beam.examples.common.ExamplePubsubTopicAndSubscriptionOptions;
+import org.apache.beam.examples.common.ExampleOptions;
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -46,7 +44,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.Strings;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
@@ -62,38 +59,24 @@ import java.util.List;
  * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
  * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
- * <p>Concepts: The batch and streaming runners, sliding windows, Google Cloud Pub/Sub
- * topic injection, use of the AvroCoder to encode a custom class, and custom Combine transforms.
+ * <p>Concepts: The batch and streaming runners, sliding windows,
+ * use of the AvroCoder to encode a custom class, and custom Combine transforms.
  *
  * <p>This example analyzes traffic sensor data using SlidingWindows. For each window,
  * it finds the lane that had the highest flow recorded, for each sensor station. It writes
  * those max values along with auxiliary info to a BigQuery table.
  *
- * <p>In batch mode, the pipeline reads traffic sensor data from {@literal --inputFile}.
+ * <p>The pipeline reads traffic sensor data from {@literal --inputFile}.
  *
- * <p>In streaming mode, the pipeline reads the data from a Pub/Sub topic.
- * By default, the example will run a separate pipeline to inject the data from the default
- * {@literal --inputFile} to the Pub/Sub {@literal --pubsubTopic}. It will make it available for
- * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
- * file of your choosing. You may also set {@literal --inputFile} to an empty string, which will
- * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
- * to this example. An example code, which publishes traffic sensor data to a Pub/Sub topic,
- * is provided in
- * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher"></a>.
- *
- * <p>The example is configured to use the default Pub/Sub topic and the default BigQuery table
- * from the example common package (there are no defaults for a general Dataflow pipeline).
- * You can override them by using the {@literal --pubsubTopic}, {@literal --bigQueryDataset}, and
- * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
- * the example will try to create them.
+ * <p>The example is configured to use the default BigQuery table from the example common package
+ * (there are no defaults for a general Dataflow pipeline).
+ * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
+ * options. If the BigQuery table do not exist, the example will try to create them.
  *
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
 public class TrafficMaxLaneFlow {
-
-  private static final String PUBSUB_TIMESTAMP_LABEL_KEY = "timestamp_ms";
-  private static final Integer VALID_INPUTS = 4999;
 
   static final int WINDOW_DURATION = 60;  // Default sliding window duration in minutes
   static final int WINDOW_SLIDE_EVERY = 5;  // Default window 'slide every' setting in minutes
@@ -166,7 +149,7 @@ public class TrafficMaxLaneFlow {
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
-    @Override
+    @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
       String[] items = c.element().split(",");
       if (items.length > 0) {
@@ -189,7 +172,7 @@ public class TrafficMaxLaneFlow {
    */
   static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
       if (items.length < 48) {
@@ -244,7 +227,7 @@ public class TrafficMaxLaneFlow {
    * Add the timestamp from the window context.
    */
   static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
 
       LaneInfo laneInfo = c.element().getValue();
@@ -321,9 +304,8 @@ public class TrafficMaxLaneFlow {
     *
     * <p>Inherits standard configuration options.
     */
-  private interface TrafficMaxLaneFlowOptions extends DataflowExampleOptions,
-      ExamplePubsubTopicAndSubscriptionOptions, ExampleBigQueryTableOptions {
-        @Description("Input file to inject to Pub/Sub topic")
+  private interface TrafficMaxLaneFlowOptions extends ExampleOptions, ExampleBigQueryTableOptions {
+    @Description("Path of the file to read from")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
     String getInputFile();
@@ -338,11 +320,6 @@ public class TrafficMaxLaneFlow {
     @Default.Integer(WINDOW_SLIDE_EVERY)
     Integer getWindowSlideEvery();
     void setWindowSlideEvery(Integer value);
-
-    @Description("Whether to run the pipeline with unbounded input")
-    @Default.Boolean(false)
-    boolean isUnbounded();
-    void setUnbounded(boolean value);
   }
 
   /**
@@ -356,7 +333,8 @@ public class TrafficMaxLaneFlow {
         .as(TrafficMaxLaneFlowOptions.class);
     options.setBigQuerySchema(FormatMaxesFn.getSchema());
     // Using DataflowExampleUtils to set up required resources.
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options, options.isUnbounded());
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
     TableReference tableRef = new TableReference();
@@ -364,28 +342,11 @@ public class TrafficMaxLaneFlow {
     tableRef.setDatasetId(options.getBigQueryDataset());
     tableRef.setTableId(options.getBigQueryTable());
 
-    PCollection<String> input;
-    if (options.isUnbounded()) {
-      // Read unbounded PubSubIO.
-      input = pipeline.apply(PubsubIO.Read
-          .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
-          .subscription(options.getPubsubSubscription()));
-    } else {
-      // Read bounded PubSubIO.
-      input = pipeline.apply(PubsubIO.Read
-          .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
-          .subscription(options.getPubsubSubscription()).maxNumRecords(VALID_INPUTS));
-
-      // To read bounded TextIO files, use:
-      // input = pipeline.apply(new ReadFileAndExtractTimestamps(options.getInputFile()));
-    }
-    input
+    pipeline
+        .apply("ReadLines", new ReadFileAndExtractTimestamps(options.getInputFile()))
         // row... => <station route, station speed> ...
         .apply(ParDo.of(new ExtractFlowInfoFn()))
-        // map the incoming data stream into sliding windows. The default window duration values
-        // work well if you're running the accompanying Pub/Sub generator script with the
-        // --replay flag, which simulates pauses in the sensor data publication. You may want to
-        // adjust them otherwise.
+        // map the incoming data stream into sliding windows.
         .apply(Window.<KV<String, LaneInfo>>into(SlidingWindows.of(
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
@@ -393,20 +354,11 @@ public class TrafficMaxLaneFlow {
         .apply(BigQueryIO.Write.to(tableRef)
             .withSchema(FormatMaxesFn.getSchema()));
 
-    // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
-    if (!Strings.isNullOrEmpty(options.getInputFile())
-        && !Strings.isNullOrEmpty(options.getPubsubTopic())) {
-      dataflowUtils.runInjectorPipeline(
-          new ReadFileAndExtractTimestamps(options.getInputFile()),
-          options.getPubsubTopic(),
-          PUBSUB_TIMESTAMP_LABEL_KEY);
-    }
-
     // Run the pipeline.
     PipelineResult result = pipeline.run();
 
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
-    dataflowUtils.waitToFinish(result);
+    exampleUtils.waitToFinish(result);
   }
 
   private static Integer tryIntParse(String number) {

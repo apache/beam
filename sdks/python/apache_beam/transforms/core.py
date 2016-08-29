@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import copy
+import inspect
+import types
 
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -194,6 +196,16 @@ class DoFn(WithTypeHints):
       return type_hint
 
 
+def _fn_takes_side_inputs(fn):
+  try:
+    argspec = inspect.getargspec(fn)
+  except TypeError:
+    # We can't tell; maybe it does.
+    return True
+  is_bound = isinstance(fn, types.MethodType) and fn.im_self is not None
+  return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
+
+
 class CallableWrapperDoFn(DoFn):
   """A DoFn (function) object wrapping a callable object.
 
@@ -214,6 +226,11 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
+    if _fn_takes_side_inputs(fn):
+      self.process = lambda context, *args, **kwargs: fn(
+          context.element, *args, **kwargs)
+    else:
+      self.process = lambda context: fn(context.element)
 
     super(CallableWrapperDoFn, self).__init__()
 
@@ -237,9 +254,6 @@ class CallableWrapperDoFn(DoFn):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self._fn, [input_type]))
 
-  def process(self, context, *args, **kwargs):
-    return self._fn(context.element, *args, **kwargs)
-
   def process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
@@ -256,7 +270,7 @@ class CombineFn(WithTypeHints):
   1. Input values are partitioned into one or more batches.
   2. For each batch, the create_accumulator method is invoked to create a fresh
      initial "accumulator" value representing the combination of zero values.
-  3. For each input value in the batch, the add_inputs method is invoked to
+  3. For each input value in the batch, the add_input method is invoked to
      combine more values with the accumulator for that batch.
   4. The merge_accumulators method is invoked to combine accumulators from
      separate batches into a single combined output accumulator value, once all
@@ -282,7 +296,7 @@ class CombineFn(WithTypeHints):
   def add_input(self, accumulator, element, *args, **kwargs):
     """Return result of folding element into accumulator.
 
-    CombineFn implementors must override either add_input or add_inputs.
+    CombineFn implementors must override add_input.
 
     Args:
       accumulator: the current accumulator
@@ -406,7 +420,7 @@ class CallableWrapperCombineFn(CombineFn):
     if accumulator is self._EMPTY:
       return self._fn(elements, *args, **kwargs)
     elif isinstance(elements, (list, tuple)):
-      return self._fn([accumulator] + elements, *args, **kwargs)
+      return self._fn([accumulator] + list(elements), *args, **kwargs)
     else:
       def union():
         yield accumulator
@@ -676,7 +690,10 @@ def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
         'Map can be used only with callable objects. '
         'Received %r instead for %s argument.'
         % (fn, 'first' if label is None else 'second'))
-  wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
+  if _fn_takes_side_inputs(fn):
+    wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
+  else:
+    wrapper = lambda x: [fn(x)]
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
@@ -1008,21 +1025,24 @@ class GroupByKey(PTransform):
       value_type = windowed_value_iter_type.inner_type.inner_type
       return Iterable[KV[key_type, Iterable[value_type]]]
 
-    def process(self, context):
-      k, vs = context.element
+    def start_bundle(self, context):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.transforms.trigger import InMemoryUnmergedState
       from apache_beam.transforms.trigger import create_trigger_driver
       # pylint: enable=wrong-import-order, wrong-import-position
-      driver = create_trigger_driver(self.windowing, True)
-      state = InMemoryUnmergedState()
+      self.driver = create_trigger_driver(self.windowing, True)
+      self.state_type = InMemoryUnmergedState
+
+    def process(self, context):
+      k, vs = context.element
+      state = self.state_type()
       # TODO(robertwb): Conditionally process in smaller chunks.
-      for wvalue in driver.process_elements(state, vs, MIN_TIMESTAMP):
+      for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
         yield wvalue.with_value((k, wvalue.value))
       while state.timers:
         fired = state.get_and_clear_timers()
         for timer_window, (name, time_domain, fire_time) in fired:
-          for wvalue in driver.process_timer(
+          for wvalue in self.driver.process_timer(
               timer_window, name, time_domain, fire_time, state):
             yield wvalue.with_value((k, wvalue.value))
 

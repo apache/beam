@@ -29,6 +29,7 @@ import os
 import re
 import StringIO
 import threading
+import traceback
 
 from apitools.base.py.exceptions import HttpError
 import apitools.base.py.transfer as transfer
@@ -49,6 +50,7 @@ except ImportError:
 
 
 DEFAULT_READ_BUFFER_SIZE = 1024 * 1024
+WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 
 
 def parse_gcs_path(gcs_path):
@@ -233,8 +235,13 @@ class GcsIO(object):
                                                  object=object_path)
       self.client.objects.Get(request)  # metadata
       return True
-    except IOError:
-      return False
+    except HttpError as http_error:
+      if http_error.status_code == 404:
+        # HTTP 404 indicates that the file did not exist
+        return False
+      else:
+        # We re-raise all other exceptions
+        raise
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -546,6 +553,10 @@ class GcsBufferedWriter(object):
     self.closed = False
     self.position = 0
 
+    # A small buffer to avoid CPU-heavy per-write pipe calls.
+    self.write_buffer = bytearray()
+    self.write_buffer_size = 128 * 1024
+
     # Set up communication with uploading thread.
     parent_conn, child_conn = multiprocessing.Pipe()
     self.child_conn = child_conn
@@ -557,7 +568,7 @@ class GcsBufferedWriter(object):
             bucket=self.bucket,
             name=self.name))
     self.upload = transfer.Upload(GcsBufferedWriter.PipeStream(child_conn),
-                                  mime_type)
+                                  mime_type, chunksize=WRITE_CHUNK_SIZE)
     self.upload.strategy = transfer.RESUMABLE_UPLOAD
 
     # Start uploading thread.
@@ -581,7 +592,8 @@ class GcsBufferedWriter(object):
       self.client.objects.Insert(self.insert_request, upload=self.upload)
     except Exception as e:  # pylint: disable=broad-except
       logging.error(
-          'Error in _start_upload while inserting file %s: %s', self.path, e)
+          'Error in _start_upload while inserting file %s: %s', self.path,
+          traceback.format_exc())
       self.upload_thread.last_error = e
     finally:
       self.child_conn.close()
@@ -598,14 +610,10 @@ class GcsBufferedWriter(object):
     self._check_open()
     if not data:
       return
-    try:
-      self.conn.send_bytes(data)
-      self.position += len(data)
-    except IOError:
-      if self.upload_thread.last_error:
-        raise self.upload_thread.last_error  # pylint: disable=raising-bad-type
-      else:
-        raise
+    self.write_buffer.extend(data)
+    if len(self.write_buffer) > self.write_buffer_size:
+      self._flush_write_buffer()
+    self.position += len(data)
 
   def tell(self):
     """Return the total number of bytes passed to write() so far."""
@@ -613,9 +621,13 @@ class GcsBufferedWriter(object):
 
   def close(self):
     """Close the current GCS file."""
+    self._flush_write_buffer()
     self.closed = True
     self.conn.close()
     self.upload_thread.join()
+    # Check for exception since the last _flush_write_buffer() call.
+    if self.upload_thread.last_error:
+      raise self.upload_thread.last_error  # pylint: disable=raising-bad-type
 
   def __enter__(self):
     return self
@@ -635,3 +647,13 @@ class GcsBufferedWriter(object):
 
   def writable(self):
     return True
+
+  def _flush_write_buffer(self):
+    try:
+      self.conn.send_bytes(buffer(self.write_buffer))
+      self.write_buffer = bytearray()
+    except IOError:
+      if self.upload_thread.last_error:
+        raise self.upload_thread.last_error  # pylint: disable=raising-bad-type
+      else:
+        raise

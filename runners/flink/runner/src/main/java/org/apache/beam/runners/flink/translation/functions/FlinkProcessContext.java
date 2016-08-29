@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -33,7 +35,6 @@ import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -47,10 +48,10 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * {@link org.apache.beam.sdk.transforms.DoFn.ProcessContext} for our Flink Wrappers.
+ * {@link OldDoFn.ProcessContext} for our Flink Wrappers.
  */
 class FlinkProcessContext<InputT, OutputT>
-    extends DoFn<InputT, OutputT>.ProcessContext {
+    extends OldDoFn<InputT, OutputT>.ProcessContext {
 
   private final PipelineOptions pipelineOptions;
   private final RuntimeContext runtimeContext;
@@ -66,20 +67,20 @@ class FlinkProcessContext<InputT, OutputT>
   FlinkProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Collector<WindowedValue<OutputT>> collector,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
     doFn.super();
-    Preconditions.checkNotNull(pipelineOptions);
-    Preconditions.checkNotNull(runtimeContext);
-    Preconditions.checkNotNull(doFn);
-    Preconditions.checkNotNull(collector);
+    checkNotNull(pipelineOptions);
+    checkNotNull(runtimeContext);
+    checkNotNull(doFn);
+    checkNotNull(collector);
 
     this.pipelineOptions = pipelineOptions;
     this.runtimeContext = runtimeContext;
     this.collector = collector;
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
+    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
 
@@ -89,18 +90,18 @@ class FlinkProcessContext<InputT, OutputT>
   FlinkProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
-      DoFn<InputT, OutputT> doFn,
+      OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
     doFn.super();
-    Preconditions.checkNotNull(pipelineOptions);
-    Preconditions.checkNotNull(runtimeContext);
-    Preconditions.checkNotNull(doFn);
+    checkNotNull(pipelineOptions);
+    checkNotNull(runtimeContext);
+    checkNotNull(doFn);
 
     this.pipelineOptions = pipelineOptions;
     this.runtimeContext = runtimeContext;
     this.collector = null;
-    this.requiresWindowAccess = doFn instanceof DoFn.RequiresWindowAccess;
+    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
 
@@ -140,7 +141,7 @@ class FlinkProcessContext<InputT, OutputT>
   public BoundedWindow window() {
     if (!requiresWindowAccess) {
       throw new UnsupportedOperationException(
-          "window() is only available in the context of a DoFn marked as RequiresWindow.");
+          "window() is only available in the context of a OldDoFn marked as RequiresWindowAccess.");
     }
     return Iterables.getOnlyElement(windowedValue.getWindows());
   }
@@ -196,8 +197,8 @@ class FlinkProcessContext<InputT, OutputT>
           PCollectionView<ViewT> view,
           BoundedWindow mainInputWindow) {
 
-        Preconditions.checkNotNull(view, "View passed to sideInput cannot be null");
-        Preconditions.checkNotNull(
+        checkNotNull(view, "View passed to sideInput cannot be null");
+        checkNotNull(
             sideInputs.get(view),
             "Side input for " + view + " not available.");
 
@@ -222,8 +223,8 @@ class FlinkProcessContext<InputT, OutputT>
 
   @Override
   public <ViewT> ViewT sideInput(PCollectionView<ViewT> view) {
-    Preconditions.checkNotNull(view, "View passed to sideInput cannot be null");
-    Preconditions.checkNotNull(sideInputs.get(view), "Side input for " + view + " not available.");
+    checkNotNull(view, "View passed to sideInput cannot be null");
+    checkNotNull(sideInputs.get(view), "Side input for " + view + " not available.");
     Iterator<? extends BoundedWindow> windowIter = windowedValue.getWindows().iterator();
     BoundedWindow window;
     if (!windowIter.hasNext()) {

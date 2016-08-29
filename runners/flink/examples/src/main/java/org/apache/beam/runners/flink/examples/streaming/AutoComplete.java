@@ -29,7 +29,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
@@ -92,8 +91,8 @@ public class AutoComplete {
         .apply(new Count.PerElement<String>())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
-        .apply(ParDo.named("CreateCompletionCandidates").of(
-            new DoFn<KV<String, Long>, CompletionCandidate>() {
+        .apply("CreateCompletionCandidates", ParDo.of(
+            new OldDoFn<KV<String, Long>, CompletionCandidate>() {
               private static final long serialVersionUID = 0;
 
               @Override
@@ -183,7 +182,7 @@ public class AutoComplete {
     }
 
     private static class FlattenTops
-        extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
+        extends OldDoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
       private static final long serialVersionUID = 0;
 
       @Override
@@ -237,10 +236,10 @@ public class AutoComplete {
   }
 
   /**
-   * A DoFn that keys each candidate by all its prefixes.
+   * A OldDoFn that keys each candidate by all its prefixes.
    */
   private static class AllPrefixes
-      extends DoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
+      extends OldDoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
     private static final long serialVersionUID = 0;
 
     private final int minPrefix;
@@ -315,7 +314,7 @@ public class AutoComplete {
     }
   }
 
-  static class ExtractWordsFn extends DoFn<String, String> {
+  static class ExtractWordsFn extends OldDoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
             createAggregator("emptyLines", new Sum.SumLongFn());
 
@@ -341,8 +340,8 @@ public class AutoComplete {
    * Takes as input a the top candidates per prefix, and emits an entity
    * suitable for writing to Datastore.
    */
-  static class FormatForPerTaskLocalFile extends DoFn<KV<String, List<CompletionCandidate>>, String>
-          implements DoFn.RequiresWindowAccess{
+  static class FormatForPerTaskLocalFile extends OldDoFn<KV<String, List<CompletionCandidate>>, String>
+          implements OldDoFn.RequiresWindowAccess{
 
     private static final long serialVersionUID = 0;
 
@@ -380,14 +379,14 @@ public class AutoComplete {
     options.setExecutionRetryDelay(3000L);
     options.setRunner(FlinkRunner.class);
 
-    PTransform<? super PBegin, PCollection<String>> readSource =
-            Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)).named("WordStream");
-    WindowFn<Object, ?> windowFn = FixedWindows.of(Duration.standardSeconds(options.getWindowSize()));
+
+    WindowFn<Object, ?> windowFn =
+        FixedWindows.of(Duration.standardSeconds(options.getWindowSize()));
 
     // Create the pipeline.
     Pipeline p = Pipeline.create(options);
     PCollection<KV<String, List<CompletionCandidate>>> toWrite = p
-      .apply(readSource)
+      .apply("WordStream", Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)))
       .apply(ParDo.of(new ExtractWordsFn()))
       .apply(Window.<String>into(windowFn)
               .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
@@ -395,7 +394,7 @@ public class AutoComplete {
       .apply(ComputeTopCompletions.top(10, options.getRecursive()));
 
     toWrite
-      .apply(ParDo.named("FormatForPerTaskFile").of(new FormatForPerTaskLocalFile()))
+      .apply("FormatForPerTaskFile", ParDo.of(new FormatForPerTaskLocalFile()))
       .apply(TextIO.Write.to("./outputAutoComplete.txt"));
 
     p.run();

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.CloudObject;
@@ -25,7 +27,6 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -259,7 +260,7 @@ public interface Coder<T> extends Serializable {
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
    * not deterministic, including details of why the encoding is not deterministic.
    */
-  public static class NonDeterministicException extends Throwable {
+  public static class NonDeterministicException extends Exception {
     private Coder<?> coder;
     private List<String> reasons;
 
@@ -281,8 +282,7 @@ public interface Coder<T> extends Serializable {
         List<String> reasons,
         @Nullable NonDeterministicException cause) {
       super(cause);
-      Preconditions.checkArgument(reasons.size() > 0,
-          "Reasons must not be empty.");
+      checkArgument(reasons.size() > 0, "Reasons must not be empty.");
       this.reasons = reasons;
       this.coder = coder;
     }
@@ -293,8 +293,8 @@ public interface Coder<T> extends Serializable {
 
     @Override
     public String getMessage() {
-      return String.format("%s is not deterministic because:\n  %s",
-          coder, Joiner.on("\n  ").join(reasons));
+      return String.format("%s is not deterministic because:%n  %s",
+          coder, Joiner.on("%n  ").join(reasons));
     }
   }
 }

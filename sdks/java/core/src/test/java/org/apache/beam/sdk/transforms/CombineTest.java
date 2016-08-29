@@ -21,7 +21,11 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -39,6 +43,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -47,6 +52,7 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -60,15 +66,14 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.POutput;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -368,7 +373,7 @@ public class CombineTest implements Serializable {
   }
 
   private static class FormatPaneInfo extends DoFn<Integer, String> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element() + ": " + c.pane().isLast());
     }
@@ -556,7 +561,7 @@ public class CombineTest implements Serializable {
   }
 
   private static class GetLast extends DoFn<Integer, Integer> {
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.pane().isLast()) {
         c.output(c.element());
@@ -649,7 +654,7 @@ public class CombineTest implements Serializable {
     PCollection<Integer> output = pipeline
         .apply("CreateVoidMainInput", Create.of((Void) null))
         .apply("OutputSideInput", ParDo.of(new DoFn<Void, Integer>() {
-                  @Override
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view));
                   }
@@ -709,6 +714,22 @@ public class CombineTest implements Serializable {
     assertThat(displayData, hasDisplayItem(hasNamespace(combineFn.getClass())));
   }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCombinePerKeyPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+    CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+    PTransform<PCollection<KV<Integer, Integer>>, ? extends POutput> combine =
+        Combine.perKey(combineFn);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
+        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+    assertThat("Combine.perKey should include the combineFn in its primitive transform",
+        displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
+  }
+
   ////////////////////////////////////////////////////////////////////////////
   // Test classes, for different kinds of combining fns.
 
@@ -766,8 +787,7 @@ public class CombineTest implements Serializable {
     public static SetCoder<?> of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
       return of((Coder<?>) components.get(0));
     }
 
@@ -1094,8 +1114,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void addInput(Integer element) {
-        Preconditions.checkState(merges == 0);
-        Preconditions.checkState(outputs == 0);
+        checkState(merges == 0);
+        checkState(outputs == 0);
 
         inputs++;
         sum += element;
@@ -1103,8 +1123,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void mergeAccumulator(Counter accumulator) {
-        Preconditions.checkState(outputs == 0);
-        Preconditions.checkArgument(accumulator.outputs == 0);
+        checkState(outputs == 0);
+        checkArgument(accumulator.outputs == 0);
 
         merges += accumulator.merges + 1;
         inputs += accumulator.inputs;
@@ -1113,7 +1133,7 @@ public class CombineTest implements Serializable {
 
       @Override
       public Iterable<Long> extractOutput() {
-        Preconditions.checkState(outputs == 0);
+        checkState(outputs == 0);
 
         return Arrays.asList(sum, inputs, merges, outputs);
       }
@@ -1157,7 +1177,7 @@ public class CombineTest implements Serializable {
 
   private static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
     return pc.apply(ParDo.of(new DoFn<T, T>() {
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         for (int i = 0; i < n; i++) {
           c.output(c.element());

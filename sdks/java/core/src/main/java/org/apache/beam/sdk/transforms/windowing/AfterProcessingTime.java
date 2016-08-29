@@ -25,14 +25,16 @@ import org.joda.time.Instant;
 
 import java.util.List;
 import java.util.Objects;
+
 import javax.annotation.Nullable;
 
 /**
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
  * the real-time domain.
  *
- * <p>The time at which to fire the timer can be adjusted via the methods in {@link TimeTrigger},
- * such as {@link TimeTrigger#plusDelayOf} or {@link TimeTrigger#alignedTo}.
+ * <p>The time at which to fire the timer can be adjusted via the methods in
+ * {@link AfterDelayFromFirstElement}, such as {@link AfterDelayFromFirstElement#plusDelayOf} or
+ * {@link AfterDelayFromFirstElement#alignedTo}.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime extends AfterDelayFromFirstElement {

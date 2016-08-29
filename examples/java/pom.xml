@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.2.0-incubating-SNAPSHOT</version>
+    <version>0.3.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,10 +33,6 @@
   artifact includes all Apache Beam Java SDK examples.</description>
 
   <packaging>jar</packaging>
-
-  <properties>
-    <skipITs>true</skipITs>
-  </properties>
 
   <build>
     <plugins>
@@ -49,24 +45,11 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <beamUseDummyRunner></beamUseDummyRunner>
+            <beamUseDummyRunner />
             <beamTestPipelineOptions>
             </beamTestPipelineOptions>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals><goal>analyze-only</goal></goals>
-            <configuration>
-              <failOnWarning>true</failOnWarning>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
@@ -105,7 +88,7 @@
               <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+              <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
               <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
             </offlineLink>
             <offlineLink>
@@ -204,6 +187,8 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <parallel>all</parallel>
+              <threadCount>4</threadCount>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
@@ -222,15 +207,7 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>${project.version}</version>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
 
     <dependency>
@@ -260,11 +237,6 @@
 
     <dependency>
       <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-datastore-protobuf</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-pubsub</artifactId>
     </dependency>
 
@@ -275,7 +247,17 @@
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
+      <artifactId>annotations</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.datastore</groupId>
+      <artifactId>datastore-v1beta3-proto-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.datastore</groupId>
+      <artifactId>datastore-v1beta3-protos</artifactId>
     </dependency>
 
     <dependency>
@@ -286,6 +268,27 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-flink_2.10</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>

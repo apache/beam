@@ -44,6 +44,8 @@ import java.util.Locale;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * A base class for triggers that happen after a processing time delay from the arrival
  * of the first element in a pane.
@@ -157,6 +159,8 @@ public abstract class AfterDelayFromFirstElement extends OnceTrigger {
   }
 
   @Override
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT", justification =
+      "prefetch side effect")
   public void prefetchOnElement(StateAccessor<?> state) {
     state.access(DELAYED_UNTIL_TAG).readLater();
   }
@@ -213,6 +217,8 @@ public abstract class AfterDelayFromFirstElement extends OnceTrigger {
   }
 
   @Override
+  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT", justification =
+      "prefetch side effect")
   public void prefetchShouldFire(StateAccessor<?> state) {
     state.access(DELAYED_UNTIL_TAG).readLater();
   }
