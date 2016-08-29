@@ -275,22 +275,20 @@ p = beam.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-### Hello world (with Map)
+### Hello World (with Map)
 
 The `Map` transform takes a callable, which will be applied to each
 element of the input `PCollection` and must return an element to go
 into the output `PCollection`.
 
 ```python
-import google.cloud.dataflow as df
-p = df.Pipeline('DirectPipelineRunner')
-# Read file with names, add a greeting for each, and write results.
+import apache_beam as beam
+p = beam.Pipeline('DirectPipelineRunner')
+# Read file with names, add a greeting for each, and write to a file.
 (p
- | df.Read('load messages', df.io.TextFileSource('./names'))
- | df.Map('add greeting',
-          lambda name, msg: '%s %s!' % (msg, name),
-          'Hello')
- | df.Write('save', df.io.TextFileSink('./greetings')))
+ | 'load messages' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'add greeting' >> beam.Map(lambda name, msg: '%s, %s!' % (msg, name), 'Hello')
+ | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
 p.run()
 ```
 
