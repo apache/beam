@@ -1333,8 +1333,6 @@ public class KafkaIO {
       }
     }
 
-    // nothing to do in in @StartBundle
-
     @ProcessElement
     public void processElement(ProcessContext ctx) throws Exception {
       checkForFailures();
@@ -1354,7 +1352,6 @@ public class KafkaIO {
     @Teardown
     public void teardown() {
       producer.close();
-      producer = null;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////
