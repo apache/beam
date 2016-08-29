@@ -213,7 +213,7 @@ public class Latest {
                 TimestampedValue.TimestampedValueCoder.of(valueCoder)))
 
           .apply("Latest Value", Combine.<K, TimestampedValue<V>, V>perKey(new LatestFn<V>()))
-            .setCoder(KvCoder.of(inputCoder.getKeyCoder(), NullableCoder.of(valueCoder)));
+            .setCoder(inputCoder);
     }
   }
 }

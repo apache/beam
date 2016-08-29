@@ -115,22 +115,14 @@ public class LatestTest implements Serializable {
   @Test
   public void testPerKeyOutputCoder() {
     TestPipeline p = TestPipeline.create();
-    Coder<String> keyCoder = AvroCoder.of(String.class);
-    Coder<Long> valueCoder = AvroCoder.of(Long.class);
+    KvCoder<String, Long> inputCoder = KvCoder.of(
+        AvroCoder.of(String.class), AvroCoder.of(Long.class));
 
     PCollection<KV<String, Long>> output =
-        p.apply(Create.of(KV.of("foo", 1L)).withCoder(KvCoder.of(keyCoder, valueCoder)))
+        p.apply(Create.of(KV.of("foo", 1L)).withCoder(inputCoder))
             .apply(Latest.<String, Long>perKey());
 
-    assertThat("Coder must be KvCoder", output.getCoder(), instanceOf(KvCoder.class));
-    KvCoder<String, Long> outputKvCoder = (KvCoder<String, Long>) output.getCoder();
-
-    assertEquals("Should use input key coder", keyCoder, outputKvCoder.getKeyCoder());
-
-    Coder<Long> outputValueCoder = outputKvCoder.getValueCoder();
-    assertThat("Value coder must support nulls", outputValueCoder, instanceOf(NullableCoder.class));
-    assertEquals("Value coder should wrap input coder",
-        valueCoder, ((NullableCoder<?>) outputValueCoder).getValueCoder());
+    assertEquals("Should use input coder for outputs", inputCoder, output.getCoder());
   }
 
   @Test
