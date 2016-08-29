@@ -13,7 +13,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  */
 class Datum extends WindowedElement<Object, Object, Object> {
 
-  @SuppressWarnings("unchecked, rawtypes")
+  @SuppressWarnings("unchecked")
   static Datum of(WindowID windowID, Object element) {
     return new Datum(windowID, element);
   }
@@ -26,7 +26,7 @@ class Datum extends WindowedElement<Object, Object, Object> {
     return new Watermark(stamp);
   }
 
-  @SuppressWarnings("unchecked, rawtypes")
+  @SuppressWarnings("unchecked")
   static Datum windowTrigger(WindowID windowID, long stamp) {
     return new WindowTrigger(windowID, stamp);
   }
@@ -62,6 +62,7 @@ class Datum extends WindowedElement<Object, Object, Object> {
 
   static class WindowTrigger extends Datum {
     final long stamp;
+    @SuppressWarnings("unchecked")
     WindowTrigger(WindowID windowID, long stamp) {
       super(windowID, null);
       this.stamp = stamp;

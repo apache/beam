@@ -219,13 +219,8 @@ class ReduceStateByKeyReducer implements Runnable {
       return keyStates.values();
     }
 
-    private Collection<State<?, ?>> purgeAllWindowStates() {
-      List<WindowContext<Object, Object>> ws = wRegistry.getAllWindowsList();
-      List<State<?, ?>> states = newArrayListWithCapacity(ws.size());
-      for (WindowContext<Object, Object> w : ws) {
-        states.addAll(purgeWindowStates(w));
-      }
-      return states;
+    private Collection<WindowContext<Object, Object>> getAllWindowContexts() {
+      return wRegistry.getAllWindowsList();
     }
 
     @SuppressWarnings("unchecked")
@@ -392,7 +387,7 @@ class ReduceStateByKeyReducer implements Runnable {
           WindowContext<Object, Object> windowContext = windowStorage.getWindowContext();
 
           triggering.cancel(windowContext);
-          Triggerable triggerable = (t, ctx) -> {
+          Triggerable<Object, Object> triggerable = (t, ctx) -> {
                 synchronized (ProcessingState.this) {
                   flushWindow(windowContext);
                   purgeWindow(windowContext);
@@ -410,7 +405,7 @@ class ReduceStateByKeyReducer implements Runnable {
     }
 
     void emitWatermarkAndUpdateTriggering() {
-      long stamp = getCurrentTimestamp();
+      final long stamp = getCurrentTimestamp();
       try {
         rawOutput.put(Datum.watermark(stamp));
       } catch (InterruptedException ex) {
@@ -518,12 +513,12 @@ class ReduceStateByKeyReducer implements Runnable {
   @SuppressWarnings("unchecked")
   @Override
   public void run() {
-    Optional<UnaryFunction<Object, Long>> timeAssigner = windowing.getTimeAssigner();
     watermarkStrategy.schedule(processing::emitWatermarkAndUpdateTriggering);
     for (;;) {
       try {
         // ~ now process incoming data
         Datum item = input.take();
+
         watermarkStrategy.emitIfNeeded(processing::emitWatermarkAndUpdateTriggering);
         if (!item.isElement()) {
           if (item.isEndOfStream()) {
@@ -531,9 +526,12 @@ class ReduceStateByKeyReducer implements Runnable {
             triggering.close();
             // close all states
             synchronized (processing) {
+              processing.getAllWindowContexts().stream()
+                  .forEach(wctx -> {
+                    flushWindow(wctx);
+                    purgeWindow(wctx);
+                  });
               processing.active = false;
-              processing.purgeAllWindowStates().stream()
-                  .forEachOrdered(s -> { s.flush(); s.close(); });
               processing.closeOutput();
             }
             output.put(item);
@@ -549,9 +547,6 @@ class ReduceStateByKeyReducer implements Runnable {
             output.put(item);
           }          
         } else {
-          if (timeAssigner.isPresent()) {
-            processing.updateStamp(timeAssigner.get().apply(item.get()));
-          }
           final List<WindowContext> toEvict = processInput(item);
           for (WindowContext w : toEvict) {
             flushWindow(w);
@@ -595,7 +590,14 @@ class ReduceStateByKeyReducer implements Runnable {
           seenGroups.add(itemWindow.getWindowID().getGroup());
         } else {
           // window is already closed
-          LOG.debug("Element window {} discarded", itemWindow);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                "Element window {} discarded at current watermark {} with triggering {}",
+                new String[] {
+                    itemWindow.toString(),
+                    String.valueOf(getCurrentWatermark()),
+                    triggering.getClass().toString() });
+          }
         }
       }
 
@@ -633,7 +635,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
 
   // retrieve current watermark stamp
-  private long getCurrentWatermark() {    
+  private long getCurrentWatermark() {
     return triggering.getCurrentTimestamp();
   }
 

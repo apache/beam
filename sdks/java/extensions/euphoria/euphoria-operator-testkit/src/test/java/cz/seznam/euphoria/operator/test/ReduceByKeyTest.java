@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -100,8 +101,9 @@ public class ReduceByKeyTest extends OperatorTest {
       implements Windowing<Integer, Void, Integer, TestWindowContext> {
 
     @Override
-    public Set<WindowID<Void, Integer>> assignWindows(Integer input) {
-      return Collections.singleton(WindowID.aligned(input / 4));
+    public Set<WindowID<Void, Integer>> assignWindowsToElement(
+        WindowedElement<?, ?, Integer> input) {
+      return Collections.singleton(WindowID.aligned(input.get() / 4));
     }
 
     @Override

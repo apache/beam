@@ -28,7 +28,6 @@ import cz.seznam.euphoria.core.executor.ExecUnit;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
-import cz.seznam.euphoria.core.executor.SerializableUtils;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +41,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -53,7 +53,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -71,7 +71,7 @@ public class InMemExecutor implements Executor {
 
 
   static final class PartitionSupplierStream implements Supplier {
-    
+
     final Reader<?> reader;
     final Partition partition;
     PartitionSupplierStream(Partition<?> partition) {
@@ -83,6 +83,7 @@ public class InMemExecutor implements Executor {
             "Failed to open reader for partition: " + partition, e);
       }
     }
+
     @Override
     public Datum get() {
       if (!this.reader.hasNext()) {
@@ -226,10 +227,11 @@ public class InMemExecutor implements Executor {
           return thread;
         }
       });
-
-  private TriggerScheduler triggering = new ProcessingTimeTriggerScheduler();
+  
   private java.util.function.Supplier<WatermarkEmitStrategy> watermarkEmitStrategySupplier
-      = WatermarkEmitStrategy.Default::get;
+      = WatermarkEmitStrategy.Default::new;
+  private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier
+      = ProcessingTimeTriggerScheduler::new;
 
   private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
 
@@ -237,11 +239,17 @@ public class InMemExecutor implements Executor {
     this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
   }
 
-  public void setWatermarEmitStrategySupplier(
+  public void setWatermarkEmitStrategySupplier(
       java.util.function.Supplier<WatermarkEmitStrategy> supplier) {
     this.watermarkEmitStrategySupplier = supplier;
   }
 
+  public InMemExecutor setTriggeringSchedulerSupplier(
+      java.util.function.Supplier<TriggerScheduler> supplier) {
+    this.triggerSchedulerSupplier = supplier;
+    return this;
+  }
+  
   @Override
   public Future<Integer> submit(Flow flow) {
     throw new UnsupportedOperationException("unsupported");
@@ -367,13 +375,13 @@ public class InMemExecutor implements Executor {
     }
   }
 
-  // ~ unchecked: all is fine, except javac (1.8.0_91) has some issue
-  @SuppressWarnings("unchecked")
   private InputProvider createStream(DataSource<?> source) {
     InputProvider ret = new InputProvider();
+
     source.getPartitions().stream()
         .map(PartitionSupplierStream::new)
         .forEach(ret::add);
+
     return ret;
   }
 
@@ -512,7 +520,7 @@ public class InMemExecutor implements Executor {
     }
 
     List<BlockingQueue<Datum>> outputQueues = repartitionSuppliers(
-        input, e -> e, partitioning);
+        input, e -> e, partitioning, Optional.empty());
     
     InputProvider ret = new InputProvider();
     outputQueues.stream()
@@ -553,8 +561,9 @@ public class InMemExecutor implements Executor {
     final Windowing windowing = reduceStateByKey.getWindowing();
     final CombinableReduceFunction stateCombiner = reduceStateByKey.getStateCombiner();
 
-    List<BlockingQueue<Datum>> repartitioned =
-        repartitionSuppliers(suppliers, keyExtractor, partitioning);
+    List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
+        suppliers, keyExtractor, partitioning,
+        windowing == null ? Optional.empty() : windowing.getTimestampAssigner());
 
     InputProvider outputSuppliers = new InputProvider();
     // consume repartitioned suppliers
@@ -566,7 +575,7 @@ public class InMemExecutor implements Executor {
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
           // if using attached windowing, we have to use watermark triggering
           windowing != null
-              ? SerializableUtils.cloneSerializable(triggering)
+              ? triggerSchedulerSupplier.get()
               : new WatermarkTriggerScheduler(0),
           watermarkEmitStrategySupplier.get(),
           reduceStateByKey.input().isBounded(),
@@ -579,7 +588,8 @@ public class InMemExecutor implements Executor {
   private List<BlockingQueue<Datum>> repartitionSuppliers(
       InputProvider suppliers,
       final UnaryFunction keyExtractor,
-      final Partitioning partitioning) {
+      final Partitioning partitioning,
+      final Optional<UnaryFunction<Object, Long>> timestampAssigner) {
 
     int numInputPartitions = suppliers.size();
     final int outputPartitions = partitioning.getNumPartitions() > 0
@@ -598,9 +608,35 @@ public class InMemExecutor implements Executor {
       clocks.add(new VectorClock(numInputPartitions));
     }
 
+    // if we have timestamp assigner we need watermark emit strategy
+    // associated with each input partition - this strategy then emits
+    // watermarks to downstream partitions based on elements flowing
+    // through the partition
+    final WatermarkEmitStrategy[] emitStrategies;
+    WatermarkEmitStrategy[] tmp = null;
+    if (timestampAssigner.isPresent()) {
+      tmp = new WatermarkEmitStrategy[numInputPartitions];
+      for (int i = 0; i < numInputPartitions; i++) {
+        tmp[i] = watermarkEmitStrategySupplier.get();
+      }
+    }
+    emitStrategies = tmp;
+
+
     int i = 0;
     for (Supplier s : suppliers) {
       final int readerId = i++;
+      // each input partition maintains maximum element's timestamp that
+      // passed through it
+      final AtomicLong maxElementTimestamp = new AtomicLong();
+      Runnable emitWatermark = () -> {
+        handleMetaData(
+            Datum.watermark(maxElementTimestamp.get()),
+            ret, readerId, clocks, true);
+      };
+      if (emitStrategies != null) {
+        emitStrategies[readerId].schedule(emitWatermark);
+      }
       executor.execute(() -> {
         try {
           for (;;) {
@@ -609,7 +645,17 @@ public class InMemExecutor implements Executor {
             if (datum.isEndOfStream()) {
               break;
             }
-            if (!handleMetaData(datum, ret, readerId, clocks)) {
+            if (!handleMetaData(datum, ret, readerId, clocks,
+                /* assign watermarks from elements flowing through */
+                !timestampAssigner.isPresent())) {
+              
+              // extract element's timestamp if available
+              if (timestampAssigner.isPresent()) {
+                long elementStamp = timestampAssigner.get().apply(datum.get());
+                maxElementTimestamp.accumulateAndGet(elementStamp,
+                    (oldVal, newVal) -> oldVal < newVal ? newVal : oldVal);
+                emitStrategies[readerId].emitIfNeeded(emitWatermark);
+              }
               // determine partition
               Object key = keyExtractor.apply(datum.get());
               int partition
@@ -675,11 +721,6 @@ public class InMemExecutor implements Executor {
   }
 
 
-  public InMemExecutor setTriggering(TriggerScheduler triggering) {
-    this.triggering = triggering;
-    return this;
-  }
-
   // utility method used after extracting element from upstream
   // queue, the element is passed to the downstream partitions
   // if it is a metadata element
@@ -688,7 +729,8 @@ public class InMemExecutor implements Executor {
       Datum item,
       List<BlockingQueue<Datum>> downstream,
       int readerId,
-      List<VectorClock> clocks) {
+      List<VectorClock> clocks,
+      boolean forwardWatermarks) {
 
     // do no hadle elements
     if (item.isElement()) return false;
@@ -696,15 +738,13 @@ public class InMemExecutor implements Executor {
     // propagate window triggers to downstream consumers
     if (item.isWindowTrigger()) {
       try {
-        for (BlockingQueue ch : downstream) {
-          // do not forward end of stream, because we need to wait till
-          // all input partitions finish
+        for (BlockingQueue<Datum> ch : downstream) {
           ch.put(item);
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
-    } else if (item.isWatermark()) {
+    } else if (forwardWatermarks && item.isWatermark()) {
       // update vector clocks by the watermark
       // if any update occurs, emit the updates time downstream
       int i = 0;

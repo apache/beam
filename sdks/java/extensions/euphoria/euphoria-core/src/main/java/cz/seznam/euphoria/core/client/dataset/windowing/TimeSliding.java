@@ -77,8 +77,9 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Set<WindowID<Void, Long>> assignWindows(T input) {
-    long now = eventTimeFn.apply(input) - duration + slide;
+  public Set<WindowID<Void, Long>> assignWindowsToElement(
+      WindowedElement<?, ?, T> input) {
+    long now = eventTimeFn.apply(input.get()) - duration + slide;
     long boundary = now / slide * slide;
     Set<WindowID<Void, Long>> ret = new HashSet<>();
     for (int i = 0; i < stepsPerWindow; i++) {
@@ -121,7 +122,7 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+  public Optional<UnaryFunction<T, Long>> getTimestampAssigner() {
     if (getType() == Type.EVENT)
       return Optional.of(eventTimeFn);
     return Optional.empty();

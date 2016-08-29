@@ -55,7 +55,8 @@ public final class Batch<T>
   private Batch() {}
 
   @Override
-  public Set<WindowID<Void, Label>> assignWindows(T input) {
+  public Set<WindowID<Void, Label>> assignWindowsToElement(
+      WindowedElement<?, ?, T> input) {
     return Collections.singleton(WindowID.aligned(Label.INSTANCE));
   }
 

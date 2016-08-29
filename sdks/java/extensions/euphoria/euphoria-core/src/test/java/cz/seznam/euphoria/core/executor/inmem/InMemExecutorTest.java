@@ -3,10 +3,12 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -24,9 +26,6 @@ import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
-import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
-import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.core.util.Settings;
 import org.junit.After;
 import org.junit.Before;
@@ -43,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -384,8 +384,9 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public Set<WindowID<GROUP, CountLabel>> assignWindows(T input) {
-      GROUP g = groupExtractor.apply(input);
+    public Set<WindowID<GROUP, CountLabel>> assignWindowsToElement(
+        WindowedElement<?, ?, T> input) {
+      GROUP g = groupExtractor.apply(input.get());
       int sizeForGroup = size.apply(g);
       return new HashSet<>(Arrays.asList(
           WindowID.unaligned(g, new CountLabel(sizeForGroup)),
@@ -575,7 +576,8 @@ public class InMemExecutorTest {
         .persist(outputs);
 
     // watermarking 100 ms
-    executor.setTriggering(new WatermarkTriggerScheduler(100));
+    executor.setTriggeringSchedulerSupplier(
+        () -> new WatermarkTriggerScheduler(100));
     
     // run the executor in separate thread in order to be able to watch
     // the partial results
@@ -619,8 +621,7 @@ public class InMemExecutorTest {
     // in 10s windows
 
     Dataset<Integer> input = flow.createInput(
-        ListDataSource.unbounded(reversed(sequenceInts(0, N)))
-            .setSleepTime(2));
+        ListDataSource.unbounded(reversed(sequenceInts(0, N))));
 
     ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
 
@@ -634,16 +635,92 @@ public class InMemExecutorTest {
         .persist(outputs);
 
     // watermarking 100 ms
-    executor.setTriggering(new WatermarkTriggerScheduler(100));
+    executor.setTriggeringSchedulerSupplier(
+        () -> new WatermarkTriggerScheduler(100));
 
     executor.waitForCompletion(flow);
 
     // there should be only one element on output - the first element
     // all other windows are discarded
     List<Pair<String, Long>> output = outputs.getOutputs().get(0);
-    System.err.println(output);
     assertEquals(1, output.size());
   }
+
+  @Test
+  public void testWithWatermarkAndEventTimeMixed() throws Exception {
+
+    int N = 2000;
+
+    // generate some small ints, use them as event time and count them
+    // in 10s windows
+
+    Dataset<Integer> input = flow.createInput(
+        ListDataSource.unbounded(sequenceInts(0, N)).setSleepTime(2));
+
+    // first add some fake operator operating on processing time
+    // doing virtually nothing
+    Dataset<Pair<String, Set<Integer>>> reduced = ReduceByKey.of(input)
+        .keyBy(e -> "")
+        .reduceBy((Iterable<Integer> values) -> {
+          Set<Integer> grp = new TreeSet<>();
+          for (Integer i : values) {
+            grp.add(i);
+          }
+          return grp;
+        })
+        .windowBy(Batch.get())
+        .output();
+
+    // explode it back to the original input (more maybe reordered)
+    // and store it as the original input, process it further in
+    // the same way as in `testWithWatermarkAndEventTime'
+    input = FlatMap.of(reduced)
+        .using((Pair<String, Set<Integer>> grp, Collector<Integer> c) -> {
+          for (Integer i : grp.getSecond()) {
+            c.collect(i);
+          }
+        }).output();
+
+    ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
+
+    ReduceByKey.of(input)
+        .keyBy(e -> "") // reduce all
+        .valueBy(e -> 1L)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
+        .setNumPartitions(1)
+        .output()
+        .persist(outputs);
+
+    // watermarking 100 ms
+    executor.setTriggeringSchedulerSupplier(
+        () -> new WatermarkTriggerScheduler(100));
+    
+    executor.waitForCompletion(flow);
+
+    // the data in first unfinished partition
+    List<Pair<String, Long>> output = new ArrayList<>(
+        outputs.getUncommittedOutputs().get(0));
+
+
+    // after one second we should have something about 500 elements read,
+    // this means we should have at least 40 complete windows
+    assertTrue("Should have at least 40 windows, got "
+        + output.size(), 40 <= output.size());
+    assertTrue("All but (at most) one window should have size 10",
+        output.stream().filter(w -> w.getSecond() != 10).count() <= 1);
+
+    output = outputs.getOutputs().get(0);
+
+    output.forEach(w -> assertEquals("Each window should have 10 elements, got "
+        + w.getSecond(), 10L, (long) w.getSecond()));
+
+    // we have 2000 elements split into 200 windows
+    assertEquals(200, output.size());
+
+  }
+
+
 
 
   @Test(timeout = 2000)

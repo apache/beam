@@ -10,6 +10,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>euphoria-flink</artifactId>
+  <name>euphoria-flink-${project.version}</name>
 
   <properties>
     <flink.version>1.1.1</flink.version>

@@ -4,8 +4,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import java.util.Optional;
 
 /**
  * Operator working on some context.
@@ -15,8 +13,6 @@ public abstract class WindowWiseOperator<
     extends Operator<IN, OUT> implements WindowAware<WIN, W> {
 
   protected Windowing<WIN, ?, WLABEL, W> windowing;
-
-  protected UnaryFunction<WIN, Long> stampExtractor = null;
 
   public WindowWiseOperator(String name,
                             Flow flow,

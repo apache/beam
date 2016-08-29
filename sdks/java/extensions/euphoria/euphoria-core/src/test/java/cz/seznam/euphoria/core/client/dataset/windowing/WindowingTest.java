@@ -179,8 +179,8 @@ public class WindowingTest {
   private <T> void assertTimeWindowing(Time<T> w,
                                        long expectDurationMillis,
                                        Duration expectEarlyTriggeringPeriod,
-                                       UnaryFunction<T, Long> expectedFn)
-  {
+                                       UnaryFunction<T, Long> expectedFn) {
+    
     assertNotNull(w);
     assertEquals(expectEarlyTriggeringPeriod, w.earlyTriggeringPeriod);
     assertEquals(expectDurationMillis, w.durationMillis);
@@ -189,7 +189,7 @@ public class WindowingTest {
 
   @Test
   public void testAttachedWindowing_ContinuousOutput() {
-    final long READ_DELAY_MS = 100L;
+    final long READ_DELAY_MS = 37L;
     Flow flow = Flow.create("Test", settings);
 
     // ~ one partition; supplying every READ_DELAYS_MS a new element
@@ -264,8 +264,8 @@ public class WindowingTest {
     // output element approx. every 3*READ_DELAY (READ_DELAY for every read
     // element from the input source times window-of-3-items) except for the very
     // last item which is triggered earlier due to "end-of-stream"
-    assertSmaller(ordered.get(0).getFirst() + READ_DELAY_MS - 1, ordered.get(1).getFirst());
-    assertSmaller(ordered.get(1).getFirst() + READ_DELAY_MS - 1, ordered.get(2).getFirst());
+    assertSmaller(
+        ordered.get(0).getFirst() + 2 * READ_DELAY_MS, ordered.get(1).getFirst());
     assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
                  ordered.get(0).getSecond().getSecond());
     assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
@@ -411,6 +411,13 @@ public class WindowingTest {
         out.getOutput(0).get(2));
   }
 
+  @SuppressWarnings("unchecked")
+  <GROUP, LABEL, T> Set<WindowID<GROUP, LABEL>> assignWindows(
+      Windowing<T, GROUP, LABEL, ?> windowing, T elem) {
+    return windowing.assignWindowsToElement(
+        new WindowedElement(WindowID.unaligned(null, null), elem));
+  }
+
   @Test
   public void testWindowing_SessionMergeWindows() {
     Session<Long, Void> windowing =
@@ -418,11 +425,11 @@ public class WindowingTest {
             .using(e -> (Void) null, e -> e);
 
     WindowID<Void, SessionInterval> w1 = assertSessionWindow(
-        windowing.assignWindows(1_000L), null, 1_000L, 11_000L);
+        assignWindows(windowing, 1_000L), null, 1_000L, 11_000L);
     WindowID<Void, SessionInterval> w2 = assertSessionWindow(
-        windowing.assignWindows(10_000L), null, 10_000L, 20_000L);
+        assignWindows(windowing, 10_000L), null, 10_000L, 20_000L);
     WindowID<Void, SessionInterval> w3 = assertSessionWindow(
-        windowing.assignWindows(21_000L), null, 21_000L, 31_000L);
+        assignWindows(windowing, 21_000L), null, 21_000L, 31_000L);
     // ~ a small window which is fully contained in w1
     WindowID<Void, SessionInterval> w4 = WindowID.aligned(
         new SessionInterval(3_000L, 8_000L));

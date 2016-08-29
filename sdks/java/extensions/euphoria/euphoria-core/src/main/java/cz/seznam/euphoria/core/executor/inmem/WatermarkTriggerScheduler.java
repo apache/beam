@@ -9,7 +9,7 @@ import java.util.List;
 public class WatermarkTriggerScheduler extends AbstractTriggerScheduler {
 
   private final long watermarkDuration;
-  private long currentWatermark;
+  private volatile long currentWatermark;
  
   /**
    * Create the triggering with specified duration in ms.
@@ -23,16 +23,20 @@ public class WatermarkTriggerScheduler extends AbstractTriggerScheduler {
   @Override
   @SuppressWarnings("unchecked")
   public void updateStamp(long stamp) {
-    long newWatermark = stamp - watermarkDuration;
+    final long newWatermark = stamp - watermarkDuration;
     if (currentWatermark < newWatermark) {
-      // reschedule all active triggers
-      List<ScheduledTriggerTask> canceled = this.cancelAllImpl();
-      currentWatermark = newWatermark;
-      for (TriggerTask t : canceled) {
-        if (t.getTimestamp() > currentWatermark) {
-          scheduleAt(t.getTimestamp(), t.getWindow(), t.getTrigger());
-        } else {
-          t.getTrigger().fire(t.getTimestamp(), t.getWindow());
+      synchronized (this) {
+        if (currentWatermark < newWatermark) {
+          currentWatermark = newWatermark;
+          // reschedule all active triggers
+          List<ScheduledTriggerTask> canceled = this.cancelAllImpl();
+          for (TriggerTask t : canceled) {
+            if (t.getTimestamp() > newWatermark) {
+              scheduleAt(t.getTimestamp(), t.getWindow(), t.getTrigger());
+            } else {
+              t.getTrigger().fire(t.getTimestamp(), t.getWindow());
+            }
+          }
         }
       }
     }
