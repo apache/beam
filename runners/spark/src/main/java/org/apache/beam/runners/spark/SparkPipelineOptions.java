@@ -18,11 +18,14 @@
 
 package org.apache.beam.runners.spark;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * Spark runner pipeline options.
@@ -49,4 +52,14 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   @Default.Boolean(true)
   Boolean getEnableSparkSinks();
   void setEnableSparkSinks(Boolean enableSparkSinks);
+
+  @Description("If the spark runner will be initialized with a provided Spark Context")
+  @Default.Boolean(false)
+  boolean getUsesProvidedSparkContext();
+  void setUsesProvidedSparkContext(boolean value);
+
+  @Description("Provided Java Spark Context")
+  @JsonIgnore
+  JavaSparkContext getProvidedSparkContext();
+  void setProvidedSparkContext(JavaSparkContext jsc);
 }
