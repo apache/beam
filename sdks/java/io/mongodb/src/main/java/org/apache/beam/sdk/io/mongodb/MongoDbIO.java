@@ -17,6 +17,22 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+
+import com.mongodb.BasicDBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -30,38 +46,23 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-
-import com.mongodb.BasicDBObject;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.MongoDatabase;
-
 import org.bson.Document;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 /**
  * IO to read and write data on MongoDB.
- *
+ * <p>
  * <h3>Reading from MongoDB</h3>
- *
+ * <p>
  * <p>MongoDbIO source returns a bounded collection of String as {@code PCollection<String>}.
  * The String is the JSON form of the MongoDB Document.</p>
- *
+ * <p>
  * <p>To configure the MongoDB source, you have to provide the connection URI, the database name
  * and the collection name. The following example illustrates various options for configuring the
  * source:</p>
- *
+ * <p>
  * <pre>{@code
  *
  * pipeline.apply(MongoDbIO.read()
@@ -73,17 +74,17 @@ import javax.annotation.Nullable;
  *   // rest of the settings are optional
  *
  * }</pre>
- *
+ * <p>
  * <p>The source also accepts an optional configuration: {@code withFilter()} allows you to
  * define a JSON filter to get subset of data.</p>
- *
+ * <p>
  * <h3>Writing to MongoDB</h3>
- *
+ * <p>
  * <p>MongoDB sink supports writing of Document (as JSON String) in a MongoDB.</p>
- *
+ * <p>
  * <p>To configure a MongoDB sink, you must specify a connection {@code URI}, a {@code Database}
  * name, a {@code Collection} name. For instance:</p>
- *
+ * <p>
  * <pre>{@code
  *
  * pipeline
@@ -110,7 +111,8 @@ public class MongoDbIO {
     return new Write();
   }
 
-  private MongoDbIO() {}
+  private MongoDbIO() {
+  }
 
   /**
    * A {@link PTransform} to read data from MongoDB.
@@ -144,7 +146,8 @@ public class MongoDbIO {
     private String filter;
     private int numSplits;
 
-    private Read() {}
+    private Read() {
+    }
 
     private Read(String uri, String database, String collection, String filter, int numSplits) {
       this.uri = uri;
@@ -482,7 +485,8 @@ public class MongoDbIO {
     protected String database;
     protected String collection;
 
-    private Write() {}
+    private Write() {
+    }
 
     private Write(String uri, String database, String collection) {
       this.uri = uri;
