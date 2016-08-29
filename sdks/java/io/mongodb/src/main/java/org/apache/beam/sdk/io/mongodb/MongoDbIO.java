@@ -103,11 +103,11 @@ public class MongoDbIO {
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIO.class);
 
   public static Read read() {
-    return new Read();
+    return new Read(null, null, null, null, 0);
   }
 
   public static Write write() {
-    return new Write();
+    return new Write(null, null, null);
   }
 
   private MongoDbIO() {
@@ -138,15 +138,12 @@ public class MongoDbIO {
       return new Read(uri, database, collection, filter, numSplits);
     }
 
-    private String uri;
-    private String database;
-    private String collection;
+    private final String uri;
+    private final String database;
+    private final String collection;
     @Nullable
-    private String filter;
-    private int numSplits;
-
-    private Read() {
-    }
+    private final String filter;
+    private final int numSplits;
 
     private Read(String uri, String database, String collection, String filter, int numSplits) {
       this.uri = uri;
@@ -229,7 +226,7 @@ public class MongoDbIO {
 
     @Override
     public BoundedReader createReader(PipelineOptions options) {
-      return new BoundedMongoDbReader(uri, database, collection, filter, this);
+      return new BoundedMongoDbReader(this);
     }
 
     @Override
@@ -359,37 +356,28 @@ public class MongoDbIO {
 
   private static class BoundedMongoDbReader extends BoundedSource.BoundedReader {
 
-    private String uri;
-    private String database;
-    private String collection;
-    private String filter;
-    private BoundedSource source;
+    private final BoundedMongoDbSource source;
 
     private MongoClient client;
     private MongoCursor<Document> cursor;
     private String current;
 
-    public BoundedMongoDbReader(String uri, String database, String collection, String filter,
-                                BoundedSource source) {
-      this.uri = uri;
-      this.database = database;
-      this.collection = collection;
-      this.filter = filter;
+    public BoundedMongoDbReader(BoundedMongoDbSource source) {
       this.source = source;
     }
 
     @Override
     public boolean start() {
-      client = new MongoClient(new MongoClientURI(uri));
+      client = new MongoClient(new MongoClientURI(source.uri));
 
-      MongoDatabase mongoDatabase = client.getDatabase(database);
+      MongoDatabase mongoDatabase = client.getDatabase(source.database);
 
-      MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(collection);
+      MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(source.collection);
 
-      if (filter == null) {
+      if (source.filter == null) {
         cursor = mongoCollection.find().iterator();
       } else {
-        Document bson = Document.parse(filter);
+        Document bson = Document.parse(source.filter);
         cursor = mongoCollection.find(bson).iterator();
       }
 
@@ -449,12 +437,9 @@ public class MongoDbIO {
       return new Write(uri, database, collection);
     }
 
-    protected String uri;
-    protected String database;
-    protected String collection;
-
-    private Write() {
-    }
+    private final String uri;
+    private final String database;
+    private final String collection;
 
     private Write(String uri, String database, String collection) {
       this.uri = uri;
@@ -464,7 +449,7 @@ public class MongoDbIO {
 
     @Override
     public PDone apply(PCollection<String> input) {
-      input.apply(ParDo.of(new MongoDbWriter(uri, database, collection)));
+      input.apply(ParDo.of(new MongoDbWriter(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -477,22 +462,18 @@ public class MongoDbIO {
 
     private static class MongoDbWriter extends DoFn<String, Void> {
 
-      private String uri;
-      private String database;
-      private String collection;
+      private final Write write;
 
       private MongoClient client;
 
-      public MongoDbWriter(String uri, String database, String collection) {
-        this.uri = uri;
-        this.database = database;
-        this.collection = collection;
+      public MongoDbWriter(Write write) {
+        this.write = write;
       }
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
         if (client == null) {
-          client = new MongoClient(new MongoClientURI(uri));
+          client = new MongoClient(new MongoClientURI(write.uri));
         }
       }
 
@@ -500,8 +481,8 @@ public class MongoDbIO {
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
 
-        MongoDatabase mongoDatabase = client.getDatabase(database);
-        MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
+        MongoDatabase mongoDatabase = client.getDatabase(write.database);
+        MongoCollection mongoCollection = mongoDatabase.getCollection(write.collection);
 
         mongoCollection.insertOne(Document.parse(value));
       }
