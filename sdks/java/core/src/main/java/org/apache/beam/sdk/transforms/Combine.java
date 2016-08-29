@@ -1740,7 +1740,7 @@ public class Combine {
   public static class PerKey<K, InputT, OutputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
-    private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
     private final DisplayData.Item<? extends Class<?>> fnDisplayData;
     private final boolean fewKeys;
     private final List<PCollectionView<?>> sideInputs;
@@ -1866,7 +1866,7 @@ public class Combine {
   public static class PerKeyWithHotKeyFanout<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
-    private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
     private final DisplayData.Item<? extends Class<?>> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
