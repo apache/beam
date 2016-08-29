@@ -104,6 +104,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   /**
    * @return current timestamp determined according to chosen triggering strategy
    */
+  @Override
   public abstract long getCurrentTimestamp();
 
   /**

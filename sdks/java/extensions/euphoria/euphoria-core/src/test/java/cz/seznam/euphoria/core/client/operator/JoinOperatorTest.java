@@ -52,9 +52,8 @@ public class JoinOperatorTest {
                         List<String> leftInput,
                         List<String> rightInput,
                         List<String> expectedOutput,
-                        boolean makeOneArmLonger)
-      throws Exception
-  {
+                        boolean makeOneArmLonger) throws Exception {
+    
     inmemfs
         .setFile("/tmp/foo.txt", readDelay, leftInput)
         .setFile("/tmp/bar.txt", readDelay, rightInput);
@@ -82,17 +81,14 @@ public class JoinOperatorTest {
       secondkv = MapElements.of(secondkv).using(e -> e).output();
     }
 
-    Join.WindowingBuilder joinBuilder = Join.of(firstkv, secondkv)
+    Dataset<Pair<String, Object>> output = Join.of(firstkv, secondkv)
         .by(Pair::getFirst, Pair::getFirst)
         .using((l, r, c) ->
-            c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())));
-    if (outer) {
-      joinBuilder = joinBuilder.outer();
-    }
-    Dataset<Pair<String, Object>> output = joinBuilder
+            c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())))
+        .applyIf(outer, b -> b.outer())
         .windowBy(windowing)
         .output();
-
+    
     MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
         .output().persist(URI.create("inmem:///tmp/output"));
 

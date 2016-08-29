@@ -30,21 +30,11 @@ public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL
    * Assign window IDs to given input element.
    * The element will always have assigned old window ID, which can be reused
    * by this windowing.
+   * The default windowing assigned on input is derived from batch windowing.
    * @returns set of windows to be assign this element into, never null.
    */
-  default Set<WindowID<GROUP, LABEL>> assignWindowsToElement(
-      WindowedElement<GROUP, LABEL, T> input) {
-    return assignWindows(input.get());
-  }
-
-  /**
-   * Assign window IDs to given input data.
-   * @returns set of windows to be assign this element into, never null.
-   */
-  default Set<WindowID<GROUP, LABEL>> assignWindows(T data) {
-    throw new UnsupportedOperationException(
-        "You have to override either `assignWindowsToElement` or `assignWindowsToData`");
-  }
+  Set<WindowID<GROUP, LABEL>> assignWindowsToElement(
+      WindowedElement<?, ?, T> input);
 
   /**
    * Create the window context for given window ID.
@@ -65,7 +55,7 @@ public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL
   /**
    * Retrieve time-assignment function if event time is used.
    */
-  default Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+  default Optional<UnaryFunction<T, Long>> getTimestampAssigner() {
     return Optional.empty();
   }
 
