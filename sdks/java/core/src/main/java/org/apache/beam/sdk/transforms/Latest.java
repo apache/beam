@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
 
+import java.util.Iterator;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -121,9 +122,14 @@ public class Latest {
     public TimestampedValue<T> mergeAccumulators(Iterable<TimestampedValue<T>> accumulators) {
       checkNotNull(accumulators, "accumulators must be non-null");
 
-      TimestampedValue<T> merged = createAccumulator();
-      for (TimestampedValue<T> accum : accumulators) {
-        merged = addInput(merged, accum);
+      Iterator<TimestampedValue<T>> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
+      }
+
+      TimestampedValue<T> merged = iter.next();
+      while (iter.hasNext()) {
+        merged = addInput(merged, iter.next());
       }
 
       return merged;
