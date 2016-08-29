@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -172,12 +173,14 @@ public class JoinTest extends OperatorTest {
       Windowing<Either<Integer, Long>, Integer, Integer, JoinWindowContext> {
 
     @Override
-    public Set<WindowID<Integer, Integer>> assignWindows(Either<Integer, Long> input) {
+    public Set<WindowID<Integer, Integer>> assignWindowsToElement(
+        WindowedElement<?, ?, Either<Integer, Long>> input) {
       int element;
-      if (input.isLeft()) {
-        element = input.left();
+      Either<Integer, Long> unwrapped = input.get();
+      if (unwrapped.isLeft()) {
+        element = unwrapped.left();
       } else {
-        element = (int) (long) input.right();
+        element = (int) (long) unwrapped.right();
       }
       final int label = element % 2 == 0 ? 0 : element;
       return Collections.singleton(WindowID.unaligned(0, label));

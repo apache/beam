@@ -13,18 +13,15 @@ public interface WatermarkEmitStrategy {
   /** Default strategy used in inmem executor. */
   static class Default implements WatermarkEmitStrategy {
 
-    static final Default INSTANCE = new Default();
-    static final int COUNT_BEFORE_EMIT = 100;
+    static final int COUNT_BEFORE_EMIT = 1;
 
-    static Default get() { return INSTANCE; }
-
-    final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
-    int itemsUnemitted = 0;
+    final static ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
+    int itemsSeen = 0;
 
     @Override
     public void emitIfNeeded(Runnable action) {
-      if (++itemsUnemitted > COUNT_BEFORE_EMIT) {
-        itemsUnemitted = 0;
+      if (++itemsSeen > COUNT_BEFORE_EMIT) {
+        itemsSeen = 0;
         action.run();
       }
     }

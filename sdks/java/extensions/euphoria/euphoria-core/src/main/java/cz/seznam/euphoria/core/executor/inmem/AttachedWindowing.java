@@ -27,10 +27,10 @@ class AttachedWindowing implements
   static final AttachedWindowing INSTANCE = new AttachedWindowing();
 
   @Override
-  @SuppressWarnings("unchecked, rawtypes")
+  @SuppressWarnings("unchecked")
   public Set<WindowID<Object, Object>> assignWindowsToElement(
-      WindowedElement<Object, Object, Object> input) {
-    return Collections.singleton(input.getWindowID());
+      WindowedElement<?, ?, Object> input) {
+    return Collections.singleton((WindowID) input.getWindowID());
   }
 
 

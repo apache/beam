@@ -46,7 +46,8 @@ public final class Count<T> implements
   } // ~ end of CountWindowContext
 
   @Override
-  public Set<WindowID<Void, Counted>> assignWindows(T input) {
+  public Set<WindowID<Void, Counted>> assignWindowsToElement(
+      WindowedElement<?, ?, T> input) {
     return singleton(WindowID.aligned(new Counted()));
   }
 
