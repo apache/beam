@@ -128,6 +128,13 @@ class OffsetRangeTracker(iobase.RangeTracker):
             # for every call to try_claim().
             self._split_points_remaining = (
                 self._split_points_remaining_callback(self.stop_position()))
+            if self._split_points_remaining <= 0:
+              raise ValueError(
+                  'Split point remaining callback returned value %r for the'
+                  'remaining number of split points for stop position %d.'
+                  'Expected the callback to return an integer larger than or'
+                  'equal to 1 since the source is trying to claim a new split'
+                  'point.', self._split_points_remaining, self.stop_position())
         else:
           # Split points remaining already set. Updating.
           self._split_points_remaining -= 1

@@ -225,7 +225,7 @@ class FileBasedSource(iobase.BoundedSource):
   @staticmethod
   def remaining_split_points_helper(
       stop_position, current_position, done_reading):
-    """A util function for implementing a remaining splits points callback.
+    """A utility function for implementing a remaining splits points callback.
 
     This helper function can be used to develop a remaining split points
     callback, which can be set to a RangeTracker using method

@@ -392,6 +392,12 @@ class TestFileBasedSource(unittest.TestCase):
     self.assertEqual(
         0, FileBasedSource.remaining_split_points_helper(100, 110, True))
 
+    # If we are at a position < (stop_position -1), FileBasedSource cannot
+    # determine the remaining number of split points.
+    self.assertEqual(
+        iobase.RangeTracker.SPLIT_POINTS_UNKNOWN,
+        FileBasedSource.remaining_split_points_helper(100, 90, False))
+
 
 class TestSingleFileSource(unittest.TestCase):
 
