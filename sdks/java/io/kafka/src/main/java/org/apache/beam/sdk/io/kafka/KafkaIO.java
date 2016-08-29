@@ -1325,16 +1325,12 @@ public class KafkaIO {
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    @StartBundle
-    public void startBundle(Context c) throws Exception {
-      // Producer initialization is fairly costly. Move this to future initialization api to avoid
-      // creating a producer for each bundle.
-      if (producer == null) {
-        if (producerFactoryFnOpt.isPresent()) {
-           producer = producerFactoryFnOpt.get().apply(producerConfig);
-        } else {
-          producer = new KafkaProducer<K, V>(producerConfig);
-        }
+    @Setup
+    public void setup() {
+      if (producerFactoryFnOpt.isPresent()) {
+        producer = producerFactoryFnOpt.get().apply(producerConfig);
+      } else {
+        producer = new KafkaProducer<K, V>(producerConfig);
       }
     }
 
@@ -1349,11 +1345,14 @@ public class KafkaIO {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle(Context c) throws IOException {
       producer.flush();
-      producer.close();
-      producer = null;
       checkForFailures();
+    }
+
+    @Teardown
+    public void teardown() {
+      producer.close();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////
