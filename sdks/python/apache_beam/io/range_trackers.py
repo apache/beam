@@ -139,12 +139,10 @@ class OffsetRangeTracker(iobase.RangeTracker):
           # Split points remaining already set. Updating.
           self._split_points_remaining -= 1
           if self._split_points_remaining <= 0:
-            raise ValueError('try_claim() for position %r was successful but '
-                             'remaining number of split points was %d. '
+            raise ValueError('Remaining number of split points reached %d. '
                              'Remaining number of split points should not '
-                             'reach zero until RangeTracker.done() is '
-                             '\'True\'',
-                             record_start, self._split_points_remaining)
+                             'reach zero until RangeTracker.done() is \'True\'',
+                             self._split_points_remaining)
 
       self._first_claim_done = True
       return True
