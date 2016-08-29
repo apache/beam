@@ -193,10 +193,11 @@ public final class Session<T, G> implements
   }
 
   @Override
-  public Set<WindowID<G, SessionInterval>> assignWindows(T input) {
-    long evtMillis = this.eventTimeFn.apply(input);
+  public Set<WindowID<G, SessionInterval>> assignWindowsToElement(
+      WindowedElement<?, ?, T> input) {
+    long evtMillis = this.eventTimeFn.apply(input.get());
     WindowID<G, SessionInterval> ret = WindowID.unaligned(
-        this.groupFn.apply(input),
+        this.groupFn.apply(input.get()),
         new SessionInterval(evtMillis, evtMillis + gapDurationMillis));
     return Collections.singleton(ret);
   }
@@ -279,7 +280,7 @@ public final class Session<T, G> implements
   
 
   @Override
-  public Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+  public Optional<UnaryFunction<T, Long>> getTimestampAssigner() {
     if (getType() == Type.EVENT)
       return Optional.of(eventTimeFn);
     return Optional.empty();

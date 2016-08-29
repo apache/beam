@@ -4,7 +4,6 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -103,6 +102,12 @@ public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.Time
 
       return triggers;
     }
+
+    @Override
+    public String toString() {
+      return "TimeWindowContext(" + fireStamp + ")";
+    }
+
   } // ~ end of TimeWindowContext
 
   // ~  an untyped variant of the Time windowing; does not dependent
@@ -156,8 +161,9 @@ public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.Time
   }
 
   @Override
-  public Set<WindowID<Void, TimeInterval>> assignWindows(T input) {
-    long ts = eventTimeFn.apply(input);
+  public Set<WindowID<Void, TimeInterval>> assignWindowsToElement(
+      WindowedElement<?, ?, T> input) {
+    long ts = eventTimeFn.apply(input.get());
     return singleton(WindowID.aligned(new TimeInterval(
         ts - (ts + durationMillis) % durationMillis, durationMillis)));
   }
@@ -187,7 +193,7 @@ public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.Time
   }
 
   @Override
-  public Optional<UnaryFunction<T, Long>> getTimeAssigner() {
+  public Optional<UnaryFunction<T, Long>> getTimestampAssigner() {
     if (getType() == Type.EVENT)
       return Optional.of(eventTimeFn);
     return Optional.empty();
