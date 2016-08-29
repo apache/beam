@@ -143,9 +143,19 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(),
-          mOptions.getAppName());
-
+      JavaSparkContext jsc;
+      if (mOptions.getUsesProvidedSparkContext()) {
+        LOG.info("Using a provided Spark Context");
+        jsc = mOptions.getProvidedSparkContext();
+        if (jsc == null || jsc.sc().isStopped()){
+          LOG.error("The provided Spark context "
+                  + jsc + " was not created or was stopped");
+          throw new RuntimeException("The provided Spark context was not created or was stopped");
+        }
+      } else {
+        LOG.info("Creating a new Spark Context");
+        jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(), mOptions.getAppName());
+      }
       if (mOptions.isStreaming()) {
         SparkPipelineTranslator translator =
             new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
