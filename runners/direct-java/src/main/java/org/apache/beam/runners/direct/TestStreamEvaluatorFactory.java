@@ -102,27 +102,40 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return evaluator.orNull();
     }
     Evaluator<OutputT> createdEvaluator =
-        new Evaluator<>(application, evaluationContext, evaluators);
+        new Evaluator<>(application, evaluationContext);
     evaluators.putIfAbsent(application, Optional.<Evaluator<?>>of(createdEvaluator));
     return evaluators.replace(application, Optional.<Evaluator<?>>absent()).orNull();
   }
 
-  private static class Evaluator<T> implements TransformEvaluator<Object> {
+  /**
+   * Release the provided {@link Evaluator} after completing an evaluation. The next call to
+   * {@link #createEvaluator(AppliedPTransform, EvaluationContext)} with the
+   * {@link AppliedPTransform} will return this evaluator.
+   */
+  private void completeEvaluation(Evaluator<?> evaluator) {
+    checkState(
+        !evaluators
+            .replace(evaluator.application, Optional.<Evaluator<?>>of(evaluator))
+            .isPresent(),
+        "The evaluator for a %s was changed while the source evaluator was executing. "
+            + "%s cannot be split or evaluated in parallel.",
+        TestStream.class.getSimpleName(),
+        TestStream.class.getSimpleName());
+  }
+
+  private class Evaluator<T> implements TransformEvaluator<Object> {
     private final AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> application;
     private final EvaluationContext context;
-    private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Optional<Evaluator<?>>> evaluators;
     private final List<Event<T>> events;
     private int index;
     private Instant currentWatermark;
 
     private Evaluator(
         AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> application,
-        EvaluationContext context,
-        ConcurrentMap<AppliedPTransform<?, ?, ?>, Optional<Evaluator<?>>> evaluators) {
+        EvaluationContext context) {
       this.application = application;
       this.context = context;
       this.events = application.getTransform().getEvents();
-      this.evaluators = evaluators;
       index = 0;
       currentWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -155,14 +168,10 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
             .advance(((ProcessingTimeEvent<T>) event).getProcessingTimeAdvance());
       }
       index++;
-      checkState(
-          !evaluators.replace(application, Optional.<Evaluator<?>>of(this)).isPresent(),
-          "The evaluator for a %s was changed while the source evaluator was executing. "
-              + "%s cannot be split or evaluated in parallel.",
-          TestStream.class.getSimpleName(),
-          TestStream.class.getSimpleName());
+      completeEvaluation(this);
       return result.build();
     }
+
   }
 
   private static class TestClock implements Clock {
