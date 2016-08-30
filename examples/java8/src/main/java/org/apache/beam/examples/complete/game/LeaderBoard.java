@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -68,7 +70,7 @@ import org.joda.time.format.DateTimeFormatter;
  * here we're using an unbounded data source, which lets us provide speculative results, and allows
  * handling of late data, at much lower latency. We can use the early/speculative results to keep a
  * 'leaderboard' updated in near-realtime. Our handling of late data lets us generate correct
- * results, e.g. for 'team prizes'. We're now outputing window results as they're
+ * results, e.g. for 'team prizes'. We're now outputting window results as they're
  * calculated, giving us much lower latency than with the previous batch examples.
  *
  * <p> Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
@@ -186,50 +188,91 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
-    // [START DocInclude_WindowAndTrigger]
-    // Extract team/score pairs from the event stream, using hour-long windows by default.
-    gameEvents
-        .apply("LeaderboardTeamFixedWindows", Window.<GameActionInfo>into(
-            FixedWindows.of(Duration.standardMinutes(options.getTeamWindowDuration())))
-          // We will get early (speculative) results as well as cumulative
-          // processing of late data.
-          .triggering(
-            AfterWatermark.pastEndOfWindow()
-            .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
-                  .plusDelayOf(FIVE_MINUTES))
-            .withLateFirings(AfterProcessingTime.pastFirstElementInPane()
-                  .plusDelayOf(TEN_MINUTES)))
-          .withAllowedLateness(Duration.standardMinutes(options.getAllowedLateness()))
-          .accumulatingFiredPanes())
-        // Extract and sum teamname/score pairs from the event data.
-        .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
+    gameEvents.apply("CalculateTeamScores",
+        new CalculateTeamScores(
+            Duration.standardMinutes(options.getTeamWindowDuration()),
+            Duration.standardMinutes(options.getAllowedLateness())))
         // Write the results to BigQuery.
         .apply("WriteTeamScoreSums",
                new WriteWindowedToBigQuery<KV<String, Integer>>(
                   options.getTableName() + "_team", configureWindowedTableWrite()));
-    // [END DocInclude_WindowAndTrigger]
-
-    // [START DocInclude_ProcTimeTrigger]
-    // Extract user/score pairs from the event stream using processing time, via global windowing.
-    // Get periodic updates on all users' running scores.
     gameEvents
-        .apply("LeaderboardUserGlobalWindow", Window.<GameActionInfo>into(new GlobalWindows())
-          // Get periodic results every ten minutes.
-              .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
-                  .plusDelayOf(TEN_MINUTES)))
-              .accumulatingFiredPanes()
-              .withAllowedLateness(Duration.standardMinutes(options.getAllowedLateness())))
-        // Extract and sum username/score pairs from the event data.
-        .apply("ExtractUserScore", new ExtractAndSumScore("user"))
+        .apply(
+            "CalculateUserScores",
+            new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
         // Write the results to BigQuery.
-        .apply("WriteUserScoreSums",
-               new WriteToBigQuery<KV<String, Integer>>(
-                  options.getTableName() + "_user", configureGlobalWindowBigQueryWrite()));
-    // [END DocInclude_ProcTimeTrigger]
+        .apply(
+            "WriteUserScoreSums",
+            new WriteToBigQuery<KV<String, Integer>>(
+                options.getTableName() + "_user", configureGlobalWindowBigQueryWrite()));
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.
     PipelineResult result = pipeline.run();
     exampleUtils.waitToFinish(result);
   }
+
+  /**
+   * Calculates scores for each team within the configured window duration.
+   */
+  // [START DocInclude_WindowAndTrigger]
+  // Extract team/score pairs from the event stream, using hour-long windows by default.
+  @VisibleForTesting
+  static class CalculateTeamScores
+      extends PTransform<PCollection<GameActionInfo>, PCollection<KV<String, Integer>>> {
+    private final Duration teamWindowDuration;
+    private final Duration allowedLateness;
+
+    CalculateTeamScores(Duration teamWindowDuration, Duration allowedLateness) {
+      this.teamWindowDuration = teamWindowDuration;
+      this.allowedLateness = allowedLateness;
+    }
+
+    @Override
+    public PCollection<KV<String, Integer>> apply(PCollection<GameActionInfo> infos) {
+      return infos.apply("LeaderboardTeamFixedWindows",
+          Window.<GameActionInfo>into(FixedWindows.of(teamWindowDuration))
+              // We will get early (speculative) results as well as cumulative
+              // processing of late data.
+              .triggering(AfterWatermark.pastEndOfWindow()
+                  .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
+                      .plusDelayOf(FIVE_MINUTES))
+                  .withLateFirings(AfterProcessingTime.pastFirstElementInPane()
+                      .plusDelayOf(TEN_MINUTES)))
+              .withAllowedLateness(allowedLateness)
+              .accumulatingFiredPanes())
+          // Extract and sum teamname/score pairs from the event data.
+          .apply("ExtractTeamScore", new ExtractAndSumScore("team"));
+    }
+  }
+  // [END DocInclude_WindowAndTrigger]
+
+  // [START DocInclude_ProcTimeTrigger]
+  /**
+   * Extract user/score pairs from the event stream using processing time, via global windowing.
+   * Get periodic updates on all users' running scores.
+   */
+  @VisibleForTesting
+  static class CalculateUserScores
+      extends PTransform<PCollection<GameActionInfo>, PCollection<KV<String, Integer>>> {
+    private final Duration allowedLateness;
+
+    CalculateUserScores(Duration allowedLateness) {
+      this.allowedLateness = allowedLateness;
+    }
+
+    @Override
+    public PCollection<KV<String, Integer>> apply(PCollection<GameActionInfo> input) {
+      return input.apply("LeaderboardUserGlobalWindow",
+          Window.<GameActionInfo>into(new GlobalWindows())
+              // Get periodic results every ten minutes.
+              .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()
+                  .plusDelayOf(TEN_MINUTES)))
+              .accumulatingFiredPanes()
+              .withAllowedLateness(allowedLateness))
+          // Extract and sum username/score pairs from the event data.
+          .apply("ExtractUserScore", new ExtractAndSumScore("user"));
+    }
+  }
+  // [END DocInclude_ProcTimeTrigger]
 }
