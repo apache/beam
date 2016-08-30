@@ -1,15 +1,17 @@
 
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
+
 import java.io.IOException;
-import java.util.Arrays;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.stream.Collectors;
 
 /**
  * A {@code DataSource} that is backed up by simple list.
@@ -23,23 +25,23 @@ public class ListDataSource<T> implements DataSource<T> {
   @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
-    return new ListDataSource<>(true, Arrays.asList(partitions));
+    return new ListDataSource<>(true, Lists.newArrayList(partitions));
   }
 
   @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
-    return new ListDataSource<>(false, Arrays.asList(partitions));
+    return new ListDataSource<>(false, Lists.newArrayList(partitions));
   }
-
 
   final boolean bounded;
   long sleepMs = 0;
+  long finalSleepMs = 0;
 
   private final int id = System.identityHashCode(this);
 
   @SuppressWarnings("unchecked")
-  private ListDataSource(boolean bounded, List<List<T>> partitions) {
+  private ListDataSource(boolean bounded, ArrayList<List<T>> partitions) {
     this.bounded = bounded;
 
     // save partitions to static storage
@@ -62,8 +64,11 @@ public class ListDataSource<T> implements DataSource<T> {
 
   @Override
   public List<Partition<T>> getPartitions() {
-    return storage.get(this).stream().map(data -> {
-      return new Partition<T>() {
+    final int n = storage.get(this).size();
+    List<Partition<T>> partitions = new ArrayList<>(n);
+    for (int i = 0; i < n; i++) {
+      final int partition = i;
+      partitions.add(new Partition<T>() {
 
         @Override
         public Set<String> getLocations(){
@@ -73,9 +78,11 @@ public class ListDataSource<T> implements DataSource<T> {
         @Override
         @SuppressWarnings("unchecked")
         public Reader<T> openReader() throws IOException {
+          List<T> data =
+              (List<T>) storage.get(ListDataSource.this).get(partition);
           return new Reader<T>() {
-
             int pos = 0;
+            boolean lastHasNext = true;
 
             @Override
             public void close() throws IOException {
@@ -84,7 +91,16 @@ public class ListDataSource<T> implements DataSource<T> {
 
             @Override
             public boolean hasNext() {
-              return pos < data.size();
+              boolean hasNext = pos < data.size();
+              if (hasNext != lastHasNext && finalSleepMs > 0) {
+                lastHasNext = hasNext;
+                try {
+                  Thread.sleep(finalSleepMs);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              }
+              return hasNext;
             }
 
             @Override
@@ -94,7 +110,7 @@ public class ListDataSource<T> implements DataSource<T> {
                   Thread.sleep(sleepMs);
                 }
               } catch (InterruptedException ex) {
-                // nop
+                Thread.currentThread().interrupt();
               }
               return (T) data.get(pos++);
             }
@@ -102,8 +118,9 @@ public class ListDataSource<T> implements DataSource<T> {
           };
         }
 
-      };
-    }).collect(Collectors.toList());
+      });
+    }
+    return partitions;
   }
 
   @Override
@@ -114,9 +131,16 @@ public class ListDataSource<T> implements DataSource<T> {
   /**
    * Set sleep time between emitting of elements.
    */
-  public ListDataSource<T> setSleepTime(long timeout) {
-    this.sleepMs = timeout;
+  public ListDataSource<T> withReadDelay(Duration timeout) {
+    this.sleepMs = timeout.toMillis();
     return this;
   }
 
+  /**
+   * Sets the sleep time to wait after having served the last element.
+   */
+  public ListDataSource<T> withFinalDelay(Duration timeout) {
+    this.finalSleepMs = timeout.toMillis();
+    return this;
+  }
 }

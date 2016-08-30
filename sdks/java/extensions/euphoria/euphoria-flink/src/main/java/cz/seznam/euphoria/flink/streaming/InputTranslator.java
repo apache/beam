@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
+import cz.seznam.euphoria.flink.streaming.io.DataSourceWrapper;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.FlinkOperator;

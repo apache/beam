@@ -20,12 +20,12 @@ import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
-import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
-import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,19 +47,10 @@ import static org.junit.Assert.*;
 public class WindowingTest {
 
   private InMemExecutor executor;
-  private Settings settings;
-  private InMemFileSystem inmemfs;
 
   @Before
   public void setUp() {
     executor = new InMemExecutor();
-    inmemfs = InMemFileSystem.get().reset();
-
-    settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
   }
 
   static final class Item {
@@ -83,7 +74,7 @@ public class WindowingTest {
   @Test
   public void testWindowingByEventTime() throws Exception {
     // we have to make sure the timestamp is in the future
-    inmemfs.setFile("/tmp/foo.txt", asList(
+    ListDataSource<Item> input = ListDataSource.bounded(asList(
         new Item("one", 3001),
         new Item("one", 3500),
         new Item("one", 1000),
@@ -101,8 +92,8 @@ public class WindowingTest {
         new Item("three", 2831),
         new Item("three", 2123)));
 
-    Flow flow = Flow.create("Test", settings);
-    Dataset<Item> lines = flow.createInput(new URI("inmem:///tmp/foo.txt"));
+    Flow flow = Flow.create("Test");
+    Dataset<Item> lines = flow.createInput(input);
 
     Dataset<Pair<Item, Long>> words = MapElements.of(lines)
         .using((UnaryFunction<Item, Pair<Item, Long>>) item -> Pair.of(item, 1L))
@@ -189,14 +180,14 @@ public class WindowingTest {
 
   @Test
   public void testAttachedWindowing_ContinuousOutput() {
-    final long READ_DELAY_MS = 37L;
-    Flow flow = Flow.create("Test", settings);
+    final Duration READ_DELAY = Duration.ofMillis(37L);
+    Flow flow = Flow.create("Test");
 
-    // ~ one partition; supplying every READ_DELAYS_MS a new element
+    // ~ one partition; supplying every READ_DELAYS a new element
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
         asList(("r-one r-two r-three s-one s-two s-three t-one")
             .split(" "))
-    ).setSleepTime(READ_DELAY_MS));
+    ).withReadDelay(READ_DELAY));
 
     // ~ emits after 3 input elements received due to "count windowing"
     Dataset<Pair<String, HashSet<String>>> first = ReduceByKey.of(input)
@@ -265,7 +256,7 @@ public class WindowingTest {
     // element from the input source times window-of-3-items) except for the very
     // last item which is triggered earlier due to "end-of-stream"
     assertSmaller(
-        ordered.get(0).getFirst() + 2 * READ_DELAY_MS, ordered.get(1).getFirst());
+        ordered.get(0).getFirst() + 2 * READ_DELAY.toMillis(), ordered.get(1).getFirst());
     assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
                  ordered.get(0).getSecond().getSecond());
     assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
@@ -280,10 +271,10 @@ public class WindowingTest {
 
   @Test
   public void testAttachedWindowing_InhertitedLabel() throws Exception {
-    Flow flow = Flow.create("Test", settings);
+    Flow flow = Flow.create("Test");
 
-    InMemFileSystem.get().setFile("/tmp/foo.txt", Duration.ofMillis(100L),
-        asList(
+    Dataset<Pair<String, Long>> input =
+        flow.createInput(ListDataSource.unbounded(asList(
             Pair.of("one", 2000000000000L),
             Pair.of("one", 2000000000001L),
             Pair.of("two", 2000000000002L),
@@ -294,10 +285,8 @@ public class WindowingTest {
             Pair.of("one", 2000000001001L),
             Pair.of("two", 2000000001002L),
             Pair.of("three", 2000000001003L),
-            Pair.of("four", 2000000001004L)));
-
-    Dataset<Pair<String, Long>> input =
-        flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+            Pair.of("four", 2000000001004L)))
+            .withReadDelay(Duration.ofMillis(100L)));
 
     Dataset<WindowedPair<TimeInterval, String, Void>> distinctRBK =
         ReduceByKey.of(input)
@@ -342,12 +331,12 @@ public class WindowingTest {
   }
 
   private void testWindowing_EndOfWindowImpl(int dataPartitions) {
-    final long READ_DELAY_MS = 100L;
-    Flow flow = Flow.create("Test", settings);
+    final Duration READ_DELAY = Duration.ofMillis(100L);
+    Flow flow = Flow.create("Test");
 
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
         asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" "))
-    ).setSleepTime(READ_DELAY_MS));
+    ).withReadDelay(READ_DELAY));
 
     // ~ create windows of size three
     Dataset<Pair<String, Set<String>>> first =
@@ -485,23 +474,25 @@ public class WindowingTest {
 
   @Test
   public void testWindowing_SessionWindowing0() throws Exception {
-    InMemFileSystem.get()
-        .reset()
-        .setFile("/tmp/foo.txt", Duration.ofMillis(900), asList(
-            new Item("1-one",   1),
-            new Item("2-one",   2),
-            new Item("1-two",   4),
-            new Item("1-three", 8),
-            new Item("1-four",  10),
-            new Item("2-two",   10),
-            new Item("1-five",  18),
-            new Item("2-three", 20),
-            new Item("1-six",   22)));
-
     final long NOW = System.currentTimeMillis() + 15_000L;
 
-    Flow flow = Flow.create("Test", settings);
-    Dataset<Item> input = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    Flow flow = Flow.create("Test");
+
+    Dataset<Item> input = flow.createInput(ListDataSource.unbounded(asList(
+        new Item("1-one",   1),
+        new Item("2-one",   2),
+        new Item("1-two",   4),
+        new Item("1-three", 8),
+        new Item("1-four",  10),
+        new Item("2-two",   10),
+        new Item("1-five",  18),
+        new Item("2-three", 20),
+        new Item("1-six",   22)))
+        .withReadDelay(Duration.ofMillis(900)));
+
+    ListDataSink<WindowedPair<SessionInterval, Integer, HashSet<String>>> out
+        = ListDataSink.get(1);
+
     ReduceByKey.of(input)
         .keyBy(e -> e.word.charAt(0) - '0')
         .valueBy(e -> e.word)
@@ -510,17 +501,13 @@ public class WindowingTest {
             .using((Item e) -> e.word.charAt(0), e -> NOW + e.evtTs * 1_000L))
         .setNumPartitions(1)
         .outputWindowed()
-        .persist(URI.create("inmem:///tmp/output"));
+        .persist(out);
 
     executor.waitForCompletion(flow);
 
-    @SuppressWarnings("unchecked")
-    Collection<WindowedPair<SessionInterval, Integer, HashSet<String>>> output =
-        InMemFileSystem.get().getFile("/tmp/output/0");
-
     // ~ prepare the output for comparison
     List<String> flat = new ArrayList<>();
-    for (WindowedPair<SessionInterval, Integer, HashSet<String>> o : output) {
+    for (WindowedPair<SessionInterval, Integer, HashSet<String>> o : out.getOutput(0)) {
       StringBuilder buf = new StringBuilder();
       buf.append("(")
           .append((o.getWindowLabel().getStartMillis() - NOW) / 1_000L)

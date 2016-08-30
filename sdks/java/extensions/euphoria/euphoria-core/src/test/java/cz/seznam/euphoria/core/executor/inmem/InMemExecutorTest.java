@@ -31,7 +31,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -562,7 +561,8 @@ public class InMemExecutorTest {
     // in 10s windows
 
     Dataset<Integer> input = flow.createInput(
-        ListDataSource.unbounded(sequenceInts(0, N)).setSleepTime(2));
+        ListDataSource.unbounded(sequenceInts(0, N))
+            .withReadDelay(Duration.ofMillis(2)));
 
     ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
 
@@ -655,7 +655,8 @@ public class InMemExecutorTest {
     // in 10s windows
 
     Dataset<Integer> input = flow.createInput(
-        ListDataSource.unbounded(sequenceInts(0, N)).setSleepTime(2));
+        ListDataSource.unbounded(sequenceInts(0, N))
+            .withReadDelay(Duration.ofMillis(2)));
 
     // first add some fake operator operating on processing time
     // doing virtually nothing
@@ -725,28 +726,19 @@ public class InMemExecutorTest {
 
   @Test(timeout = 2000)
   public void testGroupedDatasetReduceByKey() throws Exception {
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
+    Flow flow = Flow.create("Test");
 
-    Flow flow = Flow.create("Test", settings);
+    ListDataSource<Pair<Integer, String>> input =
+        ListDataSource.bounded(Arrays.asList(
+            Pair.of(1, "one"),
+            Pair.of(1, "two"),
+            Pair.of(1, "three"),
+            Pair.of(1, "one"),
+            Pair.of(2, "two"),
+            Pair.of(1, "three"),
+            Pair.of(1, "three")));
 
-    InMemFileSystem.get()
-        .reset()
-        .setFile("/tmp/foo.txt",
-            Arrays.asList(
-                Pair.of(1, "one"),
-                Pair.of(1, "two"),
-                Pair.of(1, "three"),
-                Pair.of(1, "one"),
-                Pair.of(2, "two"),
-                Pair.of(1, "three"),
-                Pair.of(1, "three")));
-
-    Dataset<Pair<Integer, String>> pairs =
-        flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    Dataset<Pair<Integer, String>> pairs = flow.createInput(input);
 
     GroupedDataset<Integer, String> grouped = GroupByKey.of(pairs)
         .keyBy(Pair::getFirst)
@@ -754,22 +746,20 @@ public class InMemExecutorTest {
         .output();
 
     Dataset<Pair<CompositeKey<Integer, String>, Long>> output = ReduceByKey.of(grouped)
-        .keyBy(input -> input)
-        .valueBy(input -> 1L)
+        .keyBy(e -> e)
+        .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .output();
-    output.persist(URI.create("inmem:///tmp/output"));
+
+    ListDataSink<Pair<CompositeKey<Integer, String>, Long>> out = ListDataSink.get(1);
+    output.persist(out);
 
     InMemExecutor executor = new InMemExecutor();
     executor.waitForCompletion(flow);
 
-    @SuppressWarnings("unchecked")
-    Collection<Pair<CompositeKey<Integer, String>, Long>> out =
-        (Collection<Pair<CompositeKey<Integer, String>, Long>>)
-            InMemFileSystem.get().getFile("/tmp/output/0");
     assertUnorderedEquals(
         Arrays.asList("1-one:2", "1-two:1", "1-three:3", "2-two:1"),
-        out.stream().map(p -> {
+        out.getOutput(0).stream().map(p -> {
           assertEquals(Integer.class, p.getFirst().getFirst().getClass());
           assertEquals(String.class, p.getFirst().getSecond().getClass());
           assertEquals(Long.class, p.getSecond().getClass());
