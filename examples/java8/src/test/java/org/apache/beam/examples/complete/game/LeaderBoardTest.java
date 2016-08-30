@@ -268,6 +268,8 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresDroppablyLate() {
+    TestPipeline p = TestPipeline.create();
+
     BoundedWindow window = new IntervalWindow(baseTime, TEAM_WINDOW_DURATION);
     TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
         .addElements(event(TestUser.BLUE_ONE, 12, Duration.ZERO),
@@ -281,13 +283,10 @@ public class LeaderBoardTest implements Serializable {
             .plus(TEAM_WINDOW_DURATION).plus(Duration.standardMinutes(1)))
         // These elements within the expired window are droppably late, and will not appear in the
         // output
-        .addElements(event(TestUser.BLUE_TWO,
-            3,
-            TEAM_WINDOW_DURATION.minus(Duration.standardSeconds(5))),
+        .addElements(
+            event(TestUser.BLUE_TWO, 3, TEAM_WINDOW_DURATION.minus(Duration.standardSeconds(5))),
             event(TestUser.RED_ONE, 7, Duration.standardMinutes(4)))
         .advanceWatermarkToInfinity();
-
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, Integer>> teamScores = p.apply(infos)
         .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 
@@ -309,6 +308,8 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testUserScore() {
+    TestPipeline p = TestPipeline.create();
+
     TestStream<GameActionInfo> infos =
         TestStream.create(AvroCoder.of(GameActionInfo.class))
             .addElements(
@@ -332,12 +333,12 @@ public class LeaderBoardTest implements Serializable {
             .advanceProcessingTime(Duration.standardMinutes(20))
             .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> userScores =
         p.apply(infos).apply(new CalculateUserScores(ALLOWED_LATENESS));
 
-    // User scores are emitted in speculative panes in the Global Window
+    // User scores are emitted in speculative panes in the Global Window - this matcher choice
+    // ensures that panes emitted by the watermark advancing to positive infinity are not included,
+    // as that will not occur outside of tests
     that(userScores)
         .inEarlyGlobalWindowPanes()
         .containsInAnyOrder(KV.of(TestUser.BLUE_ONE.getUser(), 15),
