@@ -20,9 +20,11 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -53,8 +55,8 @@ import org.joda.time.Instant;
  * The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive.
  */
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
-  private final AtomicBoolean inUse = new AtomicBoolean(false);
-  private final AtomicReference<Evaluator<?>> evaluator = new AtomicReference<>();
+  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Optional<Evaluator<?>>> evaluators =
+      new ConcurrentHashMap<>();
 
   @Nullable
   @Override
@@ -71,21 +73,23 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT, OutputT> TransformEvaluator<? super InputT> createEvaluator(
       AppliedPTransform<PBegin, PCollection<OutputT>, TestStream<OutputT>> application,
       EvaluationContext evaluationContext) {
-    if (evaluator.get() == null) {
-      Evaluator<OutputT> createdEvaluator = new Evaluator<>(application, evaluationContext, inUse);
-      evaluator.compareAndSet(null, createdEvaluator);
+    // Replaces any existing value with absent, and get the existing value (atomically); ensures
+    // only one thread can obtain the evaluator per-transform.
+    Optional<Evaluator<?>> evaluator =
+        evaluators.replace(application, Optional.<Evaluator<?>>absent());
+    if (evaluator != null) {
+      return evaluator.orNull();
     }
-    if (inUse.compareAndSet(false, true)) {
-      return evaluator.get();
-    } else {
-      return null;
-    }
+    Evaluator<OutputT> createdEvaluator =
+        new Evaluator<>(application, evaluationContext, evaluators);
+    evaluators.putIfAbsent(application, Optional.<Evaluator<?>>of(createdEvaluator));
+    return evaluators.replace(application, Optional.<Evaluator<?>>absent()).orNull();
   }
 
   private static class Evaluator<T> implements TransformEvaluator<Object> {
     private final AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> application;
     private final EvaluationContext context;
-    private final AtomicBoolean inUse;
+    private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Optional<Evaluator<?>>> evaluators;
     private final List<Event<T>> events;
     private int index;
     private Instant currentWatermark;
@@ -93,11 +97,11 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     private Evaluator(
         AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> application,
         EvaluationContext context,
-        AtomicBoolean inUse) {
+        ConcurrentMap<AppliedPTransform<?, ?, ?>, Optional<Evaluator<?>>> evaluators) {
       this.application = application;
       this.context = context;
-      this.inUse = inUse;
       this.events = application.getTransform().getEvents();
+      this.evaluators = evaluators;
       index = 0;
       currentWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -130,8 +134,9 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
             .advance(((ProcessingTimeEvent<T>) event).getProcessingTimeAdvance());
       }
       index++;
-      checkState(inUse.compareAndSet(true, false),
-          "The InUse flag of a %s was changed while the source evaluator was executing. "
+      checkState(
+          !evaluators.replace(application, Optional.<Evaluator<?>>of(this)).isPresent(),
+          "The evaluator for a %s was changed while the source evaluator was executing. "
               + "%s cannot be split or evaluated in parallel.",
           TestStream.class.getSimpleName(),
           TestStream.class.getSimpleName());

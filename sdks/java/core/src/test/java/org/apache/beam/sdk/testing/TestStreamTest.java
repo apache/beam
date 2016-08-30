@@ -265,6 +265,35 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void testMultipleStreams() {
+    TestStream<String> stream = TestStream.create(StringUtf8Coder.of())
+        .addElements("foo", "bar")
+        .advanceWatermarkToInfinity();
+
+    TestStream<Integer> other =
+        TestStream.create(VarIntCoder.of()).addElements(1, 2, 3, 4).advanceWatermarkToInfinity();
+
+    TestPipeline p = TestPipeline.create();
+    PCollection<String> createStrings =
+        p.apply("CreateStrings", stream)
+            .apply("WindowStrings",
+                Window.<String>triggering(AfterPane.elementCountAtLeast(2))
+                    .withAllowedLateness(Duration.ZERO)
+                    .accumulatingFiredPanes());
+    PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
+    PCollection<Integer> createInts =
+        p.apply("CreateInts", other)
+            .apply("WindowInts",
+                Window.<Integer>triggering(AfterPane.elementCountAtLeast(4))
+                    .withAllowedLateness(Duration.ZERO)
+                    .accumulatingFiredPanes());
+    PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);
+
+    p.run();
+  }
+
+  @Test
   public void testElementAtPositiveInfinityThrows() {
     Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
