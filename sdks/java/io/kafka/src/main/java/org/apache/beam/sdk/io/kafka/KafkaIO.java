@@ -1072,6 +1072,7 @@ public class KafkaIO {
     @Override
     public Instant getWatermark() {
       if (curRecord == null) {
+        LOG.debug("{}: getWatermark() : no records have been read yet.", name);
         return initialWatermark;
       }
 
