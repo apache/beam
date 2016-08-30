@@ -16,6 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 -->
+== This page is currently being updated. ==
 
 # Cloud Dataflow SDK for Python
 
@@ -42,10 +43,10 @@ from the Python programming language.
   * [Local execution of a pipeline](#local-execution-of-a-pipeline)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
   * [Some Simple Examples](#some-simple-examples)
-      * [Hello world](#hello-world)
-      * [Hello world (with Map)](#hello-world-with-map)
-      * [Hello world (with FlatMap)](#hello-world-with-flatmap)
-      * [Hello world (with FlatMap and yield)](#hello-world-with-flatmap-and-yield)
+      * [Basic pipeline](#basic-pipeline)
+      * [Basic pipeline (with Map)](#basic-pipeline-with-map)
+      * [Basic pipeline (with FlatMap)](#basic-pipeline-with-flatmap)
+      * [Basic pipeline (with FlatMap and yield)](#basic-pipeline-with-flatmap-and-yield)
       * [Counting words](#counting-words)
       * [Counting words with GroupByKey](#counting-words-with-groupbykey)
       * [Type hints](#type-hints)
@@ -275,7 +276,7 @@ p = beam.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-### Hello World (with Map)
+### Basic pipeline (with Map)
 
 The `Map` transform takes a callable, which will be applied to each
 element of the input `PCollection` and must return an element to go
@@ -284,7 +285,7 @@ into the output `PCollection`.
 ```python
 import apache_beam as beam
 p = beam.Pipeline('DirectPipelineRunner')
-# Read file with names, add a greeting for each, and write to a file.
+# Read a file containing names, add a greeting to each name, and write to a file.
 (p
  | 'load messages' >> beam.Read(beam.io.TextFileSource('./names'))
  | 'add greeting' >> beam.Map(lambda name, msg: '%s, %s!' % (msg, name), 'Hello')
@@ -292,41 +293,42 @@ p = beam.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-### Hello world (with FlatMap)
+### Basic pipeline (with FlatMap)
 
 A `FlatMap` is like a `Map` except its callable returns a (possibly
 empty) iterable of elements for the output `PCollection`.
 
 ```python
-import google.cloud.dataflow as df
-p = df.Pipeline('DirectPipelineRunner')
-# Read previous file, add a name to each greeting and write results.
+import apache_beam as beam
+p = beam.Pipeline('DirectPipelineRunner')
+# Read a file containing names, add two greetings to each name, and write to a file.
 (p
- | df.Read('load messages', df.io.TextFileSource('./names'))
- | df.FlatMap('add greetings',
-              lambda name, msgs: ['%s %s!' % (m, name) for m in msgs],
-              ['Hello', 'Hola'])
- | df.Write('save', df.io.TextFileSink('./greetings')))
+ | 'load messages' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'add greetings' >> beam.FlatMap(
+        lambda name, msgs: ['%s %s!' % (m, name) for m in msgs],
+        ['Hello', 'Hola']
+    )
+ | beam.Write('save', beam.io.TextFileSink('./greetings')))
 p.run()
 ```
 
-### Hello world (with FlatMap and yield)
+### Basic pipeline (with FlatMap and yield)
 
 The callable of a `FlatMap` can be a generator, that is,
 a function using `yield`.
 
 ```python
-import google.cloud.dataflow as df
-p = df.Pipeline('DirectPipelineRunner')
-# Add greetings using a FlatMap function using yield.
+import apache_beam as beam
+p = beam.Pipeline('DirectPipelineRunner')
+# Read a file containing names, add two greetings to each name (using yield), and write to a file.
 def add_greetings(name, messages):
   for m in messages:
     yield '%s %s!' % (m, name)
 
 (p
- | df.Read('load names', df.io.TextFileSource('./names'))
- | df.FlatMap('greet', add_greetings, ['Hello', 'Hola'])
- | df.Write('save', df.io.TextFileSink('./greetings')))
+ | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'greet' >> beam.FlatMap(add_greetings, ['Hello', 'Hola'])
+ | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
 p.run()
 ```
 
