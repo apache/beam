@@ -227,7 +227,7 @@ public class InMemExecutor implements Executor {
           return thread;
         }
       });
-  
+
   private java.util.function.Supplier<WatermarkEmitStrategy> watermarkEmitStrategySupplier
       = WatermarkEmitStrategy.Default::new;
   private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier
@@ -249,7 +249,7 @@ public class InMemExecutor implements Executor {
     this.triggerSchedulerSupplier = supplier;
     return this;
   }
-  
+
   @Override
   public Future<Integer> submit(Flow flow) {
     throw new UnsupportedOperationException("unsupported");
@@ -521,7 +521,7 @@ public class InMemExecutor implements Executor {
 
     List<BlockingQueue<Datum>> outputQueues = repartitionSuppliers(
         input, e -> e, partitioning, Optional.empty());
-    
+
     InputProvider ret = new InputProvider();
     outputQueues.stream()
         .map(QueueSupplier::new)

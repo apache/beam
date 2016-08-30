@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -14,6 +15,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.WindowedStream;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.util.Arrays;
 
@@ -31,6 +34,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
     final UnaryFunction keyExtractor;
     final UnaryFunction valueExtractor;
+    final Windowing windowing = origOperator.getWindowing();
 
     if (origOperator.isGrouped()) {
       UnaryFunction reduceKeyExtractor = origOperator.getKeyExtractor();
@@ -46,26 +50,17 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       valueExtractor = origOperator.getValueExtractor();
     }
 
-    // extract key/value from data
-    DataStream<Pair> tuples = (DataStream) input.map(el ->
-            Pair.of(keyExtractor.apply(el), valueExtractor.apply(el)))
-            .name(operator.getName() + "::map-input")
-            // FIXME parallelism should be set to the same level as parent
-            // since this "map-input" transformation is applied before shuffle
-            .setParallelism(operator.getParallelism())
-            .returns((Class) Pair.class);
-
-    // FIXME reduce without implemented windowing will emit accumulated
-    // value per each input element
+    // apply windowing first
+    WindowedStream<WindowedPair, Object, Window> windowedPairs =
+            context.windowStream(input, keyExtractor, valueExtractor, windowing);
 
     // FIXME non-combinable reduce function not supported without windowing
     if (!origOperator.isCombinable()) {
       throw new UnsupportedOperationException("Non-combinable reduce not supported yet");
     }
 
-    // group by key + reduce
-    tuples = tuples.keyBy(new TypedKeySelector())
-            .reduce(new TypedReducer<>(reducer))
+    // reduce
+    DataStream<WindowedPair> reduced = windowedPairs.reduce(new TypedReducer(reducer))
             .name(operator.getName())
             .setParallelism(operator.getParallelism());
 
@@ -75,32 +70,17 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
     // apply custom partitioner if different from default HashPartitioner
     if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
-      tuples = tuples.partitionCustom(
+      reduced = reduced.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               p -> p.getKey());
     }
 
-    return tuples;
+    return reduced;
   }
 
-  private static class TypedKeySelector<KEY>
-          implements KeySelector<Pair<KEY, Object>, KEY>, ResultTypeQueryable<KEY>
-  {
-    @Override
-    public KEY getKey(Pair<KEY, Object> pair) throws Exception {
-      return pair.getKey();
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public TypeInformation<KEY> getProducedType() {
-      return TypeInformation.of((Class) Object.class);
-    }
-  }
-
-  private static class TypedReducer<KEY>
-          implements ReduceFunction<Pair<KEY, Object>>,
-          ResultTypeQueryable<Pair<KEY, Object>>
+  private static class TypedReducer
+          implements ReduceFunction<WindowedPair>,
+          ResultTypeQueryable<WindowedPair>
   {
     final UnaryFunction<Iterable, Object> reducer;
 
@@ -109,15 +89,15 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     @Override
-    public Pair<KEY, Object> reduce(Pair<KEY, Object> p1, Pair<KEY, Object> p2) {
-      return Pair.of(p1.getKey(),
+    public WindowedPair reduce(WindowedPair p1, WindowedPair p2) {
+      return WindowedPair.of(p1.getWindowLabel(), p1.getKey(),
               reducer.apply(Arrays.asList(p1.getSecond(), p2.getSecond())));
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<Pair<KEY, Object>> getProducedType() {
-      return TypeInformation.of((Class) Pair.class);
+    public TypeInformation<WindowedPair> getProducedType() {
+      return TypeInformation.of((Class) WindowedPair.class);
     }
   }
 }
