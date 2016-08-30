@@ -170,6 +170,8 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresUnobservablyLate() {
+    TestPipeline p = TestPipeline.create();
+
     BoundedWindow window = new IntervalWindow(baseTime, TEAM_WINDOW_DURATION);
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
         .advanceWatermarkTo(baseTime)
@@ -177,17 +179,15 @@ public class LeaderBoardTest implements Serializable {
             event(TestUser.BLUE_TWO, 5, Duration.standardMinutes(8)),
             event(TestUser.RED_ONE, 4, Duration.standardMinutes(2)),
             event(TestUser.BLUE_ONE, 3, Duration.standardMinutes(5)))
-        .advanceWatermarkTo(window.maxTimestamp().minus(Duration.standardMinutes(1)))
+        .advanceWatermarkTo(baseTime.plus(TEAM_WINDOW_DURATION).minus(Duration.standardMinutes(1)))
         // These events are late, but the window hasn't closed yet, so the elements are in the
         // on-time pane
         .addElements(event(TestUser.RED_TWO, 2, Duration.ZERO),
             event(TestUser.RED_TWO, 5, Duration.standardMinutes(1)),
             event(TestUser.BLUE_TWO, 2, Duration.standardSeconds(90)),
             event(TestUser.RED_TWO, 3, Duration.standardMinutes(3)))
-        .advanceWatermarkTo(window.maxTimestamp().plus(Duration.standardMinutes(1)))
+        .advanceWatermarkTo(baseTime.plus(TEAM_WINDOW_DURATION).plus(Duration.standardMinutes(1)))
         .advanceWatermarkToInfinity();
-
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
         .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 
@@ -199,7 +199,6 @@ public class LeaderBoardTest implements Serializable {
         .containsInAnyOrder(KV.of(redTeam, 14), KV.of(blueTeam, 13));
 
     p.run();
-
   }
 
   /**
@@ -209,6 +208,8 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresObservablyLate() {
+    TestPipeline p = TestPipeline.create();
+
     Instant firstWindowCloses = baseTime.plus(ALLOWED_LATENESS).plus(TEAM_WINDOW_DURATION);
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
         .advanceWatermarkTo(baseTime)
@@ -224,14 +225,14 @@ public class LeaderBoardTest implements Serializable {
         .addElements(event(TestUser.RED_TWO, 2, Duration.ZERO),
             event(TestUser.RED_TWO, 5, Duration.standardMinutes(1)),
             event(TestUser.RED_TWO, 3, Duration.standardMinutes(3)))
-        // A late refinement is emitted, but the window has not yet closed
+        // A late refinement is emitted due to the advance in processing time, but the window has
+        // not yet closed because the watermark has not advanced
         .advanceProcessingTime(Duration.standardMinutes(12))
         // These elements should appear in the final pane
         .addElements(event(TestUser.RED_TWO, 9, Duration.standardMinutes(1)),
             event(TestUser.RED_TWO, 1, Duration.standardMinutes(3)))
         .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
         .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 

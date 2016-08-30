@@ -197,11 +197,14 @@ public class LeaderBoard extends HourlyTeamScore {
                new WriteWindowedToBigQuery<KV<String, Integer>>(
                   options.getTableName() + "_team", configureWindowedTableWrite()));
     gameEvents
-        .apply(new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
+        .apply(
+            "CalculateUserScores",
+            new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
         // Write the results to BigQuery.
-        .apply("WriteUserScoreSums",
-               new WriteToBigQuery<KV<String, Integer>>(
-                  options.getTableName() + "_user", configureGlobalWindowBigQueryWrite()));
+        .apply(
+            "WriteUserScoreSums",
+            new WriteToBigQuery<KV<String, Integer>>(
+                options.getTableName() + "_user", configureGlobalWindowBigQueryWrite()));
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.
