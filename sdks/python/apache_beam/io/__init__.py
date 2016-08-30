@@ -18,6 +18,7 @@
 """A package defining several input sources and output sinks."""
 
 # pylint: disable=wildcard-import
+from apache_beam.io.avroio import *
 from apache_beam.io.bigquery import *
 from apache_beam.io.fileio import *
 from apache_beam.io.iobase import Read
@@ -25,4 +26,5 @@ from apache_beam.io.iobase import Sink
 from apache_beam.io.iobase import Write
 from apache_beam.io.iobase import Writer
 from apache_beam.io.pubsub import *
+from apache_beam.io.textio import *
 from apache_beam.io.range_trackers import *

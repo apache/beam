@@ -27,6 +27,7 @@ For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 
 from multiprocessing.pool import ThreadPool
 
+from apache_beam.internal import pickler
 from apache_beam.io import fileio
 from apache_beam.io import iobase
 
@@ -116,9 +117,15 @@ class FileBasedSource(iobase.BoundedSource):
                   it is not possible to efficiently read a data range without
                   decompressing the whole file.
     Raises:
-      TypeError: when compression_type is not valid.
+      TypeError: when compression_type is not valid or if file_pattern is not a
+                string.
       ValueError: when compression and splittable files are specified.
     """
+    if not isinstance(file_pattern, basestring):
+      raise TypeError(
+          '%s: file_pattern must be a string;  got %r instead' %
+          (self.__class__.__name__, file_pattern))
+
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -255,7 +262,8 @@ class _SingleFileSource(iobase.BoundedSource):
         yield iobase.SourceBundle(
             bundle_stop - bundle_start,
             _SingleFileSource(
-                self._file_based_source,
+                # Copying this so that each sub-source get's a fresh instance.
+                pickler.loads(pickler.dumps(self._file_based_source)),
                 self._file_name,
                 bundle_start,
                 bundle_stop,

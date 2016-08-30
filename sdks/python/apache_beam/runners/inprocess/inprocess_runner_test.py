@@ -23,6 +23,7 @@ import unittest
 from apache_beam import Pipeline
 import apache_beam.examples.snippets.snippets_test as snippets_test
 import apache_beam.io.fileio_test as fileio_test
+import apache_beam.io.textio_test as textio_test
 import apache_beam.io.sources_test as sources_test
 import apache_beam.pipeline_test as pipeline_test
 import apache_beam.pvalue_test as pvalue_test
@@ -96,11 +97,11 @@ class TestNativeTextFileSink(
 
 
 class TestTextFileSink(
-    TestWithInProcessPipelineRunner, fileio_test.TestTextFileSink):
+    TestWithInProcessPipelineRunner, textio_test.TextSinkTest):
 
   def setUp(self):
     TestWithInProcessPipelineRunner.setUp(self)
-    fileio_test.TestTextFileSink.setUp(self)
+    textio_test.TextSinkTest.setUp(self)
 
 
 class MyFileSink(TestWithInProcessPipelineRunner, fileio_test.MyFileSink):
