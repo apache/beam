@@ -11,6 +11,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Set;
 
 import static java.util.Arrays.asList;
@@ -19,12 +20,12 @@ public class FluentTest {
 
   @Test
   public void testBasics() throws Exception {
-    final long READ_DELAY_MS = 100L;
+    final Duration READ_DELAY = Duration.ofMillis(100L);
     ListDataSink<Set<String>> out = ListDataSink.get(1);
     Fluent.flow("Test")
         .read(ListDataSource.unbounded(
             asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
-            .setSleepTime(READ_DELAY_MS))
+            .withReadDelay(READ_DELAY))
         // ~ create windows of size three
         .apply(input -> ReduceByKey.of(input)
             .keyBy(e -> "")

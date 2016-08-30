@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.streaming;
+package cz.seznam.euphoria.flink.streaming.io;
 
 import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -23,9 +23,9 @@ public class DataSourceWrapper<T>
         implements ResultTypeQueryable<T>
 {
   private final DataSource<T> dataSource;
-  private boolean isRunning = true;
+  private volatile boolean isRunning = true;
 
-  private ThreadPoolExecutor executor;
+  private volatile transient ThreadPoolExecutor executor;
 
   public DataSourceWrapper(DataSource<T> dataSource) {
     this.dataSource = dataSource;
