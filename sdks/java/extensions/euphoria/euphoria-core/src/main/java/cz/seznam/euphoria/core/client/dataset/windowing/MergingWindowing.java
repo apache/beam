@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;

@@ -6,18 +6,15 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.StdoutSink;
+import cz.seznam.euphoria.core.client.io.ListDataSink;
+import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
-import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
-import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URI;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 
 import static cz.seznam.euphoria.core.util.Util.sorted;
@@ -27,21 +24,9 @@ import static org.junit.Assert.assertEquals;
 public class JoinOperatorTest {
 
   private Executor executor;
-  private Settings settings;
-  private InMemFileSystem inmemfs;
 
   @Before
   public void setUp() {
-    inmemfs = InMemFileSystem.get().reset();
-
-    settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.stdout",
-        StdoutSink.Factory.class);
-
     executor = new InMemExecutor();
   }
 
@@ -52,16 +37,19 @@ public class JoinOperatorTest {
                         List<String> leftInput,
                         List<String> rightInput,
                         List<String> expectedOutput,
-                        boolean makeOneArmLonger) throws Exception {
-    
-    inmemfs
-        .setFile("/tmp/foo.txt", readDelay, leftInput)
-        .setFile("/tmp/bar.txt", readDelay, rightInput);
+                        boolean makeOneArmLonger)
+      throws Exception
+  {
+    Flow flow = Flow.create("Test");
 
-    Flow flow = Flow.create("Test", settings);
-
-    Dataset<String> first = flow.createInput(new URI("inmem:///tmp/foo.txt"));
-    Dataset<String> second = flow.createInput(new URI("inmem:///tmp/bar.txt"));
+    Dataset<String> first = flow.createInput(
+        readDelay == null
+            ? ListDataSource.bounded(leftInput)
+            : ListDataSource.unbounded(leftInput).withReadDelay(readDelay));
+    Dataset<String> second = flow.createInput(
+        readDelay == null
+            ? ListDataSource.bounded(rightInput)
+            : ListDataSource.unbounded(rightInput).withReadDelay(readDelay));
 
     UnaryFunctor<String, Pair<String, Integer>> tokv = (s, c) -> {
       String[] parts = s.split("[\t ]+", 2);
@@ -88,14 +76,14 @@ public class JoinOperatorTest {
         .applyIf(outer, b -> b.outer())
         .windowBy(windowing)
         .output();
-    
+
+    ListDataSink<String> out = ListDataSink.get(1);
     MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
-        .output().persist(URI.create("inmem:///tmp/output"));
+        .output().persist(out);
 
     executor.waitForCompletion(flow);
 
-    List<String> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
-    assertEquals(sorted(expectedOutput), sorted(f));
+    assertEquals(sorted(expectedOutput), sorted(out.getOutput(0)));
   }
 
   @Test

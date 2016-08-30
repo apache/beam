@@ -1,8 +1,6 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
@@ -17,11 +15,10 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
-import cz.seznam.euphoria.core.executor.inmem.InMemFileSystem;
-import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import org.junit.Test;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -54,21 +51,14 @@ public class BasicOperatorTest {
 
   @Test
   public void testWordCountStream() throws Exception {
-    final InMemFileSystem inmemfs = InMemFileSystem.get();
-
-    inmemfs.reset()
-        .setFile("/tmp/foo.txt", Duration.ofSeconds(2), asList(
+    ListDataSource<String> input =
+        ListDataSource.unbounded(asList(
             "one two three four four two two",
-            "one one one two two three"));
+            "one one one two two three"))
+            .withReadDelay(Duration.ofSeconds(2));
 
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
-
-    Flow flow = Flow.create("Test", settings);
-    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(input);
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -85,12 +75,13 @@ public class BasicOperatorTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    streamOutput.persist(URI.create("inmem:///tmp/output"));
+    ListDataSink<Pair<String, Long>> out = ListDataSink.get(1);
+    streamOutput.persist(out);
 
     executor.waitForCompletion(flow);
 
     @SuppressWarnings("unchecked")
-    List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
+    List<Pair<String, Long>> f = new ArrayList<>(out.getOutput(0));
 
     // ~ assert the total amount of data produced
     assertEquals(7, f.size());
@@ -104,21 +95,14 @@ public class BasicOperatorTest {
 
   @Test
   public void testWordCountStreamWithWindowLabel() throws Exception {
-    final InMemFileSystem inmemfs = InMemFileSystem.get();
-
-    inmemfs.reset()
-        .setFile("/tmp/foo.txt", Duration.ofSeconds(2), asList(
+    ListDataSource<String> input =
+        ListDataSource.unbounded(asList(
             "one two three four four two two",
-            "one one one two two three"));
+            "one one one two two three"))
+        .withReadDelay(Duration.ofSeconds(2));
 
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
-
-    Flow flow = Flow.create("Test", settings);
-    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(input);
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -133,20 +117,23 @@ public class BasicOperatorTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .outputWindowed();
 
+    ListDataSink<WindowedPair<TimeInterval, String, Long>> out =
+        ListDataSink.get(1);
+
     MapElements.of(streamOutput)
         .using(p -> {
           // ~ just access the windowed pairs testifying their accessibility
           return WindowedPair.of(p.getWindowLabel(), p.getFirst(), p.getSecond());
         })
         .output()
-        .persist(URI.create("inmem:///tmp/output"));
+        .persist(out);
 
     executor.waitForCompletion(flow);
 
     @SuppressWarnings("unchecked")
     List<WindowedPair<TimeInterval, String, Long>> fs =
-        new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
-    System.out.println(fs);
+        new ArrayList<>(out.getOutput(0));
+//    System.out.println(fs);
 
     // ~ assert the total amount of data produced
     assertEquals(7, fs.size());
@@ -180,21 +167,14 @@ public class BasicOperatorTest {
 
   @Test
   public void testWordCountStreamEarlyTriggered() throws Exception {
-    final InMemFileSystem inmemfs = InMemFileSystem.get();
-
-    inmemfs.reset()
-        .setFile("/tmp/foo.txt", Duration.ofSeconds(3), asList(
+    ListDataSource<String> input =
+        ListDataSource.unbounded(asList(
             "one two three four four two two",
-            "one one one two two three"));
+            "one one one two two three"))
+        .withReadDelay(Duration.ofSeconds(3));
 
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
-
-    Flow flow = Flow.create("Test", settings);
-    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(input);
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -358,7 +338,7 @@ public class BasicOperatorTest {
         ListDataSource.unbounded(asList(
             "one two three four one one two",
             "one two three three three"))
-            .setSleepTime(2000));
+            .withReadDelay(Duration.ofSeconds(2)));
 
     // expand it to words
     Dataset<String> words = FlatMap.of(lines)
@@ -391,7 +371,7 @@ public class BasicOperatorTest {
         ListDataSource.unbounded(asList(
             "one two three four one one two",
             "one two three three three"))
-            .setSleepTime(2000));
+            .withReadDelay(Duration.ofSeconds(2)));
 
     // expand it to words
     Dataset<String> words = FlatMap.of(lines)
