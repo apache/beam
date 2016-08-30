@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import com.google.cloud.dataflow.sdk.runners.inprocess.CommittedResult.OutputType;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -28,15 +29,14 @@ import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.common.collect.ImmutableList;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -54,9 +54,11 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getTransformExtractsFromResult() {
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createRootBundle(created).commit(Instant.now()),
-            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList(),
+            EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
   }
@@ -68,9 +70,11 @@ public class CommittedResultTest implements Serializable {
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             bundle,
-            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList(),
+            EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getUnprocessedInputs(),
         Matchers.<InProcessPipelineRunner.CommittedBundle<?>>equalTo(bundle));
@@ -79,9 +83,11 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getUncommittedElementsNull() {
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             null,
-            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList(),
+            EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getUnprocessedInputs(), nullValue());
   }
@@ -96,9 +102,11 @@ public class CommittedResultTest implements Serializable {
                 WindowingStrategy.globalDefault(),
                 PCollection.IsBounded.UNBOUNDED)).commit(Instant.now()));
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createRootBundle(created).commit(Instant.now()),
-            outputs);
+            outputs,
+            EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 
     assertThat(result.getOutputs(), Matchers.containsInAnyOrder(outputs.toArray()));
   }

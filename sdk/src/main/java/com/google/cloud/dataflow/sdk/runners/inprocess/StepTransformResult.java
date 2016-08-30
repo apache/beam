@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.dataflow.sdk.runners.inprocess.CommittedResult.OutputType;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -24,11 +25,10 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
-
 import java.util.Collection;
-
+import java.util.EnumSet;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -59,6 +59,9 @@ public abstract class StepTransformResult implements InProcessTransformResult {
   @Override
   public abstract TimerUpdate getTimerUpdate();
 
+  @Override
+  public abstract Set<OutputType> getOutputTypes();
+
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
@@ -77,12 +80,14 @@ public abstract class StepTransformResult implements InProcessTransformResult {
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private CounterSet counters;
+    private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
     private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
       this.transform = transform;
       this.watermarkHold = watermarkHold;
       this.bundlesBuilder = ImmutableList.builder();
+      this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
     }
@@ -95,7 +100,8 @@ public abstract class StepTransformResult implements InProcessTransformResult {
           counters,
           watermarkHold,
           state,
-          timerUpdate);
+          timerUpdate,
+          producedOutputs);
     }
 
     public Builder withCounters(CounterSet counters) {
@@ -127,6 +133,11 @@ public abstract class StepTransformResult implements InProcessTransformResult {
 
     public Builder addOutput(Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
+      return this;
+    }
+
+    public Builder withAdditionalOutput(OutputType producedAdditionalOutput) {
+      producedOutputs.add(producedAdditionalOutput);
       return this;
     }
   }

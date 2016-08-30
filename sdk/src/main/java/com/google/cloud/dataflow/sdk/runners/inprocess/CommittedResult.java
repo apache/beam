@@ -15,9 +15,12 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+
 import com.google.auto.value.AutoValue;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -45,12 +48,28 @@ abstract class CommittedResult {
    */
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
+  /**
+   * Returns if the transform that produced this result produced outputs.
+   *
+   * <p>Transforms that produce output via modifying the state of the runner (e.g.
+   * {@link CreatePCollectionView}) should explicitly set this to true. If {@link #getOutputs()}
+   * returns a nonempty iterable, this will also return true.
+   */
+  public abstract Set<OutputType> getProducedOutputTypes();
+
   public static CommittedResult create(
       InProcessTransformResult original,
       CommittedBundle<?> unprocessedElements,
-      Iterable<? extends CommittedBundle<?>> outputs) {
+      Iterable<? extends CommittedBundle<?>> outputs,
+      Set<OutputType> producedOutputs) {
     return new AutoValue_CommittedResult(original.getTransform(),
         unprocessedElements,
-        outputs);
+        outputs,
+        producedOutputs);
+  }
+
+  enum OutputType {
+    PCOLLECTION_VIEW,
+    BUNDLE
   }
 }
