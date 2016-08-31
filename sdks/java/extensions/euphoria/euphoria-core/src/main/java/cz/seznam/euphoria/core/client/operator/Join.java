@@ -322,6 +322,22 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
     }
   }
 
+  public boolean isOuter() {
+    return outer;
+  }
+
+  public UnaryFunction<LEFT, KEY> getLeftKeyExtractor() {
+    return leftKeyExtractor;
+  }
+
+  public UnaryFunction<RIGHT, KEY> getRightKeyExtractor() {
+    return rightKeyExtractor;
+  }
+
+  public BinaryFunctor<LEFT, RIGHT, OUT> getJoiner() {
+    return functor;
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
