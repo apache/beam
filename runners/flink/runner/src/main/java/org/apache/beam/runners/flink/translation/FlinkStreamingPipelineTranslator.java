@@ -84,7 +84,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     StreamTransformTranslator<?> translator =
         FlinkStreamingTransformTranslators.getTranslator(transform);
 
-    if (translator == null && applyCanTranslate(transform, node, translator)) {
+    if (translator == null || !applyCanTranslate(transform, node, translator)) {
       LOG.info(node.getTransform().getClass().toString());
       throw new UnsupportedOperationException(
           "The transform " + transform + " is currently not supported.");
