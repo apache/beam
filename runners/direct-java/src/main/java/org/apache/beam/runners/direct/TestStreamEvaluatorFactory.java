@@ -99,6 +99,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     Optional<Evaluator<?>> evaluator =
         evaluators.replace(application, Optional.<Evaluator<?>>absent());
     if (evaluator != null) {
+      // An evaluator has already been created for this application. It is either available for use
+      // or already in use - there is an absent optional in the map for this application, so return
       return evaluator.orNull();
     }
     Evaluator<OutputT> createdEvaluator =
