@@ -23,7 +23,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 /**
- * A cache that limits the number of outstanding elements available per key.
+ * A pool of resources associated with specific keys. Implementations enforce specific use patterns,
+ * such as limiting the the number of outstanding elements available per key.
  */
 interface KeyedResourcePool<K, V> {
   /**
