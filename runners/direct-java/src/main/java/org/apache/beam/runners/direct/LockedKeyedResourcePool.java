@@ -62,8 +62,7 @@ class LockedKeyedResourcePool<K, V> implements KeyedResourcePool<K, V> {
     Optional<V> evaluator = cache.replace(key, Optional.<V>absent());
     if (evaluator == null) {
         // No value already existed, so populate the cache with the value returned by the loader
-        V value = load(loader);
-        cache.putIfAbsent(key, Optional.of(value));
+      cache.putIfAbsent(key, Optional.of(load(loader)));
         // Some other thread may obtain the result after the putIfAbsent, so retry acquisition
         evaluator = cache.replace(key, Optional.<V>absent());
     }
@@ -73,14 +72,12 @@ class LockedKeyedResourcePool<K, V> implements KeyedResourcePool<K, V> {
   private V load(Callable<V> loader) throws ExecutionException {
     try {
       return loader.call();
-    } catch (Throwable t) {
-      if (t instanceof Error) {
-        throw new ExecutionError((Error) t);
-      }
-      if (t instanceof RuntimeException) {
-        throw new UncheckedExecutionException(t);
-      }
-      throw new ExecutionException(t);
+    } catch (Error t) {
+      throw new ExecutionError(t);
+    } catch (RuntimeException e) {
+      throw new UncheckedExecutionException(e);
+    } catch (Exception e) {
+      throw new ExecutionException(e);
     }
   }
 
@@ -90,8 +87,10 @@ class LockedKeyedResourcePool<K, V> implements KeyedResourcePool<K, V> {
     checkNotNull(replaced, "Tried to release before a value was acquired");
     checkState(
         !replaced.isPresent(),
-        "Released a value to %s where there is already a value present. "
+        "Released a value to a %s where there is already a value present for key %s (%s). "
             + "At most one value may be present at a time.",
-        LockedKeyedResourcePool.class.getSimpleName());
+        LockedKeyedResourcePool.class.getSimpleName(),
+        key,
+        replaced);
   }
 }

@@ -23,6 +23,8 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ExecutionError;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import org.junit.Rule;
@@ -118,5 +120,44 @@ public class LockedKeyedResourcePoolTest {
 
     assertThat(returned.get(), equalTo(3));
     assertThat(secondReturned.get(), equalTo(4));
+  }
+
+  @Test
+  public void acquireThrowsExceptionWrapped() throws ExecutionException {
+    final Exception cause = new Exception("checkedException");
+    thrown.expect(ExecutionException.class);
+    thrown.expectCause(equalTo(cause));
+    cache.tryAcquire("foo", new Callable<Integer>() {
+      @Override
+      public Integer call() throws Exception {
+        throw cause;
+      }
+    });
+  }
+
+  @Test
+  public void acquireThrowsRuntimeExceptionWrapped() throws ExecutionException {
+    final RuntimeException cause = new RuntimeException("UncheckedException");
+    thrown.expect(UncheckedExecutionException.class);
+    thrown.expectCause(equalTo(cause));
+    cache.tryAcquire("foo", new Callable<Integer>() {
+      @Override
+      public Integer call() throws Exception {
+        throw cause;
+      }
+    });
+  }
+
+  @Test
+  public void acquireThrowsErrorWrapped() throws ExecutionException {
+    final Error cause = new Error("Error");
+    thrown.expect(ExecutionError.class);
+    thrown.expectCause(equalTo(cause));
+    cache.tryAcquire("foo", new Callable<Integer>() {
+      @Override
+      public Integer call() throws Exception {
+        throw cause;
+      }
+    });
   }
 }
