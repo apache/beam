@@ -45,10 +45,10 @@ import org.joda.time.Instant;
  */
 public class TimestampedValue<V> {
   /**
-   * Returns a new {@link TimestampedValue} with the default timestamp,
-   * represented by {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   * Returns a new {@link TimestampedValue} with the
+   * {@link BoundedWindow#TIMESTAMP_MIN_VALUE minimum timestamp}.
    */
-  public static <V> TimestampedValue<V> of(V value) {
+  public static <V> TimestampedValue<V> atMinimumTimestamp(V value) {
     return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
   }
 

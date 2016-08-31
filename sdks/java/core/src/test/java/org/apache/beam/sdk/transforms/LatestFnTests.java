@@ -62,7 +62,7 @@ public class LatestFnTests {
 
   @Test
   public void testCreateAccumulator() {
-    assertEquals(TimestampedValue.<Long>of(null), fn.createAccumulator());
+    assertEquals(TimestampedValue.<Long>atMinimumTimestamp(null), fn.createAccumulator());
   }
 
   @Test
@@ -144,7 +144,7 @@ public class LatestFnTests {
   @Test
   public void testMergeAccumulatorsEmptyIterable() {
     ArrayList<TimestampedValue<Long>> emptyAccums = Lists.newArrayList();
-    assertEquals(TimestampedValue.of(null), fn.mergeAccumulators(emptyAccums));
+    assertEquals(TimestampedValue.atMinimumTimestamp(null), fn.mergeAccumulators(emptyAccums));
   }
 
   @Test

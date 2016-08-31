@@ -49,8 +49,8 @@ public class TimestampedValueTest {
   }
 
   @Test
-  public void testDefaultTimestamp() {
-    TimestampedValue<String> tsv = TimestampedValue.of("foobar");
+  public void testAtMinimumTimestamp() {
+    TimestampedValue<String> tsv = TimestampedValue.atMinimumTimestamp("foobar");
     assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, tsv.getTimestamp());
   }
 
@@ -62,7 +62,7 @@ public class TimestampedValueTest {
 
   @Test
   public void testNullValue() {
-    TimestampedValue<String> tsv = TimestampedValue.of(null);
+    TimestampedValue<String> tsv = TimestampedValue.atMinimumTimestamp(null);
     assertEquals(null, tsv.getValue());
   }
 
@@ -76,7 +76,7 @@ public class TimestampedValueTest {
         .addEqualityGroup(TimestampedValue.of("bar", new Instant(1000)))
         .addEqualityGroup(
             TimestampedValue.of("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
-            TimestampedValue.of("foo"))
+            TimestampedValue.atMinimumTimestamp("foo"))
         .testEquals();
   }
 }

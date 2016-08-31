@@ -224,7 +224,7 @@ public class DoFnTester<InputT, OutputT> {
    * been finished
    */
   public void processElement(InputT element) throws Exception {
-    processTimestampedElement(TimestampedValue.of(element));
+    processTimestampedElement(TimestampedValue.atMinimumTimestamp(element));
   }
 
   /**

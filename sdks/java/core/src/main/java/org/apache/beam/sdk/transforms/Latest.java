@@ -78,7 +78,7 @@ public class Latest {
 
     @Override
     public TimestampedValue<T> createAccumulator() {
-      return TimestampedValue.of(null);
+      return TimestampedValue.atMinimumTimestamp(null);
     }
 
     @Override
