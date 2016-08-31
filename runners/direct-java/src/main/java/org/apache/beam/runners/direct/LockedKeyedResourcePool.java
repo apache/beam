@@ -43,8 +43,7 @@ class LockedKeyedResourcePool<K, V> implements KeyedResourcePool<K, V> {
    * <ul>
    * <li>If there is no associated value, then no value has been stored yet.
    * <li>If the value is {@code Optional.absent()} then the value is currently in use.
-   * <li>If the value is {@code Optional.present()} then the contained value is available for
-   *     use.
+   * <li>If the value is {@code Optional.present()} then the contained value is available for use.
    * </ul>
    */
   public static <K, V> LockedKeyedResourcePool<K, V> create() {
@@ -59,14 +58,14 @@ class LockedKeyedResourcePool<K, V> implements KeyedResourcePool<K, V> {
 
   @Override
   public Optional<V> tryAcquire(K key, Callable<V> loader) throws ExecutionException {
-    Optional<V> evaluator = cache.replace(key, Optional.<V>absent());
-    if (evaluator == null) {
-        // No value already existed, so populate the cache with the value returned by the loader
+    Optional<V> value = cache.replace(key, Optional.<V>absent());
+    if (value == null) {
+      // No value already existed, so populate the cache with the value returned by the loader
       cache.putIfAbsent(key, Optional.of(load(loader)));
-        // Some other thread may obtain the result after the putIfAbsent, so retry acquisition
-        evaluator = cache.replace(key, Optional.<V>absent());
+      // Some other thread may obtain the result after the putIfAbsent, so retry acquisition
+      value = cache.replace(key, Optional.<V>absent());
     }
-    return evaluator;
+    return value;
   }
 
   private V load(Callable<V> loader) throws ExecutionException {
