@@ -4,7 +4,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
@@ -43,12 +45,12 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
     } else {
       WindowAssigner wassigner = null;
       Windowing windowing = operator.getOriginalOperator().getWindowing();
+      // XXX windowing to be externalized to a cenral place
       if (windowing instanceof Time) {
         Time twindowing = (Time) windowing;
         UnaryFunction eventTimeFn = twindowing.getEventTimeFn();
         if (!(eventTimeFn instanceof Time.ProcessingTime)) {
           leftStream = leftStream.assignTimestampsAndWatermarks(
-              // XXX
               new BoundedOutOfOrdernessTimestampExtractor(
                   org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
                 @Override
@@ -57,7 +59,6 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
                 }
               });
           rightStream = rightStream.assignTimestampsAndWatermarks(
-              // XXX
               new BoundedOutOfOrdernessTimestampExtractor(
                   org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
                 @Override
@@ -83,10 +84,27 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
               .where(new TypedKeySelector(leftKey))
               .equalTo(new TypedKeySelector(rightKey))
               .window(wassigner)
-              .apply((FlatJoinFunction)
-                      (left, right, out) -> joiner.apply(left, right, out::collect),
-                  TypeInformation.of(Object.class));
+              .apply(new Joiner(leftKey, joiner), TypeInformation.of(Object.class));
       return output;
+    }
+  }
+
+  static final class Joiner implements FlatJoinFunction {
+    UnaryFunction udLeftKeyExtractor;
+    BinaryFunctor udJoiner;
+
+    public Joiner(UnaryFunction udLeftKeyExtractor, BinaryFunctor udJoiner) {
+      this.udLeftKeyExtractor = udLeftKeyExtractor;
+      this.udJoiner = udJoiner;
+    }
+
+    @Override
+    public void join(Object left, Object right, org.apache.flink.util.Collector out)
+        throws Exception
+    {
+      Object key = udLeftKeyExtractor.apply(left);
+      Collector kvc = elem -> out.collect(WindowedPair.of(null, key, elem));
+      udJoiner.apply(left, right, kvc);
     }
   }
 
