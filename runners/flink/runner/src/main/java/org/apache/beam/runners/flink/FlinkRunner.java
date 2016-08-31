@@ -25,8 +25,13 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -35,6 +40,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,6 +53,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,6 +116,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   private FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
+    this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
 
     ImmutableMap.Builder<Class<?>, Class<?>> builder = ImmutableMap.<Class<?>, Class<?>>builder();
     if (options.isStreaming()) {
@@ -124,6 +133,8 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public FlinkRunnerResult run(Pipeline pipeline) {
+    logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
+
     LOG.info("Executing pipeline using FlinkRunner.");
 
     FlinkPipelineExecutionEnvironment env = new FlinkPipelineExecutionEnvironment(options);
@@ -176,6 +187,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
       PTransform<InputT, OutputT> customTransform =
           InstanceBuilder.ofType(customTransformClass)
+              .withArg(FlinkRunner.class, this)
               .withArg(transformClass, transform)
               .build();
 
@@ -223,6 +235,59 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
     return files;
   }
 
+  /** A set of {@link View}s with non-deterministic key coders. */
+  Set<PTransform<?, ?>> ptransformViewsWithNonDeterministicKeyCoders;
+
+  /**
+   * Records that the {@link PTransform} requires a deterministic key coder.
+   */
+  private void recordViewUsesNonDeterministicKeyCoder(PTransform<?, ?> ptransform) {
+    ptransformViewsWithNonDeterministicKeyCoders.add(ptransform);
+  }
+
+  /** Outputs a warning about PCollection views without deterministic key coders. */
+  private void logWarningIfPCollectionViewHasNonDeterministicKeyCoder(Pipeline pipeline) {
+    // We need to wait till this point to determine the names of the transforms since only
+    // at this time do we know the hierarchy of the transforms otherwise we could
+    // have just recorded the full names during apply time.
+    if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
+      final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
+      pipeline.traverseTopologically(new Pipeline.PipelineVisitor() {
+        @Override
+        public void visitValue(PValue value, TransformTreeNode producer) {
+        }
+
+        @Override
+        public void visitPrimitiveTransform(TransformTreeNode node) {
+          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+          }
+        }
+
+        @Override
+        public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+          }
+          return CompositeBehavior.ENTER_TRANSFORM;
+        }
+
+        @Override
+        public void leaveCompositeTransform(TransformTreeNode node) {
+        }
+      });
+
+      LOG.warn("Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
+          + "because the key coder is not deterministic. Falling back to singleton implementation "
+          + "which may cause memory and/or performance problems. Future major versions of "
+          + "the Flink runner will require deterministic key coders.",
+          ptransformViewNamesWithNonDeterministicKeyCoders);
+    }
+  }
+
+
+  /////////////////////////////////////////////////////////////////////////////
+
   /**
    * Specialized implementation for
    * {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap}
@@ -231,8 +296,11 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   private static class StreamingViewAsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
 
+    private final FlinkRunner runner;
+
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
-    public StreamingViewAsMap(View.AsMap<K, V> transform) {
+    public StreamingViewAsMap(FlinkRunner runner, View.AsMap<K, V> transform) {
+      this.runner = runner;
     }
 
     @Override
@@ -248,7 +316,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
       try {
         inputCoder.getKeyCoder().verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-//        runner.recordViewUsesNonDeterministicKeyCoder(this);
+        runner.recordViewUsesNonDeterministicKeyCoder(this);
       }
 
       return input
@@ -270,11 +338,14 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   private static class StreamingViewAsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
 
+    private final FlinkRunner runner;
+
     /**
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
-    public StreamingViewAsMultimap(View.AsMultimap<K, V> transform) {
+    public StreamingViewAsMultimap(FlinkRunner runner, View.AsMultimap<K, V> transform) {
+      this.runner = runner;
     }
 
     @Override
@@ -290,7 +361,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
       try {
         inputCoder.getKeyCoder().verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-//        runner.recordViewUsesNonDeterministicKeyCoder(this);
+        runner.recordViewUsesNonDeterministicKeyCoder(this);
       }
 
       return input
@@ -315,7 +386,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
-    public StreamingViewAsList(View.AsList<T> transform) {}
+    public StreamingViewAsList(FlinkRunner runner, View.AsList<T> transform) {}
 
     @Override
     public PCollectionView<List<T>> apply(PCollection<T> input) {
@@ -346,7 +417,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
-    public StreamingViewAsIterable(View.AsIterable<T> transform) { }
+    public StreamingViewAsIterable(FlinkRunner runner, View.AsIterable<T> transform) { }
 
     @Override
     public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
@@ -386,7 +457,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
-    public StreamingViewAsSingleton(View.AsSingleton<T> transform) {
+    public StreamingViewAsSingleton(FlinkRunner runner, View.AsSingleton<T> transform) {
       this.transform = transform;
     }
 
@@ -443,6 +514,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
      */
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
     public StreamingCombineGloballyAsSingletonView(
+        FlinkRunner runner,
         Combine.GloballyAsSingletonView<InputT, OutputT> transform) {
       this.transform = transform;
     }
