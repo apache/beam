@@ -34,12 +34,12 @@ public class GlobalWindow extends BoundedWindow {
 
   // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
   // the watermark passes their timestamps. So, the maxTimestamp needs to be
-  // smaller than the TIMESTAMP_MAX_VALUE.
-  // One standard day is subtracted from TIMESTAMP_MAX_VALUE to make sure
-  // the maxTimestamp is smaller than TIMESTAMP_MAX_VALUE even after rounding up
+  // smaller than the POSITIVE_INFINITY.
+  // One standard day is subtracted from POSITIVE_INFINITY to make sure
+  // the maxTimestamp is smaller than POSITIVE_INFINITY even after rounding up
   // to seconds or minutes.
   private static final Instant END_OF_GLOBAL_WINDOW =
-      TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1));
+      POSITIVE_INFINITY.minus(Duration.standardDays(1));
 
   @Override
   public Instant maxTimestamp() {

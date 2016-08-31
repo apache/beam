@@ -47,7 +47,7 @@ public class BatchTimerInternals implements TimerInternals {
 
   public BatchTimerInternals(Instant processingTime) {
     this.processingTime = processingTime;
-    this.inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    this.inputWatermarkTime = BoundedWindow.NEGATIVE_INFINITY;
   }
 
   @Override
@@ -71,13 +71,13 @@ public class BatchTimerInternals implements TimerInternals {
   /**
    * {@inheritDoc}
    *
-   * @return {@link BoundedWindow#TIMESTAMP_MAX_VALUE}: in batch mode, upstream processing
+   * @return {@link BoundedWindow#POSITIVE_INFINITY}: in batch mode, upstream processing
    * is already complete.
    */
   @Override
   @Nullable
   public Instant currentSynchronizedProcessingTime() {
-    return BoundedWindow.TIMESTAMP_MAX_VALUE;
+    return BoundedWindow.POSITIVE_INFINITY;
   }
 
   @Override

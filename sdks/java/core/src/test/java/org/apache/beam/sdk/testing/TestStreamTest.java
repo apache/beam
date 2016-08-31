@@ -268,9 +268,9 @@ public class TestStreamTest implements Serializable {
   public void testElementAtPositiveInfinityThrows() {
     Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
-            .addElements(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L)));
+            .addElements(TimestampedValue.of(-1, BoundedWindow.POSITIVE_INFINITY.minus(1L)));
     thrown.expect(IllegalArgumentException.class);
-    stream.addElements(TimestampedValue.of(1, BoundedWindow.TIMESTAMP_MAX_VALUE));
+    stream.addElements(TimestampedValue.of(1, BoundedWindow.POSITIVE_INFINITY));
   }
 
   @Test
@@ -286,9 +286,9 @@ public class TestStreamTest implements Serializable {
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
     Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
-            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
+            .advanceWatermarkTo(BoundedWindow.POSITIVE_INFINITY.minus(1L));
     thrown.expect(IllegalArgumentException.class);
-    stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    stream.advanceWatermarkTo(BoundedWindow.POSITIVE_INFINITY);
   }
 
   @Test

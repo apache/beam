@@ -396,7 +396,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      */
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+      return BoundedWindow.NEGATIVE_INFINITY;
     }
   }
 }

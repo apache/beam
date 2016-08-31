@@ -226,7 +226,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       final Instant inputTimestamp = timestamp;
 
       if (timestamp == null) {
-        timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        timestamp = BoundedWindow.NEGATIVE_INFINITY;
       }
 
       if (windows == null) {

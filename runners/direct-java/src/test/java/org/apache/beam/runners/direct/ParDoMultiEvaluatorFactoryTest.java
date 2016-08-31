@@ -134,7 +134,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         result.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(
             lengthOutputBundle, mainOutputBundle, elementOutputBundle));
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     assertThat(result.getAggregatorChanges(), equalTo(mutator));
 
     assertThat(
@@ -220,7 +220,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     assertThat(
         result.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>containsInAnyOrder(mainOutputBundle, elementOutputBundle));
-    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.POSITIVE_INFINITY));
     assertThat(result.getAggregatorChanges(), equalTo(mutator));
 
     assertThat(

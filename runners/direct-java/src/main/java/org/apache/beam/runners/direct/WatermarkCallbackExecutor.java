@@ -122,7 +122,7 @@ class WatermarkCallbackExecutor {
 
     public boolean shouldFire(Instant currentWatermark) {
       return currentWatermark.isAfter(fireAfter)
-          || currentWatermark.equals(BoundedWindow.TIMESTAMP_MAX_VALUE);
+          || currentWatermark.equals(BoundedWindow.POSITIVE_INFINITY);
     }
 
     public Runnable getCallback() {

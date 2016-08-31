@@ -69,7 +69,7 @@ public class AfterAll extends OnceTrigger {
   @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire after the latest of its sub-triggers.
-    Instant deadline = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    Instant deadline = BoundedWindow.NEGATIVE_INFINITY;
     for (Trigger subTrigger : subTriggers) {
       Instant subDeadline = subTrigger.getWatermarkThatGuaranteesFiring(window);
       if (deadline.isBefore(subDeadline)) {

@@ -158,7 +158,7 @@ public class AfterFirstTest {
     assertEquals(new Instant(9),
         AfterFirst.of(AfterWatermark.pastEndOfWindow(), AfterPane.elementCountAtLeast(4))
             .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(BoundedWindow.POSITIVE_INFINITY,
         AfterFirst.of(AfterPane.elementCountAtLeast(2), AfterPane.elementCountAtLeast(1))
             .getWatermarkThatGuaranteesFiring(window));
   }

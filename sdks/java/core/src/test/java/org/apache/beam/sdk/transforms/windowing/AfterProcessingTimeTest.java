@@ -129,7 +129,7 @@ public class AfterProcessingTimeTest {
 
   @Test
   public void testFireDeadline() throws Exception {
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(BoundedWindow.POSITIVE_INFINITY,
         AfterProcessingTime.pastFirstElementInPane().getWatermarkThatGuaranteesFiring(
             new IntervalWindow(new Instant(0), new Instant(10))));
   }

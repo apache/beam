@@ -129,7 +129,7 @@ public class WatermarkManager {
    *
    * <p>A watermark is a monotonically increasing value, which represents the point up to which the
    * system believes it has received all of the data. Data that arrives with a timestamp that is
-   * before the watermark is considered late. {@link BoundedWindow#TIMESTAMP_MAX_VALUE} is a special
+   * before the watermark is considered late. {@link BoundedWindow#POSITIVE_INFINITY} is a special
    * timestamp which indicates we have received all of the data and there will be no more on-time or
    * late data. This value is represented by {@link WatermarkManager#THE_END_OF_TIME}.
    */
@@ -212,7 +212,7 @@ public class WatermarkManager {
       this.inputWatermarks = inputWatermarks;
       this.pendingElements = TreeMultiset.create(new WindowedValueByTimestampComparator());
       this.objectTimers = new HashMap<>();
-      currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      currentWatermark = new AtomicReference<>(BoundedWindow.NEGATIVE_INFINITY);
     }
 
     @Override
@@ -238,7 +238,7 @@ public class WatermarkManager {
     @Override
     public synchronized WatermarkUpdate refresh() {
       Instant oldWatermark = currentWatermark.get();
-      Instant minInputWatermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      Instant minInputWatermark = BoundedWindow.POSITIVE_INFINITY;
       for (Watermark inputWatermark : inputWatermarks) {
         minInputWatermark = INSTANT_ORDERING.min(minInputWatermark, inputWatermark.get());
       }
@@ -312,7 +312,7 @@ public class WatermarkManager {
     public AppliedPTransformOutputWatermark(AppliedPTransformInputWatermark inputWatermark) {
       this.inputWatermark = inputWatermark;
       holds = new PerKeyHolds();
-      currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      currentWatermark = new AtomicReference<>(BoundedWindow.NEGATIVE_INFINITY);
     }
 
     public synchronized void updateHold(Object key, Instant newHold) {
@@ -394,7 +394,7 @@ public class WatermarkManager {
       this.processingTimers = new HashMap<>();
       this.synchronizedProcessingTimers = new HashMap<>();
       this.pendingTimers = new PriorityQueue<>();
-      Instant initialHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      Instant initialHold = BoundedWindow.POSITIVE_INFINITY;
       for (Watermark wm : inputWms) {
         initialHold = INSTANT_ORDERING.min(initialHold, wm.get());
       }
@@ -563,7 +563,7 @@ public class WatermarkManager {
     public SynchronizedProcessingTimeOutputWatermark(
         SynchronizedProcessingTimeInputWatermark inputWm) {
       this.inputWm = inputWm;
-      this.latestRefresh = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      this.latestRefresh = new AtomicReference<>(BoundedWindow.NEGATIVE_INFINITY);
     }
 
     @Override
@@ -619,7 +619,7 @@ public class WatermarkManager {
 
         @Override
         public Instant get() {
-          return BoundedWindow.TIMESTAMP_MAX_VALUE;
+          return BoundedWindow.POSITIVE_INFINITY;
         }
       };
 
@@ -699,7 +699,7 @@ public class WatermarkManager {
 
   /**
    * Creates a new {@link WatermarkManager}. All watermarks within the newly created
-   * {@link WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the
+   * {@link WatermarkManager} start at {@link BoundedWindow#NEGATIVE_INFINITY}, the
    * minimum watermark, with no watermark holds or pending elements.
    *
    * @param rootTransforms the root-level transforms of the {@link Pipeline}
@@ -792,7 +792,7 @@ public class WatermarkManager {
   /**
    * Gets the input and output watermarks for an {@link AppliedPTransform}. If the
    * {@link AppliedPTransform PTransform} has not processed any elements, return a watermark of
-   * {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+   * {@link BoundedWindow#NEGATIVE_INFINITY}.
    *
    * @return a snapshot of the input watermark and output watermark for the provided transform
    */
@@ -1060,8 +1060,8 @@ public class WatermarkManager {
 
       this.synchronizedProcessingInputWatermark = inputSynchProcessingWatermark;
       this.synchronizedProcessingOutputWatermark = outputSynchProcessingWatermark;
-      this.latestSynchronizedInputWm = BoundedWindow.TIMESTAMP_MIN_VALUE;
-      this.latestSynchronizedOutputWm = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      this.latestSynchronizedInputWm = BoundedWindow.NEGATIVE_INFINITY;
+      this.latestSynchronizedOutputWm = BoundedWindow.NEGATIVE_INFINITY;
     }
 
     /**

@@ -502,7 +502,7 @@ public class DoFnTester<InputT, OutputT> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
-      sideOutputWithTimestamp(tag, output, BoundedWindow.TIMESTAMP_MIN_VALUE);
+      sideOutputWithTimestamp(tag, output, BoundedWindow.NEGATIVE_INFINITY);
     }
 
     public <T> void noteOutput(TupleTag<T> tag, WindowedValue<T> output) {

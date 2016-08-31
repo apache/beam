@@ -68,7 +68,7 @@ public abstract class StepTransformResult implements TransformResult {
   }
 
   public static Builder withoutHold(AppliedPTransform<?, ?, ?> transform) {
-    return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    return new Builder(transform, BoundedWindow.POSITIVE_INFINITY);
   }
 
   /**

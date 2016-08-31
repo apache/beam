@@ -223,7 +223,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
-      if (!currentReader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      if (!currentReader.getWatermark().isBefore(BoundedWindow.POSITIVE_INFINITY)) {
         evaluationContext.scheduleAfterOutputWouldBeProduced(transform.getOutput(),
             GlobalWindow.INSTANCE,
             transform.getOutput().getWindowingStrategy(),

@@ -68,7 +68,7 @@ public class WatermarkCallbackExecutorTest {
         WindowingStrategy.globalDefault(),
         new CountDownLatchCallback(latch));
 
-    executor.fireForWatermark(create, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    executor.fireForWatermark(create, BoundedWindow.POSITIVE_INFINITY);
     assertThat(latch.await(500, TimeUnit.MILLISECONDS), equalTo(true));
   }
 

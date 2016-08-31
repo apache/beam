@@ -640,7 +640,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
             + "inputWatermark:{}; outputWatermark:{}",
             key, directContext.window(), cleanupTime, timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
-        checkState(!cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+        checkState(!cleanupTime.isAfter(BoundedWindow.POSITIVE_INFINITY),
                                  "Cleanup time %s is beyond end-of-time", cleanupTime);
         directContext.timers().setTimer(cleanupTime, TimeDomain.EVENT_TIME);
       }
@@ -912,7 +912,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         directContext.window(),
         inputWM,
         timerInternals.currentOutputWatermarkTime());
-    checkState(!timer.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+    checkState(!timer.isAfter(BoundedWindow.POSITIVE_INFINITY),
                              "Timer %s is beyond end-of-time", timer);
     directContext.timers().setTimer(timer, TimeDomain.EVENT_TIME);
     return timer;

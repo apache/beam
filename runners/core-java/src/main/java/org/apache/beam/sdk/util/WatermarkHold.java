@@ -252,7 +252,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     } else {
       which = "on time";
       tooLate = false;
-      checkState(!elementHold.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+      checkState(!elementHold.isAfter(BoundedWindow.POSITIVE_INFINITY),
           "Element hold %s is beyond end-of-time", elementHold);
       context.state().access(elementHoldTag).add(elementHold);
     }
@@ -317,7 +317,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     checkState(outputWM == null || !eowHold.isBefore(outputWM),
         "End-of-window hold %s cannot be before output watermark %s",
         eowHold, outputWM);
-    checkState(!eowHold.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+    checkState(!eowHold.isAfter(BoundedWindow.POSITIVE_INFINITY),
         "End-of-window hold %s is beyond end-of-time", eowHold);
     // If paneIsEmpty then this hold is just for empty ON_TIME panes, so we want to keep
     // the hold away from the combining function in elementHoldTag.
@@ -388,7 +388,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     checkState(!gcHold.isBefore(inputWM),
         "Garbage collection hold %s cannot be before input watermark %s",
         gcHold, inputWM);
-    checkState(!gcHold.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+    checkState(!gcHold.isAfter(BoundedWindow.POSITIVE_INFINITY),
         "Garbage collection hold %s is beyond end-of-time", gcHold);
     // Same EXTRA_HOLD_TAG vs elementHoldTag discussion as in addEndOfWindowHold above.
     context.state().access(EXTRA_HOLD_TAG).add(gcHold);

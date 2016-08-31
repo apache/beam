@@ -122,7 +122,7 @@ public class PushbackSideInputDoFnRunnerTest {
             new Instant(-2),
             ImmutableList.of(
                 new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
+                new IntervalWindow(BoundedWindow.NEGATIVE_INFINITY, new Instant(250L)),
                 GlobalWindow.INSTANCE),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
@@ -146,7 +146,7 @@ public class PushbackSideInputDoFnRunnerTest {
 
     IntervalWindow littleWindow = new IntervalWindow(new Instant(-500L), new Instant(0L));
     IntervalWindow bigWindow =
-        new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L));
+        new IntervalWindow(BoundedWindow.NEGATIVE_INFINITY, new Instant(250L));
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
             2,
@@ -177,7 +177,7 @@ public class PushbackSideInputDoFnRunnerTest {
             new Instant(-2),
             ImmutableList.of(
                 new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
+                new IntervalWindow(BoundedWindow.NEGATIVE_INFINITY, new Instant(250L)),
                 GlobalWindow.INSTANCE),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
@@ -198,7 +198,7 @@ public class PushbackSideInputDoFnRunnerTest {
             new Instant(-2),
             ImmutableList.of(
                 new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
+                new IntervalWindow(BoundedWindow.NEGATIVE_INFINITY, new Instant(250L)),
                 GlobalWindow.INSTANCE),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =

@@ -136,7 +136,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                   reader.getCurrent(), reader.getCurrentTimestamp()));
           contentsRemaining = reader.advance();
         }
-        return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MAX_VALUE)
+        return StepTransformResult.withHold(transform, BoundedWindow.POSITIVE_INFINITY)
             .addOutput(output)
             .build();
       }

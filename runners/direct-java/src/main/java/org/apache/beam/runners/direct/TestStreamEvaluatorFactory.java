@@ -99,7 +99,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       this.inUse = inUse;
       this.events = application.getTransform().getEvents();
       index = 0;
-      currentWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      currentWatermark = BoundedWindow.NEGATIVE_INFINITY;
     }
 
     @Override
@@ -109,7 +109,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult finishBundle() throws Exception {
       if (index >= events.size()) {
-        return StepTransformResult.withHold(application, BoundedWindow.TIMESTAMP_MAX_VALUE).build();
+        return StepTransformResult.withHold(application, BoundedWindow.POSITIVE_INFINITY).build();
       }
       Event<T> event = events.get(index);
       if (event.getType().equals(EventType.WATERMARK)) {
@@ -141,7 +141,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
   private static class TestClock implements Clock {
     private final AtomicReference<Instant> currentTime =
-        new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+        new AtomicReference<>(BoundedWindow.NEGATIVE_INFINITY);
 
     public void advance(Duration amount) {
       Instant now = currentTime.get();

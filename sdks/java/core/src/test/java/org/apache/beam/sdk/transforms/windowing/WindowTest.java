@@ -286,7 +286,7 @@ public class WindowTest implements Serializable {
   public void testDisplayDataExcludesDefaults() {
     Window.Bound<?> window = Window.into(new GlobalWindows())
         .triggering(DefaultTrigger.of())
-        .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+        .withAllowedLateness(Duration.millis(BoundedWindow.POSITIVE_INFINITY.getMillis()));
 
     DisplayData data = DisplayData.from(window);
     assertThat(data, not(hasDisplayItem("trigger")));

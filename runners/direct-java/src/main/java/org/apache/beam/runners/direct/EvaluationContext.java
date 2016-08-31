@@ -386,7 +386,7 @@ class EvaluationContext {
    *
    * <p>If the provided transform produces only {@link IsBounded#BOUNDED}
    * {@link PCollection PCollections}, returns true if the watermark is at
-   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE positive infinity}.
+   * {@link BoundedWindow#POSITIVE_INFINITY positive infinity}.
    *
    * <p>If the provided transform produces any {@link IsBounded#UNBOUNDED}
    * {@link PCollection PCollections}, returns the value of
@@ -397,7 +397,7 @@ class EvaluationContext {
     if (watermarkManager
         .getWatermarks(transform)
         .getOutputWatermark()
-        .isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        .isBefore(BoundedWindow.POSITIVE_INFINITY)) {
       return false;
     }
     // If the PTransform has any unbounded outputs, and unbounded producers should not be shut down,

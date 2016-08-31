@@ -50,7 +50,7 @@ public class NeverTest {
     IntervalWindow window =
         new IntervalWindow(new Instant(0), new Instant(0).plus(Duration.standardMinutes(5)));
     assertThat(triggerTester.shouldFire(window), is(false));
-    triggerTester.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    triggerTester.advanceInputWatermark(BoundedWindow.POSITIVE_INFINITY);
     assertThat(triggerTester.shouldFire(window), is(false));
   }
 }

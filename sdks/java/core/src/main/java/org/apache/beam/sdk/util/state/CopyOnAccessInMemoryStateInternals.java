@@ -88,7 +88,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
    */
   public Instant getEarliestWatermarkHold() {
     // After commit, the watermark hold is always present, but may be
-    // BoundedWindow#TIMESTAMP_MAX_VALUE if there is no hold set.
+    // BoundedWindow#POSITIVE_INFINITY if there is no hold set.
     checkState(
         table.earliestWatermarkHold.isPresent(),
         "Can't get the earliest watermark hold in a %s before it is committed",
@@ -190,7 +190,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
      * Get the earliest watermark hold in this table. Ignores the contents of any underlying table.
      */
     private Instant getEarliestWatermarkHold() {
-      Instant earliest = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      Instant earliest = BoundedWindow.POSITIVE_INFINITY;
       for (State existingState : this.values()) {
         if (existingState instanceof WatermarkHoldState) {
           Instant hold = ((WatermarkHoldState<?>) existingState).read();
@@ -363,7 +363,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       }
 
       public Instant readThroughAndGetEarliestHold(StateTable<K> readTo) {
-        Instant earliestHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
+        Instant earliestHold = BoundedWindow.POSITIVE_INFINITY;
         for (StateNamespace namespace : underlying.getNamespacesInUse()) {
           for (Map.Entry<StateTag<? super K, ?>, ? extends State> existingState :
               underlying.getTagsInUse(namespace).entrySet()) {
