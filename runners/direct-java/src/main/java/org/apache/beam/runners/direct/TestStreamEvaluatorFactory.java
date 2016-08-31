@@ -55,21 +55,8 @@ import org.joda.time.Instant;
  * The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive.
  */
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
-  /**
-   * A map from {@link TestStream} application to an {@link Optional} {@link Evaluator} for that
-   * application. At most one evaluator is created for an AppliedPTransform and it is used by at
-   * most one thread at a time.
-   *
-   * <p>For each {@link AppliedPTransform} in this map:
-   * <ul>
-   * <li>If there is no associated value, then no evaluator has been created yet.
-   * <li>If the value is {@code Optional.absent()} then the evaluator is currently in use.
-   * <li>If the value is {@code Optional.present()} then the contained evaluator is available for
-   *     use.
-   * </ul>
-   */
-  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Optional<Evaluator<?>>> evaluators =
-      new ConcurrentHashMap<>();
+  private final KeyedResourcePool<AppliedPTransform<?, ?, ?>, Evaluator<?>> evaluators =
+      LockedKeyedResourcePool.create();
 
   @Nullable
   @Override
