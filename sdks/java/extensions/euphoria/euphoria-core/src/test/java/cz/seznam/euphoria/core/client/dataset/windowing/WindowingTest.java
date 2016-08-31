@@ -331,7 +331,7 @@ public class WindowingTest {
   }
 
   private void testWindowing_EndOfWindowImpl(int dataPartitions) {
-    final Duration READ_DELAY = Duration.ofMillis(100L);
+    final Duration READ_DELAY = Duration.ofMillis(200L);
     Flow flow = Flow.create("Test");
 
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
