@@ -35,7 +35,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -43,16 +42,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link TestStreamEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class TestStreamEvaluatorFactoryTest {
-  private TestStreamEvaluatorFactory factory;
-  private BundleFactory bundleFactory;
+  private TestStreamEvaluatorFactory factory = new TestStreamEvaluatorFactory();
+  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Before
-  public void setup() {
-    factory = new TestStreamEvaluatorFactory();
-    bundleFactory = ImmutableListBundleFactory.create();
-  }
-
-  /** Demonstrates that evaluators produce elements in sequence. */
+  /** Demonstrates that returned evaluators produce elements in sequence. */
   @Test
   public void producesElementsInSequence() throws Exception {
     TestPipeline p = TestPipeline.create();
