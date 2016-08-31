@@ -28,13 +28,11 @@ import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.joda.time.Instant;
@@ -49,6 +47,15 @@ import org.junit.runners.JUnit4;
  * */
 @RunWith(JUnit4.class)
 public class LatestFnTests {
+  private static final Instant INSTANT = new Instant(100);
+  private static final long VALUE = 100 * INSTANT.getMillis();
+
+  private static final TimestampedValue<Long> TV = TimestampedValue.of(VALUE, INSTANT);
+  private static final TimestampedValue<Long> TV_MINUS_TEN =
+      TimestampedValue.of(VALUE - 10, INSTANT.minus(10));
+  private static final TimestampedValue<Long> TV_PLUS_TEN =
+      TimestampedValue.of(VALUE + 10, INSTANT.plus(10));
+
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
 
@@ -62,40 +69,35 @@ public class LatestFnTests {
 
   @Test
   public void testCreateAccumulator() {
-    assertEquals(TimestampedValue.<Long>atMinimumTimestamp(null), fn.createAccumulator());
+    assertEquals(TimestampedValue.atMinimumTimestamp(null), fn.createAccumulator());
   }
 
   @Test
   public void testAddInputInitialAdd() {
-    TimestampedValue<Long> input = timestamped(baseTimestamp);
+    TimestampedValue<Long> input = TV;
     assertEquals(input, fn.addInput(fn.createAccumulator(), input));
   }
 
   @Test
   public void testAddInputMinTimestamp() {
-    TimestampedValue<Long> input = timestamped(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    TimestampedValue<Long> input = TimestampedValue.atMinimumTimestamp(1234L);
     assertEquals(input, fn.addInput(fn.createAccumulator(), input));
   }
 
   @Test
   public void testAddInputEarlierValue() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    TimestampedValue<Long> input = timestamped(baseTimestamp.minus(10));
-    assertEquals(accum, fn.addInput(accum, input));
+    assertEquals(TV, fn.addInput(TV, TV_MINUS_TEN));
   }
 
   @Test
   public void testAddInputLaterValue() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    TimestampedValue<Long> input = timestamped(baseTimestamp.plus(10));
-
-    assertEquals(input, fn.addInput(accum, input));
+    assertEquals(TV_PLUS_TEN, fn.addInput(TV, TV_PLUS_TEN));
   }
 
   @Test
   public void testAddInputSameTimestamp() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    TimestampedValue<Long> input = timestamped(baseTimestamp.plus(10));
+    TimestampedValue<Long> accum = TimestampedValue.of(100L, INSTANT);
+    TimestampedValue<Long> input = TimestampedValue.of(200L, INSTANT);
 
     assertThat("Latest for values with the same timestamp is chosen arbitrarily",
         fn.addInput(accum, input), isOneOf(accum, input));
@@ -103,42 +105,36 @@ public class LatestFnTests {
 
   @Test
   public void testAddInputNullAccumulator() {
-    TimestampedValue<Long> input = timestamped(baseTimestamp);
     thrown.expect(NullPointerException.class);
-    fn.addInput(null, input);
+    fn.addInput(null, TV);
   }
 
   @Test
   public void testAddInputNullInput() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
     thrown.expect(NullPointerException.class);
-    fn.addInput(accum, null);
+    fn.addInput(TV, null);
   }
 
   @Test
   public void testAddInputNullValue() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    TimestampedValue<Long> input = TimestampedValue.of(null, baseTimestamp.plus(10));
-
-    assertEquals("Null values are allowed", input, fn.addInput(accum, input));
+    TimestampedValue<Long> input = TimestampedValue.of(null, INSTANT.plus(10));
+    assertEquals("Null values are allowed", input, fn.addInput(TV, input));
   }
 
   @Test
   public void testMergeAccumulatorsMultipleValues() {
-    TimestampedValue<Long> latest = timestamped(baseTimestamp.plus(100));
     Iterable<TimestampedValue<Long>> accums = Lists.newArrayList(
-        timestamped(baseTimestamp),
-        latest,
-        timestamped(baseTimestamp.minus(10))
+        TV,
+        TV_PLUS_TEN,
+        TV_MINUS_TEN
     );
 
-    assertEquals(latest, fn.mergeAccumulators(accums));
+    assertEquals(TV_PLUS_TEN, fn.mergeAccumulators(accums));
   }
 
   @Test
   public void testMergeAccumulatorsSingleValue() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    assertEquals(accum, fn.mergeAccumulators(Lists.newArrayList(accum)));
+    assertEquals(TV, fn.mergeAccumulators(Lists.newArrayList(TV)));
   }
 
   @Test
@@ -149,9 +145,8 @@ public class LatestFnTests {
 
   @Test
   public void testMergeAccumulatorsDefaultAccumulator() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
     TimestampedValue<Long> defaultAccum = fn.createAccumulator();
-    assertEquals(accum, fn.mergeAccumulators(Lists.newArrayList(accum, defaultAccum)));
+    assertEquals(TV, fn.mergeAccumulators(Lists.newArrayList(TV, defaultAccum)));
   }
 
   @Test
@@ -169,8 +164,7 @@ public class LatestFnTests {
 
   @Test
   public void testExtractOutput() {
-    TimestampedValue<Long> accum = timestamped(baseTimestamp);
-    assertEquals(accum.getValue(), fn.extractOutput(accum));
+    assertEquals(TV.getValue(), fn.extractOutput(TV));
   }
 
   @Test
@@ -187,18 +181,14 @@ public class LatestFnTests {
 
   @Test
   public void testAggregator() throws Exception {
-    final TimestampedValue<Long> first = timestamped(baseTimestamp);
-    final TimestampedValue<Long> latest = timestamped(baseTimestamp.plus(100));
-    final TimestampedValue<Long> oldest = timestamped(baseTimestamp.minus(10));
-
-    LatestAggregatorsFn<Long> doFn = new LatestAggregatorsFn<>(oldest.getValue());
+    LatestAggregatorsFn<Long> doFn = new LatestAggregatorsFn<>(TV_MINUS_TEN.getValue());
     DoFnTester<Long, Long> harness = DoFnTester.of(doFn);
-    for (TimestampedValue<Long> element : Arrays.asList(first, latest, oldest)) {
+    for (TimestampedValue<Long> element : Arrays.asList(TV, TV_PLUS_TEN, TV_MINUS_TEN)) {
       harness.processTimestampedElement(element);
     }
 
-    assertEquals(latest.getValue(), harness.getAggregatorValue(doFn.allValuesAgg));
-    assertEquals(oldest.getValue(), harness.getAggregatorValue(doFn.specialValueAgg));
+    assertEquals(TV_PLUS_TEN.getValue(), harness.getAggregatorValue(doFn.allValuesAgg));
+    assertEquals(TV_MINUS_TEN.getValue(), harness.getAggregatorValue(doFn.specialValueAgg));
     assertThat(harness.getAggregatorValue(doFn.noValuesAgg), nullValue());
   }
 
@@ -239,11 +229,5 @@ public class LatestFnTests {
         specialValueAgg.addValue(val);
       }
     }
-  }
-
-  private static final AtomicLong uniqueLong = new AtomicLong();
-  /** Helper method to easily create a timestamped value. */
-  private static TimestampedValue<Long> timestamped(Instant timestamp) {
-    return TimestampedValue.of(uniqueLong.incrementAndGet(), timestamp);
   }
 }
