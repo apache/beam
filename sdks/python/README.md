@@ -42,7 +42,7 @@ from the Python programming language.
           * [Notes on installing with ``setup.py install``](#notes-on-installing-with-setuppy-install)
   * [Local execution of a pipeline](#local-execution-of-a-pipeline)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
-  * [Some Simple Examples](#some-simple-examples)
+  * [Simple Examples](#simple-examples)
       * [Basic pipeline](#basic-pipeline)
       * [Basic pipeline (with Map)](#basic-pipeline-with-map)
       * [Basic pipeline (with FlatMap)](#basic-pipeline-with-flatmap)
@@ -256,12 +256,12 @@ Some interesting classes to navigate to:
 * combiners, in file
 [`google/cloud/dataflow/transforms/combiners.py`](http://localhost:8888/google.cloud.dataflow.transforms.combiners.html)
 
-## Some Simple Examples
+## Simple Examples
 
 ### Basic pipeline
 
-Create a transform from an iterable and use the pipe operator to chain
-transforms:
+A basic pipeline creates a PCollection from an iterable
+and uses the pipe operator to chain PTransforms.
 
 ```python
 # Standard imports
@@ -287,7 +287,7 @@ import apache_beam as beam
 p = beam.Pipeline('DirectPipelineRunner')
 # Read a file containing names, add a greeting to each name, and write to a file.
 (p
- | 'load messages' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
  | 'add greeting' >> beam.Map(lambda name, msg: '%s, %s!' % (msg, name), 'Hello')
  | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
 p.run()
@@ -303,12 +303,12 @@ import apache_beam as beam
 p = beam.Pipeline('DirectPipelineRunner')
 # Read a file containing names, add two greetings to each name, and write to a file.
 (p
- | 'load messages' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
  | 'add greetings' >> beam.FlatMap(
-        lambda name, msgs: ['%s %s!' % (m, name) for m in msgs],
+        lambda name, messages: ['%s %s!' % (msg, name) for msg in messages],
         ['Hello', 'Hola']
     )
- | beam.Write('save', beam.io.TextFileSink('./greetings')))
+ | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
 p.run()
 ```
 
@@ -320,14 +320,15 @@ a function using `yield`.
 ```python
 import apache_beam as beam
 p = beam.Pipeline('DirectPipelineRunner')
-# Read a file containing names, add two greetings to each name (using yield), and write to a file.
+# Read a file containing names, add two greetings to each name
+# (with FlatMap using a yield generator), and write to a file.
 def add_greetings(name, messages):
-  for m in messages:
-    yield '%s %s!' % (m, name)
+  for msg in messages:
+    yield '%s %s!' % (msg, name)
 
 (p
  | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
- | 'greet' >> beam.FlatMap(add_greetings, ['Hello', 'Hola'])
+ | 'add greetings' >> beam.FlatMap(add_greetings, ['Hello', 'Hola'])
  | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
 p.run()
 ```
@@ -339,89 +340,91 @@ text file from [Google Cloud Storage](https://cloud.google.com/storage/).
 
 ```python
 import re
-import google.cloud.dataflow as df
-p = df.Pipeline('DirectPipelineRunner')
+import apache_beam as beam
+p = beam.Pipeline('DirectPipelineRunner')
 (p
- | df.Read('read',
-           df.io.TextFileSource(
-           'gs://dataflow-samples/shakespeare/kinglear.txt'))
- | df.FlatMap('split', lambda x: re.findall(r'\w+', x))
- | df.combiners.Count.PerElement('count words')
- | df.Write('write', df.io.TextFileSink('./results')))
+ | 'read' >> beam.Read(
+        beam.io.TextFileSource('gs://dataflow-samples/shakespeare/kinglear.txt')
+    )
+ | 'split' >> beam.FlatMap(lambda x: re.findall(r'\w+', x))
+ | 'count words' >> beam.combiners.Count.PerElement()
+ | 'save' >> beam.Write(beam.io.TextFileSink('./word_count')))
 p.run()
 ```
 
 ### Counting words with GroupByKey
 
-Here we use `GroupByKey` to count the words.
-This is a somewhat forced example of `GroupByKey`; normally one would use
-the transform `df.combiners.Count.PerElement`, as in the previous example.
-The example also shows the use of a wild-card in specifying the text file
-source.
-
+This is a somewhat forced example of `GroupByKey` to count the words.
+Normally, one would use the transform `beam.combiners.Count.PerElement`,
+as in the previous example. A wildcard is used to specify the text
+file source.
 ```python
 import re
-import google.cloud.dataflow as df
-p = df.Pipeline('DirectPipelineRunner')
-class MyCountTransform(df.PTransform):
+import apache_beam as beam
+p = beam.Pipeline('DirectPipelineRunner')
+class MyCountTransform(beam.PTransform):
   def apply(self, pcoll):
     return (pcoll
-    | df.Map('one word', lambda w: (w, 1))
-    # GroupByKey accepts a PCollection of (w, 1) and
-    # outputs a PCollection of (w, (1, 1, ...))
-    | df.GroupByKey('group words')
-    | df.Map('count words', lambda (word, counts): (word, len(counts))))
+    | 'one word' >> beam.Map(lambda word: (word, 1))
+    # GroupByKey accepts a PCollection of (word, 1) elements and
+    # outputs a PCollection of (word, [1, 1, ...])
+    | 'group words' >> beam.GroupByKey()
+    | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts))))
 
 (p
- | df.Read('read', df.io.TextFileSource('./names*'))
- | df.FlatMap('split', lambda x: re.findall(r'\w+', x))
+ | 'read' >> beam.Read(beam.io.TextFileSource('./names*'))
+ | 'split' >> beam.FlatMap(lambda x: re.findall(r'\w+', x))
  | MyCountTransform()
- | df.Write('write', df.io.TextFileSink('./results')))
+ | 'write' >> beam.Write(beam.io.TextFileSink('./word_count')))
 p.run()
 ```
 
 ### Type hints
 
-In some cases, you can improve the efficiency of the data encoding by providing
-type hints.  For example:
+In some cases, providing type hints can improve the efficiency
+of the data encoding. For example:
 
 ```python
-import google.cloud.dataflow as df
-from google.cloud.dataflow.typehints import typehints
-p = df.Pipeline('DirectPipelineRunner')
+import apache_beam as beam
+from apache_beam.typehints import typehints
+p = beam.Pipeline('DirectPipelineRunner')
 (p
- | df.Read('A', df.io.TextFileSource('./names'))
- | df.Map('B1', lambda x: (x, 1)).with_output_types(typehints.KV[str, int])
- | df.GroupByKey('GBK')
- | df.Write('C', df.io.TextFileSink('./results')))
+ | 'read' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'add types' >> beam.Map(lambda x: (x, 1)).with_output_types(typehints.KV[unicode, int])
+ | 'group words' >> beam.GroupByKey()
+ | 'save' >> beam.Write(beam.io.TextFileSink('./typed_names')))
 p.run()
 ```
 
 ### BigQuery
 
-Here is a pipeline that reads input from a BigQuery table and writes the result
-to a different table. This example calculates the number of tornadoes per month
-from weather data. To run it you will need to provide an output table that
-you can write to.
+Here is a pipeline that reads input from a BigQuery table and writes the result to
+a different table. This example calculates the number of tornadoes per month from
+weather data. The user needs to specify a project and an output table to write results.
 
 ```python
-import google.cloud.dataflow as df
+import apache_beam as beam
+project = 'DESTINATION-PROJECT-ID'
 input_table = 'clouddataflow-readonly:samples.weather_stations'
-project = 'YOUR-PROJECT'
-output_table = 'DATASET.TABLENAME'
-p = df.Pipeline(argv=['--project', project])
+output_table = 'DESTINATION-DATASET.DESTINATION-TABLE'
+
+p = beam.Pipeline(argv=['--project', project])
 (p
- | df.Read('read', df.io.BigQuerySource(input_table))
- | df.FlatMap(
-     'months with tornadoes',
-     lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
- | df.CombinePerKey('monthly count', sum)
- | df.Map('format', lambda (k, v): {'month': k, 'tornado_count': v})
- | df.Write('write', df.io.BigQuerySink(
-      output_table,
-      schema='month:INTEGER, tornado_count:INTEGER',
-      create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED,
-      write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE)))
+ | 'read' >> beam.Read(beam.io.BigQuerySource(input_table))
+ | 'months with tornadoes' >> beam.FlatMap(
+        lambda row: [(int(row['month']), 1)] if row['tornado'] else []
+    )
+ | 'monthly count' >> beam.CombinePerKey(sum)
+ | 'format' >> beam.Map(lambda (k, v): {'month': k, 'tornado_count': v})
+ | 'save' >> beam.Write(
+        beam.io.BigQuerySink(
+            output_table,
+            schema='month:INTEGER, tornado_count:INTEGER',
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE
+        )
+    )
+)
 p.run()
 ```
 
@@ -430,40 +433,40 @@ number of tornadoes per month, but uses a query to filter out input instead
 of using the whole table.
 
 ```python
-import google.cloud.dataflow as df
-project = 'YOUR-PROJECT'
-output_table = 'DATASET.TABLENAME'
+import apache_beam as beam
+project = 'DESTINATION-PROJECT-ID'
+output_table = 'DESTINATION-DATASET.DESTINATION-TABLE'
 input_query = 'SELECT month, COUNT(month) AS tornado_count ' \
         'FROM [clouddataflow-readonly:samples.weather_stations] ' \
         'WHERE tornado=true GROUP BY month'
-p = df.Pipeline(argv=['--project', project])
+p = beam.Pipeline(argv=['--project', project])
 (p
-| df.Read('read', df.io.BigQuerySource(query=input_query))
-| df.Write('write', df.io.BigQuerySink(
-    output_table,
-    schema='month:INTEGER, tornado_count:INTEGER',
-    create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED,
-    write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE)))
+| 'read' >> beam.Read(beam.io.BigQuerySource(query=input_query))
+| 'save' >> beam.Write(beam.io.BigQuerySink(
+        output_table,
+        schema='month:INTEGER, tornado_count:INTEGER',
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
 p.run()
 ```
 
 ### Combiner Examples
 
-A common case for Dataflow combiners is to sum (or max or min) over the values
-of each key. Such standard Python functions can be used directly as combiner
-functions. In fact, any function "reducing" an iterable to a single value can be
-used.
+A common case for combiners is to sum (or max or min) over the values
+of each key. Such standard Python functions can be used directly as
+combiner functions. In fact, any function "reducing" an iterable to a
+single value can be used.
 
 ```python
-import google.cloud.dataflow as df
-p = df.Pipeline('DirectPipelineRunner')
+import apache_beam as beam
+p = beam.Pipeline('DirectPipelineRunner')
 
 SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20)]
 
 (p
- | df.Create(SAMPLE_DATA)
- | df.CombinePerKey(sum)
- | df.Write(df.io.TextFileSink('./results')))
+ | beam.Create(SAMPLE_DATA)
+ | beam.CombinePerKey(sum)
+ | beam.Write(beam.io.TextFileSink('./sums')))
 p.run()
 ```
 
