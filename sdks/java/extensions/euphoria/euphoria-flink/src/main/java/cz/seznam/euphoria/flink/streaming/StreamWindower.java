@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
@@ -62,9 +63,12 @@ class StreamWindower {
 
     Windowing<T, GROUP, LABEL, WindowContext<GROUP, LABEL>> genericWindowing
         = (Windowing<T, GROUP, LABEL, WindowContext<GROUP, LABEL>>) windowing;
-    DataStream<Pair<WindowID<GROUP, LABEL>, Pair<KEY, VALUE>>> elementsWithWindow = input
-        .flatMap((i, c) -> {
-          for (WindowID<GROUP, LABEL> w : genericWindowing.assignWindows(i)) {
+    DataStream<Pair<WindowID<GROUP, LABEL>, Pair<KEY, VALUE>>> elementsWithWindow =
+        input.flatMap((i, c) -> {
+          // FIXME extract "window-id" from the input element itself before passing
+          // it downstream to the windowing strategy
+          WindowedElement<GROUP, LABEL, T> wi = new WindowedElement<>(null, i);
+          for (WindowID<GROUP, LABEL> w : genericWindowing.assignWindowsToElement(wi)) {
             c.collect(Pair.of(w, Pair.of(keyExtractor.apply(i), valueExtractor.apply(i))));
           }
         })
@@ -141,8 +145,13 @@ class StreamWindower {
     }
     
     DataStream<WindowedPair<LABEL, KEY, VALUE>> mapped = input
-        .map(i -> WindowedPair.of(windowing.assignWindows(i).iterator().next().getLabel(),
-            keyExtractor.apply(i), valueExtractor.apply(i)))
+        .map(i -> {
+          // FIXME extract "window-id" from the input element itself before passing
+          // it downstream to the windowing strategy
+          WindowedElement<GROUP, LABEL, T> wi = new WindowedElement<>(null, i);
+          return WindowedPair.of(windowing.assignWindowsToElement(wi).iterator().next().getLabel(),
+            keyExtractor.apply(i), valueExtractor.apply(i));
+        })
         .returns((Class) WindowedPair.class);
     final KeyedStream<WindowedPair<LABEL, KEY, VALUE>, KEY> keyed;
     keyed = mapped.keyBy(Utils.keyByPairFirst());
