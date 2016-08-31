@@ -53,7 +53,7 @@ public class TimestampedValue<V> {
   }
 
   /**
-   * Returns a new {@link TimestampedValue} with the given value and timestamp.
+   * Returns a new {@code TimestampedValue} with the given value and timestamp.
    */
   public static <V> TimestampedValue<V> of(V value, Instant timestamp) {
     return new TimestampedValue<>(value, timestamp);
