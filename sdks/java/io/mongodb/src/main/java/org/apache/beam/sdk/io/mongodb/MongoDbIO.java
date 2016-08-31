@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * pipeline.apply(MongoDbIO.read()
  *   .withUri("mongodb://localhost:27017")
  *   .withDatabase("my-database")
- *   .withCollection("my-collection")
+ *   .withCollection("my-collection"))
  *   // above three are required configuration, returns PCollection<String>
  *
  *   // rest of the settings are optional
@@ -92,7 +92,7 @@ import org.slf4j.LoggerFactory;
  *     .withUri("mongodb://localhost:27017")
  *     .withDatabase("my-database")
  *     .withCollection("my-collection")
- *     .withNumSplits(30)
+ *     .withNumSplits(30))
  *
  * }</pre>
  */
@@ -102,12 +102,14 @@ public class MongoDbIO {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIO.class);
 
+  /** Read data from MongoDB. */
   public static Read read() {
-    return new Read(null, null, null, null, 0);
+    return new Read(new BoundedMongoDbSource(null, null, null, null, 0));
   }
 
+  /** Write data to MongoDB. */
   public static Write write() {
-    return new Write(null, null, null);
+    return new Write(new Write.MongoDbWriter(null, null, null));
   }
 
   private MongoDbIO() {
@@ -119,44 +121,35 @@ public class MongoDbIO {
   public static class Read extends PTransform<PBegin, PCollection<String>> {
 
     public Read withUri(String uri) {
-      return new Read(uri, database, collection, filter, numSplits);
+      return new Read(source.withUri(uri));
     }
 
     public Read withDatabase(String database) {
-      return new Read(uri, database, collection, filter, numSplits);
+      return new Read(source.withDatabase(database));
     }
 
     public Read withCollection(String collection) {
-      return new Read(uri, database, collection, filter, numSplits);
+      return new Read(source.withCollection(collection));
     }
 
     public Read withFilter(String filter) {
-      return new Read(uri, database, collection, filter, numSplits);
+      return new Read(source.withFilter(filter));
     }
 
     public Read withNumSplits(int numSplits) {
-      return new Read(uri, database, collection, filter, numSplits);
+      return new Read(source.withNumSplits(numSplits));
     }
 
-    private final String uri;
-    private final String database;
-    private final String collection;
-    @Nullable
-    private final String filter;
-    private final int numSplits;
+    private final BoundedMongoDbSource source;
 
-    private Read(String uri, String database, String collection, String filter, int numSplits) {
-      this.uri = uri;
-      this.database = database;
-      this.collection = collection;
-      this.filter = filter;
-      this.numSplits = numSplits;
+    private Read(BoundedMongoDbSource source) {
+      this.source = source;
     }
 
     @Override
     public PCollection<String> apply(PBegin input) {
-      org.apache.beam.sdk.io.Read.Bounded bounded = org.apache.beam.sdk.io.
-          Read.from(createSource());
+      org.apache.beam.sdk.io.Read.Bounded bounded = org.apache.beam.sdk.io.Read.from(createSource
+          ());
       PTransform<PInput, PCollection<String>> transform = bounded;
       return input.getPipeline().apply(transform);
     }
@@ -166,30 +159,44 @@ public class MongoDbIO {
      */
     @VisibleForTesting
     BoundedSource createSource() {
-      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
+      return source;
     }
 
     @Override
     public void validate(PBegin input) {
-      Preconditions.checkNotNull(uri, "uri");
-      Preconditions.checkNotNull(database, "database");
-      Preconditions.checkNotNull(collection, "collection");
+      source.validate();
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("uri", uri));
-      builder.addIfNotNull(DisplayData.item("database", database));
-      builder.addIfNotNull(DisplayData.item("collection", collection));
-      builder.addIfNotNull(DisplayData.item("filter", filter));
-      builder.addIfNotNull(DisplayData.item("numSplits", numSplits));
+      source.populateDisplayData(builder);
     }
 
   }
 
   private static class BoundedMongoDbSource extends BoundedSource {
+
+    public BoundedMongoDbSource withUri(String uri) {
+      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
+    }
+
+    public BoundedMongoDbSource withDatabase(String database) {
+      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
+    }
+
+    public BoundedMongoDbSource withCollection(String collection) {
+      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
+    }
+
+    public BoundedMongoDbSource withFilter(String filter) {
+      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
+    }
+
+    public BoundedMongoDbSource withNumSplits(int numSplits) {
+      return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
+    }
 
     private final String uri;
     private final String database;
@@ -217,6 +224,15 @@ public class MongoDbIO {
       Preconditions.checkNotNull(uri, "uri");
       Preconditions.checkNotNull(database, "database");
       Preconditions.checkNotNull(collection, "collection");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.addIfNotNull(DisplayData.item("uri", uri));
+      builder.addIfNotNull(DisplayData.item("database", database));
+      builder.addIfNotNull(DisplayData.item("collection", collection));
+      builder.addIfNotNull(DisplayData.item("filter", filter));
+      builder.addIfNotNull(DisplayData.item("numSplit", numSplits));
     }
 
     @Override
@@ -249,23 +265,12 @@ public class MongoDbIO {
         // by counting number of document returned by the filter
         // and using the average object size from collStats
         try {
-          estimatedSizeBytes = getFilterResultByteSize(mongoCollection, avgSize);
+          estimatedSizeBytes = mongoCollection.count(Document.parse(filter)) * avgSize;
         } catch (Exception e) {
           LOGGER.warn("Can't estimate size", e);
         }
       }
       return estimatedSizeBytes;
-    }
-
-    private long getFilterResultByteSize(MongoCollection mongoCollection, long avgSize)
-        throws Exception {
-      // count the number of documents selected by the filter and estimate the size of the
-      // filter using the average object size * the number of documents
-      long totalFilterByteSize = 0L;
-      Document bson = Document.parse(filter);
-      long countFilter = mongoCollection.count(bson);
-      totalFilterByteSize = countFilter * avgSize;
-      return totalFilterByteSize;
     }
 
     @Override
@@ -274,7 +279,7 @@ public class MongoDbIO {
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
 
-      ArrayList splitKeys = null;
+      List<Document> splitKeys = null;
       if (numSplits > 0) {
         // the user defines his desired number of splits
         // calculate the bundle size
@@ -282,16 +287,24 @@ public class MongoDbIO {
         desiredBundleSizeBytes = estimatedSizeBytes / numSplits;
       }
 
-      // now we have the desized bundle size (provided by user or provided by the runner)
+      // the desired bundle size is small, using default chunk size of 64MB
+      if (desiredBundleSizeBytes == 0 || ((desiredBundleSizeBytes / 1024 / 1024) < 1)) {
+        desiredBundleSizeBytes = 64 * 1024 * 1024;
+      }
+
+      // now we have the bundle size (provided by user or provided by the runner)
       // we use Mongo splitVector command to get the split keys
       BasicDBObject splitVectorCommand = new BasicDBObject();
       splitVectorCommand.append("splitVector", database + "." + collection);
       splitVectorCommand.append("keyPattern", new BasicDBObject().append("_id", 1));
       splitVectorCommand.append("force", false);
       // maxChunkSize is the Mongo partition size in MB
+      LOGGER.debug("Splitting in chunk of {} MB", desiredBundleSizeBytes / 1024 / 1024);
       splitVectorCommand.append("maxChunkSize", desiredBundleSizeBytes / 1024 / 1024);
       Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
-      splitKeys = (ArrayList) splitVectorCommandResult.get("splitKeys");
+      splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+
+      LOGGER.debug("Number of splits is {}", splitKeys.size());
 
       return createSourceList(splitKeys);
     }
@@ -302,7 +315,7 @@ public class MongoDbIO {
      * @param splitKeys List of split keys to create sources.
      * @return The list of sources.
      */
-    private List<BoundedSource> createSourceList(ArrayList splitKeys) {
+    private List<BoundedSource> createSourceList(List<Document> splitKeys) {
       List<BoundedSource> splitSourceList = new ArrayList<>();
       if (splitKeys == null) {
         splitSourceList.add(new BoundedMongoDbSource(uri, database, collection, filter, numSplits));
@@ -407,7 +420,9 @@ public class MongoDbIO {
     @Override
     public void close() {
       try {
-        cursor.close();
+        if (cursor != null) {
+          cursor.close();
+        }
       } catch (Exception e) {
         LOGGER.warn("Error closing MongoDB cursor", e);
       }
@@ -426,75 +441,86 @@ public class MongoDbIO {
   public static class Write extends PTransform<PCollection<String>, PDone> {
 
     public Write withUri(String uri) {
-      return new Write(uri, database, collection);
+      return new Write(writer.withUri(uri));
     }
 
     public Write withDatabase(String database) {
-      return new Write(uri, database, collection);
+      return new Write(writer.withDatabase(database));
     }
 
     public Write withCollection(String collection) {
-      return new Write(uri, database, collection);
+      return new Write(writer.withCollection(collection));
     }
 
-    private final String uri;
-    private final String database;
-    private final String collection;
+    private final MongoDbWriter writer;
 
-    private Write(String uri, String database, String collection) {
-      this.uri = uri;
-      this.database = database;
-      this.collection = collection;
+    private Write(MongoDbWriter writer) {
+      this.writer = writer;
     }
 
     @Override
     public PDone apply(PCollection<String> input) {
-      input.apply(ParDo.of(new MongoDbWriter(this)));
+      input.apply(ParDo.of(writer));
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<String> input) {
-      Preconditions.checkNotNull(uri, "uri");
-      Preconditions.checkNotNull(database, "database");
-      Preconditions.checkNotNull(collection, "collection");
+      writer.validate();
     }
 
     private static class MongoDbWriter extends DoFn<String, Void> {
 
-      private final Write write;
+      private final String uri;
+      private final String database;
+      private final String collection;
 
       private MongoClient client;
 
-      public MongoDbWriter(Write write) {
-        this.write = write;
+      public MongoDbWriter(String uri, String database, String collection) {
+        this.uri = uri;
+        this.database = database;
+        this.collection = collection;
       }
 
-      @StartBundle
-      public void startBundle(Context c) throws Exception {
-        if (client == null) {
-          client = new MongoClient(new MongoClientURI(write.uri));
-        }
+      public MongoDbWriter withUri(String uri) {
+        return new MongoDbWriter(uri, database, collection);
+      }
+
+      public MongoDbWriter withDatabase(String database) {
+        return new MongoDbWriter(uri, database, collection);
+      }
+
+      public MongoDbWriter withCollection(String collection) {
+        return new MongoDbWriter(uri, database, collection);
+      }
+
+      public void validate() {
+        Preconditions.checkNotNull(uri, "uri");
+        Preconditions.checkNotNull(database, "database");
+        Preconditions.checkNotNull(collection, "collection");
+      }
+
+      @Setup
+      public void createMongoClient() throws Exception {
+        client = new MongoClient(new MongoClientURI(uri));
       }
 
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
 
-        MongoDatabase mongoDatabase = client.getDatabase(write.database);
-        MongoCollection mongoCollection = mongoDatabase.getCollection(write.collection);
+        MongoDatabase mongoDatabase = client.getDatabase(database);
+        MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
 
         mongoCollection.insertOne(Document.parse(value));
       }
 
-      @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      @Teardown
+      public void closeMongoClient() throws Exception {
         client.close();
         client = null;
       }
-
     }
-
   }
-
 }

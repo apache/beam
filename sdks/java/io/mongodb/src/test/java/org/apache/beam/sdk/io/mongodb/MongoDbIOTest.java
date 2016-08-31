@@ -78,7 +78,6 @@ public class MongoDbIOTest {
     MongoDatabase database = client.getDatabase(DATABASE);
 
     MongoCollection collection = database.getCollection(COLLECTION);
-    collection.drop();
 
     String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
         "Newton", "Bohr", "Galilei", "Maxwell"};
@@ -128,7 +127,7 @@ public class MongoDbIOTest {
         .withFilter("{\"scientist\":\"Einstein\"}"));
 
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally()))
-        .notEqualTo(new Long(1000));
+        .isEqualTo(100L);
 
     pipeline.run();
   }
