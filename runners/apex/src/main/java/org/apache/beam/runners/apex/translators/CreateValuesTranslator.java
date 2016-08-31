@@ -23,6 +23,7 @@ import org.apache.beam.runners.apex.translators.io.ValuesSource;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PBegin;
 
 import com.google.common.base.Throwables;
 
@@ -38,7 +39,7 @@ public class CreateValuesTranslator<T> implements TransformTranslator<Create.Val
   public void translate(Create.Values<T> transform, TranslationContext context) {
     try {
       UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(transform.getElements(),
-          transform.getDefaultOutputCoder(context.getInput()));
+          transform.getDefaultOutputCoder((PBegin)context.getInput()));
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(unboundedSource,
           context.getPipelineOptions());
       context.addOperator(operator, operator.output);
