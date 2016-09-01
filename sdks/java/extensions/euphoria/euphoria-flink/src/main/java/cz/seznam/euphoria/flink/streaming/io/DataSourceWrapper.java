@@ -1,9 +1,13 @@
 package cz.seznam.euphoria.flink.streaming.io;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent
+    .ThreadFactoryBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -19,8 +23,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<T>
-        implements ResultTypeQueryable<T>
+        extends RichParallelSourceFunction<WindowedElement<Void, Batch.Label, T>>
+        implements ResultTypeQueryable<WindowedElement<Void, Batch.Label, T>>
 {
   private final DataSource<T> dataSource;
   private volatile boolean isRunning = true;
@@ -32,7 +36,9 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public void run(SourceContext<T> ctx) throws Exception {
+  public void run(SourceContext<WindowedElement<Void, Batch.Label, T>> ctx)
+      throws Exception
+  {
     StreamingRuntimeContext runtimeContext =
             (StreamingRuntimeContext) getRuntimeContext();
 
@@ -53,7 +59,7 @@ public class DataSourceWrapper<T>
       Reader<T> reader = openReaders.get(0);
 
       while (isRunning && reader.hasNext()) {
-        ctx.collect(reader.next());
+        ctx.collect(toWindowedElement(reader.next()));
       }
     } else {
       // start a new thread for each reader
@@ -63,7 +69,7 @@ public class DataSourceWrapper<T>
         tasks.add(executor.submit(() -> {
           while (reader.hasNext()) {
             synchronized (ctx) {
-              ctx.collect(reader.next());
+              ctx.collect(toWindowedElement(reader.next()));
             }
           }
         }));
@@ -84,6 +90,10 @@ public class DataSourceWrapper<T>
     }
   }
 
+  private WindowedElement<Void, Batch.Label, T> toWindowedElement(T elem) {
+    return new WindowedElement<>(WindowID.aligned(Batch.Label.get()), elem);
+  }
+
   @Override
   public void cancel() {
     if (executor != null) {
@@ -94,8 +104,8 @@ public class DataSourceWrapper<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeInformation<T> getProducedType() {
-    return TypeInformation.of((Class) Object.class);
+  public TypeInformation<WindowedElement<Void, Batch.Label, T>> getProducedType() {
+    return TypeInformation.of((Class) WindowedElement.class);
   }
 
   private ThreadPoolExecutor createThreadPool() {

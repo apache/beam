@@ -1,6 +1,8 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
@@ -12,7 +14,6 @@ import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
@@ -51,16 +52,17 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     // apply windowing first
-    WindowedStream<WindowedPair, Object, Window> windowedPairs =
-            context.windowStream(input, keyExtractor, valueExtractor, windowing);
+    WindowedStream<WindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
+            context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
 
     // FIXME non-combinable reduce function not supported without windowing
     if (!origOperator.isCombinable()) {
-      throw new UnsupportedOperationException("Non-combinable reduce not supported yet");
+      throw new UnsupportedOperationException("Non-combining reduce not supported yet");
     }
 
     // reduce
-    DataStream<WindowedPair> reduced = windowedPairs.reduce(new TypedReducer(reducer))
+    DataStream<WindowedElement<?, ?, WindowedPair>> reduced =
+        windowedPairs.reduce(new TypedReducer(reducer))
             .name(operator.getName())
             .setParallelism(operator.getParallelism());
 
@@ -72,15 +74,15 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
       reduced = reduced.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              p -> p.getKey());
+              p -> p.get().getKey());
     }
 
     return reduced;
   }
 
   private static class TypedReducer
-          implements ReduceFunction<WindowedPair>,
-          ResultTypeQueryable<WindowedPair>
+          implements ReduceFunction<WindowedElement<?, ?, WindowedPair>>,
+          ResultTypeQueryable<WindowedElement<?, ?, WindowedPair>>
   {
     final UnaryFunction<Iterable, Object> reducer;
 
@@ -89,15 +91,25 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     @Override
-    public WindowedPair reduce(WindowedPair p1, WindowedPair p2) {
-      return WindowedPair.of(p1.getWindowLabel(), p1.getKey(),
-              reducer.apply(Arrays.asList(p1.getSecond(), p2.getSecond())));
+    public WindowedElement<?, ?, WindowedPair> reduce(
+        WindowedElement<?, ?, WindowedPair> p1,
+        WindowedElement<?, ?, WindowedPair> p2) {
+
+      Object v1 = p1.get().getSecond();
+      Object v2 = p2.get().getSecond();
+      WindowID<?, ?> wid = p1.getWindowID();
+      return new WindowedElement<>(
+          wid,
+          WindowedPair.of(
+              wid.getLabel(),
+              p1.get().getKey(),
+              reducer.apply(Arrays.asList(v1, v2))));
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<WindowedPair> getProducedType() {
-      return TypeInformation.of((Class) WindowedPair.class);
+    public TypeInformation<WindowedElement<?, ?, WindowedPair>> getProducedType() {
+      return TypeInformation.of((Class) WindowedElement.class);
     }
   }
 }

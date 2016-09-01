@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -25,12 +26,12 @@ public class StreamingExecutorContext
 
   /** Retrieve windowed stream based on euphoria windowing and key assigner. */
   <T, LABEL, GROUP, KEY, VALUE, W extends org.apache.flink.streaming.api.windowing.windows.Window>
-  WindowedStream<WindowedPair<LABEL, KEY, VALUE>, KEY, W>
-  windowStream(DataStream<T> input, UnaryFunction<T, KEY> keyExtractor,
+  WindowedStream<WindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, W>
+  windowStream(DataStream<WindowedElement<?, ?, T>> input,
+      UnaryFunction<T, KEY> keyExtractor,
       UnaryFunction<T, VALUE> valueExtractor,
       Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
 
     return windower.window(input, keyExtractor, valueExtractor, windowing);
-    
   }
 }
