@@ -18,27 +18,20 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.both;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
-
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.TimestampedValue;
-
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -109,15 +102,15 @@ public class LatestFnTests {
 
   @Test
   public void testAddInputNullAccumulator() {
-    thrown.expect(both(Matchers.<Throwable>instanceOf(NullPointerException.class))
-        .and(hasMessage(containsString("accumulators"))));
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("accumulators");
     fn.addInput(null, TV);
   }
 
   @Test
   public void testAddInputNullInput() {
-    thrown.expect(both(Matchers.<Throwable>instanceOf(NullPointerException.class))
-        .and(hasMessage(containsString("input"))));
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("input");
     fn.addInput(TV, null);
   }
 

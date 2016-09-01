@@ -17,16 +17,13 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.util.List;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -137,8 +134,8 @@ public class DoFnTesterTest {
     DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn());
     tester.finishBundle();
 
-    thrown.expect(both(Matchers.<Throwable>instanceOf(IllegalStateException.class))
-        .and(hasMessage(containsString("finishBundle() has already been called"))));
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("finishBundle() has already been called");
     tester.processElement(1L);
   }
 
