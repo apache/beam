@@ -22,8 +22,11 @@ import java.util.stream.Collectors;
 public class WatermarkTriggerScheduler implements TriggerScheduler {
 
   private final long watermarkDuration;
-  private volatile long currentWatermark;
   
+  // read-only accessed from multiple threads
+  private volatile long currentWatermark;
+
+  // following fields are accessed from owner thread only
   private final SortedMap<Long, List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>>>
       scheduledEvents = new TreeMap<>();
   private final Map<WindowContext<?, ?>, Set<Long>> eventStampsForWindow
@@ -43,30 +46,25 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
   public void updateStamp(long stamp) {
     final long newWatermark = stamp - watermarkDuration;
     if (currentWatermark < newWatermark) {
-      synchronized (this) {
-        if (currentWatermark < newWatermark) {
-          currentWatermark = newWatermark;
-          
-          // fire all triggers that passed
-          
-          SortedMap<Long, List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>>> headMap;
-          headMap = scheduledEvents.headMap(currentWatermark);
+      currentWatermark = newWatermark;
 
-          headMap.entrySet().stream()
-              .flatMap(e -> e.getValue().stream().map(p -> Pair.of(e.getKey(), p)))
-              // need to collect to list to prevent ConcurrentModificationException
-              .collect(Collectors.toList())
-              .forEach(p -> {
-                Triggerable<?, ?> purged = purge(p.getSecond().getFirst(), p.getFirst());
-                purged.fire(stamp, (WindowContext) p.getSecond().getFirst());
-              });
-                        
-          // remove all expired events
-          headMap.keySet().stream().collect(Collectors.toList())
-              .forEach(scheduledEvents::remove);
+      // fire all triggers that passed
 
-        }
-      }
+      SortedMap<Long, List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>>> headMap;
+      headMap = scheduledEvents.headMap(currentWatermark);
+
+      headMap.entrySet().stream()
+          .flatMap(e -> e.getValue().stream().map(p -> Pair.of(e.getKey(), p)))
+          // need to collect to list to prevent ConcurrentModificationException
+          .collect(Collectors.toList())
+          .forEach(p -> {
+            Triggerable<?, ?> purged = purge(p.getSecond().getFirst(), p.getFirst());
+            purged.fire(stamp, (WindowContext) p.getSecond().getFirst());
+          });
+
+      // remove all expired events
+      headMap.keySet().stream().collect(Collectors.toList())
+          .forEach(scheduledEvents::remove);
     }
   }
 
@@ -76,7 +74,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
   }
 
   @Override
-  public synchronized boolean scheduleAt(
+  public boolean scheduleAt(
       long stamp, WindowContext<?, ?> w, Triggerable<?, ?> trigger) {
     if (stamp < currentWatermark) return false;
     purge(w, stamp);
