@@ -331,7 +331,7 @@ public class WindowingTest {
   }
 
   private void testWindowing_EndOfWindowImpl(int dataPartitions) {
-    final Duration READ_DELAY = Duration.ofMillis(200L);
+    final Duration READ_DELAY = Duration.ofMillis(50L);
     Flow flow = Flow.create("Test");
 
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
@@ -347,6 +347,7 @@ public class WindowingTest {
         .setNumPartitions(dataPartitions)
         .windowBy(Count.of(3))
         .output();
+    
     // ~ strip the needless key and flatten out the elements thereby
     // creating multiple elements in the output belonging to the same window
     Dataset<String> second = FlatMap.of(first)

@@ -31,9 +31,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
-import static cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
-import java.util.Optional;
 
 class ReduceStateByKeyReducer implements Runnable {
 
@@ -357,13 +355,8 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @Override
     public boolean scheduleTriggerAt(long stamp, WindowContext w, Trigger trigger) {
-      if (triggering.scheduleAt(
-          stamp, w, ReduceStateByKeyReducer.this.createTriggerHandler(trigger))
-          != null) {
-        // successfully scheduled
-        return true;
-      }
-      return false;
+      return triggering.scheduleAt(
+          stamp, w, ReduceStateByKeyReducer.this.createTriggerHandler(trigger));
     }
 
     @Override
@@ -394,7 +387,7 @@ class ReduceStateByKeyReducer implements Runnable {
                 }
               };
 
-          if (triggering.scheduleAt(stamp, windowContext, triggerable) == null) {
+          if (!triggering.scheduleAt(stamp, windowContext, triggerable)) {
             LOG.debug("Manually firing already passed flush event for windowID {}",
                 windowID);
             triggerable.fire(stamp, windowContext);
