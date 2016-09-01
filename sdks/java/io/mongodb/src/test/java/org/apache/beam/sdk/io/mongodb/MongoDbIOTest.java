@@ -38,6 +38,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.bson.Document;
@@ -108,10 +110,59 @@ public class MongoDbIOTest {
           .withDatabase(DATABASE)
           .withCollection(COLLECTION));
 
-    PAssert.thatSingleton(output.apply("Count", Count.<String>globally()))
-        .isEqualTo(new Long(1000));
+    PAssert.thatSingleton(output.apply("Count All", Count.<String>globally()))
+        .isEqualTo(1000L);
+
+    PAssert.thatSingleton(
+        output.apply("Filter Einstein", Filter.by(new ScientistFilter("Einstein")))
+        .apply("Count Einstein", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Darwin", Filter.by(new ScientistFilter("Darwin")))
+        .apply("Count Darwin", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Copernicus", Filter.by(new ScientistFilter("Copernicus")))
+        .apply("Count Copernicus", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Pasteur", Filter.by(new ScientistFilter("Pasteur")))
+        .apply("Count Pasteur", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Curie", Filter.by(new ScientistFilter("Curie")))
+        .apply("Count Curie", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Faraday", Filter.by(new ScientistFilter("Faraday")))
+        .apply("Count Faraday", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Newton", Filter.by(new ScientistFilter("Newton")))
+        .apply("Count Newton", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Bohr", Filter.by(new ScientistFilter("Bohr")))
+        .apply("Count Bohr", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Galilei", Filter.by(new ScientistFilter("Galilei")))
+        .apply("Count Galilei", Count.<String>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(
+        output.apply("Filter Maxwell", Filter.by(new ScientistFilter("Maxwell")))
+        .apply("Count Maxwell", Count.<String>globally())).isEqualTo(100L);
 
     pipeline.run();
+  }
+
+  private static class ScientistFilter implements SerializableFunction<String, Boolean> {
+
+    private String scientist;
+
+    public ScientistFilter(String scientist) {
+      this.scientist = scientist;
+    }
+
+    public Boolean apply(String input) {
+      Document bson = Document.parse(input);
+      if (bson.getString("scientist").equals(scientist)) {
+        return true;
+      }
+      return false;
+    }
+
   }
 
   @Test
