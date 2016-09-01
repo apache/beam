@@ -305,9 +305,8 @@ p = beam.Pipeline('DirectPipelineRunner')
 (p
  | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
  | 'add greetings' >> beam.FlatMap(
-        lambda name, messages: ['%s %s!' % (msg, name) for msg in messages],
-        ['Hello', 'Hola']
-    )
+    lambda name, messages: ['%s %s!' % (msg, name) for msg in messages],
+    ['Hello', 'Hola'])
  | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
 p.run()
 ```
@@ -344,8 +343,7 @@ import apache_beam as beam
 p = beam.Pipeline('DirectPipelineRunner')
 (p
  | 'read' >> beam.Read(
-        beam.io.TextFileSource('gs://dataflow-samples/shakespeare/kinglear.txt')
-    )
+    beam.io.TextFileSource('gs://dataflow-samples/shakespeare/kinglear.txt'))
  | 'split' >> beam.FlatMap(lambda x: re.findall(r'\w+', x))
  | 'count words' >> beam.combiners.Count.PerElement()
  | 'save' >> beam.Write(beam.io.TextFileSink('./word_count')))
@@ -356,8 +354,8 @@ p.run()
 
 This is a somewhat forced example of `GroupByKey` to count the words.
 Normally, one would use the transform `beam.combiners.Count.PerElement`,
-as in the previous example. A wildcard is used to specify the text
-file source.
+as in the previous example. As shown in the example, a wildcard can be 
+used to specify the text file source.
 ```python
 import re
 import apache_beam as beam
@@ -365,11 +363,11 @@ p = beam.Pipeline('DirectPipelineRunner')
 class MyCountTransform(beam.PTransform):
   def apply(self, pcoll):
     return (pcoll
-    | 'one word' >> beam.Map(lambda word: (word, 1))
-    # GroupByKey accepts a PCollection of (word, 1) elements and
-    # outputs a PCollection of (word, [1, 1, ...])
-    | 'group words' >> beam.GroupByKey()
-    | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts))))
+            | 'one word' >> beam.Map(lambda word: (word, 1))
+            # GroupByKey accepts a PCollection of (word, 1) elements and
+            # outputs a PCollection of (word, [1, 1, ...])
+            | 'group words' >> beam.GroupByKey()
+            | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts))))
 
 (p
  | 'read' >> beam.Read(beam.io.TextFileSource('./names*'))
@@ -412,19 +410,15 @@ p = beam.Pipeline(argv=['--project', project])
 (p
  | 'read' >> beam.Read(beam.io.BigQuerySource(input_table))
  | 'months with tornadoes' >> beam.FlatMap(
-        lambda row: [(int(row['month']), 1)] if row['tornado'] else []
-    )
+    lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
  | 'monthly count' >> beam.CombinePerKey(sum)
  | 'format' >> beam.Map(lambda (k, v): {'month': k, 'tornado_count': v})
  | 'save' >> beam.Write(
-        beam.io.BigQuerySink(
-            output_table,
-            schema='month:INTEGER, tornado_count:INTEGER',
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE
-        )
-    )
-)
+    beam.io.BigQuerySink(
+        output_table,
+        schema='month:INTEGER, tornado_count:INTEGER',
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
 p.run()
 ```
 
@@ -441,12 +435,12 @@ input_query = 'SELECT month, COUNT(month) AS tornado_count ' \
         'WHERE tornado=true GROUP BY month'
 p = beam.Pipeline(argv=['--project', project])
 (p
-| 'read' >> beam.Read(beam.io.BigQuerySource(query=input_query))
-| 'save' >> beam.Write(beam.io.BigQuerySink(
-        output_table,
-        schema='month:INTEGER, tornado_count:INTEGER',
-        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
+ | 'read' >> beam.Read(beam.io.BigQuerySource(query=input_query))
+ | 'save' >> beam.Write(beam.io.BigQuerySink(
+    output_table,
+    schema='month:INTEGER, tornado_count:INTEGER',
+    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+    write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
 p.run()
 ```
 
