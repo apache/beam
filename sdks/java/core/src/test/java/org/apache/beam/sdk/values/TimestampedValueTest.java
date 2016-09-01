@@ -57,6 +57,7 @@ public class TimestampedValueTest {
   @Test
   public void testNullTimestamp() {
     thrown.expect(NullPointerException.class);
+    thrown.expectMessage("timestamp");
     TimestampedValue.of("foobar", null);
   }
 

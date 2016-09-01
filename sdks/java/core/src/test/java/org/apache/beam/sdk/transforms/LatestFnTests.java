@@ -158,6 +158,7 @@ public class LatestFnTests {
   @Test
   public void testMergeAccumulatorsNullIterable() {
     thrown.expect(NullPointerException.class);
+    thrown.expectMessage("accumulators");
     fn.mergeAccumulators(null);
   }
 
