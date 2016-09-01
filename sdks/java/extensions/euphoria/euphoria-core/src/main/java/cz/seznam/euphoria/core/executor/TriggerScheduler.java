@@ -15,10 +15,10 @@ public interface TriggerScheduler extends Serializable {
    * Fire specific trigger on given time.
    * Schedule the given trigger at the given stamp.
    * The trigger will be fired as close to the time as possible.
-   * @returns true if the triggerable has been scheduler
+   * @returns true if the triggerable has been scheduled
    * @returns false if the time already passed
    */
-  boolean scheduleAt(long stamp, WindowContext<?, ?> w, Triggerable trigger);
+  boolean scheduleAt(long stamp, WindowContext<?, ?> w, Triggerable<?, ?> trigger);
 
   /**
    * Retrieve current timestamp this triggering is on.
