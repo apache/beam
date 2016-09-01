@@ -16,8 +16,6 @@ public abstract class WindowWiseOperator<
 
   protected Windowing<WIN, ?, WLABEL, W> windowing;
 
-  protected UnaryFunction<WIN, Long> stampExtractor = null;
-
   public WindowWiseOperator(String name,
                             Flow flow,
                             Windowing<WIN, ?, WLABEL, W> windowing /* optional */)
