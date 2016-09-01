@@ -5,7 +5,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
 
 import java.io.Serializable;
-import java.util.concurrent.ScheduledFuture;
 
 /**
  * Schedules and fires registered triggers according to internal time.
@@ -16,9 +15,10 @@ public interface TriggerScheduler extends Serializable {
    * Fire specific trigger on given time.
    * Schedule the given trigger at the given stamp.
    * The trigger will be fired as close to the time as possible.
-   * @return delayed result as a future or {@code null} when time already passed
+   * @returns true if the triggerable has been scheduler
+   * @returns false if the time already passed
    */
-  ScheduledFuture<Void> scheduleAt(long stamp, WindowContext w, Triggerable trigger);
+  boolean scheduleAt(long stamp, WindowContext<?, ?> w, Triggerable trigger);
 
   /**
    * Retrieve current timestamp this triggering is on.
@@ -35,7 +35,7 @@ public interface TriggerScheduler extends Serializable {
   /**
    * Cancel all tasks scheduled for specified window
    */
-  void cancel(WindowContext w);
+  void cancel(WindowContext<?, ?> w);
 
   /**
    * Update the internal timestamp (optional operation).
