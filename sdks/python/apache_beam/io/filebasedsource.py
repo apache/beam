@@ -95,7 +95,8 @@ class FileBasedSource(iobase.BoundedSource):
   def __init__(self,
                file_pattern,
                min_bundle_size=0,
-               # TODO(slaven): Add support for AUTO once cl/130858239 is in.
+               # TODO(slaven): Add support for automatically determining the
+               # type of compressed files.
                compression_type=fileio.CompressionTypes.NO_COMPRESSION,
                splittable=True):
     """Initializes ``FileBasedSource``.
