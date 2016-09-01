@@ -15,14 +15,17 @@
 # limitations under the License.
 #
 
+import gzip
 import logging
 import math
 import os
 import tempfile
 import unittest
+import zlib
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
+from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 
@@ -67,6 +70,20 @@ def _write_data(num_lines, directory=None, prefix=tempfile.template):
       f.write(data + '\n')
 
     return f.name, all_data
+
+
+def _write_prepared_data(data, directory=None, prefix=tempfile.template):
+  with tempfile.NamedTemporaryFile(
+      delete=False, dir=directory, prefix=prefix) as f:
+    f.write(data)
+    return f.name
+
+
+def _write_prepared_pattern(data):
+  temp_dir = tempfile.mkdtemp()
+  for d in data:
+    file_name = _write_prepared_data(d, temp_dir, prefix='mytemp')
+  return file_name[:file_name.rfind(os.path.sep)] + os.path.sep + 'mytemp*'
 
 
 def _write_pattern(lines_per_file):
@@ -284,6 +301,52 @@ class TestFileBasedSource(unittest.TestCase):
     pattern, expected_data = _write_pattern([34, 66, 40, 24, 24, 12])
     assert len(expected_data) == 200
     self._run_dataflow_test(pattern, expected_data, False)
+
+  def test_read_gzip_file(self):
+    _, lines = _write_data(10)
+    filename = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with gzip.GzipFile(filename, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+        filename,
+        splittable=False,
+        compression_type=fileio.CompressionTypes.GZIP))
+    assert_that(pcoll, equal_to(lines))
+
+  def test_read_zlib_file(self):
+    _, lines = _write_data(10)
+    compressobj = zlib.compressobj(
+        zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, zlib.MAX_WBITS)
+    compressed = compressobj.compress('\n'.join(lines)) + compressobj.flush()
+    filename = _write_prepared_data(compressed)
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+        filename,
+        splittable=False,
+        compression_type=fileio.CompressionTypes.ZLIB))
+    assert_that(pcoll, equal_to(lines))
+
+  def test_read_zlib_pattern(self):
+    _, lines = _write_data(200)
+    splits = [0, 34, 100, 140, 164, 188, 200]
+    chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
+    compressed_chunks = []
+    for c in chunks:
+      compressobj = zlib.compressobj(
+          zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, zlib.MAX_WBITS)
+      compressed_chunks.append(
+          compressobj.compress('\n'.join(c)) + compressobj.flush())
+    file_pattern = _write_prepared_pattern(compressed_chunks)
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+        file_pattern,
+        splittable=False,
+        compression_type=fileio.CompressionTypes.ZLIB))
+    assert_that(pcoll, equal_to(lines))
 
 
 class TestSingleFileSource(unittest.TestCase):

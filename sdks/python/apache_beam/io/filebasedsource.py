@@ -26,10 +26,11 @@ For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 """
 
 from multiprocessing.pool import ThreadPool
-import range_trackers
 
 from apache_beam.io import fileio
 from apache_beam.io import iobase
+
+import range_trackers
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -91,18 +92,45 @@ class _ConcatSource(iobase.BoundedSource):
 class FileBasedSource(iobase.BoundedSource):
   """A ``BoundedSource`` for reading a file glob of a given type."""
 
-  def __init__(self, file_pattern, min_bundle_size=0, splittable=True):
+  def __init__(self,
+               file_pattern,
+               min_bundle_size=0,
+               # TODO(BEAM-614)
+               compression_type=fileio.CompressionTypes.NO_COMPRESSION,
+               splittable=True):
     """Initializes ``FileBasedSource``.
 
     Args:
       file_pattern: the file glob to read.
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
+      compression_type: compression type to use
+      splittable: whether FileBasedSource should try to logically split a single
+                  file into data ranges so that different parts of the same file
+                  can be read in parallel. If set to False, FileBasedSource will
+                  prevent both initial and dynamic splitting of sources for
+                  single files. File patterns that represent multiple files may
+                  still get split into sources for individual files. Even if set
+                  to True by the user, FileBasedSource may choose to not split
+                  the file, for example, for compressed files where currently
+                  it is not possible to efficiently read a data range without
+                  decompressing the whole file.
+    Raises:
+      TypeError: when compression_type is not valid.
+      ValueError: when compression and splittable files are specified.
     """
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
-    self._splittable = splittable
+    if not fileio.CompressionTypes.is_valid_compression_type(compression_type):
+      raise TypeError('compression_type must be CompressionType object but '
+                      'was %s' % type(compression_type))
+    self._compression_type = compression_type
+    if compression_type != fileio.CompressionTypes.NO_COMPRESSION:
+      # We can't split compressed files efficiently so turn off splitting.
+      self._splittable = False
+    else:
+      self._splittable = splittable
 
   def _get_concat_source(self):
     if self._concat_source is None:
@@ -124,8 +152,14 @@ class FileBasedSource(iobase.BoundedSource):
     return self._concat_source
 
   def open_file(self, file_name):
-    return fileio.ChannelFactory.open(
+    raw_file = fileio.ChannelFactory.open(
         file_name, 'rb', 'application/octet-stream')
+    if self._compression_type == fileio.CompressionTypes.NO_COMPRESSION:
+      return raw_file
+    else:
+      return fileio._CompressedFile(  # pylint: disable=protected-access
+          fileobj=raw_file,
+          compression_type=self.compression_type)
 
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):
