@@ -28,7 +28,9 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOverrideFactory;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessCreate.InProcessCreateOverrideFactory;
+import com.google.cloud.dataflow.sdk.runners.inprocess.TestStreamEvaluatorFactory.InProcessTestStreamFactory;
 import com.google.cloud.dataflow.sdk.runners.inprocess.ViewEvaluatorFactory.InProcessViewOverrideFactory;
+import com.google.cloud.dataflow.sdk.testing.TestStream;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -48,6 +50,8 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -56,6 +60,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
@@ -77,6 +82,7 @@ public class InProcessPipelineRunner
               .put(Create.Values.class, new InProcessCreateOverrideFactory())
               .put(GroupByKey.class, new InProcessGroupByKeyOverrideFactory())
               .put(CreatePCollectionView.class, new InProcessViewOverrideFactory())
+              .put(TestStream.class, new InProcessTestStreamFactory())
               .put(Write.Bound.class, new WriteWithShardingFactory())
               .build();
 
@@ -173,6 +179,8 @@ public class InProcessPipelineRunner
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final InProcessPipelineOptions options;
+  private Supplier<ExecutorService> executorServiceSupplier;
+  private Supplier<Clock> clockSupplier;
 
   public static InProcessPipelineRunner fromOptions(PipelineOptions options) {
     return new InProcessPipelineRunner(options.as(InProcessPipelineOptions.class));
@@ -180,6 +188,17 @@ public class InProcessPipelineRunner
 
   private InProcessPipelineRunner(InProcessPipelineOptions options) {
     this.options = options;
+    if (options.getExecutorServiceFactory() == null) {
+      executorServiceSupplier = new FixedThreadPoolSupplier();
+    } else {
+      executorServiceSupplier =
+          new ExecutorServiceFactorySupplier(options.getExecutorServiceFactory());
+    }
+    if (options.getClock() == null) {
+      clockSupplier = new NanosOffsetClockSupplier();
+    } else {
+      clockSupplier = Suppliers.ofInstance(options.getClock());
+    }
   }
 
   /**
@@ -187,6 +206,14 @@ public class InProcessPipelineRunner
    */
   public InProcessPipelineOptions getPipelineOptions() {
     return options;
+  }
+
+  Supplier<Clock> getClockSupplier() {
+    return clockSupplier;
+  }
+
+  void setClockSupplier(Supplier<Clock> supplier) {
+    this.clockSupplier = supplier;
   }
 
   @Override
@@ -221,6 +248,7 @@ public class InProcessPipelineRunner
     InProcessEvaluationContext context =
         InProcessEvaluationContext.create(
             getPipelineOptions(),
+            clockSupplier.get(),
             createBundleFactory(getPipelineOptions()),
             consumerTrackingVisitor.getRootTransforms(),
             consumerTrackingVisitor.getValueToConsumers(),
@@ -228,14 +256,15 @@ public class InProcessPipelineRunner
             consumerTrackingVisitor.getViews());
 
     // independent executor service for each run
-    ExecutorService executorService =
-        context.getPipelineOptions().getExecutorServiceFactory().create();
+    ExecutorService executorService = executorServiceSupplier.get();
+
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry();
     InProcessExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,
             consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
-            TransformEvaluatorRegistry.defaultRegistry(),
+            registry,
             defaultModelEnforcements(options),
             context);
     executor.start(consumerTrackingVisitor.getRootTransforms());
@@ -359,6 +388,45 @@ public class InProcessPipelineRunner
         }
       }
       return state;
+    }
+  }
+
+  /**
+   * A {@link Supplier} that creates a {@link ExecutorService} based on
+   * {@link Executors#newFixedThreadPool(int)}.
+   */
+  private static class FixedThreadPoolSupplier implements Supplier<ExecutorService> {
+    @Override
+    public ExecutorService get() {
+      return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    }
+  }
+
+
+  /**
+   * A {@link Supplier} that wraps an {@link ExecutorServiceFactory}.
+   */
+  private static class ExecutorServiceFactorySupplier implements Supplier<ExecutorService> {
+    private final ExecutorServiceFactory executorServiceFactory;
+
+    public ExecutorServiceFactorySupplier(
+        ExecutorServiceFactory executorServiceFactory) {
+      this.executorServiceFactory = executorServiceFactory;
+    }
+
+    @Override
+    public ExecutorService get() {
+      return executorServiceFactory.create();
+    }
+  }
+
+  /**
+   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
+   */
+  private static class NanosOffsetClockSupplier implements Supplier<Clock> {
+    @Override
+    public Clock get() {
+      return NanosOffsetClock.create();
     }
   }
 }

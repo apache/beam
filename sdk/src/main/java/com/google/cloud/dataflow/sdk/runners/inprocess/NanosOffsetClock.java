@@ -15,11 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.options.DefaultValueFactory;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-
 import org.joda.time.Instant;
-
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,16 +39,6 @@ public class NanosOffsetClock implements Clock {
     return new Instant(
         baseMillis + (TimeUnit.MILLISECONDS.convert(
             System.nanoTime() - nanosAtBaseMillis, TimeUnit.NANOSECONDS)));
-  }
-
-  /**
-   * Creates instances of {@link NanosOffsetClock}.
-   */
-  public static class Factory implements DefaultValueFactory<Clock> {
-    @Override
-    public Clock create(PipelineOptions options) {
-      return new NanosOffsetClock();
-    }
   }
 }
 

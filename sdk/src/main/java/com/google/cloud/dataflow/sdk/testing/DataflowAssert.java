@@ -193,6 +193,13 @@ public class DataflowAssert {
     IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
 
     /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on panes in the {@link GlobalWindow} that were emitted before the {@link GlobalWindow}
+     * closed. These panes have {@link Timing#EARLY}.
+     */
+    IterableAssert<T> inEarlyGlobalWindowPanes();
+
+    /**
      * Asserts that the iterable in question contains the provided elements.
      *
      * @return the same {@link IterableAssert} builder for further assertions
@@ -438,6 +445,11 @@ public class DataflowAssert {
       return withPane(window, PaneExtractors.<T>nonLatePanes());
     }
 
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPane(GlobalWindow.INSTANCE, PaneExtractors.<T>earlyPanes());
+    }
+
     private PCollectionContentsAssert<T> withPane(
         BoundedWindow window,
         SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor) {
@@ -627,6 +639,11 @@ public class DataflowAssert {
       return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
     }
 
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.<Iterable<T>>earlyPanes());
+    }
+
     private PCollectionSingletonIterableAssert<T> withPanes(
         BoundedWindow window,
         SimpleFunction<Iterable<WindowedValue<Iterable<T>>>, Iterable<Iterable<T>>> paneExtractor) {
@@ -708,26 +725,32 @@ public class DataflowAssert {
     @Override
     public IterableAssert<T> inWindow(BoundedWindow window) {
       throw new UnsupportedOperationException(
-          "IterableAssert of an PCollectionView does not support windowed assertions");
+          "IterableAssert of a PCollectionView does not support windowed assertions");
     }
 
     @Override
     public IterableAssert<T> inFinalPane(BoundedWindow window) {
       // TODO: Can maybe be supported?
       throw new UnsupportedOperationException(
-          "IterableAssert of an PCollectionView does not support windowed assertions");
+          "IterableAssert of a PCollectionView does not support windowed assertions");
     }
 
     @Override
     public IterableAssert<T> inOnTimePane(BoundedWindow window) {
       throw new UnsupportedOperationException(
-          "IterableAssert of an PCollectionView does not support windowed assertions");
+          "IterableAssert of a PCollectionView does not support windowed assertions");
     }
 
     @Override
     public IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       throw new UnsupportedOperationException(
-          "IterableAssert of an PCollectionView does not support windowed assertions");
+          "IterableAssert of a PCollectionView does not support windowed assertions");
+    }
+
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      throw new UnsupportedOperationException(
+          "IterableAssert of a PCollectionView does not support windowed assertions");
     }
 
     @Override

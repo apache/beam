@@ -15,17 +15,13 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.Hidden;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,17 +33,14 @@ public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNa
    * Gets the {@link ExecutorServiceFactory} to use to create instances of {@link ExecutorService}
    * to execute {@link PTransform PTransforms}.
    *
-   * <p>Note that {@link ExecutorService ExecutorServices} returned by the factory must ensure that
-   * it cannot enter a state in which it will not schedule additional pending work unless currently
-   * scheduled work completes, as this may cause the {@link Pipeline} to cease processing.
-   *
    * <p>Defaults to a {@link FixedThreadPoolExecutorServiceFactory}, which produces instances of
    * {@link Executors#newCachedThreadPool()}.
+   *
+   * @deprecated the runner manages its own {@link ExecutorService} as an implementation detail
    */
+  @Deprecated
   @JsonIgnore
-  @Required
   @Hidden
-  @Default.InstanceFactory(FixedThreadPoolExecutorServiceFactory.class)
   ExecutorServiceFactory getExecutorServiceFactory();
 
   void setExecutorServiceFactory(ExecutorServiceFactory executorService);
@@ -55,10 +48,11 @@ public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNa
   /**
    * Gets the {@link Clock} used by this pipeline. The clock is used in place of accessing the
    * system time when time values are required by the evaluator.
+   *
+   * @deprecated the runner manages its own {@link Clock} as an implementation detail
    */
-  @Default.InstanceFactory(NanosOffsetClock.Factory.class)
+  @Deprecated
   @JsonIgnore
-  @Required
   @Hidden
   @Description(
       "The processing time source used by the pipeline. When the current time is "

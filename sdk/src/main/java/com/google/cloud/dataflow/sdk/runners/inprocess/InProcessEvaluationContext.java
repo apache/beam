@@ -97,24 +97,26 @@ class InProcessEvaluationContext {
 
   public static InProcessEvaluationContext create(
       InProcessPipelineOptions options,
+      Clock clock,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     return new InProcessEvaluationContext(
-        options, bundleFactory, rootTransforms, valueToConsumers, stepNames, views);
+        options, clock, bundleFactory, rootTransforms, valueToConsumers, stepNames, views);
   }
 
   private InProcessEvaluationContext(
       InProcessPipelineOptions options,
+      Clock clock,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     this.options = checkNotNull(options);
-    this.clock = options.getClock();
+    this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     checkNotNull(rootTransforms);
     checkNotNull(valueToConsumers);
@@ -433,5 +435,9 @@ class InProcessEvaluationContext {
 
   public Instant now() {
     return clock.now();
+  }
+
+  Clock getClock() {
+    return clock;
   }
 }

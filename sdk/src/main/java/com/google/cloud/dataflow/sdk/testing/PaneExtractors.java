@@ -58,6 +58,10 @@ final class PaneExtractors {
     return new ExtractNonLatePanes<>();
   }
 
+  static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> earlyPanes() {
+    return new ExtractEarlyPanes<>();
+  }
+
   static <T> SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> allPanes() {
     return new ExtractAllPanes<>();
   }
@@ -130,6 +134,20 @@ final class PaneExtractors {
       List<T> outputs = new ArrayList<>();
       for (WindowedValue<T> value : input) {
         if (value.getPane().getTiming() != PaneInfo.Timing.LATE) {
+          outputs.add(value.getValue());
+        }
+      }
+      return outputs;
+    }
+  }
+
+  private static class ExtractEarlyPanes<T>
+      extends SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> {
+    @Override
+    public Iterable<T> apply(Iterable<WindowedValue<T>> input) {
+      List<T> outputs = new ArrayList<>();
+      for (WindowedValue<T> value : input) {
+        if (value.getPane().getTiming() == PaneInfo.Timing.EARLY) {
           outputs.add(value.getValue());
         }
       }

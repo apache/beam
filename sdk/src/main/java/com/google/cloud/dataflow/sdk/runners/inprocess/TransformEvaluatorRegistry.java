@@ -17,15 +17,14 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import com.google.cloud.dataflow.sdk.testing.TestStream;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Flatten.FlattenPCollectionList;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 /**
@@ -47,6 +46,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory())
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory())
             .put(Window.Bound.class, new WindowEvaluatorFactory())
+            .put(TestStream.class, new TestStreamEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -70,5 +70,14 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       throws Exception {
     TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
     return factory.forApplication(application, inputBundle, evaluationContext);
+  }
+
+  /**
+   * A factory to create Transform Evaluator Registries.
+   */
+  public static class Factory {
+    public TransformEvaluatorRegistry create() {
+      return TransformEvaluatorRegistry.defaultRegistry();
+    }
   }
 }

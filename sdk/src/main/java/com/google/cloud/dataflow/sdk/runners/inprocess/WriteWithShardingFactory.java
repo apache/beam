@@ -58,7 +58,7 @@ class WriteWithShardingFactory implements PTransformOverrideFactory {
     return transform;
   }
 
-  private static class DynamicallyReshardedWrite <T> extends PTransform<PCollection<T>, PDone> {
+  private static class DynamicallyReshardedWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final transient Write.Bound<T> original;
 
     private DynamicallyReshardedWrite(Write.Bound<T> original) {
