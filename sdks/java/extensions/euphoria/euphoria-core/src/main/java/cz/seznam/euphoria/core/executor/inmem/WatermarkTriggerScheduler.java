@@ -77,7 +77,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
 
   @Override
   public synchronized boolean scheduleAt(
-      long stamp, WindowContext<?, ?> w, Triggerable trigger) {
+      long stamp, WindowContext<?, ?> w, Triggerable<?, ?> trigger) {
     if (stamp < currentWatermark) return false;
     purge(w, stamp);
     add(stamp, trigger, w);

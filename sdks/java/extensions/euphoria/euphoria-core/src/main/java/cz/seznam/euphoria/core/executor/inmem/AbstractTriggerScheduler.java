@@ -47,7 +47,8 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
   }
 
   @Override
-  public boolean scheduleAt(long stamp, WindowContext w, Triggerable trigger) {
+  public boolean scheduleAt(
+      long stamp, WindowContext<?, ?> w, Triggerable<?, ?> trigger) {
     long currentStamp = getCurrentTimestamp();
     long duration = stamp - currentStamp;
     if (duration < 0) {
@@ -57,7 +58,8 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
     return true;
   }
 
-  private ScheduledFuture<Void> scheduleAfter(long duration, WindowContext w, TriggerTask task) {
+  private ScheduledFuture<Void> scheduleAfter(
+      long duration, WindowContext<?, ?> w, TriggerTask task) {
     ScheduledFuture<Void> future = scheduler.schedule(
             task,
             duration,
