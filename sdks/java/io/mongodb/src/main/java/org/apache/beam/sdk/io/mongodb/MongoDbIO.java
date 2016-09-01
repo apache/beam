@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 
 import org.bson.Document;
 
@@ -148,17 +147,14 @@ public class MongoDbIO {
 
     @Override
     public PCollection<String> apply(PBegin input) {
-      org.apache.beam.sdk.io.Read.Bounded bounded = org.apache.beam.sdk.io.Read.from(createSource
-          ());
-      PTransform<PInput, PCollection<String>> transform = bounded;
-      return input.getPipeline().apply(transform);
+      return input.apply(org.apache.beam.sdk.io.Read.from(createSource()));
     }
 
     /**
      * Creates a {@link BoundedSource} with the configuration in {@link Read}.
      */
     @VisibleForTesting
-    BoundedSource createSource() {
+    BoundedSource<String> createSource() {
       return source;
     }
 
@@ -176,7 +172,7 @@ public class MongoDbIO {
 
   }
 
-  private static class BoundedMongoDbSource extends BoundedSource {
+  private static class BoundedMongoDbSource extends BoundedSource<String> {
 
     public BoundedMongoDbSource withUri(String uri) {
       return new BoundedMongoDbSource(uri, database, collection, filter, numSplits);
@@ -274,7 +270,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public List<BoundedSource> splitIntoBundles(long desiredBundleSizeBytes,
+    public List<BoundedSource<String>> splitIntoBundles(long desiredBundleSizeBytes,
                                                 PipelineOptions options) {
       MongoClient mongoClient = new MongoClient();
       MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
@@ -304,70 +300,87 @@ public class MongoDbIO {
       Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
       splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
 
-      LOGGER.debug("Number of splits is {}", splitKeys.size());
+      List<BoundedSource<String>> sources = new ArrayList<>();
+      if (splitKeys.size() < 1) {
+        LOGGER.debug("Split keys is low, using an unique source");
+        sources.add(this);
+        return sources;
+      }
 
-      return createSourceList(splitKeys);
+      LOGGER.debug("Number of splits is {}", splitKeys.size());
+      for (String shardFilter : splitKeysToFilters(splitKeys, filter)) {
+        sources.add(this.withFilter(shardFilter));
+      }
+
+      return sources;
     }
 
     /**
-     * Create a sources list. Each source in the list has a subset of keys to deal with (split).
+     * Transform a list of split keys as a list of filters containing corresponding range.
      *
-     * @param splitKeys List of split keys to create sources.
-     * @return The list of sources.
+     * <p>The list of split keys contains BSon Document basically containing for example:
+     * <ul>
+     *   <li>_id: 56</li>
+     *   <li>_id: 109</li>
+     *   <li>_id: 256</li>
+     * </ul>
+     * </p>
+     *
+     * This method will generate a list of range filters performing the following splits:
+     * <ul>
+     *   <li>from the beginning of the collection up to _id 56, so basically data with
+     *   _id lower than 56</li>
+     *   <li>from _id 57 up to _id 109</li>
+     *   <li>from _id 110 up to _id 256</li>
+     *   <li>from _id 257 up to the end of the collection, so basically data with _id greater
+     *   than 257</li>
+     * </ul>
+     *
+     * @param splitKeys The list of split keys.
+     * @param additionalFilter A custom (user) additional filter to append to the range filters.
+     * @return A list of filters containing the ranges.
      */
-    private List<BoundedSource> createSourceList(List<Document> splitKeys) {
-      List<BoundedSource> splitSourceList = new ArrayList<>();
-      if (splitKeys == null) {
-        splitSourceList.add(new BoundedMongoDbSource(uri, database, collection, filter, numSplits));
-      } else {
-        String lastID = null; // lower boundary of the first min split
-        int listIndex = 0;
-        for (final Object splitKey : splitKeys) {
-          String currentID = splitKey.toString();
-          String filterWithBoundaries;
-          if (filter != null && !filter.isEmpty()) {
-            if (listIndex == 0) {
-              filterWithBoundaries = "{ $and: [ {\"_id\":{$lte:ObjectId(\""
-                  + currentID + "\")}}, "
-                  + filter + " ]}";
-            } else if (listIndex == (splitKeys.size() - 1)) {
-              filterWithBoundaries = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + lastID
-                  + "\")," + "$lt:ObjectId(\"" + currentID
-                  + "\")}}, " + filter + " ]}";
-              splitSourceList.add(new BoundedMongoDbSource
-                  (uri, database, collection, filterWithBoundaries, numSplits));
-              filterWithBoundaries = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + currentID
-                  + "\")}}, " + filter + " ]}";
-            } else {
-              filterWithBoundaries = "{ $and: [ {\"_id\":{$gt:ObjectId(\"" + lastID
-                  + "\")," + "$lte:ObjectId(\"" + currentID + "\")}}, "
-                  + filter + " ]}";
-            }
-          } else {
-            if (listIndex == 0) {
-              filterWithBoundaries = "{\"_id\":{$lte:ObjectId(\"" + currentID + "\")}}";
-            } else if (listIndex == (splitKeys.size() - 1)) {
-              filterWithBoundaries = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
-                  + "$lt:ObjectId(\"" + currentID + "\")}}";
-              splitSourceList.add(new BoundedMongoDbSource
-                  (uri, database, collection, filterWithBoundaries, numSplits));
-              filterWithBoundaries = "{\"_id\":{$gt:ObjectId(\"" + currentID + "\")}}";
-            } else {
-              filterWithBoundaries = "{\"_id\":{$gt:ObjectId(\"" + lastID + "\"),"
-                  + "$lte:ObjectId(\"" + currentID + "\")}}";
-            }
-          }
-          splitSourceList.add(new BoundedMongoDbSource
-              (uri, database, collection, filterWithBoundaries, numSplits));
-          lastID = currentID;
-          listIndex++;
+    private static List<String> splitKeysToFilters(List<Document> splitKeys, String
+        additionalFilter) {
+      ArrayList<String> filters = new ArrayList<>();
+      String lowestBound = null; // lower boundary (previous split in the iteration)
+      for (int i = 0; i < splitKeys.size(); i++) {
+        String splitKey = splitKeys.get(i).toString();
+        String rangeFilter = null;
+        if (i == 0) {
+          // this is the first split in the list, the filter defines
+          // the range from the beginning up to this split
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:Objectd(\"%s\")}}",
+              splitKey);
         }
+        if (i == splitKeys.size() - 1) {
+          // this is the last split in the list, the filter defines
+          // the range from the split up to the end
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}",
+              splitKey);
+        }
+        if (i != 0 && i != splitKeys.size() - 1) {
+          // we are between two splits
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\"),"
+              + "$lte:ObjectId(\"%s\")}}", lowestBound, splitKey);
+        }
+        if (additionalFilter != null && !additionalFilter.isEmpty()) {
+          // user provided a filter, we append the user filter to the range filter
+          rangeFilter = String.format("%s,%s ]}", rangeFilter, additionalFilter);
+        } else {
+          // user didn't provide a filter, just cleany close the range filter
+          rangeFilter = String.format("%s ]}", rangeFilter);
+        }
+
+        filters.add(rangeFilter);
+
+        lowestBound = splitKey;
       }
-      return splitSourceList;
+      return filters;
     }
   }
 
-  private static class BoundedMongoDbReader extends BoundedSource.BoundedReader {
+  private static class BoundedMongoDbReader extends BoundedSource.BoundedReader<String> {
 
     private final BoundedMongoDbSource source;
 
@@ -413,7 +426,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public Object getCurrent() {
+    public String getCurrent() {
       return current;
     }
 
