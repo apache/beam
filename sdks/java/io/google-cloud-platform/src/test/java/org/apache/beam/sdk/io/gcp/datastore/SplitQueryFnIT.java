@@ -35,11 +35,19 @@ import org.junit.runners.JUnit4;
 /**
  * Integration tests for {@link DatastoreV1.Read.SplitQueryFn}.
  *
- * Note: It is hard to mock the exact behavior of Datastore, especially for the statistics queries.
- * Also the fact that DatastoreIO falls back gracefully when querying statistics fails, makes it
- * hard to catch these issues in production. This test here ensures we interact with the Datastore
- * directly, query the actual stats and verify that the SplitQueryFn generates the expected number
- * of query splits.
+ * <p> It is hard to mock the exact behavior of Cloud Datastore, especially for the statistics
+ * queries. Also the fact that DatastoreIO falls back gracefully when querying statistics fails,
+ * makes it hard to catch these issues in production. This test here ensures we interact with
+ * the Cloud Datastore directly, query the actual stats and verify that the SplitQueryFn generates
+ * the expected number of query splits.
+ *
+ * <p> These tests are brittle as they rely on statistics data in Cloud Datastore. If the data
+ * gets lost or changes then they will begin failing and this test should be disabled.
+ * At the time of writing, the Cloud Datastore has the following statistics,
+ * <ul>
+ *   <li>kind = sort_1G, entity_bytes = 2130000000, count = 10000000
+ *   <li>kind = shakespeare, entity_bytes = 26383451, count = 172948
+ * </ul>
  */
 @RunWith(JUnit4.class)
 public class SplitQueryFnIT {
@@ -49,12 +57,12 @@ public class SplitQueryFnIT {
   @Test
   public void testSplitQueryFnWithLargeDataset() throws Exception {
     String projectId = "apache-beam-testing";
-    String kind = "input_sort_1G";
+    String kind = "sort_1G";
     String namespace = null;
     // Num splits is computed based on the entity_bytes size of the input_sort_1G kind reported by
     // Datastore stats.
-    int exceptedNumSplits = 19;
-    testSplitQueryFn(projectId, kind, namespace, exceptedNumSplits);
+    int expectedNumSplits = 32;
+    testSplitQueryFn(projectId, kind, namespace, expectedNumSplits);
   }
 
   /**
@@ -62,11 +70,11 @@ public class SplitQueryFnIT {
    */
   @Test
   public void testSplitQueryFnWithSmallDataset() throws Exception {
-    String projectId = "deft-testing-integration2";
-    String kind = "shakespeare-demo";
+    String projectId = "apache-beam-testing";
+    String kind = "shakespeare";
     String namespace = null;
-    int exceptedNumSplits = NUM_QUERY_SPLITS_MIN;
-    testSplitQueryFn(projectId, kind, namespace, exceptedNumSplits);
+    int expectedNumSplits = NUM_QUERY_SPLITS_MIN;
+    testSplitQueryFn(projectId, kind, namespace, expectedNumSplits);
   }
 
   /**
