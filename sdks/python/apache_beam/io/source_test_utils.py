@@ -488,29 +488,33 @@ def assertSplitAtFractionExhaustive(source, perform_multi_threaded_test=True):
     have_success = False
     have_failure = False
 
-    while True:
-      num_trials += 1
-      if (num_trials >
-          MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM):
-        logging.warn(
-            'After %d concurrent splitting trials at item #%d, observed '
-            'only %s, giving up on this item',
-            num_trials,
-            i,
-            'success' if have_success else 'failure'
-        )
-        break
+    thread_pool = ThreadPool(2)
+    try:
+      while True:
+        num_trials += 1
+        if (num_trials >
+            MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM):
+          logging.warn(
+              'After %d concurrent splitting trials at item #%d, observed '
+              'only %s, giving up on this item',
+              num_trials,
+              i,
+              'success' if have_success else 'failure'
+          )
+          break
 
-      if _assertSplitAtFractionConcurrent(
-          source, expected_items, i, min_non_trivial_fraction):
-        have_success = True
-      else:
-        have_failure = True
+        if _assertSplitAtFractionConcurrent(
+            source, expected_items, i, min_non_trivial_fraction, thread_pool):
+          have_success = True
+        else:
+          have_failure = True
 
-      if have_success and have_failure:
-        logging.info('%d trials to observe both success and failure of '
-                     'concurrent splitting at item #%d', num_trials, i)
-        break
+        if have_success and have_failure:
+          logging.info('%d trials to observe both success and failure of '
+                       'concurrent splitting at item #%d', num_trials, i)
+          break
+    finally:
+      thread_pool.close()
 
     num_total_trials += num_trials
 
@@ -525,7 +529,7 @@ def assertSplitAtFractionExhaustive(source, perform_multi_threaded_test=True):
 
 def _assertSplitAtFractionConcurrent(
     source, expected_items, num_items_to_read_before_splitting,
-    split_fraction):
+    split_fraction, thread_pool=None):
 
   range_tracker = source.get_range_tracker(None, None)
   stop_position_before_split = range_tracker.stop_position()
@@ -545,13 +549,15 @@ def _assertSplitAtFractionConcurrent(
       return result
 
   inputs = []
+  pool = thread_pool if thread_pool else ThreadPool(2)
+  try:
+    inputs.append([True, reader_iter])
+    inputs.append([False, range_tracker, split_fraction])
 
-  inputs.append([True, reader_iter])
-  inputs.append([False, range_tracker, split_fraction])
-
-  pool = ThreadPool(2)
-  results = pool.map(read_or_split, inputs)
-  pool.close()
+    results = pool.map(read_or_split, inputs)
+  finally:
+    if not thread_pool:
+      pool.close()
 
   current_items.extend(results[0])
   primary_range = (
