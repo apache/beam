@@ -24,6 +24,14 @@ public class Settings implements Serializable {
     this(null, new ConcurrentHashMap<>());
   }
 
+  /** Clone other settings to this one. */
+  public Settings(Settings other) {
+    this();
+    other.getAll().entrySet().stream().forEach(p -> {
+      setString(p.getKey(), p.getValue());
+    });
+  }
+
   private Settings(String prefix, Map<String, String> map) {
     this.prefix = prefix;
     this.map = map;
