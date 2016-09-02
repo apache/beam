@@ -1,5 +1,8 @@
 package cz.seznam.euphoria.flink.batch.io;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
@@ -15,7 +18,8 @@ import java.io.IOException;
 import java.util.List;
 
 public class DataSourceWrapper<T>
-        implements InputFormat<T, PartitionWrapper<T>>,
+        implements InputFormat<WindowedElement<Void, Batch.Label, T>,
+        PartitionWrapper<T>>,
         ResultTypeQueryable<T>
 
 {
@@ -70,10 +74,11 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public T nextRecord(T reuse) throws IOException {
-    // euphoria's readers cannot re-use instances as they're supposed
-    // to provide new, independent objects
-    return reader.next();
+  public WindowedElement<Void, Batch.Label, T> nextRecord(
+      WindowedElement<Void, Batch.Label, T> reuse)
+      throws IOException
+  {
+    return new WindowedElement<>(WindowID.aligned(Batch.Label.get()), reader.next());
   }
 
   @Override
@@ -84,6 +89,6 @@ public class DataSourceWrapper<T>
   @Override
   @SuppressWarnings("unchecked")
   public TypeInformation<T> getProducedType() {
-    return TypeInformation.of((Class) Object.class);
+    return TypeInformation.of((Class) WindowedElement.class);
   }
 }

@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.batch.io;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -7,8 +8,9 @@ import org.apache.flink.configuration.Configuration;
 
 import java.io.IOException;
 
-public class DataSinkWrapper<T> implements OutputFormat<T> {
-
+public class DataSinkWrapper<T>
+    implements OutputFormat<WindowedElement<?, ?, T>>
+{
   private final DataSink<T> dataSink;
 
   private transient Writer<T> writer;
@@ -28,8 +30,8 @@ public class DataSinkWrapper<T> implements OutputFormat<T> {
   }
 
   @Override
-  public void writeRecord(T record) throws IOException {
-    writer.write(record);
+  public void writeRecord(WindowedElement<?, ?, T> record) throws IOException {
+    writer.write(record.get());
   }
 
   @Override
