@@ -15,7 +15,7 @@ public interface PartitioningAware<KEY> {
   /** Retrieve output partitioning. */
   Partitioning<KEY> getPartitioning();
 
-  abstract class PartitioningBuilder<KEY, BUILDER> {
+  abstract class PartitioningBuilder<KEY, BUILDER> extends OptionalMethodBuilder<BUILDER> {
     private final DefaultPartitioning<KEY> defaultPartitioning;
     private Partitioning<KEY> partitioning;
 
@@ -61,11 +61,6 @@ public interface PartitioningAware<KEY> {
       return (BUILDER) this;
     }
 
-    @SuppressWarnings("unchecked")
-    public BUILDER applyIf(boolean cond, UnaryFunction<BUILDER, BUILDER> apply) {
-      Objects.requireNonNull(apply);
-      return cond ? apply.apply((BUILDER) this) : (BUILDER) this;
-    }
   }
 
 

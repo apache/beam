@@ -3,13 +3,16 @@ package cz.seznam.euphoria.flink;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Future;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 
 /**
  * Executor implementation using Apache Flink as a runtime
@@ -20,6 +23,7 @@ public class FlinkExecutor implements Executor {
 
   private final boolean localEnv;
   private boolean dumpExecPlan;
+  private Optional<AbstractStateBackend> stateBackend = Optional.empty();
 
   public FlinkExecutor() {
     this(false);
@@ -49,6 +53,19 @@ public class FlinkExecutor implements Executor {
     LOG.info("Running flow in {} mode", mode);
 
     ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
+    Settings settings = flow.getSettings();
+
+    // update own settings with global
+    environment.getSettings().getAll().entrySet().stream().forEach(p -> {
+      if (!settings.contains(p.getKey())) {
+        settings.setString(p.getKey(), p.getValue());
+      }
+    });
+
+    if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
+      environment.getStreamEnv().setStateBackend(stateBackend.get());
+    }
+
     FlowTranslator translator;
     if (mode == ExecutionEnvironment.Mode.BATCH) {
       translator = new BatchFlowTranslator(environment.getBatchEnv());
@@ -92,5 +109,13 @@ public class FlinkExecutor implements Executor {
     if (ex != null) throw ex;
 
     return 0;
+  }
+
+  /**
+   * Set state backend for this executor (used only if needed).
+   */
+  public FlinkExecutor setStateBackend(AbstractStateBackend backend) {
+    this.stateBackend = Optional.of(backend);
+    return this;
   }
 }
