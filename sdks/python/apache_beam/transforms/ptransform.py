@@ -685,8 +685,13 @@ def ptransform_fn(fn):
   The equivalent approach using PTransform subclassing::
 
     class CustomMapper(PTransform):
-      def apply(self, pcoll, mapfn):
-        return pcoll | ParDo(mapfn)
+
+      def __init__(self, mapfn):
+        super(CustomMapper, self).__init__()
+        self.mapfn = mapfn
+
+      def apply(self, pcoll):
+        return pcoll | ParDo(self.mapfn)
 
   With either method the custom PTransform can be used in pipelines as if
   it were one of the "native" PTransforms::
