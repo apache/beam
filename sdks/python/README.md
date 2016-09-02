@@ -260,8 +260,10 @@ Some interesting classes to navigate to:
 
 ### Basic pipeline
 
-A basic pipeline creates a `PCollection` from an iterable
-and uses the pipe operator to chain `PTransform`s.
+A basic pipeline will take as input an iterable, apply the
+beam.Create `PTransform`, and produce a `PCollection` that can
+be written to a file or modified by further `PTransform`s. The
+pipe operator allows to chain `PTransform`s.
 
 ```python
 # Standard imports
@@ -389,7 +391,7 @@ from apache_beam.typehints import typehints
 p = beam.Pipeline('DirectPipelineRunner')
 (p
  | 'read' >> beam.Read(beam.io.TextFileSource('./names'))
- | 'add types' >> beam.Map(lambda x: (x, 1)).with_output_types(typehints.KV[unicode, int])
+ | 'add types' >> beam.Map(lambda x: (x, 1)).with_output_types(typehints.KV[str, int])
  | 'group words' >> beam.GroupByKey()
  | 'save' >> beam.Write(beam.io.TextFileSink('./typed_names')))
 p.run()
