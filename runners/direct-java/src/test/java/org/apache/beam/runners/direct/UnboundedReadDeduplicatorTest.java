@@ -67,12 +67,12 @@ public class UnboundedReadDeduplicatorTest {
 
     ExecutorService executor = Executors.newCachedThreadPool();
     AtomicInteger successCount = new AtomicInteger();
-    AtomicInteger failureCount = new AtomicInteger();
+    AtomicInteger noOutputCount = new AtomicInteger();
     for (int i = 0; i < numThreads; i++) {
       executor.submit(new TryOutputIdRunnable(dedupper,
           id,
           successCount,
-          failureCount,
+          noOutputCount,
           readyLatch,
           startSignal,
           finishLine));
@@ -83,8 +83,10 @@ public class UnboundedReadDeduplicatorTest {
     finishLine.await(10L, TimeUnit.SECONDS);
     executor.shutdownNow();
 
+    // The first thread to run will succeed, and no others will
     assertThat(successCount.get(), equalTo(1));
-    assertThat(failureCount.get(), lessThan(numThreads));
+    // The threads may not all complete; all of the threads that do not succeed must not output
+    assertThat(noOutputCount.get(), lessThan(numThreads));
   }
 
   private static class TryOutputIdRunnable implements Runnable {
