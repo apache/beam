@@ -47,6 +47,7 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -226,6 +227,35 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
+  public void testRunStreamingJobThatReachMaxWatermarkAndSucceeds() throws Exception {
+    options.setStreaming(true);
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getState()).thenReturn(State.RUNNING);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+
+    DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */))
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    runner.run(p, mockRunner);
+  }
+
+  @Test
   public void testRunStreamingJobThatFails() throws Exception {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
@@ -251,6 +281,43 @@ public class TestDataflowRunnerTest {
     // Note that fail throws an AssertionError which is why it is placed out here
     // instead of inside the try-catch block.
     fail("AssertionError expected");
+  }
+
+  private LowLevelHttpResponse generateMockStreamingMetricResponse(
+      boolean hasWatermark,
+      boolean maxWatermark,
+      boolean multipleWatermarks,
+      boolean multipleMaxWatermark) throws IOException {
+    List<MetricUpdate> metrics = Lists.newArrayList();
+
+    MetricStructuredName name = new MetricStructuredName();
+    name.setName(hasWatermark ? "windmill-data-watermark" : "no-watermark");
+    name.setContext(ImmutableMap.<String, String>of());
+
+    MetricUpdate metric = new MetricUpdate();
+    metric.setName(name);
+    metric.setScalar(maxWatermark ? BigDecimal.valueOf(-2L) : BigDecimal.ONE);
+    metrics.add(metric);
+
+    if (multipleWatermarks) {
+      MetricStructuredName nameTwo = new MetricStructuredName();
+      nameTwo.setName(hasWatermark ? "windmill-data-watermark" : "no-watermark");
+      nameTwo.setContext(ImmutableMap.<String, String>of());
+
+      MetricUpdate metricTwo = new MetricUpdate();
+      metricTwo.setName(nameTwo);
+      metricTwo.setScalar(multipleMaxWatermark ? BigDecimal.valueOf(-2L) : BigDecimal.ONE);
+      metrics.add(metricTwo);
+    }
+
+    MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+    response.setContentType(Json.MEDIA_TYPE);
+    JobMetrics jobMetrics = new JobMetrics();
+    jobMetrics.setMetrics(metrics);
+    // N.B. Setting the factory is necessary in order to get valid JSON.
+    jobMetrics.setFactory(Transport.getJsonFactory());
+    response.setContent(jobMetrics.toPrettyString());
+    return response;
   }
 
   @Test
@@ -320,6 +387,96 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
+  public void testCheckMaxWatermarkWithNoWatermarkMetric() throws IOException {
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            false /* hasWatermark */,
+            false /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
+    doReturn(State.RUNNING).when(job).getState();
+    assertEquals(Optional.absent(), runner.checkMaxWatermark(job));
+  }
+
+  @Test
+  public void testCheckMaxWatermarkWithSingleMaxWatermark() throws IOException {
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
+    doReturn(State.RUNNING).when(job).getState();
+    assertEquals(Optional.of(true), runner.checkMaxWatermark(job));
+  }
+
+  @Test
+  public void testCheckMaxWatermarkWithSingleWatermarkNotMax() throws IOException {
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            false /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
+    doReturn(State.RUNNING).when(job).getState();
+    assertEquals(Optional.absent(), runner.checkMaxWatermark(job));
+  }
+
+  @Test
+  public void testCheckMaxWatermarkWithMultipleMaxWatermark() throws IOException {
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            true /* multipleWatermarks */,
+            true /* multipleMaxWatermark */));
+    doReturn(State.RUNNING).when(job).getState();
+    assertEquals(Optional.of(true), runner.checkMaxWatermark(job));
+  }
+
+  @Test
+  public void testCheckMaxWatermarkWithMaxAndNotMaxWatermarkMixed() throws IOException {
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            true /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
+    doReturn(State.RUNNING).when(job).getState();
+    assertEquals(Optional.absent(), runner.checkMaxWatermark(job));
+  }
+
+  @Test
   public void testStreamingPipelineFailsIfServiceFails() throws Exception {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
@@ -332,6 +489,7 @@ public class TestDataflowRunnerTest {
         generateMockMetricResponse(true /* success */, false /* tentative */));
     doReturn(State.FAILED).when(job).getState();
     assertEquals(Optional.of(false), runner.checkForSuccess(job));
+    assertEquals(Optional.of(false), runner.checkMaxWatermark(job));
   }
 
   @Test

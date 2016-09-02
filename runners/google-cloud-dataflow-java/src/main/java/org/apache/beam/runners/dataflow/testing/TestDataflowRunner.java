@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory;
  */
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
+  private static final String WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  private static final long MAX_WATERMARK_VALUE = -2L;
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
   private final TestDataflowPipelineOptions options;
@@ -121,11 +123,17 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 if (result.isPresent()) {
                   return result;
                 }
+                result = checkMaxWatermark(job);
+                if (result.isPresent()) {
+                  return result;
+                }
                 Thread.sleep(10000L);
               }
             } finally {
-              LOG.info("Cancelling Dataflow job {}", job.getJobId());
-              job.cancel();
+              if (!job.getState().isTerminal()) {
+                LOG.info("Cancelling Dataflow job {}", job.getJobId());
+                job.cancel();
+              }
             }
           }
         });
@@ -191,7 +199,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       int successes = 0;
       int failures = 0;
       for (MetricUpdate metric : metrics.getMetrics()) {
-        if (metric.getName() == null || metric.getName().getContext() == null
+        if (metric.getName() == null
+            || metric.getName().getContext() == null
             || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
           // Don't double count using the non-tentative version of the metric.
           continue;
@@ -208,7 +217,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             + "{} expected assertions.", job.getJobId(), successes, failures,
             expectedNumberOfAssertions);
         return Optional.of(false);
-      } else if (successes >= expectedNumberOfAssertions) {
+      } else if (successes > 0 && successes >= expectedNumberOfAssertions) {
         LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
             + "{} expected assertions.", job.getJobId(), successes, failures,
             expectedNumberOfAssertions);
@@ -220,6 +229,41 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     return Optional.<Boolean>absent();
+  }
+
+  Optional<Boolean> checkMaxWatermark(DataflowPipelineJob job) throws IOException {
+    State state = job.getState();
+    if (state == State.FAILED || state == State.CANCELLED) {
+      LOG.info("The pipeline {}", state);
+      return Optional.of(false);
+    }
+
+    JobMetrics metrics = options.getDataflowClient().projects().jobs()
+        .getMetrics(job.getProjectId(), job.getJobId()).execute();
+
+    if (metrics == null || metrics.getMetrics() == null) {
+      LOG.warn("Metrics not present for Dataflow job {}.", job.getJobId());
+    } else {
+      boolean hasMaxWatermark = false;
+      for (MetricUpdate metric : metrics.getMetrics()) {
+        if (metric.getName() == null
+            || metric.getName().getName() == null
+            || !metric.getName().getName().endsWith(WATERMARK_METRIC_SUFFIX)
+            || metric.getScalar() == null) {
+          continue;
+        }
+        BigDecimal watermark = (BigDecimal) metric.getScalar();
+        hasMaxWatermark = watermark.longValue() == MAX_WATERMARK_VALUE;
+        if (!hasMaxWatermark) {
+          break;
+        }
+      }
+      if (hasMaxWatermark) {
+        LOG.info("All watermarks of job {} reach to max value.", job.getJobId());
+        return Optional.of(true);
+      }
+    }
+    return Optional.absent();
   }
 
   @Override
