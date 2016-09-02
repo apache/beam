@@ -260,8 +260,8 @@ Some interesting classes to navigate to:
 
 ### Basic pipeline
 
-A basic pipeline creates a PCollection from an iterable
-and uses the pipe operator to chain PTransforms.
+A basic pipeline creates a `PCollection` from an iterable
+and uses the pipe operator to chain `PTransform`s.
 
 ```python
 # Standard imports
@@ -278,7 +278,7 @@ p.run()
 
 ### Basic pipeline (with Map)
 
-The `Map` transform takes a callable, which will be applied to each
+The `Map` `PTransform` takes a callable, which will be applied to each
 element of the input `PCollection` and must return an element to go
 into the output `PCollection`.
 
@@ -334,8 +334,9 @@ p.run()
 
 ### Counting words
 
-This example counts the words in a text and also shows how to read a
-text file from [Google Cloud Storage](https://cloud.google.com/storage/).
+This example shows how to read a text file from
+[Google Cloud Storage](https://cloud.google.com/storage/)
+and count its words.
 
 ```python
 import re
@@ -352,10 +353,10 @@ p.run()
 
 ### Counting words with GroupByKey
 
-This is a somewhat forced example of `GroupByKey` to count the words.
-Normally, one would use the transform `beam.combiners.Count.PerElement`,
-as in the previous example. As shown in the example, a wildcard can be 
-used to specify the text file source.
+This is a somewhat forced example of `GroupByKey` to achieve the same
+functionality of the previous example without using
+`beam.combiners.Count.PerElement`. It demonstrates also the use of a
+wildcard to specify the text file source.
 ```python
 import re
 import apache_beam as beam
@@ -380,7 +381,7 @@ p.run()
 ### Type hints
 
 In some cases, providing type hints can improve the efficiency
-of the data encoding. For example:
+of the data encoding.
 
 ```python
 import apache_beam as beam
@@ -396,9 +397,9 @@ p.run()
 
 ### BigQuery
 
-Here is a pipeline that reads input from a BigQuery table and writes the result to
-a different table. This example calculates the number of tornadoes per month from
-weather data. The user needs to specify a project and an output table to write results.
+This example calculates the number of tornadoes per month (from weather data).
+The input is read from a BigQuery table and the output is written to a
+different table specified by the user, along with a target project.
 
 ```python
 import apache_beam as beam
@@ -422,9 +423,8 @@ p = beam.Pipeline(argv=['--project', project])
 p.run()
 ```
 
-Here is a pipeline that achieves the same functionality, i.e., calculates the
-number of tornadoes per month, but uses a query to filter out input instead
-of using the whole table.
+This pipeline calculates the number of tornadoes per month, but it uses
+a query to filter out the input instead of using the whole table.
 
 ```python
 import apache_beam as beam
@@ -446,9 +446,10 @@ p.run()
 
 ### Combiner Examples
 
-A common case for combiners is to sum (or max or min) over the values
-of each key. Such standard Python functions can be used directly as
-combiner functions. In fact, any function "reducing" an iterable to a
+Combiners are used to create a `PCollection` that contains the sums
+(or max or min) of each of the keys in the initial `PCollecion`.
+Such standard Python functions can be used directly as combiner
+functions. In fact, any function "reducing" an iterable to a
 single value can be used.
 
 ```python
