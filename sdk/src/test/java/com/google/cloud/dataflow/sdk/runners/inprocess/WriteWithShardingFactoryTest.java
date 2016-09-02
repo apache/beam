@@ -49,6 +49,8 @@ import com.google.common.collect.Iterables;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
@@ -63,6 +65,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Tests for {@link WriteWithShardingFactory}.
  */
+@RunWith(JUnit4.class)
 public class WriteWithShardingFactoryTest {
   public static final int INPUT_SIZE = 10000;
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
