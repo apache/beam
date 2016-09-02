@@ -188,19 +188,31 @@ public class FluentBackoffTest {
   }
 
   @Test
-  public void testToString() throws IOException {
-    BackOff backOff = FluentBackoff.DEFAULT
+  public void testFluentBackoffToString() throws IOException {
+    FluentBackoff config = FluentBackoff.DEFAULT
         .withExponent(3.4)
         .withMaxRetries(4)
         .withInitialBackoff(Duration.standardSeconds(3))
         .withMaxBackoff(Duration.standardHours(1))
-        .withMaxCumulativeBackoff(Duration.standardDays(1))
-        .backoff();
+        .withMaxCumulativeBackoff(Duration.standardDays(1));
 
-    // Note: these come up in alphabetical order despite the order above.
     assertEquals(
-        "BackoffImpl{exponent=3.4, initialBackoff=PT3S, maxBackoff=PT3600S,"
-            + " maxRetries=4, maxCumulativeBackoff=PT86400S,"
+        "FluentBackoff{exponent=3.4, initialBackoff=PT3S, maxBackoff=PT3600S,"
+            + " maxRetries=4, maxCumulativeBackoff=PT86400S}",
+        config.toString());
+  }
+  @Test
+  public void testBackoffImplToString() throws IOException {
+    FluentBackoff config = FluentBackoff.DEFAULT
+        .withExponent(3.4)
+        .withMaxRetries(4)
+        .withInitialBackoff(Duration.standardSeconds(3))
+        .withMaxBackoff(Duration.standardHours(1))
+        .withMaxCumulativeBackoff(Duration.standardDays(1));
+    BackOff backOff = config.backoff();
+
+    assertEquals(
+        "BackoffImpl{backoffConfig=" + config.toString() + ","
             + " currentRetry=0, currentCumulativeBackoff=PT0S}",
         backOff.toString());
 

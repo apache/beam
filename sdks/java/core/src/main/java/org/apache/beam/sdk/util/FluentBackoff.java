@@ -68,8 +68,7 @@ public final class FluentBackoff {
    * @see FluentBackoff
    */
   public BackOff backoff() {
-    return new BackoffImpl(
-        exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
+    return new BackoffImpl(this);
   }
 
   /**
@@ -150,14 +149,20 @@ public final class FluentBackoff {
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
   }
 
+  public String toString() {
+    return MoreObjects.toStringHelper(FluentBackoff.class)
+        .add("exponent", exponent)
+        .add("initialBackoff", initialBackoff)
+        .add("maxBackoff", maxBackoff)
+        .add("maxRetries", maxRetries)
+        .add("maxCumulativeBackoff", maxCumulativeBackoff)
+        .toString();
+  }
+
   private static class BackoffImpl implements BackOff {
 
     // Customization of this backoff.
-    private final double exponent;
-    private final Duration initialBackoff;
-    private final Duration maxBackoff;
-    private final Duration maxCumulativeBackoff;
-    private final int maxRetries;
+    private final FluentBackoff backoffConfig;
     // Current state
     private Duration currentCumulativeBackoff;
     private int currentRetry;
@@ -171,23 +176,25 @@ public final class FluentBackoff {
     @Override
     public long nextBackOffMillis() {
       // Maximum number of retries reached.
-      if (currentRetry >= maxRetries) {
+      if (currentRetry >= backoffConfig.maxRetries) {
         return BackOff.STOP;
       }
       // Maximum cumulative backoff reached.
-      if (currentCumulativeBackoff.compareTo(maxCumulativeBackoff) >= 0) {
+      if (currentCumulativeBackoff.compareTo(backoffConfig.maxCumulativeBackoff) >= 0) {
         return BackOff.STOP;
       }
 
       double currentIntervalMillis =
           Math.min(
-              initialBackoff.getMillis() * Math.pow(exponent, currentRetry),
-              maxBackoff.getMillis());
+              backoffConfig.initialBackoff.getMillis()
+                  * Math.pow(backoffConfig.exponent, currentRetry),
+              backoffConfig.maxBackoff.getMillis());
       double randomOffset =
           (Math.random() * 2 - 1) * DEFAULT_RANDOMIZATION_FACTOR * currentIntervalMillis;
       long nextBackoffMillis = Math.round(currentIntervalMillis + randomOffset);
       // Cap to limit on cumulative backoff
-      Duration remainingCumulative = maxCumulativeBackoff.minus(currentCumulativeBackoff);
+      Duration remainingCumulative =
+          backoffConfig.maxCumulativeBackoff.minus(currentCumulativeBackoff);
       nextBackoffMillis = Math.min(nextBackoffMillis, remainingCumulative.getMillis());
 
       // Update state and return backoff.
@@ -196,25 +203,14 @@ public final class FluentBackoff {
       return nextBackoffMillis;
     }
 
-    private BackoffImpl(
-        double exponent, Duration initialBackoff, Duration maxBackoff,
-        Duration maxCumulativeBackoff,
-        int maxRetries) {
-      this.exponent = exponent;
-      this.initialBackoff = initialBackoff;
-      this.maxBackoff = maxBackoff;
-      this.maxRetries = maxRetries;
-      this.maxCumulativeBackoff = maxCumulativeBackoff;
+    private BackoffImpl(FluentBackoff backoffConfig) {
+      this.backoffConfig = backoffConfig;
       this.reset();
     }
 
     public String toString() {
       return MoreObjects.toStringHelper(BackoffImpl.class)
-          .add("exponent", exponent)
-          .add("initialBackoff", initialBackoff)
-          .add("maxBackoff", maxBackoff)
-          .add("maxRetries", maxRetries)
-          .add("maxCumulativeBackoff", maxCumulativeBackoff)
+          .add("backoffConfig", backoffConfig)
           .add("currentRetry", currentRetry)
           .add("currentCumulativeBackoff", currentCumulativeBackoff)
           .toString();
