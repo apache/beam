@@ -18,13 +18,16 @@
 package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.BackOff;
+import java.io.IOException;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,14 +36,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link FlexibleBackoff}.
+ * Tests for {@link FluentBackoff}.
  */
 @RunWith(JUnit4.class)
-public class FlexibleBackoffTest {
+public class FluentBackoffTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
-  private final FlexibleBackoff defaultBackoff = FlexibleBackoff.of();
+  private final FluentBackoff defaultBackoff = FluentBackoff.DEFAULT;
 
   @Test
   public void testInvalidExponent() {
@@ -77,13 +80,15 @@ public class FlexibleBackoffTest {
     defaultBackoff.withMaxCumulativeBackoff(Duration.millis(-2));
   }
 
-  /** Tests with bounded interval, custom exponent, and unlimited retries. */
+  /**
+   * Tests with bounded interval, custom exponent, and unlimited retries.
+   */
   @Test
   public void testBoundedIntervalWithReset() throws Exception {
-    FlexibleBackoff backOff =
-        FlexibleBackoff.of()
+    BackOff backOff =
+        FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.millis(500))
-            .withMaxBackoff(Duration.standardSeconds(1));
+            .withMaxBackoff(Duration.standardSeconds(1)).backoff();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
@@ -108,13 +113,16 @@ public class FlexibleBackoffTest {
 
   }
 
-  /** Tests with bounded interval, custom exponent, limited retries, and a reset. */
+  /**
+   * Tests with bounded interval, custom exponent, limited retries, and a reset.
+   */
   @Test
   public void testMaxRetriesWithReset() throws Exception {
-    FlexibleBackoff backOff =
-        FlexibleBackoff.of()
+    BackOff backOff =
+        FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.millis(500))
-            .withMaxRetries(1);
+            .withMaxRetries(1)
+            .backoff();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
     assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
@@ -126,7 +134,7 @@ public class FlexibleBackoffTest {
     assertThat(backOff.nextBackOffMillis(), equalTo(BackOff.STOP));
   }
 
-  private static long countMaximumBackoff(FlexibleBackoff backOff) {
+  private static long countMaximumBackoff(BackOff backOff) throws IOException {
     long cumulativeBackoffMillis = 0;
     long currentBackoffMillis = backOff.nextBackOffMillis();
     while (currentBackoffMillis != BackOff.STOP) {
@@ -136,14 +144,16 @@ public class FlexibleBackoffTest {
     return cumulativeBackoffMillis;
   }
 
-  /** Tests with bounded interval, custom exponent, limited cumulative time, and a reset. */
+  /**
+   * Tests with bounded interval, custom exponent, limited cumulative time, and a reset.
+   */
   @Test
   public void testBoundedIntervalAndCumTimeWithReset() throws Exception {
-    FlexibleBackoff backOff =
-        FlexibleBackoff.of()
+    BackOff backOff =
+        FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.millis(500))
             .withMaxBackoff(Duration.standardSeconds(1))
-            .withMaxCumulativeBackoff(Duration.standardMinutes(1));
+            .withMaxCumulativeBackoff(Duration.standardMinutes(1)).backoff();
 
     assertThat(countMaximumBackoff(backOff), equalTo(Duration.standardMinutes(1).getMillis()));
 
@@ -161,11 +171,12 @@ public class FlexibleBackoffTest {
    */
   @Test
   public void testBoundedIntervalAndCumTimeAndRetriesWithReset() throws Exception {
-    FlexibleBackoff backOff =
-        FlexibleBackoff.of()
+    BackOff backOff =
+        FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.millis(500))
             .withMaxBackoff(Duration.standardSeconds(1))
-            .withMaxCumulativeBackoff(Duration.standardMinutes(1));
+            .withMaxCumulativeBackoff(Duration.standardMinutes(1))
+            .backoff();
 
     long cumulativeBackoffMillis = 0;
     long currentBackoffMillis = backOff.nextBackOffMillis();
@@ -174,5 +185,30 @@ public class FlexibleBackoffTest {
       currentBackoffMillis = backOff.nextBackOffMillis();
     }
     assertThat(cumulativeBackoffMillis, equalTo(Duration.standardMinutes(1).getMillis()));
+  }
+
+  @Test
+  public void testToString() throws IOException {
+    BackOff backOff = FluentBackoff.DEFAULT
+        .withExponent(3.4)
+        .withMaxRetries(4)
+        .withInitialBackoff(Duration.standardSeconds(3))
+        .withMaxBackoff(Duration.standardHours(1))
+        .withMaxCumulativeBackoff(Duration.standardDays(1))
+        .backoff();
+
+    // Note: these come up in alphabetical order despite the order above.
+    assertEquals(
+        "BackoffImpl{exponent=3.4, initialBackoff=PT3S, maxBackoff=PT3600S,"
+            + " maxRetries=4, maxCumulativeBackoff=PT86400S,"
+            + " currentRetry=0, currentCumulativeBackoff=PT0S}",
+        backOff.toString());
+
+    // backoff once, ignoring result
+    backOff.nextBackOffMillis();
+
+    // currentRetry is exact, we can test it.
+    assertThat(backOff.toString(), containsString("currentRetry=1"));
+    // currentCumulativeBackoff is not exact; we cannot even check that it's non-zero (randomness).
   }
 }
