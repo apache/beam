@@ -48,11 +48,11 @@ import javax.annotation.Nullable;
 /**
  * A WordCount example using DatastoreIO.
  *
- * <p>This example shows how to use DatastoreIO to read from Datastore and
+ * <p>This example shows how to use DatastoreIO to read from Cloud Datastore and
  * write the results to Cloud Storage.  Note that this example will write
- * data to Datastore, which may incur charge for Datastore operations.
+ * data to Cloud Datastore, which may incur charge for Cloud Datastore operations.
  *
- * <p>To run this example, users need to use gcloud to get credential for Datastore:
+ * <p>To run this example, users need to use gcloud to get credential for Cloud Datastore:
  * <pre>{@code
  * $ gcloud auth login
  * }</pre>
@@ -152,7 +152,7 @@ public class DatastoreWordCount {
    * <p>Inherits standard configuration options.
    */
   public static interface Options extends PipelineOptions {
-    @Description("Path of the file to read from and store to Datastore")
+    @Description("Path of the file to read from and store to Cloud Datastore")
     @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
     String getInput();
     void setInput(String value);
@@ -163,12 +163,12 @@ public class DatastoreWordCount {
     void setOutput(String value);
 
     // Note: This maps to Project ID for v1beta3 version of datastore
-    @Description("Dataset ID to read from datastore")
+    @Description("Dataset ID to read from Cloud Datastore")
     @Validation.Required
     String getDataset();
     void setDataset(String value);
 
-    @Description("Dataset entity kind")
+    @Description("Cloud Datastore Entity Kind")
     @Default.String("shakespeare-demo")
     String getKind();
     void setKind(String value);
@@ -189,7 +189,7 @@ public class DatastoreWordCount {
 
   /**
    * An example that creates a pipeline to populate DatastoreIO from a
-   * text input.  Forces use of DirectPipelineRunner for local execution mode.
+   * text input. Forces use of DirectPipelineRunner for local execution mode.
    */
   public static void writeDataToDatastore(Options options) {
     Pipeline p = Pipeline.create(options);
@@ -220,7 +220,7 @@ public class DatastoreWordCount {
   }
 
   /**
-   * An example that creates a pipeline to do DatastoreIO.Read from Datastore.
+   * An example that creates a pipeline to do DatastoreIO.Read from Cloud Datastore.
    */
   public static void readDataFromDatastore(Options options) {
     Query query = makeAncestorKindQuery(options);

@@ -17,6 +17,6 @@
 /**
  * <p>Provides an API for reading from and writing to
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
- * versions of the Datastore Client libraries.
+ * versions of the Cloud Datastore Client libraries.
  */
 package com.google.cloud.dataflow.sdk.io.datastore;

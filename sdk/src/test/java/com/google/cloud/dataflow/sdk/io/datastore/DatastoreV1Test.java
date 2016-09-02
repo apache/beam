@@ -370,7 +370,7 @@ public class DatastoreV1Test {
     UpsertFn upsertFn = new UpsertFn();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Entities to be written to the Datastore must have complete keys");
+    thrown.expectMessage("Entities to be written to the Cloud Datastore must have complete keys");
 
     upsertFn.apply(entity);
   }
@@ -398,7 +398,7 @@ public class DatastoreV1Test {
     DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Entities to be deleted from the Datastore must have complete keys");
+    thrown.expectMessage("Entities to be deleted from the Cloud Datastore must have complete keys");
 
     deleteEntityFn.apply(entity);
   }
@@ -425,7 +425,7 @@ public class DatastoreV1Test {
     DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Keys to be deleted from the Datastore must be complete");
+    thrown.expectMessage("Keys to be deleted from the Cloud Datastore must be complete");
 
     deleteKeyFn.apply(key);
   }

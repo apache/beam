@@ -99,7 +99,7 @@ import java.util.regex.Pattern;
  *   --streaming
  * }</pre>
  *
- * <p>This will update the datastore every 10 seconds based on the last
+ * <p>This will update the Cloud Datastore every 10 seconds based on the last
  * 30 minutes of data received.
  */
 public class AutoComplete {
@@ -383,7 +383,7 @@ public class AutoComplete {
 
   /**
    * Takes as input a the top candidates per prefix, and emits an entity
-   * suitable for writing to Datastore.
+   * suitable for writing to Cloud Datastore.
    *
    * <p>Note: We use ancestor keys for strong consistency. See the Cloud Datastore documentation on
    * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
@@ -434,7 +434,7 @@ public class AutoComplete {
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("Datastore entity kind")
+    @Description("Cloud Datastore entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
@@ -444,16 +444,16 @@ public class AutoComplete {
     Boolean getOutputToBigQuery();
     void setOutputToBigQuery(Boolean value);
 
-    @Description("Whether output to Datastore")
+    @Description("Whether output to Cloud Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
 
-    @Description("Datastore output dataset ID, defaults to project ID")
+    @Description("Cloud Datastore output dataset ID, defaults to project ID")
     String getOutputDataset();
     void setOutputDataset(String value);
 
-    @Description("Datastore ancestor key")
+    @Description("Cloud Datastore ancestor key")
     @Default.String("root")
     String getDatastoreAncestorKey();
     void setDatastoreAncestorKey(String value);

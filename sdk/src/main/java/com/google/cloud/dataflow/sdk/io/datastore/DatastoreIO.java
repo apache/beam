@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 /**
  * <p>{@link DatastoreIO} provides an API for reading from and writing to
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
- * versions of the Datastore Client libraries.
+ * versions of the Cloud Datastore Client libraries.
  *
  * <p>To use the v1 version see {@link DatastoreV1}.
  */
@@ -31,8 +31,8 @@ public class DatastoreIO {
   private DatastoreIO() {}
 
   /**
-   * Returns a {@link DatastoreV1} that provides an API for accessing Datastore through v1 version
-   * of Datastore Client library.
+   * Returns a {@link DatastoreV1} that provides an API for accessing Cloud Datastore through v1
+   * version of Cloud Datastore Client library.
    */
   public static DatastoreV1 v1() {
     return new DatastoreV1();

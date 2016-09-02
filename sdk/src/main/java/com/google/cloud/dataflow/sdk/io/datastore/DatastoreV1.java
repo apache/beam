@@ -92,13 +92,13 @@ import javax.annotation.Nullable;
  * {@link Entity} objects.
  *
  * <p>This API currently requires an authentication workaround. To use {@link DatastoreV1}, users
- * must use the {@code gcloud} command line tool to get credentials for Datastore:
+ * must use the {@code gcloud} command line tool to get credentials for Cloud Datastore:
  * <pre>
  * $ gcloud auth login
  * </pre>
  *
- * <p>To read a {@link PCollection} from a query to Datastore, use {@link DatastoreV1#read} and
- * its methods {@link DatastoreV1.Read#withProjectId} and {@link DatastoreV1.Read#withQuery} to
+ * <p>To read a {@link PCollection} from a query to Cloud Datastore, use {@link DatastoreV1#read}
+ * and its methods {@link DatastoreV1.Read#withProjectId} and {@link DatastoreV1.Read#withQuery} to
  * specify the project to query and the query to read from. You can optionally provide a namespace
  * to query within using {@link DatastoreV1.Read#withNamespace}. You could also optionally specify
  * how many splits you want for the query using {@link DatastoreV1.Read#withNumQuerySplits}.
@@ -123,7 +123,7 @@ import javax.annotation.Nullable;
  * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)}, then
  * all returned results will be read by a single Dataflow worker in order to ensure correct data.
  *
- * <p>To write a {@link PCollection} to a Datastore, use {@link DatastoreV1#write},
+ * <p>To write a {@link PCollection} to a Cloud Datastore, use {@link DatastoreV1#write},
  * specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
@@ -132,7 +132,7 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>To delete a {@link PCollection} of {@link Entity Entities} from Datastore, use
+ * <p>To delete a {@link PCollection} of {@link Entity Entities} from Cloud Datastore, use
  * {@link DatastoreV1#deleteEntity()}, specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
@@ -141,8 +141,8 @@ import javax.annotation.Nullable;
  * p.run();
  * } </pre>
  *
- * <p>To delete entities associated with a {@link PCollection} of {@link Key Keys} from Datastore,
- * use {@link DatastoreV1#deleteKey}, specifying the Cloud Datastore project to write to:
+ * <p>To delete entities associated with a {@link PCollection} of {@link Key Keys} from Cloud
+ * Datastore, use {@link DatastoreV1#deleteKey}, specifying the Cloud Datastore project to write to:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
@@ -170,7 +170,7 @@ import javax.annotation.Nullable;
  * more details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
- * </a>for security and permission related information specific to Datastore.
+ * </a>for security and permission related information specific to Cloud Datastore.
  *
  * @see com.google.cloud.dataflow.sdk.runners.PipelineRunner
  */
@@ -182,7 +182,7 @@ public class DatastoreV1 {
 
   /**
    * Datastore has a limit of 500 mutations per batch operation, so we flush
-   * changes to Datastore every 500 entities.
+   * changes to Cloud Datastore every 500 entities.
    */
   @VisibleForTesting
   static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
@@ -198,7 +198,7 @@ public class DatastoreV1 {
   }
 
   /**
-   * A {@link PTransform} that reads the result rows of a Datastore query as {@code Entity}
+   * A {@link PTransform} that reads the result rows of a Cloud atastore query as {@code Entity}
    * objects.
    *
    * @see DatastoreIO
@@ -235,7 +235,7 @@ public class DatastoreV1 {
 
     /**
      * Computes the number of splits to be performed on the given query by querying the estimated
-     * size from Datastore.
+     * size from Cloud Datastore.
      */
     static int getEstimatedNumSplits(Datastore datastore, Query query, @Nullable String namespace) {
       int numSplits;
@@ -282,7 +282,7 @@ public class DatastoreV1 {
     /**
      * Get the estimated size of the data returned by the given query.
      *
-     * <p>Datastore provides no way to get a good estimate of how large the result of a query
+     * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
      * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind
      * is specified in the query.
      *
@@ -313,7 +313,7 @@ public class DatastoreV1 {
       QueryResultBatch batch = response.getBatch();
       if (batch.getEntityResultsCount() == 0) {
         throw new NoSuchElementException(
-            "Datastore statistics for kind " + ourKind + " unavailable");
+            "Cloud Datastore statistics for kind " + ourKind + " unavailable");
       }
       Entity entity = batch.getEntityResults(0).getEntity();
       return entity.getProperties().get("entity_bytes").getIntegerValue();
@@ -357,7 +357,7 @@ public class DatastoreV1 {
     }
 
     /**
-     * Returns a new {@link DatastoreV1.Read} that reads from the Datastore for the specified
+     * Returns a new {@link DatastoreV1.Read} that reads from the Cloud Datastore for the specified
      * project.
      */
     public DatastoreV1.Read withProjectId(String projectId) {
@@ -492,7 +492,7 @@ public class DatastoreV1 {
     }
 
     /**
-     * A class for v1 Datastore related options.
+     * A class for v1 Cloud Datastore related options.
      */
     @VisibleForTesting
     static class V1Options implements Serializable {
@@ -608,7 +608,7 @@ public class DatastoreV1 {
     }
 
     /**
-     * A {@link DoFn} that reads entities from Datastore for each query.
+     * A {@link DoFn} that reads entities from Cloud Datastore for each query.
      */
     @VisibleForTesting
     static class ReadFn extends DoFn<Query, Entity> {
@@ -909,8 +909,8 @@ public class DatastoreV1 {
      *
      * <p>If a commit fails, it will be retried (up to {@link DatastoreWriterFn#MAX_RETRIES}
      * times). All mutations in the batch will be committed again, even if the commit was partially
-     * successful. If the retry limit is exceeded, the last exception from the Datastore will be
-     * thrown.
+     * successful. If the retry limit is exceeded, the last exception from the Cloud Datastore will
+     * be thrown.
      *
      * @throws DatastoreException if the commit fails or IOException or InterruptedException if
      * backing off between retries fails.
@@ -954,7 +954,7 @@ public class DatastoreV1 {
   }
 
   /**
-   * Returns true if a Datastore key is complete. A key is complete if its last element
+   * Returns true if a Cloud Datastore key is complete. A key is complete if its last element
    * has either an id or a name.
    */
   static boolean isValidKey(Key key) {
@@ -975,7 +975,7 @@ public class DatastoreV1 {
     public Mutation apply(Entity entity) {
       // Verify that the entity to write has a complete key.
       checkArgument(isValidKey(entity.getKey()),
-          "Entities to be written to the Datastore must have complete keys:\n%s", entity);
+          "Entities to be written to the Cloud Datastore must have complete keys:\n%s", entity);
 
       return makeUpsert(entity).build();
     }
@@ -990,7 +990,7 @@ public class DatastoreV1 {
     public Mutation apply(Entity entity) {
       // Verify that the entity to delete has a complete key.
       checkArgument(isValidKey(entity.getKey()),
-          "Entities to be deleted from the Datastore must have complete keys:\n%s", entity);
+          "Entities to be deleted from the Cloud Datastore must have complete keys:\n%s", entity);
 
       return makeDelete(entity.getKey()).build();
     }
@@ -1005,14 +1005,14 @@ public class DatastoreV1 {
     public Mutation apply(Key key) {
       // Verify that the entity to delete has a complete key.
       checkArgument(isValidKey(key),
-          "Keys to be deleted from the Datastore must be complete:\n%s", key);
+          "Keys to be deleted from the Cloud Datastore must be complete:\n%s", key);
 
       return makeDelete(key).build();
     }
   }
 
   /**
-   * A wrapper factory class for Datastore singleton classes {@link DatastoreFactory} and
+   * A wrapper factory class for Cloud Datastore singleton classes {@link DatastoreFactory} and
    * {@link QuerySplitter}
    *
    * <p>{@link DatastoreFactory} and {@link QuerySplitter} are not java serializable, hence
@@ -1021,7 +1021,7 @@ public class DatastoreV1 {
   @VisibleForTesting
   static class V1DatastoreFactory implements Serializable {
 
-    /** Builds a Datastore client for the given pipeline options and project. */
+    /** Builds a Cloud Datastore client for the given pipeline options and project. */
     public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
       DatastoreOptions.Builder builder =
           new DatastoreOptions.Builder()
@@ -1038,7 +1038,7 @@ public class DatastoreV1 {
       return DatastoreFactory.get().create(builder.build());
     }
 
-    /** Builds a Datastore {@link QuerySplitter}. */
+    /** Builds a Cloud Datastore {@link QuerySplitter}. */
     public QuerySplitter getQuerySplitter() {
       return DatastoreHelper.getQuerySplitter();
     }
