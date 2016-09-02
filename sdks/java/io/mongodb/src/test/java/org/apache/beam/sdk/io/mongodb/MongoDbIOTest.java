@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static de.flapdoodle.embed.mongo.distribution.Version.Main.PRODUCTION;
+import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -31,15 +32,19 @@ import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.process.runtime.Network;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.bson.Document;
@@ -54,7 +59,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Test on the MongoDbIO.
  */
-public class MongoDbIOTest {
+public class MongoDbIOTest implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
 
@@ -62,7 +67,7 @@ public class MongoDbIOTest {
   private static final String DATABASE = "beam";
   private static final String COLLECTION = "test";
 
-  private MongodExecutable mongodExecutable;
+  private transient MongodExecutable mongodExecutable;
 
   @Before
   public void setup() throws Exception {
@@ -113,56 +118,27 @@ public class MongoDbIOTest {
     PAssert.thatSingleton(output.apply("Count All", Count.<String>globally()))
         .isEqualTo(1000L);
 
-    PAssert.thatSingleton(
-        output.apply("Filter Einstein", Filter.by(new ScientistFilter("Einstein")))
-        .apply("Count Einstein", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Darwin", Filter.by(new ScientistFilter("Darwin")))
-        .apply("Count Darwin", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Copernicus", Filter.by(new ScientistFilter("Copernicus")))
-        .apply("Count Copernicus", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Pasteur", Filter.by(new ScientistFilter("Pasteur")))
-        .apply("Count Pasteur", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Curie", Filter.by(new ScientistFilter("Curie")))
-        .apply("Count Curie", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Faraday", Filter.by(new ScientistFilter("Faraday")))
-        .apply("Count Faraday", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Newton", Filter.by(new ScientistFilter("Newton")))
-        .apply("Count Newton", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Bohr", Filter.by(new ScientistFilter("Bohr")))
-        .apply("Count Bohr", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Galilei", Filter.by(new ScientistFilter("Galilei")))
-        .apply("Count Galilei", Count.<String>globally())).isEqualTo(100L);
-    PAssert.thatSingleton(
-        output.apply("Filter Maxwell", Filter.by(new ScientistFilter("Maxwell")))
-        .apply("Count Maxwell", Count.<String>globally())).isEqualTo(100L);
+    PAssert.that(output
+        .apply("Map Scientist", MapElements.via(new SimpleFunction<String, KV<String, Void>>() {
+          public KV<String, Void> apply(String input) {
+            Document bson = Document.parse(input);
+            return KV.of(bson.getString("scientist"), null);
+          }
+        }))
+        .apply("Count Scientist", Count.<String, Void>perKey())
+    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
+      @Override
+      public Void apply(Iterable<KV<String, Long>> input) {
+        Iterator<KV<String, Long>> iterator = input.iterator();
+        while (iterator.hasNext()) {
+          KV<String, Long> element = iterator.next();
+          assertEquals(100L, element.getValue().longValue());
+        }
+        return null;
+      }
+    });
 
     pipeline.run();
-  }
-
-  private static class ScientistFilter implements SerializableFunction<String, Boolean> {
-
-    private String scientist;
-
-    public ScientistFilter(String scientist) {
-      this.scientist = scientist;
-    }
-
-    public Boolean apply(String input) {
-      Document bson = Document.parse(input);
-      if (bson.getString("scientist").equals(scientist)) {
-        return true;
-      }
-      return false;
-    }
-
   }
 
   @Test
@@ -189,8 +165,8 @@ public class MongoDbIOTest {
     TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<String> data = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
-      data.add("{\"scientist\":\"Test\"}");
+    for (int i = 0; i < 10000; i++) {
+      data.add(String.format("{\"scientist\":\"Test %s\"}", i));
     }
     pipeline.apply(Create.of(data))
         .apply(MongoDbIO.write().withUri("mongodb://localhost:" + PORT).withDatabase("test")
@@ -210,7 +186,7 @@ public class MongoDbIOTest {
       cursor.next();
     }
 
-    Assert.assertEquals(count, 100);
+    Assert.assertEquals(10000, count);
 
   }
 

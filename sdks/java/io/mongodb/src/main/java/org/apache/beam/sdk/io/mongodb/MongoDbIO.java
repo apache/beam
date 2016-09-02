@@ -147,14 +147,14 @@ public class MongoDbIO {
 
     @Override
     public PCollection<String> apply(PBegin input) {
-      return input.apply(org.apache.beam.sdk.io.Read.from(createSource()));
+      return input.apply(org.apache.beam.sdk.io.Read.from(getSource()));
     }
 
     /**
      * Creates a {@link BoundedSource} with the configuration in {@link Read}.
      */
     @VisibleForTesting
-    BoundedSource<String> createSource() {
+    BoundedSource<String> getSource() {
       return source;
     }
 
@@ -224,11 +224,11 @@ public class MongoDbIO {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.addIfNotNull(DisplayData.item("uri", uri));
-      builder.addIfNotNull(DisplayData.item("database", database));
-      builder.addIfNotNull(DisplayData.item("collection", collection));
+      builder.add(DisplayData.item("uri", uri));
+      builder.add(DisplayData.item("database", database));
+      builder.add(DisplayData.item("collection", collection));
       builder.addIfNotNull(DisplayData.item("filter", filter));
-      builder.addIfNotNull(DisplayData.item("numSplit", numSplits));
+      builder.add(DisplayData.item("numSplit", numSplits));
     }
 
     @Override
@@ -255,17 +255,6 @@ public class MongoDbIO {
       stat.append("collStats", collection);
       Document stats = mongoDatabase.runCommand(stat);
       estimatedSizeBytes = Long.valueOf(stats.get("size").toString());
-      long avgSize = Long.valueOf(stats.get("avgObjSize").toString());
-      if (filter != null && !filter.isEmpty()) {
-        // as the user is using a filter, we improve the estimated size
-        // by counting number of document returned by the filter
-        // and using the average object size from collStats
-        try {
-          estimatedSizeBytes = mongoCollection.count(Document.parse(filter)) * avgSize;
-        } catch (Exception e) {
-          LOGGER.warn("Can't estimate size", e);
-        }
-      }
       return estimatedSizeBytes;
     }
 
@@ -278,17 +267,17 @@ public class MongoDbIO {
       List<Document> splitKeys = null;
       if (numSplits > 0) {
         // the user defines his desired number of splits
-        // calculate the bundle size
+        // calculate the batch size
         long estimatedSizeBytes = getEstimatedSizeBytes(options);
         desiredBundleSizeBytes = estimatedSizeBytes / numSplits;
       }
 
-      // the desired bundle size is small, using default chunk size of 64MB
-      if (desiredBundleSizeBytes == 0 || ((desiredBundleSizeBytes / 1024 / 1024) < 1)) {
-        desiredBundleSizeBytes = 64 * 1024 * 1024;
+      // the desired batch size is small, using default chunk size of 1MB
+      if (desiredBundleSizeBytes < 1024 * 1024) {
+        desiredBundleSizeBytes = 1 * 1024 * 1024;
       }
 
-      // now we have the bundle size (provided by user or provided by the runner)
+      // now we have the batch size (provided by user or provided by the runner)
       // we use Mongo splitVector command to get the split keys
       BasicDBObject splitVectorCommand = new BasicDBObject();
       splitVectorCommand.append("splitVector", database + "." + collection);
@@ -352,14 +341,12 @@ public class MongoDbIO {
           // the range from the beginning up to this split
           rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:Objectd(\"%s\")}}",
               splitKey);
-        }
-        if (i == splitKeys.size() - 1) {
+        } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filter defines
           // the range from the split up to the end
           rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}",
               splitKey);
-        }
-        if (i != 0 && i != splitKeys.size() - 1) {
+        } else {
           // we are between two splits
           rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\"),"
               + "$lte:ObjectId(\"%s\")}}", lowestBound, splitKey);
@@ -489,6 +476,7 @@ public class MongoDbIO {
       private final String collection;
 
       private MongoClient client;
+      private List<Document> batch;
 
       public MongoDbWriter(String uri, String database, String collection) {
         this.uri = uri;
@@ -519,14 +507,24 @@ public class MongoDbIO {
         client = new MongoClient(new MongoClientURI(uri));
       }
 
+      @StartBundle
+      public void startBundle(Context ctx) throws Exception {
+        batch = new ArrayList<>();
+      }
+
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
 
+        batch.add(Document.parse(ctx.element()));
+      }
+
+      @FinishBundle
+      public void finishBundle(Context ctx) throws Exception {
         MongoDatabase mongoDatabase = client.getDatabase(database);
         MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
 
-        mongoCollection.insertOne(Document.parse(value));
+        mongoCollection.insertMany(batch);
       }
 
       @Teardown
