@@ -1,28 +1,37 @@
 package cz.seznam.euphoria.flink.functions;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.util.Collector;
 
-public class UnaryFunctorWrapper<IN, OUT>
-        implements FlatMapFunction<IN, OUT>, ResultTypeQueryable<OUT>
+import java.util.Objects;
+
+public class UnaryFunctorWrapper<GROUP, LABEL, IN, OUT>
+    implements FlatMapFunction<WindowedElement<GROUP, LABEL, IN>,
+                               WindowedElement<GROUP, LABEL, OUT>>,
+               ResultTypeQueryable<WindowedElement<GROUP, LABEL, OUT>>
 {
-  private final UnaryFunctor<IN, OUT> functor;
+  private final UnaryFunctor<IN, OUT> f;
 
-  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> functor) {
-    this.functor = functor;
+  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
+    this.f = Objects.requireNonNull(f);
   }
 
   @Override
-  public void flatMap(IN elem, Collector<OUT> collector) throws Exception {
-    functor.apply(elem, collector::collect);
+  public void flatMap(WindowedElement<GROUP, LABEL, IN> value,
+                      Collector<WindowedElement<GROUP, LABEL, OUT>> out)
+      throws Exception
+  {
+    f.apply(value.get(), elem -> {
+      out.collect(new WindowedElement(value.getWindowID(), elem));
+    });
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public TypeInformation<OUT> getProducedType() {
-    return TypeInformation.of((Class) Object.class);
+  public TypeInformation<WindowedElement<GROUP, LABEL, OUT>> getProducedType() {
+    return TypeInformation.of((Class) WindowedElement.class);
   }
 }

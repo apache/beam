@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -16,7 +17,8 @@ class FlatMapTranslator implements BatchOperatorTranslator<FlatMap> {
     DataSet<?> input = context.getSingleInputStream(operator);
     UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
     return input
-        .flatMap(new UnaryFunctorWrapper(mapper))
+        .flatMap(new UnaryFunctorWrapper<>(mapper))
+        .returns((Class) WindowedElement.class)
         .setParallelism(operator.getParallelism())
         .name(operator.getName());
   }
