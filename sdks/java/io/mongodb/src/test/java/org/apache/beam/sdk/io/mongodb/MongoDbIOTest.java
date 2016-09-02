@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static de.flapdoodle.embed.mongo.distribution.Version.Main.PRODUCTION;
 import static org.junit.Assert.assertEquals;
 
 import com.mongodb.MongoClient;
@@ -28,10 +27,15 @@ import com.mongodb.client.MongoDatabase;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
+import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
 import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
+import de.flapdoodle.embed.mongo.config.Storage;
+import de.flapdoodle.embed.mongo.distribution.Version;
+import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -63,6 +67,7 @@ public class MongoDbIOTest implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
 
+  private static final String MONGODB_LOCATION = "target/mongodb";
   private static final int PORT = 27017;
   private static final String DATABASE = "beam";
   private static final String COLLECTION = "test";
@@ -72,9 +77,23 @@ public class MongoDbIOTest implements Serializable {
   @Before
   public void setup() throws Exception {
     LOGGER.info("Starting MongoDB embedded instance");
+    try {
+      Files.forceDelete(new File(MONGODB_LOCATION));
+    } catch (Exception e) {
+
+    }
+    new File(MONGODB_LOCATION).mkdirs();
     IMongodConfig mongodConfig = new MongodConfigBuilder()
-        .version(PRODUCTION)
+        .version(Version.Main.PRODUCTION)
+        .configServer(false)
+        .replication(new Storage(MONGODB_LOCATION, null, 0))
         .net(new Net(PORT, Network.localhostIsIPv6()))
+        .cmdOptions(new MongoCmdOptionsBuilder()
+            .syncDelay(10)
+            .useNoPrealloc(true)
+            .useSmallFiles(true)
+            .useNoJournal(true)
+            .build())
         .build();
     mongodExecutable = MongodStarter.getDefaultInstance().prepare(mongodConfig);
     mongodExecutable.start();
