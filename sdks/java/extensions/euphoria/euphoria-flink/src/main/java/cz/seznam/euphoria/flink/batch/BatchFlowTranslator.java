@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
@@ -84,7 +85,9 @@ public class BatchFlowTranslator extends FlowTranslator {
               DataSet<?> flinkOutput =
                       Objects.requireNonNull(executorContext.getOutputStream(op));
 
-              flinkOutput.output(new DataSinkWrapper<>((DataSink) sink));
+              flinkOutput.map(value -> ((WindowedElement) value).get())
+                  .setParallelism(op.getParallelism())
+                  .output(new DataSinkWrapper<>((DataSink) sink));
             });
 
     return sinks;
