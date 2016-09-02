@@ -77,7 +77,7 @@ public class Flow implements Serializable {
 
   private Flow(String name, Settings settings) {
     this.name = name == null ? "" : name;
-    this.settings = settings;
+    this.settings = clone(settings);
   }
 
 
@@ -258,5 +258,9 @@ public class Flow implements Serializable {
   private <T> DataSink<T> getSinkFromURI(URI uri) throws Exception {
     IORegistry registry = IORegistry.get(settings);
     return registry.openSink(uri, settings);
+  }
+
+  private Settings clone(Settings settings) {
+    return new Settings(settings);
   }
 }
