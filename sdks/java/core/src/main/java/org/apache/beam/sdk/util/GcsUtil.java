@@ -120,6 +120,9 @@ public class GcsUtil {
    */
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
+  private static final FluentBackoff BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
+
   /////////////////////////////////////////////////////////////////////////////
 
   /** Client for the GCS API. */
@@ -178,7 +181,7 @@ public class GcsUtil {
         // the request has strong global consistency.
         ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(getObject),
-            FlexibleBackoff.of().withMaxRetries(3).withInitialBackoff(Duration.millis(200)),
+            BACKOFF_FACTORY.backoff(),
             RetryDeterminer.SOCKET_ERRORS,
             IOException.class);
         return ImmutableList.of(gcsPattern);
@@ -217,7 +220,7 @@ public class GcsUtil {
       try {
         objects = ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(listObject),
-            FlexibleBackoff.of().withMaxRetries(3).withInitialBackoff(Duration.millis(200)),
+            BACKOFF_FACTORY.backoff(),
             RetryDeterminer.SOCKET_ERRORS,
             IOException.class);
       } catch (Exception e) {
@@ -260,7 +263,7 @@ public class GcsUtil {
   public long fileSize(GcsPath path) throws IOException {
     return fileSize(
         path,
-        FlexibleBackoff.of().withMaxRetries(4).withInitialBackoff(Duration.millis(200)),
+        BACKOFF_FACTORY.backoff(),
         Sleeper.DEFAULT);
   }
 
@@ -341,7 +344,7 @@ public class GcsUtil {
   public boolean bucketExists(GcsPath path) throws IOException {
     return bucketExists(
         path,
-        FlexibleBackoff.of().withMaxRetries(4).withInitialBackoff(Duration.millis(200)),
+        BACKOFF_FACTORY.backoff(),
         Sleeper.DEFAULT);
   }
 

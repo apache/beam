@@ -54,7 +54,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -281,8 +281,8 @@ class V1TestUtil {
       LOG.info("Writing batch of {} entities", entities.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF).backoff();
 
       while (true) {
         // Batch mutate entities.

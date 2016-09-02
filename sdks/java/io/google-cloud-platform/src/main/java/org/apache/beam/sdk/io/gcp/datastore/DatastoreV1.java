@@ -76,7 +76,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -863,16 +863,11 @@ public class DatastoreV1 {
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
-    /**
-     * Since a bundle is written in batches, we should retry the commit of a batch in order to
-     * prevent transient errors from causing the bundle to fail.
-     */
-    private static final int MAX_RETRIES = 5;
 
-    /**
-     * Initial backoff time for exponential backoff for retry attempts.
-     */
-    private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(5);
+    private static final int MAX_RETRIES = 5;
+    private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
     DatastoreWriterFn(String projectId) {
       this(projectId, new V1DatastoreFactory());
@@ -907,10 +902,10 @@ public class DatastoreV1 {
     /**
      * Writes a batch of mutations to Cloud Datastore.
      *
-     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriterFn#MAX_RETRIES}
-     * times). All mutations in the batch will be committed again, even if the commit was partially
-     * successful. If the retry limit is exceeded, the last exception from the Cloud Datastore will
-     * be thrown.
+     * <p>If a commit fails, it will be retried up to {@link #MAX_RETRIES} times. All
+     * mutations in the batch will be committed again, even if the commit was partially
+     * successful. If the retry limit is exceeded, the last exception from Cloud Datastore will be
+     * thrown.
      *
      * @throws DatastoreException if the commit fails or IOException or InterruptedException if
      * backing off between retries fails.
@@ -918,9 +913,7 @@ public class DatastoreV1 {
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
       LOG.debug("Writing batch of {} mutations", mutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
-      BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF);
+      BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
 
       while (true) {
         // Batch upsert entities.

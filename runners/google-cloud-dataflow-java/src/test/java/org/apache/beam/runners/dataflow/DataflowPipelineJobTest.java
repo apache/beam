@@ -266,7 +266,7 @@ public class DataflowPipelineJobTest {
 
     assertEquals(
         State.RUNNING,
-        job.getStateWithRetries(DataflowPipelineJob.STATUS_POLLING_RETRIES, fastClock));
+        job.getStateWithRetries(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff(), fastClock));
   }
 
   @Test
@@ -284,7 +284,7 @@ public class DataflowPipelineJobTest {
     long startTime = fastClock.nanoTime();
     assertEquals(
         State.UNKNOWN,
-        job.getStateWithRetries(DataflowPipelineJob.STATUS_POLLING_RETRIES, fastClock));
+        job.getStateWithRetries(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff(), fastClock));
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);
     checkValidInterval(DataflowPipelineJob.STATUS_POLLING_INTERVAL,
         DataflowPipelineJob.STATUS_POLLING_RETRIES, timeDiff);

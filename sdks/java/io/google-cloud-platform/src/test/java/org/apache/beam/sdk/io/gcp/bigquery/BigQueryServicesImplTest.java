@@ -56,7 +56,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.junit.Before;
@@ -118,7 +118,7 @@ public class BigQueryServicesImplTest {
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
-        testJob, new ApiErrorExtractor(), bigquery, sleeper, FlexibleBackoff.of());
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -141,7 +141,7 @@ public class BigQueryServicesImplTest {
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
-        testJob, new ApiErrorExtractor(), bigquery, sleeper, FlexibleBackoff.of());
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -168,7 +168,7 @@ public class BigQueryServicesImplTest {
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
-        testJob, new ApiErrorExtractor(), bigquery, sleeper, FlexibleBackoff.of());
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();

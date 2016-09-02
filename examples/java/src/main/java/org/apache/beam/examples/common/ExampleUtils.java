@@ -45,7 +45,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 
@@ -81,8 +81,8 @@ public class ExampleUtils {
   public void setup() throws IOException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backOff =
-        FlexibleBackoff.of()
-            .withMaxRetries(3).withInitialBackoff(Duration.millis(200));
+        FluentBackoff.DEFAULT
+            .withMaxRetries(3).withInitialBackoff(Duration.millis(200)).backoff();
     Throwable lastException = null;
     try {
       do {

@@ -57,7 +57,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -193,8 +193,8 @@ class BigQueryServicesImpl implements BigQueryServices {
       ApiErrorExtractor errorExtractor,
       Bigquery client) throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       startJob(job, errorExtractor, client, Sleeper.DEFAULT, backoff);
     }
 
@@ -235,8 +235,9 @@ class BigQueryServicesImpl implements BigQueryServices {
     public Job pollJob(JobReference jobRef, int maxAttempts)
         throws InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(maxAttempts).withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(maxAttempts).withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
+              .backoff();
       return pollJob(jobRef, Sleeper.DEFAULT, backoff);
     }
 
@@ -271,8 +272,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .setQuery(query))
               .setDryRun(true));
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return executeWithRetries(
           client.jobs().insert(projectId, job),
           String.format(
@@ -291,15 +292,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     // The maximum number of rows to upload per InsertAll request.
     private static final long MAX_ROWS_PER_BATCH = 500;
 
-    // The maximum number of times to retry inserting rows into BigQuery.
-    private static final int MAX_INSERT_ATTEMPTS = 5;
-
-    // The initial backoff after a failure inserting rows into BigQuery.
-    private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
+    private static final FluentBackoff INSERT_BACKOFF_FACTORY =
+        FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
     // A backoff for rate limit exceeded errors. Retries forever.
-    private static final FlexibleBackoff defaultBackoff =
-        FlexibleBackoff.of()
+    private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
+        FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.standardSeconds(1))
             .withMaxBackoff(Duration.standardMinutes(2));
 
@@ -347,8 +345,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public Table getTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return executeWithRetries(
           client.tables().get(projectId, datasetId, tableId),
           String.format(
@@ -369,8 +367,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public void deleteTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       executeWithRetries(
           client.tables().delete(projectId, datasetId, tableId),
           String.format(
@@ -384,8 +382,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public boolean isTableEmpty(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       TableDataList dataList = executeWithRetries(
           client.tabledata().list(projectId, datasetId, tableId),
           String.format(
@@ -407,8 +405,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public Dataset getDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return executeWithRetries(
           client.datasets().get(projectId, datasetId),
           String.format(
@@ -430,8 +428,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       createDataset(projectId, datasetId, location, description, Sleeper.DEFAULT, backoff);
     }
 
@@ -487,8 +485,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
       BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       executeWithRetries(
           client.datasets().delete(projectId, datasetId),
           String.format(
@@ -511,10 +509,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             + "as many elements as rowList");
       }
 
-      BackOff backoff =
-          FlexibleBackoff.of()
-              .withMaxRetries(MAX_INSERT_ATTEMPTS)
-              .withInitialBackoff(Duration.millis(INITIAL_INSERT_BACKOFF_INTERVAL_MS));
+      BackOff backoff = INSERT_BACKOFF_FACTORY.backoff();
 
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
@@ -557,7 +552,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                 executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
                   @Override
                   public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                    BackOff backoff = defaultBackoff.copy();
+                    BackOff backoff = DEFAULT_BACKOFF_FACTORY.backoff();
                     while (true) {
                       try {
                         return insert.execute().getInsertErrors();

@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
@@ -60,6 +60,10 @@ public class PackageUtil {
    * The maximum number of retries when staging a file.
    */
   private static final int MAX_RETRIES = 4;
+
+  private static final FluentBackoff BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF_INTERVAL);
 
   /**
    * Translates exceptions from API calls.
@@ -200,9 +204,7 @@ public class PackageUtil {
         }
 
         // Upload file, retrying on failure.
-        BackOff backoff =
-            FlexibleBackoff.of()
-                .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF_INTERVAL);
+        BackOff backoff = BACKOFF_FACTORY.backoff();
         while (true) {
           try {
             LOG.debug("Uploading classpath element {} to {}", classpathElement, target);

@@ -43,7 +43,7 @@ import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.util.FlexibleBackoff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +95,7 @@ public class DataflowPipelineJob implements PipelineResult {
    */
   static final Duration MESSAGES_POLLING_INTERVAL = Duration.standardSeconds(2);
   static final Duration STATUS_POLLING_INTERVAL = Duration.standardSeconds(2);
+
   static final double DEFAULT_BACKOFF_EXPONENT = 1.5;
 
   /**
@@ -102,6 +103,17 @@ public class DataflowPipelineJob implements PipelineResult {
    */
   static final int MESSAGES_POLLING_RETRIES = 11;
   static final int STATUS_POLLING_RETRIES = 4;
+
+  private static final FluentBackoff MESSAGES_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(MESSAGES_POLLING_INTERVAL)
+          .withMaxRetries(MESSAGES_POLLING_RETRIES)
+          .withExponent(DEFAULT_BACKOFF_EXPONENT);
+  protected static final FluentBackoff STATUS_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(STATUS_POLLING_INTERVAL)
+          .withMaxRetries(STATUS_POLLING_RETRIES)
+          .withExponent(DEFAULT_BACKOFF_EXPONENT);
 
   /**
    * Constructs the job.
@@ -213,11 +225,11 @@ public class DataflowPipelineJob implements PipelineResult {
     MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowOptions.getDataflowClient());
 
     long lastTimestamp = 0;
-    FlexibleBackoff backoff = FlexibleBackoff.of()
-        .withMaxRetries(MESSAGES_POLLING_RETRIES)
-        .withInitialBackoff(MESSAGES_POLLING_INTERVAL);
-    if (duration.isLongerThan(Duration.ZERO)) {
-      backoff = backoff.withMaxCumulativeBackoff(duration);
+    BackOff backoff;
+    if (!duration.isLongerThan(Duration.ZERO)) {
+      backoff = MESSAGES_BACKOFF_FACTORY.backoff();
+    } else {
+      backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff();
     }
 
     // In this function, track the cumulative time since we've started backing off and use this
@@ -228,7 +240,7 @@ public class DataflowPipelineJob implements PipelineResult {
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      state = getStateWithRetries(0, sleeper);
+      state = getStateWithRetries(STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff(), sleeper);
       boolean hasError = state == State.UNKNOWN;
 
       if (messageHandler != null && !hasError) {
@@ -257,7 +269,8 @@ public class DataflowPipelineJob implements PipelineResult {
         if (duration.isLongerThan(Duration.ZERO)) {
           long nanosConsumed = nanoClock.nanoTime() - startNanos;
           Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
-          backoff = backoff.withMaxCumulativeBackoff(duration.minus(consumed));
+          backoff =
+              MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration.minus(consumed)).backoff();
         }
         // Check if the job is done.
         if (state.isTerminal()) {
@@ -295,7 +308,7 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
 
-    return getStateWithRetries(STATUS_POLLING_RETRIES, Sleeper.DEFAULT);
+    return getStateWithRetries(STATUS_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
   }
 
   /**
@@ -307,7 +320,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * @return The state of the job or State.UNKNOWN in case of failure.
    */
   @VisibleForTesting
-  State getStateWithRetries(int attempts, Sleeper sleeper) {
+  State getStateWithRetries(BackOff attempts, Sleeper sleeper) {
     if (terminalState != null) {
       return terminalState;
     }
@@ -326,19 +339,13 @@ public class DataflowPipelineJob implements PipelineResult {
    * Attempts to get the underlying {@link Job}. Uses exponential backoff on failure up to the
    * maximum number of passed in attempts.
    *
-   * @param attempts The amount of attempts to make.
+   * @param backoff the {@link BackOff} used to control retries.
    * @param sleeper Object used to do the sleeps between attempts.
    * @return The underlying {@link Job} object.
    * @throws IOException When the maximum number of retries is exhausted, the last exception is
    * thrown.
    */
-  private Job getJobWithRetries(int attempts, Sleeper sleeper) throws IOException {
-    BackOff backoff =
-        FlexibleBackoff.of()
-            .withMaxRetries(attempts)
-            .withInitialBackoff(STATUS_POLLING_INTERVAL)
-            .withExponent(DEFAULT_BACKOFF_EXPONENT);
-
+  private Job getJobWithRetries(BackOff backoff, Sleeper sleeper) throws IOException {
     // Retry loop ends in return or throw
     while (true) {
       try {

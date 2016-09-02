@@ -24,9 +24,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -108,7 +105,6 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.FileIOChannelFactory;
-import org.apache.beam.sdk.util.FlexibleBackoff;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
@@ -1055,15 +1051,7 @@ public class BigQueryIO {
             }};
 
       List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
-      BackOff backoff = FlexibleBackoff.of()
-          .withMaxRetries(MAX_FILES_VERIFY_RETRIES)
-          .withInitialBackoff(INITIAL_FILES_VERIFY_BACKOFF);
       for (String fileName : files) {
-        while (BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
-          if (IOChannelUtils.getFactory(fileName).getSizeBytes(fileName) != -1) {
-            break;
-          }
-        }
         avroSources.add(new TransformingSource<>(
             AvroSource.from(fileName), function, getDefaultOutputCoder()));
       }
