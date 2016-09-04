@@ -108,7 +108,7 @@ public class MongoDbIO {
 
   /** Write data to MongoDB. */
   public static Write write() {
-    return new Write(new Write.MongoDbWriter(null, null, null));
+    return new Write(new Write.MongoDbWriter(null, null, null, 1024L));
   }
 
   private MongoDbIO() {
@@ -452,6 +452,10 @@ public class MongoDbIO {
       return new Write(writer.withCollection(collection));
     }
 
+    public Write withBatchSize(long batchSize) {
+      return new Write(writer.withBatchSize(batchSize));
+    }
+
     private final MongoDbWriter writer;
 
     private Write(MongoDbWriter writer) {
@@ -474,32 +478,39 @@ public class MongoDbIO {
       private final String uri;
       private final String database;
       private final String collection;
+      private final long batchSize;
 
       private MongoClient client;
       private List<Document> batch;
 
-      public MongoDbWriter(String uri, String database, String collection) {
+      public MongoDbWriter(String uri, String database, String collection, long batchSize) {
         this.uri = uri;
         this.database = database;
         this.collection = collection;
+        this.batchSize = batchSize;
       }
 
       public MongoDbWriter withUri(String uri) {
-        return new MongoDbWriter(uri, database, collection);
+        return new MongoDbWriter(uri, database, collection, batchSize);
       }
 
       public MongoDbWriter withDatabase(String database) {
-        return new MongoDbWriter(uri, database, collection);
+        return new MongoDbWriter(uri, database, collection, batchSize);
       }
 
       public MongoDbWriter withCollection(String collection) {
-        return new MongoDbWriter(uri, database, collection);
+        return new MongoDbWriter(uri, database, collection, batchSize);
+      }
+
+      public MongoDbWriter withBatchSize(long batchSize) {
+        return new MongoDbWriter(uri, database, collection, batchSize);
       }
 
       public void validate() {
         Preconditions.checkNotNull(uri, "uri");
         Preconditions.checkNotNull(database, "database");
         Preconditions.checkNotNull(collection, "collection");
+        Preconditions.checkNotNull(batchSize, "batchSize");
       }
 
       @Setup
@@ -517,6 +528,9 @@ public class MongoDbIO {
         String value = ctx.element();
 
         batch.add(Document.parse(ctx.element()));
+        if (batch.size() >= batchSize) {
+          finishBundle(ctx);
+        }
       }
 
       @FinishBundle
@@ -525,6 +539,8 @@ public class MongoDbIO {
         MongoCollection mongoCollection = mongoDatabase.getCollection(collection);
 
         mongoCollection.insertMany(batch);
+
+        batch.clear();
       }
 
       @Teardown

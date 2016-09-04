@@ -38,7 +38,6 @@ import de.flapdoodle.embed.process.runtime.Network;
 import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -87,7 +86,7 @@ public class MongoDbIOTest implements Serializable {
         .version(Version.Main.PRODUCTION)
         .configServer(false)
         .replication(new Storage(MONGODB_LOCATION, null, 0))
-        .net(new Net(PORT, Network.localhostIsIPv6()))
+        .net(new Net("localhost", PORT, Network.localhostIsIPv6()))
         .cmdOptions(new MongoCmdOptionsBuilder()
             .syncDelay(10)
             .useNoPrealloc(true)
@@ -100,7 +99,7 @@ public class MongoDbIOTest implements Serializable {
 
     LOGGER.info("Insert test data");
 
-    MongoClient client = new MongoClient("0.0.0.0", PORT);
+    MongoClient client = new MongoClient("localhost", PORT);
     MongoDatabase database = client.getDatabase(DATABASE);
 
     MongoCollection collection = database.getCollection(COLLECTION);
@@ -148,9 +147,7 @@ public class MongoDbIOTest implements Serializable {
     ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
       @Override
       public Void apply(Iterable<KV<String, Long>> input) {
-        Iterator<KV<String, Long>> iterator = input.iterator();
-        while (iterator.hasNext()) {
-          KV<String, Long> element = iterator.next();
+        for (KV<String, Long> element : input) {
           assertEquals(100L, element.getValue().longValue());
         }
         return null;
