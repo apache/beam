@@ -31,11 +31,12 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
-import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatistics;
+import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
@@ -44,6 +45,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.After;
 import org.junit.Before;
@@ -126,6 +128,11 @@ public class BigQueryTableRowIteratorTest {
                         new TableFieldSchema().setName("answer").setType("INTEGER"))));
   }
 
+  private static Table tableWithLocation() {
+    return new Table()
+        .setLocation("EU");
+  }
+
   private TableRow rawRow(Object... args) {
     List<TableCell> cells = new LinkedList<>();
     for (Object a : args) {
@@ -145,8 +152,11 @@ public class BigQueryTableRowIteratorTest {
   @Test
   public void testReadFromQuery() throws IOException, InterruptedException {
     // Mock job inserting.
+    Job dryRunJob = new Job().setStatistics(
+        new JobStatistics().setQuery(new JobStatistics2().setReferencedTables(
+            ImmutableList.of(new TableReference()))));
     Job insertedJob = new Job().setJobReference(new JobReference());
-    when(mockJobsInsert.execute()).thenReturn(insertedJob);
+    when(mockJobsInsert.execute()).thenReturn(dryRunJob, insertedJob);
 
     // Mock job polling.
     JobStatus status = new JobStatus().setState("DONE");
@@ -161,7 +171,7 @@ public class BigQueryTableRowIteratorTest {
     when(mockJobsGet.execute()).thenReturn(getJob);
 
     // Mock table schema fetch.
-    when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
+    when(mockTablesGet.execute()).thenReturn(tableWithLocation(), tableWithBasicSchema());
 
     // Mock table data fetch.
     when(mockTabledataList.execute()).thenReturn(rawDataList(rawRow("Arthur", 42)));
@@ -189,15 +199,15 @@ public class BigQueryTableRowIteratorTest {
     verify(mockDatasets).delete(anyString(), anyString());
     verify(mockDatasetsDelete).execute();
     // Job inserted to run the query, polled once.
-    verify(mockClient, times(2)).jobs();
-    verify(mockJobs).insert(anyString(), any(Job.class));
-    verify(mockJobsInsert).execute();
+    verify(mockClient, times(3)).jobs();
+    verify(mockJobs, times(2)).insert(anyString(), any(Job.class));
+    verify(mockJobsInsert, times(2)).execute();
     verify(mockJobs).get(anyString(), anyString());
     verify(mockJobsGet).execute();
     // Temp table get after query finish, deleted after reading.
-    verify(mockClient, times(2)).tables();
-    verify(mockTables).get("project", "dataset", "table");
-    verify(mockTablesGet).execute();
+    verify(mockClient, times(3)).tables();
+    verify(mockTables, times(2)).get(anyString(), anyString(), anyString());
+    verify(mockTablesGet, times(2)).execute();
     verify(mockTables).delete(anyString(), anyString(), anyString());
     verify(mockTablesDelete).execute();
     // Table data read.
@@ -213,43 +223,29 @@ public class BigQueryTableRowIteratorTest {
    */
   @Test
   public void testQueryFailed() throws IOException {
-    // Job can be created.
-    JobReference ref = new JobReference();
-    Job insertedJob = new Job().setJobReference(ref);
-    when(mockJobsInsert.execute()).thenReturn(insertedJob);
-
     // Job state polled with an error.
     String errorReason = "bad query";
-    JobStatus status =
-        new JobStatus().setState("DONE").setErrorResult(new ErrorProto().setMessage(errorReason));
-    Job getJob = new Job().setJobReference(ref).setStatus(status);
-    when(mockJobsGet.execute()).thenReturn(getJob);
+    Exception exception = new IOException(errorReason);
+    when(mockJobsInsert.execute()).thenThrow(exception, exception, exception, exception);
 
     String query = "NOT A QUERY";
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
+
       try {
         iterator.open();
         fail();
       } catch (Exception expected) {
         // Verify message explains cause and reports the query.
-        assertThat(expected.getMessage(), containsString("failed"));
-        assertThat(expected.getMessage(), containsString(errorReason));
+        assertThat(expected.getMessage(), containsString("Error"));
         assertThat(expected.getMessage(), containsString(query));
+        assertThat(expected.getCause().getMessage(), containsString(errorReason));
       }
     }
 
-    // Temp dataset created and then later deleted.
-    verify(mockClient, times(2)).datasets();
-    verify(mockDatasets).insert(anyString(), any(Dataset.class));
-    verify(mockDatasetsInsert).execute();
-    verify(mockDatasets).delete(anyString(), anyString());
-    verify(mockDatasetsDelete).execute();
     // Job inserted to run the query, then polled once.
-    verify(mockClient, times(2)).jobs();
+    verify(mockClient, times(1)).jobs();
     verify(mockJobs).insert(anyString(), any(Job.class));
-    verify(mockJobsInsert).execute();
-    verify(mockJobs).get(anyString(), anyString());
-    verify(mockJobsGet).execute();
+    verify(mockJobsInsert, times(3)).execute();
   }
 }

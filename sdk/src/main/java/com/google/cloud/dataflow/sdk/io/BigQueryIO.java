@@ -549,13 +549,13 @@ public class BigQueryIO {
         request.setQuery(query);
         request.setDryRun(true);
 
+        String queryValidationErrorMsg = String.format(QUERY_VALIDATION_FAILURE_ERROR, query);
         try {
           BigQueryTableRowIterator.executeWithBackOff(
-              client.jobs().query(options.getProject(), request), QUERY_VALIDATION_FAILURE_ERROR,
-              query);
+              client.jobs().query(options.getProject(), request),
+              queryValidationErrorMsg);
         } catch (Exception e) {
-          throw new IllegalArgumentException(
-              String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
+          throw new IllegalArgumentException(queryValidationErrorMsg, e);
         }
       }
 
@@ -2314,17 +2314,17 @@ public class BigQueryIO {
   }
 
   private static void verifyDatasetPresence(BigQueryOptions options, TableReference table) {
+    String resourceNotFoundMsg =
+        String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table));
     try {
       Bigquery client = Transport.newBigQueryClient(options).build();
       BigQueryTableRowIterator.executeWithBackOff(
           client.datasets().get(table.getProjectId(), table.getDatasetId()),
-          RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table));
+          resourceNotFoundMsg);
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
-        throw new IllegalArgumentException(
-            String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table)),
-            e);
+        throw new IllegalArgumentException(resourceNotFoundMsg, e);
       } else {
         throw new RuntimeException(
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
@@ -2335,16 +2335,17 @@ public class BigQueryIO {
   }
 
   private static void verifyTablePresence(BigQueryOptions options, TableReference table) {
+    String resourceNotFoundMsg =
+        String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table));
     try {
       Bigquery client = Transport.newBigQueryClient(options).build();
       BigQueryTableRowIterator.executeWithBackOff(
           client.tables().get(table.getProjectId(), table.getDatasetId(), table.getTableId()),
-          RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table));
+          resourceNotFoundMsg);
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
-        throw new IllegalArgumentException(
-            String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table)), e);
+        throw new IllegalArgumentException(resourceNotFoundMsg, e);
       } else {
         throw new RuntimeException(
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
