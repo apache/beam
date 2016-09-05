@@ -154,8 +154,6 @@ class StreamWindower {
     DataStream<WindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped;
     mapped = input
         .map(i -> {
-          // FIXME extract "window-id" from the input element itself before passing
-          // it downstream to the windowing strategy
           T elem = i.get();
           KEY key = keyExtractor.apply(elem);
           VALUE val = valueExtractor.apply(elem);
