@@ -39,6 +39,7 @@
     <module>kafka</module>
     <module>kinesis</module>
     <module>mongodb</module>
+    <module>jdbc</module>
   </modules>
 
 </project>
