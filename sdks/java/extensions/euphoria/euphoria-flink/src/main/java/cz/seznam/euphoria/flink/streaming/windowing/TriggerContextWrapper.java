@@ -30,7 +30,6 @@ public class TriggerContextWrapper implements TriggerContext {
       if (stamp <= flinkContext.getCurrentWatermark()) return false;
       flinkContext.registerEventTimeTimer(stamp);
     } else {
-      long x = flinkContext.getCurrentProcessingTime();
       if (stamp <= flinkContext.getCurrentProcessingTime()) return false;
       flinkContext.registerProcessingTimeTimer(stamp);
     }
