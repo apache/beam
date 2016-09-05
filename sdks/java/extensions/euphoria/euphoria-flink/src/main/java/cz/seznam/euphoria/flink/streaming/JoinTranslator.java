@@ -1,6 +1,8 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -11,6 +13,8 @@ import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -23,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 class JoinTranslator implements StreamingOperatorTranslator<Join> {
@@ -41,6 +46,7 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
     DataStream<?> rightStream = inputs.get(1);
 
     if (operator.getOriginalOperator().isOuter()) {
+      // XXX
       throw new UnsupportedOperationException("outer join not yet implemented");
     } else {
       WindowAssigner wassigner = null;
@@ -55,14 +61,17 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
                   org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
                 @Override
                 public long extractTimestamp(Object element) {
+                  element = ((WindowedElement) element).get();
                   return (long) ((Long) eventTimeFn.apply(Either.left(element)));
                 }
               });
+
           rightStream = rightStream.assignTimestampsAndWatermarks(
               new BoundedOutOfOrdernessTimestampExtractor(
                   org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
                 @Override
                 public long extractTimestamp(Object element) {
+                  element = ((WindowedElement) element).get();
                   return (long) ((Long) eventTimeFn.apply(Either.right(element)));
                 }
               });
@@ -79,45 +88,76 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
             windowing + " windowing not supported!");
       }
 
+      if (windowing != null) {
+        leftStream = leftStream.flatMap((i, out) -> {
+          WindowedElement wi = (WindowedElement) i;
+          Set<WindowID> windows = windowing.assignWindowsToElement(new
+              WindowedElement(wi.getWindowID(), Either.left(wi.get())));
+          for (WindowID wid : windows) {
+            out.collect(new WindowedElement<>(wid, wi.get()));
+          }
+        })
+        .returns((Class) WindowedElement.class);
+
+        rightStream = rightStream.flatMap((i, out) -> {
+          WindowedElement wi = (WindowedElement) i;
+          Set<WindowID> windows = windowing.assignWindowsToElement(new
+              WindowedElement(wi.getWindowID(), Either.right(wi.get())));
+          for (WindowID wid : windows) {
+            out.collect(new WindowedElement<>(wid, wi.get()));
+          }
+        })
+        .returns((Class) WindowedElement.class);
+      }
+
       DataStream output =
           leftStream.join(rightStream)
-              .where(new TypedKeySelector(leftKey))
-              .equalTo(new TypedKeySelector(rightKey))
+              .where(new UdfKeySelector(leftKey))
+              .equalTo(new UdfKeySelector(rightKey))
               .window(wassigner)
-              .apply(new Joiner(leftKey, joiner), TypeInformation.of(Object.class));
+              .apply(new UdfJoiner(leftKey, joiner),
+                     TypeInformation.of(WindowedElement.class));
       return output;
     }
   }
 
-  static final class Joiner implements FlatJoinFunction {
+  static final class UdfJoiner implements FlatJoinFunction {
     UnaryFunction udLeftKeyExtractor;
     BinaryFunctor udJoiner;
 
-    public Joiner(UnaryFunction udLeftKeyExtractor, BinaryFunctor udJoiner) {
+    public UdfJoiner(UnaryFunction udLeftKeyExtractor, BinaryFunctor udJoiner) {
       this.udLeftKeyExtractor = udLeftKeyExtractor;
       this.udJoiner = udJoiner;
     }
 
     @Override
-    public void join(Object left, Object right, org.apache.flink.util.Collector out)
+    public void join(Object weLeft, Object weRight, org.apache.flink.util.Collector out)
         throws Exception
     {
+      WindowID wid = ((WindowedElement) weLeft).getWindowID();
+
+      Object left = ((WindowedElement) weLeft).get();
+      Object right = ((WindowedElement) weRight).get();
       Object key = udLeftKeyExtractor.apply(left);
-      Collector kvc = elem -> out.collect(WindowedPair.of(null, key, elem));
+      Collector kvc = elem -> out.collect(
+          new WindowedElement(wid, WindowedPair.of(wid.getLabel(), key, elem)));
+
       udJoiner.apply(left, right, kvc);
     }
   }
 
-  static final class TypedKeySelector implements KeySelector, ResultTypeQueryable {
+  static final class UdfKeySelector
+      implements KeySelector, ResultTypeQueryable
+  {
     private final UnaryFunction f;
 
-    TypedKeySelector(UnaryFunction f) {
+    UdfKeySelector(UnaryFunction f) {
       this.f = Objects.requireNonNull(f);
     }
 
     @Override
     public Object getKey(Object value) throws Exception {
-      return f.apply(value);
+      return f.apply(((WindowedElement) value).get());
     }
 
     @Override
