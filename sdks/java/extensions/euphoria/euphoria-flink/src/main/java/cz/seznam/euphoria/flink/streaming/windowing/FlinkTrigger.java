@@ -20,15 +20,21 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindow> {
                                  TriggerContext ctx)  {
     
     // initialize window triggers if this is a first element
-    if (!window.isOpened()) {
+    if (window.isOpened()) {
+      return TriggerResult.CONTINUE;
+    } else {
       window.open();
 
-      window.getTriggers()
-          .forEach(t -> t.schedule(window.getWindowContext(),
-              new TriggerContextWrapper(mode, ctx)));
+      TriggerResult tr = TriggerResult.PURGE;
+      for (cz.seznam.euphoria.core.client.triggers.Trigger t : window.getTriggers()) {
+        cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult sched =
+            t.schedule(window.getWindowContext(), new TriggerContextWrapper(mode, ctx));
+        if (sched != cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult.PASSED) {
+          tr = translateResult(sched);
+        }
+      }
+      return tr;
     }
-
-    return TriggerResult.CONTINUE;
   }
 
   @Override
