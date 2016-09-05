@@ -33,7 +33,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
  * that all key comparisons/hashing happen on the encoded form.
  */
 public class WorkItemKeySelector<K, V>
-    implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>, ResultTypeQueryable<ByteBuffer> {
+    implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>,
+    ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
 

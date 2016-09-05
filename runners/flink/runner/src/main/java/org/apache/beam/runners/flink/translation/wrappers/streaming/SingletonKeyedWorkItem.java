@@ -22,6 +22,11 @@ import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 
+/**
+ * Singleton keyed word item.
+ * @param <K>
+ * @param <ElemT>
+ */
 public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
 
   final K key;

@@ -33,7 +33,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * Dataflow {@link org.apache.beam.sdk.coders.Coder Coders}.
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
-  
+
   private Coder<T> coder;
 
   public CoderTypeSerializer(Coder<T> coder) {
