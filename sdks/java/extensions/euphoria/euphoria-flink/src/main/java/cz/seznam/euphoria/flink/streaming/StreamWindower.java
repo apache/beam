@@ -74,8 +74,9 @@ class StreamWindower {
     DataStream<WindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>> elementsWithWindow =
         input.flatMap((i, c) -> {
           for (WindowID<GROUP, LABEL> w : genericWindowing.assignWindowsToElement(i)) {
-            c.collect(new WindowedElement(w,
-                Pair.of(keyExtractor.apply(i.get()), valueExtractor.apply(i.get()))));
+            KEY key = keyExtractor.apply(i.get());
+            VALUE value = valueExtractor.apply(i.get());
+            c.collect(new WindowedElement(w, WindowedPair.of(w.getLabel(), key, value)));
           }
         })
         .returns((Class) WindowedElement.class);
