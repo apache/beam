@@ -25,6 +25,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 
 /**
  * Options which can be used to configure a Flink PipelineRunner.
@@ -81,5 +82,15 @@ public interface FlinkPipelineOptions
   @Default.Long(-1L)
   Long getExecutionRetryDelay();
   void setExecutionRetryDelay(Long delay);
+
+  /**
+   * Sets a state backend to store Beam's state during computation.
+   * Note: Only applicable when executing in streaming mode.
+   * @param stateBackend The state backend to use
+   */
+  @Description("Sets the state backend to use in streaming mode. "
+      + "Otherwise the default is read from the Flink config.")
+  void setStateBackend(AbstractStateBackend stateBackend);
+  AbstractStateBackend getStateBackend();
 
 }
