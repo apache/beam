@@ -96,7 +96,8 @@ public class AutoComplete {
 
               @ProcessElement
               public void processElement(ProcessContext c) {
-                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(), c.element().getValue());
+                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(),
+                    c.element().getValue());
                 c.output(cand);
               }
             }));
@@ -349,7 +350,7 @@ public class AutoComplete {
       StringBuilder str = new StringBuilder();
       KV<String, List<CompletionCandidate>> elem = c.element();
 
-      str.append(elem.getKey() +" @ "+ window +" -> ");
+      str.append(elem.getKey() + " @ " + window + " -> ");
       for (CompletionCandidate cand: elem.getValue()) {
         str.append(cand.toString() + " ");
       }
