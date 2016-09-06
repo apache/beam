@@ -35,6 +35,7 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link AttemptAndTimeBoundedExponentialBackOff}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("deprecation")  // tests a deprecated clas
 public class AttemptAndTimeBoundedExponentialBackOffTest {
   @Rule public ExpectedException exception = ExpectedException.none();
   @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();

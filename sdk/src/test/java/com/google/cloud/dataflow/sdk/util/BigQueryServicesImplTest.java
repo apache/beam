@@ -112,9 +112,8 @@ public class BigQueryServicesImplTest {
     loadConfig.setDestinationTable(ref);
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
-    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+    JobServiceImpl.startJob(
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -141,9 +140,8 @@ public class BigQueryServicesImplTest {
     loadConfig.setDestinationTable(ref);
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
-    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+    JobServiceImpl.startJob(
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -174,9 +172,8 @@ public class BigQueryServicesImplTest {
     loadConfig.setDestinationTable(ref);
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
-    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+    JobServiceImpl.startJob(
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();

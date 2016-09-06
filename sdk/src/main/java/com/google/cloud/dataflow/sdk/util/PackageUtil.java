@@ -13,10 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
@@ -28,6 +27,7 @@ import com.google.common.io.Files;
 
 import com.fasterxml.jackson.core.Base64Variants;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,11 +52,15 @@ public class PackageUtil {
   /**
    * The initial interval to use between package staging attempts.
    */
-  private static final long INITIAL_BACKOFF_INTERVAL_MS = 5000L;
+  private static final Duration INITIAL_BACKOFF_INTERVAL = Duration.standardSeconds(5);
   /**
-   * The maximum number of attempts when staging a file.
+   * The maximum number of retries when staging a file.
    */
-  private static final int MAX_ATTEMPTS = 5;
+  private static final int MAX_RETRIES = 4;
+
+  private static final FluentBackoff BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF_INTERVAL);
 
   /**
    * Translates exceptions from API calls.
@@ -197,9 +201,7 @@ public class PackageUtil {
         }
 
         // Upload file, retrying on failure.
-        AttemptBoundedExponentialBackOff backoff = new AttemptBoundedExponentialBackOff(
-            MAX_ATTEMPTS,
-            INITIAL_BACKOFF_INTERVAL_MS);
+        BackOff backoff = BACKOFF_FACTORY.backoff();
         while (true) {
           try {
             LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
@@ -217,15 +219,17 @@ public class PackageUtil {
                   + "'gcloud auth login'.", classpathElement, target);
               LOG.error(errorMessage);
               throw new IOException(errorMessage, e);
-            } else if (!backoff.atMaxAttempts()) {
-              LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
-                  classpathElement, e);
-              BackOffUtils.next(retrySleeper, backoff);
-            } else {
+            }
+            long sleep = backoff.nextBackOffMillis();
+            if (sleep == BackOff.STOP) {
               // Rethrow last error, to be included as a cause in the catch below.
               LOG.error("Upload failed, will NOT retry staging of classpath: {}",
                   classpathElement, e);
               throw e;
+            } else {
+              LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
+                  classpathElement, e);
+              retrySleeper.sleep(sleep);
             }
           }
         }

@@ -46,6 +46,7 @@ import com.google.common.base.Preconditions;
  *
  * <p>Implementation is not thread-safe.
  */
+@Deprecated
 public class IntervalBoundedExponentialBackOff implements BackOff {
   public static final double DEFAULT_MULTIPLIER = 1.5;
   public static final double DEFAULT_RANDOMIZATION_FACTOR = 0.5;

@@ -466,7 +466,8 @@ public class BigQueryTableRowIterator implements AutoCloseable {
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backOff =
-        new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_TIME.getMillis());
+        FluentBackoff.DEFAULT
+            .withMaxRetries(MAX_RETRIES).withInitialBackoff(INITIAL_BACKOFF_TIME).backoff();
 
     T result = null;
     while (true) {

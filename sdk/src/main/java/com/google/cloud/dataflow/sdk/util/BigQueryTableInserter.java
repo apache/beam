@@ -37,6 +37,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,11 +67,9 @@ public class BigQueryTableInserter {
   // The maximum number of rows to upload per InsertAll request.
   private static final long MAX_ROWS_PER_BATCH = 500;
 
-  // The maximum number of times to retry inserting rows into BigQuery.
-  private static final int MAX_INSERT_ATTEMPTS = 5;
-
-  // The initial backoff after a failure inserting rows into BigQuery.
-  private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
+  // Backoff for inserting rows to BigQuery.
+  private static final FluentBackoff INSERT_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
   // Backoff time bounds for rate limit exceeded errors.
   private static final long INITIAL_RATE_LIMIT_EXCEEDED_BACKOFF_MS = TimeUnit.SECONDS.toMillis(1);
@@ -150,7 +149,7 @@ public class BigQueryTableInserter {
   /**
    * Insert all rows from the given list using specified insertIds if not null.
    *
-   * @deprecated replaced by {@link #insertAll(TableReference, List, List)}
+   * @deprecated replaced by {@link #insertAll(TableReference, List, List, Aggregator)}
    */
   @Deprecated
   public void insertAll(List<TableRow> rowList,
@@ -178,9 +177,7 @@ public class BigQueryTableInserter {
           + "as many elements as rowList");
     }
 
-    AttemptBoundedExponentialBackOff backoff = new AttemptBoundedExponentialBackOff(
-        MAX_INSERT_ATTEMPTS,
-        INITIAL_INSERT_BACKOFF_INTERVAL_MS);
+    BackOff backoff = INSERT_BACKOFF_FACTORY.backoff();
 
     List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
     // These lists contain the rows to publish. Initially the contain the entire list. If there are
@@ -280,7 +277,12 @@ public class BigQueryTableInserter {
         throw new RuntimeException(e.getCause());
       }
 
-      if (!allErrors.isEmpty() && !backoff.atMaxAttempts()) {
+      if (allErrors.isEmpty()) {
+        break;
+      }
+
+      long nextBackoffMillis = backoff.nextBackOffMillis();
+      if (nextBackoffMillis == BackOff.STOP) {
         try {
           Thread.sleep(backoff.nextBackOffMillis());
         } catch (InterruptedException e) {
@@ -291,8 +293,6 @@ public class BigQueryTableInserter {
         rowsToPublish = retryRows;
         idsToPublish = retryIds;
         allErrors.clear();
-      } else {
-        break;
       }
     }
     if (!allErrors.isEmpty()) {

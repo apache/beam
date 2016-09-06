@@ -31,7 +31,10 @@ import java.util.concurrent.TimeUnit;
  * constructor.
  *
  * <p>Implementation is not thread-safe.
+ *
+ * @deprecated prefer {@link FluentBackoff}
  */
+@Deprecated
 public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExponentialBackOff {
   private long endTimeMillis;
   private long maximumTotalWaitTimeMillis;
