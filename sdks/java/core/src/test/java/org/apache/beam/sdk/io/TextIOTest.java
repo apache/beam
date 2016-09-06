@@ -33,7 +33,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
@@ -229,11 +233,11 @@ public class TextIOTest {
     runTestWrite(elems, null, null, coder, numShards);
   }
 
-  <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer) throws Exception {
+  <T> void runTestWrite(T[] elems, Coder<T> coder, T header, T footer) throws Exception {
     runTestWrite(elems, header, footer, coder, 1);
   }
 
-  <T> void runTestWrite(T[] elems, String header, String footer, Coder<T> coder, int numShards)
+  <T> void runTestWrite(T[] elems, T header, T footer, Coder<T> coder, int numShards)
       throws Exception {
     String outputName = "file.txt";
     String baseFilename = tmpFolder.newFile(outputName).getPath();
@@ -248,7 +252,7 @@ public class TextIOTest {
       // T==String
       write = (TextIO.Write.Bound<T>) writeStrings;
     } else {
-      write = TextIO.Write.to(baseFilename).withCoder(coder);
+      write = TextIO.Write.withCoder(coder).to(baseFilename);
     }
     write = write.withHeader(header).withFooter(footer);
 
@@ -267,9 +271,9 @@ public class TextIOTest {
 
   public static <T> void assertOutputFiles(
       T[] elems,
-      String header,
-      String footer,
-      Coder<T> coder,
+      final T header,
+      final T footer,
+      final Coder<T> coder,
       int numShards,
       TemporaryFolder rootLocation,
       String outputName,
@@ -291,36 +295,69 @@ public class TextIOTest {
       }
     }
 
-    List<String> actual = new ArrayList<>();
+    List<List<String>> actual = new ArrayList<>();
+
     for (File tmpFile : expectedFiles) {
       try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+        List<String> currentFile = Lists.newArrayList();
         for (;;) {
           String line = reader.readLine();
           if (line == null) {
             break;
           }
-          actual.add(line);
+          currentFile.add(line);
         }
+        actual.add(currentFile);
       }
     }
 
-    LinkedList<String> expected = Lists.newLinkedList();
+    LinkedList<String> expectedElements = Lists.newLinkedList();
 
     for (int i = 0; i < elems.length; i++) {
       T elem = elems[i];
       byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
       String line = new String(encodedElem);
-      expected.add(line);
+      expectedElements.add(line);
     }
 
-    if (header != null) {
-      expected.addFirst(header);
-    }
-    if (footer != null) {
-      expected.addLast(footer);
-    }
+    final String headerString =
+        header == null ? null : new String(CoderUtils.encodeToByteArray(coder, header));
 
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
+    final String footerString =
+        footer == null ? null : new String(CoderUtils.encodeToByteArray(coder, footer));
+
+    ArrayList<String> actualElements =
+        Lists.newArrayList(
+            Iterables.concat(
+                FluentIterable
+                    .from(actual)
+                    .transform(new Function<List<String>, List<String>>() {
+                      @Nullable
+                      @Override
+                      public List<String> apply(List<String> lines) {
+                        ArrayList<String> newLines = Lists.newArrayList(lines);
+                        if (headerString != null) {
+                          newLines.remove(0);
+                        }
+                        if (footerString != null) {
+                          int last = newLines.size() - 1;
+                          newLines.remove(last);
+                        }
+                        return newLines;
+                      }
+                    })
+                    .toList()));
+
+    assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
+
+    assertTrue(Iterables.all(actual, new Predicate<List<String>>() {
+      @Override
+      public boolean apply(@Nullable List<String> fileLines) {
+        int last = fileLines.size() - 1;
+        return (headerString == null || fileLines.get(0).equals(headerString))
+              && (footerString == null || fileLines.get(last).equals(footerString));
+      }
+    }));
   }
 
   @Test
