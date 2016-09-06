@@ -36,6 +36,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -53,7 +54,7 @@ import org.slf4j.LoggerFactory;
 public class UnboundedSourceWrapper<
     OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<OutputT>>
-    implements Triggerable, Checkpointed<byte[]> {
+    implements Triggerable, StoppableFunction, Checkpointed<byte[]> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
@@ -307,6 +308,11 @@ public class UnboundedSourceWrapper<
 
   @Override
   public void cancel() {
+    isRunning = false;
+  }
+
+  @Override
+  public void stop() {
     isRunning = false;
   }
 
