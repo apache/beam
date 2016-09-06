@@ -232,11 +232,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public Job pollJob(JobReference jobRef, int maxAttempts)
-        throws InterruptedException {
+    public Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
-              .withMaxRetries(maxAttempts).withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
+              .withMaxRetries(maxAttempts)
+              .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
+              .withMaxBackoff(Duration.standardMinutes(1))
               .backoff();
       return pollJob(jobRef, Sleeper.DEFAULT, backoff);
     }
