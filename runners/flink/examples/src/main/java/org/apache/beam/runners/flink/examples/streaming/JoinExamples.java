@@ -132,7 +132,8 @@ public class JoinExamples {
     options.setExecutionRetryDelay(3000L);
     options.setRunner(FlinkRunner.class);
 
-    WindowFn<Object, ?> windowFn = FixedWindows.of(Duration.standardSeconds(options.getWindowSize()));
+    WindowFn<Object, ?> windowFn = FixedWindows.of(
+        Duration.standardSeconds(options.getWindowSize()));
 
     Pipeline p = Pipeline.create(options);
 
