@@ -19,8 +19,10 @@ package org.apache.beam.runners.dataflow.testing;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -220,8 +222,13 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    when(request.execute()).thenReturn(
-        generateMockMetricResponse(true /* success */, true /* tentative */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */))
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     runner.run(p, mockRunner);
   }
@@ -401,7 +408,7 @@ public class TestDataflowRunnerTest {
             false /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertEquals(Optional.absent(), runner.checkMaxWatermark(job));
+    assertFalse(runner.checkMaxWatermark(job));
   }
 
   @Test
@@ -419,7 +426,7 @@ public class TestDataflowRunnerTest {
             false /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertEquals(Optional.of(true), runner.checkMaxWatermark(job));
+    assertTrue(runner.checkMaxWatermark(job));
   }
 
   @Test
@@ -437,7 +444,7 @@ public class TestDataflowRunnerTest {
             false /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertEquals(Optional.absent(), runner.checkMaxWatermark(job));
+    assertFalse(runner.checkMaxWatermark(job));
   }
 
   @Test
@@ -455,7 +462,7 @@ public class TestDataflowRunnerTest {
             true /* multipleWatermarks */,
             true /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertEquals(Optional.of(true), runner.checkMaxWatermark(job));
+    assertTrue(runner.checkMaxWatermark(job));
   }
 
   @Test
@@ -473,7 +480,7 @@ public class TestDataflowRunnerTest {
             true /* multipleWatermarks */,
             false /* multipleMaxWatermark */));
     doReturn(State.RUNNING).when(job).getState();
-    assertEquals(Optional.absent(), runner.checkMaxWatermark(job));
+    assertFalse(runner.checkMaxWatermark(job));
   }
 
   @Test
@@ -489,7 +496,6 @@ public class TestDataflowRunnerTest {
         generateMockMetricResponse(true /* success */, false /* tentative */));
     doReturn(State.FAILED).when(job).getState();
     assertEquals(Optional.of(false), runner.checkForSuccess(job));
-    assertEquals(Optional.of(false), runner.checkMaxWatermark(job));
   }
 
   @Test
@@ -580,8 +586,13 @@ public class TestDataflowRunnerTest {
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
 
-    when(request.execute()).thenReturn(
-        generateMockMetricResponse(true /* success */, true /* tentative */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */))
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
     runner.run(p, mockRunner);
   }
 
@@ -630,8 +641,13 @@ public class TestDataflowRunnerTest {
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
 
-    when(request.execute()).thenReturn(
-        generateMockMetricResponse(true /* success */, true /* tentative */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */))
+        .thenReturn(generateMockStreamingMetricResponse(
+            true /* hasWatermark */,
+            true /* maxWatermark */,
+            false /* multipleWatermarks */,
+            false /* multipleMaxWatermark */));
     runner.run(p, mockRunner);
   }
 

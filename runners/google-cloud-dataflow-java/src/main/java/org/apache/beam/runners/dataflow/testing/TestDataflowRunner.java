@@ -120,11 +120,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             try {
               for (;;) {
                 Optional<Boolean> result = checkForSuccess(job);
-                if (result.isPresent()) {
-                  return result;
-                }
-                result = checkMaxWatermark(job);
-                if (result.isPresent()) {
+                if (result.isPresent() && (!result.get() || checkMaxWatermark(job))) {
                   return result;
                 }
                 Thread.sleep(10000L);
@@ -217,7 +213,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             + "{} expected assertions.", job.getJobId(), successes, failures,
             expectedNumberOfAssertions);
         return Optional.of(false);
-      } else if (successes > 0 && successes >= expectedNumberOfAssertions) {
+      } else if (successes >= expectedNumberOfAssertions) {
         LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
             + "{} expected assertions.", job.getJobId(), successes, failures,
             expectedNumberOfAssertions);
@@ -231,13 +227,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return Optional.<Boolean>absent();
   }
 
-  Optional<Boolean> checkMaxWatermark(DataflowPipelineJob job) throws IOException {
-    State state = job.getState();
-    if (state == State.FAILED || state == State.CANCELLED) {
-      LOG.info("The pipeline {}", state);
-      return Optional.of(false);
-    }
-
+  boolean checkMaxWatermark(DataflowPipelineJob job) throws IOException {
     JobMetrics metrics = options.getDataflowClient().projects().jobs()
         .getMetrics(job.getProjectId(), job.getJobId()).execute();
 
@@ -260,10 +250,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       if (hasMaxWatermark) {
         LOG.info("All watermarks of job {} reach to max value.", job.getJobId());
-        return Optional.of(true);
+        return true;
       }
     }
-    return Optional.absent();
+    return false;
   }
 
   @Override
