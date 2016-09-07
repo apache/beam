@@ -448,10 +448,22 @@ public class TextIO {
       return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
     }
 
+    /**
+     * Returns a transform for writing to text files that adds a header string to the files
+     * it writes.
+     *
+     * @param header the string to be added as file header
+     */
     public static Bound<String> withHeader(String header) {
       return new Bound<>(DEFAULT_TEXT_CODER).withHeader(header);
     }
 
+    /**
+     * Returns a transform for writing to text files that adds a footer string to the files
+     * it writes.
+     *
+     * @param footer the string to be added as file footer
+     */
     public static Bound<String> withFooter(String footer) {
       return new Bound<>(DEFAULT_TEXT_CODER).withFooter(footer);
     }
