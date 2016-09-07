@@ -452,7 +452,7 @@ public class TextIO {
      * Returns a transform for writing to text files that adds a header string to the files
      * it writes.
      *
-     *<p> A <code>null</code> value will clear any previously configured header.</p>
+     * <p>A {@code null} value will clear any previously configured header.
      *
      * @param header the string to be added as file header
      */
@@ -464,7 +464,7 @@ public class TextIO {
      * Returns a transform for writing to text files that adds a footer string to the files
      * it writes.
      *
-     *<p> A <code>null</code> value will clear any previously configured footer.</p>
+     * <p>A {@code null} value will clear any previously configured footer.
      *
      * @param footer the string to be added as file footer
      */
@@ -636,7 +636,9 @@ public class TextIO {
        * Returns a transform for writing to text files that adds a header string to the files
        * it writes.
        *
-       *<p> A <code>null</code> value will clear any previously configured header.</p>
+       * <p>A {@code null} value will clear any previously configured header.
+       *
+       * <p>Does not modify this object.
        *
        * @param header the string to be added as file header
        */
@@ -649,7 +651,9 @@ public class TextIO {
        * Returns a transform for writing to text files that adds a footer string to the files
        * it writes.
        *
-       *<p> A <code>null</code> value will clear any previously configured footer.</p>
+       * <p>A {@code null} value will clear any previously configured footer.
+       *
+       * <p>Does not modify this object.
        *
        * @param footer the string to be added as file footer
        */
