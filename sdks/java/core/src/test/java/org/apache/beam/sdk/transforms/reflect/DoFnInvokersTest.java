@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -233,7 +232,7 @@ public class DoFnInvokersTest {
   public void testStaticPackagePrivateDoFnClass() throws Exception {
     DoFn<String, String> fn = mock(DoFnInvokersTestHelper.newStaticPackagePrivateDoFn().getClass());
     invokeProcessElement(fn);
-    DoFnInvokersTestHelper.verifyStaticPackagePrivateDoFn(fn);
+    DoFnInvokersTestHelper.verifyStaticPackagePrivateDoFn(fn, mockContext);
   }
 
   @Test
@@ -241,28 +240,28 @@ public class DoFnInvokersTest {
     DoFn<String, String> fn =
         mock(new DoFnInvokersTestHelper().newInnerPackagePrivateDoFn().getClass());
     invokeProcessElement(fn);
-    DoFnInvokersTestHelper.verifyInnerPackagePrivateDoFn(fn);
+    DoFnInvokersTestHelper.verifyInnerPackagePrivateDoFn(fn, mockContext);
   }
 
   @Test
   public void testStaticPrivateDoFnClass() throws Exception {
     DoFn<String, String> fn = mock(DoFnInvokersTestHelper.newStaticPrivateDoFn().getClass());
     invokeProcessElement(fn);
-    DoFnInvokersTestHelper.verifyStaticPrivateDoFn(fn);
+    DoFnInvokersTestHelper.verifyStaticPrivateDoFn(fn, mockContext);
   }
 
   @Test
   public void testInnerPrivateDoFnClass() throws Exception {
     DoFn<String, String> fn = mock(new DoFnInvokersTestHelper().newInnerPrivateDoFn().getClass());
     invokeProcessElement(fn);
-    DoFnInvokersTestHelper.verifyInnerPrivateDoFn(fn);
+    DoFnInvokersTestHelper.verifyInnerPrivateDoFn(fn, mockContext);
   }
 
   @Test
   public void testAnonymousInnerDoFn() throws Exception {
     DoFn<String, String> fn = mock(new DoFnInvokersTestHelper().newInnerAnonymousDoFn().getClass());
     invokeProcessElement(fn);
-    DoFnInvokersTestHelper.verifyInnerAnonymousDoFn(fn);
+    DoFnInvokersTestHelper.verifyInnerAnonymousDoFn(fn, mockContext);
   }
 
   @Test
@@ -270,7 +269,7 @@ public class DoFnInvokersTest {
     // Can't use mockito for this one - the anonymous class is final and can't be mocked.
     DoFn<String, String> fn = DoFnInvokersTestHelper.newStaticAnonymousDoFn();
     invokeProcessElement(fn);
-    assertTrue(DoFnInvokersTestHelper.wasStaticAnonymousDoFnInvoked(fn));
+    DoFnInvokersTestHelper.verifyStaticAnonymousDoFnInvoked(fn, mockContext);
   }
 
   // ---------------------------------------------------------------------------------------
@@ -279,25 +278,23 @@ public class DoFnInvokersTest {
 
   @Test
   public void testProcessElementException() throws Exception {
-    thrown.expect(UserCodeException.class);
-    thrown.expectMessage("bogus");
-    DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(
+    DoFnInvoker<Integer, Integer> invoker =
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(@SuppressWarnings("unused") ProcessContext c) {
                 throw new IllegalArgumentException("bogus");
               }
-            })
-        .invokeProcessElement(null, null);
+            });
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    invoker.invokeProcessElement(null, null);
   }
 
   @Test
   public void testStartBundleException() throws Exception {
-    thrown.expect(UserCodeException.class);
-    thrown.expectMessage("bogus");
-    DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(
+    DoFnInvoker<Integer, Integer> invoker =
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
             new DoFn<Integer, Integer>() {
               @StartBundle
               public void startBundle(@SuppressWarnings("unused") Context c) {
@@ -306,17 +303,16 @@ public class DoFnInvokersTest {
 
               @ProcessElement
               public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
-            })
-        .invokeStartBundle(null);
+            });
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    invoker.invokeStartBundle(null);
   }
 
   @Test
   public void testFinishBundleException() throws Exception {
-    thrown.expect(UserCodeException.class);
-    thrown.expectMessage("bogus");
-
-    DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(
+    DoFnInvoker<Integer, Integer> invoker =
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
             new DoFn<Integer, Integer>() {
               @FinishBundle
               public void finishBundle(@SuppressWarnings("unused") Context c) {
@@ -325,7 +321,9 @@ public class DoFnInvokersTest {
 
               @ProcessElement
               public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
-            })
-        .invokeFinishBundle(null);
+            });
+    thrown.expect(UserCodeException.class);
+    thrown.expectMessage("bogus");
+    invoker.invokeFinishBundle(null);
   }
 }

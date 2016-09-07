@@ -37,7 +37,7 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testMissingProcessContext() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take ProcessContext<> as its first argument");
+    thrown.expectMessage("Must take ProcessContext<> as the first argument");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -48,7 +48,7 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadProcessContextType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take ProcessContext<> as its first argument");
+    thrown.expectMessage("Must take ProcessContext<> as the first argument");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -172,7 +172,8 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testPrivateProcessElement() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("process() must be public");
+    thrown.expectMessage("process()");
+    thrown.expectMessage("Must be public");
     thrown.expectMessage(getClass().getName() + "$");
     DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {

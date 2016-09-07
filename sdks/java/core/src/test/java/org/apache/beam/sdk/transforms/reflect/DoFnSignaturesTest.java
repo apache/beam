@@ -92,7 +92,8 @@ public class DoFnSignaturesTest {
   @Test
   public void testPrivateStartBundle() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("startBundle() must be public");
+    thrown.expectMessage("startBundle()");
+    thrown.expectMessage("Must be public");
     thrown.expectMessage(getClass().getName() + "$");
     DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {
@@ -107,7 +108,8 @@ public class DoFnSignaturesTest {
   @Test
   public void testPrivateFinishBundle() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("finishBundle() must be public");
+    thrown.expectMessage("finishBundle()");
+    thrown.expectMessage("Must be public");
     thrown.expectMessage(getClass().getName() + "$");
     DoFnSignatures.INSTANCE.getOrParseSignature(
         new DoFn<String, String>() {

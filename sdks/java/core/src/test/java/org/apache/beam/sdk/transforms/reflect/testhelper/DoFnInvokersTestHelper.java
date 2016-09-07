@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.reflect.testhelper;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokersTest;
-import org.mockito.Mockito;
 
 /**
  * Test helper for {@link DoFnInvokersTest}, which needs to test package-private access to DoFns in
@@ -53,32 +54,36 @@ public class DoFnInvokersTestHelper {
     return new StaticPackagePrivateDoFn();
   }
 
-  public static void verifyStaticPackagePrivateDoFn(DoFn<String, String> fn) {
-    verify((StaticPackagePrivateDoFn) fn).process(Mockito.notNull(DoFn.ProcessContext.class));
+  public static void verifyStaticPackagePrivateDoFn(
+      DoFn<String, String> fn, DoFn<String, String>.ProcessContext context) {
+    verify((StaticPackagePrivateDoFn) fn).process(context);
   }
 
   public DoFn<String, String> newInnerPackagePrivateDoFn() {
     return new InnerPackagePrivateDoFn();
   }
 
-  public static void verifyInnerPackagePrivateDoFn(DoFn<String, String> fn) {
-    verify((InnerPackagePrivateDoFn) fn).process(Mockito.notNull(DoFn.ProcessContext.class));
+  public static void verifyInnerPackagePrivateDoFn(
+      DoFn<String, String> fn, DoFn<String, String>.ProcessContext context) {
+    verify((InnerPackagePrivateDoFn) fn).process(context);
   }
 
   public static DoFn<String, String> newStaticPrivateDoFn() {
     return new StaticPrivateDoFn();
   }
 
-  public static void verifyStaticPrivateDoFn(DoFn<String, String> fn) {
-    verify((StaticPrivateDoFn) fn).process(Mockito.notNull(DoFn.ProcessContext.class));
+  public static void verifyStaticPrivateDoFn(
+      DoFn<String, String> fn, DoFn<String, String>.ProcessContext context) {
+    verify((StaticPrivateDoFn) fn).process(context);
   }
 
   public DoFn<String, String> newInnerPrivateDoFn() {
     return new InnerPrivateDoFn();
   }
 
-  public static void verifyInnerPrivateDoFn(DoFn<String, String> fn) {
-    verify((InnerPrivateDoFn) fn).process(Mockito.notNull(DoFn.ProcessContext.class));
+  public static void verifyInnerPrivateDoFn(
+      DoFn<String, String> fn, DoFn<String, String>.ProcessContext context) {
+    verify((InnerPrivateDoFn) fn).process(context);
   }
 
   public DoFn<String, String> newInnerAnonymousDoFn() {
@@ -88,30 +93,32 @@ public class DoFnInvokersTestHelper {
     };
   }
 
-  public static void verifyInnerAnonymousDoFn(DoFn<String, String> fn) throws Exception {
+  public static void verifyInnerAnonymousDoFn(
+      DoFn<String, String> fn, DoFn<String, String>.ProcessContext context) throws Exception {
     DoFn<String, String> verifier = verify(fn);
-    verifier
-        .getClass()
-        .getMethod("process", DoFn.ProcessContext.class)
-        .invoke(verifier, Mockito.notNull(DoFn.ProcessContext.class));
+    verifier.getClass().getMethod("process", DoFn.ProcessContext.class).invoke(verifier, context);
   }
 
   public static DoFn<String, String> newStaticAnonymousDoFn() {
     return new DoFn<String, String>() {
-      private boolean invoked = false;
+      private DoFn<String, String>.ProcessContext invokedContext;
 
       @ProcessElement
       public void process(ProcessContext c) {
-        invoked = true;
+        assertNull("Should have been invoked just once", invokedContext);
+        invokedContext = c;
       }
 
-      public boolean invoked() {
-        return invoked;
+      @SuppressWarnings("unused")
+      public void verify(DoFn<String, String>.ProcessContext context) {
+        assertEquals(context, invokedContext);
       }
     };
   }
 
-  public static boolean wasStaticAnonymousDoFnInvoked(DoFn<String, String> fn) throws Exception {
-    return (Boolean) fn.getClass().getMethod("invoked").invoke(fn);
+  public static void verifyStaticAnonymousDoFnInvoked(
+      DoFn<String, String> fn, DoFn<String, String>.ProcessContext context) throws Exception {
+
+    fn.getClass().getMethod("verify", DoFn.ProcessContext.class).invoke(fn, context);
   }
 }

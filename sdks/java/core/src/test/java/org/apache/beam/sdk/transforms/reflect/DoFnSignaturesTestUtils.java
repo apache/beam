@@ -21,9 +21,7 @@ import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Method;
 import org.apache.beam.sdk.transforms.DoFn;
 
-/**
- * Utilities for use in {@link DoFnSignatures} tests.
- */
+/** Utilities for use in {@link DoFnSignatures} tests. */
 class DoFnSignaturesTestUtils {
   /** An empty base {@link DoFn} class. */
   static class FakeDoFn extends DoFn<Integer, String> {}
@@ -33,27 +31,28 @@ class DoFnSignaturesTestUtils {
     return new DoFnSignatures.ErrorReporter(null, "[test]");
   }
 
-  /** A class for testing utilities that take {@link Method} objects. Use like this:
+  /**
+   * A class for testing utilities that take {@link Method} objects. Use like this:
    *
    * <pre>{@code
    * Method m = new AnonymousMethod() {
-   *   SomeReturnValue method(SomeParameters...) { ... }
-   * }.getMethod();  // Will return the Method for "method".
+   *   SomeReturnValue someMethod(SomeParameters...) { ... }
+   * }.getMethod();  // Will return the Method for "someMethod".
    * }</pre>
    */
   static class AnonymousMethod {
     final Method getMethod() throws Exception {
-      for (Method method : getClass().getDeclaredMethods()) {
-        if (method.getName().equals("method")) {
-          return method;
-        }
+      Method[] methods = getClass().getDeclaredMethods();
+      if (methods.length != 1) {
+        throw new IllegalArgumentException(
+            "Must declare exactly 1 method, but declares " + methods.length);
       }
-      return null;
+      return methods[0];
     }
   }
 
-  static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
-      AnonymousMethod method) throws Exception {
+  static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(AnonymousMethod method)
+      throws Exception {
     return DoFnSignatures.analyzeProcessElementMethod(
         errors(),
         TypeToken.of(FakeDoFn.class),

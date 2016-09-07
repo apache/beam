@@ -89,32 +89,35 @@ public class DoFnSignatures {
     Method setupMethod = findAnnotatedMethod(errors, DoFn.Setup.class, fnClass, false);
     Method teardownMethod = findAnnotatedMethod(errors, DoFn.Teardown.class, fnClass, false);
 
-    ErrorReporter processElementErrors = errors.forMethod("@ProcessElement", processElementMethod);
+    ErrorReporter processElementErrors =
+        errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
         analyzeProcessElementMethod(
             processElementErrors, fnToken, processElementMethod, inputT, outputT);
     builder.setProcessElement(processElement);
 
     if (startBundleMethod != null) {
-      ErrorReporter startBundleErrors = errors.forMethod("@StartBundle", startBundleMethod);
+      ErrorReporter startBundleErrors = errors.forMethod(DoFn.StartBundle.class, startBundleMethod);
       builder.setStartBundle(
           analyzeBundleMethod(startBundleErrors, fnToken, startBundleMethod, inputT, outputT));
     }
 
     if (finishBundleMethod != null) {
-      ErrorReporter finishBundleErrors = errors.forMethod("@FinishBundle", finishBundleMethod);
+      ErrorReporter finishBundleErrors =
+          errors.forMethod(DoFn.FinishBundle.class, finishBundleMethod);
       builder.setFinishBundle(
           analyzeBundleMethod(finishBundleErrors, fnToken, finishBundleMethod, inputT, outputT));
     }
 
     if (setupMethod != null) {
       builder.setSetup(
-          analyzeLifecycleMethod(errors.forMethod("@Setup", setupMethod), setupMethod));
+          analyzeLifecycleMethod(errors.forMethod(DoFn.Setup.class, setupMethod), setupMethod));
     }
 
     if (teardownMethod != null) {
       builder.setTeardown(
-          analyzeLifecycleMethod(errors.forMethod("@Teardown", teardownMethod), teardownMethod));
+          analyzeLifecycleMethod(
+              errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
     }
 
     return builder.build();
@@ -175,7 +178,7 @@ public class DoFnSignatures {
     }
     errors.checkArgument(
         contextToken != null && contextToken.equals(processContextToken),
-        "Must take %s as its first argument",
+        "Must take %s as the first argument",
         formatType(processContextToken));
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
@@ -298,23 +301,21 @@ public class DoFnSignatures {
           format(other));
     }
 
+    ErrorReporter methodErrors = errors.forMethod(anno, first);
     // We need to be able to call it. We require it is public.
-    errors.checkArgument(
-        (first.getModifiers() & Modifier.PUBLIC) != 0, "%s must be public", format(first));
-
+    methodErrors.checkArgument((first.getModifiers() & Modifier.PUBLIC) != 0, "Must be public");
     // And make sure its not static.
-    errors.checkArgument(
-        (first.getModifiers() & Modifier.STATIC) == 0, "%s must not be static", format(first));
+    methodErrors.checkArgument((first.getModifiers() & Modifier.STATIC) == 0, "Must not be static");
 
     return first;
   }
 
-  private static String format(Method m) {
-    return (m == null) ? "null" : ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(m);
+  private static String format(Method method) {
+    return ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method);
   }
 
   private static String formatType(TypeToken<?> t) {
-    return (t == null) ? "null" : ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(t.getType());
+    return ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(t.getType());
   }
 
   static class ErrorReporter {
@@ -324,8 +325,10 @@ public class DoFnSignatures {
       this.label = (root == null) ? label : String.format("%s, %s", root.label, label);
     }
 
-    ErrorReporter forMethod(String annotation, Method method) {
-      return new ErrorReporter(this, String.format("%s method %s", annotation, format(method)));
+    ErrorReporter forMethod(Class<? extends Annotation> annotation, Method method) {
+      return new ErrorReporter(
+          this,
+          String.format("@%s %s", annotation, (method == null) ? "(absent)" : format(method)));
     }
 
     void throwIllegalArgument(String message, Object... args) {

@@ -41,7 +41,6 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
-import net.bytebuddy.implementation.ExceptionMethod;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.Implementation.Context;
@@ -181,13 +180,6 @@ public class DoFnInvokers {
     return (method == null)
         ? FixedValue.originType()
         : new SimpleMethodDelegation(method.targetMethod());
-  }
-
-  /** Delegates to the given method if available, or throws UnsupportedOperationException. */
-  private static Implementation delegateWithDowncastOrThrow(DoFnSignature.DoFnMethod method) {
-    return (method == null)
-        ? ExceptionMethod.throwing(UnsupportedOperationException.class)
-        : new DowncastingParametersMethodDelegation(method.targetMethod());
   }
 
   /** Implements an invoker method by delegating to a method of the target {@link DoFn}. */
