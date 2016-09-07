@@ -273,7 +273,8 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester.combining(
             windowFn,
-            AfterWatermark.pastEndOfWindow().withLateFirings(Never.ever()).buildTrigger(),
+            AfterWatermark.<IntervalWindow>pastEndOfWindow()
+                .withLateFirings(Never.ever()).buildTrigger(),
             AccumulationMode.DISCARDING_FIRED_PANES,
             new Sum.SumIntegerFn().<String>asKeyedFn(),
             VarIntCoder.of(),
