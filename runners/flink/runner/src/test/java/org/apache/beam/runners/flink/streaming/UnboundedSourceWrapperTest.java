@@ -23,6 +23,8 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -44,11 +46,25 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Tests for {@link UnboundedSourceWrapper}.
  */
+@RunWith(Parameterized.class)
 public class UnboundedSourceWrapperTest {
+
+  private int numSplits;
+
+  public UnboundedSourceWrapperTest(int numSplits) {
+    this.numSplits = numSplits;
+  }
+
+  @Parameterized.Parameters
+  public static Collection<Object[]> data() {
+    return Arrays.asList(new Object[][] {{1}, {2}, {4}, {8}});
+  }
 
   /**
    * Creates a {@link UnboundedSourceWrapper} that has exactly one reader per source, since we
@@ -65,9 +81,9 @@ public class UnboundedSourceWrapperTest {
     // elements later.
     TestCountingSource source = new TestCountingSource(numElements);
     UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-        new UnboundedSourceWrapper<>(options, source, 1);
+        new UnboundedSourceWrapper<>(options, source, numSplits);
 
-    assertEquals(1, flinkWrapper.getSplitSources().size());
+    assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
     StreamSource<
         WindowedValue<KV<Integer, Integer>>,
@@ -75,7 +91,7 @@ public class UnboundedSourceWrapperTest {
             KV<Integer, Integer>,
             TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
-    setupSourceOperator(sourceOperator);
+    setupSourceOperator(sourceOperator, numSplits);
 
 
     try {
@@ -135,7 +151,7 @@ public class UnboundedSourceWrapperTest {
             KV<Integer, Integer>,
             TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
-    setupSourceOperator(sourceOperator);
+    setupSourceOperator(sourceOperator, numSplits);
 
 
     try {
@@ -186,9 +202,9 @@ public class UnboundedSourceWrapperTest {
     // elements later.
     TestCountingSource source = new TestCountingSource(numElements);
     UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-        new UnboundedSourceWrapper<>(options, source, 1);
+        new UnboundedSourceWrapper<>(options, source, numSplits);
 
-    assertEquals(1, flinkWrapper.getSplitSources().size());
+    assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
     StreamSource<
         WindowedValue<KV<Integer, Integer>>,
@@ -196,7 +212,7 @@ public class UnboundedSourceWrapperTest {
             KV<Integer, Integer>,
             TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
-    setupSourceOperator(sourceOperator);
+    setupSourceOperator(sourceOperator, numSplits);
 
     final Set<KV<Integer, Integer>> emittedElements = new HashSet<>();
 
@@ -241,9 +257,9 @@ public class UnboundedSourceWrapperTest {
     TestCountingSource restoredSource = new TestCountingSource(numElements);
     UnboundedSourceWrapper<
         KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
-        new UnboundedSourceWrapper<>(options, restoredSource, 1);
+        new UnboundedSourceWrapper<>(options, restoredSource, numSplits);
 
-    assertEquals(1, restoredFlinkWrapper.getSplitSources().size());
+    assertEquals(numSplits, restoredFlinkWrapper.getSplitSources().size());
 
     StreamSource<
         WindowedValue<KV<Integer, Integer>>,
@@ -252,7 +268,7 @@ public class UnboundedSourceWrapperTest {
             TestCountingSource.CounterMark>> restoredSourceOperator =
         new StreamSource<>(restoredFlinkWrapper);
 
-    setupSourceOperator(restoredSourceOperator);
+    setupSourceOperator(restoredSourceOperator, numSplits);
 
     // restore snapshot
     restoredFlinkWrapper.restoreState(snapshot);
@@ -296,13 +312,13 @@ public class UnboundedSourceWrapperTest {
   }
 
   @SuppressWarnings("unchecked")
-  private static <T> void setupSourceOperator(StreamSource<T, ?> operator) {
+  private static <T> void setupSourceOperator(StreamSource<T, ?> operator, int numSubTasks) {
     ExecutionConfig executionConfig = new ExecutionConfig();
     StreamConfig cfg = new StreamConfig(new Configuration());
 
     cfg.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
-    Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
+    Environment env = new DummyEnvironment("MockTwoInputTask", numSubTasks, 0);
 
     StreamTask<?, ?> mockTask = mock(StreamTask.class);
     when(mockTask.getName()).thenReturn("Mock Task");
