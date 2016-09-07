@@ -246,6 +246,6 @@ public class BigQueryTableRowIteratorTest {
     // Job inserted to run the query, then polled once.
     verify(mockClient, times(1)).jobs();
     verify(mockJobs).insert(anyString(), any(Job.class));
-    verify(mockJobsInsert, times(3)).execute();
+    verify(mockJobsInsert, times(4)).execute();
   }
 }
