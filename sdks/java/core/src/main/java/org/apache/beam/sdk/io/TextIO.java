@@ -632,11 +632,27 @@ public class TextIO {
             shardTemplate, false);
       }
 
+      /**
+       * Returns a transform for writing to text files that adds a header string to the files
+       * it writes.
+       *
+       *<p> A <code>null</code> value will clear any previously configured header.</p>
+       *
+       * @param header the string to be added as file header
+       */
       public Bound<T> withHeader(String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, false);
       }
 
+      /**
+       * Returns a transform for writing to text files that adds a footer string to the files
+       * it writes.
+       *
+       *<p> A <code>null</code> value will clear any previously configured footer.</p>
+       *
+       * @param footer the string to be added as file footer
+       */
       public Bound<T> withFooter(String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, false);
