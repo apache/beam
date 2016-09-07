@@ -233,11 +233,11 @@ public class TextIOTest {
     runTestWrite(elems, null, null, coder, numShards);
   }
 
-  <T> void runTestWrite(T[] elems, Coder<T> coder, T header, T footer) throws Exception {
+  <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer) throws Exception {
     runTestWrite(elems, header, footer, coder, 1);
   }
 
-  <T> void runTestWrite(T[] elems, T header, T footer, Coder<T> coder, int numShards)
+  <T> void runTestWrite(T[] elems, String header, String footer, Coder<T> coder, int numShards)
       throws Exception {
     String outputName = "file.txt";
     String baseFilename = tmpFolder.newFile(outputName).getPath();
@@ -252,7 +252,7 @@ public class TextIOTest {
       // T==String
       write = (TextIO.Write.Bound<T>) writeStrings;
     } else {
-      write = TextIO.Write.withCoder(coder).to(baseFilename);
+      write = TextIO.Write.to(baseFilename).withCoder(coder);
     }
     write = write.withHeader(header).withFooter(footer);
 
@@ -271,9 +271,9 @@ public class TextIOTest {
 
   public static <T> void assertOutputFiles(
       T[] elems,
-      final T header,
-      final T footer,
-      final Coder<T> coder,
+      final String header,
+      final String footer,
+      Coder<T> coder,
       int numShards,
       TemporaryFolder rootLocation,
       String outputName,
@@ -320,44 +320,48 @@ public class TextIOTest {
       expectedElements.add(line);
     }
 
-    final String headerString =
-        header == null ? null : new String(CoderUtils.encodeToByteArray(coder, header));
-
-    final String footerString =
-        footer == null ? null : new String(CoderUtils.encodeToByteArray(coder, footer));
-
     ArrayList<String> actualElements =
         Lists.newArrayList(
             Iterables.concat(
                 FluentIterable
                     .from(actual)
-                    .transform(new Function<List<String>, List<String>>() {
-                      @Nullable
-                      @Override
-                      public List<String> apply(List<String> lines) {
-                        ArrayList<String> newLines = Lists.newArrayList(lines);
-                        if (headerString != null) {
-                          newLines.remove(0);
-                        }
-                        if (footerString != null) {
-                          int last = newLines.size() - 1;
-                          newLines.remove(last);
-                        }
-                        return newLines;
-                      }
-                    })
+                    .transform(removeHeaderAndFooter(header, footer))
                     .toList()));
 
     assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
 
-    assertTrue(Iterables.all(actual, new Predicate<List<String>>() {
+    assertTrue(Iterables.all(actual, haveProperHeaderAndFooter(header, footer)));
+  }
+
+  private static Function<List<String>, List<String>> removeHeaderAndFooter(final String header,
+                                                                            final String footer) {
+    return new Function<List<String>, List<String>>() {
+      @Nullable
       @Override
-      public boolean apply(@Nullable List<String> fileLines) {
-        int last = fileLines.size() - 1;
-        return (headerString == null || fileLines.get(0).equals(headerString))
-              && (footerString == null || fileLines.get(last).equals(footerString));
+      public List<String> apply(List<String> lines) {
+        ArrayList<String> newLines = Lists.newArrayList(lines);
+        if (header != null) {
+          newLines.remove(0);
+        }
+        if (footer != null) {
+          int last = newLines.size() - 1;
+          newLines.remove(last);
+        }
+        return newLines;
       }
-    }));
+    };
+  }
+
+  private static Predicate<List<String>> haveProperHeaderAndFooter(final String header,
+                                                                   final String footer) {
+    return new Predicate<List<String>>() {
+      @Override
+      public boolean apply(List<String> fileLines) {
+        int last = fileLines.size() - 1;
+        return (header == null || fileLines.get(0).equals(header))
+            && (footer == null || fileLines.get(last).equals(footer));
+      }
+    };
   }
 
   @Test

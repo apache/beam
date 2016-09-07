@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -36,14 +35,12 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
@@ -477,10 +474,10 @@ public class TextIO {
       private final String filenameSuffix;
 
       /** An optional header to add to each file. */
-      private final T header;
+      private final String header;
 
       /** An optional footer to add to each file. */
-      private final T footer;
+      private final String footer;
 
       /** The Coder to use to decode each line. */
       private final Coder<T> coder;
@@ -498,8 +495,8 @@ public class TextIO {
         this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true);
       }
 
-      private Bound(String name, String filenamePrefix, String filenameSuffix, T header,
-                    T footer, Coder<T> coder, int numShards, String shardTemplate,
+      private Bound(String name, String filenamePrefix, String filenameSuffix, String header,
+                    String footer, Coder<T> coder, int numShards, String shardTemplate,
                     boolean validate) {
         super(name);
         this.header = header;
@@ -510,14 +507,6 @@ public class TextIO {
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
         this.validate = validate;
-      }
-
-      private String asString(T obj, Coder<T> coder) {
-        try {
-          return obj == null ? "" : new String(CoderUtils.encodeToByteArray(coder, obj));
-        } catch (CoderException e) {
-          throw new RuntimeException(e);
-        }
       }
 
       /**
@@ -605,8 +594,9 @@ public class TextIO {
        * the elements of the input {@link PCollection PCollection<X>} into an
        * output text line. Does not modify this object.
        *
+       * @param <X> the type of the elements of the input {@link PCollection}
        */
-      public Bound<?> withCoder(Coder<? super T> coder) {
+      public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate);
       }
@@ -626,12 +616,12 @@ public class TextIO {
             shardTemplate, false);
       }
 
-      public Bound<T> withHeader(T header) {
+      public Bound<T> withHeader(String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, false);
       }
 
-      public Bound<T> withFooter(T footer) {
+      public Bound<T> withFooter(String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, false);
       }
@@ -669,9 +659,9 @@ public class TextIO {
               .withLabel("Validation Enabled"), true)
             .addIfNotDefault(DisplayData.item("numShards", numShards)
               .withLabel("Maximum Output Shards"), 0)
-            .addIfNotNull(DisplayData.item("fileHeader", asString(header, coder))
+            .addIfNotNull(DisplayData.item("fileHeader", header)
               .withLabel("File Header"))
-            .addIfNotNull(DisplayData.item("fileFooter", asString(footer, coder))
+            .addIfNotNull(DisplayData.item("fileFooter", footer)
                 .withLabel("File Footer"));
       }
 
@@ -707,11 +697,11 @@ public class TextIO {
         return coder;
       }
 
-      public T getHeader() {
+      public String getHeader() {
         return header;
       }
 
-      public T getFooter() {
+      public String getFooter() {
         return footer;
       }
 
@@ -997,21 +987,17 @@ public class TextIO {
   @VisibleForTesting
   static class TextSink<T> extends FileBasedSink<T> {
     private final Coder<T> coder;
-    private final byte[] header;
-    private final byte[] footer;
+    private final String header;
+    private final String footer;
 
     @VisibleForTesting
     TextSink(
-        String baseOutputFilename, String extension, T header, T footer,
+        String baseOutputFilename, String extension, String header, String footer,
         String fileNameTemplate, Coder<T> coder) {
       super(baseOutputFilename, extension, fileNameTemplate);
       this.coder = coder;
-      try {
-        this.header = header == null ? null : CoderUtils.encodeToByteArray(coder, header);
-        this.footer = footer == null ? null : CoderUtils.encodeToByteArray(coder, footer);
-      } catch (CoderException e) {
-        throw new RuntimeException(e);
-      }
+      this.header = header;
+      this.footer = footer;
     }
 
     @Override
@@ -1025,10 +1011,10 @@ public class TextIO {
      */
     private static class TextWriteOperation<T> extends FileBasedWriteOperation<T> {
       private final Coder<T> coder;
-      private final byte[] header;
-      private final byte[] footer;
+      private final String header;
+      private final String footer;
 
-      private TextWriteOperation(TextSink<T> sink, Coder<T> coder, byte[] header, byte[] footer) {
+      private TextWriteOperation(TextSink<T> sink, Coder<T> coder, String header, String footer) {
         super(sink);
         this.coder = coder;
         this.header = header;
@@ -1048,20 +1034,20 @@ public class TextIO {
     private static class TextWriter<T> extends FileBasedWriter<T> {
       private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
       private final Coder<T> coder;
-      private final byte[] header;
-      private final byte[] footer;
+      private final String header;
+      private final String footer;
       private OutputStream out;
 
       public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder) {
         this(writeOperation, coder, null, null);
       }
 
-      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder, byte[] header) {
+      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder, String header) {
         this(writeOperation, coder, header, null);
       }
 
-      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder, byte[] header,
-                        byte[] footer) {
+      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder, String header,
+                        String footer) {
         super(writeOperation);
         this.header = header;
         this.footer = footer;
@@ -1069,9 +1055,9 @@ public class TextIO {
         this.coder = coder;
       }
 
-      private void writeLine(byte[] line) throws IOException {
+      private void writeLine(String line) throws IOException {
         if (line != null) {
-          out.write(line);
+          out.write(line.getBytes(StandardCharsets.UTF_8));
           out.write(NEWLINE);
         }
       }
