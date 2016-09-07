@@ -452,6 +452,8 @@ public class TextIO {
      * Returns a transform for writing to text files that adds a header string to the files
      * it writes.
      *
+     *<p> A <code>null</code> value will clear any previously configured header.</p>
+     *
      * @param header the string to be added as file header
      */
     public static Bound<String> withHeader(String header) {
@@ -461,6 +463,8 @@ public class TextIO {
     /**
      * Returns a transform for writing to text files that adds a footer string to the files
      * it writes.
+     *
+     *<p> A <code>null</code> value will clear any previously configured footer.</p>
      *
      * @param footer the string to be added as file footer
      */
