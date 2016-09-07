@@ -392,12 +392,13 @@ public class BigQueryTableRowIterator implements AutoCloseable {
         client.jobs().insert(projectId, dryRunJob),
         String.format("Error when trying to dry run query %s.", query)).getStatistics();
 
-    TableReference sourceTable = jobStats.getQuery()
-        .getReferencedTables()
-        .get(0);
-
-    Table table = getTable(sourceTable);
-    String location = table.getLocation();
+    // Default to US if the query does not read any tables.
+    String location = "US";
+    @Nullable List<TableReference> tables = jobStats.getQuery().getReferencedTables();
+    if (tables != null && !tables.isEmpty()) {
+      Table table = getTable(tables.get(0));
+      location = table.getLocation();
+    }
 
     // Create a temporary dataset to store results.
     // Starting dataset name with an "_" so that it is hidden.

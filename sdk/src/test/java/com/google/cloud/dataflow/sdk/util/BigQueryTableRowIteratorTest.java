@@ -217,6 +217,75 @@ public class BigQueryTableRowIteratorTest {
   }
 
   /**
+   * Verifies that queries that reference no data can be read.
+   */
+  @Test
+  public void testReadFromQueryNoTables() throws IOException, InterruptedException {
+    // Mock job inserting.
+    Job dryRunJob = new Job().setStatistics(
+        new JobStatistics().setQuery(new JobStatistics2()));
+    Job insertedJob = new Job().setJobReference(new JobReference());
+    when(mockJobsInsert.execute()).thenReturn(dryRunJob, insertedJob);
+
+    // Mock job polling.
+    JobStatus status = new JobStatus().setState("DONE");
+    TableReference tableRef =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setDestinationTable(tableRef);
+    Job getJob =
+        new Job()
+            .setJobReference(new JobReference())
+            .setStatus(status)
+            .setConfiguration(new JobConfiguration().setQuery(queryConfig));
+    when(mockJobsGet.execute()).thenReturn(getJob);
+
+    // Mock table schema fetch.
+    when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
+
+    // Mock table data fetch.
+    when(mockTabledataList.execute()).thenReturn(rawDataList(rawRow("Arthur", 42)));
+
+    // Run query and verify
+    String query = "SELECT \"Arthur\" as name, 42 as count";
+    try (BigQueryTableRowIterator iterator =
+        BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
+      iterator.open();
+      assertTrue(iterator.advance());
+      TableRow row = iterator.getCurrent();
+
+      assertTrue(row.containsKey("name"));
+      assertTrue(row.containsKey("answer"));
+      assertEquals("Arthur", row.get("name"));
+      assertEquals(42, row.get("answer"));
+
+      assertFalse(iterator.advance());
+    }
+
+    // Temp dataset created and later deleted.
+    verify(mockClient, times(2)).datasets();
+    verify(mockDatasets).insert(anyString(), any(Dataset.class));
+    verify(mockDatasetsInsert).execute();
+    verify(mockDatasets).delete(anyString(), anyString());
+    verify(mockDatasetsDelete).execute();
+    // Job inserted to run the query, polled once.
+    verify(mockClient, times(3)).jobs();
+    verify(mockJobs, times(2)).insert(anyString(), any(Job.class));
+    verify(mockJobsInsert, times(2)).execute();
+    verify(mockJobs).get(anyString(), anyString());
+    verify(mockJobsGet).execute();
+    // Temp table get after query finish, deleted after reading.
+    verify(mockClient, times(2)).tables();
+    verify(mockTables, times(1)).get(anyString(), anyString(), anyString());
+    verify(mockTablesGet, times(1)).execute();
+    verify(mockTables).delete(anyString(), anyString(), anyString());
+    verify(mockTablesDelete).execute();
+    // Table data read.
+    verify(mockClient).tabledata();
+    verify(mockTabledata).list("project", "dataset", "table");
+    verify(mockTabledataList).execute();
+  }
+
+  /**
    * Verifies that when the query fails, the user gets a useful exception and the temporary dataset
    * is cleaned up. Also verifies that the temporary table (which is never created) is not
    * erroneously attempted to be deleted.
