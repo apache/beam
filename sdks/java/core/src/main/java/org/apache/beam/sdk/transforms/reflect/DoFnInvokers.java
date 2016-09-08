@@ -180,8 +180,8 @@ public class DoFnInvokers {
   }
 
   /**
-   * Implements an invoker method ("instrumented method") by delegating to a method of the target
-   * {@link DoFn} ("target method").
+   * Implements a method of {@link DoFnInvoker} (the "instrumented method") by delegating to a
+   * "target method" of the wrapped {@link DoFn}.
    */
   private static class DoFnMethodDelegation implements Implementation {
 
