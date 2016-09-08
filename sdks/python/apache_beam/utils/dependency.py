@@ -22,7 +22,7 @@ Workflows, with the exception of very simple ones, are organized in multiple
 modules and packages. Typically, these modules and packages have
 dependencies on other standard libraries. Dataflow relies on the Python
 setuptools package to handle these scenarios. For further details please read:
-https://pythonhosted.org/setuptools/setuptools.html
+https://pythonhosted.org/an_example_pypi_project/setuptools.html
 
 When a runner tries to run a pipeline it will check for a --requirements_file
 and a --setup_file option.
