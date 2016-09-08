@@ -55,23 +55,34 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class UnboundedSourceWrapperTest {
 
-  private int numSplits;
+  private final int numTasks;
+  private final int numSplits;
 
-  public UnboundedSourceWrapperTest(int numSplits) {
+  public UnboundedSourceWrapperTest(int numTasks, int numSplits) {
+    this.numTasks = numTasks;
     this.numSplits = numSplits;
   }
 
   @Parameterized.Parameters
   public static Collection<Object[]> data() {
-    return Arrays.asList(new Object[][] {{1}, {2}, {4}, {8}});
+    /*
+     * Parameters for initializing the tests:
+     * {numTasks, numSplits}
+     * The test currently assumes powers of two for some assertions.
+     */
+    return Arrays.asList(new Object[][] {
+      {1, 1}, {1, 2}, {1, 4},
+      {2, 1}, {2, 2}, {2, 4},
+      {4, 1}, {4, 2}, {4, 4}
+    });
   }
 
   /**
-   * Creates a {@link UnboundedSourceWrapper} that has exactly one reader per source, since we
-   * specify a parallelism of 1 and also at runtime tell the source that it has 1 parallel subtask.
+   * Creates a {@link UnboundedSourceWrapper} that has one or multiple readers per source.
+   * If numSplits > numTasks the source has one source will manage multiple readers.
    */
   @Test
-  public void testWithOneReader() throws Exception {
+  public void testReaders() throws Exception {
     final int numElements = 20;
     final Object checkpointLock = new Object();
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -85,74 +96,13 @@ public class UnboundedSourceWrapperTest {
 
     assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
-    StreamSource<
-        WindowedValue<KV<Integer, Integer>>,
-        UnboundedSourceWrapper<
-            KV<Integer, Integer>,
-            TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
-
-    setupSourceOperator(sourceOperator, numSplits);
-
-
-    try {
-      sourceOperator.run(checkpointLock,
-          new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
-            private int count = 0;
-
-            @Override
-            public void emitWatermark(Watermark watermark) {
-            }
-
-            @Override
-            public void collect(
-                StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
-
-              count++;
-              if (count >= numElements) {
-                throw new SuccessException();
-              }
-            }
-
-            @Override
-            public void close() {
-
-            }
-          });
-    } catch (SuccessException e) {
-      // success
-    } catch (Exception e) {
-      fail("We caught " + e);
-    }
-  }
-
-  /**
-   * Creates a {@link UnboundedSourceWrapper} that has multiple readers per source, since we
-   * specify a parallelism higher than 1 and at runtime tell the source that it has 1 parallel
-   * this means that one source will manage multiple readers.
-   */
-  @Test
-  public void testWithMultipleReaders() throws Exception {
-    final int numElements = 20;
-    final Object checkpointLock = new Object();
-    PipelineOptions options = PipelineOptionsFactory.create();
-
-    // this source will emit exactly NUM_ELEMENTS across all parallel readers,
-    // afterwards it will stall. We check whether we also receive NUM_ELEMENTS
-    // elements later.
-    TestCountingSource source = new TestCountingSource(numElements);
-    UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-        new UnboundedSourceWrapper<>(options, source, 4);
-
-    assertEquals(4, flinkWrapper.getSplitSources().size());
-
     StreamSource<WindowedValue<
         KV<Integer, Integer>>,
         UnboundedSourceWrapper<
             KV<Integer, Integer>,
             TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
-    setupSourceOperator(sourceOperator, numSplits);
-
+    setupSourceOperator(sourceOperator, numTasks);
 
     try {
       sourceOperator.run(checkpointLock,
@@ -179,6 +129,9 @@ public class UnboundedSourceWrapperTest {
             }
           });
     } catch (SuccessException e) {
+
+      assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+
       // success
       return;
     }
@@ -212,7 +165,7 @@ public class UnboundedSourceWrapperTest {
             KV<Integer, Integer>,
             TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
-    setupSourceOperator(sourceOperator, numSplits);
+    setupSourceOperator(sourceOperator, numTasks);
 
     final Set<KV<Integer, Integer>> emittedElements = new HashSet<>();
 
@@ -268,7 +221,7 @@ public class UnboundedSourceWrapperTest {
             TestCountingSource.CounterMark>> restoredSourceOperator =
         new StreamSource<>(restoredFlinkWrapper);
 
-    setupSourceOperator(restoredSourceOperator, numSplits);
+    setupSourceOperator(restoredSourceOperator, numTasks);
 
     // restore snapshot
     restoredFlinkWrapper.restoreState(snapshot);
@@ -304,6 +257,8 @@ public class UnboundedSourceWrapperTest {
       // success
       readSecondBatchOfElements = true;
     }
+
+    assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
 
     assertTrue("Did not successfully read second batch of elements.", readSecondBatchOfElements);
 

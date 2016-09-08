@@ -397,4 +397,12 @@ public class UnboundedSourceWrapper<
   public List<? extends UnboundedSource<OutputT, CheckpointMarkT>> getSplitSources() {
     return splitSources;
   }
+
+  /**
+   * Visible so that we can check this in tests. Must not be used for anything else.
+   */
+  @VisibleForTesting
+  public List<? extends UnboundedSource<OutputT, CheckpointMarkT>> getLocalSplitSources() {
+    return localSplitSources;
+  }
 }
