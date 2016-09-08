@@ -1132,7 +1132,7 @@ public class TextIO {
 
       @Override
       protected void writeHeader() throws Exception {
-       writeIfNotNull(header);
+        writeIfNotNull(header);
       }
 
       @Override
