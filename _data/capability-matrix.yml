@@ -118,12 +118,11 @@ categories:
           - class: dataflow
             l1: 'Yes'
             l2: some size restrictions in streaming
-            l3: Batch implemented supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+            l3: Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
           - class: flink
-            jira: BEAM-102
-            l1: 'Partially'
-            l2: no supported in streaming
-            l3: Supported in batch. Side inputs for streaming are currently WiP.
+            l1: 'Yes'
+            l2: some size restrictions in streaming
+            l3: Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
           - class: spark
             l1: 'Partially'
             l2: not supported in streaming
