@@ -415,12 +415,20 @@ public class ReduceByKey<
   }
 
   // state represents the output value
-  private class ReduceState extends State<VALUE, OUT> {
+  private static class ReduceState<VALUE, OUT> extends State<VALUE, OUT> {
+
+    private final ReduceFunction<VALUE, OUT> reducer;
+    private final boolean combinable;
 
     final List<VALUE> reducableValues = new ArrayList<>();
 
-    ReduceState(Collector<OUT> collector) {
+    ReduceState(Collector<OUT> collector,
+                ReduceFunction<VALUE, OUT> reducer,
+                boolean combinable)
+    {
       super(collector);
+      this.reducer = Objects.requireNonNull(reducer);
+      this.combinable = combinable;
     }
 
     @Override
@@ -444,7 +452,7 @@ public class ReduceByKey<
 
     @SuppressWarnings("unchecked")
     private void combineIfPossible() {
-      if (isCombinable() && reducableValues.size() > 1) {
+      if (combinable && reducableValues.size() > 1) {
         OUT val = reducer.apply(reducableValues);
         reducableValues.clear();
         reducableValues.add((VALUE) val);
@@ -462,7 +470,7 @@ public class ReduceByKey<
     reduceState = new ReduceStateByKey<>(getName(),
         flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
-        ReduceState::new,
+        (Collector<OUT> c) -> new ReduceState<>(c, reducer, isCombinable()),
         (Iterable<ReduceState> states) -> {
           final ReduceState first;
           Iterator<ReduceState> i = states.iterator();
