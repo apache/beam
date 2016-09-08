@@ -114,6 +114,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
         state.add(it.next().get().getValue());
       }
       state.flush();
+      state.close();
     }
   }
 }
