@@ -39,6 +39,10 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.apache.avro.AvroTypeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -168,6 +172,35 @@ public class AvroCoderTest {
     ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
     ObjectInputStream in = new ObjectInputStream(bis);
     AvroCoder<Pojo> copied = (AvroCoder<Pojo>) in.readObject();
+
+    CoderProperties.coderDecodeEncodeEqual(copied, value);
+  }
+
+  /**
+   * Confirm that we can serialize and deserialize an AvroCoder object using Kryo.
+   * (BEAM-626).
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testKryoSerialization() throws Exception {
+    Pojo value = new Pojo("Hello", 42);
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    //Kryo instantiation
+    Kryo kryo = new Kryo();
+    kryo.setInstantiatorStrategy(new org.objenesis.strategy.StdInstantiatorStrategy());
+
+    //Serialization of object
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    Output output = new Output(bos);
+    kryo.writeObject(output, coder);
+    output.close();
+
+    //De-serialization of object
+    ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+    Input input = new Input(bis);
+    AvroCoder<Pojo> copied = (AvroCoder<Pojo>) kryo.readObject(input, AvroCoder.class);
 
     CoderProperties.coderDecodeEncodeEqual(copied, value);
   }
