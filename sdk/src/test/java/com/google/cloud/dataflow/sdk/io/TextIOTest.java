@@ -59,7 +59,12 @@ import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.junit.Rule;
@@ -86,9 +91,11 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.Nullable;
 
 /**
  * Tests for TextIO Read and Write transforms.
@@ -96,6 +103,9 @@ import java.util.zip.GZIPOutputStream;
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
+  private static final String MY_HEADER = "myHeader";
+  private static final String MY_FOOTER = "myFooter";
+
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -228,10 +238,19 @@ public class TextIOTest {
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
-    runTestWrite(elems, coder, 1);
+    runTestWrite(elems, null, null, coder, 1);
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
+    runTestWrite(elems, null, null, coder, numShards);
+  }
+
+  <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer) throws Exception {
+    runTestWrite(elems, header, footer, coder, 1);
+  }
+
+  <T> void runTestWrite(T[] elems, String header, String footer, Coder<T> coder, int numShards)
+      throws Exception {
     String outputName = "file.txt";
     String baseFilename = tmpFolder.newFile(outputName).getPath();
 
@@ -252,16 +271,20 @@ public class TextIOTest {
     } else {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
+    write = write.withHeader(header).withFooter(footer);
 
     input.apply(write);
 
     p.run();
 
-    assertOutputFiles(elems, coder, numShards, tmpFolder, outputName, write.getShardNameTemplate());
+    assertOutputFiles(elems, header, footer, coder, numShards, tmpFolder, outputName,
+        write.getShardNameTemplate());
   }
 
   public static <T> void assertOutputFiles(
       T[] elems,
+      final String header,
+      final String footer,
       Coder<T> coder,
       int numShards,
       TemporaryFolder rootLocation,
@@ -284,28 +307,71 @@ public class TextIOTest {
       }
     }
 
-    List<String> actual = new ArrayList<>();
+    List<List<String>> actual = new ArrayList<>();
     for (File tmpFile : expectedFiles) {
       try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+        List<String> currentFile = Lists.newArrayList();
         for (;;) {
           String line = reader.readLine();
           if (line == null) {
             break;
           }
-          actual.add(line);
+          currentFile.add(line);
         }
+        actual.add(currentFile);
       }
     }
 
-    String[] expected = new String[elems.length];
+    LinkedList<String> expectedElements = Lists.newLinkedList();
     for (int i = 0; i < elems.length; i++) {
       T elem = elems[i];
       byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
       String line = new String(encodedElem);
-      expected[i] = line;
+      expectedElements.add(line);
     }
 
-    assertThat(actual, containsInAnyOrder(expected));
+    ArrayList<String> actualElements =
+        Lists.newArrayList(
+            Iterables.concat(
+                FluentIterable
+                    .from(actual)
+                    .transform(removeHeaderAndFooter(header, footer))
+                    .toList()));
+
+    assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
+
+    assertTrue(Iterables.all(actual, haveProperHeaderAndFooter(header, footer)));
+  }
+
+  private static Function<List<String>, List<String>> removeHeaderAndFooter(final String header,
+                                                                            final String footer) {
+    return new Function<List<String>, List<String>>() {
+      @Nullable
+      @Override
+      public List<String> apply(List<String> lines) {
+        ArrayList<String> newLines = Lists.newArrayList(lines);
+        if (header != null) {
+          newLines.remove(0);
+        }
+        if (footer != null) {
+          int last = newLines.size() - 1;
+          newLines.remove(last);
+        }
+        return newLines;
+      }
+    };
+  }
+
+  private static Predicate<List<String>> haveProperHeaderAndFooter(final String header,
+                                                                   final String footer) {
+    return new Predicate<List<String>>() {
+      @Override
+      public boolean apply(List<String> fileLines) {
+        int last = fileLines.size() - 1;
+        return (header == null || fileLines.get(0).equals(header))
+            && (footer == null || fileLines.get(last).equals(footer));
+      }
+    };
   }
 
   @Test
@@ -354,6 +420,21 @@ public class TextIOTest {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
   }
 
+ @Test
+  public void testWriteWithHeader() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), MY_HEADER, null);
+  }
+
+  @Test
+  public void testWriteWithFooter() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), null, MY_FOOTER);
+  }
+
+  @Test
+  public void testWriteWithHeaderAndFooter() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), MY_HEADER, MY_FOOTER);
+  }
+
   @Test
   public void testWriteDisplayData() {
     TextIO.Write.Bound<?> write = TextIO.Write
@@ -361,12 +442,16 @@ public class TextIOTest {
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
+        .withFooter("myFooter")
+        .withHeader("myHeader")
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
+    assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
+    assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
