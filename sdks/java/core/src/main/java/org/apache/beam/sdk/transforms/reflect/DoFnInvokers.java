@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
@@ -36,7 +35,6 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.modifier.FieldManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
@@ -50,7 +48,6 @@ import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -179,20 +176,23 @@ public class DoFnInvokers {
   private static Implementation delegateOrNoop(DoFnSignature.DoFnMethod method) {
     return (method == null)
         ? FixedValue.originType()
-        : new SimpleMethodDelegation(method.targetMethod());
+        : new DoFnMethodDelegation(method.targetMethod());
   }
 
-  /** Implements an invoker method by delegating to a method of the target {@link DoFn}. */
-  private abstract static class DoFnMethodDelegation implements Implementation {
+  /**
+   * Implements an invoker method ("instrumented method") by delegating to a method of the target
+   * {@link DoFn} ("target method").
+   */
+  private static class DoFnMethodDelegation implements Implementation {
 
     protected final MethodDescription targetMethod;
     private FieldDescription delegateField;
 
     private final boolean targetHasReturn;
 
-    public DoFnMethodDelegation(MethodDescription targetMethod) {
-      this.targetMethod = targetMethod;
-      targetHasReturn = !TypeDescription.VOID.equals(targetMethod.getReturnType().asErasure());
+    public DoFnMethodDelegation(Method targetMethod) {
+      this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
+      targetHasReturn = !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
     }
 
     @Override
@@ -229,23 +229,24 @@ public class DoFnInvokers {
             }
           }
 
-          StackManipulation manipulation = new StackManipulation.Compound(
-              // Push "this" (DoFnInvoker on top of the stack)
-              MethodVariableAccess.REFERENCE.loadOffset(0),
-              // Access this.delegate (DoFn on top of the stack)
-              FieldAccess.forField(delegateField).getter(),
-              // Run the beforeDelegation manipulations.
-              // The arguments necessary to invoke the target are on top of the stack.
-              beforeDelegation(instrumentedMethod),
-              // Perform the method delegation.
-              // This will consume the arguments on top of the stack
-              // Either the stack is now empty (because the targetMethod returns void) or the
-              // stack contains the return value.
-              new UserCodeMethodInvocation(returnVarIndex, targetMethod, instrumentedMethod),
-              // Run the afterDelegation manipulations.
-              // Either the stack is now empty (because the instrumentedMethod returns void)
-              // or the stack contains the return value.
-              afterDelegation(instrumentedMethod));
+          StackManipulation manipulation =
+              new StackManipulation.Compound(
+                  // Push "this" (DoFnInvoker on top of the stack)
+                  MethodVariableAccess.REFERENCE.loadOffset(0),
+                  // Access this.delegate (DoFn on top of the stack)
+                  FieldAccess.forField(delegateField).getter(),
+                  // Run the beforeDelegation manipulations.
+                  // The arguments necessary to invoke the target are on top of the stack.
+                  beforeDelegation(instrumentedMethod),
+                  // Perform the method delegation.
+                  // This will consume the arguments on top of the stack
+                  // Either the stack is now empty (because the targetMethod returns void) or the
+                  // stack contains the return value.
+                  new UserCodeMethodInvocation(returnVarIndex, targetMethod, instrumentedMethod),
+                  // Run the afterDelegation manipulations.
+                  // Either the stack is now empty (because the instrumentedMethod returns void)
+                  // or the stack contains the return value.
+                  afterDelegation(instrumentedMethod));
 
           StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
           return new Size(size.getMaximalSize(), numLocals);
@@ -261,18 +262,23 @@ public class DoFnInvokers {
      * <p>After this method is called, the stack contents should contain exactly the arguments
      * necessary to invoke the target method.
      */
-    protected abstract StackManipulation beforeDelegation(MethodDescription instrumentedMethod);
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
+      return MethodVariableAccess.allArgumentsOf(targetMethod);
+    }
 
     /**
      * Return the code to execute after the method delegation.
      *
-     * <p>Before this method is called, the stack will either be empty (if the target method
-     * returns void) or contain the method return value.
+     * <p>Before this method is called, the stack will either be empty (if the target method returns
+     * void) or contain the method return value.
      *
      * <p>After this method is called, the stack should either be empty (if the instrumented method
-     * returns void) or contain the avlue for the instrumented method to return).
+     * returns void) or contain the value for the instrumented method to return).
      */
-    protected abstract StackManipulation afterDelegation(MethodDescription instrumentedMethod);
+    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
+      return TargetMethodAnnotationDrivenBinder.TerminationHandler.Returning.INSTANCE.resolve(
+          Assigner.DEFAULT, instrumentedMethod, targetMethod);
+    }
   }
 
   /**
@@ -310,13 +316,12 @@ public class DoFnInvokers {
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(DoFnSignature.ProcessElementMethod signature) {
-      super(new MethodDescription.ForLoadedMethod(signature.targetMethod()));
+      super(signature.targetMethod());
       this.signature = signature;
     }
 
     @Override
-    protected StackManipulation beforeDelegation(
-        MethodDescription instrumentedMethod) {
+    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
       // Parameters of the wrapper invoker method:
       //   DoFn.ProcessContext, ExtraContextFactory.
       // Parameters of the wrapped DoFn method:
@@ -341,55 +346,9 @@ public class DoFnInvokers {
     }
   }
 
-  /**
-   * Delegates to the given method, wrapping the call into a UserCodeException and optionally
-   * downcasting parameters to the proper type.
-   */
-  private static class SimpleMethodDelegation extends DoFnMethodDelegation {
-    SimpleMethodDelegation(Method method) {
-      super(new MethodDescription.ForLoadedMethod(method));
-    }
-
-    @Override
-    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
-      return MethodVariableAccess.allArgumentsOf(targetMethod);
-    }
-
-    @Override
-    protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
-      return TargetMethodAnnotationDrivenBinder.TerminationHandler.Returning.INSTANCE
-          .resolve(Assigner.DEFAULT, instrumentedMethod, targetMethod);
-    }
-  }
-
-  /**
-   * Passes parameters to the delegated method by downcasting each parameter of non-primitive type
-   * to its expected type.
-   */
-  private static class DowncastingParametersMethodDelegation extends SimpleMethodDelegation {
-    DowncastingParametersMethodDelegation(Method method) {
-      super(method);
-    }
-
-    @Override
-    protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
-      List<StackManipulation> pushParameters = new ArrayList<>();
-      TypeList.Generic paramTypes = targetMethod.getParameters().asTypeList();
-      for (int i = 0; i < paramTypes.size(); i++) {
-        TypeDescription.Generic paramT = paramTypes.get(i);
-        pushParameters.add(MethodVariableAccess.of(paramT).loadOffset(i + 1));
-        if (!paramT.isPrimitive()) {
-          pushParameters.add(TypeCasting.to(paramT));
-        }
-      }
-      return new StackManipulation.Compound(pushParameters);
-    }
-  }
-
   private static class UserCodeMethodInvocation implements StackManipulation {
 
-    @Nullable
-    private final Integer returnVarIndex;
+    @Nullable private final Integer returnVarIndex;
     private final MethodDescription targetMethod;
     private final MethodDescription instrumentedMethod;
     private final TypeDescription returnType;
@@ -413,8 +372,9 @@ public class DoFnInvokers {
       this.returnType = targetMethod.getReturnType().asErasure();
 
       boolean targetMethodReturnsVoid = TypeDescription.VOID.equals(returnType);
-      checkArgument((returnVarIndex == null) == targetMethodReturnsVoid,
-          "returnLocalIndex should be defined if and only if the target method has a return value");
+      checkArgument(
+          (returnVarIndex == null) == targetMethodReturnsVoid,
+          "returnVarIndex should be defined if and only if the target method has a return value");
 
       try {
         createUserCodeException =
@@ -450,9 +410,8 @@ public class DoFnInvokers {
       }
     }
 
-    private void visitFrame(MethodVisitor mv,
-        boolean localsIncludeReturn,
-        @Nullable String stackTop) {
+    private void visitFrame(
+        MethodVisitor mv, boolean localsIncludeReturn, @Nullable String stackTop) {
       boolean hasReturnLocal = (returnVarIndex != null) && localsIncludeReturn;
 
       Type[] localTypes = Type.getArgumentTypes(instrumentedMethod.getDescriptor());
@@ -465,7 +424,7 @@ public class DoFnInvokers {
         locals[locals.length - 1] = returnType.getInternalName();
       }
 
-      Object[] stack = stackTop == null ? new Object[] {} : new Object[] { stackTop };
+      Object[] stack = stackTop == null ? new Object[] {} : new Object[] {stackTop};
 
       mv.visitFrame(Opcodes.F_NEW, locals.length, locals, stack.length, stack);
     }
@@ -496,9 +455,10 @@ public class DoFnInvokers {
       visitFrame(mv, false, throwableName);
 
       // Create the user code exception and throw
-      size = size.aggregate(
-          new Compound(MethodInvocation.invoke(createUserCodeException), Throw.INSTANCE)
-              .apply(mv, context));
+      size =
+          size.aggregate(
+              new Compound(MethodInvocation.invoke(createUserCodeException), Throw.INSTANCE)
+                  .apply(mv, context));
 
       mv.visitLabel(catchBlockEnd);
 

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Method;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** Utilities for use in {@link DoFnSignatures} tests. */
@@ -36,18 +37,18 @@ class DoFnSignaturesTestUtils {
    *
    * <pre>{@code
    * Method m = new AnonymousMethod() {
-   *   SomeReturnValue someMethod(SomeParameters...) { ... }
-   * }.getMethod();  // Will return the Method for "someMethod".
+   *   SomeReturnValue method(SomeParameters...) { ... }
+   * }.getMethod();  // Will return the Method for "method".
    * }</pre>
    */
   static class AnonymousMethod {
     final Method getMethod() throws Exception {
-      Method[] methods = getClass().getDeclaredMethods();
-      if (methods.length != 1) {
-        throw new IllegalArgumentException(
-            "Must declare exactly 1 method, but declares " + methods.length);
+      for (Method method : getClass().getDeclaredMethods()) {
+        if (method.getName().equals("method")) {
+          return method;
+        }
       }
-      return methods[0];
+      throw new NoSuchElementException("No method named 'method' defined on " + getClass());
     }
   }
 
