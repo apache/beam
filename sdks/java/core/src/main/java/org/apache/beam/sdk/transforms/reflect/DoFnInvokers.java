@@ -184,11 +184,12 @@ public class DoFnInvokers {
    * "target method" of the wrapped {@link DoFn}.
    */
   private static class DoFnMethodDelegation implements Implementation {
-
+    /** The {@link MethodDescription} of the wrapped {@link DoFn}'s method. */
     protected final MethodDescription targetMethod;
-    private FieldDescription delegateField;
-
+    /** Whether the target method returns non-void. */
     private final boolean targetHasReturn;
+
+    private FieldDescription delegateField;
 
     public DoFnMethodDelegation(Method targetMethod) {
       this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
@@ -210,6 +211,9 @@ public class DoFnInvokers {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return new ByteCodeAppender() {
+        /**
+         * @param instrumentedMethod The {@link DoFnInvoker} method for which we're generating code.
+         */
         @Override
         public Size apply(
             MethodVisitor methodVisitor,
