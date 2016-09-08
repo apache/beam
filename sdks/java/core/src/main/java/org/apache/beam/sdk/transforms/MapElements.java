@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@code PTransform}s for mapping a simple function over the elements of a {@link PCollection}.
  */
 public class MapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
   /**
    * For a {@code SerializableFunction<InputT, OutputT>} {@code fn} and output type descriptor,
@@ -44,8 +44,16 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * descriptor need not be provided.
    */
   public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<InputT, OutputT> fn) {
-    return new MissingOutputTypeDescriptor<>(fn);
+  via(SerializableFunction<? super InputT, OutputT> fn) {
+
+    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
+    // covariance and contravariance in Java, so instead we cast it to an invariant
+    // function here.
+    @SuppressWarnings("unchecked") // safe covariant cast
+        SerializableFunction<InputT, OutputT> simplerFn =
+        (SerializableFunction<InputT, OutputT>) fn;
+
+    return new MissingOutputTypeDescriptor<>(simplerFn);
   }
 
   /**
@@ -103,7 +111,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
+  public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
     return input.apply(
         "Map",
         ParDo.of(

@@ -17,7 +17,8 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.spark.SparkRunner;
+import com.google.common.base.Strings;
+import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -38,11 +39,6 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.common.base.Strings;
-import com.google.common.io.Resources;
-
-import java.io.IOException;
-
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
  *
@@ -52,8 +48,8 @@ import java.io.IOException;
  * pipeline, for introduction of additional concepts.
  *
  * <p>For a detailed walkthrough of this example, see
- *   <a href="https://cloud.google.com/dataflow/java-sdk/wordcount-example">
- *   https://cloud.google.com/dataflow/java-sdk/wordcount-example
+ *   <a href="http://beam.incubator.apache.org/use/walkthroughs/">
+ *   http://beam.incubator.apache.org/use/walkthroughs/
  *   </a>
  *
  * <p>Basic concepts, also in the MinimalWordCount example:
@@ -70,30 +66,20 @@ import java.io.IOException;
  * <p>Concept #1: you can execute this pipeline either locally or using the selected runner.
  * These are now command-line options and not hard-coded as they were in the MinimalWordCount
  * example.
- * To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and a local output file or output prefix on GCS:
+ * To execute this pipeline locally, specify a local output file or output prefix on GCS:
  * <pre>{@code
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and an output prefix on GCS:
- * <pre>{@code
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
- * overridden with {@code --inputFile}.
+ * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}
+ * and can be overridden with {@code --inputFile}.
  */
 public class WordCount {
 
@@ -168,7 +154,7 @@ public class WordCount {
    */
   public static interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
-    @Default.InstanceFactory(InputFactory.class)
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
     void setInputFile(String value);
 
@@ -194,27 +180,6 @@ public class WordCount {
           }
         } else {
           throw new IllegalArgumentException("Must specify --output or --tempLocation");
-        }
-      }
-    }
-
-    /**
-     * Return default input file path according to runner type.
-     *
-     * <p><ul>
-     *   <li>SparkRunner:
-     *   .../src/test/resources/LICENSE</li>
-     *   <li>other runners:
-     *   gs://apache-beam-samples/apache/LICENSE</li>
-     * </ul>
-     */
-    public static class InputFactory implements DefaultValueFactory<String> {
-      @Override
-      public String create(PipelineOptions options) {
-        if (options.getRunner().isAssignableFrom(SparkRunner.class)) {
-          return Resources.getResource("LICENSE").getPath();
-        } else {
-          return "gs://apache-beam-samples/apache/LICENSE";
         }
       }
     }

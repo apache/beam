@@ -18,6 +18,9 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import java.util.Set;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.AggregatorValues;
@@ -44,14 +47,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Set;
 
 /**
  * Multi-output word count test.
@@ -103,7 +100,7 @@ public class MultiOutputWordCountTest {
   }
 
   /**
-   * A OldDoFn that tokenizes lines of text into individual words.
+   * A {@link DoFn} that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<String, String> {
 

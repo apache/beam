@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
-
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
  * Implements IOChannelFactory for GCS.

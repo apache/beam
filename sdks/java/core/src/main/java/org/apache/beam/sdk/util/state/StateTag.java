@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import java.io.IOException;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,9 +28,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-
-import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * An address for persistent state. This includes a unique identifier for the location, the

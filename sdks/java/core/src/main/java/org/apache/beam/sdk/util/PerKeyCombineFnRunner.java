@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.Serializable;
+import java.util.Collection;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
-import java.io.Serializable;
-import java.util.Collection;
 
 /**
  * An interface that runs a {@link PerKeyCombineFn} with unified APIs.

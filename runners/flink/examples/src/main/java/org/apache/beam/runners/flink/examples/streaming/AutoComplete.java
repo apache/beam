@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.examples.streaming;
 
+import java.io.IOException;
+import java.util.List;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSocketSource;
 import org.apache.beam.sdk.Pipeline;
@@ -47,11 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
 import org.joda.time.Duration;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * To run the example, first open a socket on a terminal by executing the command:
@@ -98,7 +96,8 @@ public class AutoComplete {
 
               @ProcessElement
               public void processElement(ProcessContext c) {
-                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(), c.element().getValue());
+                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(),
+                    c.element().getValue());
                 c.output(cand);
               }
             }));
@@ -351,7 +350,7 @@ public class AutoComplete {
       StringBuilder str = new StringBuilder();
       KV<String, List<CompletionCandidate>> elem = c.element();
 
-      str.append(elem.getKey() +" @ "+ window +" -> ");
+      str.append(elem.getKey() + " @ " + window + " -> ");
       for (CompletionCandidate cand: elem.getValue()) {
         str.append(cand.toString() + " ");
       }

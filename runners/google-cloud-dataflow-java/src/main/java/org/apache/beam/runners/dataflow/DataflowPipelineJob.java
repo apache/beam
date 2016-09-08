@@ -19,17 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
-import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
-import org.apache.beam.runners.dataflow.internal.DataflowMetricUpdateExtractor;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -41,18 +30,23 @@ import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-
-import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
+import org.apache.beam.runners.dataflow.internal.DataflowMetricUpdateExtractor;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.MonitoringUtil;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A DataflowPipelineJob represents a job submitted to Dataflow using
@@ -99,14 +93,27 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * The polling interval for job status and messages information.
    */
-  static final long MESSAGES_POLLING_INTERVAL = TimeUnit.SECONDS.toMillis(2);
-  static final long STATUS_POLLING_INTERVAL = TimeUnit.SECONDS.toMillis(2);
+  static final Duration MESSAGES_POLLING_INTERVAL = Duration.standardSeconds(2);
+  static final Duration STATUS_POLLING_INTERVAL = Duration.standardSeconds(2);
+
+  static final double DEFAULT_BACKOFF_EXPONENT = 1.5;
 
   /**
-   * The amount of polling attempts for job status and messages information.
+   * The amount of polling retries for job status and messages information.
    */
-  static final int MESSAGES_POLLING_ATTEMPTS = 12;
-  static final int STATUS_POLLING_ATTEMPTS = 5;
+  static final int MESSAGES_POLLING_RETRIES = 11;
+  static final int STATUS_POLLING_RETRIES = 4;
+
+  private static final FluentBackoff MESSAGES_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(MESSAGES_POLLING_INTERVAL)
+          .withMaxRetries(MESSAGES_POLLING_RETRIES)
+          .withExponent(DEFAULT_BACKOFF_EXPONENT);
+  protected static final FluentBackoff STATUS_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(STATUS_POLLING_INTERVAL)
+          .withMaxRetries(STATUS_POLLING_RETRIES)
+          .withExponent(DEFAULT_BACKOFF_EXPONENT);
 
   /**
    * Constructs the job.
@@ -218,21 +225,23 @@ public class DataflowPipelineJob implements PipelineResult {
     MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowOptions.getDataflowClient());
 
     long lastTimestamp = 0;
-    BackOff backoff =
-        duration.getMillis() > 0
-            ? new AttemptAndTimeBoundedExponentialBackOff(
-                MESSAGES_POLLING_ATTEMPTS,
-                MESSAGES_POLLING_INTERVAL,
-                duration.getMillis(),
-                AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ATTEMPTS,
-                nanoClock)
-            : new AttemptBoundedExponentialBackOff(
-                MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL);
+    BackOff backoff;
+    if (!duration.isLongerThan(Duration.ZERO)) {
+      backoff = MESSAGES_BACKOFF_FACTORY.backoff();
+    } else {
+      backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff();
+    }
+
+    // This function tracks the cumulative time from the *first request* to enforce the wall-clock
+    // limit. Any backoff instance could, at best, track the the time since the first attempt at a
+    // given request. Thus, we need to track the cumulative time ourselves.
+    long startNanos = nanoClock.nanoTime();
+
     State state;
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      state = getStateWithRetries(1, sleeper);
+      state = getStateWithRetries(STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff(), sleeper);
       boolean hasError = state == State.UNKNOWN;
 
       if (messageHandler != null && !hasError) {
@@ -254,7 +263,16 @@ public class DataflowPipelineJob implements PipelineResult {
       }
 
       if (!hasError) {
+        // Reset the backoff.
         backoff.reset();
+        // If duration is set, update the new cumulative sleep time to be the remaining
+        // part of the total input sleep duration.
+        if (duration.isLongerThan(Duration.ZERO)) {
+          long nanosConsumed = nanoClock.nanoTime() - startNanos;
+          Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
+          backoff =
+              MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration.minus(consumed)).backoff();
+        }
         // Check if the job is done.
         if (state.isTerminal()) {
           return state;
@@ -271,9 +289,17 @@ public class DataflowPipelineJob implements PipelineResult {
     content.setProjectId(projectId);
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
-    dataflowOptions.getDataflowClient().projects().jobs()
-        .update(projectId, jobId, content)
-        .execute();
+    try {
+      dataflowOptions.getDataflowClient().projects().jobs()
+          .update(projectId, jobId, content)
+          .execute();
+    } catch (IOException e) {
+      String errorMsg = String.format(
+          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
+          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+      LOG.warn(errorMsg);
+      throw new IOException(errorMsg, e);
+    }
     return State.CANCELLED;
   }
 
@@ -283,7 +309,7 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
 
-    return getStateWithRetries(STATUS_POLLING_ATTEMPTS, Sleeper.DEFAULT);
+    return getStateWithRetries(STATUS_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
   }
 
   /**
@@ -295,7 +321,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * @return The state of the job or State.UNKNOWN in case of failure.
    */
   @VisibleForTesting
-  State getStateWithRetries(int attempts, Sleeper sleeper) {
+  State getStateWithRetries(BackOff attempts, Sleeper sleeper) {
     if (terminalState != null) {
       return terminalState;
     }
@@ -314,17 +340,13 @@ public class DataflowPipelineJob implements PipelineResult {
    * Attempts to get the underlying {@link Job}. Uses exponential backoff on failure up to the
    * maximum number of passed in attempts.
    *
-   * @param attempts The amount of attempts to make.
+   * @param backoff the {@link BackOff} used to control retries.
    * @param sleeper Object used to do the sleeps between attempts.
    * @return The underlying {@link Job} object.
    * @throws IOException When the maximum number of retries is exhausted, the last exception is
    * thrown.
    */
-  @VisibleForTesting
-  Job getJobWithRetries(int attempts, Sleeper sleeper) throws IOException {
-    AttemptBoundedExponentialBackOff backoff =
-        new AttemptBoundedExponentialBackOff(attempts, STATUS_POLLING_INTERVAL);
-
+  private Job getJobWithRetries(BackOff backoff, Sleeper sleeper) throws IOException {
     // Retry loop ends in return or throw
     while (true) {
       try {

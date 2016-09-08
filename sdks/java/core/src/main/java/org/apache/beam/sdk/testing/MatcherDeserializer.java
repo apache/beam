@@ -17,17 +17,14 @@
  */
 package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.util.SerializableUtils;
-
-import com.google.api.client.util.Base64;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
+import com.google.api.client.util.Base64;
 import java.io.IOException;
+import org.apache.beam.sdk.util.SerializableUtils;
 
 /**
  * MatcherDeserializer is used with Jackson to enable deserialization of SerializableMatchers.

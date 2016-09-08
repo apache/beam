@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-
 import org.junit.Test;
 
 /**

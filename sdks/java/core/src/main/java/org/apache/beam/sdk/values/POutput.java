@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.Collection;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-
-import java.util.Collection;
 
 /**
  * The interface for things that might be output from a {@link PTransform}.

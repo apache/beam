@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

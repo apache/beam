@@ -19,6 +19,24 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -37,27 +55,6 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 /**
  * Static utility methods that create combine function instances.
  */
@@ -70,7 +67,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre>{ @code
+   * <pre><code>
    * PCollection<KV<K, Integer>> latencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -78,7 +75,7 @@ public class CombineFns {
    *
    * SimpleFunction<Integer, Integer> identityFn =
    *     new SimpleFunction<Integer, Integer>() {
-   *       @Override
+   *      {@literal @}Override
    *       public Integer apply(Integer input) {
    *           return input;
    *       }};
@@ -90,8 +87,8 @@ public class CombineFns {
    *
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new OldDoFn<KV<K, CoCombineResult>, T>() {
-   *           @Override
+   *         new DoFn<KV<K, CoCombineResult>, T>() {
+   *          {@literal @}ProcessElement
    *           public void processElement(ProcessContext c) throws Exception {
    *             KV<K, CoCombineResult> e = c.element();
    *             Integer maxLatency = e.getValue().get(maxLatencyTag);
@@ -100,7 +97,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * } </pre>
+   * </code></pre>
    */
   public static ComposeKeyedCombineFnBuilder composeKeyed() {
     return new ComposeKeyedCombineFnBuilder();
@@ -113,7 +110,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre>{ @code
+   * <pre><code>
    * PCollection<Integer> globalLatencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -133,8 +130,8 @@ public class CombineFns {
    *
    * PCollection<T> finalResultCollection = maxAndMean
    *     .apply(ParDo.of(
-   *         new OldDoFn<CoCombineResult, T>() {
-   *           @Override
+   *         new DoFn<CoCombineResult, T>() {
+   *          {@literal @}ProcessElement
    *           public void processElement(ProcessContext c) throws Exception {
    *             CoCombineResult e = c.element();
    *             Integer maxLatency = e.get(maxLatencyTag);
@@ -143,7 +140,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * } </pre>
+   * </code></pre>
    */
   public static ComposeCombineFnBuilder compose() {
     return new ComposeCombineFnBuilder();

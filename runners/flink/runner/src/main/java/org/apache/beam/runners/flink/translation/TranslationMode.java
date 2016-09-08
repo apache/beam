@@ -18,14 +18,14 @@
 package org.apache.beam.runners.flink.translation;
 
 /**
- * The translation mode of the Beam Pipeline
+ * The translation mode of the Beam Pipeline.
  */
 public enum TranslationMode {
 
-  /** Uses the batch mode of Flink */
+  /** Uses the batch mode of Flink. */
   BATCH,
 
-  /** Uses the streaming mode of Flink */
+  /** Uses the streaming mode of Flink. */
   STREAMING
 
 }

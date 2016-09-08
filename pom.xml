@@ -105,10 +105,10 @@
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
     <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev30-1.22.0</dataflow.version>
+    <dataflow.version>v1b3-rev36-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
-    <datastore.client.version>1.0.0-beta.2</datastore.client.version>
-    <datastore.proto.version>1.0.0-beta</datastore.proto.version>
+    <datastore.client.version>1.1.0</datastore.client.version>
+    <datastore.proto.version>1.0.1</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.1</google-auto-value.version>
     <google-clients.version>1.22.0</google-clients.version>
@@ -450,13 +450,13 @@
 
       <dependency>
         <groupId>com.google.cloud.datastore</groupId>
-        <artifactId>datastore-v1beta3-proto-client</artifactId>
+        <artifactId>datastore-v1-proto-client</artifactId>
         <version>${datastore.client.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.google.cloud.datastore</groupId>
-        <artifactId>datastore-v1beta3-protos</artifactId>
+        <artifactId>datastore-v1-protos</artifactId>
         <version>${datastore.proto.version}</version>
       </dependency>
 
@@ -633,6 +633,8 @@
       </dependency>
 
       <dependency>
+        <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
+             excluding com.google.common.**.testing.* -->
         <groupId>com.google.guava</groupId>
         <artifactId>guava-testlib</artifactId>
         <version>${guava.version}</version>

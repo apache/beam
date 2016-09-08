@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
-import org.joda.time.Instant;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.joda.time.Instant;
 
 /**
  * Interface for interacting with time.

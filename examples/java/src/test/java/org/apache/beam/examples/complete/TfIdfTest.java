@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.complete;
 
+import java.net.URI;
+import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -27,14 +29,10 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.net.URI;
-import java.util.Arrays;
 
 /**
  * Tests of {@link TfIdf}.

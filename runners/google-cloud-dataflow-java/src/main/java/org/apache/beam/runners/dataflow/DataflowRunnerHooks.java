@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 import com.google.api.services.dataflow.model.Environment;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * An instance of this class can be passed to the

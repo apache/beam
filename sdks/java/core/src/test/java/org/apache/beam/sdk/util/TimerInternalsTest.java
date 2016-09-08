@@ -30,7 +30,6 @@ import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.TimerInternals.TimerDataCoder;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
-
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;

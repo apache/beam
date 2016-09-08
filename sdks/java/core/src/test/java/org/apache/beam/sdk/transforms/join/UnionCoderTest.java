@@ -19,17 +19,15 @@ package org.apache.beam.sdk.transforms.join;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.Serializer;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
 
 /**
  * Tests the UnionCoder.

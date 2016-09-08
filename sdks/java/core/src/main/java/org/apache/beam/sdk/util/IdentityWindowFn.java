@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -26,11 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A {@link WindowFn} that leaves all associations between elements and windows unchanged.

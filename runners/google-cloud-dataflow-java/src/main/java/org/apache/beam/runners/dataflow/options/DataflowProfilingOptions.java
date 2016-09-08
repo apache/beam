@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import java.util.HashMap;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
-
-import java.util.HashMap;
 
 /**
  * Options for controlling profiling of pipeline execution.

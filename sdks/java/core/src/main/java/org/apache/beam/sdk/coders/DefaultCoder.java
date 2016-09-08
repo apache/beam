@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.values.PCollection;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * The {@link DefaultCoder} annotation

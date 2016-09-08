@@ -23,15 +23,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.util.Transport;
-
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
@@ -55,7 +46,19 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.ImmutableList;
-
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.util.Transport;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,12 +67,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Tests for {@link BigQueryServicesImpl}.
@@ -120,9 +117,8 @@ public class BigQueryServicesImplTest {
     when(response.getContent()).thenReturn(toStream(testJob));
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
-    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+    JobServiceImpl.startJob(
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -144,9 +140,8 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
-    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+    JobServiceImpl.startJob(
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -172,9 +167,8 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(testJob));
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
-    BackOff backoff = new AttemptBoundedExponentialBackOff(
-        5 /* attempts */, 1000 /* initialIntervalMillis */);
-    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+    JobServiceImpl.startJob(
+        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
 
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();

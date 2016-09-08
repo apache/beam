@@ -23,8 +23,8 @@ import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
@@ -33,6 +33,34 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -58,9 +86,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.ImmutableList;
-
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -74,27 +100,6 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.channels.FileChannel;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import javax.annotation.Nullable;
-
 /**
  * Tests for TextIO Read and Write transforms.
  */
@@ -102,8 +107,14 @@ import javax.annotation.Nullable;
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
-  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
-  @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  private static final String MY_HEADER = "myHeader";
+  private static final String MY_FOOTER = "myFooter";
+
+  @Rule
+  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   @BeforeClass
   public static void setupClass() {
@@ -166,7 +177,7 @@ public class TextIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadNulls() throws Exception {
-    runTestRead(new Void[]{ null, null, null }, VoidCoder.of());
+    runTestRead(new Void[]{null, null, null}, VoidCoder.of());
   }
 
   @Test
@@ -209,16 +220,25 @@ public class TextIOTest {
         .from("foobar")
         .withoutValidation();
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("TextIO.Read should include the file prefix in its primitive display data",
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
-    runTestWrite(elems, coder, 1);
+    runTestWrite(elems, null, null, coder, 1);
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
+    runTestWrite(elems, null, null, coder, numShards);
+  }
+
+  <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer) throws Exception {
+    runTestWrite(elems, header, footer, coder, 1);
+  }
+
+  <T> void runTestWrite(T[] elems, String header, String footer, Coder<T> coder, int numShards)
+      throws Exception {
     String outputName = "file.txt";
     String baseFilename = tmpFolder.newFile(outputName).getPath();
 
@@ -234,6 +254,8 @@ public class TextIOTest {
     } else {
       write = TextIO.Write.to(baseFilename).withCoder(coder);
     }
+    write = write.withHeader(header).withFooter(footer);
+
     if (numShards == 1) {
       write = write.withoutSharding();
     } else if (numShards > 0) {
@@ -243,11 +265,14 @@ public class TextIOTest {
 
     p.run();
 
-    assertOutputFiles(elems, coder, numShards, tmpFolder, outputName, write.getShardNameTemplate());
+    assertOutputFiles(elems, header, footer, coder, numShards, tmpFolder, outputName,
+        write.getShardNameTemplate());
   }
 
   public static <T> void assertOutputFiles(
       T[] elems,
+      final String header,
+      final String footer,
       Coder<T> coder,
       int numShards,
       TemporaryFolder rootLocation,
@@ -270,28 +295,73 @@ public class TextIOTest {
       }
     }
 
-    List<String> actual = new ArrayList<>();
+    List<List<String>> actual = new ArrayList<>();
+
     for (File tmpFile : expectedFiles) {
       try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+        List<String> currentFile = Lists.newArrayList();
         for (;;) {
           String line = reader.readLine();
           if (line == null) {
             break;
           }
-          actual.add(line);
+          currentFile.add(line);
         }
+        actual.add(currentFile);
       }
     }
 
-    String[] expected = new String[elems.length];
+    LinkedList<String> expectedElements = Lists.newLinkedList();
+
     for (int i = 0; i < elems.length; i++) {
       T elem = elems[i];
       byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
       String line = new String(encodedElem);
-      expected[i] = line;
+      expectedElements.add(line);
     }
 
-    assertThat(actual, containsInAnyOrder(expected));
+    ArrayList<String> actualElements =
+        Lists.newArrayList(
+            Iterables.concat(
+                FluentIterable
+                    .from(actual)
+                    .transform(removeHeaderAndFooter(header, footer))
+                    .toList()));
+
+    assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
+
+    assertTrue(Iterables.all(actual, haveProperHeaderAndFooter(header, footer)));
+  }
+
+  private static Function<List<String>, List<String>> removeHeaderAndFooter(final String header,
+                                                                            final String footer) {
+    return new Function<List<String>, List<String>>() {
+      @Nullable
+      @Override
+      public List<String> apply(List<String> lines) {
+        ArrayList<String> newLines = Lists.newArrayList(lines);
+        if (header != null) {
+          newLines.remove(0);
+        }
+        if (footer != null) {
+          int last = newLines.size() - 1;
+          newLines.remove(last);
+        }
+        return newLines;
+      }
+    };
+  }
+
+  private static Predicate<List<String>> haveProperHeaderAndFooter(final String header,
+                                                                   final String footer) {
+    return new Predicate<List<String>>() {
+      @Override
+      public boolean apply(List<String> fileLines) {
+        int last = fileLines.size() - 1;
+        return (header == null || fileLines.get(0).equals(header))
+            && (footer == null || fileLines.get(last).equals(footer));
+      }
+    };
   }
 
   @Test
@@ -331,18 +401,40 @@ public class TextIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithHeader() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), MY_HEADER, null);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithFooter() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), null, MY_FOOTER);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithHeaderAndFooter() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), MY_HEADER, MY_FOOTER);
+  }
+
+  @Test
   public void testWriteDisplayData() {
     TextIO.Write.Bound<?> write = TextIO.Write
         .to("foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
+        .withFooter("myFooter")
+        .withHeader("myHeader")
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
+    assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
+    assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
@@ -419,30 +511,203 @@ public class TextIOTest {
     assertEquals(CompressionType.GZIP, read.getCompressionType());
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCompressedRead() throws Exception {
-    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-    File tmpFile = tmpFolder.newFile();
-    String filename = tmpFile.getPath();
-
-    List<String> expected = new ArrayList<>();
-    try (PrintStream writer =
-        new PrintStream(new GZIPOutputStream(new FileOutputStream(tmpFile)))) {
+  /**
+   * Helper that writes the given lines (adding a newline in between) to a stream, then closes the
+   * stream.
+   */
+  private static void writeToStreamAndClose(String[] lines, OutputStream outputStream) {
+    try (PrintStream writer = new PrintStream(outputStream)) {
       for (String line : lines) {
         writer.println(line);
-        expected.add(line);
       }
     }
+  }
 
+  /**
+   * Helper method that runs TextIO.Read.from(filename).withCompressionType(compressionType)
+   * and asserts that the results match the given expected output.
+   */
+  private static void assertReadingCompressedFileMatchesExpected(
+      String filename, CompressionType compressionType, String[] expected) {
     Pipeline p = TestPipeline.create();
-
     TextIO.Read.Bound<String> read =
-        TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
+        TextIO.Read.from(filename).withCompressionType(compressionType);
     PCollection<String> output = p.apply(read);
 
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
+  }
+
+  /**
+   * Helper to make an array of compressible strings. Returns ["word"i] for i in range(0,n).
+   */
+  private static String[] makeLines(int n) {
+    String[] ret = new String[n];
+    for (int i = 0; i < n; ++i) {
+      ret[i] = "word" + i;
+    }
+    return ret;
+  }
+
+  /**
+   * Tests reading from a small, gzipped file with no .gz extension but GZIP compression set.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSmallCompressedGzipReadNoExtension() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile(); // no GZ extension
+    String filename = tmpFile.getPath();
+
+    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(tmpFile)));
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.GZIP, lines);
+  }
+
+  /**
+   * Tests reading from a small, gzipped file with .gz extension and AUTO or GZIP compression set.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSmallCompressedGzipRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile("small_gzip.gz");
+    String filename = tmpFile.getPath();
+
+    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(tmpFile)));
+    // Should work in AUTO mode.
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.AUTO, lines);
+    // Should work in GZIP mode.
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.GZIP, lines);
+  }
+
+  /**
+   * Tests reading from a small, uncompressed file with .gz extension.
+   * This must work in AUTO or GZIP modes. This is needed because some network file systems / HTTP
+   * clients will transparently decompress gzipped content.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSmallCompressedGzipReadActuallyUncompressed() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile("not_really_gzipped.gz"); // GZ file extension lies
+    String filename = tmpFile.getPath();
+
+    writeToStreamAndClose(lines, new FileOutputStream(tmpFile));
+    // Should work with GZIP compression set.
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.GZIP, lines);
+    // Should also work with AUTO mode set.
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.AUTO, lines);
+  }
+
+  /**
+   * Tests reading from a small, bzip2ed file with no .bz2 extension but BZIP2 compression set.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSmallCompressedBzip2ReadNoExtension() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile(); // no BZ2 extension
+    String filename = tmpFile.getPath();
+
+    writeToStreamAndClose(lines, new BZip2CompressorOutputStream(new FileOutputStream(tmpFile)));
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.BZIP2, lines);
+  }
+
+  /**
+   * Tests reading from a small, bzip2ed file with .bz2 extension and AUTO or BZIP2 compression set.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSmallCompressedBzipRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile("small_bzip2.bz2");
+    String filename = tmpFile.getPath();
+
+    writeToStreamAndClose(lines, new BZip2CompressorOutputStream(new FileOutputStream(tmpFile)));
+    // Should work in AUTO mode.
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.AUTO, lines);
+    // Should work in BZIP2 mode.
+    assertReadingCompressedFileMatchesExpected(filename, CompressionType.BZIP2, lines);
+  }
+
+  /**
+   * Tests reading from a large, bzip2ed file with .bz2 extension and AUTO or BZIP2 compression set.
+   * It is important to test a large compressible file because using only small files may mask bugs
+   * from range tracking that can only occur if the file compression ratio is high -- small
+   * compressed files are usually as big as the uncompressed ones or bigger.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testLargeCompressedBzipRead() throws Exception {
+    String[] lines = makeLines(5000);
+    File bz2File = tmpFolder.newFile("large_bzip2.bz2");
+    String bz2Filename = bz2File.getPath();
+
+    writeToStreamAndClose(lines, new BZip2CompressorOutputStream(new FileOutputStream(bz2File)));
+    // Should work in AUTO mode.
+    assertReadingCompressedFileMatchesExpected(bz2Filename, CompressionType.AUTO, lines);
+    // Should work in BZIP2 mode.
+    assertReadingCompressedFileMatchesExpected(bz2Filename, CompressionType.BZIP2, lines);
+
+    // Confirm that the compressed file is smaller than the uncompressed file.
+    File txtFile = tmpFolder.newFile("large_bzip2.txt");
+    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
+    assertThat(Files.size(txtFile.toPath()), greaterThan(Files.size(bz2File.toPath())));
+  }
+
+  /**
+   * Tests reading from a large, gzipped file with .gz extension and AUTO or GZIP compression set.
+   * It is important to test a large compressible file because using only small files may mask bugs
+   * from range tracking that can only occur if the file compression ratio is high -- small
+   * compressed files are usually as big as the uncompressed ones or bigger.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testLargeCompressedGzipRead() throws Exception {
+    String[] lines = makeLines(5000);
+    File gzFile = tmpFolder.newFile("large_gzip.gz");
+    String gzFilename = gzFile.getPath();
+
+    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(gzFile)));
+    // Should work in AUTO mode.
+    assertReadingCompressedFileMatchesExpected(gzFilename, CompressionType.AUTO, lines);
+    // Should work in BZIP2 mode.
+    assertReadingCompressedFileMatchesExpected(gzFilename, CompressionType.GZIP, lines);
+
+    // Confirm that the compressed file is smaller than the uncompressed file.
+    File txtFile = tmpFolder.newFile("large_gzip.txt");
+    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
+    assertThat(Files.size(txtFile.toPath()), greaterThan(Files.size(gzFile.toPath())));
+  }
+
+  /**
+   * Tests reading from a large, uncompressed file.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testLargeUncompressedReadTxt() throws Exception {
+    String[] lines = makeLines(5000);
+    File txtFile = tmpFolder.newFile("large_file.txt");
+    String txtFilename = txtFile.getPath();
+
+    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
+    // Should work in AUTO mode.
+    assertReadingCompressedFileMatchesExpected(txtFilename, CompressionType.AUTO, lines);
+  }
+
+  /**
+   * Tests reading from a large, uncompressed file with a weird file extension.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testLargeUncompressedReadWeirdExtension() throws Exception {
+    String[] lines = makeLines(5000);
+    File txtFile = tmpFolder.newFile("large_file.bin.data.foo");
+    String txtFilename = txtFile.getPath();
+
+    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
+    // Should work in AUTO mode.
+    assertReadingCompressedFileMatchesExpected(txtFilename, CompressionType.AUTO, lines);
   }
 
   /**
@@ -553,7 +818,7 @@ public class TextIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testZipCompressedReadWithEmptyEntry() throws Exception {
-    String filename = createZipFile(new ArrayList<String>(), null, new String[]{ });
+    String filename = createZipFile(new ArrayList<String>(), null, new String[]{});
 
     Pipeline p = TestPipeline.create();
 
@@ -571,9 +836,9 @@ public class TextIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testZipCompressedReadWithMultiEntriesFile() throws Exception {
-    String[] entry0 = new String[]{ "first", "second", "three" };
-    String[] entry1 = new String[]{ "four", "five", "six" };
-    String[] entry2 = new String[]{ "seven", "eight", "nine" };
+    String[] entry0 = new String[]{"first", "second", "three"};
+    String[] entry1 = new String[]{"four", "five", "six"};
+    String[] entry2 = new String[]{"seven", "eight", "nine"};
 
     List<String> expected = new ArrayList<>();
 
@@ -599,10 +864,10 @@ public class TextIOTest {
     String filename = createZipFile(
         new ArrayList<String>(),
         null,
-        new String[] {"cat"},
-        new String[] {},
-        new String[] {},
-        new String[] {"dog"});
+        new String[]{"cat"},
+        new String[]{},
+        new String[]{},
+        new String[]{"dog"});
     List<String> expected = ImmutableList.of("cat", "dog");
 
     Pipeline p = TestPipeline.create();
@@ -611,30 +876,6 @@ public class TextIOTest {
         p.apply(TextIO.Read.from(filename).withCompressionType(CompressionType.ZIP));
     PAssert.that(output).containsInAnyOrder(expected);
 
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testGZIPReadWhenUncompressed() throws Exception {
-    String[] lines = {"Meritorious condor", "Obnoxious duck"};
-    File tmpFile = tmpFolder.newFile();
-    String filename = tmpFile.getPath();
-
-    List<String> expected = new ArrayList<>();
-    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
-      for (String line : lines) {
-        writer.println(line);
-        expected.add(line);
-      }
-    }
-
-    Pipeline p = TestPipeline.create();
-    TextIO.Read.Bound<String> read =
-        TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
-    PCollection<String> output = p.apply(read);
-
-    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 

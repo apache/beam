@@ -26,8 +26,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-import org.apache.flink.runtime.client.JobExecutionException;
-
+/**
+ * Test Flink runner.
+ */
 public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   private FlinkRunner delegate;
@@ -39,7 +40,8 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   }
 
   public static TestFlinkRunner fromOptions(PipelineOptions options) {
-    FlinkPipelineOptions flinkOptions = PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
+    FlinkPipelineOptions flinkOptions =
+        PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
     return new TestFlinkRunner(flinkOptions);
   }
 
@@ -52,21 +54,32 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT,OutputT> transform, InputT input) {
+      OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
     return delegate.apply(transform, input);
   }
 
   @Override
   public FlinkRunnerResult run(Pipeline pipeline) {
     try {
-      return delegate.run(pipeline);
-    } catch (RuntimeException e) {
+      FlinkRunnerResult result = delegate.run(pipeline);
+
+      return result;
+    } catch (Throwable e) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.
-      if (e.getCause() != null
-          && e.getCause() instanceof JobExecutionException
-          && e.getCause().getCause() instanceof AssertionError) {
-          throw (AssertionError) e.getCause().getCause();
+      Throwable cause = e;
+      Throwable oldCause = e;
+      do {
+        if (cause.getCause() == null) {
+          break;
+        }
+
+        oldCause = cause;
+        cause = cause.getCause();
+
+      } while (!oldCause.equals(cause));
+      if (cause instanceof AssertionError) {
+        throw (AssertionError) cause;
       } else {
         throw e;
       }

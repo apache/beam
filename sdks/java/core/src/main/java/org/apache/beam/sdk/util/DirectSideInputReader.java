@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 
 /**
  * Basic side input reader wrapping a {@link PTuple} of side input iterables. Encapsulates

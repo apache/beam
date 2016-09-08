@@ -24,12 +24,11 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.joda.time.Instant;
 
 /**
  * A {@link OldDoFn} that does nothing with provided elements. Used for testing
- * methods provided by the OldDoFn abstract class.
+ * methods provided by the {@link OldDoFn} abstract class.
  *
  * @param <InputT> unused.
  * @param <OutputT> unused.

@@ -19,16 +19,18 @@ package org.apache.beam.sdk.io.hdfs;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.api.client.util.Maps;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,11 +48,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 
 /**
  * A {@code Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output

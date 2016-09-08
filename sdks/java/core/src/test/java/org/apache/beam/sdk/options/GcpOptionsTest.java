@@ -18,31 +18,27 @@
 package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.apache.beam.sdk.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.NoopPathValidator;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 /** Tests for {@link GcpOptions}. */
 @RunWith(JUnit4.class)

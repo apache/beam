@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -24,13 +29,6 @@ import org.apache.beam.sdk.transforms.AggregatorRetriever;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.SetMultimap;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * Retrieves {@link Aggregator Aggregators} at each {@link ParDo} and returns a {@link Map} of

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.io.Serializable;
+import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -27,7 +29,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -35,9 +36,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Collections;
 
 /**
  * Tests for {@link ImmutabilityEnforcementFactory}.

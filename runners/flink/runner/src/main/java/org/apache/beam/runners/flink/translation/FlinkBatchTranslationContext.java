@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,20 +31,16 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Helper for {@link FlinkBatchPipelineTranslator} and translators in
  * {@link FlinkBatchTransformTranslators}.
  */
 public class FlinkBatchTranslationContext {
-  
+
   private final Map<PValue, DataSet<?>> dataSets;
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 
@@ -57,9 +55,9 @@ public class FlinkBatchTranslationContext {
   private final PipelineOptions options;
 
   private AppliedPTransform<?, ?, ?> currentTransform;
-  
+
   // ------------------------------------------------------------------------
-  
+
   public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
     this.env = env;
     this.options = options;
@@ -68,7 +66,7 @@ public class FlinkBatchTranslationContext {
 
     this.danglingDataSets = new HashMap<>();
   }
-  
+
   // ------------------------------------------------------------------------
 
   public Map<PValue, DataSet<?>> getDanglingDataSets() {
@@ -82,7 +80,7 @@ public class FlinkBatchTranslationContext {
   public PipelineOptions getPipelineOptions() {
     return options;
   }
-  
+
   @SuppressWarnings("unchecked")
   public <T> DataSet<WindowedValue<T>> getInputDataSet(PValue value) {
     // assume that the DataSet is used as an input if retrieved here

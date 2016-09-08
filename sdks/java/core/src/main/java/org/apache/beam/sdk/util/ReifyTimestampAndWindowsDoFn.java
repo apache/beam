@@ -21,8 +21,8 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * OldDoFn that makes timestamps and window assignments explicit in the value part of each key/value
- * pair.
+ * {@link OldDoFn} that makes timestamps and window assignments explicit in the value part of each
+ * key/value pair.
  *
  * @param <K> the type of the keys of the input and output {@code PCollection}s
  * @param <V> the type of the values of the input {@code PCollection}

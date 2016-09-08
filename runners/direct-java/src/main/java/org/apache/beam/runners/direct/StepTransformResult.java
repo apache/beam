@@ -17,6 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -24,17 +30,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-
-import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.Set;
-
-import javax.annotation.Nullable;
 
 /**
  * An immutable {@link TransformResult}.

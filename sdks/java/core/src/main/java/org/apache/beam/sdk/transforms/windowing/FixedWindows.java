@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.Objects;
 
 /**
  * A {@link WindowFn} that windows values into fixed-size timestamp-based windows.

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.TextIO;
@@ -38,13 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableRow;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.List;
 
 /**
  * An example that reads Wikipedia edit data from Cloud Storage and computes the user with
@@ -55,19 +52,15 @@ import java.util.List;
  * <p>It is not recommended to execute this pipeline locally, given the size of the default input
  * data.
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using a selected runner and an output prefix on GCS, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
+ *   --output=gs://YOUR_OUTPUT_PREFIX
  * }
  * </pre>
- * and an output prefix on GCS:
- * <pre>{@code
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The default input is {@code gs://dataflow-samples/wikipedia_edits/*.json} and can be
+ * <p>The default input is {@code gs://apache-beam-samples/wikipedia_edits/*.json} and can be
  * overridden with {@code --input}.
  *
  * <p>The input for this example is large enough that it's a good place to enable (experimental)
@@ -80,7 +73,8 @@ import java.util.List;
  * This will automatically scale the number of workers up over time until the job completes.
  */
 public class TopWikipediaSessions {
-  private static final String EXPORTED_WIKI_TABLE = "gs://dataflow-samples/wikipedia_edits/*.json";
+  private static final String EXPORTED_WIKI_TABLE =
+      "gs://apache-beam-samples/wikipedia_edits/*.json";
 
   /**
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
@@ -184,7 +178,7 @@ public class TopWikipediaSessions {
   /**
    * Options supported by this class.
    *
-   * <p>Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Beam configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description(

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.options;
 
 import com.google.auto.service.AutoService;
-
 import java.util.ServiceLoader;
 
 /**

@@ -19,6 +19,13 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 
+import com.google.api.client.util.BackOff;
+import com.google.common.util.concurrent.Uninterruptibles;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -27,22 +34,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.IntervalBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ValueWithRecordId;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
-
-import com.google.api.client.util.BackOff;
-import com.google.common.util.concurrent.Uninterruptibles;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -51,10 +48,14 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Created by {@link Read}.
  */
-class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T>> {
+class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;
   private final long maxNumRecords;
   private final Duration maxReadTime;
+  private static final FluentBackoff BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(Duration.millis(10))
+          .withMaxBackoff(Duration.standardSeconds(10));
 
   /**
    * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
@@ -85,7 +86,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
   }
 
   @Override
-  public PCollection<T> apply(PInput input) {
+  public PCollection<T> apply(PBegin input) {
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
         Read.from(new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime)));
     if (source.requiresDeduping()) {
@@ -244,7 +245,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
 
       private boolean advanceWithBackoff() throws IOException {
         // Try reading from the source with exponential backoff
-        BackOff backoff = new IntervalBoundedExponentialBackOff(10000L, 10L);
+        BackOff backoff = BACKOFF_FACTORY.backoff();
         long nextSleep = backoff.nextBackOffMillis();
         while (nextSleep != BackOff.STOP) {
           if (endTime != null && Instant.now().isAfter(endTime)) {
