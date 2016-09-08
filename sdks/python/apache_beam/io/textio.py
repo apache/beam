@@ -34,20 +34,23 @@ class _TextSource(filebasedsource.FileBasedSource):
   '\n' and '\r\n.
 
   This implementation only supports reading text encoded using UTF-8 or
-  ASCII. This has not been tested for other encodings such as UTF-16 or UTF-32.
+  ASCII.
   """
 
-  READ_BUFFER_SIZE = 8192
+  DEFAULT_READ_BUFFER_SIZE = 8192
 
   def __init__(self, file_pattern, min_bundle_size,
-               compression_type, strip_trailing_newlines, coder):
-    super(_TextSource, self).__init__(file_pattern, min_bundle_size)
+               compression_type, strip_trailing_newlines, coder,
+               buffer_size=DEFAULT_READ_BUFFER_SIZE):
+    super(_TextSource, self).__init__(file_pattern, min_bundle_size,
+                                      compression_type=compression_type)
     self._buffer = ''
     self._next_position_in_buffer = 0
     self._file = None
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type
     self._coder = coder
+    self._buffer_size = buffer_size
 
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
@@ -100,26 +103,23 @@ class _TextSource(filebasedsource.FileBasedSource):
         if not self._try_to_ensure_num_bytes_in_buffer(current_pos + 1):
           return
 
-      if self._buffer[current_pos] == '\n':
-        # Found '\n'.
-        return (current_pos, current_pos + 1)
-      elif self._buffer[current_pos] == '\r':
-        # Ensuring that there are enough bytes to determine if there is a '\r\n'
-        # at current_pos.
-        if not self._try_to_ensure_num_bytes_in_buffer(current_pos + 2):
-          return
-        if self._buffer[current_pos + 1] == '\n':
-          # Found '\r\n'.
-          return (current_pos, current_pos + 2)
-      else:
-        current_pos += 1
+      # Using find() here is more efficient than a linear scan of the byte
+      # array.
+      next_lf = self._buffer.find('\n', current_pos)
+      if next_lf >= 0:
+        if self._buffer[next_lf - 1] == '\r':
+          return (next_lf - 1, next_lf + 1)
+        else:
+          return (next_lf, next_lf + 1)
+
+      current_pos = len(self._buffer)
 
   def _try_to_ensure_num_bytes_in_buffer(self, num_bytes):
     # Tries to ensure that there are at least num_bytes bytes in the buffer.
-    # Returns True of this can be fulfilled, returned False if this cannot be
+    # Returns True if this can be fulfilled, returned False if this cannot be
     # fulfilled due to reaching EOF.
     while len(self._buffer) < num_bytes:
-      read_data = self._file.read(_TextSource.READ_BUFFER_SIZE)
+      read_data = self._file.read(self._buffer_size)
       if not read_data:
         return False
 
@@ -130,9 +130,9 @@ class _TextSource(filebasedsource.FileBasedSource):
   def _read_record(self):
     # Returns a tuple containing the current_record and number of bytes to the
     # next record starting from 'self._next_position_in_buffer'. If EOF is
-    # reached, returns a a tuple containing the current record and -1.
+    # reached, returns a tuple containing the current record and -1.
 
-    if self._next_position_in_buffer > _TextSource.READ_BUFFER_SIZE:
+    if self._next_position_in_buffer > self._buffer_size:
       # Buffer is too large. Truncating it and adjusting
       # self._next_position_in_buffer.
       self._buffer = self._buffer[self._next_position_in_buffer:]

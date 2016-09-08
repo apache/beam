@@ -46,43 +46,63 @@ from apache_beam.transforms.util import equal_to
 
 class TextSourceTest(unittest.TestCase):
 
-  def _run_read_test(self, file_or_pattern, expected_data):
+  # Number of records that will be written by most tests.
+  DEFAULT_NUM_RECORDS = 100
+
+  def _run_read_test(self, file_or_pattern, expected_data,
+                     buffer_size=DEFAULT_NUM_RECORDS):
+    # Since each record usually takes more than 1 byte, default buffer size is
+    # smaller than the total size of the file. This is done to
+    # increase test coverage for cases that hit the buffer boundary.
     source = TextSource(file_or_pattern, 0, CompressionTypes.NO_COMPRESSION,
-                        True, coders.StrUtf8Coder())
+                        True, coders.StrUtf8Coder(), buffer_size)
     range_tracker = source.get_range_tracker(None, None)
     read_data = [record for record in source.read(range_tracker)]
     self.assertItemsEqual(expected_data, read_data)
 
   def test_read_single_file(self):
-    file_name, expected_data = write_data(5)
-    assert len(expected_data) == 5
+    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
-  def test_read_single_file_exceeding_buffer(self):
-    file_name, expected_data = write_data(
-        TextSource.READ_BUFFER_SIZE)
-    assert len(expected_data) == TextSource.READ_BUFFER_SIZE
-    self._run_read_test(file_name, expected_data)
+  def test_read_single_file_smaller_than_default_buffer(self):
+    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
+    self._run_read_test(file_name, expected_data,
+                        buffer_size=TextSource.DEFAULT_READ_BUFFER_SIZE)
+
+  def test_read_single_file_larger_than_default_buffer(self):
+    file_name, expected_data = write_data(TextSource.DEFAULT_READ_BUFFER_SIZE)
+    self._run_read_test(file_name, expected_data,
+                        buffer_size=TextSource.DEFAULT_READ_BUFFER_SIZE)
 
   def test_read_file_pattern(self):
-    pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
-    assert len(expected_data) == 40
+    pattern, expected_data = write_pattern(
+        [TextSourceTest.DEFAULT_NUM_RECORDS * 5,
+         TextSourceTest.DEFAULT_NUM_RECORDS * 3,
+         TextSourceTest.DEFAULT_NUM_RECORDS * 12,
+         TextSourceTest.DEFAULT_NUM_RECORDS * 8,
+         TextSourceTest.DEFAULT_NUM_RECORDS * 8,
+         TextSourceTest.DEFAULT_NUM_RECORDS * 4])
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS * 40
     self._run_read_test(pattern, expected_data)
 
   def test_read_single_file_windows_eol(self):
-    file_name, expected_data = write_data(5, eol=EOL.CRLF)
-    assert len(expected_data) == 5
+    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
+                                          eol=EOL.CRLF)
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
   def test_read_single_file_mixed_eol(self):
-    file_name, expected_data = write_data(5, eol=EOL.MIXED)
-    assert len(expected_data) == 5
+    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
+                                          eol=EOL.MIXED)
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
   def test_read_single_file_last_line_no_eol(self):
     file_name, expected_data = write_data(
-        5, eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
-    assert len(expected_data) == 5
+        TextSourceTest.DEFAULT_NUM_RECORDS,
+        eol=EOL.LF_WITH_NOTHING_AT_LAST_LINE)
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
   def test_read_single_file_single_line_no_eol(self):
@@ -104,17 +124,19 @@ class TextSourceTest(unittest.TestCase):
 
   def test_read_single_file_with_empty_lines(self):
     file_name, expected_data = write_data(
-        5, no_data=True, eol=EOL.LF)
+        TextSourceTest.DEFAULT_NUM_RECORDS, no_data=True, eol=EOL.LF)
 
-    assert len(expected_data) == 5
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     assert not expected_data[0]
 
     self._run_read_test(file_name, expected_data)
 
   def test_read_single_file_without_striping_eol_lf(self):
-    file_name, written_data = write_data(5, eol=EOL.LF)
-    assert len(written_data) == 5
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION,
+    file_name, written_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
+                                         eol=EOL.LF)
+    assert len(written_data) == TextSourceTest.DEFAULT_NUM_RECORDS
+    source = TextSource(file_name, 0,
+                        CompressionTypes.NO_COMPRESSION,
                         False, coders.StrUtf8Coder())
 
     range_tracker = source.get_range_tracker(None, None)
@@ -122,8 +144,9 @@ class TextSourceTest(unittest.TestCase):
     self.assertItemsEqual([line + '\n' for line in written_data], read_data)
 
   def test_read_single_file_without_striping_eol_crlf(self):
-    file_name, written_data = write_data(5, eol=EOL.CRLF)
-    assert len(written_data) == 5
+    file_name, written_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
+                                         eol=EOL.CRLF)
+    assert len(written_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION,
                         False, coders.StrUtf8Coder())
 
@@ -132,8 +155,15 @@ class TextSourceTest(unittest.TestCase):
     self.assertItemsEqual([line + '\r\n' for line in written_data], read_data)
 
   def test_read_file_pattern_with_empty_files(self):
-    pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4], no_data=True)
-    assert len(expected_data) == 40
+    pattern, expected_data = write_pattern(
+        [5 * TextSourceTest.DEFAULT_NUM_RECORDS,
+         3 * TextSourceTest.DEFAULT_NUM_RECORDS,
+         12 * TextSourceTest.DEFAULT_NUM_RECORDS,
+         8 * TextSourceTest.DEFAULT_NUM_RECORDS,
+         8 * TextSourceTest.DEFAULT_NUM_RECORDS,
+         4 * TextSourceTest.DEFAULT_NUM_RECORDS],
+        no_data=True)
+    assert len(expected_data) == 40 * TextSourceTest.DEFAULT_NUM_RECORDS
     assert not expected_data[0]
     self._run_read_test(pattern, expected_data)
 
@@ -228,6 +258,69 @@ class TextSourceTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectPipelineRunner')
     pcoll = pipeline | 'Read' >> ReadFromText(pattern)
     assert_that(pcoll, equal_to(expected_data))
+    pipeline.run()
+
+  def test_read_gzip(self):
+    _, lines = write_data(15)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder())
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_gzip_large(self):
+    _, lines = write_data(10000)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder())
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_gzip_large_after_splitting(self):
+    _, lines = write_data(10000)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    source = TextSource(file_name, 0, CompressionTypes.GZIP, True,
+                        coders.StrUtf8Coder())
+    splits = [split for split in source.split(desired_bundle_size=1000)]
+
+    if len(splits) > 1:
+      raise ValueError('FileBasedSource generated more than one initial split'
+                       'for a compressed file.')
+
+    reference_source_info = (source, None, None)
+    sources_info = ([
+        (split.source, split.start_position, split.stop_position) for
+        split in splits])
+    source_test_utils.assertSourcesEqualReferenceSource(
+        reference_source_info, sources_info)
+
+  def test_read_gzip_empty_file(self):
+    filename = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        filename,
+        0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder())
+    assert_that(pcoll, equal_to([]))
     pipeline.run()
 
 

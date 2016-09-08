@@ -101,7 +101,7 @@ def _write_prepared_data(data, directory=None, prefix=tempfile.template):
     return f.name
 
 
-def _write_prepared_pattern(data):
+def write_prepared_pattern(data):
   temp_dir = tempfile.mkdtemp()
   for d in data:
     file_name = _write_prepared_data(d, temp_dir, prefix='mytemp')
@@ -362,7 +362,7 @@ class TestFileBasedSource(unittest.TestCase):
           zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, zlib.MAX_WBITS)
       compressed_chunks.append(
           compressobj.compress('\n'.join(c)) + compressobj.flush())
-    file_pattern = _write_prepared_pattern(compressed_chunks)
+    file_pattern = write_prepared_pattern(compressed_chunks)
     pipeline = beam.Pipeline('DirectPipelineRunner')
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,

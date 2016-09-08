@@ -118,7 +118,7 @@ class FileBasedSource(iobase.BoundedSource):
                   decompressing the whole file.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
-                string.
+                 string.
       ValueError: when compression and splittable files are specified.
     """
     if not isinstance(file_pattern, basestring):
@@ -166,7 +166,7 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       return fileio._CompressedFile(  # pylint: disable=protected-access
           fileobj=raw_file,
-          compression_type=self.compression_type)
+          compression_type=self._compression_type)
 
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):
@@ -232,13 +232,15 @@ class _SingleFileSource(iobase.BoundedSource):
     if not (isinstance(start_offset, int) or isinstance(start_offset, long)):
       raise ValueError(
           'start_offset must be a number. Received: %r', start_offset)
-    if not (isinstance(stop_offset, int) or isinstance(stop_offset, long)):
-      raise ValueError(
-          'stop_offset must be a number. Received: %r', stop_offset)
-    if start_offset >= stop_offset:
-      raise ValueError(
-          'start_offset must be smaller than stop_offset. Received %d and %d '
-          'for start and stop offsets respectively', start_offset, stop_offset)
+    if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
+      if not (isinstance(stop_offset, int) or isinstance(stop_offset, long)):
+        raise ValueError(
+            'stop_offset must be a number. Received: %r', stop_offset)
+      if start_offset >= stop_offset:
+        raise ValueError(
+            'start_offset must be smaller than stop_offset. Received %d and %d '
+            'for start and stop offsets respectively',
+            start_offset, stop_offset)
 
     self._file_name = file_name
     self._is_gcs_file = file_name.startswith('gs://') if file_name else False
@@ -262,7 +264,7 @@ class _SingleFileSource(iobase.BoundedSource):
         yield iobase.SourceBundle(
             bundle_stop - bundle_start,
             _SingleFileSource(
-                # Copying this so that each sub-source get's a fresh instance.
+                # Copying this so that each sub-source gets a fresh instance.
                 pickler.loads(pickler.dumps(self._file_based_source)),
                 self._file_name,
                 bundle_start,
@@ -272,17 +274,21 @@ class _SingleFileSource(iobase.BoundedSource):
             bundle_stop)
         bundle_start = bundle_stop
     else:
+      # Returning a single sub-source with end offset set to OFFSET_INFINITY (so
+      # that all data of the source gets read) since this source is
+      # unsplittable. Choosing size of the file as end offset will be wrong for
+      # certain unsplittable source, e.g., compressed sources.
       yield iobase.SourceBundle(
           stop_offset - start_offset,
           _SingleFileSource(
               self._file_based_source,
               self._file_name,
               start_offset,
-              stop_offset,
+              range_trackers.OffsetRangeTracker.OFFSET_INFINITY,
               min_bundle_size=self._min_bundle_size
           ),
           start_offset,
-          stop_offset
+          range_trackers.OffsetRangeTracker.OFFSET_INFINITY
       )
 
   def estimate_size(self):
@@ -292,7 +298,13 @@ class _SingleFileSource(iobase.BoundedSource):
     if start_position is None:
       start_position = self._start_offset
     if stop_position is None:
-      stop_position = self._stop_offset
+      # If file is unsplittable we choose  OFFSET_INFINITY as the default end
+      # offset so that all data of the source gets read. Choosing size of the
+      # file as end offset will be wrong for certain unsplittable source, for
+      # e.g., compressed sources.
+      stop_position = (
+          self._stop_offset if self._file_based_source.splittable
+          else range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
 
     range_tracker = range_trackers.OffsetRangeTracker(
         start_position, stop_position)
