@@ -39,7 +39,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -54,7 +53,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
@@ -299,7 +297,7 @@ public class TextIOTest {
 
     for (File tmpFile : expectedFiles) {
       try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
-        List<String> currentFile = Lists.newArrayList();
+        List<String> currentFile = new ArrayList<>();
         for (;;) {
           String line = reader.readLine();
           if (line == null) {
@@ -311,8 +309,7 @@ public class TextIOTest {
       }
     }
 
-    LinkedList<String> expectedElements = Lists.newLinkedList();
-
+    List<String> expectedElements = new ArrayList<>(elems.length);
     for (int i = 0; i < elems.length; i++) {
       T elem = elems[i];
       byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
@@ -320,7 +317,7 @@ public class TextIOTest {
       expectedElements.add(line);
     }
 
-    ArrayList<String> actualElements =
+    List<String> actualElements =
         Lists.newArrayList(
             Iterables.concat(
                 FluentIterable
@@ -942,8 +939,8 @@ public class TextIOTest {
   @Test
   public void testProgressAfterSplitting() throws IOException {
     String file = "line1\nline2\nline3";
-    BoundedSource source = prepareSource(file.getBytes());
-    BoundedSource remainder;
+    BoundedSource<String> source = prepareSource(file.getBytes());
+    BoundedSource<String> remainder;
 
     // Create the remainder, verifying properties pre- and post-splitting.
     try (BoundedReader<String> readerOrig = source.createReader(PipelineOptionsFactory.create())) {
