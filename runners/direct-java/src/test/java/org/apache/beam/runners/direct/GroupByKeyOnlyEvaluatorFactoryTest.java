@@ -101,9 +101,9 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
     Coder<String> keyCoder =
         ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
-        new GroupByKeyOnlyEvaluatorFactory()
+        new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
             .forApplication(
-                groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
+                groupedKvs.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstFoo)));
     evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(secondFoo)));

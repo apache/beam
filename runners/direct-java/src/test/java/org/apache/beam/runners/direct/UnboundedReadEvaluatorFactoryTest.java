@@ -81,8 +81,8 @@ public class UnboundedReadEvaluatorFactoryTest {
     TestPipeline p = TestPipeline.create();
     longs = p.apply(Read.from(source));
 
-    factory = new UnboundedReadEvaluatorFactory();
     context = mock(EvaluationContext.class);
+    factory = new UnboundedReadEvaluatorFactory(context);
     output = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
   }
@@ -90,7 +90,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   @Test
   public void unboundedSourceInMemoryTransformEvaluatorProducesElements() throws Exception {
     TransformEvaluator<?> evaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+        factory.forApplication(longs.getProducingTransformInternal(), null);
 
     TransformResult result = evaluator.finishBundle();
     assertThat(
@@ -109,7 +109,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   @Test
   public void unboundedSourceInMemoryTransformEvaluatorMultipleSequentialCalls() throws Exception {
     TransformEvaluator<?> evaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+        factory.forApplication(longs.getProducingTransformInternal(), null);
 
     TransformResult result = evaluator.finishBundle();
     assertThat(
@@ -123,7 +123,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+        factory.forApplication(longs.getProducingTransformInternal(), null);
     TransformResult secondResult = secondEvaluator.finishBundle();
     assertThat(
         secondResult.getWatermarkHold(),
@@ -150,7 +150,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
-    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
 
     evaluator.finishBundle();
     assertThat(
@@ -159,7 +159,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
-    TransformEvaluator<?> secondEvaluator = factory.forApplication(sourceTransform, null, context);
+    TransformEvaluator<?> secondEvaluator = factory.forApplication(sourceTransform, null);
     secondEvaluator.finishBundle();
     assertThat(
         secondOutput.commit(Instant.now()).getElements(),
@@ -182,7 +182,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
     for (int i = 0; i < UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT + 1; i++) {
-      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
       evaluator.finishBundle();
     }
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
@@ -200,14 +200,14 @@ public class UnboundedReadEvaluatorFactoryTest {
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
-    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+    TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(ImmutableList.copyOf(committed.getElements()), hasSize(3));
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
     assertThat(TestUnboundedSource.readerAdvancedCount, equalTo(4));
 
-    evaluator = factory.forApplication(sourceTransform, null, context);
+    evaluator = factory.forApplication(sourceTransform, null);
     evaluator.finishBundle();
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
     // Tried to advance again, even with no elements
@@ -226,7 +226,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
     for (int i = 0; i < 2 * UnboundedReadEvaluatorFactory.MAX_READER_REUSE_COUNT; i++) {
-      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
+      TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
       evaluator.finishBundle();
     }
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
@@ -243,10 +243,10 @@ public class UnboundedReadEvaluatorFactoryTest {
   @Test
   public void unboundedSourceWithMultipleSimultaneousEvaluatorsIndependent() throws Exception {
     TransformEvaluator<?> evaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+        factory.forApplication(longs.getProducingTransformInternal(), null);
 
     TransformEvaluator<?> secondEvaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+        factory.forApplication(longs.getProducingTransformInternal(), null);
 
     assertThat(secondEvaluator, nullValue());
     TransformResult result = evaluator.finishBundle();

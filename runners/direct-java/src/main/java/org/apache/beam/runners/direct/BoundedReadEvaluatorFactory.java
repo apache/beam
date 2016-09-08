@@ -45,33 +45,35 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * retriggered.
    */
   private final ConcurrentMap<AppliedPTransform<?, ?, ?>, Queue<? extends BoundedReadEvaluator<?>>>
-      sourceEvaluators = new ConcurrentHashMap<>();
+      sourceEvaluators;
+  private final EvaluationContext evaluationContext;
+
+  BoundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+    sourceEvaluators = new ConcurrentHashMap<>();
+  }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   @Nullable
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext)
+      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
       throws IOException {
-    return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
+    return getTransformEvaluator((AppliedPTransform) application);
   }
 
   @Override
-  public void cleanup() {
-  }
+  public void cleanup() {}
 
   /**
-   * Get a {@link TransformEvaluator} that produces elements for the provided application of
-   * {@link Bounded Read.Bounded}, initializing the queue of evaluators if required.
+   * Get a {@link TransformEvaluator} that produces elements for the provided application of {@link
+   * Bounded Read.Bounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.
    */
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final EvaluationContext evaluationContext) {
+      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
     Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue =
@@ -106,8 +108,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
     private final EvaluationContext evaluationContext;
     /**
-     * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same
-     * as the source derived from {@link #transform} due to splitting.
+     * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same as
+     * the source derived from {@link #transform} due to splitting.
      */
     private BoundedSource<OutputT> source;
 
@@ -126,7 +128,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult finishBundle() throws IOException {
       try (final BoundedReader<OutputT> reader =
-              source.createReader(evaluationContext.getPipelineOptions())) {
+          source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
             evaluationContext.createRootBundle(transform.getOutput());

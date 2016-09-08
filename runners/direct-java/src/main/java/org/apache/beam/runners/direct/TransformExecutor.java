@@ -40,7 +40,6 @@ class TransformExecutor<T> implements Runnable {
   public static <T> TransformExecutor<T> create(
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
-      EvaluationContext evaluationContext,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
@@ -48,7 +47,6 @@ class TransformExecutor<T> implements Runnable {
     return new TransformExecutor<>(
         factory,
         modelEnforcements,
-        evaluationContext,
         inputBundle,
         transform,
         completionCallback,
@@ -57,8 +55,6 @@ class TransformExecutor<T> implements Runnable {
 
   private final TransformEvaluatorFactory evaluatorFactory;
   private final Iterable<? extends ModelEnforcementFactory> modelEnforcements;
-
-  private final EvaluationContext evaluationContext;
 
   /** The transform that will be evaluated. */
   private final AppliedPTransform<?, ?, ?> transform;
@@ -73,14 +69,12 @@ class TransformExecutor<T> implements Runnable {
   private TransformExecutor(
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
-      EvaluationContext evaluationContext,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
     this.evaluatorFactory = factory;
     this.modelEnforcements = modelEnforcements;
-    this.evaluationContext = evaluationContext;
 
     this.inputBundle = inputBundle;
     this.transform = transform;
@@ -107,7 +101,7 @@ class TransformExecutor<T> implements Runnable {
         enforcements.add(enforcement);
       }
       TransformEvaluator<T> evaluator =
-          evaluatorFactory.forApplication(transform, inputBundle, evaluationContext);
+          evaluatorFactory.forApplication(transform, inputBundle);
       if (evaluator == null) {
         onComplete.handleEmpty(transform);
         // Nothing to do

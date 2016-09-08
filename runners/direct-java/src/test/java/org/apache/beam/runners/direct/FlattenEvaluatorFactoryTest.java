@@ -67,14 +67,11 @@ public class FlattenEvaluatorFactoryTest {
     when(context.createBundle(leftBundle, flattened)).thenReturn(flattenedLeftBundle);
     when(context.createBundle(rightBundle, flattened)).thenReturn(flattenedRightBundle);
 
-    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(context);
     TransformEvaluator<Integer> leftSideEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), leftBundle, context);
+        factory.forApplication(flattened.getProducingTransformInternal(), leftBundle);
     TransformEvaluator<Integer> rightSideEvaluator =
-        factory.forApplication(
-            flattened.getProducingTransformInternal(),
-            rightBundle,
-            context);
+        factory.forApplication(flattened.getProducingTransformInternal(), rightBundle);
 
     leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(1));
     rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
@@ -123,11 +120,11 @@ public class FlattenEvaluatorFactoryTest {
 
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
-    EvaluationContext context = mock(EvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
 
-    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(evaluationContext);
     TransformEvaluator<Integer> emptyEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), null, context);
+        factory.forApplication(flattened.getProducingTransformInternal(), null);
 
     TransformResult leftSideResult = emptyEvaluator.finishBundle();
 

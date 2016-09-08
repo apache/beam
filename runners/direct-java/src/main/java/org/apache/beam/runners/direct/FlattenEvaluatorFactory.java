@@ -32,14 +32,20 @@ import org.apache.beam.sdk.values.PCollectionList;
  * {@link PTransform}.
  */
 class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext evaluationContext;
+
+  FlattenEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
+
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      CommittedBundle<?> inputBundle
+      ) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator = (TransformEvaluator<InputT>) createInMemoryEvaluator(
-            (AppliedPTransform) application, inputBundle, evaluationContext);
+            (AppliedPTransform) application, inputBundle);
     return evaluator;
   }
 
@@ -50,8 +56,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
       final AppliedPTransform<
               PCollectionList<InputT>, PCollection<InputT>, FlattenPCollectionList<InputT>>
           application,
-      final CommittedBundle<InputT> inputBundle,
-      final EvaluationContext evaluationContext) {
+      final CommittedBundle<InputT> inputBundle) {
     if (inputBundle == null) {
       // it is impossible to call processElement on a flatten with no input bundle. A Flatten with
       // no input bundle occurs as an output of Flatten.pcollections(PCollectionList.empty())
