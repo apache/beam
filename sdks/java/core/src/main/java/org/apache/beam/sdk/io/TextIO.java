@@ -291,25 +291,25 @@ public class TextIO {
         switch(compressionType) {
           case UNCOMPRESSED:
             read = org.apache.beam.sdk.io.Read.from(
-                new TextSource<>(filepattern, coder));
+                new TextSource<T>(filepattern, coder));
             break;
           case AUTO:
             read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder)));
+                CompressedSource.from(new TextSource<T>(filepattern, coder)));
             break;
           case BZIP2:
             read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.BZIP2));
             break;
           case GZIP:
             read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.GZIP));
             break;
           case ZIP:
             read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.ZIP));
             break;
           default:
@@ -807,7 +807,7 @@ public class TextIO {
   private TextIO() {}
 
   /**
-   * A {@link FileBasedSource} which can decode records delimited by new line characters.
+   * A {@link FileBasedSource} which can decode records delimited by newline characters.
    *
    * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
    * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
@@ -855,7 +855,7 @@ public class TextIO {
 
     /**
      * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
-     * which can decode records delimited by new line characters.
+     * which can decode records delimited by newline characters.
      *
      * See {@link TextSource} for further details.
      */
@@ -1018,7 +1018,7 @@ public class TextIO {
   }
 
   /**
-   * A {@link FileBasedSink} for text files. Produces text files with the new line separator
+   * A {@link FileBasedSink} for text files. Produces text files with the newline separator
    * {@code '\n'} represented in {@code UTF-8} format as the record separator.
    * Each record (including the last) is terminated.
    */
@@ -1088,7 +1088,7 @@ public class TextIO {
       }
 
       /**
-       * Writes the {@code value} with a new line following if the {@code value} is not null.
+       * Writes {@code value} followed by a newline if {@code value} is not null.
        */
       private void writeIfNotNull(@Nullable String value) throws IOException {
         if (value != null) {
