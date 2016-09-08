@@ -189,7 +189,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         TransformExecutor.create(
             registry,
             enforcements,
-            evaluationContext,
             bundle,
             transform,
             onComplete,

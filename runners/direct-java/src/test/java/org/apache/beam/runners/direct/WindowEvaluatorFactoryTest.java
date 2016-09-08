@@ -103,7 +103,7 @@ public class WindowEvaluatorFactoryTest {
     input = p.apply(Create.of(1L, 2L, 3L));
 
     bundleFactory = ImmutableListBundleFactory.create();
-    factory = new WindowEvaluatorFactory();
+    factory = new WindowEvaluatorFactory(evaluationContext);
   }
 
   @Test
@@ -308,9 +308,7 @@ public class WindowEvaluatorFactoryTest {
       throws Exception {
     TransformEvaluator<Long> evaluator =
         factory.forApplication(
-            AppliedPTransform.of("Window", input, windowed, windowTransform),
-            inputBundle,
-            evaluationContext);
+            AppliedPTransform.of("Window", input, windowed, windowTransform), inputBundle);
 
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);

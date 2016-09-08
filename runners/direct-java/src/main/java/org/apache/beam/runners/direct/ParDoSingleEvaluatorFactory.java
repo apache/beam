@@ -40,8 +40,10 @@ import org.slf4j.LoggerFactory;
 class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoSingleEvaluatorFactory.class);
   private final LoadingCache<AppliedPTransform<?, ?, Bound<?, ?>>, DoFnLifecycleManager> fnClones;
+  private final EvaluationContext evaluationContext;
 
-  public ParDoSingleEvaluatorFactory() {
+  public ParDoSingleEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
     fnClones =
         CacheBuilder.newBuilder()
             .build(
@@ -57,11 +59,10 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <T> TransformEvaluator<T> forApplication(
       final AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) throws Exception {
+      CommittedBundle<?> inputBundle) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
-        createSingleEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
+        createSingleEvaluator((AppliedPTransform) application, inputBundle);
     return evaluator;
   }
 
@@ -73,8 +74,8 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT, OutputT> TransformEvaluator<InputT> createSingleEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, Bound<InputT, OutputT>>
           application,
-      CommittedBundle<InputT> inputBundle,
-      EvaluationContext evaluationContext) throws Exception {
+      CommittedBundle<InputT> inputBundle)
+      throws Exception {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =

@@ -53,15 +53,19 @@ import org.joda.time.Instant;
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private final KeyedResourcePool<AppliedPTransform<?, ?, ?>, Evaluator<?>> evaluators =
       LockedKeyedResourcePool.create();
+  private final EvaluationContext evaluationContext;
+
+  TestStreamEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
 
   @Nullable
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext)
+      @Nullable CommittedBundle<?> inputBundle)
       throws Exception {
-    return createEvaluator((AppliedPTransform) application, evaluationContext);
+    return createEvaluator((AppliedPTransform) application);
   }
 
   @Override
@@ -76,8 +80,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
    * a separate collection of events cannot be created.
    */
   private <InputT, OutputT> TransformEvaluator<? super InputT> createEvaluator(
-      AppliedPTransform<PBegin, PCollection<OutputT>, TestStream<OutputT>> application,
-      EvaluationContext evaluationContext)
+      AppliedPTransform<PBegin, PCollection<OutputT>, TestStream<OutputT>> application)
       throws ExecutionException {
     return evaluators
         .tryAcquire(application, new CreateEvaluator<>(application, evaluationContext, evaluators))
