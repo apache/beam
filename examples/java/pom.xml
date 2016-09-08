@@ -216,6 +216,37 @@
         </plugins>
       </build>
     </profile>
+
+    <!--
+      This profile disable streaming integration tests which
+      have @Category(StreamingIT.class) annotation.
+
+      This profile can be abled on the command line
+      by specifying -P disable-streaming-ITs.
+    -->
+    <profile>
+      <id>disable-streaming-ITs</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <excludedGroups>org.apache.beam.sdk.testing.StreamingIT</excludedGroups>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 
   <build>
