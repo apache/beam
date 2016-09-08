@@ -511,9 +511,9 @@ public class TextIO {
         this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true);
       }
 
-      private Bound(String name, String filenamePrefix, String filenameSuffix, String header,
-                    String footer, Coder<T> coder, int numShards, String shardTemplate,
-                    boolean validate) {
+      private Bound(String name, String filenamePrefix, String filenameSuffix,
+          @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
+          String shardTemplate, boolean validate) {
         super(name);
         this.header = header;
         this.footer = footer;
