@@ -311,20 +311,20 @@ public class TextIO {
         switch(compressionType) {
           case UNCOMPRESSED:
             read = com.google.cloud.dataflow.sdk.io.Read.from(
-                new TextSource<>(filepattern, coder));
+                new TextSource<T>(filepattern, coder));
             break;
           case AUTO:
             read = com.google.cloud.dataflow.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder)));
+                CompressedSource.from(new TextSource<T>(filepattern, coder)));
             break;
           case BZIP2:
             read = com.google.cloud.dataflow.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.BZIP2));
             break;
           case GZIP:
             read = com.google.cloud.dataflow.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.GZIP));
             break;
           default:
