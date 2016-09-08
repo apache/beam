@@ -140,7 +140,7 @@
 
       <div class="row">
         <h1 id="beam-capability-matrix">Beam Capability Matrix</h1>
-<p><span style="font-size:11px;float:none">Last updated: 2016-08-09 15:00 PDT</span></p>
+<p><span style="font-size:11px;float:none">Last updated: 2016-09-08 17:20 CEST</span></p>
 
 <p>Apache Beam (incubating) provides a portable API layer for building sophisticated data-parallel processing engines that may be executed across a diversity of exeuction engines, or <i>runners</i>. The core concepts of this layer are based upon the Beam Model (formerly referred to as the <a href="http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">Dataflow Model</a>), and implemented to varying degrees in each Beam runner. To help clarify the capabilities of individual runners, we’ve created the capability matrix below.</p>
 
@@ -333,7 +333,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~ (<a href="https://issues.apache.org/jira/browse/BEAM-102">BEAM-102</a>)</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
 </td>
     
     
@@ -1097,12 +1097,12 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: some size restrictions in streaming</b></center><br />Batch implemented supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: some size restrictions in streaming</b></center><br />Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: no supported in streaming<br />(<a href="https://issues.apache.org/jira/browse/BEAM-102">BEAM-102</a>)</b></center><br />Supported in batch. Side inputs for streaming are currently WiP.
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: some size restrictions in streaming</b></center><br />Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
 </td>
     
     
