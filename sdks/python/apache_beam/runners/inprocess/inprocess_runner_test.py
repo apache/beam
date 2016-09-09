@@ -87,9 +87,12 @@ class TestTextFileSource(
   pass
 
 
-class NativeTestTextFileSink(
-    TestWithInProcessPipelineRunner, fileio_test.NativeTestTextFileSink):
-  pass
+class TestNativeTextFileSink(
+    TestWithInProcessPipelineRunner, fileio_test.TestNativeTextFileSink):
+
+  def setUp(self):
+    TestWithInProcessPipelineRunner.setUp(self)
+    fileio_test.TestNativeTextFileSink.setUp(self)
 
 
 class TestTextFileSink(

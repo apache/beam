@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Google Cloud Storage client.
 
 This library evolved from the Google App Engine GCS client available at
@@ -37,7 +36,6 @@ import apitools.base.py.transfer as transfer
 from apache_beam.internal import auth
 from apache_beam.utils import retry
 
-
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
@@ -47,7 +45,6 @@ except ImportError:
   raise RuntimeError(
       'Google Cloud Storage I/O not supported for this execution environment '
       '(could not import storage API client).')
-
 
 DEFAULT_READ_BUFFER_SIZE = 1024 * 1024
 WRITE_CHUNK_SIZE = 8 * 1024 * 1024
@@ -93,7 +90,9 @@ class GcsIO(object):
     if storage_client is not None:
       self.client = storage_client
 
-  def open(self, filename, mode='r',
+  def open(self,
+           filename,
+           mode='r',
            read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
            mime_type='application/octet-stream'):
     """Open a GCS file path for reading or writing.
@@ -158,8 +157,8 @@ class GcsIO(object):
       path: GCS file path pattern in the form gs://<bucket>/<name>.
     """
     bucket, object_path = parse_gcs_path(path)
-    request = storage.StorageObjectsDeleteRequest(bucket=bucket,
-                                                  object=object_path)
+    request = storage.StorageObjectsDeleteRequest(
+        bucket=bucket, object=object_path)
     try:
       self.client.objects.Delete(request)
     except HttpError as http_error:
@@ -179,10 +178,11 @@ class GcsIO(object):
     """
     src_bucket, src_path = parse_gcs_path(src)
     dest_bucket, dest_path = parse_gcs_path(dest)
-    request = storage.StorageObjectsCopyRequest(sourceBucket=src_bucket,
-                                                sourceObject=src_path,
-                                                destinationBucket=dest_bucket,
-                                                destinationObject=dest_path)
+    request = storage.StorageObjectsCopyRequest(
+        sourceBucket=src_bucket,
+        sourceObject=src_path,
+        destinationBucket=dest_bucket,
+        destinationObject=dest_path)
     try:
       self.client.objects.Copy(request)
     except HttpError as http_error:
@@ -232,8 +232,8 @@ class GcsIO(object):
     """
     bucket, object_path = parse_gcs_path(path)
     try:
-      request = storage.StorageObjectsGetRequest(bucket=bucket,
-                                                 object=object_path)
+      request = storage.StorageObjectsGetRequest(
+          bucket=bucket, object=object_path)
       self.client.objects.Get(request)  # metadata
       return True
     except HttpError as http_error:
@@ -255,35 +255,37 @@ class GcsIO(object):
     Returns: size of the GCS object in bytes.
     """
     bucket, object_path = parse_gcs_path(path)
-    request = storage.StorageObjectsGetRequest(bucket=bucket,
-                                               object=object_path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
     return self.client.objects.Get(request).size
 
 
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""
 
-  def __init__(self, client, path, mode='r',
+  def __init__(self,
+               client,
+               path,
+               mode='r',
                buffer_size=DEFAULT_READ_BUFFER_SIZE):
     self.client = client
     self.path = path
     self.bucket, self.name = parse_gcs_path(path)
+    self.mode = mode
     self.buffer_size = buffer_size
     self.mode = mode
 
     # Get object state.
-    get_request = (
-        storage.StorageObjectsGetRequest(
-            bucket=self.bucket,
-            object=self.name))
+    get_request = (storage.StorageObjectsGetRequest(
+        bucket=self.bucket, object=self.name))
     try:
       metadata = self._get_object_metadata(get_request)
     except HttpError as http_error:
       if http_error.status_code == 404:
         raise IOError(errno.ENOENT, 'Not found: %s' % self.path)
       else:
-        logging.error(
-            'HTTP error while requesting file %s: %s', self.path, http_error)
+        logging.error('HTTP error while requesting file %s: %s', self.path,
+                      http_error)
         raise
     self.size = metadata.size
 
@@ -373,17 +375,16 @@ class GcsBufferedReader(object):
       # If readline is set, we only want to read up to and including the next
       # newline character.
       if readline:
-        next_newline_position = self.buffer.find(
-            '\n', buffer_bytes_read, len(self.buffer))
+        next_newline_position = self.buffer.find('\n', buffer_bytes_read,
+                                                 len(self.buffer))
         if next_newline_position != -1:
-          bytes_to_read_from_buffer = (1 + next_newline_position -
-                                       buffer_bytes_read)
+          bytes_to_read_from_buffer = (
+              1 + next_newline_position - buffer_bytes_read)
           break_after = True
 
       # Read bytes.
-      data_list.append(
-          self.buffer[buffer_bytes_read:buffer_bytes_read +
-                      bytes_to_read_from_buffer])
+      data_list.append(self.buffer[buffer_bytes_read:buffer_bytes_read +
+                                   bytes_to_read_from_buffer])
       self.position += bytes_to_read_from_buffer
       to_read -= bytes_to_read_from_buffer
 
@@ -393,8 +394,8 @@ class GcsBufferedReader(object):
     return ''.join(data_list)
 
   def _fetch_next_if_buffer_exhausted(self):
-    if not self.buffer or (self.buffer_start_position + len(self.buffer)
-                           <= self.position):
+    if not self.buffer or (
+        self.buffer_start_position + len(self.buffer) <= self.position):
       bytes_to_request = min(self._remaining(), self.buffer_size)
       self.buffer_start_position = self.position
       self.buffer = self._get_segment(self.position, bytes_to_request)
@@ -548,10 +549,14 @@ class GcsBufferedWriter(object):
       if self.closed:
         raise IOError('Stream is closed.')
 
-  def __init__(self, client, path, mode='w',
+  def __init__(self,
+               client,
+               path,
+               mode='w',
                mime_type='application/octet-stream'):
     self.client = client
     self.path = path
+    self.mode = mode
     self.bucket, self.name = parse_gcs_path(path)
     self.mode = mode
 
@@ -568,12 +573,12 @@ class GcsBufferedWriter(object):
     self.conn = parent_conn
 
     # Set up uploader.
-    self.insert_request = (
-        storage.StorageObjectsInsertRequest(
-            bucket=self.bucket,
-            name=self.name))
-    self.upload = transfer.Upload(GcsBufferedWriter.PipeStream(child_conn),
-                                  mime_type, chunksize=WRITE_CHUNK_SIZE)
+    self.insert_request = (storage.StorageObjectsInsertRequest(
+        bucket=self.bucket, name=self.name))
+    self.upload = transfer.Upload(
+        GcsBufferedWriter.PipeStream(child_conn),
+        mime_type,
+        chunksize=WRITE_CHUNK_SIZE)
     self.upload.strategy = transfer.RESUMABLE_UPLOAD
 
     # Start uploading thread.
@@ -596,9 +601,8 @@ class GcsBufferedWriter(object):
     try:
       self.client.objects.Insert(self.insert_request, upload=self.upload)
     except Exception as e:  # pylint: disable=broad-except
-      logging.error(
-          'Error in _start_upload while inserting file %s: %s', self.path,
-          traceback.format_exc())
+      logging.error('Error in _start_upload while inserting file %s: %s',
+                    self.path, traceback.format_exc())
       self.upload_thread.last_error = e
     finally:
       self.child_conn.close()
@@ -620,12 +624,21 @@ class GcsBufferedWriter(object):
       self._flush_write_buffer()
     self.position += len(data)
 
+  def flush(self):
+    """Flushes any internal buffer to the underlying GCS file."""
+    self._check_open()
+    self._flush_write_buffer()
+
   def tell(self):
     """Return the total number of bytes passed to write() so far."""
     return self.position
 
   def close(self):
     """Close the current GCS file."""
+    if self.closed:
+      logging.warn('Channel for %s is not open.', self.path)
+      return
+
     self._flush_write_buffer()
     self.closed = True
     self.conn.close()
