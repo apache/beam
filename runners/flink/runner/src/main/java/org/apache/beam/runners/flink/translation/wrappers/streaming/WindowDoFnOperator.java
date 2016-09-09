@@ -265,7 +265,17 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     int numWatermarkTimers = dataIn.readInt();
 
     watermarkTimers = new HashSet<>(numWatermarkTimers);
-    watermarkTimersQueue = new PriorityQueue<>(Math.max(numWatermarkTimers, 1));
+
+    watermarkTimersQueue = new PriorityQueue<>(
+            Math.max(numWatermarkTimers, 1),
+            new Comparator<Tuple2<ByteBuffer, TimerInternals.TimerData>>() {
+              @Override
+              public int compare(
+                      Tuple2<ByteBuffer, TimerInternals.TimerData> o1,
+                      Tuple2<ByteBuffer, TimerInternals.TimerData> o2) {
+                return o1.f1.compareTo(o2.f1);
+              }
+            });
 
     for (int i = 0; i < numWatermarkTimers; i++) {
       int length = dataIn.readInt();
