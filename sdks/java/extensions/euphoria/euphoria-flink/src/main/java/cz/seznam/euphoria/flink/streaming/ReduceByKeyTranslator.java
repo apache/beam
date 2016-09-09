@@ -10,20 +10,23 @@ import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
+import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
 
 class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> {
 
   @Override
-  @SuppressWarnings("unchecked")
+//  @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<ReduceByKey> operator,
                                  StreamingExecutorContext context)
   {
@@ -50,18 +53,22 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       valueExtractor = origOperator.getValueExtractor();
     }
 
-    // apply windowing first
-    WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
-            context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
-
     // FIXME non-combinable reduce function not supported without windowing
     if (!origOperator.isCombinable()) {
       throw new UnsupportedOperationException("Non-combining reduce not supported yet");
     }
 
+    if (windowing == null) {
+      throw new UnsupportedOperationException("Attached windowing not supported yet!");
+    }
+
+    // apply windowing first
+    WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, EmissionWindow<Window>>
+        windowedPairs = context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
+
     // reduce
-    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> reduced =
-        windowedPairs.reduce(new TypedReducer(reducer))
+    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> reduced = windowedPairs
+            .apply(new TypedReducer(reducer), new ForwardEmissionWatermark())
             .name(operator.getName())
             .setParallelism(operator.getParallelism());
 
@@ -78,6 +85,30 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
     return reduced;
   }
+
+  /**
+   * Windowing function to extract the emission watermark from the window being
+   * emitted and forward it along the emitted element(s).
+   */
+  private static class ForwardEmissionWatermark
+      implements WindowFunction<
+      StreamingWindowedElement<?, ?, WindowedPair>,
+      StreamingWindowedElement<?, ?, WindowedPair>,
+      Object,
+      EmissionWindow<Window>> {
+
+    @Override
+    public void apply(Object o,
+                      EmissionWindow<Window> window,
+                      Iterable<StreamingWindowedElement<?, ?, WindowedPair>> input,
+                      Collector<StreamingWindowedElement<?, ?, WindowedPair>> out)
+        throws Exception
+    {
+      for (StreamingWindowedElement<?, ?, WindowedPair> i : input) {
+        out.collect(i.withEmissionWatermark(window.getEmissionWatermark()));
+      }
+    }
+  } // ~ end of ForwardEmissionWatermark
 
   private static class TypedReducer
           implements ReduceFunction<StreamingWindowedElement<?, ?, WindowedPair>>,
@@ -110,5 +141,5 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     public TypeInformation<StreamingWindowedElement<?, ?, WindowedPair>> getProducedType() {
       return TypeInformation.of((Class) StreamingWindowedElement.class);
     }
-  }
+  } // ~ end of TypedReducer
 }
