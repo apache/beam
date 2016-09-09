@@ -136,6 +136,7 @@ __all__ = [
     'BigQuerySink',
     ]
 
+JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 
 class RowAsDictJsonCoder(coders.Coder):
   """A coder for a table row (represented as a dict) to/from a JSON string.
@@ -145,7 +146,14 @@ class RowAsDictJsonCoder(coders.Coder):
   """
 
   def encode(self, table_row):
-    return json.dumps(table_row)
+    # The normal error when dumping NAN/INF values is:
+    # ValueError: Out of range float values are not JSON compliant
+    # This code will catch this error to emit an error that explains
+    # to the programmer that they have used NAN/INF values.
+    try:
+      return json.dumps(table_row, allow_nan=False)
+    except ValueError as e:
+      raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row)
@@ -173,10 +181,14 @@ class TableRowJsonCoder(coders.Coder):
       raise AttributeError(
           'The TableRowJsonCoder requires a table schema for '
           'encoding operations. Please specify a table_schema argument.')
-    return json.dumps(
-        collections.OrderedDict(
-            zip(self.field_names,
-                [from_json_value(f.v) for f in table_row.f])))
+    try:
+      return json.dumps(
+          collections.OrderedDict(
+              zip(self.field_names,
+                  [from_json_value(f.v) for f in table_row.f])),
+          allow_nan=False)
+    except ValueError as e:
+      raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
     od = json.loads(
@@ -428,7 +440,6 @@ class BigQuerySink(iobase.NativeSink):
           fs['fields'] = schema_list_as_object(f.fields)
         fields.append(fs)
       return fields
-
     return json.dumps(
         {'fields': schema_list_as_object(self.table_schema.fields)})
 

@@ -40,6 +40,27 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     test_value = {'s': 'abc', 'i': 123, 'f': 123.456, 'b': True}
     self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
 
+  def test_invalid_json_nan(self):
+    with self.assertRaises(ValueError) as exn:
+      coder = RowAsDictJsonCoder()
+      test_value = {'s': float('nan')}
+      self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
+      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
+
+  def test_invalid_json_inf(self):
+    with self.assertRaises(ValueError) as exn:
+      coder = RowAsDictJsonCoder()
+      test_value = {'s': float('inf')}
+      self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
+      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
+
+  def test_invalid_json_neg_inf(self):
+    with self.assertRaises(ValueError) as exn:
+      coder = RowAsDictJsonCoder()
+      test_value = {'s': float('-inf')}
+      self.assertEqual(test_value, coder.decode(coder.encode(test_value)))
+      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
+
 
 class TestTableRowJsonCoder(unittest.TestCase):
 
@@ -62,6 +83,7 @@ class TestTableRowJsonCoder(unittest.TestCase):
         test_row, TableRowJsonCoder().decode(coder.encode(test_row)))
 
   def test_row_and_no_schema(self):
+    schema_definition = [('f', 'FLOAT')]
     coder = TableRowJsonCoder()
     test_row = bigquery.TableRow(
         f=[bigquery.TableCell(v=to_json_value(e))
@@ -70,6 +92,45 @@ class TestTableRowJsonCoder(unittest.TestCase):
       coder.encode(test_row)
     self.assertTrue(
         ctx.exception.message.startswith('The TableRowJsonCoder requires'))
+
+  def test_invalid_json_nan(self):
+    with self.assertRaises(ValueError) as exn:
+      schema_definition = [('f', 'FLOAT')]
+      schema = bigquery.TableSchema(
+          fields=[bigquery.TableFieldSchema(name=k, type=v)
+                  for k, v in schema_definition])
+      coder = TableRowJsonCoder(table_schema=schema)
+      test_row = bigquery.TableRow(
+          f=[bigquery.TableCell(v=to_json_value(e))
+             for e in [float('nan')]])
+      coder.encode(test_row)
+      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
+
+  def test_invalid_json_inf(self):
+    with self.assertRaises(ValueError) as exn:
+      schema_definition = [('f', 'FLOAT')]
+      schema = bigquery.TableSchema(
+          fields=[bigquery.TableFieldSchema(name=k, type=v)
+                  for k, v in schema_definition])
+      coder = TableRowJsonCoder(table_schema=schema)
+      test_row = bigquery.TableRow(
+          f=[bigquery.TableCell(v=to_json_value(e))
+             for e in [float('inf')]])
+      coder.encode(test_row)
+      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
+
+  def test_invalid_json_neg_inf(self):
+    with self.assertRaises(ValueError) as exn:
+      schema_definition = [('f', 'FLOAT')]
+      schema = bigquery.TableSchema(
+          fields=[bigquery.TableFieldSchema(name=k, type=v)
+                  for k, v in schema_definition])
+      coder = TableRowJsonCoder(table_schema=schema)
+      test_row = bigquery.TableRow(
+          f=[bigquery.TableCell(v=to_json_value(e))
+             for e in [float('-inf')]])
+      coder.encode(test_row)
+      self.assertTrue(bigquery.JSON_COMPLIANCE_ERROR in exn.exception.message)
 
 
 class TestBigQuerySource(unittest.TestCase):
@@ -107,6 +168,33 @@ class TestBigQuerySink(unittest.TestCase):
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
   def test_simple_schema_as_json(self):
+    sink = beam.io.BigQuerySink(
+        'dataset.table', schema='s:STRING, n:INTEGER')
+    self.assertEqual(
+        json.dumps({'fields': [
+            {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
+        sink.schema_as_json())
+
+  def test_schema_as_json_invalid_nan(self):
+    sink = beam.io.BigQuerySink(
+        'dataset.table', schema='s:STRING, n:INTEGER')
+    self.assertEqual(
+        json.dumps({'fields': [
+            {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
+        sink.schema_as_json())
+
+  def test_schema_as_json_invalid_inf(self):
+    sink = beam.io.BigQuerySink(
+        'dataset.table', schema='s:STRING, n:INTEGER')
+    self.assertEqual(
+        json.dumps({'fields': [
+            {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
+        sink.schema_as_json())
+
+  def test_schema_as_json_invalid_n(self):
     sink = beam.io.BigQuerySink(
         'dataset.table', schema='s:STRING, n:INTEGER')
     self.assertEqual(
