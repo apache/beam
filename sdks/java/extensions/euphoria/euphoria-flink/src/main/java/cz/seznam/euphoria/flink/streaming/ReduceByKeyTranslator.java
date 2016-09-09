@@ -2,7 +2,6 @@ package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
@@ -52,7 +51,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     // apply windowing first
-    WindowedStream<WindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
+    WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
             context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
 
     // FIXME non-combinable reduce function not supported without windowing
@@ -61,7 +60,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     // reduce
-    DataStream<WindowedElement<?, ?, WindowedPair>> reduced =
+    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> reduced =
         windowedPairs.reduce(new TypedReducer(reducer))
             .name(operator.getName())
             .setParallelism(operator.getParallelism());
@@ -81,8 +80,8 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
   }
 
   private static class TypedReducer
-          implements ReduceFunction<WindowedElement<?, ?, WindowedPair>>,
-          ResultTypeQueryable<WindowedElement<?, ?, WindowedPair>>
+          implements ReduceFunction<StreamingWindowedElement<?, ?, WindowedPair>>,
+          ResultTypeQueryable<StreamingWindowedElement<?, ?, WindowedPair>>
   {
     final UnaryFunction<Iterable, Object> reducer;
 
@@ -91,14 +90,14 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     @Override
-    public WindowedElement<?, ?, WindowedPair> reduce(
-        WindowedElement<?, ?, WindowedPair> p1,
-        WindowedElement<?, ?, WindowedPair> p2) {
+    public StreamingWindowedElement<?, ?, WindowedPair> reduce(
+        StreamingWindowedElement<?, ?, WindowedPair> p1,
+        StreamingWindowedElement<?, ?, WindowedPair> p2) {
 
       Object v1 = p1.get().getSecond();
       Object v2 = p2.get().getSecond();
       WindowID<?, ?> wid = p1.getWindowID();
-      return new WindowedElement<>(
+      return new StreamingWindowedElement<>(
           wid,
           WindowedPair.of(
               wid.getLabel(),
@@ -108,8 +107,8 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<WindowedElement<?, ?, WindowedPair>> getProducedType() {
-      return TypeInformation.of((Class) WindowedElement.class);
+    public TypeInformation<StreamingWindowedElement<?, ?, WindowedPair>> getProducedType() {
+      return TypeInformation.of((Class) StreamingWindowedElement.class);
     }
   }
 }
