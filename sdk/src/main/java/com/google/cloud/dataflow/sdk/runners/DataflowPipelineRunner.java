@@ -361,15 +361,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       builder.put(View.AsList.class, StreamingViewAsList.class);
       builder.put(View.AsIterable.class, StreamingViewAsIterable.class);
       builder.put(Read.Unbounded.class, StreamingUnboundedRead.class);
-      if (options.getExperiments() == null
-          || !options.getExperiments().contains("enable_streaming_bounded_read")) {
-        builder.put(Read.Bounded.class, UnsupportedIO.class);
-        builder.put(AvroIO.Read.Bound.class, UnsupportedIO.class);
-        builder.put(BigQueryIO.Read.Bound.class, UnsupportedIO.class);
-        builder.put(TextIO.Read.Bound.class, UnsupportedIO.class);
-      } else {
-        builder.put(Read.Bounded.class, StreamingBoundedRead.class);
-      }
+      builder.put(Read.Bounded.class, StreamingBoundedRead.class);
       builder.put(AvroIO.Write.Bound.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
