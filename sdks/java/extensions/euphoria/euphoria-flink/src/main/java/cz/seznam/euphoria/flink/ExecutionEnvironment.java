@@ -7,7 +7,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
- * Unified interface for Flink batch and stream execution environments
+ * Unified interface for Flink batch and stream execution environments.
  */
 public class ExecutionEnvironment {
 
@@ -18,12 +18,12 @@ public class ExecutionEnvironment {
 
   public enum Mode {
     /**
-     * Uses the batch mode of Flink
+     * Uses the batch mode of Flink.
      */
     BATCH,
 
     /**
-     * Uses the streaming mode of Flink
+     * Uses the streaming mode of Flink.
      */
     STREAMING
   }
