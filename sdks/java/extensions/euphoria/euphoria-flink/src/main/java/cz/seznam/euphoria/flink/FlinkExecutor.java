@@ -15,7 +15,7 @@ import java.util.concurrent.Future;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
 /**
- * Executor implementation using Apache Flink as a runtime
+ * Executor implementation using Apache Flink as a runtime.
  */
 public class FlinkExecutor implements Executor {
 
@@ -37,8 +37,9 @@ public class FlinkExecutor implements Executor {
    * Specify whether to dump the flink execution plan before executing
    * a flow using {@link #waitForCompletion(Flow)}.
    */
-  public void setDumpExecutionPlan(boolean dumpExecPlan) {
+  public FlinkExecutor setDumpExecutionPlan(boolean dumpExecPlan) {
     this.dumpExecPlan = dumpExecPlan;
+    return this;
   }
 
   @Override
@@ -48,67 +49,73 @@ public class FlinkExecutor implements Executor {
 
   @Override
   public int waitForCompletion(Flow flow) throws Exception {
-    ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
-
-    LOG.info("Running flow in {} mode", mode);
-
-    ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
-    Settings settings = flow.getSettings();
-
-    // update own settings with global
-    environment.getSettings().getAll().entrySet().stream().forEach(p -> {
-      if (!settings.contains(p.getKey())) {
-        settings.setString(p.getKey(), p.getValue());
-      }
-    });
-
-    if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
-      environment.getStreamEnv().setStateBackend(stateBackend.get());
-    }
-
-    FlowTranslator translator;
-    if (mode == ExecutionEnvironment.Mode.BATCH) {
-      translator = new BatchFlowTranslator(environment.getBatchEnv());
-    } else {
-      translator = new StreamingFlowTranslator(environment.getStreamEnv());
-    }
-
-    List<DataSink<?>> sinks = translator.translateInto(flow);
-
-    if (dumpExecPlan) {
-      LOG.info("Flink execution plan for {}: {}",
-          flow.getName(), environment.dumpExecutionPlan());
-    }
-
     try {
-      environment.execute(); // blocking operation
-    } catch (Exception e) {
-      // when exception thrown rollback all sinks
+      ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
+
+      LOG.info("Running flow in {} mode", mode);
+
+      ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
+      Settings settings = flow.getSettings();
+
+      // update own settings with global
+      environment.getSettings().getAll().entrySet().stream().forEach(p -> {
+        if (!settings.contains(p.getKey())) {
+          settings.setString(p.getKey(), p.getValue());
+        }
+      });
+
+      if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
+        environment.getStreamEnv().setStateBackend(stateBackend.get());
+      }
+
+      FlowTranslator translator;
+      if (mode == ExecutionEnvironment.Mode.BATCH) {
+        translator = new BatchFlowTranslator(environment.getBatchEnv());
+      } else {
+        translator = new StreamingFlowTranslator(environment.getStreamEnv());
+      }
+
+      List<DataSink<?>> sinks = translator.translateInto(flow);
+
+      if (dumpExecPlan) {
+        LOG.info("Flink execution plan for {}: {}",
+            flow.getName(), environment.dumpExecutionPlan());
+      }
+
+      try {
+        environment.execute(); // blocking operation
+      } catch (Exception e) {
+        // when exception thrown rollback all sinks
+        for (DataSink s : sinks) {
+          try {
+            s.rollback();
+          } catch (Exception ex) {
+            LOG.error("Exception during DataSink rollback", ex);
+          }
+        }
+        throw e;
+      }
+
+      // when the execution is successful commit all sinks
+      Exception ex = null;
       for (DataSink s : sinks) {
         try {
-          s.rollback();
-        } catch (Exception ex) {
-          LOG.error("Exception during DataSink rollback", ex);
+          s.commit();
+        } catch (Exception e) {
+          // save exception for later and try to commit rest of the sinks
+          ex = e;
         }
       }
-      throw e;
+
+      // rethrow the exception if any
+      if (ex != null) throw ex;
+
+      return 0;
+    } catch (Throwable t) {
+      t.printStackTrace(System.err);
+      LOG.error("Failed to run `waitForCompletion", t);
+      throw t;
     }
-
-    // when the execution is successful commit all sinks
-    Exception ex = null;
-    for (DataSink s : sinks) {
-      try {
-        s.commit();
-      } catch (Exception e) {
-        // save exception for later and try to commit rest of the sinks
-        ex = e;
-      }
-    }
-
-    // rethrow the exception if any
-    if (ex != null) throw ex;
-
-    return 0;
   }
 
   /**
@@ -118,4 +125,5 @@ public class FlinkExecutor implements Executor {
     this.stateBackend = Optional.of(backend);
     return this;
   }
+
 }
