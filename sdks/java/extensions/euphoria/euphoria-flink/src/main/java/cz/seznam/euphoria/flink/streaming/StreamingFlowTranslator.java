@@ -11,12 +11,11 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
-import cz.seznam.euphoria.core.client.operator.WindowAware;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.streaming.io.DataSinkWrapper;
-import cz.seznam.euphoria.flink.streaming.windowing.WindowingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class StreamingFlowTranslator extends FlowTranslator {
 
@@ -61,7 +59,7 @@ public class StreamingFlowTranslator extends FlowTranslator {
     StreamingExecutorContext executorContext = new StreamingExecutorContext(env, dag);
 
     // determine whether we'll be running with event or processing time characteristics
-    assignTimeCharacteristic(env, dag);
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
@@ -96,32 +94,6 @@ public class StreamingFlowTranslator extends FlowTranslator {
             });
 
     return sinks;
-  }
-
-  private void assignTimeCharacteristic(
-      StreamExecutionEnvironment env,
-      DAG<FlinkOperator<?>> dag) {
-
-    List<WindowingMode> modes = dag.traverse()
-        .map(Node::get)
-        .map(n -> n.getOriginalOperator())
-        .filter(o -> o instanceof WindowAware)
-        .map(o -> ((WindowAware) o).getWindowing())
-        .filter(w -> w != null)
-        .map(WindowingMode::determine)
-        .distinct()
-        .collect(Collectors.toList());
-    switch (modes.size()) {
-      case 0:
-        // nothing to do
-        break;
-      case 1:
-        env.setStreamTimeCharacteristic(modes.get(0).timeCharacteristic());
-        break;
-      default:
-        throw new IllegalStateException(
-            "Cannot mix different windowing modes in one flow!");
-    }
   }
 
   @Override
