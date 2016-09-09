@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -15,12 +16,15 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
+import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,7 +39,7 @@ import static org.junit.Assert.*;
  */
 public class BasicOperatorTest {
 
-  Executor executor = new InMemExecutor();
+  InMemExecutor executor = new InMemExecutor();
 
   private static UnaryFunctor<String, Pair<String, Long>> toWordCountPair() {
     return toWords(w -> Pair.of(w, 1L));
@@ -398,11 +402,45 @@ public class BasicOperatorTest {
     assertTrue(firstWindowStart < secondWindowStart);
   }
 
+  @Test
+  public void testReduceWindow() throws Exception {
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(
+        ListDataSource.unbounded(asList(
+            "1-one 1-two 2-three 2-four 2-one 2-one 2-two",
+            "1-one 1-two 2-three 2-three 2-three")));
+
+    ListDataSink<HashSet<String>> f = ListDataSink.get(1);
+
+    // expand it to words
+    Dataset<String> words = FlatMap.of(lines)
+        .using(toWords(w -> w))
+        .output();
+
+    // window it, use the first character as time
+    ReduceWindow.of(words)
+        .reduceBy(Sets::newHashSet)
+        .windowBy(Time.of(Duration.ofMinutes(1))
+            .using(s -> (int) s.charAt(0) * 3_600_000L))
+        .output()
+        .persist(f);
+
+    executor
+        .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0))
+        .waitForCompletion(flow);
+
+    List<HashSet<String>> output = f.getOutput(0);
+    assertEquals(2, output.size());
+    assertEquals(Sets.newHashSet(
+        Arrays.asList("1-one", "1-two")), output.get(0));
+    assertEquals(Sets.newHashSet(
+        Arrays.asList("2-three", "2-one", "2-two", "2-four")), output.get(1));
+  }
+
   private <S> long assertWindowedOutput(
       List<Pair<TimeInterval, S>> window,
       long expectedIntervalMillis, String ... expectedFirstAndSecond)
   {
-    //System.out.println(" **** " + window);
     assertEquals(
         asList(expectedFirstAndSecond),
         window.stream().map(Pair::getSecond).sorted().collect(toList()));
