@@ -160,7 +160,7 @@ class StreamWindower {
           KEY key = keyExtractor.apply(elem);
           VALUE val = valueExtractor.apply(elem);
           WindowID<GROUP, LABEL> wid = windowing.assignWindowsToElement(i).iterator().next();
-          return new WindowedElement<>(wid, WindowedPair.of(wid, key, val));
+          return new WindowedElement<>(wid, WindowedPair.of(wid.getLabel(), key, val));
         })
         .returns((Class) WindowedElement.class);
     final KeyedStream<WindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
