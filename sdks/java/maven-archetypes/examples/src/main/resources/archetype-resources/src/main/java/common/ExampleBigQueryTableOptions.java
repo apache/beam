@@ -18,19 +18,19 @@
 package ${package}.common;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Options that can be used to configure BigQuery tables in Dataflow examples.
+ * Options that can be used to configure BigQuery tables in Beam examples.
  * The project defaults to the project being used to run the example.
  */
-public interface ExampleBigQueryTableOptions extends DataflowPipelineOptions {
+public interface ExampleBigQueryTableOptions extends GcpOptions {
   @Description("BigQuery dataset name")
-  @Default.String("dataflow_examples")
+  @Default.String("beam_examples")
   String getBigQueryDataset();
   void setBigQueryDataset(String dataset);
 
@@ -49,8 +49,7 @@ public interface ExampleBigQueryTableOptions extends DataflowPipelineOptions {
   static class BigQueryTableFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return options.as(DataflowPipelineOptions.class).getJobName()
-          .replace('-', '_');
+      return options.getJobName().replace('-', '_');
     }
   }
 }
