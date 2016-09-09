@@ -11,13 +11,9 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
  */
 public class TriggerContextWrapper implements TriggerContext {
 
-  private final WindowingMode mode;
   private final Trigger.TriggerContext flinkContext;
 
-  public TriggerContextWrapper(WindowingMode mode,
-                               Trigger.TriggerContext flinkContext)
-  {
-    this.mode = mode;
+  public TriggerContextWrapper(Trigger.TriggerContext flinkContext) {
     this.flinkContext = flinkContext;
   }
 
@@ -26,24 +22,15 @@ public class TriggerContextWrapper implements TriggerContext {
                                    WindowContext w,
                                    cz.seznam.euphoria.core.client.triggers.Trigger trigger)
   {
-    if (mode == WindowingMode.EVENT) {
-      if (stamp <= flinkContext.getCurrentWatermark()) return false;
-      flinkContext.registerEventTimeTimer(stamp);
-    } else {
-      if (stamp <= flinkContext.getCurrentProcessingTime()) return false;
-      flinkContext.registerProcessingTimeTimer(stamp);
+    if (stamp <= flinkContext.getCurrentWatermark()) {
+      return false;
     }
-
+    flinkContext.registerEventTimeTimer(stamp);
     return true;
   }
 
   @Override
   public long getCurrentTimestamp() {
-    if (mode == WindowingMode.EVENT) {
-      return flinkContext.getCurrentWatermark();
-    }
-    else {
-      return flinkContext.getCurrentProcessingTime();
-    }
+    return flinkContext.getCurrentWatermark();
   }
 }
