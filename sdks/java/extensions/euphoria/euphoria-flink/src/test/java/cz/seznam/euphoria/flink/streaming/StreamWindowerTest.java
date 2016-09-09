@@ -1,12 +1,7 @@
 
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
@@ -19,7 +14,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.shaded.com.google.common.collect.Sets;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -110,27 +104,27 @@ public class StreamWindowerTest {
 
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-    DataStream<WindowedElement<?, ?, Pair<Integer, Integer>>> input
+    DataStream<StreamingWindowedElement<?, ?, Pair<Integer, Integer>>> input
         = env.addSource(new DataSourceWrapper(ListDataSource.unbounded(
             Arrays.asList(Pair.of(1, 1), Pair.of(1, 2), Pair.of(2, 3), Pair.of(3, 4)),
             Arrays.asList(Pair.of(1, 8), Pair.of(1, 7), Pair.of(2, 6), Pair.of(3, 5)))
     ));
 
-    WindowedStream<WindowedElement<Void, Long, Pair<Integer, Integer>>, Integer, FlinkWindow> windowed;
+    WindowedStream<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>, Integer, FlinkWindow> windowed;
     windowed = windower.genericWindow(
         input, (Pair<Integer, Integer> i) -> i.getSecond() % 2,
         (Pair<Integer, Integer> i) -> 2 * i.getSecond(),
         TimeSliding.of(Duration.ofSeconds(2), Duration.ofSeconds(1))
             .using((Pair<Integer, Integer> p) -> 1000L * p.getFirst()));
 
-    DataStream<WindowedElement<Void, Long, Pair<Integer, Integer>>> reduced;
+    DataStream<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>> reduced;
     reduced = windowed.reduce(
-        new ReduceFunction<WindowedElement<Void, Long, Pair<Integer, Integer>>>() {
+        new ReduceFunction<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>>() {
           @Override
-          public WindowedElement<Void, Long, Pair<Integer, Integer>>
-              reduce(WindowedElement<Void, Long, Pair<Integer, Integer>> a,
-                  WindowedElement<Void, Long, Pair<Integer, Integer>> b) {
-                return new WindowedElement(a.getWindowID(), Pair.of(
+          public StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>
+              reduce(StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> a,
+                     StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> b) {
+                return new StreamingWindowedElement(a.getWindowID(), Pair.of(
                     a.get().getFirst(),
                     a.get().getSecond() + b.get().getSecond()));
               }
@@ -138,17 +132,17 @@ public class StreamWindowerTest {
 
     reduced = reduced.map(
         new MapFunction<
-            WindowedElement<Void, Long, Pair<Integer, Integer>>,
-            WindowedElement<Void, Long, Pair<Integer, Integer>>>() {
+            StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>,
+            StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>>() {
       @Override
-      public WindowedElement<Void, Long, Pair<Integer, Integer>> map(
-          WindowedElement<Void, Long, Pair<Integer, Integer>> t) throws Exception {
-        return new WindowedElement(t.getWindowID(),
+      public StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> map(
+          StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> t) throws Exception {
+        return new StreamingWindowedElement<>(t.getWindowID(),
             WindowedPair.of(t.getWindowID().getLabel(),
                 t.get().getFirst(), t.get().getSecond()));
       }});
 
-    reduced.addSink(new DataSinkWrapper(new StdoutSink(false, "\n")));
+    reduced.addSink(new DataSinkWrapper<>(new StdoutSink(false, "\n")));
 
     ListDataSink<WindowedPair<Long, Integer, Integer>> sink = ListDataSink.get(1);
 

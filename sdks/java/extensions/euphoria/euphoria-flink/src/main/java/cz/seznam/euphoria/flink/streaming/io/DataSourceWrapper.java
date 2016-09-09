@@ -2,10 +2,10 @@ package cz.seznam.euphoria.flink.streaming.io;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent
     .ThreadFactoryBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -23,8 +23,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<WindowedElement<Void, Batch.Label, T>>
-        implements ResultTypeQueryable<WindowedElement<Void, Batch.Label, T>>
+        extends RichParallelSourceFunction<StreamingWindowedElement<Void, Batch.Label, T>>
+        implements ResultTypeQueryable<StreamingWindowedElement<Void, Batch.Label, T>>
 {
   private final DataSource<T> dataSource;
   private volatile boolean isRunning = true;
@@ -36,7 +36,7 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public void run(SourceContext<WindowedElement<Void, Batch.Label, T>> ctx)
+  public void run(SourceContext<StreamingWindowedElement<Void, Batch.Label, T>> ctx)
       throws Exception
   {
     StreamingRuntimeContext runtimeContext =
@@ -90,8 +90,8 @@ public class DataSourceWrapper<T>
     }
   }
 
-  private WindowedElement<Void, Batch.Label, T> toWindowedElement(T elem) {
-    return new WindowedElement<>(WindowID.aligned(Batch.Label.get()), elem);
+  private StreamingWindowedElement<Void, Batch.Label, T> toWindowedElement(T elem) {
+    return new StreamingWindowedElement<>(WindowID.aligned(Batch.Label.get()), elem);
   }
 
   @Override
@@ -104,8 +104,8 @@ public class DataSourceWrapper<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeInformation<WindowedElement<Void, Batch.Label, T>> getProducedType() {
-    return TypeInformation.of((Class) WindowedElement.class);
+  public TypeInformation<StreamingWindowedElement<Void, Batch.Label, T>> getProducedType() {
+    return TypeInformation.of((Class) StreamingWindowedElement.class);
   }
 
   private ThreadPoolExecutor createThreadPool() {

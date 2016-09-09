@@ -2,10 +2,10 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import java.util.Arrays;
+
+import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -16,7 +16,7 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import java.util.Collection;
 
 public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
-        extends WindowAssigner<WindowedElement<?, ?, T>, FlinkWindow> {
+        extends WindowAssigner<StreamingWindowedElement<?, ?, T>, FlinkWindow> {
 
   private final WindowingMode mode;
   private final Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing;
@@ -30,7 +30,7 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
 
   @Override
   public Collection<FlinkWindow> assignWindows(
-      WindowedElement<?, ?, T> element,
+      StreamingWindowedElement<?, ?, T> element,
       long timestamp, WindowAssignerContext context) {
     
     WindowID<GROUP, LABEL> wid = (WindowID) element.getWindowID();
@@ -38,7 +38,7 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
   }
 
   @Override
-  public Trigger<WindowedElement<?, ?, T>, FlinkWindow> getDefaultTrigger(
+  public Trigger<StreamingWindowedElement<?, ?, T>, FlinkWindow> getDefaultTrigger(
       StreamExecutionEnvironment env) {
     return new FlinkTrigger<>(mode);
   }
