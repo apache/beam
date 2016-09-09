@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.streaming.io.DataSinkWrapper;
 import cz.seznam.euphoria.flink.streaming.io.DataSourceWrapper;
+import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -110,7 +111,7 @@ public class StreamWindowerTest {
             Arrays.asList(Pair.of(1, 8), Pair.of(1, 7), Pair.of(2, 6), Pair.of(3, 5)))
     ));
 
-    WindowedStream<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>, Integer, FlinkWindow> windowed;
+    WindowedStream<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>, Integer, EmissionWindow<FlinkWindow>> windowed;
     windowed = windower.genericWindow(
         input, (Pair<Integer, Integer> i) -> i.getSecond() % 2,
         (Pair<Integer, Integer> i) -> 2 * i.getSecond(),
