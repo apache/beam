@@ -7,12 +7,6 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 
 public class FlinkTrigger<T> extends Trigger<T, FlinkWindow> {
 
-  private final WindowingMode mode;
-
-  public FlinkTrigger(WindowingMode mode) {
-    this.mode = mode;
-  }
-
   @Override
   public TriggerResult onElement(T element,
                                  long timestamp,
@@ -28,7 +22,7 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindow> {
       TriggerResult tr = TriggerResult.PURGE;
       for (cz.seznam.euphoria.core.client.triggers.Trigger t : window.getTriggers()) {
         cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult sched =
-            t.schedule(window.getWindowContext(), new TriggerContextWrapper(mode, ctx));
+            t.schedule(window.getWindowContext(), new TriggerContextWrapper(ctx));
         if (sched != cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult.PASSED) {
           tr = translateResult(sched);
         }
@@ -61,7 +55,7 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindow> {
             // get results from all triggers
             .map(t -> t.onTimeEvent(time,
                     window.getWindowContext(),
-                    new TriggerContextWrapper(mode, ctx)))
+                    new TriggerContextWrapper(ctx)))
             // remap results to Flink results
             .map(this::translateResult)
             // merge results

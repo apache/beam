@@ -3,8 +3,6 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import java.util.Arrays;
-
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -13,18 +11,17 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 
+import java.util.Arrays;
 import java.util.Collection;
 
 public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
         extends WindowAssigner<StreamingWindowedElement<?, ?, T>, FlinkWindow> {
 
-  private final WindowingMode mode;
   private final Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing;
 
   public FlinkWindowAssigner(
       Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
     
-    this.mode = WindowingMode.determine(windowing);
     this.windowing = windowing;
   }
 
@@ -40,7 +37,7 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
   @Override
   public Trigger<StreamingWindowedElement<?, ?, T>, FlinkWindow> getDefaultTrigger(
       StreamExecutionEnvironment env) {
-    return new FlinkTrigger<>(mode);
+    return new FlinkTrigger<>();
   }
 
   @Override
@@ -50,7 +47,6 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
 
   @Override
   public boolean isEventTime() {
-    return mode == WindowingMode.EVENT;
+    return true;
   }
-  
 }
