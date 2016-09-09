@@ -10,6 +10,8 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.Utils;
+import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
+import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindowAssigner;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindowAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -17,9 +19,16 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+
+
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
+import java.time.Duration;
+import java.util.Objects;
 
 /**
  * Class creating {@code WindowedStream} from {@code DataStream}s.
@@ -28,17 +37,24 @@ class StreamWindower {
 
   @SuppressWarnings("unchecked")
   <T, LABEL, GROUP, KEY, VALUE, W extends Window>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, W>
-  window(DataStream<StreamingWindowedElement<?, ?, T>> input, UnaryFunction<T, KEY> keyExtractor,
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<W>>
+  window(DataStream<StreamingWindowedElement<?, ?, T>> input,
+         UnaryFunction<T, KEY> keyExtractor,
          UnaryFunction<T, VALUE> valueExtractor,
          Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
 
     if (windowing instanceof Time<?>) {
-      return (WindowedStream) timeWindow(
-          input, keyExtractor, valueExtractor, (Time<T>) windowing);
+      Time<T> twin = (Time<T>) windowing;
+      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+          input, keyExtractor, valueExtractor,
+          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
     } else if (windowing instanceof TimeSliding<?>) {
-      return (WindowedStream) timeSlidingWindow(
-          input, keyExtractor, valueExtractor, (TimeSliding<T>) windowing);
+      TimeSliding<T> twin = (TimeSliding<T>) windowing;
+      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+          input, keyExtractor, valueExtractor,
+          SlidingEventTimeWindows.of(
+              millisTime(twin.getDuration()),
+              millisTime(twin.getSlide())));
     } else {
       throw new UnsupportedOperationException("Not yet supported: " + windowing);
     }
@@ -47,7 +63,7 @@ class StreamWindower {
 
   @SuppressWarnings("unchecked")
   <T, LABEL, GROUP, KEY, VALUE, W extends Window>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>, KEY, FlinkWindow>
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>, KEY, EmissionWindow<FlinkWindow>>
   genericWindow(DataStream<StreamingWindowedElement<?, ?, T>> input,
       UnaryFunction<T, KEY> keyExtractor,
       UnaryFunction<T, VALUE> valueExtractor,
@@ -56,21 +72,14 @@ class StreamWindower {
     if (windowing instanceof TimeSliding<?>) {
       UnaryFunction eventTimeFn = ((TimeSliding) windowing).getEventTimeFn();
       if (!(eventTimeFn instanceof Time.ProcessingTime)) {
-        input = input.assignTimestampsAndWatermarks(
-            new BoundedOutOfOrdernessTimestampExtractor<StreamingWindowedElement<?, ?, T>>(
-                org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
-              @Override
-              public long extractTimestamp(StreamingWindowedElement<?, ?, T> element) {
-                return (long) eventTimeFn.apply(element.get());
-              }
-            });
+        input = input.assignTimestampsAndWatermarks(new EventTimeAssigner<T>(eventTimeFn));
       }
     }
 
-
     Windowing<T, GROUP, LABEL, WindowContext<GROUP, LABEL>> genericWindowing
         = (Windowing<T, GROUP, LABEL, WindowContext<GROUP, LABEL>>) windowing;
-    DataStream<StreamingWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>> elementsWithWindow =
+    DataStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>>
+        elementsWithWindow =
         input.flatMap((i, c) -> {
           for (WindowID<GROUP, LABEL> w : genericWindowing.assignWindowsToElement(i)) {
             KEY key = keyExtractor.apply(i.get());
@@ -80,95 +89,54 @@ class StreamWindower {
         })
         .returns((Class) StreamingWindowedElement.class);
 
-    KeyedStream<StreamingWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>, KEY> keyed
+    KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed
         = elementsWithWindow.keyBy(
-            Utils.wrapQueryable((StreamingWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> in) -> {
+            Utils.wrapQueryable((StreamingWindowedElement<
+                GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>> in) -> {
               return in.get().getFirst();
             }));
 
     // XXX needs to provide our own emissionTracking window-assigner
-    return keyed.window((WindowAssigner) new FlinkWindowAssigner<>(genericWindowing));
+    return keyed.window((WindowAssigner)
+        new EmissionWindowAssigner<>(
+            new FlinkWindowAssigner<>(genericWindowing)));
   }
 
 
 
-  private  <T, KEY, VALUE>
-  WindowedStream<StreamingWindowedElement<Void, Time.TimeInterval,
-        WindowedPair<Time.TimeInterval, KEY, VALUE>>, KEY, TimeWindow>
-  timeWindow(
-     DataStream<StreamingWindowedElement<?, ?, T>> input,
-     UnaryFunction<T, KEY> keyExtractor,
-     UnaryFunction<T, VALUE> valueExtractor,
-     Time<T> windowing)
-  {
-    KeyedStream<StreamingWindowedElement<Void, Time.TimeInterval,
-                    WindowedPair<Time.TimeInterval, KEY, VALUE>>, KEY> keyed;
-    keyed = keyTimeWindow(
-        windowing, windowing.getEventTimeFn(),
-        input, keyExtractor, valueExtractor);
-
-    // XXX needs to provide our own emissionTracking window-assigner
-    return keyed.timeWindow(
-        org.apache.flink.streaming.api.windowing.time.Time.milliseconds(
-            windowing.getDuration()));
-  }
-
-
-  private <T, KEY, VALUE>
-  WindowedStream<StreamingWindowedElement<Void, Long,
-        WindowedPair<Long, KEY, VALUE>>, KEY, TimeWindow>
-  timeSlidingWindow(
-      DataStream<StreamingWindowedElement<?, ?, T>> input,
-      UnaryFunction<T, KEY> keyExtractor,
-      UnaryFunction<T, VALUE> valueExtractor,
-      TimeSliding<T> windowing)
-  {
-    KeyedStream<StreamingWindowedElement<Void, Long, WindowedPair<Long, KEY, VALUE>>, KEY> keyed;
-    keyed = keyTimeWindow(
-        windowing, windowing.getEventTimeFn(),
-        input, keyExtractor, valueExtractor);
-
-    // XXX needs to provide our own emissionTracking window-assigner
-    return keyed.timeWindow(
-        org.apache.flink.streaming.api.windowing.time.Time.milliseconds(
-            windowing.getDuration()),
-        org.apache.flink.streaming.api.windowing.time.Time.milliseconds(
-            windowing.getSlide()));
-  }
-
-
-  private <T, GROUP, LABEL, KEY, VALUE, W extends WindowContext<GROUP, LABEL>>
-  KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY>
-  keyTimeWindow(
-      Windowing<T, GROUP, LABEL, W> windowing,
+  @SuppressWarnings("unchecked")
+  private <T, GROUP, LABEL, KEY, VALUE, WC extends WindowContext<GROUP, LABEL>, FW extends Window>
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<FW>>
+  keyWindow(
+      Windowing<T, GROUP, LABEL, WC> windowing,
       UnaryFunction<T, Long> eventTimeFn,
       DataStream<StreamingWindowedElement<?, ?, T>> input,
-      UnaryFunction<T, KEY> keyExtractor,
-      UnaryFunction<T, VALUE> valueExtractor) {
-
+      UnaryFunction<T, KEY> keyFn,
+      UnaryFunction<T, VALUE> valFn,
+      WindowAssigner<? super T, FW> flinkWindowAssigner)
+  {
     if (!(eventTimeFn instanceof Time.ProcessingTime)) {
-      input = input.assignTimestampsAndWatermarks(
-          new BoundedOutOfOrdernessTimestampExtractor<StreamingWindowedElement<?, ?, T>>(
-              org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
-            @Override public long extractTimestamp(StreamingWindowedElement<?, ?, T> element) {
-              return eventTimeFn.apply(element.get());
-            }
-          });
+      input = input.assignTimestampsAndWatermarks(new EventTimeAssigner<T>(eventTimeFn));
     }
 
     DataStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped;
     mapped = input
         .map(i -> {
           T elem = i.get();
-          KEY key = keyExtractor.apply(elem);
-          VALUE val = valueExtractor.apply(elem);
+          KEY key = keyFn.apply(elem);
+          VALUE val = valFn.apply(elem);
           WindowID<GROUP, LABEL> wid = windowing.assignWindowsToElement(i).iterator().next();
           return new StreamingWindowedElement<>(wid, WindowedPair.of(wid.getLabel(), key, val));
         })
         .returns((Class) StreamingWindowedElement.class);
     final KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
     keyed = mapped.keyBy(Utils.wrapQueryable(new WeKeySelector<>()));
-    return keyed;
+    return keyed.window(new EmissionWindowAssigner(flinkWindowAssigner));
+  }
+
+  private static org.apache.flink.streaming.api.windowing.time.Time
+  millisTime(long millis) {
+    return org.apache.flink.streaming.api.windowing.time.Time.milliseconds(millis);
   }
 
   static final class WeKeySelector<GROUP, LABEL, KEY, VALUE> implements
@@ -179,6 +147,22 @@ class StreamWindower {
           throws Exception
     {
       return value.get().getKey();
+    }
+  }
+
+  static class EventTimeAssigner<T>
+      extends BoundedOutOfOrdernessTimestampExtractor<StreamingWindowedElement<?, ?, T>>
+  {
+    private final UnaryFunction<T, Long> eventTimeFn;
+
+    EventTimeAssigner(UnaryFunction<T, Long> eventTimeFn) {
+      super(org.apache.flink.streaming.api.windowing.time.Time.seconds(1));
+      this.eventTimeFn = Objects.requireNonNull(eventTimeFn);
+    }
+
+    @Override
+    public long extractTimestamp(StreamingWindowedElement<?, ?, T> element) {
+      return eventTimeFn.apply(element.get());
     }
   }
 }
