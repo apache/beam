@@ -18,10 +18,13 @@
 
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -70,6 +73,10 @@ public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
-    return delegate.run(pipeline);
+    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
+    EvaluationResult result = delegate.run(pipeline);
+    assertThat(result, testPipelineOptions.getOnCreateMatcher());
+    assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+    return result;
   }
 }
