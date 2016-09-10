@@ -21,13 +21,13 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
+import cStringIO as StringIO
 import errno
 import fnmatch
 import logging
 import multiprocessing
 import os
 import re
-import StringIO
 import threading
 import traceback
 
