@@ -87,8 +87,8 @@ class TestTextFileSource(
   pass
 
 
-class NativeTestTextFileSink(
-    TestWithInProcessPipelineRunner, fileio_test.NativeTestTextFileSink):
+class TestNativeTextFileSink(
+    TestWithInProcessPipelineRunner, fileio_test.TestNativeTextFileSink):
   pass
 
 
