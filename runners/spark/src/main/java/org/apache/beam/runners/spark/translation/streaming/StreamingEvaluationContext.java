@@ -38,6 +38,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -150,7 +151,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
     streamHolder.getDStream().foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
       @Override
       public void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
-        rdd.rdd().cache();
+        rdd.rdd().persist(StorageLevel.MEMORY_ONLY_SER());
         rdd.count();
       }
     }); // force a DStream action
