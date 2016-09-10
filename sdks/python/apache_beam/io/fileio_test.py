@@ -526,7 +526,7 @@ class TestTextFileSource(unittest.TestCase):
     self.progress_with_offsets(lines, start_offset=20, end_offset=20)
 
 
-class TextNativeTextFileSink(unittest.TestCase):
+class TestNativeTextFileSink(unittest.TestCase):
 
   def setUp(self):
     self.lines = ['Line %d' % d for d in range(100)]
