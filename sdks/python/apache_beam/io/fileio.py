@@ -228,7 +228,7 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
     self.file.close()
 
   def __iter__(self):
-    if (self.current_offset > 0 and ChannelFactory.is_compressed(self.file)):
+    if self.current_offset > 0 and ChannelFactory.is_compressed(self.file):
       # TODO: Turns this warning into an exception soon.
       logging.warning('Ignoring split starting at (%s) for compressed source.',
                       self.current_offset)

@@ -745,8 +745,7 @@ class TestFileSink(unittest.TestCase):
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
     p = beam.Pipeline('DirectPipelineRunner')
-    p | beam.Create([]) | beam.io.Write(
-        sink)  # pylint: disable=expression-not-assigned
+    p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
     self.assertEqual(
         open(temp_path + '-00000-of-00001.foo').read(), '[start][end]')
@@ -760,8 +759,7 @@ class TestFileSink(unittest.TestCase):
         shard_name_template='_NN_SSS_',
         coder=coders.ToStringCoder())
     p = beam.Pipeline('DirectPipelineRunner')
-    p | beam.Create(['a', 'b']) | beam.io.Write(
-        sink)  # pylint: disable=expression-not-assigned
+    p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
     p.run()
 
