@@ -201,7 +201,6 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
     if ChannelFactory.is_compressed(self.file):
       if not isinstance(self.source, TextFileSource):
         raise ValueError('Unexpected compressed file for a non-TextFileSource.')
-
       self.end_offset = range_trackers.OffsetRangeTracker.OFFSET_INFINITY
 
     elif self.end_offset is None:
@@ -229,6 +228,10 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
 
   def __iter__(self):
     if self.current_offset > 0 and ChannelFactory.is_compressed(self.file):
+      # When compression is enabled both initial and dynamic splitting should be
+      # prevented. Here we prevent initial splitting by ignoring all splits
+      # other than the split that starts at byte 0.
+      #
       # TODO: Turns this warning into an exception soon.
       logging.warning('Ignoring split starting at (%s) for compressed source.',
                       self.current_offset)
@@ -291,6 +294,10 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
 
   def request_dynamic_split(self, dynamic_split_request):
     if ChannelFactory.is_compressed(self.file):
+      # When compression is enabled both initial and dynamic splitting should be
+      # prevented. Here we prevent dynamic splitting by ignoring all dynamic
+      # split requests at the reader.
+      #
       # TODO: Turns this warning into an exception soon.
       logging.warning('FileBasedReader cannot be split since it is compressed. '
                       'Requested: %r', dynamic_split_request)
@@ -1076,6 +1083,13 @@ class TextFileReader(NativeFileSourceReader):
   """A reader for a text file source."""
 
   def seek_to_true_start_offset(self):
+    if ChannelFactory.is_compressed(self.file):
+      # When compression is enabled both initial and dynamic splitting should be
+      # prevented. Here we don't perform any seeking to a different offset, nor
+      # do we update the current_offset so that the rest of the framework can
+      # properly deal with compressed files.
+      return
+
     if self.start_offset > 0:
       # Read one byte before. This operation will either consume a previous
       # newline if start_offset was at the beginning of a line or consume the

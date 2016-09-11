@@ -136,6 +136,19 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, [])
 
+  def test_read_entire_file_gzip_large(self):
+    lines = ['Line %d' % d for d in range(10 * 1000)]
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
   def test_read_entire_file_zlib(self):
     lines = ['First', 'Second', 'Third']
     compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
@@ -172,6 +185,75 @@ class TestTextFileSource(unittest.TestCase):
       for line in reader:
         read_lines.append(line)
     self.assertEqual(read_lines, [])
+
+  def test_read_entire_file_zlib_large(self):
+    lines = ['Line %d' % d for d in range(10 * 1000)]
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_skip_entire_file_gzip(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        start_offset=1,  # Anything other than 0 should lead to a null-read.
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_skip_entire_file_zlib(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        start_offset=1,  # Anything other than 0 should lead to a null-read.
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_consume_entire_file_gzip(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        end_offset=1,  # Any end_offset should effectively be ignored.
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_consume_entire_file_zlib(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        end_offset=1,  # Any end_offset should effectively be ignored.
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
 
   def test_progress_entire_file(self):
     lines = ['First', 'Second', 'Third']
