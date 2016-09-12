@@ -1,0 +1,103 @@
+package cz.seznam.euphoria.core.client.operator;
+
+import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
+
+import java.io.Serializable;
+import java.util.Objects;
+
+/**
+ * Composite pseudo-operator using two {@link Filter} operators to implement
+ * splitting of a {@link Dataset} into positive and negative subsets using
+ * provided {@link UnaryPredicate}.
+ */
+public class Split<IN> {
+
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = Objects.requireNonNull(name);
+    }
+
+    public <IN> Split.UsingBuilder<IN> of(Dataset<IN> input) {
+      return new Split.UsingBuilder<>(name, input);
+    }
+  }
+
+  public static class UsingBuilder<IN> {
+    private final String name;
+    private final Dataset<IN> input;
+
+    UsingBuilder(String name, Dataset<IN> input) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+    }
+
+    public Split.OutputBuilder<IN> using(UnaryPredicate<IN> predicate) {
+      return new Split.OutputBuilder<>(name, input, predicate);
+    }
+  }
+
+  public static class OutputBuilder<IN> implements Serializable {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryPredicate<IN> predicate;
+
+    OutputBuilder(String name, Dataset<IN> input, UnaryPredicate<IN> predicate) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.predicate = Objects.requireNonNull(predicate);
+    }
+
+    public Output<IN> output() {
+      Flow flow = input.getFlow();
+
+      Filter<IN> positiveFilter = new Filter<>(
+          name + "-positive", flow, input, predicate);
+      flow.add(positiveFilter);
+
+      Filter<IN> negativeFilter = new Filter<>(
+          name + "-negative", flow, input,
+          (UnaryPredicate<IN>) what -> !predicate.apply(what)
+      );
+      flow.add(negativeFilter);
+
+      return new Output<>(positiveFilter.output(), negativeFilter.output());
+    }
+  }
+
+  /**
+   * Pair of positive and negative output as a result of the {@link Split} operator
+   */
+  public static class Output<T> {
+    private final Dataset<T> positive;
+    private final Dataset<T> negative;
+
+    private Output(Dataset<T> positive, Dataset<T> negative) {
+      this.positive = Objects.requireNonNull(positive);
+      this.negative = Objects.requireNonNull(negative);
+    }
+    /**
+     * @return positive split result
+     */
+    public Dataset<T> positive() {
+      return positive;
+    }
+    /**
+     * @return negative split result
+     */
+    public Dataset<T> negative() {
+      return negative;
+    }
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    return new UsingBuilder<IN>("Split", input);
+  }
+}
