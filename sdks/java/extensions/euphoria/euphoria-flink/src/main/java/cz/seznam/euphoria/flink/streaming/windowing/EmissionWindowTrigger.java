@@ -73,7 +73,7 @@ public class EmissionWindowTrigger<T, W extends Window>
                                                TriggerResult r)
   {
     if (r.isFire()) {
-      window.setEmissionWatermark(ctx.getCurrentWatermark());
+      window.setEmissionWatermark(ctx.getCurrentWatermark() + 1);
     }
     return r;
   }
