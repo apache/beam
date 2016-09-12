@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
  */
 public class WatermarkTriggerScheduler implements TriggerScheduler {
 
+  // how delayed is the watermark time after the event time (how long are
+  // we going to accept latecomers)
   private final long watermarkDuration;
   
   // read-only accessed from multiple threads
@@ -38,20 +40,20 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
    */
   public WatermarkTriggerScheduler(long duration) {
     this.watermarkDuration = duration;
-    this.currentWatermark = -duration;
+    this.currentWatermark = 0;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public void updateStamp(long stamp) {
-    final long newWatermark = stamp - watermarkDuration;
-    if (currentWatermark < newWatermark) {
-      currentWatermark = newWatermark;
+    if (currentWatermark < stamp) {
+      currentWatermark = stamp;
+      final long triggeringStamp = currentWatermark - watermarkDuration;
 
-      // fire all triggers that passed
+      // fire all triggers that passed watermark duration
 
       SortedMap<Long, List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>>> headMap;
-      headMap = scheduledEvents.headMap(currentWatermark);
+      headMap = scheduledEvents.headMap(triggeringStamp);
 
       headMap.entrySet().stream()
           .flatMap(e -> e.getValue().stream().map(p -> Pair.of(e.getKey(), p)))
@@ -59,7 +61,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
           .collect(Collectors.toList())
           .forEach(p -> {
             Triggerable<?, ?> purged = purge(p.getSecond().getFirst(), p.getFirst());
-            purged.fire(stamp, (WindowContext) p.getSecond().getFirst());
+            purged.fire(triggeringStamp, (WindowContext) p.getSecond().getFirst());
           });
 
       // remove all expired events
@@ -113,10 +115,15 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
     List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>> eventsForWindow;
     eventsForWindow = scheduledEvents.get(stamp);
 
+    List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>> filtered
+        = eventsForWindow.stream().filter(p -> p.getFirst() == w)
+            .collect(Collectors.toList());
+
     Pair<WindowContext<?, ?>, Triggerable<?, ?>> event
-        = Iterables.getOnlyElement(eventsForWindow.stream()
-            .filter(p -> p.getFirst() == w).collect(Collectors.toList()));
+      = Iterables.getOnlyElement(filtered);
+
     eventsForWindow.remove(event);
+
     if (eventsForWindow.isEmpty()) {
       scheduledEvents.remove(stamp);
     }
@@ -136,6 +143,10 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
       eventStampsForWindow.put(w, stamps = new HashSet<>());
     }
     stamps.add(stamp);
+  }
+
+  public long getWatermarkDuration() {
+    return watermarkDuration;
   }
 
 }

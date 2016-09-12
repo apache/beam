@@ -566,6 +566,11 @@ public class InMemExecutor implements Executor {
         windowing == null ? Optional.empty() : windowing.getTimestampAssigner());
 
     InputProvider outputSuppliers = new InputProvider();
+    TriggerScheduler triggerScheduler = triggerSchedulerSupplier.get();
+    final long watermarkDuration
+        = triggerScheduler instanceof WatermarkTriggerScheduler
+            ? ((WatermarkTriggerScheduler) triggerScheduler).getWatermarkDuration()
+            : 0L;
     // consume repartitioned suppliers
     for (BlockingQueue<Datum> q : repartitioned) {
       final BlockingQueue<Datum> output = new ArrayBlockingQueue<>(5000);
@@ -576,7 +581,7 @@ public class InMemExecutor implements Executor {
           // if using attached windowing, we have to use watermark triggering
           windowing != null
               ? triggerSchedulerSupplier.get()
-              : new WatermarkTriggerScheduler(0),
+              : new WatermarkTriggerScheduler(watermarkDuration),
           watermarkEmitStrategySupplier.get(),
           reduceStateByKey.input().isBounded(),
           reduceStateByKeyMaxKeysPerWindow));
