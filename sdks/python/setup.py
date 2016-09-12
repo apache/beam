@@ -62,6 +62,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1',
     'protorpc>=0.9.1',
     'python-gflags>=2.0',
+    'python-snappy>=0.5',
     'pyyaml>=3.10',
     ]
 
