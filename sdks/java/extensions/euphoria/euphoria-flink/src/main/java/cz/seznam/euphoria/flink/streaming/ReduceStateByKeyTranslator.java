@@ -54,6 +54,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     }
 
     // apply windowing first
+    // FIXME merging windows not covered yet
     WindowedStream<WindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
             context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
 
