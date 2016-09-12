@@ -32,7 +32,7 @@ public class EmissionWindowAssigner<T, W extends Window>
 
   @Override
   public Trigger<T, EmissionWindow<W>> getDefaultTrigger(StreamExecutionEnvironment env) {
-    return new EmissionTrigger<>(inner.getDefaultTrigger(env));
+    return new EmissionWindowTrigger<>(inner.getDefaultTrigger(env));
   }
 
   @Override

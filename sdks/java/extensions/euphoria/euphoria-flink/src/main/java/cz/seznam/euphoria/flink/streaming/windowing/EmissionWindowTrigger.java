@@ -9,12 +9,12 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * {@link cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow#setEmissionWatermark(long)}
  * when the underlying windows are fired.
  */
-public class EmissionTrigger<T, W extends Window>
+public class EmissionWindowTrigger<T, W extends Window>
     extends Trigger<T, EmissionWindow<W>>
 {
   private final Trigger<T, W> inner;
 
-  public EmissionTrigger(Trigger<T, W> inner) {
+  public EmissionWindowTrigger(Trigger<T, W> inner) {
     this.inner = inner;
   }
 
@@ -73,7 +73,7 @@ public class EmissionTrigger<T, W extends Window>
                                                TriggerResult r)
   {
     if (r.isFire()) {
-      window.setEmissionWatermark(ctx.getCurrentWatermark() + 1);
+      window.setEmissionWatermark(ctx.getCurrentWatermark());
     }
     return r;
   }

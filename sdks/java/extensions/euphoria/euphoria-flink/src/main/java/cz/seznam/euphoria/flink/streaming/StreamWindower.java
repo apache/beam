@@ -10,6 +10,8 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.Utils;
+import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindow;
+import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowAssigner;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindowAssigner;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
@@ -18,22 +20,45 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
-import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
-
-
+import org.apache.flink.streaming.api.functions.timestamps
+    .BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
-import java.time.Duration;
 import java.util.Objects;
 
 /**
  * Class creating {@code WindowedStream} from {@code DataStream}s.
  */
 class StreamWindower {
+
+  <GROUP, LABEL, T, KEY, VALUE>
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>,
+                 KEY,
+                 AttachedWindow<GROUP, LABEL>>
+  attachedWindow(DataStream<StreamingWindowedElement<GROUP, LABEL, T>> input,
+                      UnaryFunction<T, KEY> keyFn,
+                      UnaryFunction<T, VALUE> valFn)
+  {
+    DataStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped;
+    mapped = input
+        .map(i -> {
+          T elem = i.get();
+          KEY key = keyFn.apply(elem);
+          VALUE val = valFn.apply(elem);
+          WindowID<GROUP, LABEL> wid = i.getWindowID();
+          return new StreamingWindowedElement<>(wid, WindowedPair.of(wid.getLabel(), key, val))
+              // ~ forward the emission watermark
+              .withEmissionWatermark(i.getEmissionWatermark());
+        })
+        .returns((Class) StreamingWindowedElement.class);
+    final KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
+    keyed = mapped.keyBy(Utils.wrapQueryable(new WeKeySelector<>()));
+    return keyed.window(new AttachedWindowAssigner<>());
+  }
+
 
   @SuppressWarnings("unchecked")
   <T, LABEL, GROUP, KEY, VALUE, W extends Window>
@@ -96,7 +121,6 @@ class StreamWindower {
               return in.get().getFirst();
             }));
 
-    // XXX needs to provide our own emissionTracking window-assigner
     return keyed.window((WindowAssigner)
         new EmissionWindowAssigner<>(
             new FlinkWindowAssigner<>(genericWindowing)));

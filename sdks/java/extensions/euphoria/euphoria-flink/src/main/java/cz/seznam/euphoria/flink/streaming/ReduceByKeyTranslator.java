@@ -58,19 +58,23 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       throw new UnsupportedOperationException("Non-combining reduce not supported yet");
     }
 
+    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> reduced;
     if (windowing == null) {
-      throw new UnsupportedOperationException("Attached windowing not supported yet!");
+      WindowedStream windowedPairs = context.attachedWindowStream(
+          (DataStream) input, keyExtractor, valueExtractor);
+      reduced = windowedPairs.reduce(new TypedReducer(reducer))
+          .name(operator.getName())
+          .setParallelism(operator.getParallelism());
+    } else {
+      // apply windowing first
+      WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, EmissionWindow<Window>>
+          windowedPairs = context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
+      // reduce
+      reduced = windowedPairs
+          .apply(new TypedReducer(reducer), new ForwardEmissionWatermark())
+          .name(operator.getName())
+          .setParallelism(operator.getParallelism());
     }
-
-    // apply windowing first
-    WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, EmissionWindow<Window>>
-        windowedPairs = context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
-
-    // reduce
-    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> reduced = windowedPairs
-            .apply(new TypedReducer(reducer), new ForwardEmissionWatermark())
-            .name(operator.getName())
-            .setParallelism(operator.getParallelism());
 
     // FIXME partitioner should be applied during "reduce" to avoid
     // unnecessary shuffle, but there is no (known) way how to set custom
@@ -128,12 +132,16 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       Object v1 = p1.get().getSecond();
       Object v2 = p2.get().getSecond();
       WindowID<?, ?> wid = p1.getWindowID();
-      return new StreamingWindowedElement<>(
+      StreamingWindowedElement<?, ?, WindowedPair>
+          out = new StreamingWindowedElement<>(
           wid,
           WindowedPair.of(
               wid.getLabel(),
               p1.get().getKey(),
               reducer.apply(Arrays.asList(v1, v2))));
+      // ~ forward the emission watermark - if any
+      out.withEmissionWatermark(p1.getEmissionWatermark());
+      return out;
     }
 
     @Override
