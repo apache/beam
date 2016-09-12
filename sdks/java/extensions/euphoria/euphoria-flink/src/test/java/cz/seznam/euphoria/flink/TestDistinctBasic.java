@@ -33,8 +33,7 @@ public class TestDistinctBasic {
                 Pair.of("foo", "bar"))));
     Distinct.of(input)
         .windowBy(Time.of(Duration.ofSeconds(1))
-            // ~ force event time
-            .using(e -> System.currentTimeMillis()))
+            .using(e -> 1L)) // ~ force event time
         .output()
         .persist(output);
 
