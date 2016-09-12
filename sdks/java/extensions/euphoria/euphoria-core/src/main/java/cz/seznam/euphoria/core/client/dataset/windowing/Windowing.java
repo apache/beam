@@ -2,7 +2,6 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 
 import java.io.Serializable;
 import java.util.Optional;
