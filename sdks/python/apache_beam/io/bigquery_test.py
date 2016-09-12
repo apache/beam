@@ -83,7 +83,6 @@ class TestTableRowJsonCoder(unittest.TestCase):
         test_row, TableRowJsonCoder().decode(coder.encode(test_row)))
 
   def test_row_and_no_schema(self):
-    schema_definition = [('f', 'FLOAT')]
     coder = TableRowJsonCoder()
     test_row = bigquery.TableRow(
         f=[bigquery.TableCell(v=to_json_value(e))
