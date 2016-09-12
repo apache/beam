@@ -183,7 +183,9 @@ public final class KinesisIO {
 
             @Override
             public AmazonKinesis get() {
-                return new AmazonKinesisClient(getCredentialsProvider()).withRegion(region);
+                AmazonKinesisClient client = new AmazonKinesisClient(getCredentialsProvider());
+                client.withRegion(region);
+                return client;
             }
         }
     }
