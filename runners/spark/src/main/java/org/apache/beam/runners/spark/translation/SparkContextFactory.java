@@ -64,7 +64,10 @@ public final class SparkContextFactory {
 
   private static JavaSparkContext createSparkContext(String master, String appName) {
     SparkConf conf = new SparkConf();
-    conf.setMaster(master);
+    if (!conf.contains("spark.master")) {
+      // set master if not set.
+      conf.setMaster(master);
+    }
     conf.setAppName(appName);
     conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     return new JavaSparkContext(conf);
