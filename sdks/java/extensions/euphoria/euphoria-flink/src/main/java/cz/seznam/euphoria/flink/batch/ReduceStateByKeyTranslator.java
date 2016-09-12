@@ -80,9 +80,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       ResultTypeQueryable<ComparablePair<LABEL, KEY>>
   {
     @Override
-    public ComparablePair<LABEL, KEY> getKey(WindowedElement<?, LABEL, ? extends Pair<KEY, ?>> value)
-            throws Exception
-    {
+    public ComparablePair<LABEL, KEY> getKey(WindowedElement<?, LABEL, ? extends Pair<KEY, ?>> value) {
       return ComparablePair.of(value.getWindowID().getLabel(), value.get().getKey());
     }
 
@@ -124,7 +122,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       // add the first element to the state
       state.add(element.get().getValue());
 
-      while(it.hasNext()) {
+      while (it.hasNext()) {
         state.add(it.next().get().getValue());
       }
 
