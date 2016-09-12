@@ -26,7 +26,7 @@ import java.util.Arrays;
 class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> {
 
   @Override
-//  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<ReduceByKey> operator,
                                  StreamingExecutorContext context)
   {
