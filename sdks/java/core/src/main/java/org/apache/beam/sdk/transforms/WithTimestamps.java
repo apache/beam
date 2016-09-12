@@ -101,7 +101,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
   public PCollection<T> apply(PCollection<T> input) {
     return input
         .apply("AddTimestamps", ParDo.of(new AddTimestampsDoFn<T>(fn, allowedTimestampSkew)))
-        .setTypeDescriptorInternal(input.getTypeDescriptor());
+        .setCoder(input.getCoder());
   }
 
   private static class AddTimestampsDoFn<T> extends DoFn<T, T> {

@@ -717,10 +717,10 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
-      return PCollection.<OutputT>createPrimitiveOutputInternal(
-              input.getPipeline(),
-              input.getWindowingStrategy(),
-              input.isBounded())
+      TupleTag<OutputT> mainOutputTag = new TupleTag<>();
+      return input
+          .apply(getName(), withOutputTags(mainOutputTag, TupleTagList.empty()))
+          .get(mainOutputTag)
           .setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
     }
 

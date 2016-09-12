@@ -222,8 +222,9 @@ public class OldDoFnTest implements Serializable {
     PipelineResult result = pipeline.run();
 
     AggregatorValues<Integer> values = result.getAggregatorValues(countOdds.aggregator);
-    assertThat(values.getValuesAtSteps(),
-        equalTo((Map<String, Integer>) ImmutableMap.<String, Integer>of("ParDo(CountOdds)", 4)));
+    assertThat(
+        values.getValuesAtSteps(),
+        equalTo((Map<String, Integer>) ImmutableMap.of("ParDo(CountOdds)/ParDo(CountOdds)", 4)));
   }
 
   private static class CountOddsFn extends OldDoFn<Integer, Void> {

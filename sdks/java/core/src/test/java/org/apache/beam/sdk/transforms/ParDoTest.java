@@ -824,22 +824,22 @@ public class ParDoTest implements Serializable {
 
     {
       PCollection<String> output1 = input.apply(ParDo.of(new TestOldDoFn()));
-      assertEquals("ParDo(Test).out", output1.getName());
+      assertEquals("ParDo(Test)/ParDo(Test).out0", output1.getName());
     }
 
     {
       PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestOldDoFn()));
-      assertEquals("MyParDo.out", output2.getName());
+      assertEquals("MyParDo/ParDo(Test).out0", output2.getName());
     }
 
     {
-      PCollection<String> output4 = input.apply("TestOldDoFn", ParDo.of(new TestOldDoFn()));
-      assertEquals("TestOldDoFn.out", output4.getName());
+      PCollection<String> output4 = input.apply("TestDoFn", ParDo.of(new TestOldDoFn()));
+      assertEquals("TestDoFn/ParDo(Test).out0", output4.getName());
     }
 
     {
       PCollection<String> output5 = input.apply(ParDo.of(new StrangelyNamedDoer()));
-      assertEquals("ParDo(StrangelyNamedDoer).out",
+      assertEquals("ParDo(StrangelyNamedDoer)/ParDo(StrangelyNamedDoer).out0",
           output5.getName());
     }
 
