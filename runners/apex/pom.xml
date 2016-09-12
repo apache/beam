@@ -28,7 +28,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-apex_3.4.0</artifactId>
+  <artifactId>beam-runners-apex</artifactId>
 
   <name>Apache Beam :: Runners :: Apex</name>
 

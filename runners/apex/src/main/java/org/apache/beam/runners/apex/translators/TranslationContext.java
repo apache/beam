@@ -82,30 +82,22 @@ public class TranslationContext {
   }
 
   public void addOperator(Operator operator, OutputPort port) {
+    addOperator(operator, port, this.<PCollection<?>>getOutput());
+  }
+
+  /**
+   * Add intermediate operator for the current transformation.
+   * @param operator
+   * @param port
+   * @param output
+   */
+  public void addOperator(Operator operator, OutputPort port, PCollection output) {
     // Apex DAG requires a unique operator name
     // use the transform's name and make it unique
     String name = getCurrentTransform().getFullName();
     for (int i=1; this.operators.containsKey(name); name = getCurrentTransform().getFullName() + i++);
     this.operators.put(name, operator);
-    PCollection<?> output = getOutput();
     this.streams.put(output, (Pair)new ImmutablePair<>(port, new ArrayList<>()));
-  }
-
-  /**
-   * Add operator that is internal to a transformation.
-   * @param output
-   * @param operator
-   * @param port
-   * @param name
-   */
-  public <T> PInput addInternalOperator(Operator operator, OutputPort port, String name, Coder<T> coder) {
-    checkArgument(this.operators.get(name) == null, "duplicate operator " + name);
-    this.operators.put(name, operator);
-    PCollection<T> input = getInput();
-    PCollection<T> output = PCollection.createPrimitiveOutputInternal(input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
-    output.setCoder(coder);
-    this.streams.put(output, (Pair)new ImmutablePair<>(port, new ArrayList<>()));
-    return output;
   }
 
   public void addStream(PInput input, InputPort inputPort) {

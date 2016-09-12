@@ -25,6 +25,8 @@ import org.apache.beam.runners.apex.translators.ParDoBoundTranslator;
 import org.apache.beam.runners.apex.translators.ReadUnboundedTranslator;
 import org.apache.beam.runners.apex.translators.TransformTranslator;
 import org.apache.beam.runners.apex.translators.TranslationContext;
+import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
+import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformTreeNode;
@@ -64,6 +66,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     // register TransformTranslators
     registerTransformTranslator(ParDo.Bound.class, new ParDoBoundTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
+    registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
     registerTransformTranslator(Flatten.FlattenPCollectionList.class,
         new FlattenPCollectionTranslator());
@@ -130,5 +133,18 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     return transformTranslators.get(transformClass);
   }
 
+  private static class ReadBoundedTranslator<T> implements TransformTranslator<Read.Bounded<T>> {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public void translate(Read.Bounded<T> transform, TranslationContext context) {
+      // TODO: adapter is visibleForTesting
+      BoundedToUnboundedSourceAdapter unboundedSource = new BoundedToUnboundedSourceAdapter<>(transform.getSource());
+      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
+          unboundedSource, context.getPipelineOptions());
+      context.addOperator(operator, operator.output);
+    }
+
+  }
 
 }

@@ -99,7 +99,7 @@ public class ReadUnboundTranslatorTest {
 
     ApexRunnerResult result = (ApexRunnerResult)p.run();
     DAG dag = result.getApexDAG();
-    DAG.OperatorMeta om = dag.getOperatorMeta("Read(BoundedCountingSource)/Read(BoundedCountingSource)/Read(BoundedToUnboundedSourceAdapter)");
+    DAG.OperatorMeta om = dag.getOperatorMeta("Read(BoundedCountingSource)");
     Assert.assertNotNull(om);
     Assert.assertEquals(om.getOperator().getClass(), ApexReadUnboundedInputOperator.class);
 

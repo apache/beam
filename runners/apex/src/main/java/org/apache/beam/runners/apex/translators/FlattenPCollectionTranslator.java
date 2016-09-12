@@ -18,11 +18,15 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import java.util.List;
+
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
 import com.datatorrent.lib.stream.StreamMerger;
+import com.google.common.collect.Lists;
 
 /**
  * Flatten.FlattenPCollectionList translation to Apex operator.
@@ -34,19 +38,46 @@ public class FlattenPCollectionTranslator<T> implements
 
   @Override
   public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
-    StreamMerger<T> operator = null;
-    PCollectionList<T> collections = context.getInput();
-    if (collections.size() > 2) {
-      throw new UnsupportedOperationException("Currently supports only 2 collections: " + transform);
-    }
-    for (PCollection<T> collection : collections.getAll()) {
-      if (null == operator) {
-        operator = new StreamMerger<T>();
-        context.addStream(collection, operator.data1);
+    PCollection<T> firstCollection = null;
+    PCollectionList<T> input = context.getInput();
+    List<PCollection<T>> collections = input.getAll();
+    List<PCollection<T>> remainingCollections = Lists.newArrayList();
+    while (!collections.isEmpty()) {
+      for (PCollection<T> collection : collections) {
+        if (null == firstCollection) {
+          firstCollection = collection;
+        } else {
+          StreamMerger<T> operator = new StreamMerger<>();
+          context.addStream(firstCollection, operator.data1);
+          context.addStream(collection, operator.data2);
+          if (collections.size() > 2) {
+            PCollection<T> resultCollection = intermediateCollection(collection, collection.getCoder());
+            context.addOperator(operator, operator.out, resultCollection);
+            remainingCollections.add(resultCollection);
+          } else {
+            // final stream merge
+            context.addOperator(operator, operator.out);
+          }
+          firstCollection = null;
+        }
+      }
+      if (firstCollection != null) {
+        // push to next merge level
+        remainingCollections.add(firstCollection);
+      }
+      if (remainingCollections.size() > 1) {
+        collections = remainingCollections;
+        remainingCollections = Lists.newArrayList();
       } else {
-        context.addStream(collection, operator.data2);
+        collections = Lists.newArrayList();
       }
     }
-    context.addOperator(operator, operator.out);
   }
+
+  public static <T> PCollection<T> intermediateCollection(PCollection<T> input, Coder<T> outputCoder) {
+    PCollection<T> output = PCollection.createPrimitiveOutputInternal(input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+    output.setCoder(outputCoder);
+    return output;
+  }
+
 }
