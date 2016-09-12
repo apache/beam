@@ -146,6 +146,14 @@ public class ReduceByKey<
               reducer, null, this)
           .output();
     }
+
+    @SuppressWarnings("unchecked")
+    public <W> Dataset<WindowedPair<W, KEY, OUT>> outputWindowed() {
+      return (Dataset) new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
+              reducer, null, this)
+          .outputWindowed();
+    }
+
   }
 
   public static class DatasetBuilder5<

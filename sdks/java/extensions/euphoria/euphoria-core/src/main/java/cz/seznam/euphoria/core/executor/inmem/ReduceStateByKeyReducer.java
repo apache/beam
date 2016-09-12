@@ -532,9 +532,12 @@ class ReduceStateByKeyReducer implements Runnable {
           }
           if (item.isWatermark()) {
             // update current stamp
-            processing.updateStamp(((Datum.Watermark) item).getWatermark());
+            long stamp = ((Datum.Watermark) item).getWatermark();
+            processing.updateStamp(stamp);
           } else if (item.isWindowTrigger() && isAttachedWindowing) {
             // reregister trigger of given window
+            // FIXME: move this to windowing itself so that attached windowing
+            // can be implemented 'natively' as instance of generic windowing
             Datum.WindowTrigger trigger = (Datum.WindowTrigger) item;
             processing.updateWindowTrigger(trigger.getWindowID(), trigger.getStamp());
             output.put(item);
