@@ -122,7 +122,6 @@
       <groupId>org.apache.gearpump</groupId>
       <artifactId>gearpump-daemon_2.11</artifactId>
       <version>${gearpump.version}</version>
-      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.gearpump</groupId>
@@ -186,10 +185,6 @@
       <artifactId>jackson-annotations</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
@@ -225,6 +220,7 @@
       <artifactId>auto-service</artifactId>
       <version>1.0-rc2</version>
     </dependency>
+
   </dependencies>
 
   <build>
@@ -287,6 +283,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
+
     </plugins>
   </build>
 </project>

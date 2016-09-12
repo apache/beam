@@ -134,7 +134,7 @@ public class Pipeline {
    */
   public static Pipeline create(PipelineOptions options) {
     Pipeline pipeline = new Pipeline(PipelineRunner.fromOptions(options), options);
-    LOG.debug("Creating {}", pipeline);
+    LOG.info("Creating {}", pipeline);
     return pipeline;
   }
 

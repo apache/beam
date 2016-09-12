@@ -18,6 +18,9 @@
 
 package org.apache.beam.runners.gearpump.translators.utils;
 
+import java.io.IOException;
+import java.io.Serializable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ExecutionContext;
@@ -25,9 +28,6 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
-
-import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * serializable {@link ExecutionContext.StepContext} that basically does nothing.

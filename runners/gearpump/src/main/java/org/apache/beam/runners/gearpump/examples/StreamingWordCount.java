@@ -23,11 +23,9 @@ import org.apache.beam.runners.gearpump.GearpumpPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -45,15 +43,9 @@ import org.slf4j.LoggerFactory;
 public class StreamingWordCount {
 
   static class ExtractWordsFn extends OldDoFn<String, String> {
-    private final Aggregator<Long, Long> emptyLines =
-        createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {
-      if (c.element().trim().isEmpty()) {
-        emptyLines.addValue(1L);
-      }
-
       // Split the line into words.
       String[] words = c.element().split("[^a-zA-Z']+");
 
@@ -81,11 +73,12 @@ public class StreamingWordCount {
 
 
   public static void main(String[] args) {
-    GearpumpPipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-        .as(GearpumpPipelineOptions.class);
-    options.setApplicationName("StreamingWordCount");
+    GearpumpPipelineOptions options = PipelineOptionsFactory
+            .fromArgs(args).as(GearpumpPipelineOptions.class);
     options.setRunner(GearpumpPipelineRunner.class);
+    options.setApplicationName("StreamingWordCount");
     options.setParallelism(1);
+
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> wordCounts =

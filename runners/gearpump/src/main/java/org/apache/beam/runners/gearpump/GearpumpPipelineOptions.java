@@ -18,16 +18,16 @@
 
 package org.apache.beam.runners.gearpump;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.util.Map;
+
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import org.apache.gearpump.cluster.client.ClientContext;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
-
-import java.util.Map;
 
 /**
  * Options that configure the Gearpump pipeline.

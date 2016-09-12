@@ -20,6 +20,9 @@ package org.apache.beam.runners.gearpump.translators;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -32,9 +35,6 @@ import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
 import org.apache.gearpump.streaming.source.DataSource;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Maintains context data for {@link TransformTranslator}s.
