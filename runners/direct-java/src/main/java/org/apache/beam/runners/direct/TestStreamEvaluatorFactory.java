@@ -84,6 +84,13 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
         .orNull();
   }
 
+  /**
+   * Release the provided {@link Evaluator} after completing an evaluation. The next call to {@link
+   * #createEvaluator(AppliedPTransform, EvaluationContext)} with the {@link AppliedPTransform} will
+   * return this evaluator.
+   */
+  private void completeEvaluation(Evaluator<?> evaluator) {}
+
   private static class Evaluator<T> implements TransformEvaluator<Object> {
     private final AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> application;
     private final EvaluationContext context;
