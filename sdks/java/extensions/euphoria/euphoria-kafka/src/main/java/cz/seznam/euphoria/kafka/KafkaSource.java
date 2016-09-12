@@ -179,7 +179,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     long offsetTimestamp = -1L;
     if (config != null) {
       offsetTimestamp = config.getLong("reset.offset.timestamp", -1L);
-      LOG.info("Resetting offset of kafka topic {} to  {}",
+      LOG.info("Resetting offset of kafka topic {} to {}",
           topicId, offsetTimestamp);
     }
     if (config != null && config.getBoolean("single.reader.only", false)) {
