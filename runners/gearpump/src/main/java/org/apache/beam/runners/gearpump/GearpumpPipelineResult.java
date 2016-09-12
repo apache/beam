@@ -17,14 +17,16 @@
  */
 package org.apache.beam.runners.gearpump;
 
+import java.io.IOException;
+
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.transforms.Aggregator;
+
 import org.joda.time.Duration;
 
-import java.io.IOException;
 
 /**
  * Result of executing a {@link Pipeline} with Gearpump.

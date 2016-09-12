@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.IOException;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -31,6 +32,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class containing adapters for running a {@link DoFn} as an {@link OldDoFn}.
@@ -72,6 +75,8 @@ public class DoFnAdapters {
   private static class SimpleDoFnAdapter<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
     private final DoFn<InputT, OutputT> fn;
     private transient DoFnInvoker<InputT, OutputT> invoker;
+    private static final Logger LOG =
+            LoggerFactory.getLogger(SimpleDoFnAdapter.class);
 
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);

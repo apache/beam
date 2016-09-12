@@ -18,13 +18,13 @@
 
 package org.apache.beam.runners.gearpump.translators.utils;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.values.PCollectionView;
-
 import java.io.Serializable;
 
 import javax.annotation.Nullable;
+
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * no-op side input reader.

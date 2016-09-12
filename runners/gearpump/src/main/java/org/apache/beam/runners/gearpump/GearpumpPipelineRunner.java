@@ -17,6 +17,13 @@
  */
 package org.apache.beam.runners.gearpump;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.beam.runners.core.AssignWindows;
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -30,24 +37,17 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.AssignWindows;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
-
 import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.cluster.client.ClientContext;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A {@link PipelineRunner} that executes the operations in the
@@ -79,16 +79,16 @@ public class GearpumpPipelineRunner extends PipelineRunner<GearpumpPipelineResul
       PTransform<InputT, OutputT> transform, InputT input) {
     if (Window.Bound.class.equals(transform.getClass())) {
       return (OutputT) super.apply(
-          new AssignWindowsAndSetStrategy((Window.Bound) transform), input);
+              new AssignWindowsAndSetStrategy((Window.Bound) transform), input);
     } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
-        && ((PCollectionList<?>) input).size() == 0) {
-      return (OutputT) Pipeline.applyTransform(input, Create.of());
+            && ((PCollectionList<?>) input).size() == 0) {
+      return (OutputT) Pipeline.applyTransform(input.getPipeline().begin(), Create.of());
     } else if (Create.Values.class.equals(transform.getClass())) {
       return (OutputT) PCollection
-          .<OutputT>createPrimitiveOutputInternal(
-              input.getPipeline(),
-              WindowingStrategy.globalDefault(),
-              PCollection.IsBounded.BOUNDED);
+              .<OutputT>createPrimitiveOutputInternal(
+                      input.getPipeline(),
+                      WindowingStrategy.globalDefault(),
+                      PCollection.IsBounded.BOUNDED);
     } else {
       return super.apply(transform, input);
     }

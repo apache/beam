@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.gearpump;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.gearpump.translators.CreateValuesTranslator;
 import org.apache.beam.runners.gearpump.translators.FlattenPCollectionTranslator;
 import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator;
@@ -40,9 +42,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.gearpump.util.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * {@link GearpumpPipelineTranslator} knows how to translate {@link Pipeline} objects
@@ -109,7 +108,7 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
 
   @Override
   public void visitValue(PValue value, TransformTreeNode producer) {
-    LOG.debug("visiting value {}", value);
+    LOG.info("visiting value {}", value);
   }
 
   /**
