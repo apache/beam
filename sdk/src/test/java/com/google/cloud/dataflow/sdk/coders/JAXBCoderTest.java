@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -30,7 +29,6 @@ import org.junit.runners.JUnit4;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.xml.bind.annotation.XmlRootElement;
@@ -106,7 +104,7 @@ public class JAXBCoderTest {
   @Test
   public void testEncodeDecodeMultithreaded() throws Throwable {
     final JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
-    int numThreads = 1000;
+    int numThreads = 100;
 
     final CountDownLatch ready = new CountDownLatch(numThreads);
     final CountDownLatch start = new CountDownLatch(1);
@@ -142,11 +140,11 @@ public class JAXBCoderTest {
     ready.await();
     start.countDown();
 
-    if (!done.await(10L, TimeUnit.SECONDS)) {
-      fail("Should be able to clone " + numThreads + " elements in 10 seconds");
-    }
-    if (thrown.get() != null) {
-      throw thrown.get();
+    done.await();
+    Throwable actuallyThrown = thrown.get();
+
+    if (actuallyThrown != null) {
+      throw actuallyThrown;
     }
   }
 
