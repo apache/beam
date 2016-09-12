@@ -43,8 +43,7 @@ import org.joda.time.Instant;
  */
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   // Resume from a checkpoint every nth invocation, to ensure close-and-resume is exercised
-  @VisibleForTesting
-  static final int MAX_READER_REUSE_COUNT = 20;
+  @VisibleForTesting static final int MAX_READER_REUSE_COUNT = 20;
 
   /*
    * An evaluator for a Source is stateful, to ensure the CheckpointMark is properly persisted.
@@ -57,28 +56,33 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * an arbitrary Queue implementation does not, so the concrete type is used explicitly.
    */
   private final ConcurrentMap<
-      AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<? extends UnboundedReadEvaluator<?, ?>>>
-      sourceEvaluators = new ConcurrentHashMap<>();
+          AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<? extends UnboundedReadEvaluator<?, ?>>>
+      sourceEvaluators;
+  private final EvaluationContext evaluationContext;
+
+  UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+    sourceEvaluators = new ConcurrentHashMap<>();
+  }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   @Nullable
-  public <InputT> TransformEvaluator<InputT> forApplication(AppliedPTransform<?, ?, ?> application,
-      @Nullable CommittedBundle<?> inputBundle, EvaluationContext evaluationContext) {
-    return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
+  public <InputT> TransformEvaluator<InputT> forApplication(
+      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle) {
+    return getTransformEvaluator((AppliedPTransform) application);
   }
 
   /**
-   * Get a {@link TransformEvaluator} that produces elements for the provided application of
-   * {@link Unbounded Read.Unbounded}, initializing the queue of evaluators if required.
+   * Get a {@link TransformEvaluator} that produces elements for the provided application of {@link
+   * Unbounded Read.Unbounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.
    */
   private <OutputT, CheckpointMarkT extends CheckpointMark>
       TransformEvaluator<?> getTransformEvaluator(
-          final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-          final EvaluationContext evaluationContext) {
+          final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform) {
     ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue =
         (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
             sourceEvaluators.get(transform);
@@ -119,8 +123,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    *
    * <p>Calls to {@link UnboundedReadEvaluator} are not internally thread-safe, and should only be
    * used by a single thread at a time. Each {@link UnboundedReadEvaluator} maintains its own
-   * checkpoint, and constructs its reader from the current checkpoint in each call to
-   * {@link #finishBundle()}.
+   * checkpoint, and constructs its reader from the current checkpoint in each call to {@link
+   * #finishBundle()}.
    */
   private static class UnboundedReadEvaluator<OutputT, CheckpointMarkT extends CheckpointMark>
       implements TransformEvaluator<Object> {
@@ -135,13 +139,14 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
      * source as derived from {@link #transform} due to splitting.
      */
     private final UnboundedSource<OutputT, CheckpointMarkT> source;
+
     private final UnboundedReadDeduplicator deduplicator;
     private UnboundedReader<OutputT> currentReader;
     private CheckpointMarkT checkpointMark;
 
     /**
-     * The count of bundles output from this {@link UnboundedReadEvaluator}. Used to exercise
-     * {@link UnboundedReader#close()}.
+     * The count of bundles output from this {@link UnboundedReadEvaluator}. Used to exercise {@link
+     * UnboundedReader#close()}.
      */
     private int outputBundles = 0;
 
@@ -174,8 +179,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           int numElements = 0;
           do {
             if (deduplicator.shouldOutput(currentReader.getCurrentRecordId())) {
-              output.add(WindowedValue.timestampedValueInGlobalWindow(currentReader.getCurrent(),
-                  currentReader.getCurrentTimestamp()));
+              output.add(
+                  WindowedValue.timestampedValueInGlobalWindow(
+                      currentReader.getCurrent(), currentReader.getCurrentTimestamp()));
             }
             numElements++;
           } while (numElements < ARBITRARY_MAX_ELEMENTS && currentReader.advance());
@@ -224,7 +230,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
       if (!currentReader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        evaluationContext.scheduleAfterOutputWouldBeProduced(transform.getOutput(),
+        evaluationContext.scheduleAfterOutputWouldBeProduced(
+            transform.getOutput(),
             GlobalWindow.INSTANCE,
             transform.getOutput().getWindowingStrategy(),
             new Runnable() {
@@ -234,8 +241,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                   mark.finalizeCheckpoint();
                 } catch (IOException e) {
                   throw new RuntimeException(
-                      "Couldn't finalize checkpoint after the end of the Global Window",
-                      e);
+                      "Couldn't finalize checkpoint after the end of the Global Window", e);
                 }
               }
             });

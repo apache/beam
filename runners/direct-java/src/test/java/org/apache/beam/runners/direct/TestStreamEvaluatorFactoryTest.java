@@ -35,6 +35,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,8 +43,16 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link TestStreamEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class TestStreamEvaluatorFactoryTest {
-  private TestStreamEvaluatorFactory factory = new TestStreamEvaluatorFactory();
-  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+  private TestStreamEvaluatorFactory factory;
+  private BundleFactory bundleFactory;
+  private EvaluationContext context;
+
+  @Before
+  public void setup() {
+    context = mock(EvaluationContext.class);
+    factory = new TestStreamEvaluatorFactory(context);
+    bundleFactory = ImmutableListBundleFactory.create();
+  }
 
   /** Demonstrates that returned evaluators produce elements in sequence. */
   @Test
@@ -56,21 +65,20 @@ public class TestStreamEvaluatorFactoryTest {
                 .addElements(4, 5, 6)
                 .advanceWatermarkToInfinity());
 
-    EvaluationContext context = mock(EvaluationContext.class);
     when(context.createRootBundle(streamVals))
         .thenReturn(
             bundleFactory.createRootBundle(streamVals), bundleFactory.createRootBundle(streamVals));
 
     TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(streamVals.getProducingTransformInternal(), null);
     TransformResult firstResult = firstEvaluator.finishBundle();
 
     TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(streamVals.getProducingTransformInternal(), null);
     TransformResult secondResult = secondEvaluator.finishBundle();
 
     TransformEvaluator<Object> thirdEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(streamVals.getProducingTransformInternal(), null);
     TransformResult thirdResult = thirdEvaluator.finishBundle();
 
     assertThat(
@@ -105,13 +113,12 @@ public class TestStreamEvaluatorFactoryTest {
         p.apply(
             TestStream.create(VarIntCoder.of()).addElements(4, 5, 6).advanceWatermarkToInfinity());
 
-    EvaluationContext context = mock(EvaluationContext.class);
     TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(streamVals.getProducingTransformInternal(), null);
 
     // create a second evaluator before the first is finished. The evaluator should not be available
     TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(streamVals.getProducingTransformInternal(), null);
     assertThat(secondEvaluator, is(nullValue()));
   }
 
@@ -127,16 +134,15 @@ public class TestStreamEvaluatorFactoryTest {
     PCollection<Integer> firstVals = p.apply("Stream One", stream);
     PCollection<Integer> secondVals = p.apply("Stream A", stream);
 
-    EvaluationContext context = mock(EvaluationContext.class);
     when(context.createRootBundle(firstVals)).thenReturn(bundleFactory.createRootBundle(firstVals));
     when(context.createRootBundle(secondVals))
         .thenReturn(bundleFactory.createRootBundle(secondVals));
 
     TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(firstVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(firstVals.getProducingTransformInternal(), null);
     // The two evaluators can exist independently
     TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(secondVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(secondVals.getProducingTransformInternal(), null);
 
     TransformResult firstResult = firstEvaluator.finishBundle();
     TransformResult secondResult = secondEvaluator.finishBundle();
@@ -175,16 +181,15 @@ public class TestStreamEvaluatorFactoryTest {
                 .addElements("Two")
                 .advanceWatermarkToInfinity());
 
-    EvaluationContext context = mock(EvaluationContext.class);
     when(context.createRootBundle(firstVals)).thenReturn(bundleFactory.createRootBundle(firstVals));
     when(context.createRootBundle(secondVals))
         .thenReturn(bundleFactory.createRootBundle(secondVals));
 
     TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(firstVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(firstVals.getProducingTransformInternal(), null);
     // The two evaluators can exist independently
     TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(secondVals.getProducingTransformInternal(), null, context);
+        factory.forApplication(secondVals.getProducingTransformInternal(), null);
 
     TransformResult firstResult = firstEvaluator.finishBundle();
     TransformResult secondResult = secondEvaluator.finishBundle();

@@ -74,8 +74,8 @@ public class ViewEvaluatorFactoryTest {
     CommittedBundle<String> inputBundle =
         bundleFactory.createRootBundle(input).commit(Instant.now());
     TransformEvaluator<Iterable<String>> evaluator =
-        new ViewEvaluatorFactory()
-            .forApplication(view.getProducingTransformInternal(), inputBundle, context);
+        new ViewEvaluatorFactory(context)
+            .forApplication(view.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(
         WindowedValue.<Iterable<String>>valueInGlobalWindow(ImmutableList.of("foo", "bar")));

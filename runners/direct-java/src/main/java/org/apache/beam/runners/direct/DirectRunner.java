@@ -245,7 +245,7 @@ public class DirectRunner
     // independent executor service for each run
     ExecutorService executorService = executorServiceSupplier.get();
 
-    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry();
+    TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,

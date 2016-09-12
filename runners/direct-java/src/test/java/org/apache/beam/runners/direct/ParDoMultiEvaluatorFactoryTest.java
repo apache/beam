@@ -119,9 +119,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory()
+        new ParDoMultiEvaluatorFactory(evaluationContext)
             .forApplication(
-                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+                mainOutput.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -206,9 +206,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory()
+        new ParDoMultiEvaluatorFactory(evaluationContext)
             .forApplication(
-                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+                mainOutput.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -300,9 +300,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory()
+        new ParDoMultiEvaluatorFactory(evaluationContext)
             .forApplication(
-                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+                mainOutput.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -413,9 +413,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory()
+        new ParDoMultiEvaluatorFactory(evaluationContext)
             .forApplication(
-                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+                mainOutput.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
