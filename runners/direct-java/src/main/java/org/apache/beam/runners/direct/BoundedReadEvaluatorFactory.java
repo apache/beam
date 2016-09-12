@@ -73,7 +73,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * already done so.
    */
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform) {
+      final AppliedPTransform<?, PCollection<OutputT>, ?> transform) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
     Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue =
@@ -83,7 +83,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
-        BoundedSource<OutputT> source = transform.getTransform().getSource();
+        Bounded<OutputT> bound = (Bounded<OutputT>) transform.getTransform();
+        BoundedSource<OutputT> source = bound.getSource();
         BoundedReadEvaluator<OutputT> evaluator =
             new BoundedReadEvaluator<OutputT>(transform, evaluationContext, source);
         evaluatorQueue.offer(evaluator);
@@ -105,7 +106,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * may produce duplicate elements.
    */
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
-    private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
+    private final AppliedPTransform<?, PCollection<OutputT>, ?> transform;
     private final EvaluationContext evaluationContext;
     /**
      * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same as
@@ -114,7 +115,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private BoundedSource<OutputT> source;
 
     public BoundedReadEvaluator(
-        AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
+        AppliedPTransform<?, PCollection<OutputT>, ?> transform,
         EvaluationContext evaluationContext,
         BoundedSource<OutputT> source) {
       this.transform = transform;
