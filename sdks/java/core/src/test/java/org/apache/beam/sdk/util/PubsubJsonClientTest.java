@@ -93,10 +93,10 @@ public class PubsubJsonClientTest {
                              .setAckId(ACK_ID);
     PullResponse expectedResponse =
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
-    Mockito.when(mockPubsub.projects()
-                           .subscriptions()
-                           .pull(expectedSubscription, expectedRequest)
-                           .execute())
+    Mockito.when((Object) (mockPubsub.projects()
+                               .subscriptions()
+                               .pull(expectedSubscription, expectedRequest)
+                               .execute()))
            .thenReturn(expectedResponse);
     List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
     assertEquals(1, acutalMessages.size());
@@ -120,10 +120,10 @@ public class PubsubJsonClientTest {
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
         .setMessageIds(ImmutableList.of(MESSAGE_ID));
-    Mockito.when(mockPubsub.projects()
-                           .topics()
-                           .publish(expectedTopic, expectedRequest)
-                           .execute())
+    Mockito.when((Object) (mockPubsub.projects()
+                                .topics()
+                                .publish(expectedTopic, expectedRequest)
+                                .execute()))
            .thenReturn(expectedResponse);
     OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
