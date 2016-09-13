@@ -201,43 +201,42 @@ def _assertSplitAtFractionBehavior(
   if split_result is not None:
     if len(split_result) != 2:
       raise ValueError('Split result must be a tuple that contains split '
-                       'position and split fraction. Received: %r',
-                       split_result)
+                       'position and split fraction. Received: %r' %
+                       (split_result,))
 
     if range_tracker.stop_position() != split_result[0]:
       raise ValueError('After a successful split, the stop position of the '
                        'RangeTracker must be the same as the returned split '
                        'position. Observed %r and %r which are different.',
-                       range_tracker.stop_position(), split_result[0])
+                       range_tracker.stop_position() % (split_result[0],))
 
     if split_fraction < 0 or split_fraction > 1:
       raise ValueError('Split fraction must be within the range [0,1]',
-                       'Observed split fraction was %r.', split_result[1])
+                       'Observed split fraction was %r.' % (split_result[1],))
 
   stop_position_after_split = range_tracker.stop_position()
   if split_result and stop_position_after_split == stop_position_before_split:
     raise ValueError('Stop position %r did not change after a successful '
-                     'split of source %r at fraction %r.',
-                     stop_position_before_split, source, split_fraction)
+                     'split of source %r at fraction %r.' %
+                     (stop_position_before_split, source, split_fraction))
 
   if expected_outcome == ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT:
     if not split_result:
       raise ValueError('Expected split of source %r at fraction %r to be '
                        'successful after reading %d elements. But '
-                       'the split failed.',
-                       source, split_fraction,
-                       num_items_to_read_before_split)
+                       'the split failed.' %
+                       (source, split_fraction, num_items_to_read_before_split))
   elif expected_outcome == ExpectedSplitOutcome.MUST_FAIL:
     if split_result:
       raise ValueError('Expected split of source %r at fraction %r after '
                        'reading %d elements to fail. But splitting '
-                       'succeeded with result %r.',
-                       source, split_fraction,
-                       num_items_to_read_before_split, split_result)
+                       'succeeded with result %r.' %
+                       (source, split_fraction, num_items_to_read_before_split,
+                        split_result))
 
   elif (expected_outcome !=
         ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS):
-    raise ValueError('Unknown type of expected outcome: %r',
+    raise ValueError('Unknown type of expected outcome: %r'%
                      expected_outcome)
   current_items.extend([value for value in reader_iter])
 

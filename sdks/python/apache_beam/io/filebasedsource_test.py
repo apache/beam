@@ -384,19 +384,19 @@ class TestSingleFileSource(unittest.TestCase):
 
     fbs = LineSource('dymmy_pattern')
 
-    with self.assertRaisesRegexp(ValueError, start_not_a_number_error):
+    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset='aaa', stop_offset='bbb')
-    with self.assertRaisesRegexp(ValueError, start_not_a_number_error):
+    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset='aaa', stop_offset=100)
-    with self.assertRaisesRegexp(ValueError, stop_not_a_number_error):
+    with self.assertRaisesRegexp(TypeError, stop_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset='bbb')
-    with self.assertRaisesRegexp(ValueError, stop_not_a_number_error):
+    with self.assertRaisesRegexp(TypeError, stop_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=100, stop_offset=None)
-    with self.assertRaisesRegexp(ValueError, start_not_a_number_error):
+    with self.assertRaisesRegexp(TypeError, start_not_a_number_error):
       SingleFileSource(
           fbs, file_name='dummy_file', start_offset=None, stop_offset=100)
 
