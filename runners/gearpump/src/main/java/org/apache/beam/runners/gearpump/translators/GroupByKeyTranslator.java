@@ -18,12 +18,17 @@
 
 package org.apache.beam.runners.gearpump.translators;
 
+import com.google.common.collect.Iterables;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.collect.Iterables;
 
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
@@ -31,10 +36,7 @@ import org.apache.gearpump.streaming.javaapi.dsl.functions.GroupByFunction;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.MapFunction;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.ReduceFunction;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+
 
 /**
  * {@link GroupByKey} is translated to Gearpump groupBy function.

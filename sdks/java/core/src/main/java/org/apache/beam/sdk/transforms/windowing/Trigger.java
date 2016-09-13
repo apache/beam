@@ -17,22 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.common.base.Joiner;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.StateAccessor;
-
-import com.google.common.base.Joiner;
-
 import org.joda.time.Instant;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * {@code Trigger}s control when the elements for a specific key and window are output. As elements

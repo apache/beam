@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.flink.examples.streaming;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Properties;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSink;
@@ -33,7 +38,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
@@ -41,12 +45,6 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Properties;
 
 /**
  * Recipes/Examples that demonstrate how to read/write data from/to Kafka.
@@ -58,15 +56,15 @@ public class KafkaIOExamples {
   private static final String KAFKA_AVRO_TOPIC = "output";  // Default kafka topic to read from
   private static final String KAFKA_BROKER = "localhost:9092";  // Default kafka broker to contact
   private static final String GROUP_ID = "myGroup";  // Default groupId
-  private static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect to for Kafka
+  private static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect (Kafka)
 
   /**
-   * Read/Write String data to Kafka
+   * Read/Write String data to Kafka.
    */
   public static class KafkaString {
 
     /**
-     * Read String data from Kafka
+     * Read String data from Kafka.
      */
     public static class ReadStringFromKafka {
 
@@ -90,7 +88,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Write String data to Kafka
+     * Write String data to Kafka.
      */
     public static class WriteStringToKafka {
 
@@ -115,12 +113,12 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Read/Write Avro data to Kafka
+   * Read/Write Avro data to Kafka.
    */
   public static class KafkaAvro {
 
     /**
-     * Read Avro data from Kafka
+     * Read Avro data from Kafka.
      */
     public static class ReadAvroFromKafka {
 
@@ -144,7 +142,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Write Avro data to Kafka
+     * Write Avro data to Kafka.
      */
     public static class WriteAvroToKafka {
 
@@ -171,7 +169,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Serialiation/Deserialiation schema for Avro types
+     * Serialiation/Deserialiation schema for Avro types.
      * @param <T>
      */
     static class AvroSerializationDeserializationSchema<T>
@@ -219,7 +217,7 @@ public class KafkaIOExamples {
     }
 
     /**
-     * Custom type for Avro serialization
+     * Custom type for Avro serialization.
      */
     static class MyType implements Serializable {
 
@@ -235,10 +233,10 @@ public class KafkaIOExamples {
 
       @Override
       public String toString() {
-        return "MyType{" +
-            "word='" + word + '\'' +
-            ", count=" + count +
-            '}';
+        return "MyType{"
+            + "word='" + word + '\''
+            + ", count=" + count
+            + '}';
       }
     }
   }
@@ -246,7 +244,7 @@ public class KafkaIOExamples {
   // -------------- Utilities --------------
 
   /**
-   * Custom options for the Pipeline
+   * Custom options for the Pipeline.
    */
   public interface KafkaOptions extends FlinkPipelineOptions {
     @Description("The Kafka topic to read from")
@@ -281,7 +279,7 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Initializes some options for the Flink runner
+   * Initializes some options for the Flink runner.
    * @param args The command line args
    * @return the pipeline
    */
@@ -300,7 +298,7 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Gets KafkaOptions from the Pipeline
+   * Gets KafkaOptions from the Pipeline.
    * @param p the pipeline
    * @return KafkaOptions
    */
@@ -324,7 +322,7 @@ public class KafkaIOExamples {
   }
 
   /**
-   * Print contents to stdout
+   * Print contents to stdout.
    * @param <T> type of the input
    */
   private static class PrintFn<T> extends DoFn<T, T> {

@@ -18,13 +18,12 @@
 
 package org.apache.beam.runners.flink;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
-
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 
 
 /**
@@ -37,6 +36,9 @@ import com.google.common.collect.ImmutableList;
 public class FlinkRunnerRegistrar {
   private FlinkRunnerRegistrar() { }
 
+  /**
+   * Pipeline runner registrar.
+   */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -47,6 +49,9 @@ public class FlinkRunnerRegistrar {
     }
   }
 
+  /**
+   * Pipeline options registrar.
+   */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

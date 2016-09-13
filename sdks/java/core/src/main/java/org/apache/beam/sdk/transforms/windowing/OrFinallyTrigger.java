@@ -17,14 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.util.ExecutableTrigger;
-
 import com.google.common.annotations.VisibleForTesting;
-
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.util.ExecutableTrigger;
+import org.joda.time.Instant;
 
 /**
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.

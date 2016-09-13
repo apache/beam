@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-import static org.apache.beam.sdk.values.KV.of;
-
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -30,8 +28,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import static java.util.concurrent.ThreadLocalRandom.current;
-
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Optional;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -56,33 +65,22 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Optional;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tests for the Write PTransform.
  */
 @RunWith(JUnit4.class)
 public class WriteTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   // Static store that can be accessed within the writer
   private static List<String> sinkContents = new ArrayList<>();
   // Static count of output shards
@@ -90,7 +88,9 @@ public class WriteTest {
   // Static counts of the number of records per shard.
   private static List<Integer> recordsPerShard = new ArrayList<>();
 
-  private static final MapElements<String, String> IDENTITY_MAP =
+  @SuppressWarnings("unchecked") // covariant cast
+  private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
+      (PTransform)
       MapElements.via(new SimpleFunction<String, String>() {
         @Override
         public String apply(String input) {
@@ -108,7 +108,7 @@ public class WriteTest {
 
       @ProcessElement
       public void processElement(ProcessContext c) {
-        c.output(of(current().nextInt(), c.element()));
+        c.output(KV.of(ThreadLocalRandom.current().nextInt(), c.element()));
       }
     }
 
@@ -192,11 +192,12 @@ public class WriteTest {
       inputs.add(String.format("elt%04d", i));
     }
 
+    int numShards = 10;
     runShardedWrite(
         inputs,
         new WindowAndReshuffle<>(
             Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
-        Optional.of(10));
+        Optional.of(numShards));
 
     // Check that both the min and max number of results per shard are close to the expected.
     int min = Integer.MAX_VALUE;
@@ -205,7 +206,9 @@ public class WriteTest {
       min = Math.min(min, i);
       max = Math.max(max, i);
     }
-    assertThat((double) min, Matchers.greaterThanOrEqualTo(max * 0.9));
+    double expected = numElements / (double) numShards;
+    assertThat((double) min, Matchers.greaterThanOrEqualTo(expected * 0.6));
+    assertThat((double) max, Matchers.lessThanOrEqualTo(expected * 1.4));
   }
 
   /**
@@ -287,6 +290,25 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFrom(sink));
     assertThat(displayData, hasDisplayItem("numShards", 1));
+  }
+
+  @Test
+  public void testWriteUnbounded() {
+    TestPipeline p = TestPipeline.create();
+    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
+        .apply(MapElements.via(new ToStringFn()));
+
+    TestSink sink = new TestSink();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
+    unbounded.apply(Write.to(sink));
+  }
+
+  private static class ToStringFn extends SimpleFunction<Long, String> {
+    @Override
+    public String apply(Long input) {
+      return Long.toString(input);
+    }
   }
 
   /**

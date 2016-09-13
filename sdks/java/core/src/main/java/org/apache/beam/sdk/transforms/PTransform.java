@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,10 +29,6 @@ import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypedPValue;
-
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 
 /**
  * A {@code PTransform<InputT, OutputT>} is an operation that takes an
@@ -147,7 +146,7 @@ import java.io.Serializable;
  * implementing {@code Serializable}.
  *
  * <p>{@code PTransform} is marked {@code Serializable} solely
- * because it is common for an anonymous {@code OldDoFn},
+ * because it is common for an anonymous {@link DoFn},
  * instance to be created within an
  * {@code apply()} method of a composite {@code PTransform}.
  *

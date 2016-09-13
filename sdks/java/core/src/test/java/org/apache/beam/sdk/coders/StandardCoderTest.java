@@ -17,24 +17,20 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.testing.CoderProperties;
-
 import com.google.common.collect.ImmutableList;
-
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.hamcrest.CoreMatchers;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Test case for {@link StandardCoder}.

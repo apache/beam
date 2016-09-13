@@ -19,12 +19,10 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.util.PropertyNames;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.List;
+import org.apache.beam.sdk.util.PropertyNames;
 
 /**
  * A {@link Coder} for {@link List}, using the format of {@link IterableLikeCoder}.

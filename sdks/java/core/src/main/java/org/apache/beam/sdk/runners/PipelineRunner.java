@@ -57,6 +57,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
         .fromFactoryMethod("fromOptions")
         .withArg(PipelineOptions.class, options)
         .build();
+    System.out.println("runner: " + result.getClass().getName());
     return result;
   }
 

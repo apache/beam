@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-
 import org.joda.time.Instant;
-
-import java.util.List;
 
 /**
  * The trigger used with {@link Reshuffle} which triggers on every element

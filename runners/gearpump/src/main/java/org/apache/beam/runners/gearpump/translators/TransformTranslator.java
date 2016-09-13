@@ -18,10 +18,9 @@
 
 package org.apache.beam.runners.gearpump.translators;
 
+import java.io.Serializable;
 
 import org.apache.beam.sdk.transforms.PTransform;
-
-import java.io.Serializable;
 
 /**
  * translates {@link PTransform} to Gearpump functions.

@@ -17,14 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.common.Counter;
-import org.apache.beam.sdk.util.common.Counter.AggregationKind;
-import org.apache.beam.sdk.util.common.CounterProvider;
-
 import java.io.Serializable;
 import java.util.Comparator;
+import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /**
  * {@code PTransform}s for computing the maximum of the elements in a {@code PCollection}, or the
@@ -218,8 +214,7 @@ public class Max {
    * A {@code CombineFn} that computes the maximum of a collection of {@code Integer}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn
-      implements CounterProvider<Integer> {
+  public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
     @Override
     public int apply(int left, int right) {
       return left >= right ? left : right;
@@ -229,19 +224,13 @@ public class Max {
     public int identity() {
       return Integer.MIN_VALUE;
     }
-
-    @Override
-    public Counter<Integer> getCounter(String name) {
-      return Counter.ints(name, AggregationKind.MAX);
-    }
   }
 
   /**
    * A {@code CombineFn} that computes the maximum of a collection of {@code Long}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxLongFn extends Combine.BinaryCombineLongFn
-      implements CounterProvider<Long> {
+  public static class MaxLongFn extends Combine.BinaryCombineLongFn {
     @Override
     public long apply(long left, long right) {
       return left >= right ? left : right;
@@ -251,19 +240,13 @@ public class Max {
     public long identity() {
       return Long.MIN_VALUE;
     }
-
-    @Override
-    public Counter<Long> getCounter(String name) {
-      return Counter.longs(name, AggregationKind.MAX);
-    }
   }
 
   /**
    * A {@code CombineFn} that computes the maximum of a collection of {@code Double}s, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn
-      implements CounterProvider<Double> {
+  public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
     @Override
     public double apply(double left, double right) {
       return left >= right ? left : right;
@@ -272,11 +255,6 @@ public class Max {
     @Override
     public double identity() {
       return Double.NEGATIVE_INFINITY;
-    }
-
-    @Override
-    public Counter<Double> getCounter(String name) {
-      return Counter.doubles(name, AggregationKind.MAX);
     }
   }
 }

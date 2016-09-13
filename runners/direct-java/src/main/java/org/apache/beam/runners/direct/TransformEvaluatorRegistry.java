@@ -17,27 +17,33 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Map;
-
-import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
   public static TransformEvaluatorRegistry defaultRegistry() {
     @SuppressWarnings("rawtypes")
     ImmutableMap<Class<? extends PTransform>, TransformEvaluatorFactory> primitives =
@@ -52,6 +58,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             // Runner-specific primitives used in expansion of GroupByKey
             .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory())
             .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory())
+            .put(TestStream.class, new TestStreamEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
@@ -60,6 +67,8 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   // so all instances of a primitive can be handled with the same evaluator factory.
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories;
+
+  private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private TransformEvaluatorRegistry(
       @SuppressWarnings("rawtypes")
@@ -73,7 +82,46 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       @Nullable CommittedBundle<?> inputBundle,
       EvaluationContext evaluationContext)
       throws Exception {
+    checkState(
+        !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
     TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
     return factory.forApplication(application, inputBundle, evaluationContext);
+  }
+
+  @Override
+  public void cleanup() throws Exception {
+    Collection<Exception> thrownInCleanup = new ArrayList<>();
+    for (TransformEvaluatorFactory factory : factories.values()) {
+      try {
+        factory.cleanup();
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        thrownInCleanup.add(e);
+      }
+    }
+    finished.set(true);
+    if (!thrownInCleanup.isEmpty()) {
+      LOG.error("Exceptions {} thrown while cleaning up evaluators", thrownInCleanup);
+      Exception toThrow = null;
+      for (Exception e : thrownInCleanup) {
+        if (toThrow == null) {
+          toThrow = e;
+        } else {
+          toThrow.addSuppressed(e);
+        }
+      }
+      throw toThrow;
+    }
+  }
+
+  /**
+   * A factory to create Transform Evaluator Registries.
+   */
+  public static class Factory {
+    public TransformEvaluatorRegistry create() {
+      return TransformEvaluatorRegistry.defaultRegistry();
+    }
   }
 }

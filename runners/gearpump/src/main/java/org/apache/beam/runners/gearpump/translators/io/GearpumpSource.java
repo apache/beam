@@ -18,22 +18,22 @@
 
 package org.apache.beam.runners.gearpump.translators.io;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.gearpump.Message;
 import org.apache.gearpump.streaming.source.DataSource;
 import org.apache.gearpump.streaming.task.TaskContext;
 
 import org.joda.time.Instant;
-
-import java.io.IOException;
 
 /**
  * common methods for {@link BoundedSourceWrapper} and {@link UnboundedSourceWrapper}.
@@ -61,6 +61,7 @@ public abstract class GearpumpSource<T> implements DataSource {
       PipelineOptions options = new ObjectMapper()
           .readValue(serializedOptions, PipelineOptions.class);
       this.reader = createReader(options);
+      this.available = reader.start();
     } catch (Exception e) {
       throw new RuntimeException(e);
     } finally {
@@ -97,4 +98,5 @@ public abstract class GearpumpSource<T> implements DataSource {
       throw new RuntimeException(e);
     }
   }
+
 }

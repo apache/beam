@@ -18,8 +18,21 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.google.common.collect.ImmutableList;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggAccumParam;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -32,19 +45,10 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.Accumulator;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.spark.metrics.MetricsSystem;
 
 
 /**
@@ -60,14 +64,15 @@ public class SparkRuntimeContext implements Serializable {
   private final String serializedPipelineOptions;
 
   /**
-   * Map fo names to dataflow aggregators.
+   * Map fo names to Beam aggregators.
    */
   private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
-    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+    final SparkPipelineOptions opts = pipeline.getOptions().as(SparkPipelineOptions.class);
+    accum = registerMetrics(jsc, opts);
+    serializedPipelineOptions = serializePipelineOptions(opts);
   }
 
   private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
@@ -84,6 +89,23 @@ public class SparkRuntimeContext implements Serializable {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
     }
+  }
+
+  private Accumulator<NamedAggregators> registerMetrics(final JavaSparkContext jsc,
+                                                        final SparkPipelineOptions opts) {
+    final NamedAggregators initialValue = new NamedAggregators();
+    final Accumulator<NamedAggregators> accum = jsc.accumulator(initialValue, new AggAccumParam());
+
+    if (opts.getEnableSparkSinks()) {
+      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+      final AggregatorMetricSource aggregatorMetricSource =
+          new AggregatorMetricSource(initialValue);
+      // in case the context was not cleared
+      metricsSystem.removeSource(aggregatorMetricSource);
+      metricsSystem.registerSource(aggregatorMetricSource);
+    }
+
+    return accum;
   }
 
   /**

@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.Collection;
 import java.util.Set;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
  * Track which windows are <i>active</i>, and the <i>state address window(s)</i> under which their

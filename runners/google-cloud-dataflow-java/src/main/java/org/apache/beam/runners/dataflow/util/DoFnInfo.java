@@ -17,18 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 
-import java.io.Serializable;
-
 /**
- * Wrapper class holding the necessary information to serialize a OldDoFn.
+ * Wrapper class holding the necessary information to serialize a {@link OldDoFn}.
  *
- * @param <InputT> the type of the (main) input elements of the OldDoFn
- * @param <OutputT> the type of the (main) output elements of the OldDoFn
+ * @param <InputT> the type of the (main) input elements of the {@link OldDoFn}
+ * @param <OutputT> the type of the (main) output elements of the {@link OldDoFn}
  */
 public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final OldDoFn<InputT, OutputT> doFn;
@@ -67,3 +66,4 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     return inputCoder;
   }
 }
+

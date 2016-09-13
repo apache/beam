@@ -17,6 +17,18 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import kafka.serializer.Decoder;
+import org.apache.beam.runners.core.AssignWindowsDoFn;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.KafkaIO;
@@ -38,17 +50,10 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.AssignWindowsDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PDone;
-
-import com.google.api.client.util.Lists;
-import com.google.api.client.util.Maps;
-import com.google.api.client.util.Sets;
-import com.google.common.reflect.TypeToken;
-
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
@@ -59,20 +64,11 @@ import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
-
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import kafka.serializer.Decoder;
 import scala.Tuple2;
 
 
 /**
- * Supports translation between a DataFlow transform, and Spark's operations on DStreams.
+ * Supports translation between a Beam transform, and Spark's operations on DStreams.
  */
 public final class StreamingTransformTranslator {
 
@@ -353,13 +349,13 @@ public final class StreamingTransformTranslator {
         (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
     if (transform == null) {
       if (UNSUPPORTED_EVALUATORS.contains(clazz)) {
-        throw new UnsupportedOperationException("Dataflow transformation " + clazz
+        throw new UnsupportedOperationException("Beam transformation " + clazz
           .getCanonicalName()
           + " is currently unsupported by the Spark streaming pipeline");
       }
       // DStream transformations will transform an RDD into another RDD
       // Actions will create output
-      // In Dataflow it depends on the PTransform's Input and Output class
+      // In Beam it depends on the PTransform's Input and Output class
       Class<?> pTOutputClazz = getPTransformOutputClazz(clazz);
       if (PDone.class.equals(pTOutputClazz)) {
         return foreachRDD(rddTranslator);
@@ -377,7 +373,7 @@ public final class StreamingTransformTranslator {
   }
 
   /**
-   * Translator matches Dataflow transformation with the appropriate Spark streaming evaluator.
+   * Translator matches Beam transformation with the appropriate Spark streaming evaluator.
    * rddTranslator uses Spark evaluators in transform/foreachRDD to evaluate the transformation
    */
   public static class Translator implements SparkPipelineTranslator {

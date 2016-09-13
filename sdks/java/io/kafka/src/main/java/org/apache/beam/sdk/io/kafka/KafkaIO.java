@@ -21,6 +21,34 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closeables;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -34,28 +62,17 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
-
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -76,25 +93,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
@@ -451,7 +449,7 @@ public class KafkaIO {
       Unbounded<KafkaRecord<K, V>> unbounded =
           org.apache.beam.sdk.io.Read.from(makeSource());
 
-      PTransform<PInput, PCollection<KafkaRecord<K, V>>> transform = unbounded;
+      PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
       if (maxNumRecords < Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords);
@@ -1074,7 +1072,7 @@ public class KafkaIO {
     @Override
     public Instant getWatermark() {
       if (curRecord == null) {
-        LOG.warn("{}: getWatermark() : no records have been read yet.", name);
+        LOG.debug("{}: getWatermark() : no records have been read yet.", name);
         return initialWatermark;
       }
 
@@ -1314,10 +1312,10 @@ public class KafkaIO {
     public PDone apply(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
-          ParDo.of(new DoFn<V, KV<Void, V>>() {
-            @ProcessElement
-            public void processElement(ProcessContext ctx) throws Exception {
-              ctx.output(KV.<Void, V>of(null, ctx.element()));
+          MapElements.via(new SimpleFunction<V, KV<Void, V>>() {
+            @Override
+            public KV<Void, V> apply(V element) {
+              return KV.<Void, V>of(null, element);
             }
           }))
         .setCoder(KvCoder.of(VoidCoder.of(), kvWriteTransform.valueCoder))
@@ -1327,16 +1325,12 @@ public class KafkaIO {
 
   private static class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
 
-    @StartBundle
-    public void startBundle(Context c) throws Exception {
-      // Producer initialization is fairly costly. Move this to future initialization api to avoid
-      // creating a producer for each bundle.
-      if (producer == null) {
-        if (producerFactoryFnOpt.isPresent()) {
-           producer = producerFactoryFnOpt.get().apply(producerConfig);
-        } else {
-          producer = new KafkaProducer<K, V>(producerConfig);
-        }
+    @Setup
+    public void setup() {
+      if (producerFactoryFnOpt.isPresent()) {
+        producer = producerFactoryFnOpt.get().apply(producerConfig);
+      } else {
+        producer = new KafkaProducer<K, V>(producerConfig);
       }
     }
 
@@ -1351,11 +1345,14 @@ public class KafkaIO {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle(Context c) throws IOException {
       producer.flush();
-      producer.close();
-      producer = null;
       checkForFailures();
+    }
+
+    @Teardown
+    public void teardown() {
+      producer.close();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////

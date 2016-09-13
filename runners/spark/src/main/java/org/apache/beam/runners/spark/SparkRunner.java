@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineEvaluator;
@@ -36,11 +37,9 @@ import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
@@ -51,7 +50,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The SparkRunner translate operations defined on a pipeline to a representation
  * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
- * a dataflow pipeline with the default options of a single threaded spark instance in local mode,
+ * a Beam pipeline with the default options of a single threaded spark instance in local mode,
  * we would do the following:
  *
  * {@code
@@ -144,9 +143,19 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
-      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(),
-          mOptions.getAppName());
-
+      JavaSparkContext jsc;
+      if (mOptions.getUsesProvidedSparkContext()) {
+        LOG.info("Using a provided Spark Context");
+        jsc = mOptions.getProvidedSparkContext();
+        if (jsc == null || jsc.sc().isStopped()){
+          LOG.error("The provided Spark context "
+                  + jsc + " was not created or was stopped");
+          throw new RuntimeException("The provided Spark context was not created or was stopped");
+        }
+      } else {
+        LOG.info("Creating a new Spark Context");
+        jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster(), mOptions.getAppName());
+      }
       if (mOptions.isStreaming()) {
         SparkPipelineTranslator translator =
             new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());

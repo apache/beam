@@ -30,7 +30,6 @@ import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;

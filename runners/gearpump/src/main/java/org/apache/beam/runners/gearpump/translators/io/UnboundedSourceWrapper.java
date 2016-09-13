@@ -18,11 +18,11 @@
 
 package org.apache.beam.runners.gearpump.translators.io;
 
+import java.io.IOException;
+
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import java.io.IOException;
 
 /**
  * wrapper over UnboundedSource for Gearpump DataSource API.

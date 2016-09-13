@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import java.io.Serializable;
 
 /**
  * A function to adapt a primitive "view" of a {@link PCollection} - some materialization

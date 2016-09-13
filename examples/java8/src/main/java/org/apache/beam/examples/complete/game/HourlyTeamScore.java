@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -30,16 +33,11 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimeZone;
 
 /**
  * This class is the second in a series of four pipelines that tell a story in a 'gaming'
@@ -72,7 +70,7 @@ import java.util.TimeZone;
  * timestamped after 23:59 PST on 2015-10-18 should not be included in the analysis.
  * To indicate a time before which data should be filtered out, include the {@code --startMin} arg.
  * If you're using the default input specified in {@link UserScore},
- * "gs://dataflow-samples/game/gaming_data*.csv", then
+ * "gs://apache-beam-samples/game/gaming_data*.csv", then
  * {@code --startMin=2015-11-16-16-10 --stopMin=2015-11-17-16-10} are good values.
  */
 public class HourlyTeamScore extends UserScore {

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
@@ -24,10 +27,6 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import java.util.List;
 
 /**
  * Options that are used to configure the Dataflow pipeline worker pool.
@@ -260,4 +259,16 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
       + "https://cloud.google.com/compute/docs/reference/latest/diskTypes")
   String getWorkerDiskType();
   void setWorkerDiskType(String value);
+
+  /**
+   * Specifies whether worker pools should be started with public IP addresses.
+   *
+   * <p>WARNING: This feature is experimental.  You must be whitelisted to use it.
+   */
+  @Description("Specifies whether worker pools should be started with public IP addresses. WARNING:"
+    + "This feature is experimental. You must be whitelisted to use it.")
+  @Experimental
+  @JsonIgnore
+  @Nullable Boolean getUsePublicIps();
+  void setUsePublicIps(@Nullable Boolean value);
 }

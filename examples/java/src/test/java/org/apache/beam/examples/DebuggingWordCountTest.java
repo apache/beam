@@ -18,15 +18,13 @@
 package org.apache.beam.examples;
 
 import com.google.common.io.Files;
-
+import java.io.File;
+import java.nio.charset.StandardCharsets;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Tests for {@link DebuggingWordCount}.

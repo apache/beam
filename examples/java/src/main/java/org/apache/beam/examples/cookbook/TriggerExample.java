@@ -17,6 +17,13 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -42,18 +49,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This example illustrates the basic concepts behind triggering. It shows how to use different
@@ -76,15 +73,13 @@ import java.util.concurrent.TimeUnit;
  *   4. Combining late data and speculative estimates
  * </pre>
  *
- * <p> Before running this example, it will be useful to familiarize yourself with Dataflow triggers
+ * <p> Before running this example, it will be useful to familiarize yourself with Beam triggers
  * and understand the concept of 'late data',
- * See:  <a href="https://cloud.google.com/dataflow/model/triggers">
- * https://cloud.google.com/dataflow/model/triggers </a> and
- * <a href="https://cloud.google.com/dataflow/model/windowing#Advanced">
- * https://cloud.google.com/dataflow/model/windowing#Advanced </a>
+ * See: <a href="http://beam.incubator.apache.org/use/walkthroughs/">
+ * http://beam.incubator.apache.org/use/walkthroughs/</a>
  *
  * <p> The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Dataflow pipeline).
+ * (there are no defaults for a general Beam pipeline).
  * You can override them by using the {@code --bigQueryDataset}, and {@code --bigQueryTable}
  * options. If the BigQuery table do not exist, the example will try to create them.
  *
@@ -158,7 +153,7 @@ public class TriggerExample {
    * 5             | 60                 | 10:27:20   | 10:27:25
    * 5             | 60                 | 10:29:00   | 11:11:00
    *
-   * <p> Dataflow tracks a watermark which records up to what point in event time the data is
+   * <p> Beam tracks a watermark which records up to what point in event time the data is
    * complete. For the purposes of the example, we'll assume the watermark is approximately 15m
    * behind the current processing time. In practice, the actual value would vary over time based
    * on the systems knowledge of the current delay and contents of the backlog (data
@@ -179,7 +174,7 @@ public class TriggerExample {
     public PCollectionList<TableRow> apply(PCollection<KV<String, Integer>> flowInfo) {
 
       // Concept #1: The default triggering behavior
-      // By default Dataflow uses a trigger which fires when the watermark has passed the end of the
+      // By default Beam uses a trigger which fires when the watermark has passed the end of the
       // window. This would be written {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
 
       // The system also defaults to dropping late data -- data which arrives after the watermark
@@ -423,7 +418,7 @@ public class TriggerExample {
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
 
     @Description("Input file to read from")
-    @Default.String("gs://dataflow-samples/traffic_sensor/"
+    @Default.String("gs://apache-beam-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15.csv")
     String getInput();
     void setInput(String value);
@@ -462,7 +457,7 @@ public class TriggerExample {
 
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exits.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exits.
     exampleUtils.waitToFinish(result);
   }
 

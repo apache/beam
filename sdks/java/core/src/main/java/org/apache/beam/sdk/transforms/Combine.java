@@ -19,6 +19,18 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -39,6 +51,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -49,7 +62,6 @@ import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -58,21 +70,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements
@@ -736,10 +733,6 @@ public class Combine {
       return new int[] { value };
     }
 
-    public Counter<Integer> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineIntegerFn does not support getCounter");
-    }
-
     private static final class ToIntegerCodingFunction
         implements DelegateCoder.CodingFunction<int[], Integer> {
       @Override
@@ -837,10 +830,6 @@ public class Combine {
 
     private static long[] wrap(long value) {
       return new long[] { value };
-    }
-
-    public Counter<Long> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineLongFn does not support getCounter");
     }
 
     private static final class ToLongCodingFunction
@@ -942,10 +931,6 @@ public class Combine {
 
     private static double[] wrap(double value) {
       return new double[] { value };
-    }
-
-    public Counter<Double> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
     }
 
     private static final class ToDoubleCodingFunction
@@ -1755,7 +1740,7 @@ public class Combine {
   public static class PerKey<K, InputT, OutputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
-    private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
     private final DisplayData.Item<? extends Class<?>> fnDisplayData;
     private final boolean fewKeys;
     private final List<PCollectionView<?>> sideInputs;
@@ -1831,7 +1816,14 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(final int hotKeyFanout) {
       return new PerKeyWithHotKeyFanout<>(name, fn, fnDisplayData,
-          new SerializableFunction<K, Integer>() {
+          new SimpleFunction<K, Integer>() {
+            @Override
+            public void populateDisplayData(Builder builder) {
+              super.populateDisplayData(builder);
+              builder.add(DisplayData.item("fanout", hotKeyFanout)
+                  .withLabel("Key Fanout Size"));
+            }
+
             @Override
             public Integer apply(K unused) {
               return hotKeyFanout;
@@ -1874,7 +1866,7 @@ public class Combine {
   public static class PerKeyWithHotKeyFanout<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
-    private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
     private final DisplayData.Item<? extends Class<?>> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
@@ -1920,7 +1912,7 @@ public class Combine {
           new InputOrAccum.InputOrAccumCoder<InputT, AccumT>(
               inputCoder.getValueCoder(), accumCoder);
 
-      // A CombineFn's mergeAccumulator can be applied in a tree-like fashon.
+      // A CombineFn's mergeAccumulator can be applied in a tree-like fashion.
       // Here we shard the key using an integer nonce, combine on that partial
       // set of values, then drop the nonce and do a final combine of the
       // aggregates.  We do this by splitting the original CombineFn into two,
@@ -1959,6 +1951,11 @@ public class Combine {
                   CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                   throws CannotProvideCoderException {
                 return accumCoder;
+              }
+
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.include(PerKeyWithHotKeyFanout.this);
               }
             };
         postCombine =
@@ -2004,6 +2001,10 @@ public class Combine {
                       throws CannotProvideCoderException {
                 return accumCoder;
               }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.include(PerKeyWithHotKeyFanout.this);
+              }
             };
       } else {
         final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedFnWithContext =
@@ -2043,6 +2044,10 @@ public class Combine {
                   CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                   throws CannotProvideCoderException {
                 return accumCoder;
+              }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.include(PerKeyWithHotKeyFanout.this);
               }
             };
         postCombine =
@@ -2089,6 +2094,10 @@ public class Combine {
                   throws CannotProvideCoderException {
                 return accumCoder;
               }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.include(PerKeyWithHotKeyFanout.this);
+              }
             };
       }
 
@@ -2133,15 +2142,15 @@ public class Combine {
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
-          .apply("PreCombineHot", Combine.perKey(hotPreCombine))
-          .apply("StripNonce", ParDo.of(
-              new DoFn<KV<KV<K, Integer>, AccumT>,
-                                     KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(
-                      c.element().getKey().getKey(),
-                      InputOrAccum.<InputT, AccumT>accum(c.element().getValue())));
+          .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
+          .apply("StripNonce", MapElements.via(
+              new SimpleFunction<KV<KV<K, Integer>, AccumT>,
+                       KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<KV<K, Integer>, AccumT> elem) {
+                  return KV.of(
+                      elem.getKey().getKey(),
+                      InputOrAccum.<InputT, AccumT>accum(elem.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
@@ -2150,12 +2159,12 @@ public class Combine {
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply("PrepareCold", ParDo.of(
-              new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(c.element().getKey(),
-                                 InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
+          .apply("PrepareCold", MapElements.via(
+              new SimpleFunction<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<K, InputT> element) {
+                  return KV.of(element.getKey(),
+                                 InputOrAccum.<InputT, AccumT>input(element.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));
@@ -2163,7 +2172,7 @@ public class Combine {
       // Combine the union of the pre-processed hot and cold key results.
       return PCollectionList.of(precombinedHot).and(preprocessedCold)
           .apply(Flatten.<KV<K, InputOrAccum<InputT, AccumT>>>pCollections())
-          .apply("PostCombine", Combine.perKey(postCombine));
+          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
     }
 
     @Override
@@ -2171,6 +2180,9 @@ public class Combine {
       super.populateDisplayData(builder);
 
       Combine.populateDisplayData(builder, fn, fnDisplayData);
+      if (hotKeyFanout instanceof HasDisplayData) {
+        builder.include((HasDisplayData) hotKeyFanout);
+      }
       builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
         .withLabel("Fanout Function"));
     }

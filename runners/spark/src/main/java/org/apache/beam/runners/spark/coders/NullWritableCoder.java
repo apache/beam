@@ -18,13 +18,11 @@
 
 package org.apache.beam.runners.spark.coders;
 
-import org.apache.beam.sdk.coders.Coder;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.hadoop.io.NullWritable;
-
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.hadoop.io.NullWritable;
 
 /**
  * Simple writable coder for Null.

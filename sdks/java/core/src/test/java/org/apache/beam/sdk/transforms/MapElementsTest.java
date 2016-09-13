@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -33,16 +34,12 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Set;
 
 /**
  * Tests for {@link MapElements}.
@@ -233,7 +230,7 @@ public class MapElementsTest implements Serializable {
   }
   @Test
   public void testSimpleFunctionDisplayData() {
-    SimpleFunction<?, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
+    SimpleFunction<Integer, ?> simpleFn = new SimpleFunction<Integer, Integer>() {
       @Override
       public Integer apply(Integer input) {
         return input;
@@ -255,17 +252,17 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testPrimitiveDisplayData() {
-    SimpleFunction<?, ?> mapFn = new SimpleFunction<Integer, Integer>() {
+    SimpleFunction<Integer, ?> mapFn = new SimpleFunction<Integer, Integer>() {
       @Override
       public Integer apply(Integer input) {
         return input;
       }
     };
 
-    MapElements<?, ?> map = MapElements.via(mapFn);
+    MapElements<Integer, ?> map = MapElements.via(mapFn);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(map);
+    Set<DisplayData> displayData = evaluator.<Integer>displayDataForPrimitiveTransforms(map);
     assertThat("MapElements should include the mapFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("mapFn", mapFn.getClass())));
   }

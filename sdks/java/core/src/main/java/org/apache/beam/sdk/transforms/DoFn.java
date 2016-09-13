@@ -21,20 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
-
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -43,6 +29,19 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * The argument to {@link ParDo} providing the code to use to process
@@ -63,8 +62,6 @@ import java.util.Map;
  * <p>Implementations must define a method annotated with {@link ProcessElement}
  * that satisfies the requirements described there. See the {@link ProcessElement}
  * for details.
- *
- * <p>This functionality is experimental and likely to change.
  *
  * <p>Example usage:
  *
@@ -124,7 +121,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link OldDoFn#getAllowedTimestampSkew}.  The output element will
+     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
@@ -173,7 +170,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link OldDoFn#getAllowedTimestampSkew}.  The output element will
+     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
@@ -191,7 +188,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Information accessible when running {@link OldDoFn#processElement}.
+   * Information accessible when running a {@link DoFn.ProcessElement} method.
    */
   public abstract class ProcessContext extends Context {
 
@@ -247,7 +244,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
-  Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
+  protected Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
 
   /**
    * Protects aggregators from being created after initialization.
@@ -283,7 +280,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Interface for runner implementors to provide implementations of extra context information.
    *
-   * <p>The methods on this interface are called by {@link DoFnReflector} before invoking an
+   * <p>The methods on this interface are called by {@link DoFnInvoker} before invoking an
    * annotated {@link StartBundle}, {@link ProcessElement} or {@link FinishBundle} method that
    * has indicated it needs the given extra context.
    *
@@ -301,23 +298,23 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     BoundedWindow window();
 
     /**
-     * A placeholder for testing purposes. The return type itself is package-private and not
-     * implemented.
+     * A placeholder for testing purposes.
      */
     InputProvider<InputT> inputProvider();
 
     /**
-     * A placeholder for testing purposes. The return type itself is package-private and not
-     * implemented.
+     * A placeholder for testing purposes.
      */
     OutputReceiver<OutputT> outputReceiver();
   }
 
-  static interface OutputReceiver<T> {
+  /** A placeholder for testing handling of output types during {@link DoFn} reflection. */
+  public interface OutputReceiver<T> {
     void output(T output);
   }
 
-  static interface InputProvider<T> {
+  /** A placeholder for testing handling of input types during {@link DoFn} reflection. */
+  public interface InputProvider<T> {
     T get();
   }
 
@@ -342,13 +339,32 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
+
+  /**
+   * Annotation for the method to use to prepare an instance for processing bundles of elements. The
+   * method annotated with this must satisfy the following constraints
+   * <ul>
+   *   <li>It must have zero arguments.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface Setup {
+  }
+
   /**
    * Annotation for the method to use to prepare an instance for processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>
-   *   <li>It must have at least one argument.
+   *   <li>It must have exactly one argument.
    *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
    * </ul>
+   *
+   * <p>A simple method declaration would look like:
+   * <code>
+   *   public void setup(DoFn.Context c) { .. }
+   * </code>
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -371,7 +387,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface ProcessElement {}
 
   /**
-   * Annotation for the method to use to prepare an instance for processing a batch of elements.
+   * Annotation for the method to use to finish processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>
    *   <li>It must have at least one argument.
@@ -383,16 +399,31 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   public @interface FinishBundle {}
 
+
+  /**
+   * Annotation for the method to use to clean up this instance after processing bundles of
+   * elements. No other method will be called after a call to the annotated method is made.
+   * The method annotated with this must satisfy the following constraint:
+   * <ul>
+   *   <li>It must have zero arguments.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface Teardown {
+  }
+
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the
    * {@link CombineFn} argument. The name provided must be unique across
-   * {@link Aggregator}s created within the OldDoFn. Aggregators can only be created
+   * {@link Aggregator}s created within the {@link DoFn}. Aggregators can only be created
    * during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link CombineFn} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this OldDoFn
+   *         this {@link DoFn}
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
@@ -419,13 +450,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Returns an {@link Aggregator} with the aggregation logic specified by the
    * {@link SerializableFunction} argument. The name provided must be unique
-   * across {@link Aggregator}s created within the OldDoFn. Aggregators can only be
+   * across {@link Aggregator}s created within the {@link DoFn}. Aggregators can only be
    * created during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link SerializableFunction} to use in the aggregator
    * @return an aggregator for the provided name and combiner in the scope of
-   *         this OldDoFn
+   *         this {@link DoFn}
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope

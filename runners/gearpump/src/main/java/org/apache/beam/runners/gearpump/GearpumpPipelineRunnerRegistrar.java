@@ -18,13 +18,13 @@
 
 package org.apache.beam.runners.gearpump;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
-
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
@@ -44,8 +44,7 @@ public class GearpumpPipelineRunnerRegistrar {
 
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
-          TestGearpumpRunner.class);
+      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(TestGearpumpRunner.class);
     }
   }
 

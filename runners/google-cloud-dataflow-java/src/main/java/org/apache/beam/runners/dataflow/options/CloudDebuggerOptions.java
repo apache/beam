@@ -17,14 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.google.api.services.clouddebugger.v2.model.Debuggee;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
-
-import com.google.api.services.clouddebugger.v2.model.Debuggee;
-
-import javax.annotation.Nullable;
 
 /**
  * Options for controlling Cloud Debugger.
