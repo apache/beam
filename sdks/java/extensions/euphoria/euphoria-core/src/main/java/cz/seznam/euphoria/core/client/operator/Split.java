@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 
 import java.io.Serializable;
@@ -63,19 +62,17 @@ public class Split<IN> {
     }
 
     public Output<IN> output() {
-      Flow flow = input.getFlow();
-
-      Filter<IN> positiveFilter = new Filter<>(
-          name + POSITIVE_FILTER_SUFFIX, flow, input, predicate);
-      flow.add(positiveFilter);
-
-      Filter<IN> negativeFilter = new Filter<>(
-          name + NEGATIVE_FILTER_SUFFIX, flow, input,
-          (UnaryPredicate<IN>) what -> !predicate.apply(what)
-      );
-      flow.add(negativeFilter);
-
-      return new Output<>(positiveFilter.output(), negativeFilter.output());
+      Dataset<IN> positiveOutput = Filter
+          .named(name + POSITIVE_FILTER_SUFFIX)
+          .of(input)
+          .by(predicate)
+          .output();
+      Dataset<IN> negativeOutput = Filter
+          .named(name + NEGATIVE_FILTER_SUFFIX)
+          .of(input)
+          .by((UnaryPredicate<IN>) what -> !predicate.apply(what))
+          .output();
+      return new Output<>(positiveOutput, negativeOutput);
     }
   }
 

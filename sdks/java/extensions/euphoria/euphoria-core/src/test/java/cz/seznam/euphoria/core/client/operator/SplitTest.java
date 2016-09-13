@@ -5,6 +5,8 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import org.junit.Test;
 
+import java.util.Optional;
+
 import static org.junit.Assert.*;
 
 public class SplitTest {
@@ -21,11 +23,13 @@ public class SplitTest {
         .output();
 
     assertEquals(2, flow.size());
-    Filter positive = (Filter) flow.getOperator(opName + Split.POSITIVE_FILTER_SUFFIX);
+    Filter positive =
+        (Filter) getOperator(flow, opName + Split.POSITIVE_FILTER_SUFFIX);
     assertSame(flow, positive.getFlow());
     assertNotNull(positive.predicate);
     assertSame(positive.output(), split.positive());
-    Filter negative = (Filter) flow.getOperator(opName + Split.NEGATIVE_FILTER_SUFFIX);
+    Filter negative =
+        (Filter) getOperator(flow, opName + Split.NEGATIVE_FILTER_SUFFIX);
     assertSame(flow, negative.getFlow());
     assertNotNull(negative.predicate);
     assertSame(negative.output(), split.negative());
@@ -40,8 +44,10 @@ public class SplitTest {
         .using((UnaryPredicate<String>) what -> true)
         .output();
 
-    assertNotNull(flow.getOperator(Split.DEFAULT_NAME + Split.POSITIVE_FILTER_SUFFIX));
-    assertNotNull(flow.getOperator(Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX));
+    assertNotNull(
+        getOperator(flow, Split.DEFAULT_NAME + Split.POSITIVE_FILTER_SUFFIX));
+    assertNotNull(
+        getOperator(flow, Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX));
   }
 
   @SuppressWarnings("unchecked")
@@ -54,14 +60,21 @@ public class SplitTest {
         .using((UnaryPredicate<Integer>) what -> what % 2 == 0)
         .output();
 
-    Filter<Integer> oddNumbers = (Filter<Integer>) flow.getOperator(
-        Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX);
+    Filter<Integer> oddNumbers = (Filter<Integer>) getOperator(
+        flow, Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX);
     assertFalse(oddNumbers.predicate.apply(0));
     assertFalse(oddNumbers.predicate.apply(2));
     assertFalse(oddNumbers.predicate.apply(4));
     assertTrue(oddNumbers.predicate.apply(1));
     assertTrue(oddNumbers.predicate.apply(3));
     assertTrue(oddNumbers.predicate.apply(5));
+  }
+
+  private Operator<?, ?> getOperator(Flow flow, String name) {
+    Optional<Operator<?, ?>> op = flow.operators().stream()
+        .filter(o -> o.getName().equals(name))
+        .findFirst();
+    return op.isPresent() ? op.get() : null;
   }
 
 }
