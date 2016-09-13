@@ -5,7 +5,6 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time.TimeInterval;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -14,7 +13,6 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
@@ -169,6 +167,7 @@ public class BasicOperatorTest {
     return starts[0];
   }
 
+  /** FIXME: this test fails nondeterministically! */
   @Test
   public void testWordCountStreamEarlyTriggered() throws Exception {
     ListDataSource<String> input =
@@ -406,11 +405,11 @@ public class BasicOperatorTest {
   public void testReduceWindow() throws Exception {
     Flow flow = Flow.create("Test");
     Dataset<String> lines = flow.createInput(
-        ListDataSource.unbounded(asList(
-            "1-one 1-two 2-three 2-four 2-one 2-one 2-two",
-            "1-one 1-two 2-three 2-three 2-three")));
+        ListDataSource.unbounded(
+            asList("1-one 1-two 1-three 2-three 2-four 2-one 2-one 2-two".split(" ")),
+            asList("1-one 1-two 1-four 2-three 2-three 2-three".split(" "))));
 
-    ListDataSink<HashSet<String>> f = ListDataSink.get(1);
+    ListDataSink<HashSet<String>> f = ListDataSink.get(4);
 
     // expand it to words
     Dataset<String> words = FlatMap.of(lines)
@@ -422,19 +421,23 @@ public class BasicOperatorTest {
         .reduceBy(Sets::newHashSet)
         .windowBy(Time.of(Duration.ofMinutes(1))
             .using(s -> (int) s.charAt(0) * 3_600_000L))
+        .setNumPartitions(4)
         .output()
         .persist(f);
 
     executor
         .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0))
+        .allowWindowBasedShuffling()
         .waitForCompletion(flow);
 
-    List<HashSet<String>> output = f.getOutput(0);
-    assertEquals(2, output.size());
+    List<HashSet<String>> output = f.getOutput(1);
+    assertEquals(1, output.size());
     assertEquals(Sets.newHashSet(
-        Arrays.asList("1-one", "1-two")), output.get(0));
+        Arrays.asList("1-one", "1-two", "1-three", "1-four")), output.get(0));
+    output = f.getOutput(3);
+    assertEquals(1, output.size());
     assertEquals(Sets.newHashSet(
-        Arrays.asList("2-three", "2-one", "2-two", "2-four")), output.get(1));
+        Arrays.asList("2-three", "2-one", "2-two", "2-four")), output.get(0));
   }
 
   private <S> long assertWindowedOutput(

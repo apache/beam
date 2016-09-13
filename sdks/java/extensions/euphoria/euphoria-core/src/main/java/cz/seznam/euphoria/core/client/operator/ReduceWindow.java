@@ -136,7 +136,7 @@ public class ReduceWindow<
         new Partitioning<Void>() {
           @Override
           public Partitioner<Void> getPartitioner() {
-            return e -> (int) (Math.random() * Integer.MAX_VALUE);
+            return e -> 0;
           }
           @Override
           public int getNumPartitions() {
