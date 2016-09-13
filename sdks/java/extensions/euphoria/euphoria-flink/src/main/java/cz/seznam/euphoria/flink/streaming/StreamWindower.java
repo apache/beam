@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.timestamps
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.util.Objects;
@@ -149,6 +150,7 @@ class StreamWindower {
           T elem = i.get();
           KEY key = keyFn.apply(elem);
           VALUE val = valFn.apply(elem);
+          // FIXME this is not right; we cannot just use the first window retrieved; see #windowIdFromSlidingFlinkWindow
           WindowID<GROUP, LABEL> wid = windowing.assignWindowsToElement(i).iterator().next();
           return new StreamingWindowedElement<>(wid, WindowedPair.of(wid.getLabel(), key, val));
         })
@@ -188,5 +190,15 @@ class StreamWindower {
     public long extractTimestamp(StreamingWindowedElement<?, ?, T> element) {
       return eventTimeFn.apply(element.get());
     }
+  }
+
+  // FIXME: this does not need to exist and indeed is just a hack! it attempts to fix
+  // the problem that for TimeSliding StreamWindower assigns only one window to the element
+  public static WindowID<?, ?> windowIdFromSlidingFlinkWindow(Class<Windowing> type, Window flinkWindow) {
+    if (TimeSliding.class.isAssignableFrom(type)) {
+      final TimeWindow tw = (TimeWindow) flinkWindow;
+      return WindowID.aligned(tw.getStart());
+    }
+    return null;
   }
 }
