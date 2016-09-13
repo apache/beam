@@ -149,14 +149,26 @@ class TestAvro(unittest.TestCase):
     self._run_avro_test(file_name, 100, True, expected_result)
 
   def test_read_without_splitting_compressed_snappy(self):
-    file_name = self._write_data(codec='snappy')
-    expected_result = self.RECORDS
-    self._run_avro_test(file_name, None, False, expected_result)
+    try:
+      import snappy  # pylint: disable=g-import-not-at-top,unused-import
+      file_name = self._write_data(codec='snappy')
+      expected_result = self.RECORDS
+      self._run_avro_test(file_name, None, False, expected_result)
+    except ImportError:
+      logging.warning(
+          'Skipped test_read_without_splitting_compressed_snappy since snappy '
+          'appears to not be installed.')
 
   def test_read_with_splitting_compressed_snappy(self):
-    file_name = self._write_data(codec='snappy')
-    expected_result = self.RECORDS
-    self._run_avro_test(file_name, 100, True, expected_result)
+    try:
+      import snappy  # pylint: disable=g-import-not-at-top,unused-import
+      file_name = self._write_data(codec='snappy')
+      expected_result = self.RECORDS
+      self._run_avro_test(file_name, 100, True, expected_result)
+    except ImportError:
+      logging.warning(
+          'Skipped test_read_with_splitting_compressed_snappy since snappy '
+          'appears to not be installed.')
 
   def test_read_without_splitting_pattern(self):
     pattern = self._write_pattern(3)
