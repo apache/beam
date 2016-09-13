@@ -1,7 +1,8 @@
-package cz.seznam.euphoria.core.client.operator;
+package cz.seznam.euphoria.core.client.lib;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
+import cz.seznam.euphoria.core.client.operator.Filter;
 
 import java.io.Serializable;
 import java.util.Objects;

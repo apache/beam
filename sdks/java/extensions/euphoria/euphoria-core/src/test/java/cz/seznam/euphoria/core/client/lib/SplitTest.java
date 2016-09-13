@@ -1,8 +1,11 @@
-package cz.seznam.euphoria.core.client.operator;
+package cz.seznam.euphoria.core.client.lib;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
+import cz.seznam.euphoria.core.client.operator.Filter;
+import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.Util;
 import org.junit.Test;
 
 import java.util.Optional;
@@ -26,12 +29,12 @@ public class SplitTest {
     Filter positive =
         (Filter) getOperator(flow, opName + Split.POSITIVE_FILTER_SUFFIX);
     assertSame(flow, positive.getFlow());
-    assertNotNull(positive.predicate);
+    assertNotNull(positive.getPredicate());
     assertSame(positive.output(), split.positive());
     Filter negative =
         (Filter) getOperator(flow, opName + Split.NEGATIVE_FILTER_SUFFIX);
     assertSame(flow, negative.getFlow());
-    assertNotNull(negative.predicate);
+    assertNotNull(negative.getPredicate());
     assertSame(negative.output(), split.negative());
   }
 
@@ -62,12 +65,12 @@ public class SplitTest {
 
     Filter<Integer> oddNumbers = (Filter<Integer>) getOperator(
         flow, Split.DEFAULT_NAME + Split.NEGATIVE_FILTER_SUFFIX);
-    assertFalse(oddNumbers.predicate.apply(0));
-    assertFalse(oddNumbers.predicate.apply(2));
-    assertFalse(oddNumbers.predicate.apply(4));
-    assertTrue(oddNumbers.predicate.apply(1));
-    assertTrue(oddNumbers.predicate.apply(3));
-    assertTrue(oddNumbers.predicate.apply(5));
+    assertFalse(oddNumbers.getPredicate().apply(0));
+    assertFalse(oddNumbers.getPredicate().apply(2));
+    assertFalse(oddNumbers.getPredicate().apply(4));
+    assertTrue(oddNumbers.getPredicate().apply(1));
+    assertTrue(oddNumbers.getPredicate().apply(3));
+    assertTrue(oddNumbers.getPredicate().apply(5));
   }
 
   private Operator<?, ?> getOperator(Flow flow, String name) {
