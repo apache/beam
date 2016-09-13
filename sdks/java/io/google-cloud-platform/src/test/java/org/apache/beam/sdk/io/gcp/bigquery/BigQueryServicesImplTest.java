@@ -251,6 +251,62 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
+  public void testGetJobSucceeds() throws Exception {
+    Job testJob = new Job();
+    testJob.setStatus(new JobStatus());
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testJob));
+
+    BigQueryServicesImpl.JobServiceImpl jobService =
+        new BigQueryServicesImpl.JobServiceImpl(bigquery);
+    JobReference jobRef = new JobReference()
+        .setProjectId("projectId")
+        .setJobId("jobId");
+    Job job = jobService.getJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+
+    assertEquals(testJob, job);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  @Test
+  public void testGetJobNotFound() throws Exception {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(404);
+
+    BigQueryServicesImpl.JobServiceImpl jobService =
+        new BigQueryServicesImpl.JobServiceImpl(bigquery);
+    JobReference jobRef = new JobReference()
+        .setProjectId("projectId")
+        .setJobId("jobId");
+    Job job = jobService.getJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+
+    assertEquals(null, job);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  @Test
+  public void testGetJobThrows() throws Exception {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(401);
+
+    BigQueryServicesImpl.JobServiceImpl jobService =
+        new BigQueryServicesImpl.JobServiceImpl(bigquery);
+    JobReference jobRef = new JobReference()
+        .setProjectId("projectId")
+        .setJobId("jobId");
+    thrown.expect(IOException.class);
+    thrown.expectMessage(String.format("Unable to find BigQuery job: %s", jobRef));
+
+    jobService.getJob(jobRef, Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+  }
+
+  @Test
   public void testExecuteWithRetries() throws IOException, InterruptedException {
     Table testTable = new Table();
 

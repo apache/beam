@@ -283,6 +283,52 @@ class BigQueryServicesImpl implements BigQueryServices {
           Sleeper.DEFAULT,
           backoff).getStatistics();
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC retries.
+     */
+    @Override
+    public Job getJob(JobReference jobRef) throws IOException, InterruptedException {
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+     return getJob(jobRef, Sleeper.DEFAULT, backoff);
+    }
+
+    @VisibleForTesting
+    public Job getJob(JobReference jobRef, Sleeper sleeper, BackOff backoff)
+        throws IOException, InterruptedException {
+      String jobId = jobRef.getJobId();
+      Exception lastException;
+      do {
+        try {
+          return client.jobs().get(jobRef.getProjectId(), jobId).execute();
+        } catch (GoogleJsonResponseException e) {
+          if (errorExtractor.itemNotFound(e)) {
+            LOG.info("No BigQuery job with job id {} found.", jobId);
+            return null;
+          }
+          LOG.warn(
+              "Ignoring the error encountered while trying to query the BigQuery job {}",
+              jobId, e);
+          lastException = e;
+        } catch (IOException e) {
+          LOG.warn(
+              "Ignoring the error encountered while trying to query the BigQuery job {}",
+              jobId, e);
+          lastException = e;
+        }
+      } while (nextBackOff(sleeper, backoff));
+      throw new IOException(
+          String.format(
+              "Unable to find BigQuery job: %s, aborting after %d retries.",
+              jobRef, MAX_RPC_RETRIES),
+          lastException);
+    }
   }
 
   @VisibleForTesting
