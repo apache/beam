@@ -300,7 +300,7 @@ class _SingleFileSource(iobase.BoundedSource):
     if start_position is None:
       start_position = self._start_offset
     if stop_position is None:
-      # If file is unsplittable we choose  OFFSET_INFINITY as the default end
+      # If file is unsplittable we choose OFFSET_INFINITY as the default end
       # offset so that all data of the source gets read. Choosing size of the
       # file as end offset will be wrong for certain unsplittable source, for
       # e.g., compressed sources.

@@ -302,7 +302,7 @@ class TextSourceTest(unittest.TestCase):
     splits = [split for split in source.split(desired_bundle_size=1000)]
 
     if len(splits) > 1:
-      raise ValueError('FileBasedSource generated more than one initial split'
+      raise ValueError('FileBasedSource generated more than one initial split '
                        'for a compressed file.')
 
     reference_source_info = (source, None, None)
