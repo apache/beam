@@ -43,4 +43,12 @@ public class EmissionWindow<W extends Window> extends Window {
   public int hashCode() {
     return inner.hashCode();
   }
+
+  @Override
+  public String toString() {
+    return "EmissionWindow{" +
+        "inner=" + inner +
+        ", emissionWatermark=" + emissionWatermark +
+        '}';
+  }
 }
