@@ -37,6 +37,7 @@ import java.util.List;
  * Test case for {@link EntityCoder}.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("deprecation")  // test of deprecated code.
 public class EntityCoderTest {
 
   private static final Coder<Entity> TEST_CODER = EntityCoder.of();

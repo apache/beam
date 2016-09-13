@@ -32,6 +32,7 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link IntervalBoundedExponentialBackOff}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("deprecation")  // test of deprecated code.
 public class IntervalBoundedExponentialBackOffTest {
   @Rule public ExpectedException exception = ExpectedException.none();
 

@@ -91,6 +91,7 @@ import javax.annotation.Nullable;
  * Tests for {@link DatastoreIO}.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("deprecation")  // test of deprecated code.
 public class DatastoreIOTest {
   private static final String HOST = "testHost";
   private static final String DATASET = "testDataset";

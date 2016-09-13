@@ -57,6 +57,7 @@ import java.util.List;
  * Tests of {@link CountingSource}.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("deprecation")  // test of deprecated code.
 public class CountingSourceTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
