@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -29,6 +30,7 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import cz.seznam.euphoria.core.executor.TriggerScheduler;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -232,21 +235,29 @@ public class InMemExecutor implements Executor {
       = WatermarkEmitStrategy.Default::new;
   private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier
       = ProcessingTimeTriggerScheduler::new;
+  private boolean allowWindowBasedShuffling = false;
 
   private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
 
-  public void setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
+  public InMemExecutor setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
     this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
+    return this;
   }
 
-  public void setWatermarkEmitStrategySupplier(
+  public InMemExecutor setWatermarkEmitStrategySupplier(
       java.util.function.Supplier<WatermarkEmitStrategy> supplier) {
     this.watermarkEmitStrategySupplier = supplier;
+    return this;
   }
 
   public InMemExecutor setTriggeringSchedulerSupplier(
       java.util.function.Supplier<TriggerScheduler> supplier) {
     this.triggerSchedulerSupplier = supplier;
+    return this;
+  }
+
+  public InMemExecutor allowWindowBasedShuffling() {
+    this.allowWindowBasedShuffling = true;
     return this;
   }
 
@@ -563,7 +574,7 @@ public class InMemExecutor implements Executor {
 
     List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
         suppliers, keyExtractor, partitioning,
-        windowing == null ? Optional.empty() : windowing.getTimestampAssigner());
+        windowing == null ? Optional.empty() : Optional.of(windowing));
 
     InputProvider outputSuppliers = new InputProvider();
     TriggerScheduler triggerScheduler = triggerSchedulerSupplier.get();
@@ -594,9 +605,15 @@ public class InMemExecutor implements Executor {
       InputProvider suppliers,
       final UnaryFunction keyExtractor,
       final Partitioning partitioning,
-      final Optional<UnaryFunction<Object, Long>> timestampAssigner) {
+      final Optional<Windowing> windowing) {
 
     int numInputPartitions = suppliers.size();
+    final Optional<UnaryFunction<Object, Long>> timestampAssigner = windowing.isPresent()
+        ? windowing.get().getTimestampAssigner()
+        : Optional.empty();
+    final boolean isMergingWindowing = windowing.isPresent()
+        && windowing.get() instanceof MergingWindowing;
+    
     final int outputPartitions = partitioning.getNumPartitions() > 0
         ? partitioning.getNumPartitions() : numInputPartitions;
     final List<BlockingQueue<Datum>> ret = new ArrayList<>(outputPartitions);
@@ -663,9 +680,23 @@ public class InMemExecutor implements Executor {
               }
               // determine partition
               Object key = keyExtractor.apply(datum.get());
+              final Set<WindowID> targetWindows;
+              int windowShift = 0;
+              if (allowWindowBasedShuffling) {
+                if (windowing.isPresent()) {
+                  targetWindows = windowing.get().assignWindowsToElement(datum);
+                } else {
+                  targetWindows = Collections.singleton(datum.getWindowID());
+                }
+
+                if (!isMergingWindowing && targetWindows.size() == 1) {
+                  windowShift = new Random(
+                      Iterables.getOnlyElement(targetWindows).hashCode()).nextInt();
+                }
+              }
               int partition
-                  = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
-                    % outputPartitions;
+                  = ((partitioning.getPartitioner().getPartition(key) + windowShift)
+                      & Integer.MAX_VALUE) % outputPartitions;
               // write to the correct partition
               ret.get(partition).put(datum);
             }
@@ -737,7 +768,7 @@ public class InMemExecutor implements Executor {
       List<VectorClock> clocks,
       boolean forwardWatermarks) {
 
-    // do no hadle elements
+    // do not hadle elements
     if (item.isElement()) return false;
     
     // propagate window triggers to downstream consumers

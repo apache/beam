@@ -6,7 +6,6 @@ import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session.SessionInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -15,6 +14,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -371,21 +371,14 @@ public class WindowingTest {
     // ~ now process the single partition
     // ~ we now expect to reconstruct the same windowing
     // as the very initial step
-    Dataset<Pair<String, Set<String>>> fifth =
-        ReduceByKey.of(fourth)
-            .keyBy(e -> "")
+    Dataset<Set<String>> fifth =
+        ReduceWindow.of(fourth)
             .valueBy(e -> e)
             .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
             .output();
 
-    // ~ strip the needless key
-    Dataset<Set<String>> sixth =
-        MapElements.of(fifth)
-            .using(Pair::getSecond)
-            .output();
-
     ListDataSink<Set<String>> out = ListDataSink.get(1);
-    sixth.persist(out);
+    fifth.persist(out);
 
     executor.waitForCompletion(flow);
 
