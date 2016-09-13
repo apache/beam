@@ -186,7 +186,7 @@ class _AvroBlock(object):
       # Snappy is an optional avro codec.
       # See Snappy and Avro documentation for more details.
       try:
-        import snappy  # pylint: disable=g-import-not-at-top
+        import snappy
       except ImportError:
         raise ValueError('Snappy does not seem to be installed.')
 
