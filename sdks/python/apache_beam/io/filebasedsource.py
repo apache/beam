@@ -97,7 +97,7 @@ class FileBasedSource(iobase.BoundedSource):
                file_pattern,
                min_bundle_size=0,
                # TODO(BEAM-614)
-               compression_type=fileio.CompressionTypes.NO_COMPRESSION,
+               compression_type=fileio.CompressionTypes.UNCOMPRESSED,
                splittable=True):
     """Initializes ``FileBasedSource``.
 
@@ -126,6 +126,13 @@ class FileBasedSource(iobase.BoundedSource):
           '%s: file_pattern must be a string;  got %r instead' %
           (self.__class__.__name__, file_pattern))
 
+    if compression_type == fileio.CompressionTypes.AUTO:
+      raise ValueError('FileBasedSource currently does not support '
+                       'CompressionTypes.AUTO. Please explicitly specify the '
+                       'compression type or use '
+                       'CompressionTypes.UNCOMPRESSED if file is '
+                       'uncompressed.')
+
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -133,7 +140,7 @@ class FileBasedSource(iobase.BoundedSource):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     self._compression_type = compression_type
-    if compression_type != fileio.CompressionTypes.NO_COMPRESSION:
+    if compression_type != fileio.CompressionTypes.UNCOMPRESSED:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
     else:
@@ -159,14 +166,9 @@ class FileBasedSource(iobase.BoundedSource):
     return self._concat_source
 
   def open_file(self, file_name):
-    raw_file = fileio.ChannelFactory.open(
-        file_name, 'rb', 'application/octet-stream')
-    if self._compression_type == fileio.CompressionTypes.NO_COMPRESSION:
-      return raw_file
-    else:
-      return fileio._CompressedFile(  # pylint: disable=protected-access
-          fileobj=raw_file,
-          compression_type=self._compression_type)
+    return fileio.ChannelFactory.open(
+        file_name, 'rb', 'application/octet-stream',
+        compression_type=self._compression_type)
 
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):

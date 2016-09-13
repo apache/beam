@@ -54,7 +54,7 @@ class TextSourceTest(unittest.TestCase):
     # Since each record usually takes more than 1 byte, default buffer size is
     # smaller than the total size of the file. This is done to
     # increase test coverage for cases that hit the buffer boundary.
-    source = TextSource(file_or_pattern, 0, CompressionTypes.NO_COMPRESSION,
+    source = TextSource(file_or_pattern, 0, CompressionTypes.UNCOMPRESSED,
                         True, coders.StrUtf8Coder(), buffer_size)
     range_tracker = source.get_range_tracker(None, None)
     read_data = [record for record in source.read(range_tracker)]
@@ -136,7 +136,7 @@ class TextSourceTest(unittest.TestCase):
                                          eol=EOL.LF)
     assert len(written_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     source = TextSource(file_name, 0,
-                        CompressionTypes.NO_COMPRESSION,
+                        CompressionTypes.UNCOMPRESSED,
                         False, coders.StrUtf8Coder())
 
     range_tracker = source.get_range_tracker(None, None)
@@ -147,7 +147,7 @@ class TextSourceTest(unittest.TestCase):
     file_name, written_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS,
                                          eol=EOL.CRLF)
     assert len(written_data) == TextSourceTest.DEFAULT_NUM_RECORDS
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION,
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED,
                         False, coders.StrUtf8Coder())
 
     range_tracker = source.get_range_tracker(None, None)
@@ -170,7 +170,7 @@ class TextSourceTest(unittest.TestCase):
   def test_read_after_splitting(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION, True,
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=33)]
 
@@ -184,7 +184,7 @@ class TextSourceTest(unittest.TestCase):
   def test_progress(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION, True,
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
@@ -200,7 +200,7 @@ class TextSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing(self):
     file_name, expected_data = write_data(15)
     assert len(expected_data) == 15
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION, True,
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
@@ -210,7 +210,7 @@ class TextSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing_windows_eol(self):
     file_name, expected_data = write_data(15, eol=EOL.CRLF)
     assert len(expected_data) == 15
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION, True,
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
@@ -221,7 +221,7 @@ class TextSourceTest(unittest.TestCase):
   def test_dynamic_work_rebalancing_mixed_eol(self):
     file_name, expected_data = write_data(15, eol=EOL.MIXED)
     assert len(expected_data) == 15
-    source = TextSource(file_name, 0, CompressionTypes.NO_COMPRESSION, True,
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1

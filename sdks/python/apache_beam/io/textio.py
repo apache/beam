@@ -173,7 +173,7 @@ class ReadFromText(PTransform):
   This does not support other encodings such as UTF-16 or UTF-32."""
 
   def __init__(self, file_pattern=None, min_bundle_size=0,
-               compression_type=fileio.CompressionTypes.NO_COMPRESSION,
+               compression_type=fileio.CompressionTypes.UNCOMPRESSED,
                strip_trailing_newlines=True,
                coder=coders.StrUtf8Coder(), **kwargs):
     """Initialize the ReadFromText transform.
