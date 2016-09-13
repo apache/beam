@@ -26,7 +26,6 @@ import apache_beam as beam
 
 from apache_beam import coders
 from apache_beam.io import iobase
-from apache_beam.io.filebasedsource import ConcatSource
 from apache_beam.io import range_trackers
 from apache_beam.io import source_test_utils
 from apache_beam.transforms.util import assert_that
@@ -149,11 +148,11 @@ class SourcesTest(unittest.TestCase):
     source_test_utils.assertSplitAtFractionExhaustive(RangeSource(0, 10, 3))
 
   def test_conact_source(self):
-    source = ConcatSource([RangeSource(0, 4),
-                           RangeSource(4, 8),
-                           RangeSource(8, 12),
-                           RangeSource(12, 16),
-                          ])
+    source = iobase.ConcatSource([RangeSource(0, 4),
+                                  RangeSource(4, 8),
+                                  RangeSource(8, 12),
+                                  RangeSource(12, 16),
+                                ])
     self.assertEqual(list(source.read(source.get_range_tracker())),
                      range(16))
     self.assertEqual(list(source.read(source.get_range_tracker((1, None),
@@ -187,10 +186,10 @@ class SourcesTest(unittest.TestCase):
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
 
   def test_conact_source_exhaustive(self):
-    source = ConcatSource([RangeSource(0, 10),
-                           RangeSource(100, 110),
-                           RangeSource(1000, 1010),
-                          ])
+    source = iobase.ConcatSource([RangeSource(0, 10),
+                                  RangeSource(100, 110),
+                                  RangeSource(1000, 1010),
+                                ])
     source_test_utils.assertSplitAtFractionExhaustive(source)
 
 if __name__ == '__main__':
