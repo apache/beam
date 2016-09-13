@@ -397,7 +397,7 @@ public class DoFnInvokers {
     private Object describeType(Type type) {
       switch (type.getSort()) {
         case Type.OBJECT:
-          return type.getDescriptor();
+          return type.getInternalName();
         case Type.INT:
         case Type.BYTE:
         case Type.BOOLEAN:
