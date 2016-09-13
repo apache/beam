@@ -12,7 +12,6 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.core.util.URIParams;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -39,6 +38,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   {
     private final Consumer<byte[], byte[]> c;
     private Iterator<ConsumerRecord<byte[], byte[]>> next;
+    private int uncommittedCount = 0;
 
     ConsumerReader(Consumer<byte[], byte[]> c) {
       this.c = c;
@@ -47,16 +47,27 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     @Override
     protected Pair<byte[], byte[]> computeNext() {
       while (next == null || !next.hasNext()) {
+        commitIfNeeded();
         LOG.debug("Polling for next consumer records: {}", c.assignment());
         next = c.poll(500).iterator();
       }
       ConsumerRecord<byte[], byte[]> r = this.next.next();
+      ++uncommittedCount;
       return Pair.of(r.key(), r.value());
     }
 
     @Override
     public void close() throws IOException {
+      commitIfNeeded();
       c.close();
+    }
+
+    private void commitIfNeeded() {
+      if (uncommittedCount > 0) {
+        c.commitAsync();
+        LOG.debug("Committed {} records.", uncommittedCount);
+        uncommittedCount = 0;
+      }
     }
   }
 
