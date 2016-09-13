@@ -545,11 +545,11 @@ class RangeTracker(object):
 
   def start_position(self):
     """Returns the starting position of the current range, inclusive."""
-    raise NotImplementedError
+    raise NotImplementedError(type(self))
 
   def stop_position(self):
     """Returns the ending position of the current range, exclusive."""
-    raise NotImplementedError
+    raise NotImplementedError(type(self))
 
   def try_claim(self, position):  # pylint: disable=unused-argument
     """Atomically determines if a record at a split point is within the range.

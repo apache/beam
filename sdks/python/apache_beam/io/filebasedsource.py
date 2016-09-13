@@ -53,8 +53,8 @@ class _ConcatSource(iobase.BoundedSource):
     if start_position or stop_position:
       raise ValueError(
           'Multi-level initial splitting is not supported. Expected start and '
-          'stop positions to be None. Received %r and %r respectively.',
-          start_position, stop_position)
+          'stop positions to be None. Received %r and %r respectively.' %
+          (start_position, stop_position))
 
     for source in self._sources:
       # We assume all sub-sources to produce bundles that specify weight using
@@ -215,18 +215,15 @@ class FileBasedSource(iobase.BoundedSource):
 
 
 class _SingleFileSource(iobase.BoundedSource):
-  """Denotes a source for a specific file type.
-
-  This should be sub-classed to add support for reading a new file type.
-  """
+  """Denotes a source for a specific file type."""
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0):
-    if not (isinstance(start_offset, int) or isinstance(start_offset, long)):
-      raise ValueError(
+    if not isinstance(start_offset, (int, long)):
+      raise TypeError(
           'start_offset must be a number. Received: %r', start_offset)
-    if not (isinstance(stop_offset, int) or isinstance(stop_offset, long)):
-      raise ValueError(
+    if not isinstance(stop_offset, (int, long)):
+      raise TypeError(
           'stop_offset must be a number. Received: %r', stop_offset)
     if start_offset >= stop_offset:
       raise ValueError(
