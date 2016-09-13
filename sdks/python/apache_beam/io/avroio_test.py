@@ -39,14 +39,24 @@ class TestAvro(unittest.TestCase):
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
 
-  RECORDS = [{'name': 'Thomas', 'favorite_number': 1, 'favorite_color': 'blue'},
-             {'name': 'Henry', 'favorite_number': 3, 'favorite_color': 'green'},
-             {'name': 'Toby', 'favorite_number': 7, 'favorite_color': 'brown'},
-             {'name': 'Gordon', 'favorite_number': 4, 'favorite_color': 'blue'},
-             {'name': 'Emily', 'favorite_number': -1, 'favorite_color': 'Red'},
-             {'name': 'Percy', 'favorite_number': 6, 'favorite_color': 'Green'}]
+  RECORDS = [{'name': 'Thomas',
+              'favorite_number': 1,
+              'favorite_color': 'blue'}, {'name': 'Henry',
+                                          'favorite_number': 3,
+                                          'favorite_color': 'green'},
+             {'name': 'Toby',
+              'favorite_number': 7,
+              'favorite_color': 'brown'}, {'name': 'Gordon',
+                                           'favorite_number': 4,
+                                           'favorite_color': 'blue'},
+             {'name': 'Emily',
+              'favorite_number': -1,
+              'favorite_color': 'Red'}, {'name': 'Percy',
+                                         'favorite_number': 6,
+                                         'favorite_color': 'Green'}]
 
-  def _write_data(self, directory=None,
+  def _write_data(self,
+                  directory=None,
                   prefix=tempfile.template,
                   codec='null',
                   count=len(RECORDS)):
@@ -83,24 +93,27 @@ class TestAvro(unittest.TestCase):
     file_name_prefix = file_name[:file_name.rfind(os.path.sep)]
     return file_name_prefix + os.path.sep + 'mytemp*'
 
-  def _run_avro_test(
-      self, pattern, desired_bundle_size, perform_splitting, expected_result):
+  def _run_avro_test(self, pattern, desired_bundle_size, perform_splitting,
+                     expected_result):
     source = AvroSource(pattern)
 
     read_records = []
     if perform_splitting:
       assert desired_bundle_size
-      splits = [split for split in source.split(
-          desired_bundle_size=desired_bundle_size)]
+      splits = [
+          split
+          for split in source.split(desired_bundle_size=desired_bundle_size)
+      ]
       if len(splits) < 2:
         raise ValueError('Test is trivial. Please adjust it so that at least '
                          'two splits get generated')
 
       sources_info = [
           (split.source, split.start_position, split.stop_position)
-          for split in splits]
-      source_test_utils.assertSourcesEqualReferenceSource(
-          (source, None, None), sources_info)
+          for split in splits
+      ]
+      source_test_utils.assertSourcesEqualReferenceSource((source, None, None),
+                                                          sources_info)
     else:
       read_records = source_test_utils.readFromSource(source, None, None)
       self.assertItemsEqual(expected_result, read_records)
@@ -135,6 +148,28 @@ class TestAvro(unittest.TestCase):
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
 
+  def test_read_without_splitting_compressed_snappy(self):
+    try:
+      import snappy  # pylint: disable=unused-variable
+      file_name = self._write_data(codec='snappy')
+      expected_result = self.RECORDS
+      self._run_avro_test(file_name, None, False, expected_result)
+    except ImportError:
+      logging.warning(
+          'Skipped test_read_without_splitting_compressed_snappy since snappy '
+          'appears to not be installed.')
+
+  def test_read_with_splitting_compressed_snappy(self):
+    try:
+      import snappy  # pylint: disable=unused-variable
+      file_name = self._write_data(codec='snappy')
+      expected_result = self.RECORDS
+      self._run_avro_test(file_name, 100, True, expected_result)
+    except ImportError:
+      logging.warning(
+          'Skipped test_read_with_splitting_compressed_snappy since snappy '
+          'appears to not be installed.')
+
   def test_read_without_splitting_pattern(self):
     pattern = self._write_pattern(3)
     expected_result = self.RECORDS * 3
@@ -153,12 +188,31 @@ class TestAvro(unittest.TestCase):
       avro.datafile.SYNC_INTERVAL = 5
       file_name = self._write_data(count=20)
       source = AvroSource(file_name)
-      splits = [split for split in source.split(
-          desired_bundle_size=float('inf'))]
+      splits = [split
+                for split in source.split(desired_bundle_size=float('inf'))]
       assert len(splits) == 1
       source_test_utils.assertSplitAtFractionExhaustive(splits[0].source)
     finally:
       avro.datafile.SYNC_INTERVAL = old_sync_interval
+
+  def test_corrupted_file(self):
+    file_name = self._write_data()
+    with open(file_name, 'r') as f:
+      data = bytearray(f.read())
+
+    # Corrupt the last character of the file which is also the last character of
+    # the last sync_marker.
+    with tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template) as f:
+      last_char_index = len(data) - 1
+      data[last_char_index] = 'A' if data[last_char_index] == 'B' else 'A'
+      f.write(data)
+      corrupted_file_name = f.name
+
+    source = AvroSource(corrupted_file_name)
+    with self.assertRaises(ValueError) as exn:
+      source_test_utils.readFromSource(source, None, None)
+      self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
 
 if __name__ == '__main__':
