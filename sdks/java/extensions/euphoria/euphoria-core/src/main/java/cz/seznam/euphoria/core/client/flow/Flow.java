@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -173,19 +172,6 @@ public class Flow implements Serializable {
    */
   String getOperatorName(Operator what) {
     return operatorNames.get(what);
-  }
-
-  /**
-   * Get first operator with given name
-   * @param name name of the operator
-   * @return first operator with given name or null if no such operator
-   * exists in the flow
-   */
-  public Operator getOperator(String name) {
-    Optional<Operator<?, ?>> op = operators.stream()
-        .filter(o -> o.getName().equals(name))
-        .findFirst();
-    return op.isPresent() ? op.get() : null;
   }
 
   /**
