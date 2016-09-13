@@ -77,7 +77,10 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
     this.predicate = predicate;
   }
 
-  
+  public UnaryPredicate<IN> getPredicate() {
+    return predicate;
+  }
+
   /** This operator can be implemented using FlatMap. */
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {

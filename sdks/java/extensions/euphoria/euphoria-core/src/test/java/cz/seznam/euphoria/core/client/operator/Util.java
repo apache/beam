@@ -7,9 +7,9 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import java.util.ArrayList;
 import java.util.List;
 
-class Util {
+public class Util {
 
-  static <T> Dataset<T> createMockDataset(Flow flow, int numPartitions) {
+  public static <T> Dataset<T> createMockDataset(Flow flow, int numPartitions) {
     @SuppressWarnings("unchecked")
     List<T>[] partitions = new List[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
