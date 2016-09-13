@@ -108,27 +108,29 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <version>[0-incubating, 2-incubating)</version>
+      <version>0.3.0-incubating-SNAPSHOT</version>
     </dependency>
 
     <!-- Adds a dependency on a specific version of the Dataflow runnner. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>[0-incubating, 2-incubating)</version>
+      <version>0.3.0-incubating-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>[0-incubating, 2-incubating)</version>
+      <version>0.3.0-incubating-SNAPSHOT</version>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- Adds a dependency on a specific version of the Beam Google Cloud Platform IO module. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
-      <version>[0-incubating, 2-incubating)</version>
+      <version>0.3.0-incubating-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -198,12 +200,6 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>19.0</version>
-    </dependency>
-
-     <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
-      <version>3.1.0</version>
     </dependency>
 
     <!-- Add slf4j API frontend binding with JUL backend -->
