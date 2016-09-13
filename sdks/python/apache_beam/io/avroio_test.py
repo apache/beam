@@ -150,7 +150,7 @@ class TestAvro(unittest.TestCase):
 
   def test_read_without_splitting_compressed_snappy(self):
     try:
-      import snappy  # pylint: disable=unused-import
+      import snappy  # pylint: disable=unused-variable
       file_name = self._write_data(codec='snappy')
       expected_result = self.RECORDS
       self._run_avro_test(file_name, None, False, expected_result)
@@ -161,7 +161,7 @@ class TestAvro(unittest.TestCase):
 
   def test_read_with_splitting_compressed_snappy(self):
     try:
-      import snappy  # pylint: disable=unused-import
+      import snappy  # pylint: disable=unused-variable
       file_name = self._write_data(codec='snappy')
       expected_result = self.RECORDS
       self._run_avro_test(file_name, 100, True, expected_result)
