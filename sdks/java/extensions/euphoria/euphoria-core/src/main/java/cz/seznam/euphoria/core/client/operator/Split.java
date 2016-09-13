@@ -8,11 +8,22 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * Composite pseudo-operator using two {@link Filter} operators to implement
- * splitting of a {@link Dataset} into positive and negative subsets using
- * provided {@link UnaryPredicate}.
+ * Composite operator using two {@link Filter} operators to split
+ * a {@link Dataset} into two subsets using provided {@link UnaryPredicate}.
  */
 public class Split<IN> {
+
+  static final String DEFAULT_NAME = "Split";
+  static final String POSITIVE_FILTER_SUFFIX = "-positive";
+  static final String NEGATIVE_FILTER_SUFFIX = "-negative";
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    return new UsingBuilder<IN>(DEFAULT_NAME, input);
+  }
 
   public static class OfBuilder {
     private final String name;
@@ -55,11 +66,11 @@ public class Split<IN> {
       Flow flow = input.getFlow();
 
       Filter<IN> positiveFilter = new Filter<>(
-          name + "-positive", flow, input, predicate);
+          name + POSITIVE_FILTER_SUFFIX, flow, input, predicate);
       flow.add(positiveFilter);
 
       Filter<IN> negativeFilter = new Filter<>(
-          name + "-negative", flow, input,
+          name + NEGATIVE_FILTER_SUFFIX, flow, input,
           (UnaryPredicate<IN>) what -> !predicate.apply(what)
       );
       flow.add(negativeFilter);
@@ -93,11 +104,4 @@ public class Split<IN> {
     }
   }
 
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
-  }
-
-  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
-    return new UsingBuilder<IN>("Split", input);
-  }
 }
