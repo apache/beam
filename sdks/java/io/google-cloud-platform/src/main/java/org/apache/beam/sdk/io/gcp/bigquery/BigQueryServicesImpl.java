@@ -283,6 +283,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           Sleeper.DEFAULT,
           backoff).getStatistics();
     }
+
     /**
      * {@inheritDoc}
      *
