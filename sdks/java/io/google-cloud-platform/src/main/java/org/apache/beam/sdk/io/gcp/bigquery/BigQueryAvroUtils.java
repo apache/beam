@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.nio.ByteBuffer;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
@@ -153,6 +154,7 @@ class BigQueryAvroUtils {
     ImmutableMap<String, Type> fieldMap =
         ImmutableMap.<String, Type>builder()
             .put("STRING", Type.STRING)
+            .put("BYTES", Type.BYTES)
             .put("INTEGER", Type.LONG)
             .put("FLOAT", Type.DOUBLE)
             .put("BOOLEAN", Type.BOOLEAN)
@@ -195,6 +197,12 @@ class BigQueryAvroUtils {
       case "RECORD":
         verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
         return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
+      case "BYTES":
+        verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
+        ByteBuffer byteBuffer = (ByteBuffer) v;
+        byte[] bytes = new byte[byteBuffer.limit()];
+        byteBuffer.get(bytes);
+        return bytes;
       default:
         throw new UnsupportedOperationException(
             String.format(

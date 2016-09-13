@@ -46,6 +46,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.Collection;
@@ -251,6 +252,10 @@ class BigQueryTableRowIterator implements AutoCloseable {
 
     if (fieldSchema.getType().equals("TIMESTAMP")) {
       return BigQueryAvroUtils.formatTimestamp((String) v);
+    }
+
+    if (fieldSchema.getType().equals("BYTES")) {
+      return BaseEncoding.base64().decode((String) v);
     }
 
     return v;

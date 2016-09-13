@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -45,6 +46,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -122,7 +124,8 @@ public class BigQueryTableRowIteratorTest {
                 .setFields(
                     Arrays.asList(
                         new TableFieldSchema().setName("name").setType("STRING"),
-                        new TableFieldSchema().setName("answer").setType("INTEGER"))));
+                        new TableFieldSchema().setName("answer").setType("INTEGER"),
+                        new TableFieldSchema().setName("photo").setType("BYTES"))));
   }
 
   private TableRow rawRow(Object... args) {
@@ -162,8 +165,10 @@ public class BigQueryTableRowIteratorTest {
     // Mock table schema fetch.
     when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
 
+    byte[] photoBytes = "photograph".getBytes();
     // Mock table data fetch.
-    when(mockTabledataList.execute()).thenReturn(rawDataList(rawRow("Arthur", 42)));
+    when(mockTabledataList.execute())
+        .thenReturn(rawDataList(rawRow("Arthur", 42, BaseEncoding.base64().encode(photoBytes))));
 
     // Run query and verify
     String query = "SELECT name, count from table";
@@ -175,8 +180,10 @@ public class BigQueryTableRowIteratorTest {
 
       assertTrue(row.containsKey("name"));
       assertTrue(row.containsKey("answer"));
+      assertTrue(row.containsKey("photo"));
       assertEquals("Arthur", row.get("name"));
       assertEquals(42, row.get("answer"));
+      assertArrayEquals(photoBytes, (byte[]) row.get("photo"));
 
       assertFalse(iterator.advance());
     }
