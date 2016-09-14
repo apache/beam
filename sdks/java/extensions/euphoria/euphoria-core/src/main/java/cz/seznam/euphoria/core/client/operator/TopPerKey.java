@@ -1,5 +1,8 @@
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -25,29 +28,31 @@ public class TopPerKey<
   private static final class MaxScored<V, C extends Comparable<C>>
       extends State<Pair<V, C>, Pair<V, C>> {
     
-    Pair<V, C> curr = null;
+    final ValueStateStorage<Pair<V, C>> curr;
 
-    MaxScored(Collector<Pair<V, C>> collector) {
-      super(collector);
+    @SuppressWarnings("unchecked")
+    MaxScored(Collector<Pair<V, C>> collector, StateStorageProvider storageProvider) {
+      super(collector, storageProvider);
+      curr = (ValueStateStorage) storageProvider.getValueStorageFor(Pair.class);
     }
 
     void merge(MaxScored<V, C> other) {
-      if (other.curr != null) {
-        this.add(curr);
+      if (other.curr.get() != null) {
+        this.add(other.curr.get());
       }
     }
 
     @Override
     public void add(Pair<V, C> element) {
-      if (curr == null || element.getSecond().compareTo(curr.getSecond()) > 0) {
-        curr = element;
+      if (curr.get() == null || element.getSecond().compareTo(curr.get().getSecond()) > 0) {
+        curr.set(element);
       }
     }
 
     @Override
     public void flush() {
-      if (curr != null) {
-        getCollector().collect(curr);
+      if (curr.get() != null) {
+        getCollector().collect(curr.get());
       }
     }
   }
@@ -196,9 +201,7 @@ public class TopPerKey<
             keyExtractor,
             e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
             windowing,
-            (UnaryFunction<Collector<Pair<VALUE, SCORE>>,
-                MaxScored<VALUE, SCORE>>)
-                MaxScored::new,
+            MaxScored::new,
             (CombinableReduceFunction<MaxScored<VALUE, SCORE>>) states -> {
               Iterator<MaxScored<VALUE, SCORE>> iter = states.iterator();
               MaxScored<VALUE, SCORE> m = iter.next();

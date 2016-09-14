@@ -1,15 +1,19 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
+import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Objects;
@@ -92,8 +96,9 @@ public class ReduceStateByKey<
     }
     public <OUT, STATE extends State<VALUE, OUT>> DatasetBuilder4<
             IN, KEY, VALUE, OUT, STATE> stateFactory(
-            UnaryFunction<Collector<OUT>, STATE> stateFactory) {
-      return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
+            StateFactory<OUT, STATE> stateFactory) {
+      return new DatasetBuilder4<>(
+          name, input, keyExtractor, valueExtractor, stateFactory);
     }
   }
   public static class DatasetBuilder4<
@@ -102,12 +107,12 @@ public class ReduceStateByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final StateFactory<OUT, STATE> stateFactory;
     DatasetBuilder4(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    UnaryFunction<Collector<OUT>, STATE> stateFactory)
+                    StateFactory<OUT, STATE> stateFactory)
     {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -130,14 +135,14 @@ public class ReduceStateByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                    StateFactory<OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner)
     {
       // initialize default partitioning according to input
@@ -176,7 +181,7 @@ public class ReduceStateByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
     private final Windowing<WIN, ?, WLABEL, W> windowing;
 
@@ -184,7 +189,7 @@ public class ReduceStateByKey<
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                    StateFactory<OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
                     Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
                     PartitioningBuilder<KEY, ?> partitioning)
@@ -263,8 +268,9 @@ public class ReduceStateByKey<
     }
     public <OUT, STATE extends State<VALUE, OUT>> GroupedDatasetBuilder4<
             IN, KIN, KEY, VALUE, OUT, STATE> stateFactory(
-            UnaryFunction<Collector<OUT>, STATE> stateFactory) {
-      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
+            StateFactory<OUT, STATE> stateFactory) {
+      return new GroupedDatasetBuilder4<>(
+          name, input, keyExtractor, valueExtractor, stateFactory);
     }
   }
   public static class GroupedDatasetBuilder4<
@@ -273,12 +279,12 @@ public class ReduceStateByKey<
     private final GroupedDataset<IN, KIN> input;
     private final UnaryFunction<KIN, KEY> keyExtractor;
     private final UnaryFunction<KIN, VALUE> valueExtractor;
-    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final StateFactory<OUT, STATE> stateFactory;
     GroupedDatasetBuilder4(String name,
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
-                           UnaryFunction<Collector<OUT>, STATE> stateFactory)
+                           StateFactory<OUT, STATE> stateFactory)
     {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -288,8 +294,9 @@ public class ReduceStateByKey<
     }
     public GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, STATE> combineStateBy(
             CombinableReduceFunction<STATE> stateCombiner) {
-      return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner);
+      return new GroupedDatasetBuilder5<>(
+          name, input, keyExtractor, valueExtractor,
+          stateFactory, stateCombiner);
     }
   }
   public static class GroupedDatasetBuilder5<
@@ -301,14 +308,14 @@ public class ReduceStateByKey<
     private final GroupedDataset<IN, KIN> input;
     private final UnaryFunction<KIN, KEY> keyExtractor;
     private final UnaryFunction<KIN, VALUE> valueExtractor;
-    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
 
     GroupedDatasetBuilder5(String name,
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
-                           UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                           StateFactory<OUT, STATE> stateFactory,
                            CombinableReduceFunction<STATE> stateCombiner)
     {
       // define default partitioning
@@ -348,7 +355,7 @@ public class ReduceStateByKey<
     private final GroupedDataset<IN, KIN> input;
     private final UnaryFunction<KIN, KEY> keyExtractor;
     private final UnaryFunction<KIN, VALUE> valueExtractor;
-    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
     private final Windowing<WIN, ?, WLABEL, W> windowing;
 
@@ -356,7 +363,7 @@ public class ReduceStateByKey<
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
-                           UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                           StateFactory<OUT, STATE> stateFactory,
                            CombinableReduceFunction<STATE> stateCombiner,
                            Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
                            PartitioningBuilder<KEY, ?> partitioning)
@@ -408,7 +415,7 @@ public class ReduceStateByKey<
     return new OfBuilder(name);
   }
 
-  private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+  private final StateFactory<OUT, STATE> stateFactory;
   private final UnaryFunction<KIN, VALUE> valueExtractor;
   private final CombinableReduceFunction<STATE> stateCombiner;
   private final boolean grouped;
@@ -419,7 +426,7 @@ public class ReduceStateByKey<
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
                    Windowing<WIN, ?, WLABEL, W> windowing,
-                   UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                   StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
@@ -434,7 +441,7 @@ public class ReduceStateByKey<
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
                    Windowing<WIN, ?, WLABEL, W> windowing,
-                   UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                   StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
@@ -449,7 +456,7 @@ public class ReduceStateByKey<
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
                    Windowing<WIN, ?, WLABEL, W> windowing,
-                   UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                   StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
@@ -460,7 +467,7 @@ public class ReduceStateByKey<
     this.grouped = grouped;
   }
 
-  public UnaryFunction<Collector<OUT>, STATE> getStateFactory() {
+  public StateFactory<OUT, STATE> getStateFactory() {
     return stateFactory;
   }
 

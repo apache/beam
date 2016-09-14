@@ -6,10 +6,12 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
+import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.operator.State;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
@@ -133,13 +135,14 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private final class ProcessingState implements TriggerContext {
 
+    final StateStorageProvider storageProvider;
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
 
     final Collector<Datum> stateOutput;
     final BlockingQueue<Datum> rawOutput;
     final TriggerScheduler triggering;
-    final UnaryFunction stateFactory;
+    final StateFactory stateFactory;
     final CombinableReduceFunction stateCombiner;
 
     // do we have bounded input?
@@ -150,19 +153,17 @@ class ReduceStateByKeyReducer implements Runnable {
     // ~ are we still actively processing input?
     private boolean active = true;
 
-    // stamp that was read from input element but not yet committed
-    // to triggerscheduler
-    private long uncommittedStamp = 0;
-
     @SuppressWarnings("unchecked")
     private ProcessingState(
         BlockingQueue<Datum> output,
         TriggerScheduler triggering,
-        UnaryFunction stateFactory,
+        StateFactory stateFactory,
         CombinableReduceFunction stateCombiner,
+        StateStorageProvider storageProvider,
         boolean isBounded,
         int maxKeyStatesPerWindow) {
 
+      this.storageProvider = storageProvider;
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
@@ -243,7 +244,7 @@ class ReduceStateByKeyReducer implements Runnable {
           }
         };
         collector.assignWindowing(w.getWindowID());
-        state = (State) stateFactory.apply(collector);
+        state = (State) stateFactory.apply(collector, storageProvider);
         keyStates.put(itemKey, state);
       } else {
         keyStates.put(itemKey, state);
@@ -434,10 +435,11 @@ class ReduceStateByKeyReducer implements Runnable {
                           Windowing windowing,
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
-                          UnaryFunction stateFactory,
+                          StateFactory stateFactory,
                           CombinableReduceFunction stateCombiner,
                           TriggerScheduler triggering,
                           WatermarkEmitStrategy watermarkStrategy,
+                          StateStorageProvider storageProvider,
                           boolean isBounded,
                           int maxKeyStatesPerWindow) {
 
@@ -453,7 +455,7 @@ class ReduceStateByKeyReducer implements Runnable {
     this.processing = new ProcessingState(
         output, triggering,
         stateFactory, stateCombiner,
-        isBounded,
+        storageProvider, isBounded,
         maxKeyStatesPerWindow);
   }
 

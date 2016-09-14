@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
@@ -8,6 +9,8 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
@@ -255,29 +258,32 @@ public class ReduceStateByKeyTest {
    */
   private static class WordCountState extends State<Long, Long> {
 
-    private long sum;
+    private final ValueStateStorage<Long> sum;
 
-    protected WordCountState(Collector<Long> collector) {
-      super(collector);
+    protected WordCountState(
+        Collector<Long> collector,
+        StateStorageProvider storageProvider) {
+      super(collector, storageProvider);
+      sum = storageProvider.getValueStorageFor(Long.class);
     }
 
     @Override
     public void add(Long element) {
-      sum += element;
+      sum.set(sum.get() + element);
     }
 
     @Override
     public void flush() {
-      this.getCollector().collect(sum);
+      this.getCollector().collect(sum.get());
     }
 
     static WordCountState combine(Iterable<WordCountState> others) {
       WordCountState state = null;
       for (WordCountState s : others) {
         if (state == null) {
-          state = new WordCountState(s.getCollector());
+          state = new WordCountState(s.getCollector(), s.getStorageProvider());
         }
-        state.add(s.sum);
+        state.add(s.sum.get());
       }
 
       return state;

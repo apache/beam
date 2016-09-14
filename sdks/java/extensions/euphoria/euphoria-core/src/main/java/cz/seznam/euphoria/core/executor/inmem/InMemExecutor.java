@@ -8,6 +8,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
+import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -24,6 +25,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.ExecUnit;
 import cz.seznam.euphoria.core.executor.Executor;
@@ -235,32 +237,53 @@ public class InMemExecutor implements Executor {
       = WatermarkEmitStrategy.Default::new;
   private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier
       = ProcessingTimeTriggerScheduler::new;
+
   private boolean allowWindowBasedShuffling = false;
 
   private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
+
+  private StateStorageProvider storageProvider = new InMemStateStorageProvider();
 
   public InMemExecutor setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
     this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
     return this;
   }
-
+  
+  /**
+   * Set supplier for watermark emit strategy used in state operations.
+   * Defaults to {@code WatermarkEmitStrategy.Default}.
+   */
   public InMemExecutor setWatermarkEmitStrategySupplier(
       java.util.function.Supplier<WatermarkEmitStrategy> supplier) {
     this.watermarkEmitStrategySupplier = supplier;
     return this;
   }
 
+  /**
+   * Set supplier for {@code TriggerScheduler} to be used in state operations.
+   * Default is {@code ProcessingTimeTriggerScheduler}.
+   */
   public InMemExecutor setTriggeringSchedulerSupplier(
       java.util.function.Supplier<TriggerScheduler> supplier) {
     this.triggerSchedulerSupplier = supplier;
     return this;
   }
 
+  
+  /**
+   * Enable shuffling of windowed data based on the windowID.
+   **/
   public InMemExecutor allowWindowBasedShuffling() {
     this.allowWindowBasedShuffling = true;
     return this;
   }
 
+  /** Set provider for state's storage. Defaults to {@code InMemStateStorageProvider}. */
+  public InMemExecutor setStateStorageProvider(StateStorageProvider provider) {
+    this.storageProvider = provider;
+    return this;
+  }
+  
   @Override
   public Future<Integer> submit(Flow flow) {
     throw new UnsupportedOperationException("unsupported");
@@ -567,7 +590,7 @@ public class InMemExecutor implements Executor {
         reduceStateByKeyNode.getSingleParentOrNull().get(),
         reduceStateByKeyNode.get());
 
-    final UnaryFunction stateFactory = reduceStateByKey.getStateFactory();
+    final StateFactory stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
     final CombinableReduceFunction stateCombiner = reduceStateByKey.getStateCombiner();
@@ -596,6 +619,7 @@ public class InMemExecutor implements Executor {
               ? triggerSchedulerSupplier.get()
               : new WatermarkTriggerScheduler(watermarkDuration),
           watermarkEmitStrategySupplier.get(),
+          storageProvider,
           reduceStateByKey.input().isBounded(),
           reduceStateByKeyMaxKeysPerWindow));
     }

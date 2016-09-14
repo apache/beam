@@ -21,12 +21,15 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
-import cz.seznam.euphoria.core.client.operator.State;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
+import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +47,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
@@ -249,10 +253,11 @@ public class InMemExecutorTest {
    */
   public static class SortState extends State<Integer, Integer> {
 
-    List<Integer> data = new ArrayList<>();
+    final ListStateStorage<Integer> data;
 
-    SortState(Collector<Integer> c) {
-      super(c);
+    SortState(Collector<Integer> c, StateStorageProvider storageProvider) {
+      super(c, storageProvider);
+      data = storageProvider.getListStorageFor(Integer.class);
     }
 
     @Override
@@ -263,17 +268,20 @@ public class InMemExecutorTest {
     @Override
     @SuppressWarnings("unchecked")
     public void flush() {
-      data.stream().sorted().forEachOrdered(
-          c -> this.getCollector().collect(c));
+      List<Integer> toSort = Lists.newArrayList(data.get());
+      Collections.sort(toSort);
+      for (Integer i : toSort) {
+        getCollector().collect(i);
+      }
     }
 
     static SortState combine(Iterable<SortState> others) {
       SortState ret = null;
       for (SortState s : others) {
         if (ret == null) {
-          ret = new SortState(s.getCollector());
+          ret = new SortState(s.getCollector(), s.getStorageProvider());
         }
-        ret.data.addAll(s.data);
+        ret.data.addAll(s.data.get());
       }
       return ret;
     }
