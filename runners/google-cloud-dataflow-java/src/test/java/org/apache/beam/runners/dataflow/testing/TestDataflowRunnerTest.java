@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -92,6 +93,9 @@ public class TestDataflowRunnerTest {
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
   @Mock private GcsUtil mockGcsUtil;
+
+  private static final String WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  private static final int DEFAULT_MAX_WATERMARK = -2;
 
   private TestDataflowPipelineOptions options;
   private Dataflow service;
@@ -225,10 +229,7 @@ public class TestDataflowRunnerTest {
     when(request.execute())
         .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */))
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     runner.run(p, mockRunner);
   }
@@ -249,15 +250,9 @@ public class TestDataflowRunnerTest {
 
     when(request.execute())
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */))
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, 100)))
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     runner.run(p, mockRunner);
   }
@@ -290,33 +285,18 @@ public class TestDataflowRunnerTest {
     fail("AssertionError expected");
   }
 
-  private LowLevelHttpResponse generateMockStreamingMetricResponse(
-      boolean hasWatermark,
-      boolean maxWatermark,
-      boolean multipleWatermarks,
-      boolean multipleMaxWatermark) throws IOException {
+  private LowLevelHttpResponse generateMockStreamingMetricResponse(Map<String, Integer> metricMap)
+      throws IOException {
     List<MetricUpdate> metrics = Lists.newArrayList();
+    for (Map.Entry<String, Integer> entry : metricMap.entrySet()) {
+      MetricStructuredName name = new MetricStructuredName();
+      name.setName(entry.getKey());
 
-    MetricStructuredName name = new MetricStructuredName();
-    name.setName(hasWatermark ? "windmill-data-watermark" : "no-watermark");
-    name.setContext(ImmutableMap.<String, String>of());
-
-    MetricUpdate metric = new MetricUpdate();
-    metric.setName(name);
-    metric.setScalar(maxWatermark ? BigDecimal.valueOf(-2L) : BigDecimal.ONE);
-    metrics.add(metric);
-
-    if (multipleWatermarks) {
-      MetricStructuredName nameTwo = new MetricStructuredName();
-      nameTwo.setName(hasWatermark ? "windmill-data-watermark" : "no-watermark");
-      nameTwo.setContext(ImmutableMap.<String, String>of());
-
-      MetricUpdate metricTwo = new MetricUpdate();
-      metricTwo.setName(nameTwo);
-      metricTwo.setScalar(multipleMaxWatermark ? BigDecimal.valueOf(-2L) : BigDecimal.ONE);
-      metrics.add(metricTwo);
+      MetricUpdate metric = new MetricUpdate();
+      metric.setName(name);
+      metric.setScalar(entry.getValue());
+      metrics.add(metric);
     }
-
     MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
     response.setContentType(Json.MEDIA_TYPE);
     JobMetrics jobMetrics = new JobMetrics();
@@ -403,12 +383,9 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute())
         .thenReturn(generateMockStreamingMetricResponse(
-            false /* hasWatermark */,
-            false /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of("no-watermark", 100)));
     doReturn(State.RUNNING).when(job).getState();
-    assertFalse(runner.checkMaxWatermark(job));
+    assertFalse(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -421,12 +398,9 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute())
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     doReturn(State.RUNNING).when(job).getState();
-    assertTrue(runner.checkMaxWatermark(job));
+    assertTrue(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -439,12 +413,9 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute())
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            false /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, 100)));
     doReturn(State.RUNNING).when(job).getState();
-    assertFalse(runner.checkMaxWatermark(job));
+    assertFalse(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -455,14 +426,11 @@ public class TestDataflowRunnerTest {
     p.apply(Create.of(1, 2, 3));
 
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
-    when(request.execute())
-        .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            true /* multipleWatermarks */,
-            true /* multipleMaxWatermark */));
+    when(request.execute()).thenReturn(generateMockStreamingMetricResponse(
+        ImmutableMap.of("one" + WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK,
+            "two" + WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     doReturn(State.RUNNING).when(job).getState();
-    assertTrue(runner.checkMaxWatermark(job));
+    assertTrue(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -475,12 +443,26 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute())
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            true /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of("one" + WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK,
+                "two" + WATERMARK_METRIC_SUFFIX, 100)));
     doReturn(State.RUNNING).when(job).getState();
-    assertFalse(runner.checkMaxWatermark(job));
+    assertFalse(runner.atMaxWatermark(job));
+  }
+
+  @Test
+  public void testCheckMaxWatermarkIgnoreUnrelatedMatrics() throws IOException {
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    when(request.execute())
+        .thenReturn(generateMockStreamingMetricResponse(
+            ImmutableMap.of("one" + WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK,
+                "no-watermark", 100)));
+    doReturn(State.RUNNING).when(job).getState();
+    assertTrue(runner.atMaxWatermark(job));
   }
 
   @Test
@@ -589,10 +571,7 @@ public class TestDataflowRunnerTest {
     when(request.execute())
         .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */))
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     runner.run(p, mockRunner);
   }
 
@@ -644,10 +623,7 @@ public class TestDataflowRunnerTest {
     when(request.execute())
         .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */))
         .thenReturn(generateMockStreamingMetricResponse(
-            true /* hasWatermark */,
-            true /* maxWatermark */,
-            false /* multipleWatermarks */,
-            false /* multipleMaxWatermark */));
+            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     runner.run(p, mockRunner);
   }
 

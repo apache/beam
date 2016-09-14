@@ -19,6 +19,16 @@ package org.apache.beam.sdk.testing;
 
 /**
  * Category tag for validation tests which are expected running in streaming mode.
+ * Example usage:
+ * <pre><code>
+ *     {@literal @}Test
+ *     {@literal @}Category(StreamingIT.class)
+ *     public void testStreamingPipeline() {
+ *       StreamingOptions options = ...;
+ *       options.setStreaming(true);
+ *       StreamingPipeline.main(...);
+ *     }
+ * </code></pre>
  */
 public interface StreamingIT {
 }
