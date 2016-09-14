@@ -23,6 +23,9 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -139,6 +142,9 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   @Override
+  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH",
+      justification = "stateAddressWindows is known not to be null as "
+                      + "checkState will throw IllegalStateException")
   public void ensureWindowIsActive(W window) {
     Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
     checkState(stateAddressWindows != null,
@@ -248,6 +254,9 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
    * member of {@code toBeMerged} or is a new window). Make the corresponding change in
    * the active window set.
    */
+  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH",
+          justification = "otherStateAddressWindow is known not to be null as "
+                          + "checkState will throw IllegalStateException")
   private void recordMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
     // Note that mergedWriteStateAddress must predict the result of writeStateAddress
     // after the corresponding merge has been applied.

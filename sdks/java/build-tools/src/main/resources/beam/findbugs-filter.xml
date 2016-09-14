@@ -121,20 +121,4 @@
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
   </Match>
-  <Match>
-    <!-- timestampMsSinceEpoch is known not to be null as checkArgument will throw IllegalStateException -->
-    <Class name="org.apache.beam.sdk.util.PubsubClient"/>
-    <Method name="extractTimestamp"/>
-    <Bug pattern="NP_NULL_ON_SOME_PATH"/>
-  </Match>
-  <Match>
-      <!-- otherStateAddressWindows is known not to be null as checkState will throw IllegalStateException -->
-      <Class name="org.apache.beam.sdk.util.MergingActiveWindowSet"/>
-      <Or>
-        <Method name="recordMerge"/>
-        <Method name="ensureWindowIsActive"/>
-      </Or>
-      <Bug pattern="NP_NULL_ON_SOME_PATH"/>
-  </Match>
-  
 </FindBugsFilter>
