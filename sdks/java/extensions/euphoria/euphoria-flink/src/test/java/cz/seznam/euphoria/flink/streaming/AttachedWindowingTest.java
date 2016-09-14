@@ -49,7 +49,7 @@ public class AttachedWindowingTest {
                 Pair.of("quux",  13),
                 Pair.of("foo",   21)))
         .withReadDelay(Duration.ofMillis(20))
-        .withFinalDelay(Duration.ofMillis(100));
+        .withFinalDelay(Duration.ofSeconds(2));
 
     Flow f = Flow.create("test-attached-windowing");
 
