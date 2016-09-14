@@ -34,7 +34,6 @@ public class ReduceWindowTest {
     assertEquals(1L, (long) producer.getReducer().apply(Arrays.asList("blah")));
     assertEquals(2, producer.partitioning.getNumPartitions());
     assertEquals("", producer.valueExtractor.apply("blah"));
-    assertNull(producer.keyExtractor.apply("blah"));
   }
 
   @Test
