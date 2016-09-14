@@ -245,7 +245,7 @@ public class AttachedWindowingTest {
     reduced.persist(output);
 
     new TestFlinkExecutor()
-        .setAllowedLateness(Duration.ofMillis(10))
+        .setAutoWatermarkInterval(Duration.ofMillis(10))
         .setAllowedLateness(Duration.ofMillis(0))
         .waitForCompletion(f);
 
