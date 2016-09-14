@@ -236,8 +236,10 @@ class ReduceStateByKeyReducer implements Runnable {
       if (state == null) {
         // ~ collector decorating state output with a window label and item key
         WindowedElementCollector collector = new WindowedElementCollector(stateOutput) {
-          @Override public void collect(Object elem) {
-            super.collect(WindowedPair.of(super.windowID.getLabel(), itemKey, elem));
+          @Override
+          public void collect(Object elem) {
+            super.collect(WindowedPair.of(
+                super.windowID.getLabel(), itemKey, elem));
           }
         };
         collector.assignWindowing(w.getWindowID());
@@ -417,6 +419,7 @@ class ReduceStateByKeyReducer implements Runnable {
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
   private final WatermarkEmitStrategy watermarkStrategy;
+  private final String name;
 
   // ~ the state is guarded by itself (triggers are fired
   // from within a separate thread)
@@ -425,7 +428,8 @@ class ReduceStateByKeyReducer implements Runnable {
   private final TriggerScheduler triggering;
 
   @SuppressWarnings("rawtypes")
-  ReduceStateByKeyReducer(BlockingQueue<Datum> input,
+  ReduceStateByKeyReducer(String name,
+                          BlockingQueue<Datum> input,
                           BlockingQueue<Datum> output,
                           Windowing windowing,
                           UnaryFunction keyExtractor,
@@ -436,7 +440,8 @@ class ReduceStateByKeyReducer implements Runnable {
                           WatermarkEmitStrategy watermarkStrategy,
                           boolean isBounded,
                           int maxKeyStatesPerWindow) {
-    
+
+    this.name = requireNonNull(name);
     this.input = requireNonNull(input);
     this.output = requireNonNull(output);
     this.isAttachedWindowing = windowing == null;
@@ -506,12 +511,12 @@ class ReduceStateByKeyReducer implements Runnable {
   @SuppressWarnings("unchecked")
   @Override
   public void run() {
+    LOG.debug("Started ReduceStateByKeyReducer for operator {}", name);
     watermarkStrategy.schedule(processing::emitWatermarkAndUpdateTriggering);
     for (;;) {
       try {
         // ~ now process incoming data
         Datum item = input.take();
-
         watermarkStrategy.emitIfNeeded(processing::emitWatermarkAndUpdateTriggering);
         if (!item.isElement()) {
           if (item.isEndOfStream()) {
@@ -540,7 +545,6 @@ class ReduceStateByKeyReducer implements Runnable {
             // can be implemented 'natively' as instance of generic windowing
             Datum.WindowTrigger trigger = (Datum.WindowTrigger) item;
             processing.updateWindowTrigger(trigger.getWindowID(), trigger.getStamp());
-            output.put(item);
           }          
         } else {
           final List<WindowContext> toEvict = processInput(item);
