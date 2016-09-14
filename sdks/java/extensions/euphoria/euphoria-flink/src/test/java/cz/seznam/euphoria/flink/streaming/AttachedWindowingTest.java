@@ -208,8 +208,8 @@ public class AttachedWindowingTest {
 
                 new Query(11L, "one", "Q"),
                 new Query(11L, "two", "P")))
-        .withReadDelay(Duration.ofMillis(10))
-        .withFinalDelay(Duration.ofMillis(100));
+        .withReadDelay(Duration.ofMillis(20))
+        .withFinalDelay(Duration.ofSeconds(2));
 
     Flow f = Flow.create("test");
 
@@ -245,7 +245,7 @@ public class AttachedWindowingTest {
     reduced.persist(output);
 
     new TestFlinkExecutor()
-        .setAllowedLateness(Duration.ofMillis(5))
+        .setAllowedLateness(Duration.ofMillis(10))
         .setAllowedLateness(Duration.ofMillis(0))
         .waitForCompletion(f);
 
