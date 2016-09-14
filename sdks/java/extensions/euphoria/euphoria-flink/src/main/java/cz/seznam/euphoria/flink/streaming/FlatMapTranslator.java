@@ -12,11 +12,16 @@ class FlatMapTranslator implements StreamingOperatorTranslator<FlatMap> {
   public DataStream<?> translate(FlinkOperator<FlatMap> operator,
                                  StreamingExecutorContext context)
   {
-    DataStream<?> input = context.getSingleInputStream(operator);
-    UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
-    return input
-        .flatMap(new StreamingUnaryFunctorWrapper<>(mapper))
-        .setParallelism(operator.getParallelism())
-        .name(operator.getName());
+    try {
+      DataStream<?> input = context.getSingleInputStream(operator);
+      UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
+      return input
+          .flatMap(new StreamingUnaryFunctorWrapper<>(mapper))
+          .returns((Class) StreamingWindowedElement.class)
+          .name(operator.getName())
+          .setParallelism(operator.getParallelism());
+    } catch (Exception e) {
+      throw e;
+    }
   }
 }
