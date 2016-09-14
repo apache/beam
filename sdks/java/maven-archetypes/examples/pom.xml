@@ -67,14 +67,12 @@
     </pluginManagement>
   </build>
   <dependencies>
-    <!-- Adds a dependency on a specific version of the Beam SDK. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Adds a dependency on a specific version of the Dataflow runnner. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
@@ -87,7 +85,6 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Adds a dependency on a specific version of the Beam Google Cloud Platform IO module. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>

@@ -206,13 +206,13 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>1.7.7</version>
+      <version>1.7.14</version>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <version>1.7.7</version>
+      <version>1.7.14</version>
       <!-- When loaded at runtime this will wire up slf4j to the JUL backend -->
       <scope>runtime</scope>
     </dependency>
