@@ -18,7 +18,18 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag for validation tests which are expected running in streaming mode.
+ * Category tag used to mark tests which execute using the Dataflow runner
+ * in streaming mode. Example usage:
+ * <pre><code>
+ *    {@literal @}Test
+ *    {@literal @}Category(StreamingIT.class)
+ *     public void testStreamingPipeline() {
+ *       StreamingOptions options = ...;
+ *       options.setStreaming(true);
+ *       StreamingPipeline.main(...);
+ *     }
+ * </code></pre>
  */
+@Deprecated
 public interface StreamingIT {
 }
