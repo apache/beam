@@ -364,7 +364,7 @@ public class ProtoCoder<T extends Message> extends AtomicCoder<T> {
     return memoizedParser;
   }
 
-  static final TypeDescriptor<Message> CHECK = new TypeDescriptor<Message>() {};
+  private static final TypeDescriptor<Message> CHECK = new TypeDescriptor<Message>() {};
 
   /**
    * The implementation of the {@link CoderProvider} for this {@link ProtoCoder} returned by

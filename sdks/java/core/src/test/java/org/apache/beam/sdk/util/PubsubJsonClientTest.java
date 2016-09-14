@@ -93,6 +93,9 @@ public class PubsubJsonClientTest {
                              .setAckId(ACK_ID);
     PullResponse expectedResponse =
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
+
+    // Cast to Object is necessary due to a bug in Mocking deep stubs:
+    // http://stackoverflow.com/a/10326721/33791
     Mockito.when((Object) (mockPubsub.projects()
                                .subscriptions()
                                .pull(expectedSubscription, expectedRequest)
@@ -120,6 +123,8 @@ public class PubsubJsonClientTest {
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
         .setMessageIds(ImmutableList.of(MESSAGE_ID));
+    // Cast to Object is necessary due to a bug in Mocking deep stubs:
+    // http://stackoverflow.com/a/10326721/33791
     Mockito.when((Object) (mockPubsub.projects()
                                 .topics()
                                 .publish(expectedTopic, expectedRequest)

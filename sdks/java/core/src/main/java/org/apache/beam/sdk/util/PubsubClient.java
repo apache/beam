@@ -114,7 +114,7 @@ public abstract class PubsubClient implements Closeable {
                     "Cannot interpret value of label %s as timestamp: %s",
                     timestampLabel, value);
     }
-    return timestampMsSinceEpoch == null ? 0 : timestampMsSinceEpoch;
+    return timestampMsSinceEpoch;
   }
 
   /**
