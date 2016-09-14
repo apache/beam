@@ -13,6 +13,6 @@ public class PartitionerWrapper<T>
 
   @Override
   public int partition(T elem, int numPartitions) {
-    return partitioner.getPartition(elem) % numPartitions;
+    return (partitioner.getPartition(elem) & Integer.MAX_VALUE) % numPartitions;
   }
 }
