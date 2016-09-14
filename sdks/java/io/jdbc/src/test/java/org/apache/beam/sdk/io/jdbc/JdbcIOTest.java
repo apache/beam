@@ -179,7 +179,6 @@ public class JdbcIOTest implements Serializable {
     ResultSet resultSet = statement.executeQuery("select * from TEST");
     int count = 0;
     while (resultSet.next()) {
-      LOGGER.info("ID: {} | Name: {}", resultSet.getInt(1), resultSet.getString(2));
       count++;
     }
 
