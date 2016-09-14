@@ -28,12 +28,23 @@ import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+import java.time.Duration;
 import java.util.Objects;
 
 /**
  * Class creating {@code WindowedStream} from {@code DataStream}s.
  */
 class StreamWindower {
+
+  private final Duration allowedLateness;
+
+  public StreamWindower() {
+     this(Duration.ofMillis(0));
+  }
+
+  public StreamWindower(Duration allowedLateness) {
+    this.allowedLateness = Objects.requireNonNull(allowedLateness);
+  }
 
   <GROUP, LABEL, T, KEY, VALUE>
   WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>,
@@ -98,7 +109,8 @@ class StreamWindower {
     if (windowing instanceof TimeSliding<?>) {
       UnaryFunction eventTimeFn = ((TimeSliding) windowing).getEventTimeFn();
       if (!(eventTimeFn instanceof Time.ProcessingTime)) {
-        input = input.assignTimestampsAndWatermarks(new EventTimeAssigner<T>(eventTimeFn));
+        input = input.assignTimestampsAndWatermarks(
+            new EventTimeAssigner<T>(allowedLateness, eventTimeFn));
       }
     }
 
@@ -141,7 +153,8 @@ class StreamWindower {
       WindowAssigner<? super T, FW> flinkWindowAssigner)
   {
     if (!(eventTimeFn instanceof Time.ProcessingTime)) {
-      input = input.assignTimestampsAndWatermarks(new EventTimeAssigner<T>(eventTimeFn));
+      input = input.assignTimestampsAndWatermarks(
+          new EventTimeAssigner<T>(allowedLateness, eventTimeFn));
     }
 
     DataStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped;
@@ -181,9 +194,8 @@ class StreamWindower {
   {
     private final UnaryFunction<T, Long> eventTimeFn;
 
-    EventTimeAssigner(UnaryFunction<T, Long> eventTimeFn) {
-      // FIXME make this configurable through the FlinkExecutor
-      super(org.apache.flink.streaming.api.windowing.time.Time.seconds(1));
+    EventTimeAssigner(Duration allowedLateness, UnaryFunction<T, Long> eventTimeFn) {
+      super(millisTime(allowedLateness.toMillis()));
       this.eventTimeFn = Objects.requireNonNull(eventTimeFn);
     }
 

@@ -6,13 +6,15 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Future;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 
 /**
  * Executor implementation using Apache Flink as a runtime.
@@ -24,6 +26,8 @@ public class FlinkExecutor implements Executor {
   private final boolean localEnv;
   private boolean dumpExecPlan;
   private Optional<AbstractStateBackend> stateBackend = Optional.empty();
+  private Optional<Long> autoWatermarkInterval = Optional.empty();
+  private Duration allowedLateness = Duration.ofMillis(0);
 
   public FlinkExecutor() {
     this(false);
@@ -64,15 +68,21 @@ public class FlinkExecutor implements Executor {
         }
       });
 
-      if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
-        environment.getStreamEnv().setStateBackend(stateBackend.get());
+      if (mode == ExecutionEnvironment.Mode.STREAMING) {
+        if (stateBackend.isPresent()) {
+          environment.getStreamEnv().setStateBackend(stateBackend.get());
+        }
+        if (autoWatermarkInterval.isPresent()) {
+          environment.getStreamEnv().getConfig()
+              .setAutoWatermarkInterval(autoWatermarkInterval.get());
+        }
       }
 
       FlowTranslator translator;
       if (mode == ExecutionEnvironment.Mode.BATCH) {
         translator = new BatchFlowTranslator(environment.getBatchEnv());
       } else {
-        translator = new StreamingFlowTranslator(environment.getStreamEnv());
+        translator = new StreamingFlowTranslator(environment.getStreamEnv(), allowedLateness);
       }
 
       List<DataSink<?>> sinks = translator.translateInto(flow);
@@ -126,4 +136,21 @@ public class FlinkExecutor implements Executor {
     return this;
   }
 
+  /**
+   * Specifies the interval in which watermarks are emitted.
+   */
+  public FlinkExecutor setAutoWatermarkInterval(Duration interval) {
+    this.autoWatermarkInterval = Optional.of(interval.toMillis());
+    return this;
+  }
+
+  /**
+   * Specifies the interval in which to allow late comers. This will cause
+   * the forwarding of the latest available watermark to be delayed up to
+   * this amount of time.
+   */
+  public FlinkExecutor setAllowedLateness(Duration lateness) {
+    this.allowedLateness = Objects.requireNonNull(lateness);
+    return this;
+  }
 }
