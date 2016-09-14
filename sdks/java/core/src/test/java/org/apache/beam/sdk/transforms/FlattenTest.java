@@ -115,6 +115,7 @@ public class FlattenTest implements Serializable {
     PAssert.that(output).empty();
     p.run();
   }
+
   @Test
   @Category(RunnableOnService.class)
   public void testFlattenInputMultipleCopies() {
@@ -133,7 +134,6 @@ public class FlattenTest implements Serializable {
 
     p.run();
   }
-
 
   @Test
   @Category(RunnableOnService.class)
