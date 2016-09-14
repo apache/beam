@@ -21,6 +21,11 @@ class AttachedWindowing implements
     AttachedWindowContext(WindowID<Object, Object> id) {
       super(id);
     }
+
+    @Override
+    public String toString() {
+      return "AttachedWindowContext(" + getWindowID() + ")";
+    }
     
   }
 

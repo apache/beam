@@ -120,6 +120,10 @@ public class ReduceWindow<
     return new ValueBuilder<>("ReduceWindow", input);
   }
 
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
 
   final ReduceFunction<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;
