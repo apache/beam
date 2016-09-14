@@ -42,12 +42,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -239,6 +233,9 @@ public class JdbcIO {
       }
     }
 
+    /**
+     * A {@link DoFn} executing the SQL query to read from the database.
+     */
     public static class ReadFn extends DoFn<JdbcOptions, JdbcDataRecord> {
 
       private ReadFn() {
