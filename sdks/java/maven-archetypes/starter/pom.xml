@@ -72,4 +72,12 @@
       </plugins>
     </pluginManagement>
   </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
 </project>
