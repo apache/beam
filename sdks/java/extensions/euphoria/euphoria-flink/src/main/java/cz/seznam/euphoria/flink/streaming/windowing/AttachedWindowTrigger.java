@@ -13,12 +13,8 @@ public class AttachedWindowTrigger<GROUP, LABEL, T>
                                  TriggerContext ctx)
       throws Exception
   {
-    if (window.getEmissionWatermark() <= ctx.getCurrentWatermark()) {
-      return TriggerResult.FIRE_AND_PURGE;
-    } else {
-      ctx.registerEventTimeTimer(window.getEmissionWatermark());
-      return TriggerResult.CONTINUE;
-    }
+    ctx.registerEventTimeTimer(window.getEmissionWatermark());
+    return TriggerResult.CONTINUE;
   }
 
   @Override

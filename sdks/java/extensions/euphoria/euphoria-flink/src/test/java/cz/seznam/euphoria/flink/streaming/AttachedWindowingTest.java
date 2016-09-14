@@ -7,15 +7,15 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.Distinct;
-import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
+import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -46,7 +47,10 @@ public class AttachedWindowingTest {
                 Pair.of("one",   12),
                 Pair.of("one",   13),
                 Pair.of("quux",  13),
-                Pair.of("quux",  13)));
+                Pair.of("quux",  13),
+                Pair.of("foo",   21)))
+        .withReadDelay(Duration.ofMillis(20))
+        .withFinalDelay(Duration.ofMillis(100));
 
     Flow f = Flow.create("test-attached-windowing");
 
@@ -61,29 +65,48 @@ public class AttachedWindowingTest {
         .setNumPartitions(2)
         .output();
 
-    ListDataSink<Pair<String, HashMap<String, Long>>> output = ListDataSink.get(1);
+    ListDataSink<WindowedPair<Time.TimeInterval, String, HashMap<String, Long>>> output
+        = ListDataSink.get(1);
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    ReduceByKey.of(uniq)
+    Dataset<WindowedPair<Time.TimeInterval, String, HashMap<String, Long>>>
+        reduced = ReduceByKey
+        .of(uniq)
         .keyBy(e -> "")
         .valueBy(new ToHashMap<>())
         .combineBy(new MergeHashMaps<>())
         .setNumPartitions(1)
-        .output()
-        .persist(output);
+        .outputWindowed();
+    reduced.persist(output);
 
-    new TestFlinkExecutor().waitForCompletion(f);
+    new TestFlinkExecutor()
+        .setAutoWatermarkInterval(Duration.ofMillis(10))
+        .setAllowedLateness(Duration.ofMillis(0))
+        .waitForCompletion(f);
 
     // ~ we had two windows
-    assertEquals(2, output.getOutput(0).size());
+    assertEquals(3, output.getOutput(0).size());
     assertEquals(
-        // ~ the two windows might have been emitted at the same time making it
-        // difficult to reason about the arrival order. we're interested in the
-        // computation result, not the order, hence we compare against a stable
-        // presentation of the computation
-        asList(", one=2, three=1, two=2", ", one=3, quux=2, two=1"),
-        outputToString(output.getOutput(0)));
+        output.getOutput(0)
+            .stream()
+            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .collect(Collectors.toList()),
+        Lists.newArrayList(
+            Pair.of(new Time.TimeInterval(0, 10),
+                toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
+            Pair.of(new Time.TimeInterval(10, 10),
+                toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
+            Pair.of(new Time.TimeInterval(20, 10),
+                toMap(Pair.of("foo", 1L)))));
+  }
+
+  static <K, V> HashMap<K, V> toMap(Pair<K, V> ... ps) {
+    HashMap<K, V> m = new HashMap<>();
+    for (Pair<K, V> p : ps) {
+      m.put(p.getKey(), p.getValue());
+    }
+    return m;
   }
 
   static <K, V> List<String> outputToString(List<Pair<String, HashMap<K, V>>> output) {
@@ -102,9 +125,10 @@ public class AttachedWindowingTest {
     return xs;
   }
 
-  static class ToHashMap<K, V> implements UnaryFunction<Pair<K, V>, HashMap<K, V>> {
+  static class ToHashMap<K, V, P extends Pair<K, V>>
+      implements UnaryFunction<P, HashMap<K, V>> {
     @Override
-    public HashMap<K, V> apply(Pair<K, V> what) {
+    public HashMap<K, V> apply(P what) {
       HashMap<K, V> m = new HashMap<>();
       m.put(what.getFirst(), what.getSecond());
       return m;
@@ -180,7 +204,9 @@ public class AttachedWindowingTest {
                 new Query(6L, "one", "B"),
                 new Query(7L, "one", "C"),
                 new Query(7L, "two", "A"),
-                new Query(7L, "two", "D")));
+                new Query(7L, "two", "D")))
+        .withReadDelay(Duration.ofMillis(10))
+        .withFinalDelay(Duration.ofMillis(100));
 
     Flow f = Flow.create("test");
 
@@ -200,22 +226,23 @@ public class AttachedWindowingTest {
         .setNumPartitions(1)
         .output();
 
-//    counted.persist(new StdoutSink<>(true, null));
-//    new TestFlinkExecutor().waitForCompletion(f);
-
-    ListDataSink<Pair<String, HashMap<String, Long>>> output = ListDataSink.get(1);
-    ReduceByKey.of(counted)
-        .keyBy(e -> "")
+    ListDataSink<HashMap<String, Long>> output = ListDataSink.get(1);
+    ReduceWindow.of(counted)
         .valueBy(new ToHashMap<>())
         .combineBy(new MergeHashMaps<>())
         .setNumPartitions(1)
         .output()
         .persist(output);
 
-    new TestFlinkExecutor().waitForCompletion(f);
+    new TestFlinkExecutor()
+        .setAllowedLateness(Duration.ofMillis(5))
+        .setAllowedLateness(Duration.ofMillis(0))
+        .waitForCompletion(f);
 
     assertEquals(
-        asList(", one=2, three=1, two=4", ", one=3, two=2"),
-        outputToString(output.getOutput(0)));
+        output.getOutput(0),
+        Lists.newArrayList(
+            toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L)),
+            toMap(Pair.of("one", 3L), Pair.of("two", 2L))));
   }
 }

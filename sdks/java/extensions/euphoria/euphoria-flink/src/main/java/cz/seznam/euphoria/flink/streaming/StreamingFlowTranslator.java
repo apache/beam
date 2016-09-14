@@ -19,6 +19,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -45,9 +46,11 @@ public class StreamingFlowTranslator extends FlowTranslator {
   }
 
   private final StreamExecutionEnvironment env;
+  private final Duration allowedLateness;
 
-  public StreamingFlowTranslator(StreamExecutionEnvironment env) {
+  public StreamingFlowTranslator(StreamExecutionEnvironment env, Duration allowedLateness) {
     this.env = Objects.requireNonNull(env);
+    this.allowedLateness = Objects.requireNonNull(allowedLateness);
   }
 
   @Override
@@ -56,7 +59,8 @@ public class StreamingFlowTranslator extends FlowTranslator {
     // transform flow to acyclic graph of supported operators
     DAG<FlinkOperator<?>> dag = flowToDag(flow);
 
-    StreamingExecutorContext executorContext = new StreamingExecutorContext(env, dag);
+    StreamingExecutorContext executorContext =
+        new StreamingExecutorContext(env, dag, new StreamWindower(allowedLateness));
 
     // determine whether we'll be running with event or processing time characteristics
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
