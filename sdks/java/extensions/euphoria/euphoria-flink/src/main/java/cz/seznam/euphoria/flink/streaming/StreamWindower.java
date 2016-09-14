@@ -182,6 +182,7 @@ class StreamWindower {
     private final UnaryFunction<T, Long> eventTimeFn;
 
     EventTimeAssigner(UnaryFunction<T, Long> eventTimeFn) {
+      // FIXME make this configurable through the FlinkExecutor
       super(org.apache.flink.streaming.api.windowing.time.Time.seconds(1));
       this.eventTimeFn = Objects.requireNonNull(eventTimeFn);
     }
