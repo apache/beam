@@ -13,16 +13,20 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.Objects;
+
 
 public class StreamingExecutorContext
     extends ExecutorContext<StreamExecutionEnvironment, DataStream<?>> {
 
-  private final StreamWindower windower = new StreamWindower();
+  private final StreamWindower windower;
 
   public StreamingExecutorContext(StreamExecutionEnvironment env,
-                                  DAG<FlinkOperator<?>> dag)
+                                  DAG<FlinkOperator<?>> dag,
+                                  StreamWindower streamWindower)
   {
     super(env, dag);
+    this.windower = Objects.requireNonNull(streamWindower);
   }
 
   /**
