@@ -1106,34 +1106,66 @@ class ConcatSource(BoundedSource):
 
   class ConcatRangeTracker(RangeTracker):
 
-    def __init__(self, start, end, sources, weights=None):
+    def __init__(self, start, end, source_bundles):
+      """Initializes ``ConcatRangeTracker``
+
+      Args:
+        start: start position, a tuple of (source_index, source_position)
+        end: end position, a tuple of (source_index, source_position)
+        source_bundles: the list of source bundles in the ConcatSource
+      """
       super(ConcatSource.ConcatRangeTracker, self).__init__()
       self._start = start
       self._end = end
+      self._source_bundles = source_bundles
       self._lock = threading.RLock()
-      self._sources = sources
-      self._range_trackers = [None] * len(self._sources)
+      # Lazily-initialized list of RangeTrackers corresponding to each source.
+      self._range_trackers = [None] * len(source_bundles)
+      # The currently-being-iterated-over (and latest claimed) source.
       self._claimed_source_ix = self._start[0]
-
-      if weights is None:
-        n = max(1, end[0] - start[0])
-        self._cumulative_weights = [
-          max(0, min(1, float(k) / n))
-          for k in range(-start[0], len(self._sources) - start[0] + 1)]
-      else:
-        assert len(sources) == len(weights)
-        relevant_weights = weights[start[0]:end[0] + 1]
-        # TODO(robertwb): Implement fraction-at-position to properly scale
-        # partial start and end sources.
-        total = sum(relevant_weights)
-        running_total = [0]
-        for w in relevant_weights:
-          running_total.append(max(1, running_total[-1] + w / total))
-        running_total[-1] = 1  # In case of rounding error.
-        self._cumulative_weights = (
+      # Now compute cumulative progress through the sources for converting
+      # between global fractions and fractions within specific sources.
+      # TODO(robertwb): Implement fraction-at-position to properly scale
+      # partial start and end sources.
+      # Note, however, that in practice splits are typically on source
+      # boundaries anyways.
+      last = end[0] if end[1] is None else end[0] + 1
+      self._cumulative_weights = (
           [0] * start[0]
-          + running_total
-          + [1] * (len(self._sources) - end[0]))
+          + self._compute_cumulative_weights(source_bundles[start[0]:last])
+          + [1] * (len(source_bundles) - last - start[0]))
+
+    @staticmethod
+    def _compute_cumulative_weights(source_bundles):
+      # Two adjacent sources must differ so that they can be uniquely
+      # identified by a single global fraction.  Let min_diff be the
+      # smallest allowable difference between sources.
+      min_diff = 1e-5
+      # For the computation below, we need weights for all sources.
+      # Substitute average weights for those whose weights are
+      # unspecified (or 1.0 for everything if none are known).
+      known = [s.weight for s in source_bundles if s.weight is not None]
+      avg = sum(known) / len(known) if known else 1.0
+      weights = [s.weight or avg for s in source_bundles]
+
+      # Now compute running totals of the percent done upon reaching
+      # each source, with respect to the start and end positions.
+      # E.g. if the weights were [100, 20, 3] we would produce
+      # [0.0, 100/123, 120/123, 1.0]
+      total = float(sum(weights))
+      running_total = [0]
+      for w in weights:
+        running_total.append(
+            max(min_diff, min(1, running_total[-1] + w / total)))
+      running_total[-1] = 1  # In case of rounding error.
+      # There are issues if, due to rouding error or greatly differing sizes,
+      # two adjacent running total weights are equal. Normalize this things so
+      # that this never happens.
+      for k in range(1, len(running_total)):
+        if running_total[k] == running_total[k - 1]:
+          for j in range(k):
+            running_total[j] *= (1 - min_diff)
+      return running_total
 
     def start_position(self):
       return self._start
@@ -1149,6 +1181,7 @@ class ConcatSource(BoundedSource):
         elif source_ix == self._end[0] and self._end[1] is None:
           return False
         else:
+          assert source_ix >= self._claimed_source_ix
           self._claimed_source_ix = source_ix
           if source_pos is None:
             return True
@@ -1183,7 +1216,7 @@ class ConcatSource(BoundedSource):
 
           self._end = source_ix, split_pos
           self._cumulative_weights = [min(w / ratio, 1)
-                                        for w in self._cumulative_weights]
+                                      for w in self._cumulative_weights]
           return (source_ix, split_pos), ratio
 
     def set_current_position(self, pos):
@@ -1191,7 +1224,7 @@ class ConcatSource(BoundedSource):
 
     def position_at_fraction(self, fraction):
       source_ix, source_frac = self.global_to_local(fraction)
-      if source_ix == len(self._sources):
+      if source_ix == len(self._source_bundles):
         return (source_ix, None)
       else:
         return (source_ix,
@@ -1200,21 +1233,27 @@ class ConcatSource(BoundedSource):
 
     def fraction_consumed(self):
       with self._lock:
-        return self.local_to_global(self._claimed_source_ix,
-                                    self.sub_range_tracker(
-                                        self._claimed_source_ix)
-                                        .fraction_consumed())
+        return self.local_to_global(
+            self._claimed_source_ix,
+            self.sub_range_tracker(self._claimed_source_ix)
+            .fraction_consumed())
 
     def local_to_global(self, source_ix, source_frac):
       cw = self._cumulative_weights
+      # The global fraction is the fraction to source_ix plus some portion of
+      # the way towards the next source.
       return cw[source_ix] + source_frac * (cw[source_ix + 1] - cw[source_ix])
 
     def global_to_local(self, frac):
       if frac == 1:
-        return (len(self._sources), 0)
+        return (len(self._source_bundles), 0)
       else:
         cw = self._cumulative_weights
+        # Find the last source that starts at or before frac.
         source_ix = bisect.bisect(cw, frac) - 1
+        # Return this source, converting what's left of frac after starting
+        # this source into a value in [0.0, 1.0) representing how far we are
+        # towards the next source.
         return (source_ix,
                 (frac - cw[source_ix]) / (cw[source_ix + 1] - cw[source_ix]))
 
@@ -1223,21 +1262,30 @@ class ConcatSource(BoundedSource):
       if self._range_trackers[source_ix] is None:
         with self._lock:
           if self._range_trackers[source_ix] is None:
-            self._range_trackers[source_ix] = (
-                self._sources[source_ix].get_range_tracker(
-                    self._start[1] if source_ix == self._start[0] else None,
-                    self._end[1] if source_ix == self._end[0] else None))
+            source = self._source_bundles[source_ix]
+            if source_ix == self._start[0] and self._start[1] is not None:
+              start = self._start[1]
+            else:
+              start = source.start_position
+            if source_ix == self._end[0] and self._end[1] is not None:
+              stop = self._end[1]
+            else:
+              stop = source.stop_position
+            self._range_trackers[source_ix] = source.source.get_range_tracker(
+                start, stop)
       return self._range_trackers[source_ix]
 
   def __init__(self, sources):
-    self._sources = sources
+    self._source_bundles = [source if isinstance(source, SourceBundle)
+                            else SourceBundle(None, source, None, None)
+                            for source in sources]
 
   @property
   def sources(self):
-    return self._sources
+    return [s.source for s in self._source_bundles]
 
   def estimate_size(self):
-    return sum(s.estimate_size() for s in self._sources)
+    return sum(s.source.estimate_size() for s in self._source_bundles)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
@@ -1247,19 +1295,21 @@ class ConcatSource(BoundedSource):
           'stop positions to be None. Received %r and %r respectively.' %
           (start_position, stop_position))
 
-    for source in self._sources:
+    for source in self._source_bundles:
       # We assume all sub-sources to produce bundles that specify weight using
       # the same unit. For example, all sub-sources may specify the size in
       # bytes as their weight.
-      for bundle in source.split(desired_bundle_size, None, None):
+      for bundle in source.source.split(
+          desired_bundle_size, source.start_position, source.stop_position):
         yield bundle
 
   def get_range_tracker(self, start_position=None, stop_position=None):
     if start_position is None:
       start_position = (0, None)
     if stop_position is None:
-      stop_position = (len(self._sources), None)
-    return self.ConcatRangeTracker(start_position, stop_position, self._sources)
+      stop_position = (len(self._source_bundles), None)
+    return self.ConcatRangeTracker(
+        start_position, stop_position, self._source_bundles)
 
   def read(self, range_tracker):
     start_source, _ = range_tracker.start_position()
@@ -1269,15 +1319,15 @@ class ConcatSource(BoundedSource):
     for source_ix in range(start_source, stop_source):
       if not range_tracker.try_claim((source_ix, None)):
         break
-      for record in self._sources[source_ix].read(
+      for record in self._source_bundles[source_ix].source.read(
           range_tracker.sub_range_tracker(source_ix)):
         yield record
 
   def default_output_coder(self):
-    if self._sources:
+    if self._source_bundles:
       # Getting coder from the first sub-sources. This assumes all sub-sources
       # to produce the same coder.
-      return self._sources[0].default_output_coder()
+      return self._source_bundles[0].source.default_output_coder()
     else:
       # Defaulting to PickleCoder.
       return super(ConcatSource, self).default_output_coder()

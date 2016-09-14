@@ -104,8 +104,10 @@ class RangeSource(iobase.BoundedSource):
     start, end = self._normalize(start_position, end_position)
     for sub_start in range(start, end, desired_bundle_size):
       sub_end = min(self._end, sub_start + desired_bundle_size)
-      yield SourceBundle(RangeSource(sub_start, sub_end, self._split_freq),
-                         sub_end - sub_start)
+      yield iobase.SourceBundle(
+          sub_end - sub_start,
+          RangeSource(sub_start, sub_end, self._split_freq),
+          None, None)
 
   def get_range_tracker(self, start_position, end_position):
     start, end = self._normalize(start_position, end_position)
@@ -152,7 +154,7 @@ class SourcesTest(unittest.TestCase):
                                   RangeSource(4, 8),
                                   RangeSource(8, 12),
                                   RangeSource(12, 16),
-                                ])
+                                 ])
     self.assertEqual(list(source.read(source.get_range_tracker())),
                      range(16))
     self.assertEqual(list(source.read(source.get_range_tracker((1, None),
@@ -185,11 +187,22 @@ class SourcesTest(unittest.TestCase):
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
 
+  def test_run_concat_direct(self):
+    source = iobase.ConcatSource([RangeSource(0, 10),
+                                  RangeSource(10, 100),
+                                  RangeSource(100, 1000),
+                                 ])
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.Read(source)
+    assert_that(pcoll, equal_to(range(1000)))
+
+    pipeline.run()
+
   def test_conact_source_exhaustive(self):
     source = iobase.ConcatSource([RangeSource(0, 10),
                                   RangeSource(100, 110),
                                   RangeSource(1000, 1010),
-                                ])
+                                 ])
     source_test_utils.assertSplitAtFractionExhaustive(source)
 
 if __name__ == '__main__':
