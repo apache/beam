@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -11,6 +12,8 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.ArrayList;
@@ -420,15 +423,17 @@ public class ReduceByKey<
     private final ReduceFunction<VALUE, OUT> reducer;
     private final boolean combinable;
 
-    final List<VALUE> reducableValues = new ArrayList<>();
+    final ListStateStorage<VALUE> reducableValues;
 
     ReduceState(Collector<OUT> collector,
+                StateStorageProvider storageProvider,
                 ReduceFunction<VALUE, OUT> reducer,
                 boolean combinable)
     {
-      super(collector);
+      super(collector, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
       this.combinable = combinable;
+      reducableValues = storageProvider.getListStorageFor((Class) Object.class);
     }
 
     @Override
@@ -441,19 +446,19 @@ public class ReduceByKey<
     @Override
     @SuppressWarnings("unchecked")
     public void flush() {
-      OUT result = reducer.apply(reducableValues);
+      OUT result = reducer.apply(reducableValues.get());
       getCollector().collect(result);
     }
 
     void add(ReduceState other) {
-      this.reducableValues.addAll(other.reducableValues);
+      this.reducableValues.addAll(other.reducableValues.get());
       combineIfPossible();
     }
 
     @SuppressWarnings("unchecked")
     private void combineIfPossible() {
-      if (combinable && reducableValues.size() > 1) {
-        OUT val = reducer.apply(reducableValues);
+      if (combinable) {
+        OUT val = reducer.apply(reducableValues.get());
         reducableValues.clear();
         reducableValues.add((VALUE) val);
       }
@@ -470,7 +475,8 @@ public class ReduceByKey<
     reduceState = new ReduceStateByKey<>(getName(),
         flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
-        (Collector<OUT> c) -> new ReduceState<>(c, reducer, isCombinable()),
+        (Collector<OUT> c, StateStorageProvider provider) -> new ReduceState<>(
+            c, provider, reducer, isCombinable()),
         (Iterable<ReduceState> states) -> {
           final ReduceState first;
           Iterator<ReduceState> i = states.iterator();

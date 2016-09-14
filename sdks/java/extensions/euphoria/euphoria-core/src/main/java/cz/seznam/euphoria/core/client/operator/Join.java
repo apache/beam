@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -11,6 +12,8 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 
@@ -238,22 +241,24 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
   private class JoinState extends State<Either<LEFT, RIGHT>, OUT> {
 
     // store the elements in memory for this implementation
-    final Collection<LEFT> leftElements = new ArrayList<>();
-    final Collection<RIGHT> rightElements = new ArrayList<>();   
+    final ListStateStorage<LEFT> leftElements;
+    final ListStateStorage<RIGHT> rightElements;
 
-    public JoinState(Collector<OUT> collector) {
-      super(collector);
+    @SuppressWarnings("unchecked")
+    public JoinState(Collector<OUT> collector, StateStorageProvider storageProvider) {
+      super(collector, storageProvider);
+      leftElements = storageProvider.getListStorageFor((Class) Object.class);
+      rightElements = storageProvider.getListStorageFor((Class) Object.class);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void add(Either<LEFT, RIGHT> element) {
       if (element.isLeft()) {
         leftElements.add(element.left());
-        emitJoinedElements(element, (Collection) rightElements);
+        emitJoinedElements(element, rightElements);
       } else {
         rightElements.add(element.right());
-        emitJoinedElements(element, (Collection) leftElements);
+        emitJoinedElements(element, leftElements);
       }
     }
 
@@ -272,14 +277,16 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
     }
 
     private void flushUnjoinedElems() {
-      if (leftElements.isEmpty() ^ rightElements.isEmpty()) {
+      boolean leftEmpty = !leftElements.get().iterator().hasNext();
+      boolean rightEmpty = !rightElements.get().iterator().hasNext();
+      if (leftEmpty ^ rightEmpty) {
         // if just a one collection is empty
-        if (leftElements.isEmpty()) {
-          for (RIGHT elem : rightElements) {
+        if (leftEmpty) {
+          for (RIGHT elem : rightElements.get()) {
             functor.apply(null, elem, getCollector());
           }
         } else {
-          for (LEFT elem : leftElements) {
+          for (LEFT elem : leftElements.get()) {
             functor.apply(elem, null, getCollector());
           }
         }
@@ -288,13 +295,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
     @SuppressWarnings("unchecked")
     private void emitJoinedElements(
-        Either<LEFT, RIGHT> element, Collection<Object> otherElements) {
+        Either<LEFT, RIGHT> element, ListStateStorage otherElements) {
       if (element.isLeft()) {
-        for (Object right : otherElements) {
+        for (Object right : otherElements.get()) {
           functor.apply(element.left(), (RIGHT) right, getCollector());
         }
       } else {
-        for (Object left : otherElements) {
+        for (Object left : otherElements.get()) {
           functor.apply((LEFT) left, element.right(), getCollector());
         }
       }
@@ -303,18 +310,18 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
     JoinState merge(Iterator<JoinState> i) {
       while (i.hasNext()) {
         JoinState state = i.next();
-        for (LEFT l : state.leftElements) {
-          for (RIGHT r : this.rightElements) {
+        for (LEFT l : state.leftElements.get()) {
+          for (RIGHT r : this.rightElements.get()) {
             functor.apply(l, r, getCollector());
           }
         }
-        for (RIGHT r : state.rightElements) {
-          for (LEFT l : this.leftElements) {
+        for (RIGHT r : state.rightElements.get()) {
+          for (LEFT l : this.leftElements.get()) {
             functor.apply(l, r, getCollector());
           }
         }
-        this.leftElements.addAll(state.leftElements);
-        this.rightElements.addAll(state.rightElements);
+        this.leftElements.addAll(state.leftElements.get());
+        this.rightElements.addAll(state.rightElements.get());
       }
       return this;
     }
