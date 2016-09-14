@@ -47,10 +47,14 @@ public class StreamingFlowTranslator extends FlowTranslator {
 
   private final StreamExecutionEnvironment env;
   private final Duration allowedLateness;
+  private final Duration autoWatermarkInterval;
 
-  public StreamingFlowTranslator(StreamExecutionEnvironment env, Duration allowedLateness) {
+  public StreamingFlowTranslator(StreamExecutionEnvironment env,
+                                 Duration allowedLateness,
+                                 Duration autoWatermarkInterval) {
     this.env = Objects.requireNonNull(env);
     this.allowedLateness = Objects.requireNonNull(allowedLateness);
+    this.autoWatermarkInterval = Objects.requireNonNull(autoWatermarkInterval);
   }
 
   @Override
@@ -59,11 +63,12 @@ public class StreamingFlowTranslator extends FlowTranslator {
     // transform flow to acyclic graph of supported operators
     DAG<FlinkOperator<?>> dag = flowToDag(flow);
 
+    // we're running exclusively on event time
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+    env.getConfig().setAutoWatermarkInterval(autoWatermarkInterval.toMillis());
+
     StreamingExecutorContext executorContext =
         new StreamingExecutorContext(env, dag, new StreamWindower(allowedLateness));
-
-    // determine whether we'll be running with event or processing time characteristics
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {

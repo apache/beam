@@ -190,15 +190,15 @@ public class AttachedWindowingTest {
     ListDataSource<Query> source =
         ListDataSource.unbounded(
             asList(
-                new Query(1L, "one", "A"),
-                new Query(2L, "one", "B"),
-                new Query(3L, "one", "A"),
-                new Query(3L, "two", "A"),
-                new Query(4L, "two", "A"),
-                new Query(4L, "two", "B"),
-                new Query(4L, "two", "C"),
-                new Query(4L, "two", "D"),
-                new Query(4L, "three", "X"),
+                new Query(0L, "one", "A"),
+                new Query(1L, "one", "B"),
+                new Query(2L, "one", "A"),
+                new Query(2L, "two", "A"),
+                new Query(2L, "two", "A"),
+                new Query(3L, "two", "B"),
+                new Query(3L, "two", "C"),
+                new Query(3L, "two", "D"),
+                new Query(3L, "three", "X"),
 
                 new Query(6L, "one", "A"),
                 new Query(6L, "one", "B"),
@@ -208,7 +208,7 @@ public class AttachedWindowingTest {
 
                 new Query(11L, "one", "Q"),
                 new Query(11L, "two", "P")))
-        .withReadDelay(Duration.ofMillis(200))
+        .withReadDelay(Duration.ofMillis(20))
         .withFinalDelay(Duration.ofSeconds(2));
 
     Flow f = Flow.create("test");

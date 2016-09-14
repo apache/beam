@@ -26,7 +26,7 @@ public class FlinkExecutor implements Executor {
   private final boolean localEnv;
   private boolean dumpExecPlan;
   private Optional<AbstractStateBackend> stateBackend = Optional.empty();
-  private Optional<Long> autoWatermarkInterval = Optional.empty();
+  private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
 
   public FlinkExecutor() {
@@ -68,21 +68,16 @@ public class FlinkExecutor implements Executor {
         }
       });
 
-      if (mode == ExecutionEnvironment.Mode.STREAMING) {
-        if (stateBackend.isPresent()) {
+      if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
           environment.getStreamEnv().setStateBackend(stateBackend.get());
-        }
-        if (autoWatermarkInterval.isPresent()) {
-          environment.getStreamEnv().getConfig()
-              .setAutoWatermarkInterval(autoWatermarkInterval.get());
-        }
       }
 
       FlowTranslator translator;
       if (mode == ExecutionEnvironment.Mode.BATCH) {
         translator = new BatchFlowTranslator(environment.getBatchEnv());
       } else {
-        translator = new StreamingFlowTranslator(environment.getStreamEnv(), allowedLateness);
+        translator = new StreamingFlowTranslator(
+            environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
       }
 
       List<DataSink<?>> sinks = translator.translateInto(flow);
@@ -140,7 +135,7 @@ public class FlinkExecutor implements Executor {
    * Specifies the interval in which watermarks are emitted.
    */
   public FlinkExecutor setAutoWatermarkInterval(Duration interval) {
-    this.autoWatermarkInterval = Optional.of(interval.toMillis());
+    this.autoWatermarkInterval = Objects.requireNonNull(interval);
     return this;
   }
 
