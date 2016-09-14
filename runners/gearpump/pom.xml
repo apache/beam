@@ -32,6 +32,14 @@
   <name>Apache Beam :: Runners :: Gearpump</name>
   <packaging>jar</packaging>
 
+  <repositories>
+    <repository>
+      <id>apache-repo</id>
+      <name>apache maven repo</name>
+      <url>https://repository.apache.org/content/repositories/releases</url>
+    </repository>
+  </repositories>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -47,22 +55,24 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
-            <version>2.19.1</version>
             <executions>
               <execution>
                 <id>runnable-on-service-tests</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
                 <configuration>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-                    <dependency>org.apache.beam:beam-runners-java-core</dependency>
                   </dependenciesToScan>
                   <excludes>
                     <!-- side input is not supported in Gearpump -->
                     <exclude>
-                      org.apache.beam.sdk.io.BigQueryIOTest,
+                      org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOTest,
                       org.apache.beam.sdk.io.CountingInputTest,
                       org.apache.beam.sdk.io.CountingSourceTest,
                       org.apache.beam.sdk.testing.PAssertTest,
@@ -189,6 +199,20 @@
       <artifactId>guava</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.apache.gearpump</groupId>
+      <artifactId>gearpump-shaded-metrics-graphite_2.11</artifactId>
+      <version>${gearpump.version}</version>
+      <classifier>assembly</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.gearpump</groupId>
+      <artifactId>gearpump-shaded-guava_2.11</artifactId>
+      <version>${gearpump.version}</version>
+      <classifier>assembly</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
@@ -218,9 +242,7 @@
     <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
-      <version>1.0-rc2</version>
     </dependency>
-
   </dependencies>
 
   <build>
@@ -243,29 +265,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-
-      <!-- Integration Tests -->
-      <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <forkCount>1</forkCount>
-          <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
-        </configuration>
-      </plugin>
-
-      <!-- Unit Tests -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
       </plugin>
 
       <!-- uber jar -->
