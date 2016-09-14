@@ -130,7 +130,7 @@ public class FlowUnfolder {
 
     });
 
-    return ret;
+    return FlowValidator.validate(ret);    
   }
 
   /**

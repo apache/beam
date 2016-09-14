@@ -8,6 +8,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.MockStreamDataSourceFactory;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -132,6 +133,32 @@ public class FlowUnfolderTest {
   @SuppressWarnings("unchecked")
   public void testUnfoldableFlow() {
     FlowUnfolder.unfold(flow, (Set) Sets.newHashSet(FlatMap.class));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMultipleOutputsToSameSink() throws Exception {
+    flow = Flow.create(getClass().getSimpleName(), settings);
+    input = flow.createInput(URI.create("mock:///"));
+
+    Dataset<Object> mapped = MapElements.of(input).using(e -> e).output();
+    Dataset<Pair<Object, Long>> reduced = ReduceByKey
+        .of(mapped)
+        .keyBy(e -> e).reduceBy(values -> 1L)
+        .windowBy(Time.of(Duration.ofSeconds(1)))
+        .output();
+
+    Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
+        .by(e -> e, Pair::getKey)
+        .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> {
+          c.collect(r.getSecond());
+        })
+        .windowBy(Time.of(Duration.ofSeconds(1)))
+        .output();
+
+    ListDataSink sink = ListDataSink.get(1);
+    output.persist(sink);
+    reduced.persist(sink);
+    FlowUnfolder.unfold(flow, Executor.getBasicOps());
   }
 
   private java.util.Map<Class<? extends Operator>, Node<Operator>>
