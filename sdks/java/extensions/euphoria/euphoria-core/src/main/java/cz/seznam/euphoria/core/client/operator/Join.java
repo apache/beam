@@ -28,8 +28,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
     Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, PAIROUT>>
-    implements OutputBuilder<PAIROUT>
-{
+    implements OutputBuilder<PAIROUT> {  
 
   public static class OfBuilder {
     private final String name;
@@ -39,8 +38,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
     }
 
     public <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
-            Dataset<LEFT> left, Dataset<RIGHT> right)
-    {
+            Dataset<LEFT> left, Dataset<RIGHT> right) {
+      
       if (right.getFlow() != left.getFlow()) {
         throw new IllegalArgumentException("Pass inputs from the same flow");
       }
@@ -62,8 +61,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
     public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
         UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor)
-    {
+        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+      
       return new UsingBuilder<>(name, left, right,
               leftKeyExtractor, rightKeyExtractor);
     }
@@ -80,8 +79,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
                  Dataset<LEFT> left,
                  Dataset<RIGHT> right,
                  UnaryFunction<LEFT, KEY> leftKeyExtractor,
-                 UnaryFunction<RIGHT, KEY> rightKeyExtractor)
-    {
+                 UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+      
       this.name = name;
       this.left = left;
       this.right = right;
@@ -99,8 +98,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
       extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>>
-  {
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
+
     private final String name;
     private final Dataset<LEFT> left;
     private final Dataset<RIGHT> right;
@@ -114,8 +113,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
                      Dataset<RIGHT> right,
                      UnaryFunction<LEFT, KEY> leftKeyExtractor,
                      UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-                     BinaryFunctor<LEFT, RIGHT, OUT> joinFunc)
-    {
+                     BinaryFunctor<LEFT, RIGHT, OUT> joinFunc) {
+      
       // define default partitioning
       super(new DefaultPartitioning<>(Math.max(
               left.getPartitioning().getNumPartitions(),
@@ -149,14 +148,14 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
   public static class OutputBuilder<
       LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>>
-  {
+      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
+    
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
     private final Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
 
     OutputBuilder(WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev,
-                  Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
-    {
+                  Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing) {
+      
       this.prev = prev;
       this.windowing = windowing;
     }
@@ -180,8 +179,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
   }
 
   public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
-      Dataset<LEFT> left, Dataset<RIGHT> right)
-  {
+      Dataset<LEFT> left, Dataset<RIGHT> right) {
+    
     return new OfBuilder("Join").of(left, right);
   }
 
@@ -205,8 +204,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
       BinaryFunctor<LEFT, RIGHT, OUT> functor,
-      boolean outer)
-  {
+      boolean outer) {
+
     super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
         return leftKeyExtractor.apply(elem.left());
@@ -240,8 +239,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
     // store the elements in memory for this implementation
     final Collection<LEFT> leftElements = new ArrayList<>();
-    final Collection<RIGHT> rightElements = new ArrayList<>();
-    final Collector<OUT> functorCollector = getCollector()::collect;
+    final Collection<RIGHT> rightElements = new ArrayList<>();   
 
     public JoinState(Collector<OUT> collector) {
       super(collector);
@@ -278,11 +276,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
         // if just a one collection is empty
         if (leftElements.isEmpty()) {
           for (RIGHT elem : rightElements) {
-            functor.apply(null, elem, functorCollector);
+            functor.apply(null, elem, getCollector());
           }
         } else {
           for (LEFT elem : leftElements) {
-            functor.apply(elem, null, functorCollector);
+            functor.apply(elem, null, getCollector());
           }
         }
       }
@@ -293,11 +291,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
         Either<LEFT, RIGHT> element, Collection<Object> otherElements) {
       if (element.isLeft()) {
         for (Object right : otherElements) {
-          functor.apply(element.left(), (RIGHT) right, functorCollector);
+          functor.apply(element.left(), (RIGHT) right, getCollector());
         }
       } else {
         for (Object left : otherElements) {
-          functor.apply((LEFT) left, element.right(), functorCollector);
+          functor.apply((LEFT) left, element.right(), getCollector());
         }
       }
     }
@@ -307,12 +305,12 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
         JoinState state = i.next();
         for (LEFT l : state.leftElements) {
           for (RIGHT r : this.rightElements) {
-            functor.apply(l, r, functorCollector);
+            functor.apply(l, r, getCollector());
           }
         }
         for (RIGHT r : state.rightElements) {
           for (LEFT l : this.leftElements) {
-            functor.apply(l, r, functorCollector);
+            functor.apply(l, r, getCollector());
           }
         }
         this.leftElements.addAll(state.leftElements);
@@ -343,13 +341,15 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
-    String name = getName() + "::" + "Map-left";
-    MapElements<LEFT, Either<LEFT, RIGHT>> leftMap = new MapElements<>(name, flow, left, Either::left);
+    String name = getName() + "::Map-left";
+    MapElements<LEFT, Either<LEFT, RIGHT>> leftMap = new MapElements<>(
+        name, flow, left, Either::left);
 
-    name = getName() + "::" + "Map-right";
-    MapElements<RIGHT, Either<LEFT, RIGHT>> rightMap = new MapElements<>(name, flow, right, Either::right);
+    name = getName() + "::Map-right";
+    MapElements<RIGHT, Either<LEFT, RIGHT>> rightMap = new MapElements<>(
+        name, flow, right, Either::right);
 
-    name = getName() + "::" + "Union";
+    name = getName() + "::Union";
     Union<Either<LEFT, RIGHT>> union =
         new Union<>(name, flow, leftMap.output(), rightMap.output());
 
@@ -357,7 +357,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
         KEY, Either<LEFT, RIGHT>, KEY,
         OUT, JoinState, WLABEL, W, ?> reduce;
 
-    name = getName() + "::" + "ReduceStateByKey";
+    name = getName() + "::ReduceStateByKey";
     reduce = new ReduceStateByKey<>(
               name,
               flow,

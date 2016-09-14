@@ -583,10 +583,12 @@ public class InMemExecutor implements Executor {
             ? ((WatermarkTriggerScheduler) triggerScheduler).getWatermarkDuration()
             : 0L;
     // consume repartitioned suppliers
+    int i = 0;
     for (BlockingQueue<Datum> q : repartitioned) {
       final BlockingQueue<Datum> output = new ArrayBlockingQueue<>(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
       executor.execute(new ReduceStateByKeyReducer(
+          reduceStateByKey.getName() + "#part-" + (i++),
           q, output, windowing,
           keyExtractor, valueExtractor, stateFactory, stateCombiner,
           // if using attached windowing, we have to use watermark triggering
