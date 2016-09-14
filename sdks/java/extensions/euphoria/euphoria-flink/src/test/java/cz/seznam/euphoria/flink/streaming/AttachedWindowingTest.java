@@ -48,7 +48,7 @@ public class AttachedWindowingTest {
                 Pair.of("quux",  13),
                 Pair.of("quux",  13),
                 Pair.of("foo",   21)))
-        .withReadDelay(Duration.ofMillis(20))
+        .withReadDelay(Duration.ofMillis(200))
         .withFinalDelay(Duration.ofSeconds(2));
 
     Flow f = Flow.create("test-attached-windowing");
@@ -208,7 +208,7 @@ public class AttachedWindowingTest {
 
                 new Query(11L, "one", "Q"),
                 new Query(11L, "two", "P")))
-        .withReadDelay(Duration.ofMillis(20))
+        .withReadDelay(Duration.ofMillis(200))
         .withFinalDelay(Duration.ofSeconds(2));
 
     Flow f = Flow.create("test");
