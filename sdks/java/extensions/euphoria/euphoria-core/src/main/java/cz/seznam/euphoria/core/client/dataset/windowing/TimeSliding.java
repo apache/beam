@@ -50,7 +50,6 @@ public final class TimeSliding<T>
 
   private final long duration;
   private final long slide;
-  private final int stepsPerWindow;
   private final UnaryFunction<T, Long> eventTimeFn;
 
   private TimeSliding(
@@ -66,7 +65,6 @@ public final class TimeSliding<T>
       throw new IllegalArgumentException(
           "This time sliding window can manage only aligned sliding windows");
     }
-    stepsPerWindow = (int) (duration / slide);
   }
 
   /**
@@ -79,12 +77,12 @@ public final class TimeSliding<T>
   @Override
   public Set<WindowID<Void, Long>> assignWindowsToElement(
       WindowedElement<?, ?, T> input) {
-    long now = eventTimeFn.apply(input.get()) - duration + slide;
-    long boundary = now / slide * slide;
+    long evtTime = eventTimeFn.apply(input.get());
     Set<WindowID<Void, Long>> ret = new HashSet<>();
-    for (int i = 0; i < stepsPerWindow; i++) {
-      ret.add(WindowID.aligned(boundary));
-      boundary += slide;
+    for (long start = evtTime - evtTime % this.slide;
+         start > evtTime - this.duration;
+         start -= this.slide) {
+      ret.add(WindowID.aligned(start));
     }
     return ret;
   }
@@ -99,7 +97,6 @@ public final class TimeSliding<T>
     return "TimeSliding{" +
         "duration=" + duration +
         ", step=" + slide +
-        ", stepsPerWindow=" + stepsPerWindow +
         '}';
   }
 

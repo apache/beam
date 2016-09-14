@@ -9,7 +9,6 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
-import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
@@ -88,17 +87,17 @@ public class AttachedWindowingTest {
     // ~ we had two windows
     assertEquals(3, output.getOutput(0).size());
     assertEquals(
-        output.getOutput(0)
-            .stream()
-            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
-            .collect(Collectors.toList()),
         Lists.newArrayList(
             Pair.of(new Time.TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
             Pair.of(new Time.TimeInterval(10, 10),
                 toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
             Pair.of(new Time.TimeInterval(20, 10),
-                toMap(Pair.of("foo", 1L)))));
+                toMap(Pair.of("foo", 1L)))),
+        output.getOutput(0)
+            .stream()
+            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .collect(Collectors.toList()));
   }
 
   static <K, V> HashMap<K, V> toMap(Pair<K, V> ... ps) {
@@ -200,11 +199,15 @@ public class AttachedWindowingTest {
                 new Query(4L, "two", "C"),
                 new Query(4L, "two", "D"),
                 new Query(4L, "three", "X"),
+
                 new Query(6L, "one", "A"),
                 new Query(6L, "one", "B"),
                 new Query(7L, "one", "C"),
                 new Query(7L, "two", "A"),
-                new Query(7L, "two", "D")))
+                new Query(7L, "two", "D"),
+
+                new Query(11L, "one", "Q"),
+                new Query(11L, "two", "P")))
         .withReadDelay(Duration.ofMillis(10))
         .withFinalDelay(Duration.ofMillis(100));
 
@@ -219,20 +222,27 @@ public class AttachedWindowingTest {
             .output();
 
     // ~ count of query (effectively how many users used a given query)
-    Dataset<Pair<String, Long>> counted = ReduceByKey.of(distinctByUser)
+    Dataset<WindowedPair<Time.TimeInterval, String, Long>> counted = ReduceByKey.of(distinctByUser)
         .keyBy(e -> e.query)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .setNumPartitions(1)
-        .output();
+        .setNumPartitions(10)
+        .outputWindowed();
 
-    ListDataSink<HashMap<String, Long>> output = ListDataSink.get(1);
-    ReduceWindow.of(counted)
+    // ~ reduced (in attached windowing mode) and partitioned by the window start time
+    Dataset<WindowedPair<Time.TimeInterval, Long, HashMap<String, Long>>>
+        reduced = ReduceByKey.of(counted)
+        .keyBy(e -> e.getWindowLabel().getStartMillis())
         .valueBy(new ToHashMap<>())
         .combineBy(new MergeHashMaps<>())
-        .setNumPartitions(1)
-        .output()
-        .persist(output);
+        // ~ partition by the input window start time
+        .setNumPartitions(2)
+        .setPartitioner(e -> (int) (e % 2))
+        .outputWindowed();
+
+    ListDataSink<WindowedPair<Time.TimeInterval, Long, HashMap<String, Long>>> output =
+        ListDataSink.get(2);
+    reduced.persist(output);
 
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(5))
@@ -240,9 +250,21 @@ public class AttachedWindowingTest {
         .waitForCompletion(f);
 
     assertEquals(
-        output.getOutput(0),
         Lists.newArrayList(
-            toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L)),
-            toMap(Pair.of("one", 3L), Pair.of("two", 2L))));
+            Pair.of(new Time.TimeInterval(0, 5),
+                toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L))),
+            Pair.of(new Time.TimeInterval(10, 5),
+                toMap(Pair.of("one", 1L), Pair.of("two", 1L)))),
+        output.getOutput(0)
+            .stream()
+            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .collect(Collectors.toList()));
+    assertEquals(
+        Lists.newArrayList(
+            Pair.of(new Time.TimeInterval(5, 5), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
+        output.getOutput(1)
+            .stream()
+            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .collect(Collectors.toList()));
   }
 }
