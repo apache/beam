@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -114,6 +115,25 @@ public class FlattenTest implements Serializable {
     PAssert.that(output).empty();
     p.run();
   }
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFlattenInputMultipleCopies() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> lines = p.apply("mkLines", Create.of(LINES));
+    PCollection<String> lines2 = p.apply("mkOtherLines", Create.of(LINES2));
+
+    PCollection<String> flattened = PCollectionList.of(lines)
+        .and(lines2)
+        .and(lines)
+        .and(lines)
+        .apply(Flatten.<String>pCollections());
+
+    PAssert.that(flattened).containsInAnyOrder(Iterables.concat(LINES, LINES, LINES, LINES2));
+
+    p.run();
+  }
+
 
   @Test
   @Category(RunnableOnService.class)
