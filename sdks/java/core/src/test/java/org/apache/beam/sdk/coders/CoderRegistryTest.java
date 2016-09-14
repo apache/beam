@@ -21,9 +21,10 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Duration;
+import com.google.protobuf.Message;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -89,8 +90,14 @@ public class CoderRegistryTest {
   public void testProtoCoderFallbackCoderProvider() throws Exception {
     CoderRegistry registry = getStandardRegistry();
 
+    //must use reflection here or a reference to dataflow class is baked into
+    //this test class which means other tests (NeedsRunner tests) cannot run
+    //properly without dependency on the dataflow jar
+    @SuppressWarnings("unchecked")
+    Class<? extends Message> messageAClass = (Class<? extends Message>)
+            Class.forName("com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages$MessageA");
     // MessageA is a Protocol Buffers test message with syntax 2
-    assertEquals(registry.getDefaultCoder(MessageA.class), ProtoCoder.of(MessageA.class));
+    assertEquals(registry.getDefaultCoder(messageAClass), ProtoCoder.of(messageAClass));
 
     // Duration is a Protocol Buffers default type with syntax 3
     assertEquals(registry.getDefaultCoder(Duration.class), ProtoCoder.of(Duration.class));

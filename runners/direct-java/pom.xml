@@ -361,12 +361,6 @@
       </exclusions>
       <scope>test</scope>
     </dependency>
-    
-    <!-- needed for eclipse-jdt generated core as the test-jar references classes from this -->
-    <dependency>
-        <groupId>com.google.cloud.dataflow</groupId>
-        <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
-        <scope>test</scope>
-    </dependency>
+
   </dependencies>
 </project>
