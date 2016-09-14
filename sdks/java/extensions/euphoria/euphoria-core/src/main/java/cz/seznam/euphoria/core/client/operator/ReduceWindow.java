@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 public class ReduceWindow<
     IN, VALUE, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, Void, OUT, WLABEL, W,
+        IN, IN, IN, Byte, OUT, WLABEL, W,
             ReduceWindow<IN, VALUE, OUT, WLABEL, W>> {
   
   public static class OfBuilder {
@@ -128,6 +128,8 @@ public class ReduceWindow<
   final ReduceFunction<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;
 
+  static final Byte B_ZERO = (byte) 0;
+
   private ReduceWindow(
       String name,
       Flow flow,
@@ -136,10 +138,10 @@ public class ReduceWindow<
       Windowing<IN, ?, WLABEL, W> windowing,
       ReduceFunction<VALUE, OUT> reducer,
       int numPartitions) {
-    super(name, flow, input, e -> (Void) null, windowing,
-        new Partitioning<Void>() {
+    super(name, flow, input, e -> B_ZERO, windowing,
+        new Partitioning<Byte>() {
           @Override
-          public Partitioner<Void> getPartitioner() {
+          public Partitioner<Byte> getPartitioner() {
             return e -> 0;
           }
           @Override
@@ -159,7 +161,7 @@ public class ReduceWindow<
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     // implement this operator via `ReduceByKey`
-    ReduceByKey<IN, IN, Void, VALUE, Void, OUT, WLABEL, W , Pair<Void, OUT>> reduceByKey;
+    ReduceByKey<IN, IN, Byte, VALUE, Void, OUT, WLABEL, W , Pair<Void, OUT>> reduceByKey;
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
