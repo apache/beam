@@ -55,12 +55,13 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     // apply windowing first
     // FIXME merging windows not covered yet
-    WindowedStream<WindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
+    WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
             context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
 
     // equivalent operation to "left fold"
-    DataStream<WindowedElement<?, ?, WindowedPair>> folded = windowedPairs.apply(
-            new WindowFolder(stateFactory))
+    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> folded =
+        windowedPairs.apply(
+            new WindowFolder(windowing.getClass(), stateFactory))
             .name(operator.getName())
             .setParallelism(operator.getParallelism());
 
@@ -79,11 +80,17 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   }
 
   private static class WindowFolder
-          implements WindowFunction<WindowedElement<?, ?, WindowedPair>, WindowedElement<?, ?, WindowedPair>, Object, Window> {
+          implements WindowFunction<StreamingWindowedElement<?, ?, WindowedPair>,
+                                    StreamingWindowedElement<?, ?, WindowedPair>,
+                                    Object,
+                                    Window> {
 
+    private final Class<? extends Windowing> windowingType;
     private final UnaryFunction<Collector<?>, State> stateFactory;
 
-    public WindowFolder(UnaryFunction<Collector<?>, State> stateFactory) {
+    public WindowFolder(Class<? extends Windowing> windowingType,
+                        UnaryFunction<Collector<?>, State> stateFactory) {
+      this.windowingType = windowingType;
       this.stateFactory = stateFactory;
     }
 
@@ -91,17 +98,17 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     @SuppressWarnings("unchecked")
     public void apply(Object o,
                       Window window,
-                      Iterable<WindowedElement<?, ?, WindowedPair>> input,
-                      org.apache.flink.util.Collector<WindowedElement<?, ?, WindowedPair>> out)
+                      Iterable<StreamingWindowedElement<?, ?, WindowedPair>> input,
+                      org.apache.flink.util.Collector<StreamingWindowedElement<?, ?, WindowedPair>> out)
     {
-      Iterator<WindowedElement<?, ?, WindowedPair>> it = input.iterator();
+      Iterator<StreamingWindowedElement<?, ?, WindowedPair>> it = input.iterator();
 
       // read the first element to obtain window metadata and key
-      WindowedElement<?, ?, WindowedPair> element = it.next();
-      WindowID wid = element.getWindowID();
+      StreamingWindowedElement<?, ?, WindowedPair> element = it.next();
       Object key = element.get().getKey();
+      WindowID wid = patchWindowId(element.getWindowID(), window);
 
-      State state = stateFactory.apply(e -> out.collect(new WindowedElement<>(
+      State state = stateFactory.apply(e -> out.collect(new StreamingWindowedElement<>(
               wid,
               WindowedPair.of(
                       wid.getLabel(),
@@ -116,6 +123,15 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       }
       state.flush();
       state.close();
+    }
+
+    // FIXME *cough* *cough* see StreamWindower#windowIdFromSlidingFlinkWindow
+    private WindowID patchWindowId(WindowID original, Window window) {
+      WindowID patched = StreamWindower.windowIdFromSlidingFlinkWindow(windowingType, window);
+      if (patched != null) {
+        return patched;
+      }
+      return original;
     }
   }
 }
