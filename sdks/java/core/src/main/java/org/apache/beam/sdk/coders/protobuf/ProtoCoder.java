@@ -364,6 +364,8 @@ public class ProtoCoder<T extends Message> extends AtomicCoder<T> {
     return memoizedParser;
   }
 
+  static final TypeDescriptor<Message> CHECK = new TypeDescriptor<Message>() {};
+
   /**
    * The implementation of the {@link CoderProvider} for this {@link ProtoCoder} returned by
    * {@link #coderProvider()}.
@@ -372,7 +374,7 @@ public class ProtoCoder<T extends Message> extends AtomicCoder<T> {
       new CoderProvider() {
         @Override
         public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-          if (!type.isSubtypeOf(new TypeDescriptor<Message>() {})) {
+          if (!type.isSubtypeOf(CHECK)) {
             throw new CannotProvideCoderException(
                 String.format(
                     "Cannot provide %s because %s is not a subclass of %s",

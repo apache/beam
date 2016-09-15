@@ -59,6 +59,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
     <property name="checkFormat" value="$1"/>
   </module>
+  <module name="SuppressionFilter">
+    <property name="file" value="${checkstyle.suppressions.file}" />
+  </module>
 
   <!-- Check that every module has a package-info.java -->
   <module name="JavadocPackage"/>

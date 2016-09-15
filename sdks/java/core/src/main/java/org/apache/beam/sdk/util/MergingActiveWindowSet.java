@@ -144,7 +144,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     checkState(stateAddressWindows != null,
                              "Cannot ensure window %s is active since it is neither ACTIVE nor NEW",
                              window);
-    if (stateAddressWindows.isEmpty()) {
+    if (stateAddressWindows != null && stateAddressWindows.isEmpty()) {
       // Window was NEW, make it ACTIVE with itself as its state address window.
       stateAddressWindows.add(window);
     }
@@ -266,10 +266,12 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
       checkState(otherStateAddressWindows != null,
                                "Window %s is not ACTIVE or NEW", other);
 
-      for (W otherStateAddressWindow : otherStateAddressWindows) {
-        // Since otherTarget equiv other AND other equiv mergeResult
-        // THEN otherTarget equiv mergeResult.
-        newStateAddressWindows.add(otherStateAddressWindow);
+      if (otherStateAddressWindows != null) {
+        for (W otherStateAddressWindow : otherStateAddressWindows) {
+          // Since otherTarget equiv other AND other equiv mergeResult
+          // THEN otherTarget equiv mergeResult.
+          newStateAddressWindows.add(otherStateAddressWindow);
+        }
       }
       activeWindowToStateAddressWindows.remove(other);
 
