@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
@@ -22,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 public class TimeSlidingTest {
   @Test
   public void testEventWindowing() throws Exception {
-    ListDataSink<WindowedPair<Long, String, Long>> output = ListDataSink.get(2);
+    ListDataSink<WindowedPair<TimeInterval, String, Long>> output = ListDataSink.get(2);
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -61,28 +62,31 @@ public class TimeSlidingTest {
         .waitForCompletion(f);
 
     assertEquals(
-        "-5: one=2, -5: two=1," +
-        " 0: one=3, 0: three=1, 0: two=4," +
-        " 5: one=1, 5: three=1, 5: two=3",
+        "[-5,5): one=2, [-5,5): two=1," +
+        " [0,10): one=3, [0,10): three=1, [0,10): two=4," +
+        " [5,15): one=1, [5,15): three=1, [5,15): two=3",
         flatten(output.getOutput(0)));
     assertEquals(
-        "-5: aaa=1," +
-        " 0: aaa=1",
+        "[-5,5): aaa=1," +
+        " [0,10): aaa=1",
         flatten(output.getOutput(1)));
   }
 
-  private <L extends Comparable<L>, K extends Comparable<K>, V>
-  String flatten(List<WindowedPair<L, K, V>> xs) {
+  private <K extends Comparable<K>, V>
+  String flatten(List<WindowedPair<TimeInterval, K, V>> xs) {
     return Joiner.on(", ").join(
         xs.stream().sorted((a, b) -> {
-          int cmp = a.getWindowLabel().compareTo(b.getWindowLabel());
+          int cmp = Long.compare(
+              a.getWindowLabel().getStartMillis(),
+              b.getWindowLabel().getStartMillis());
           if (cmp == 0) {
             cmp = a.getFirst().compareTo(b.getFirst());
           }
           return cmp;
         })
-        .map(p -> p.getWindowLabel() + ": " + p.getFirst() + "=" + p
-            .getSecond())
+        .map(p -> "[" + p.getWindowLabel().getStartMillis()
+                      + "," + p.getWindowLabel().getEndMillis()
+                      + "): " + p.getFirst() + "=" + p.getSecond())
         .collect(Collectors.toList()));
   }
 }

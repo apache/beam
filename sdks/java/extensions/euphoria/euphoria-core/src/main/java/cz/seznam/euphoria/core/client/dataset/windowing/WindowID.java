@@ -9,7 +9,7 @@ import java.util.Objects;
  * a label. Group defines a 'space' of window labels - only labels with the same
  * group are compared.
  */
-public class WindowID<GROUP, LABEL> {
+public final class WindowID<GROUP, LABEL> {
 
   /** Create unaligned window ID with given group and label. */
   public static <GROUP, LABEL> WindowID<GROUP, LABEL> unaligned(

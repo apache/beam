@@ -16,30 +16,24 @@ import java.util.Set;
  * Time sliding windowing.
  */
 public final class TimeSliding<T>
-    implements AlignedWindowing<T, Long, TimeSliding.SlidingWindowContext> {
+    implements AlignedWindowing<T, TimeInterval, TimeSliding.SlidingWindowContext> {
 
-  public static class SlidingWindowContext extends WindowContext<Void, Long> {
+  public static class SlidingWindowContext extends WindowContext<Void, TimeInterval> {
 
-    private final long startTime;
-    private final long duration;
-
-    private SlidingWindowContext(long startTime, long duration) {
-      super(WindowID.aligned(startTime));
-      this.startTime = startTime;
-      this.duration = duration;
+    private SlidingWindowContext(WindowID<Void, TimeInterval> interval) {
+      super(interval);
     }
 
     @Override
     public List<Trigger> createTriggers() {
-      return Collections.singletonList(new TimeTrigger(startTime + duration));
+      TimeInterval it = getWindowID().getLabel();
+      return Collections.singletonList(
+          new TimeTrigger(it.getStartMillis() + it.getIntervalMillis()));
     }
 
     @Override
     public String toString() {
-      return "SlidingWindow{" +
-          "startTime=" + startTime +
-          ", duration=" + duration +
-          '}';
+      return "SlidingWindow{interval=" + getWindowID().getLabel() + '}';
     }
   }
 
@@ -75,28 +69,28 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Set<WindowID<Void, Long>> assignWindowsToElement(
+  public Set<WindowID<Void, TimeInterval>> assignWindowsToElement(
       WindowedElement<?, ?, T> input) {
     long evtTime = eventTimeFn.apply(input.get());
-    Set<WindowID<Void, Long>> ret = new HashSet<>();
+    Set<WindowID<Void, TimeInterval>> ret = new HashSet<>();
     for (long start = evtTime - evtTime % this.slide;
          start > evtTime - this.duration;
          start -= this.slide) {
-      ret.add(WindowID.aligned(start));
+      ret.add(WindowID.aligned(new TimeInterval(start, this.duration)));
     }
     return ret;
   }
 
   @Override
-  public SlidingWindowContext createWindowContext(WindowID<Void, Long> id) {
-    return new SlidingWindowContext(id.getLabel(), duration);
+  public SlidingWindowContext createWindowContext(WindowID<Void, TimeInterval> id) {
+    return new SlidingWindowContext(id);
   }
 
   @Override
   public String toString() {
     return "TimeSliding{" +
         "duration=" + duration +
-        ", step=" + slide +
+        ", slide=" + slide +
         '}';
   }
 

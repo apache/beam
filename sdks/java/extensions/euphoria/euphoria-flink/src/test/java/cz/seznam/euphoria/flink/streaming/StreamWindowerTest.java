@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.flink.streaming;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -111,20 +112,20 @@ public class StreamWindowerTest {
             Arrays.asList(Pair.of(1, 8), Pair.of(1, 7), Pair.of(2, 6), Pair.of(3, 5)))
     ));
 
-    WindowedStream<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>, Integer, EmissionWindow<FlinkWindow>> windowed;
+    WindowedStream<StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>, Integer, EmissionWindow<FlinkWindow>> windowed;
     windowed = windower.genericWindow(
         input, (Pair<Integer, Integer> i) -> i.getSecond() % 2,
         (Pair<Integer, Integer> i) -> 2 * i.getSecond(),
         TimeSliding.of(Duration.ofSeconds(2), Duration.ofSeconds(1))
             .using((Pair<Integer, Integer> p) -> 1000L * p.getFirst()));
 
-    DataStream<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>> reduced;
+    DataStream<StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>> reduced;
     reduced = windowed.reduce(
-        new ReduceFunction<StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>>() {
+        new ReduceFunction<StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>>() {
           @Override
-          public StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>
-              reduce(StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> a,
-                     StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> b) {
+          public StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>
+              reduce(StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> a,
+                     StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> b) {
                 return new StreamingWindowedElement(a.getWindowID(), Pair.of(
                     a.get().getFirst(),
                     a.get().getSecond() + b.get().getSecond()));
@@ -133,11 +134,11 @@ public class StreamWindowerTest {
 
     reduced = reduced.map(
         new MapFunction<
-            StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>,
-            StreamingWindowedElement<Void, Long, Pair<Integer, Integer>>>() {
+            StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>,
+            StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>>() {
       @Override
-      public StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> map(
-          StreamingWindowedElement<Void, Long, Pair<Integer, Integer>> t) throws Exception {
+      public StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> map(
+          StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> t) throws Exception {
         return new StreamingWindowedElement<>(t.getWindowID(),
             WindowedPair.of(t.getWindowID().getLabel(),
                 t.get().getFirst(), t.get().getSecond()));
@@ -145,7 +146,7 @@ public class StreamWindowerTest {
 
     reduced.addSink(new DataSinkWrapper<>(new StdoutSink(false, "\n")));
 
-    ListDataSink<WindowedPair<Long, Integer, Integer>> sink = ListDataSink.get(1);
+    ListDataSink<WindowedPair<TimeInterval, Integer, Integer>> sink = ListDataSink.get(1);
 
     reduced
         .addSink(new DataSinkWrapper(sink));
@@ -155,7 +156,8 @@ public class StreamWindowerTest {
     assertTrue(result.isJobExecutionResult());
     assertEquals(sink.getOutputs().size(), 1);
 
-    SortedMap<Long, Set<Pair<Integer, Integer>>> results = new TreeMap<>();
+    SortedMap<TimeInterval, Set<Pair<Integer, Integer>>> results =
+        new TreeMap<>((a, b) -> Long.compare(a.getStartMillis(), b.getStartMillis()));
     toResultMap(sink, results);
 
     assertEquals("We should have 4 emitted windows", 4, results.size());
@@ -173,7 +175,7 @@ public class StreamWindowerTest {
     //                (0, 8), (1, 10)
     //               ]
 
-    Iterator<Map.Entry<Long , Set<Pair<Integer, Integer>>>> iterator
+    Iterator<Map.Entry<TimeInterval , Set<Pair<Integer, Integer>>>> iterator
         = results.entrySet().iterator();
     Set<Pair<Integer, Integer>> first = iterator.next().getValue();
     Set<Pair<Integer, Integer>> second = iterator.next().getValue();
