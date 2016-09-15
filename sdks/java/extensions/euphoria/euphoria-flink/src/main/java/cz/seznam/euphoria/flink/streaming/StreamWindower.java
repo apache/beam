@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
@@ -211,7 +212,7 @@ class StreamWindower {
       Class<? extends Windowing> type, Window flinkWindow) {
     if (TimeSliding.class.isAssignableFrom(type)) {
       final TimeWindow tw = (TimeWindow) flinkWindow;
-      return WindowID.aligned(tw.getStart());
+      return WindowID.aligned(new TimeInterval(tw.getStart(), tw.getEnd() - tw.getStart()));
     }
     return null;
   }

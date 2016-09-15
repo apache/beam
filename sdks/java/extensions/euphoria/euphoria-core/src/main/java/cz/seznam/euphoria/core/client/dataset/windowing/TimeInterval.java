@@ -16,6 +16,10 @@ public final class TimeInterval implements Serializable {
     return startMillis;
   }
 
+  public long getEndMillis() {
+    return startMillis + intervalMillis;
+  }
+
   public long getIntervalMillis() {
     return intervalMillis;
   }
