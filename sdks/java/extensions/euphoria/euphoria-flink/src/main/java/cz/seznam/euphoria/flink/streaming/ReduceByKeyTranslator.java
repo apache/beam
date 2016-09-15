@@ -75,7 +75,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
           // 1) assign the {@link StreamingWindowedElement#emissionWatermark}
           // 2) re-assign the {@link StreamingWindowedElement#windowId} which fixes
           // the short comings of {@link StreamWindower#window} for time sliding windows
-          .apply(new TypedReducer(reducer), new ForwardEmissionWatermark((Class) windowing.getClass()))
+          .apply(new TypedReducer(reducer), new ForwardEmissionWatermark(windowing.getClass()))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     }
@@ -105,9 +105,9 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       Object,
       EmissionWindow<Window>> {
 
-    private final Class<Windowing> windowingType;
+    private final Class<? extends Windowing> windowingType;
 
-    public ForwardEmissionWatermark(Class<Windowing> windowingType) {
+    public ForwardEmissionWatermark(Class<? extends Windowing> windowingType) {
       this.windowingType = windowingType;
     }
 

@@ -111,6 +111,14 @@ public class StdoutSink<T> implements DataSink<T> {
   private final boolean debug;
   private final String discriminator;
 
+  public StdoutSink() {
+    this(false);
+  }
+
+  public StdoutSink(boolean debug) {
+    this(debug, null);
+  }
+
   public StdoutSink(boolean debug, String discriminator) {
     this.debug = debug;
     this.discriminator = discriminator;
