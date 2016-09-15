@@ -4,12 +4,12 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import java.io.Serializable;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import static java.util.Collections.singleton;
 import java.util.List;
-import java.util.Objects;
+
 import static java.util.Objects.requireNonNull;
 import java.util.Optional;
 import java.util.Set;
@@ -17,7 +17,7 @@ import java.util.Set;
 /**
  * Time based tumbling windowing.
  */
-public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.TimeWindowContext> {
+public class Time<T> implements AlignedWindowing<T, TimeInterval, Time.TimeWindowContext> {
 
   public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
     private static final ProcessingTime INSTANCE = new ProcessingTime();
@@ -37,47 +37,6 @@ public class Time<T> implements AlignedWindowing<T, Time.TimeInterval, Time.Time
       return System.currentTimeMillis();
     }
   } // ~ end of ProcessingTime
-
-  public static final class TimeInterval implements Serializable {
-    private final long startMillis;
-    private final long intervalMillis;
-
-    public TimeInterval(long startMillis, long intervalMillis) {
-      this.startMillis = startMillis;
-      this.intervalMillis = intervalMillis;
-    }
-
-    public long getStartMillis() {
-      return startMillis;
-    }
-
-    public long getIntervalMillis() {
-      return intervalMillis;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o instanceof TimeInterval) {
-        TimeInterval that = (TimeInterval) o;
-        return this.startMillis == that.startMillis
-            && this.intervalMillis == that.intervalMillis;
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(startMillis, intervalMillis);
-    }
-
-    @Override
-    public String toString() {
-      return "TimeInterval{" +
-          "startMillis=" + startMillis +
-          ", intervalMillis=" + intervalMillis +
-          '}';
-    }
-  } // ~ end of TimeInterval
 
   public static class TimeWindowContext
       extends EarlyTriggeredWindowContext<Void, TimeInterval> {

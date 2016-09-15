@@ -2,6 +2,7 @@ package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -64,12 +65,12 @@ public class AttachedWindowingTest {
         .setNumPartitions(2)
         .output();
 
-    ListDataSink<WindowedPair<Time.TimeInterval, String, HashMap<String, Long>>> output
+    ListDataSink<WindowedPair<TimeInterval, String, HashMap<String, Long>>> output
         = ListDataSink.get(1);
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    Dataset<WindowedPair<Time.TimeInterval, String, HashMap<String, Long>>>
+    Dataset<WindowedPair<TimeInterval, String, HashMap<String, Long>>>
         reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
@@ -88,11 +89,11 @@ public class AttachedWindowingTest {
     assertEquals(3, output.getOutput(0).size());
     assertEquals(
         Lists.newArrayList(
-            Pair.of(new Time.TimeInterval(0, 10),
+            Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
-            Pair.of(new Time.TimeInterval(10, 10),
+            Pair.of(new TimeInterval(10, 10),
                 toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
-            Pair.of(new Time.TimeInterval(20, 10),
+            Pair.of(new TimeInterval(20, 10),
                 toMap(Pair.of("foo", 1L)))),
         output.getOutput(0)
             .stream()
@@ -222,7 +223,7 @@ public class AttachedWindowingTest {
             .output();
 
     // ~ count of query (effectively how many users used a given query)
-    Dataset<WindowedPair<Time.TimeInterval, String, Long>> counted = ReduceByKey.of(distinctByUser)
+    Dataset<WindowedPair<TimeInterval, String, Long>> counted = ReduceByKey.of(distinctByUser)
         .keyBy(e -> e.query)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
@@ -230,7 +231,7 @@ public class AttachedWindowingTest {
         .outputWindowed();
 
     // ~ reduced (in attached windowing mode) and partitioned by the window start time
-    Dataset<WindowedPair<Time.TimeInterval, Long, HashMap<String, Long>>>
+    Dataset<WindowedPair<TimeInterval, Long, HashMap<String, Long>>>
         reduced = ReduceByKey.of(counted)
         .keyBy(e -> e.getWindowLabel().getStartMillis())
         .valueBy(new ToHashMap<>())
@@ -240,7 +241,7 @@ public class AttachedWindowingTest {
         .setPartitioner(e -> (int) (e % 2))
         .outputWindowed();
 
-    ListDataSink<WindowedPair<Time.TimeInterval, Long, HashMap<String, Long>>> output =
+    ListDataSink<WindowedPair<TimeInterval, Long, HashMap<String, Long>>> output =
         ListDataSink.get(2);
     reduced.persist(output);
 
@@ -251,9 +252,9 @@ public class AttachedWindowingTest {
 
     assertEquals(
         Lists.newArrayList(
-            Pair.of(new Time.TimeInterval(0, 5),
+            Pair.of(new TimeInterval(0, 5),
                 toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L))),
-            Pair.of(new Time.TimeInterval(10, 5),
+            Pair.of(new TimeInterval(10, 5),
                 toMap(Pair.of("one", 1L), Pair.of("two", 1L)))),
         output.getOutput(0)
             .stream()
@@ -261,7 +262,7 @@ public class AttachedWindowingTest {
             .collect(Collectors.toList()));
     assertEquals(
         Lists.newArrayList(
-            Pair.of(new Time.TimeInterval(5, 5), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
+            Pair.of(new TimeInterval(5, 5), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
         output.getOutput(1)
             .stream()
             .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))

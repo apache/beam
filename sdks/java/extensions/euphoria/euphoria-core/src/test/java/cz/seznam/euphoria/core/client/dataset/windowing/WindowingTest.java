@@ -4,7 +4,6 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session.SessionInterval;
-import cz.seznam.euphoria.core.client.dataset.windowing.Time.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -36,11 +35,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.core.util.Util.sorted;
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import static java.util.Arrays.asList;
-import java.util.Collection;
+
 import java.util.Map;
 import static org.junit.Assert.*;
 
