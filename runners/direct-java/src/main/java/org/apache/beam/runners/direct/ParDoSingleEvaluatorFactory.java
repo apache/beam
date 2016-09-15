@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoSingleEvaluatorFactory.class);
-  private final LoadingCache<AppliedPTransform<?, ?, Bound<?, ?>>, DoFnLifecycleManager> fnClones;
+  private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
   private final EvaluationContext evaluationContext;
 
   public ParDoSingleEvaluatorFactory(EvaluationContext evaluationContext) {
@@ -47,11 +47,12 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
     fnClones =
         CacheBuilder.newBuilder()
             .build(
-                new CacheLoader<AppliedPTransform<?, ?, Bound<?, ?>>, DoFnLifecycleManager>() {
+                new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
                   @Override
-                  public DoFnLifecycleManager load(AppliedPTransform<?, ?, Bound<?, ?>> key)
+                  public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> key)
                       throws Exception {
-                    return DoFnLifecycleManager.of(key.getTransform().getFn());
+                    Bound<?, ?> bound = (Bound<?, ?>) key.getTransform();
+                    return DoFnLifecycleManager.of(bound.getFn());
                   }
                 });
   }

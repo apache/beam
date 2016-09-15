@@ -82,7 +82,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private <OutputT, CheckpointMarkT extends CheckpointMark>
       TransformEvaluator<?> getTransformEvaluator(
-          final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform) {
+          final AppliedPTransform<?, PCollection<OutputT>, ?> transform) {
     ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue =
         (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
             sourceEvaluators.get(transform);
@@ -91,8 +91,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
+        Unbounded<OutputT> unbounded = (Unbounded<OutputT>) transform.getTransform();
         UnboundedSource<OutputT, CheckpointMarkT> source =
-            (UnboundedSource<OutputT, CheckpointMarkT>) transform.getTransform().getSource();
+            (UnboundedSource<OutputT, CheckpointMarkT>) unbounded.getSource();
         UnboundedReadDeduplicator deduplicator;
         if (source.requiresDeduping()) {
           deduplicator = UnboundedReadDeduplicator.CachedIdDeduplicator.create();
@@ -130,7 +131,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       implements TransformEvaluator<Object> {
     private static final int ARBITRARY_MAX_ELEMENTS = 10;
 
-    private final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform;
+    private final AppliedPTransform<?, PCollection<OutputT>, ?> transform;
     private final EvaluationContext evaluationContext;
     private final ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>
         evaluatorQueue;
@@ -151,7 +152,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private int outputBundles = 0;
 
     public UnboundedReadEvaluator(
-        AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
+        AppliedPTransform<?, PCollection<OutputT>, ?> transform,
         EvaluationContext evaluationContext,
         UnboundedSource<OutputT, CheckpointMarkT> source,
         UnboundedReadDeduplicator deduplicator,

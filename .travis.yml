@@ -39,6 +39,8 @@ matrix:
     - os: linux
       env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
     - os: linux
+      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m' -Peclipse-jdt"
+    - os: linux
       env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
 
 before_install:

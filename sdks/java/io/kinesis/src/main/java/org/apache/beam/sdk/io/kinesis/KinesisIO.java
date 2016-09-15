@@ -183,7 +183,11 @@ public final class KinesisIO {
 
             @Override
             public AmazonKinesis get() {
-                return new AmazonKinesisClient(getCredentialsProvider()).withRegion(region);
+                //need to use a temporary here so Eclipse compiler can find the correct
+                //"withRegion" method
+                AmazonKinesisClient client = new AmazonKinesisClient(getCredentialsProvider())
+                        .withRegion(region);
+                return client;
             }
         }
     }

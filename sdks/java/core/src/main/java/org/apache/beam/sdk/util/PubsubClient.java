@@ -24,6 +24,9 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.client.util.DateTime;
 import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -94,6 +97,9 @@ public abstract class PubsubClient implements Closeable {
    *
    * @throws IllegalArgumentException
    */
+  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH",
+          justification = "timestampMsSinceEpoch is known not to be null as "
+                          + "checkArgument will throw IllegalStateException")
   protected static long extractTimestamp(
       @Nullable String timestampLabel,
       @Nullable String pubsubTimestamp,
