@@ -39,7 +39,6 @@ public class StreamingFlowTranslator extends FlowTranslator {
     TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
     TRANSLATORS.put((Class) Repartition.class, new RepartitionTranslator());
     TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator());
-    TRANSLATORS.put((Class) Join.class, new JoinTranslator());
     TRANSLATORS.put((Class) Union.class, new UnionTranslator());
 
     TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
