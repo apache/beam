@@ -284,8 +284,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <!-- Spark runner requires this surefire version for the fork "control" -->
-          <version>2.19.1</version>
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>

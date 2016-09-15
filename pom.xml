@@ -875,7 +875,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.18.1</version>
+          <version>2.19.1</version>
           <configuration>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
@@ -886,7 +886,7 @@
             <dependency>
               <groupId>org.apache.maven.surefire</groupId>
               <artifactId>surefire-junit47</artifactId>
-              <version>2.18.1</version>
+              <version>2.19.1</version>
             </dependency>
           </dependencies>
         </plugin>
