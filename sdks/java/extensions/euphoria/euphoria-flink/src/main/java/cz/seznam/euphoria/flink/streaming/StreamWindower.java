@@ -207,7 +207,8 @@ class StreamWindower {
 
   // FIXME: this does not need to exist and indeed is just a hack! it attempts to fix
   // the problem that for TimeSliding StreamWindower assigns only one window to the element
-  public static WindowID<?, ?> windowIdFromSlidingFlinkWindow(Class<Windowing> type, Window flinkWindow) {
+  public static WindowID<?, ?> windowIdFromSlidingFlinkWindow(
+      Class<? extends Windowing> type, Window flinkWindow) {
     if (TimeSliding.class.isAssignableFrom(type)) {
       final TimeWindow tw = (TimeWindow) flinkWindow;
       return WindowID.aligned(tw.getStart());
