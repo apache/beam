@@ -2,7 +2,6 @@ package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -13,6 +12,8 @@ import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
+import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindow;
+import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
@@ -53,17 +54,25 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       valueExtractor = origOperator.getValueExtractor();
     }
 
+    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> folded;
     // apply windowing first
-    // FIXME merging windows not covered yet
-    WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, Window> windowedPairs =
-            context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
-
-    // equivalent operation to "left fold"
-    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> folded =
-        windowedPairs.apply(
-            new WindowFolder(windowing.getClass(), stateFactory))
-            .name(operator.getName())
-            .setParallelism(operator.getParallelism());
+    if (windowing == null) {
+      WindowedStream windowedPairs =
+          context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
+      // equivalent operation to "left fold"
+      folded = windowedPairs.apply(new AttachedWindowFolder(stateFactory))
+          .name(operator.getName())
+          .setParallelism(operator.getParallelism());
+    } else {
+      // FIXME merging windows not covered yet
+      WindowedStream<StreamingWindowedElement<?, ?, WindowedPair>, Object, EmissionWindow<Window>>
+          windowedPairs = context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
+      // equivalent operation to "left fold"
+      folded = windowedPairs.apply(
+          new NonAttachedWindowFolder(windowing.getClass(), stateFactory))
+          .name(operator.getName())
+          .setParallelism(operator.getParallelism());
+    }
 
     // FIXME partitioner should be applied during "keyBy" to avoid
     // unnecessary shuffle, but there is no (known) way how to set custom
@@ -79,25 +88,22 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     return folded;
   }
 
-  private static class WindowFolder
+  private static abstract class WindowFolder<W extends Window>
           implements WindowFunction<StreamingWindowedElement<?, ?, WindowedPair>,
                                     StreamingWindowedElement<?, ?, WindowedPair>,
                                     Object,
-                                    Window> {
+                                    W> {
 
-    private final Class<? extends Windowing> windowingType;
     private final UnaryFunction<Collector<?>, State> stateFactory;
 
-    public WindowFolder(Class<? extends Windowing> windowingType,
-                        UnaryFunction<Collector<?>, State> stateFactory) {
-      this.windowingType = windowingType;
+    WindowFolder(UnaryFunction<Collector<?>, State> stateFactory) {
       this.stateFactory = stateFactory;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void apply(Object o,
-                      Window window,
+                      W window,
                       Iterable<StreamingWindowedElement<?, ?, WindowedPair>> input,
                       org.apache.flink.util.Collector<StreamingWindowedElement<?, ?, WindowedPair>> out)
     {
@@ -106,14 +112,18 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       // read the first element to obtain window metadata and key
       StreamingWindowedElement<?, ?, WindowedPair> element = it.next();
       Object key = element.get().getKey();
-      WindowID wid = patchWindowId(element.getWindowID(), window);
+      WindowID wid = windowId(element.getWindowID(), window);
+      long emissionWatermark = getEmissionWatermark(window);
 
-      State state = stateFactory.apply(e -> out.collect(new StreamingWindowedElement<>(
+      State state = stateFactory.apply(
+          e -> out.collect(new StreamingWindowedElement<>(
               wid,
               WindowedPair.of(
-                      wid.getLabel(),
-                      key,
-                      e))));
+                  wid.getLabel(),
+                  key,
+                  e))
+              // ~ forward the emission watermark
+              .withEmissionWatermark(emissionWatermark)));
 
       // add the first element to the state
       state.add(element.get().getValue());
@@ -125,13 +135,49 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       state.close();
     }
 
-    // FIXME *cough* *cough* see StreamWindower#windowIdFromSlidingFlinkWindow
-    private WindowID patchWindowId(WindowID original, Window window) {
-      WindowID patched = StreamWindower.windowIdFromSlidingFlinkWindow(windowingType, window);
+    protected WindowID windowId(WindowID original, W window) {
+      return original;
+    }
+
+    protected abstract long getEmissionWatermark(W window);
+  }
+
+  private static class NonAttachedWindowFolder
+      extends WindowFolder<EmissionWindow<Window>>
+  {
+    private final Class<? extends Windowing> windowingType;
+
+    NonAttachedWindowFolder(Class<? extends Windowing> windowingType,
+                            UnaryFunction<Collector<?>, State> stateFactory) {
+      super(stateFactory);
+      this.windowingType = windowingType;
+    }
+
+    protected WindowID windowId(WindowID original, EmissionWindow<Window> window) {
+      // FIXME *cough* *cough* see StreamWindower#windowIdFromSlidingFlinkWindow
+      WindowID patched =
+          StreamWindower.windowIdFromSlidingFlinkWindow(windowingType, window.getInner());
       if (patched != null) {
         return patched;
       }
       return original;
+    }
+
+    @Override
+    protected long getEmissionWatermark(EmissionWindow<Window> window) {
+      return window.getEmissionWatermark();
+    }
+  }
+
+  private static class AttachedWindowFolder
+      extends WindowFolder<AttachedWindow>
+  {
+    AttachedWindowFolder(UnaryFunction<Collector<?>, State> stateFactory) {
+      super(stateFactory);
+    }
+    @Override
+    protected long getEmissionWatermark(AttachedWindow window) {
+      return window.getEmissionWatermark();
     }
   }
 }
