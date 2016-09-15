@@ -61,7 +61,7 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
                   org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
                 @Override
                 public long extractTimestamp(Object element) {
-                  element = ((WindowedElement) element).get();
+                  element = ((StreamingWindowedElement) element).get();
                   return (long) ((Long) eventTimeFn.apply(Either.left(element)));
                 }
               });
@@ -71,7 +71,7 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
                   org.apache.flink.streaming.api.windowing.time.Time.seconds(1)) {
                 @Override
                 public long extractTimestamp(Object element) {
-                  element = ((WindowedElement) element).get();
+                  element = ((StreamingWindowedElement) element).get();
                   return (long) ((Long) eventTimeFn.apply(Either.right(element)));
                 }
               });
@@ -90,24 +90,24 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
 
       if (windowing != null) {
         leftStream = leftStream.flatMap((i, out) -> {
-          WindowedElement wi = (WindowedElement) i;
-          Set<WindowID> windows = windowing.assignWindowsToElement(new
-              WindowedElement(wi.getWindowID(), Either.left(wi.get())));
+          StreamingWindowedElement wi = (StreamingWindowedElement) i;
+          Set<WindowID> windows = windowing.assignWindowsToElement(
+              new StreamingWindowedElement(wi.getWindowID(), Either.left(wi.get())));
           for (WindowID wid : windows) {
-            out.collect(new WindowedElement<>(wid, wi.get()));
+            out.collect(new StreamingWindowedElement<>(wid, wi.get()));
           }
         })
-        .returns((Class) WindowedElement.class);
+        .returns((Class) StreamingWindowedElement.class);
 
         rightStream = rightStream.flatMap((i, out) -> {
-          WindowedElement wi = (WindowedElement) i;
-          Set<WindowID> windows = windowing.assignWindowsToElement(new
-              WindowedElement(wi.getWindowID(), Either.right(wi.get())));
+          StreamingWindowedElement wi = (StreamingWindowedElement) i;
+          Set<WindowID> windows = windowing.assignWindowsToElement(
+              new StreamingWindowedElement(wi.getWindowID(), Either.right(wi.get())));
           for (WindowID wid : windows) {
-            out.collect(new WindowedElement<>(wid, wi.get()));
+            out.collect(new StreamingWindowedElement<>(wid, wi.get()));
           }
         })
-        .returns((Class) WindowedElement.class);
+        .returns((Class) StreamingWindowedElement.class);
       }
 
       DataStream output =
@@ -116,7 +116,7 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
               .equalTo(new UdfKeySelector(rightKey))
               .window(wassigner)
               .apply(new UdfJoiner(leftKey, joiner),
-                     TypeInformation.of(WindowedElement.class));
+                     TypeInformation.of(StreamingWindowedElement.class));
       return output;
     }
   }
@@ -134,13 +134,13 @@ class JoinTranslator implements StreamingOperatorTranslator<Join> {
     public void join(Object weLeft, Object weRight, org.apache.flink.util.Collector out)
         throws Exception
     {
-      WindowID wid = ((WindowedElement) weLeft).getWindowID();
+      WindowID wid = ((StreamingWindowedElement) weLeft).getWindowID();
 
-      Object left = ((WindowedElement) weLeft).get();
-      Object right = ((WindowedElement) weRight).get();
+      Object left = ((StreamingWindowedElement) weLeft).get();
+      Object right = ((StreamingWindowedElement) weRight).get();
       Object key = udLeftKeyExtractor.apply(left);
       Collector kvc = elem -> out.collect(
-          new WindowedElement(wid, WindowedPair.of(wid.getLabel(), key, elem)));
+          new StreamingWindowedElement(wid, WindowedPair.of(wid.getLabel(), key, elem)));
 
       udJoiner.apply(left, right, kvc);
     }
