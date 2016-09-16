@@ -106,6 +106,7 @@ public class UnboundedSourceWrapperTest {
     setupSourceOperator(sourceOperator, numTasks);
 
     try {
+      sourceOperator.open();
       sourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
             private int count = 0;
@@ -173,6 +174,7 @@ public class UnboundedSourceWrapperTest {
     boolean readFirstBatchOfElements = false;
 
     try {
+      sourceOperator.open();
       sourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
             private int count = 0;
@@ -237,6 +239,7 @@ public class UnboundedSourceWrapperTest {
 
     // run again and verify that we see the other elements
     try {
+      restoredSourceOperator.open();
       restoredSourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
             private int count = 0;

@@ -91,6 +91,7 @@ public class UnboundedSourceWrapper<
   private transient List<UnboundedSource.UnboundedReader<OutputT>> localReaders;
 
   /**
+   * Flag to indicate whether the source is running.
    * Initialize here and not in run() to prevent races where we cancel a job before run() is
    * ever called or run() is called after cancel().
    */
@@ -154,19 +155,17 @@ public class UnboundedSourceWrapper<
     splitSources = source.generateInitialSplits(parallelism, pipelineOptions);
   }
 
-  @Override
-  public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
-    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
-      throw new RuntimeException(
-          "Cannot emit watermarks, this hints at a misconfiguration/bug.");
-    }
 
-    context = (StreamSource.ManualWatermarkContext<WindowedValue<OutputT>>) ctx;
+  /**
+   * Initialize and restore state before starting execution of the source.
+   */
+  @Override
+  public void open(Configuration parameters) throws Exception {
     runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
 
     // figure out which split sources we're responsible for
-    int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-    int numSubtasks = getRuntimeContext().getNumberOfParallelSubtasks();
+    int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
+    int numSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 
     localSplitSources = new ArrayList<>();
     localReaders = new ArrayList<>();
@@ -183,12 +182,12 @@ public class UnboundedSourceWrapper<
           new Function<
               KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>,
               UnboundedSource<OutputT, CheckpointMarkT>>() {
-        @Override
-        public UnboundedSource<OutputT, CheckpointMarkT> apply(
-            KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> input) {
-          return input.getKey();
-        }
-      });
+            @Override
+            public UnboundedSource<OutputT, CheckpointMarkT> apply(
+                KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> input) {
+              return input.getKey();
+            }
+          });
 
       for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
           restoredState) {
@@ -215,6 +214,16 @@ public class UnboundedSourceWrapper<
         subtaskIndex,
         numSubtasks,
         localSplitSources);
+  }
+
+  @Override
+  public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
+    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
+      throw new RuntimeException(
+          "Cannot emit watermarks, this hints at a misconfiguration/bug.");
+    }
+
+    context = (StreamSource.ManualWatermarkContext<WindowedValue<OutputT>>) ctx;
 
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
