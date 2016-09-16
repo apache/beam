@@ -218,7 +218,6 @@ folder to the Flink cluster using the command-line utility like so:
 
     ./bin/flink run /path/to/fat.jar
 
-
 # More
 
 For more information, please visit the [Apache Flink Website](http://flink.apache.org) or contact
