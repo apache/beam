@@ -27,7 +27,6 @@ public class AttachedWindow<GROUP, LABEL> extends Window {
   @Override
   public long maxTimestamp() {
     return Long.MAX_VALUE;
-//    return emissionWatermark;
   }
 
   @Override
