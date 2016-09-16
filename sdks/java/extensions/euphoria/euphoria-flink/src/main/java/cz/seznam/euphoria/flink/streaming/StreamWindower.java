@@ -84,19 +84,19 @@ class StreamWindower {
          Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
 
     if (windowing instanceof Time<?>) {
-      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
-//      Time<T> twin = (Time<T>) windowing;
-//      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
-//          input, keyExtractor, valueExtractor,
-//          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
+//      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
+      Time<T> twin = (Time<T>) windowing;
+      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+          input, keyExtractor, valueExtractor,
+          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
     } else if (windowing instanceof TimeSliding<?>) {
-      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
-//      TimeSliding<T> twin = (TimeSliding<T>) windowing;
-//      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
-//          input, keyExtractor, valueExtractor,
-//          SlidingEventTimeWindows.of(
-//              millisTime(twin.getDuration()),
-//              millisTime(twin.getSlide())));
+//      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
+      TimeSliding<T> twin = (TimeSliding<T>) windowing;
+      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+          input, keyExtractor, valueExtractor,
+          SlidingEventTimeWindows.of(
+              millisTime(twin.getDuration()),
+              millisTime(twin.getSlide())));
     } else {
       throw new UnsupportedOperationException("Not yet supported: " + windowing);
     }
