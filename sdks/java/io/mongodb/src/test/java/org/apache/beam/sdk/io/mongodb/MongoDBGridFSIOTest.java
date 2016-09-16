@@ -17,15 +17,29 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import static org.junit.Assert.assertEquals;
+
 import com.mongodb.DB;
 import com.mongodb.Mongo;
 import com.mongodb.gridfs.GridFS;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.*;
+import de.flapdoodle.embed.mongo.config.IMongodConfig;
+import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
+import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
+import de.flapdoodle.embed.mongo.config.Net;
+import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
+
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.Serializable;
+
+
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,13 +54,10 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.Serializable;
 
-import static org.junit.Assert.assertEquals;
-
+/**
+ * Test on the MongoDbGridFSIO.
+ */
 public class MongoDBGridFSIOTest implements Serializable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
 
@@ -88,7 +99,8 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     for (int x = 0; x < 100; x++) {
-      out.write("Einstein\nDarwin\nCopernicus\nPasteur\nCurie\nFaraday\nNewton\nBohr\nGalilei\nMaxwell\n".getBytes());
+      out.write(("Einstein\nDarwin\nCopernicus\nPasteur\n"
+                  + "Curie\nFaraday\nNewton\nBohr\nGalilei\nMaxwell\n").getBytes());
     }
     for (int x = 0; x < 5; x++) {
       gridfs.createFile(new ByteArrayInputStream(out.toByteArray()), "file" + x).save();

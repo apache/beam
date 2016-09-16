@@ -23,8 +23,13 @@ import com.mongodb.Mongo;
 import com.mongodb.MongoURI;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Serializable;
+
+
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -32,16 +37,29 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Serializable;
 
+/**
+  * IO to read and write data on MongoDB GridFS.
+ * <p>
+ * <h3>Reading from MongoDB via GridFS</h3>
+ * <p>
+ * <p>MongoDbGridFSIO source returns a bounded collection of String as {@code PCollection<String>}.
+ * <p>
+ * <p>To configure the MongoDB source, you have to provide the connection URI, the database name
+ * and the bucket name. The following example illustrates various options for configuring the
+ * source:</p>
+ * <p>
+ * <pre>{@code
+ *
+ * pipeline.apply(MongoDbIO.read()
+ *   .withUri("mongodb://localhost:27017")
+ *   .withDatabase("my-database")
+ *   .withBucket("my-bucket"))
+ *
+ * }</pre>
+ */
 public class MongoDbGridFSIO {
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbGridFSIO.class);
 
   /** Read data from GridFS. */
   public static Read read() {
