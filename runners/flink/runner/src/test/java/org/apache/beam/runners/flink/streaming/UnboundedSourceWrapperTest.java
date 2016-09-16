@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -205,6 +206,12 @@ public class UnboundedSourceWrapperTest {
 
     // draw a snapshot
     byte[] snapshot = flinkWrapper.snapshotState(0, 0);
+
+    // test that finalizeCheckpoint on CheckpointMark is called
+    final ArrayList<Integer> finalizeList = new ArrayList<>();
+    TestCountingSource.setFinalizeTracker(finalizeList);
+    flinkWrapper.notifyCheckpointComplete(0);
+    assertEquals(flinkWrapper.getLocalSplitSources().size(), finalizeList.size());
 
     // create a completely new source but restore from the snapshot
     TestCountingSource restoredSource = new TestCountingSource(numElements);
