@@ -2,8 +2,6 @@ package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.util.Settings;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
@@ -13,8 +11,6 @@ public class ExecutionEnvironment {
 
   private org.apache.flink.api.java.ExecutionEnvironment batchEnv;
   private StreamExecutionEnvironment streamEnv;
-
-  private final Settings settings;
 
   public enum Mode {
     /**
@@ -32,22 +28,10 @@ public class ExecutionEnvironment {
     if (mode == Mode.BATCH) {
       batchEnv = local ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment() :
               org.apache.flink.api.java.ExecutionEnvironment.getExecutionEnvironment();
-      settings = readSettings(batchEnv.getConfig().getGlobalJobParameters());
     } else {
       streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment() :
               StreamExecutionEnvironment.getExecutionEnvironment();
-      settings = readSettings(streamEnv.getConfig().getGlobalJobParameters());
     }
-  }
-
-
-  private Settings readSettings(ExecutionConfig.GlobalJobParameters params) {
-    Settings ret = new Settings();
-    if (params != null) {
-      params.toMap().entrySet().stream()
-          .forEach(p -> ret.setString(p.getKey(), p.getValue()));
-    }
-    return ret;
   }
 
 
@@ -97,8 +81,4 @@ public class ExecutionEnvironment {
     return Mode.BATCH;
   }
 
-  /** Convert global job parameters to euphoria's config. */
-  public Settings getSettings() {
-    return settings;
-  }
 }
