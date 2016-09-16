@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Class creating {@code WindowedStream} from {@code DataStream}s.
@@ -82,17 +83,19 @@ class StreamWindower {
          Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
 
     if (windowing instanceof Time<?>) {
-      Time<T> twin = (Time<T>) windowing;
-      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
-          input, keyExtractor, valueExtractor,
-          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
+      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
+//      Time<T> twin = (Time<T>) windowing;
+//      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+//          input, keyExtractor, valueExtractor,
+//          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
     } else if (windowing instanceof TimeSliding<?>) {
-      TimeSliding<T> twin = (TimeSliding<T>) windowing;
-      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
-          input, keyExtractor, valueExtractor,
-          SlidingEventTimeWindows.of(
-              millisTime(twin.getDuration()),
-              millisTime(twin.getSlide())));
+      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
+//      TimeSliding<T> twin = (TimeSliding<T>) windowing;
+//      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+//          input, keyExtractor, valueExtractor,
+//          SlidingEventTimeWindows.of(
+//              millisTime(twin.getDuration()),
+//              millisTime(twin.getSlide())));
     } else {
       throw new UnsupportedOperationException("Not yet supported: " + windowing);
     }
@@ -101,17 +104,18 @@ class StreamWindower {
 
   @SuppressWarnings("unchecked")
   <T, LABEL, GROUP, KEY, VALUE, W extends Window>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>, KEY, EmissionWindow<FlinkWindow>>
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<FlinkWindow>>
   genericWindow(DataStream<StreamingWindowedElement<?, ?, T>> input,
       UnaryFunction<T, KEY> keyExtractor,
       UnaryFunction<T, VALUE> valueExtractor,
       Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
 
-    if (windowing instanceof TimeSliding<?>) {
-      UnaryFunction eventTimeFn = ((TimeSliding) windowing).getEventTimeFn();
-      if (!(eventTimeFn instanceof Time.ProcessingTime)) {
+    Optional<UnaryFunction<T, Long>> tsAssign = windowing.getTimestampAssigner();
+    if (tsAssign.isPresent()) {
+      UnaryFunction tsFn = tsAssign.get();
+      if (!(tsFn instanceof Time.ProcessingTime)) {
         input = input.assignTimestampsAndWatermarks(
-            new EventTimeAssigner<T>(allowedLateness, eventTimeFn));
+            new EventTimeAssigner<T>(allowedLateness, tsFn));
       }
     }
 
@@ -210,7 +214,7 @@ class StreamWindower {
   // the problem that for TimeSliding StreamWindower assigns only one window to the element
   public static WindowID<?, ?> windowIdFromSlidingFlinkWindow(
       Class<? extends Windowing> type, Window flinkWindow) {
-    if (TimeSliding.class.isAssignableFrom(type)) {
+    if (TimeSliding.class.isAssignableFrom(type) && flinkWindow instanceof TimeWindow) {
       final TimeWindow tw = (TimeWindow) flinkWindow;
       return WindowID.aligned(new TimeInterval(tw.getStart(), tw.getEnd() - tw.getStart()));
     }
