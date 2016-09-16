@@ -7,7 +7,7 @@ import java.util.Objects;
 public class EmissionWindow<W extends Window> extends Window {
   private final W inner;
 
-  private long emissionWatermark = Long.MIN_VALUE;
+  private transient long emissionWatermark = Long.MIN_VALUE;
 
   public EmissionWindow(W inner) {
     this.inner = Objects.requireNonNull(inner);
