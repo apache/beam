@@ -64,21 +64,22 @@ public class StreamWindowerTest {
             Arrays.asList(Pair.of(1, 8), Pair.of(1, 7), Pair.of(2, 6), Pair.of(3, 5)))
     ));
 
-    WindowedStream<StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>, Integer, EmissionWindow<FlinkWindow>> windowed;
+    WindowedStream<StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>, Integer, EmissionWindow<FlinkWindow>> windowed;
     windowed = windower.genericWindow(
         input, (Pair<Integer, Integer> i) -> i.getSecond() % 2,
         (Pair<Integer, Integer> i) -> 2 * i.getSecond(),
         TimeSliding.of(Duration.ofSeconds(2), Duration.ofSeconds(1))
             .using((Pair<Integer, Integer> p) -> 1000L * p.getFirst()));
 
-    DataStream<StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>> reduced;
+    DataStream<StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>> reduced;
     reduced = windowed.reduce(
-        new ReduceFunction<StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>>() {
+        new ReduceFunction<StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>>() {
           @Override
-          public StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>
-              reduce(StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> a,
-                     StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> b) {
-                return new StreamingWindowedElement(a.getWindowID(), Pair.of(
+          public StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>
+              reduce(StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>> a,
+                     StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>> b) {
+                return new StreamingWindowedElement(a.getWindowID(), WindowedPair.of(
+                    a.getWindowID().getLabel(),
                     a.get().getFirst(),
                     a.get().getSecond() + b.get().getSecond()));
               }
@@ -86,11 +87,11 @@ public class StreamWindowerTest {
 
     reduced = reduced.map(
         new MapFunction<
-            StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>,
-            StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>>>() {
+            StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>,
+            StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>>() {
       @Override
-      public StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> map(
-          StreamingWindowedElement<Void, TimeInterval, Pair<Integer, Integer>> t) throws Exception {
+      public StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>> map(
+          StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>> t) throws Exception {
         return new StreamingWindowedElement<>(t.getWindowID(),
             WindowedPair.of(t.getWindowID().getLabel(),
                 t.get().getFirst(), t.get().getSecond()));
