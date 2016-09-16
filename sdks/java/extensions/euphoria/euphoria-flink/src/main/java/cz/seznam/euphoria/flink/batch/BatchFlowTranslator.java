@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowOptimizer;
 import cz.seznam.euphoria.flink.FlowTranslator;
@@ -29,18 +30,22 @@ public class BatchFlowTranslator extends FlowTranslator {
   private static final Map<Class<? extends Operator<?, ?>>, BatchOperatorTranslator> TRANSLATORS =
           new IdentityHashMap<>();
 
-  static {
+  private final ExecutionEnvironment env;
+  private final Settings settings;
+
+  public BatchFlowTranslator(Settings settings, ExecutionEnvironment env) {
+    this.settings = settings;
+    this.env = Objects.requireNonNull(env);
+
     // TODO add full support of all operators
+    // basic operators
     TRANSLATORS.put((Class) FlowUnfolder.InputOperator.class, new InputTranslator());
     TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
-    TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator());
+    TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings, env));
+
+    // derived operators
     TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
-  }
 
-  private final ExecutionEnvironment env;
-
-  public BatchFlowTranslator(ExecutionEnvironment env) {
-    this.env = Objects.requireNonNull(env);
   }
 
   @Override
