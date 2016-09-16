@@ -17,16 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
+
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
 
 /**
  * Tests for {@link RegexTransform}.
@@ -34,6 +36,7 @@ import java.io.Serializable;
 @RunWith(JUnit4.class)
 public class RegexTransformTest implements Serializable {
   @Test
+  @Category(NeedsRunner.class)
   public void testFind() {
     TestPipeline p = TestPipeline.create();
 
@@ -46,6 +49,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testFindGroup() {
     TestPipeline p = TestPipeline.create();
 
@@ -58,6 +62,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testFindNone() {
     TestPipeline p = TestPipeline.create();
 
@@ -70,6 +75,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testKVFind() {
     TestPipeline p = TestPipeline.create();
 
@@ -82,6 +88,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testKVFindNone() {
     TestPipeline p = TestPipeline.create();
 
@@ -94,6 +101,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMatches() {
     TestPipeline p = TestPipeline.create();
 
@@ -106,6 +114,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMatchesNone() {
     TestPipeline p = TestPipeline.create();
 
@@ -118,6 +127,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testMatchesGroup() {
     TestPipeline p = TestPipeline.create();
 
@@ -130,6 +140,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testKVMatches() {
     TestPipeline p = TestPipeline.create();
 
@@ -142,6 +153,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testKVMatchesNone() {
     TestPipeline p = TestPipeline.create();
 
@@ -153,6 +165,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReplaceAll() {
     TestPipeline p = TestPipeline.create();
 
@@ -165,6 +178,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReplaceAllMixed() {
     TestPipeline p = TestPipeline.create();
 
@@ -177,6 +191,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReplaceFirst() {
     TestPipeline p = TestPipeline.create();
 
@@ -189,6 +204,7 @@ public class RegexTransformTest implements Serializable {
   }
 
   @Test
+  @Category(NeedsRunner.class)
   public void testReplaceFirstMixed() {
     TestPipeline p = TestPipeline.create();
 

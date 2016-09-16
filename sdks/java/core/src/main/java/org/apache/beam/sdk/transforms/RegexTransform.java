@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * {@code PTransorm}s to use Regular Expressions to process elements in a
@@ -185,8 +185,8 @@ public class RegexTransform {
 
     public PCollection<String> apply(PCollection<String> in) {
       return in
-          .apply(ParDo.named("MatchesRegex").of(new DoFn<String, String>() {
-            @Override
+          .apply(ParDo.of(new DoFn<String, String>() {
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               Matcher m = pattern.matcher((String) c.element());
 
@@ -233,9 +233,9 @@ public class RegexTransform {
     }
 
     public PCollection<KV<String, String>> apply(PCollection<String> in) {
-      return in.apply(ParDo.named("MatchesKVRegex")
+      return in.apply(ParDo
           .of(new DoFn<String, KV<String, String>>() {
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               Matcher m = pattern.matcher((String) c.element());
 
@@ -280,8 +280,8 @@ public class RegexTransform {
     }
 
     public PCollection<String> apply(PCollection<String> in) {
-      return in.apply(ParDo.named("FindRegex").of(new DoFn<String, String>() {
-        @Override
+      return in.apply(ParDo.of(new DoFn<String, String>() {
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           Matcher m = pattern.matcher((String) c.element());
 
@@ -329,8 +329,8 @@ public class RegexTransform {
 
     public PCollection<KV<String, String>> apply(PCollection<String> in) {
       return in.apply(
-          ParDo.named("FindKVRegex").of(new DoFn<String, KV<String, String>>() {
-            @Override
+          ParDo.of(new DoFn<String, KV<String, String>>() {
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               Matcher m = pattern.matcher((String) c.element());
 
@@ -374,8 +374,8 @@ public class RegexTransform {
     }
 
     public PCollection<String> apply(PCollection<String> in) {
-      return in.apply(ParDo.named("ReplaceAllRegex").of(new DoFn<String, String>() {
-        @Override
+      return in.apply(ParDo.of(new DoFn<String, String>() {
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           Matcher m = pattern.matcher((String) c.element());
           c.output(m.replaceAll(replacement));
@@ -416,8 +416,8 @@ public class RegexTransform {
     }
 
     public PCollection<String> apply(PCollection<String> in) {
-      return in.apply(ParDo.named("ReplaceAllRegex").of(new DoFn<String, String>() {
-        @Override
+      return in.apply(ParDo.of(new DoFn<String, String>() {
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           Matcher m = pattern.matcher((String) c.element());
           c.output(m.replaceFirst(replacement));
