@@ -734,6 +734,9 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
 
         def __repr__(self):
           return '<UnwindowedValues of %s>' % windowed_values
+
+        def __reduce__(self):
+          return list, (list(self),)
       unwindowed = UnwindowedValues()
     yield WindowedValue(unwindowed, MIN_TIMESTAMP, self.GLOBAL_WINDOW_TUPLE)
 
