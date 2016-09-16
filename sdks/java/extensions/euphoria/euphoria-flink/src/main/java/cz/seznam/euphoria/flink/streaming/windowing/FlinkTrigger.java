@@ -82,4 +82,11 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindow> {
         throw new IllegalStateException("Unknown result:" + euphoriaResult.name());
     }
   }
+
+  @Override
+  public void clear(FlinkWindow window, TriggerContext ctx) throws Exception {
+    // ~ attached windows have maxTimestamp == Long.MAX_VALUE; need to clean-up the
+    // registered clean-up trigger to avoid mem-leak in long running streams
+    ctx.deleteEventTimeTimer(window.maxTimestamp());
+  }
 }

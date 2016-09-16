@@ -40,6 +40,10 @@ public class AttachedWindowTrigger<GROUP, LABEL, T>
   public void clear(AttachedWindow<GROUP, LABEL> window, TriggerContext ctx)
       throws Exception
   {
-    ctx.deleteEventTimeTimer(window.getEmissionWatermark());
+    // ~ attached-windows are purged only when their trigger fires in which case
+    // the trigger itself get's clear; however, attached windows have
+    // maxTimestamp == Long.MAX_VALUE and we need to clean-up the registered
+    // clean-up trigger to avoid mem-leak in long running streams
+    ctx.deleteEventTimeTimer(window.maxTimestamp());
   }
 }
