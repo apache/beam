@@ -77,7 +77,7 @@ public class Flow implements Serializable {
 
   private Flow(String name, Settings settings) {
     this.name = name == null ? "" : name;
-    this.settings = clone(settings);
+    this.settings = cloneSettings(settings);
   }
 
 
@@ -260,7 +260,7 @@ public class Flow implements Serializable {
     return registry.openSink(uri, settings);
   }
 
-  private Settings clone(Settings settings) {
+  private Settings cloneSettings(Settings settings) {
     return new Settings(settings);
   }
 }

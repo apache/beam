@@ -61,13 +61,6 @@ public class FlinkExecutor implements Executor {
       ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
       Settings settings = flow.getSettings();
 
-      // update own settings with global
-      environment.getSettings().getAll().entrySet().stream().forEach(p -> {
-        if (!settings.contains(p.getKey())) {
-          settings.setString(p.getKey(), p.getValue());
-        }
-      });
-
       if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
           environment.getStreamEnv().setStateBackend(stateBackend.get());
       }

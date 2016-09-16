@@ -34,7 +34,6 @@ public class BatchFlowTranslator extends FlowTranslator {
     TRANSLATORS.put((Class) FlowUnfolder.InputOperator.class, new InputTranslator());
     TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
     TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator());
-
     TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
   }
 
