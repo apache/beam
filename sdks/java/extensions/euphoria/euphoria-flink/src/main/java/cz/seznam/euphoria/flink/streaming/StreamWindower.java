@@ -67,6 +67,7 @@ class StreamWindower {
               // ~ forward the emission watermark
               .withEmissionWatermark(i.getEmissionWatermark());
         })
+        .setParallelism(input.getParallelism())
         .returns((Class) StreamingWindowedElement.class);
     final KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
     keyed = mapped.keyBy(Utils.wrapQueryable(new WeKeySelector<>()));
@@ -130,6 +131,7 @@ class StreamWindower {
             c.collect(new StreamingWindowedElement(w, WindowedPair.of(w.getLabel(), key, value)));
           }
         })
+        .setParallelism(input.getParallelism())
         .returns((Class) StreamingWindowedElement.class);
 
     KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed
@@ -159,7 +161,8 @@ class StreamWindower {
   {
     if (!(eventTimeFn instanceof Time.ProcessingTime)) {
       input = input.assignTimestampsAndWatermarks(
-          new EventTimeAssigner<T>(allowedLateness, eventTimeFn));
+          new EventTimeAssigner<T>(allowedLateness, eventTimeFn))
+          .setParallelism(input.getParallelism());
     }
 
     DataStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped;
@@ -172,6 +175,7 @@ class StreamWindower {
           WindowID<GROUP, LABEL> wid = windowing.assignWindowsToElement(i).iterator().next();
           return new StreamingWindowedElement<>(wid, WindowedPair.of(wid.getLabel(), key, val));
         })
+        .setParallelism(input.getParallelism())
         .returns((Class) StreamingWindowedElement.class);
     final KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
     keyed = mapped.keyBy(Utils.wrapQueryable(new WeKeySelector<>()));
