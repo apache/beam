@@ -478,4 +478,9 @@
 
     </dependencies>
   </dependencyManagement>
+
+  <properties>
+    <flink.version>1.1.1</flink.version>
+  </properties>
+
 </project>

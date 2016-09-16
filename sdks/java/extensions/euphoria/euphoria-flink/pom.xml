@@ -13,10 +13,6 @@
   <packaging>jar</packaging>
   <name>euphoria-flink-${project.version}</name>
 
-  <properties>
-    <flink.version>1.1.1</flink.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
@@ -50,6 +46,5 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 
 </project>
