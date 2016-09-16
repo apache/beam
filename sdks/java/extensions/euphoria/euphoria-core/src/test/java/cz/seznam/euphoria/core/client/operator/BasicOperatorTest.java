@@ -135,7 +135,6 @@ public class BasicOperatorTest {
     @SuppressWarnings("unchecked")
     List<WindowedPair<TimeInterval, String, Long>> fs =
         new ArrayList<>(out.getOutput(0));
-//    System.out.println(fs);
 
     // ~ assert the total amount of data produced
     assertEquals(7, fs.size());
