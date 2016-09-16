@@ -67,7 +67,7 @@ public class FlinkExecutor implements Executor {
 
       FlowTranslator translator;
       if (mode == ExecutionEnvironment.Mode.BATCH) {
-        translator = new BatchFlowTranslator(environment.getBatchEnv());
+        translator = new BatchFlowTranslator(settings, environment.getBatchEnv());
       } else {
         translator = new StreamingFlowTranslator(
             environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);

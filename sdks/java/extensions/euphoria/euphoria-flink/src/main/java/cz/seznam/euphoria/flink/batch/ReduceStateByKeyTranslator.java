@@ -2,13 +2,16 @@ package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.State;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
+import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.ComparablePair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
@@ -19,8 +22,18 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Iterator;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<ReduceStateByKey> {
+
+  final static String CFG_MAX_MEMORY_ELEMENTS = "euphoria.flink.batch.state.max.memoryy.elements";
+  
+  final StateStorageProvider stateStorageProvider;
+
+  public ReduceStateByKeyTranslator(Settings settings, ExecutionEnvironment env) {
+    int maxMemoryElements = settings.getInt(CFG_MAX_MEMORY_ELEMENTS, 1000);
+    this.stateStorageProvider = new BatchStateStorageProvider(maxMemoryElements, env);
+  }
 
   @Override
   @SuppressWarnings("unchecked")
@@ -32,7 +45,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     ReduceStateByKey origOperator = operator.getOriginalOperator();
 
-    final UnaryFunction<Collector<?>, State> stateFactory = origOperator.getStateFactory();
+    final StateFactory<?, State> stateFactory = origOperator.getStateFactory();
 
     final UnaryFunction udfKey;
     final UnaryFunction udfValue;
@@ -70,7 +83,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     // FIXME require keyExtractor to deliver `Comparable`s
     return tuples.groupBy(new TypedKeySelector<>())
-        .reduceGroup(new TypedReducer(stateFactory))
+        .reduceGroup(new TypedReducer(stateFactory, stateStorageProvider))
         .setParallelism(operator.getParallelism())
         .name(operator.getName() + "::reduce");
   }
@@ -95,10 +108,15 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           implements GroupReduceFunction<WindowedElement<?, ?, WindowedPair>, WindowedElement<?, ?, WindowedPair>>,
           ResultTypeQueryable<WindowedElement<?, ?, Pair>>
   {
-    private final UnaryFunction<Collector<?>, State> stateFactory;
+    private final StateFactory<?, State> stateFactory;
+    private final StateStorageProvider stateStorageProvider;
 
-    public TypedReducer(UnaryFunction<Collector<?>, State> stateFactory) {
+    public TypedReducer(
+        StateFactory<?, State> stateFactory,
+        StateStorageProvider stateStorageProvider) {
+
       this.stateFactory = stateFactory;
+      this.stateStorageProvider = stateStorageProvider;
     }
 
     @Override
@@ -118,7 +136,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
               WindowedPair.of(
                       wid.getLabel(),
                       key,
-                      e))));
+                      e))), stateStorageProvider);
       // add the first element to the state
       state.add(element.get().getValue());
 
