@@ -944,6 +944,11 @@ class TextFileSink(FileSink):
         compression_type=compression_type)
     self.append_trailing_newlines = append_trailing_newlines
 
+    if type(self) is TextFileSink:
+      logging.warning('Direct usage of TextFileSink is deprecated. Please use '
+                      '\'textio.WriteToText()\' instead of directly '
+                      'instantiating a TextFileSink object.')
+
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
