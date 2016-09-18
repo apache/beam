@@ -358,14 +358,14 @@ public class GcsUtil {
     return getBucket(
         path,
         BACKOFF_FACTORY.backoff(),
-        Sleeper.DEFAULT).getProjectNumber();
+        Sleeper.DEFAULT).getProjectNumber().longValue();
   }
 
   /**
    * Creates a bucket for the provided project or propagates an error.
    */
   public void createBucket(GcsPath path, long projectNumber) throws IOException {
-    return createBucket(
+    createBucket(
         path,
         projectNumber,
         BACKOFF_FACTORY.backoff(),
@@ -420,8 +420,10 @@ public class GcsUtil {
   @VisibleForTesting
   void createBucket(GcsPath path, long projectNumber, BackOff backoff, Sleeper sleeper)
         throws IOException {
+    Bucket bucket = new Bucket();
+    bucket.setName(path.getBucket());
     Storage.Buckets.Insert insertBucket =
-        storageClient.buckets().insert(path.getBucket());
+      storageClient.buckets().insert(bucket);
     insertBucket.setProject(String.valueOf(projectNumber));
 
     try {
