@@ -24,6 +24,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
