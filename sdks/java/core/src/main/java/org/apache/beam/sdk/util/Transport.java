@@ -121,6 +121,20 @@ public class Transport {
   }
 
   /**
+   * Returns a CloudResourceManager client builder using the specified {@link PipelineOptions}.
+   */
+  public static CloudResourceManager.Builder
+      newCloudResourceManagerClient(PipelineOptions options) {
+    return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+  }
+  
+  /**
    * Returns a Cloud Storage client builder using the specified {@link GcsOptions}.
    */
   public static Storage.Builder
