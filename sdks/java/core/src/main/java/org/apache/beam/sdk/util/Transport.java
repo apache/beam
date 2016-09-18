@@ -36,6 +36,7 @@ import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
