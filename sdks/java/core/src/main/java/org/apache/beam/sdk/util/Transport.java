@@ -33,6 +33,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
@@ -122,10 +123,11 @@ public class Transport {
   }
 
   /**
-   * Returns a CloudResourceManager client builder using the specified {@link PipelineOptions}.
+   * Returns a CloudResourceManager client builder using the specified
+   * {@link CloudResourceManagerOptions}.
    */
   public static CloudResourceManager.Builder
-      newCloudResourceManagerClient(PipelineOptions options) {
+      newCloudResourceManagerClient(CloudResourceManagerOptions options) {
     return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
         chainHttpRequestInitializer(
             options.getGcpCredential(),
