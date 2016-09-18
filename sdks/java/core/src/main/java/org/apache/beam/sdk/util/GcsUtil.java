@@ -423,8 +423,7 @@ public class GcsUtil {
     Bucket bucket = new Bucket();
     bucket.setName(path.getBucket());
     Storage.Buckets.Insert insertBucket =
-      storageClient.buckets().insert(bucket);
-    insertBucket.setProject(String.valueOf(projectNumber));
+      storageClient.buckets().insert(String.valueOf(projectNumber), bucket);
 
     try {
       ResilientOperation.retry(
