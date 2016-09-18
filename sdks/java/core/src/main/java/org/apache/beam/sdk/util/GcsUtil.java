@@ -28,6 +28,7 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
@@ -382,12 +383,12 @@ public class GcsUtil {
 
   @VisibleForTesting
   @Nullable
-  Storage.Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+  Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket =
         storageClient.buckets().get(path.getBucket());
 
       try {
-        Storage.Bucket bucket = ResilientOperation.retry(
+        Bucket bucket = ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(getBucket),
             backoff,
             new RetryDeterminer<IOException>() {
