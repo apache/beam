@@ -402,7 +402,7 @@ public class GcsUtil {
             },
             IOException.class,
             sleeper);
-        
+
         return bucket;
       } catch (GoogleJsonResponseException e) {
         if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
