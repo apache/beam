@@ -349,16 +349,45 @@ public class GcsUtil {
   }
 
   /**
+   * Returns the project number of the project which owns this bucket.
+   * If the bucket exists, it must be accessible otherwise the permissions
+   * exception will be propagated.
+   */
+  public long bucketOwner(GcsPath path) throws IOException {
+    return getBucket(
+        path,
+        BACKOFF_FACTORY.backoff(),
+        Sleeper.DEFAULT).getProjectNumber();
+  }
+
+  /**
+   * Creates a bucket for the provided project or propagates an error.
+   */
+  public void createBucket(GcsPath path, long projectNumber) throws IOException {
+    return createBucket(
+        path,
+        projectNumber,
+        BACKOFF_FACTORY.backoff(),
+        Sleeper.DEFAULT);
+  }
+
+  /**
    * Returns whether the GCS bucket exists. This will return false if the bucket
    * is inaccessible due to permissions.
    */
   @VisibleForTesting
   boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+    return getBucket(path, backoff, sleeper) != null;
+  }
+
+  @VisibleForTesting
+  @Nullable
+  Storage.Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket =
         storageClient.buckets().get(path.getBucket());
 
       try {
-        ResilientOperation.retry(
+        Storage.Bucket bucket = ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(getBucket),
             backoff,
             new RetryDeterminer<IOException>() {
@@ -372,10 +401,11 @@ public class GcsUtil {
             },
             IOException.class,
             sleeper);
-        return true;
+        
+        return bucket;
       } catch (GoogleJsonResponseException e) {
         if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-          return false;
+          return null;
         }
         throw e;
       } catch (InterruptedException e) {
@@ -384,6 +414,37 @@ public class GcsUtil {
             String.format("Error while attempting to verify existence of bucket gs://%s",
                 path.getBucket()), e);
      }
+  }
+
+  @VisibleForTesting
+  void createBucket(GcsPath path, long projectNumber, BackOff backoff, Sleeper sleeper)
+        throws IOException {
+    Storage.Buckets.Insert insertBucket =
+        storageClient.buckets().insert(path.getBucket());
+    insertBucket.setProject(String.valueOf(projectNumber));
+
+    try {
+      ResilientOperation.retry(
+        ResilientOperation.getGoogleRequestCallable(insertBucket),
+        backoff,
+        new RetryDeterminer<IOException>() {
+          @Override
+            public boolean shouldRetry(IOException e) {
+            if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+              return false;
+            }
+            return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+          }
+        },
+        IOException.class,
+        sleeper);
+      return;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException(
+        String.format("Error while attempting to create bucket gs://%s for rproject %s",
+                      path.getBucket(), projectNumber), e);
+    }
   }
 
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
