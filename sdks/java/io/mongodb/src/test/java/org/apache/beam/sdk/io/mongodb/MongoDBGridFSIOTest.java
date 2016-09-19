@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * Test on the MongoDbGridFSIO.
  */
 public class MongoDBGridFSIOTest implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
   private static final int PORT = 27017;

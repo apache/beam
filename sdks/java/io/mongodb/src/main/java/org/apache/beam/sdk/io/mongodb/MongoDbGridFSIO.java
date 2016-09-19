@@ -54,7 +54,7 @@ import org.joda.time.Instant;
  * <p>
  * <pre>{@code
  *
- * pipeline.apply(MongoDbIO.read()
+ * pipeline.apply(MongoDbGridFSIO.read()
  *   .withUri("mongodb://localhost:27017")
  *   .withDatabase("my-database")
  *   .withBucket("my-bucket"))
@@ -109,7 +109,7 @@ public class MongoDbGridFSIO {
                             new InputStreamToStrings());
   }
 
-  static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+  static class Read<T extends Serializable> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
       return new Read<T>(new GridFSOptions(uri, options.database,
                                            options.bucket), transform);
@@ -149,7 +149,7 @@ public class MongoDbGridFSIO {
     /**
      * A {@link DoFn} executing the query to read files from GridFS.
      */
-    public static class ReadFn<T> extends DoFn<GridFSOptions, T> {
+    public static class ReadFn<T extends Serializable> extends DoFn<GridFSOptions, T> {
       private final SerializableFunction<InputStream, Iterable<T>> transform;
 
       private ReadFn(SerializableFunction<InputStream, Iterable<T>> transform) {
