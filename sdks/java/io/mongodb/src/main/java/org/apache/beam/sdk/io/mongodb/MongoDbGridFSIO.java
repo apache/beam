@@ -26,7 +26,6 @@ import com.mongodb.gridfs.GridFSDBFile;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.util.Iterator;
@@ -64,38 +63,40 @@ import org.joda.time.Instant;
  * }</pre>
  */
 public class MongoDbGridFSIO {
-  static class InputStreamToStrings implements SerializableFunction<InputStream, Iterable<String>> {
+  static class InputStreamToStrings
+    implements SerializableFunction<GridFSDBFile, Iterable<String>> {
     @Override
-    public Iterable<String> apply(InputStream input) {
-        final BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+    public Iterable<String> apply(GridFSDBFile input) {
         try {
+          final BufferedReader reader =
+              new BufferedReader(new InputStreamReader(input.getInputStream()));
           final String initialValue = reader.readLine();
           return new Iterable<String>() {
             @Override
             public Iterator<String> iterator() {
-                    return new Iterator<String>() {
-                        String val = initialValue;
-                        @Override
-                        public boolean hasNext() {
-                            return val != null;
-                        }
+              return new Iterator<String>() {
+                String val = initialValue;
+                @Override
+                public boolean hasNext() {
+                  return val != null;
+                }
 
-                        @Override
-                        public String next() {
-                            String valRet = val;
-                            try {
-                                val = reader.readLine();
-                            } catch (IOException e) {
-                                val = null;
-                            }
-                            return valRet;
-                        }
+                @Override
+                public String next() {
+                  String valRet = val;
+                  try {
+                    val = reader.readLine();
+                  } catch (IOException e) {
+                    val = null;
+                  }
+                  return valRet;
+                }
 
-                        @Override
-                        public void remove() {
-                            throw new UnsupportedOperationException("read-only");
-                        }
-                    };
+                @Override
+                public void remove() {
+                  throw new UnsupportedOperationException("read-only");
+                }
+              };
             }
           };
         } catch (IOException ex) {
@@ -127,18 +128,18 @@ public class MongoDbGridFSIO {
                          transform, coder);
     }
 
-    public Read<T> withParsingFn(SerializableFunction<InputStream, Iterable<T>> f,
+    public Read<T> withParsingFn(SerializableFunction<GridFSDBFile, Iterable<T>> f,
                                  Coder<T> c) {
       return new Read<T>(options, f, c);
     }
 
     private final GridFSOptions options;
-    private final SerializableFunction<InputStream, Iterable<T>> transform;
+    private final SerializableFunction<GridFSDBFile, Iterable<T>> transform;
     private final Coder<T> coder;
 
 
     Read(GridFSOptions options,
-         SerializableFunction<InputStream, Iterable<T>> transform,
+         SerializableFunction<GridFSDBFile, Iterable<T>> transform,
          Coder<T> coder) {
       this.options = options;
       this.transform = transform;
@@ -156,9 +157,9 @@ public class MongoDbGridFSIO {
      * A {@link DoFn} executing the query to read files from GridFS.
      */
     public static class ReadFn<T extends Serializable> extends DoFn<GridFSOptions, T> {
-      private final SerializableFunction<InputStream, Iterable<T>> transform;
+      private final SerializableFunction<GridFSDBFile, Iterable<T>> transform;
 
-      private ReadFn(SerializableFunction<InputStream, Iterable<T>> transform) {
+      private ReadFn(SerializableFunction<GridFSDBFile, Iterable<T>> transform) {
           this.transform = transform;
       }
 
@@ -170,7 +171,7 @@ public class MongoDbGridFSIO {
         GridFS gridfs = options.bucket == null ? new GridFS(db) : new GridFS(db, options.bucket);
         for (GridFSDBFile file : gridfs.find(new BasicDBObject())) {
           Instant ts = new Instant(file.getUploadDate().getTime());
-          for (T t : transform.apply(file.getInputStream())) {
+          for (T t : transform.apply(file)) {
               context.outputWithTimestamp(t, ts);
           }
         }
