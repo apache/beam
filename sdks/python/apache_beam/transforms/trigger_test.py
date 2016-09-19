@@ -19,12 +19,14 @@
 
 import collections
 import os.path
+import pickle
 import unittest
 
 import yaml
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
+from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterAll
@@ -366,6 +368,16 @@ class TriggerTest(unittest.TestCase):
          IntervalWindow(0, 17): [set('abcdefgh')]},
         2)
 
+  def test_picklable_output(self):
+    global_window = trigger.GlobalWindow(),
+    driver = trigger.DefaultGlobalBatchTriggerDriver()
+    unpicklable = (WindowedValue(k, 0, global_window)
+                   for k in range(10))
+    with self.assertRaises(TypeError):
+      pickle.dumps(unpicklable)
+    for unwindowed in driver.process_elements(None, unpicklable, None):
+      self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
+                       range(10))
 
 class TriggerPipelineTest(unittest.TestCase):
 
