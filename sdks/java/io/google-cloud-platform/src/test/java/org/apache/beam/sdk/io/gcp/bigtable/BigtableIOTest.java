@@ -37,7 +37,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
-import avro.shaded.com.google.common.collect.Lists;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
@@ -54,6 +53,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
@@ -274,7 +274,7 @@ public class BigtableIOTest {
 
   /**
    * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted
-   * range [].
+   * range [] and that some properties hold across them.
    */
   @Test
   public void testReadingWithKeyRange() throws Exception {
@@ -289,32 +289,29 @@ public class BigtableIOTest {
     List<Row> prefixRows = filterToRange(testRows, prefixRange);
     runReadTest(defaultRead.withTableId(table).withKeyRange(prefixRange), prefixRows);
 
-    // Test suffix [startKey, end).
+    // Test suffix: [startKey, end).
     final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
     List<Row> suffixRows = filterToRange(testRows, suffixRange);
     runReadTest(defaultRead.withTableId(table).withKeyRange(suffixRange), suffixRows);
 
-    // Test restricted range [startKey, endKey).
+    // Test restricted range: [startKey, endKey).
     final ByteKeyRange middleRange = ByteKeyRange.of(startKey, endKey);
     List<Row> middleRows = filterToRange(testRows, middleRange);
     runReadTest(defaultRead.withTableId(table).withKeyRange(middleRange), middleRows);
 
-    //////// Size and content checks //////////
+    //////// Size and content sanity checks //////////
 
-    // Prefix, suffix, range should be non-trivial (non-zero,non-all).
-    assertThat(prefixRows, hasSize(lessThan(numRows)));
-    assertThat(prefixRows, hasSize(greaterThan(0)));
-    assertThat(suffixRows, hasSize(lessThan(numRows)));
-    assertThat(suffixRows, hasSize(greaterThan(0)));
-    assertThat(middleRows, hasSize(lessThan(numRows)));
-    assertThat(middleRows, hasSize(greaterThan(0)));
+    // Prefix, suffix, middle should be non-trivial (non-zero,non-all).
+    assertThat(prefixRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+    assertThat(suffixRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+    assertThat(middleRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
 
     // Prefix + suffix should be exactly all rows.
     List<Row> union = Lists.newArrayList(prefixRows);
     union.addAll(suffixRows);
     assertThat("prefix + suffix = total", union, containsInAnyOrder(testRows.toArray(new Row[]{})));
 
-    // Suffix should contain the range.
+    // Suffix should contain the middle.
     assertThat(suffixRows, hasItems(middleRows.toArray(new Row[]{})));
   }
 
