@@ -31,6 +31,8 @@ import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -106,43 +108,47 @@ public class MongoDbGridFSIO {
   /** Read data from GridFS. */
   public static Read<String> read() {
     return new Read<String>(new Read.GridFSOptions(null, null, null),
-                            new InputStreamToStrings());
+                            new InputStreamToStrings(), StringUtf8Coder.of());
   }
 
   static class Read<T extends Serializable> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
       return new Read<T>(new GridFSOptions(uri, options.database,
-                                           options.bucket), transform);
+                                           options.bucket), transform, coder);
     }
 
     public Read<T> withDatabase(String database) {
       return new Read<T>(new GridFSOptions(options.uri, database,
-                                           options.bucket), transform);
+                                           options.bucket), transform, coder);
     }
 
     public Read<T> withBucket(String bucket) {
       return new Read<T>(new GridFSOptions(options.uri, options.database, bucket),
-                         transform);
+                         transform, coder);
     }
 
-    public Read<T> withParsingFn(SerializableFunction<InputStream, Iterable<T>> f) {
-      return new Read<T>(options, f);
+    public Read<T> withParsingFn(SerializableFunction<InputStream, Iterable<T>> f,
+                                 Coder<T> c) {
+      return new Read<T>(options, f, c);
     }
 
     private final GridFSOptions options;
     private final SerializableFunction<InputStream, Iterable<T>> transform;
+    private final Coder<T> coder;
 
 
     Read(GridFSOptions options,
-         SerializableFunction<InputStream, Iterable<T>> transform) {
+         SerializableFunction<InputStream, Iterable<T>> transform,
+         Coder<T> coder) {
       this.options = options;
       this.transform = transform;
+      this.coder = coder;
     }
 
     @Override
     public PCollection<T> apply(PBegin input) {
       PCollection<T> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn<T>(transform)));
+          .apply(ParDo.of(new ReadFn<T>(transform))).setCoder(coder);
       return output;
     }
 
