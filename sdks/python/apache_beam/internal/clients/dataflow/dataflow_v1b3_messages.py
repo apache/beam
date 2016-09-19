@@ -49,32 +49,35 @@ class ApproximateReportedProgress(_messages.Message):
 
   Fields:
     consumedParallelism: Total amount of parallelism in the portion of input
-      of this work item that has already been consumed. In the first two
-      examples above (see remaining_parallelism), the value should be 30 or 3
-      respectively. The sum of remaining_parallelism and consumed_parallelism
-      should equal the total amount of parallelism in this work item. If
-      specified, must be finite.
+      of this task that has already been consumed and is no longer active. In
+      the first two examples above (see remaining_parallelism), the value
+      should be 29 or 2 respectively.  The sum of remaining_parallelism and
+      consumed_parallelism should equal the total amount of parallelism in
+      this work item.  If specified, must be finite.
     fractionConsumed: Completion as fraction of the input consumed, from 0.0
       (beginning, nothing consumed), to 1.0 (end of the input, entire input
       consumed).
     position: A Position within the work to represent a progress.
     remainingParallelism: Total amount of parallelism in the input of this
-      WorkItem that has not been consumed yet (i.e. can be delegated to a new
-      WorkItem via dynamic splitting). "Amount of parallelism" refers to how
-      many non-empty parts of the input can be read in parallel. This does not
+      task that remains, (i.e. can be delegated to this task and any new tasks
+      via dynamic splitting). Always at least 1 for non-finished work items
+      and 0 for finished.  "Amount of parallelism" refers to how many non-
+      empty parts of the input can be read in parallel. This does not
       necessarily equal number of records. An input that can be read in
       parallel down to the individual records is called "perfectly
       splittable". An example of non-perfectly parallelizable input is a
       block-compressed file format where a block of records has to be read as
-      a whole, but different blocks can be read in parallel. Examples: * If we
-      have read 30 records out of 50 in a perfectly splittable 50-record
-      input, this value should be 20. * If we are reading through block 3 in a
-      block-compressed file consisting of 5 blocks, this value should be 2
-      (since blocks 4 and 5 can be processed in parallel by new work items via
-      dynamic splitting). * If we are reading through the last block in a
-      block-compressed file, or reading or processing the last record in a
-      perfectly splittable input, this value should be 0, because the
-      remainder of the work item cannot be further split.
+      a whole, but different blocks can be read in parallel.  Examples: * If
+      we are processing record #30 (starting at 1) out of 50 in a perfectly
+      splittable 50-record input, this value should be 21 (20 remaining + 1
+      current). * If we are reading through block 3 in a block-compressed file
+      consisting   of 5 blocks, this value should be 3 (since blocks 4 and 5
+      can be   processed in parallel by new tasks via dynamic splitting and
+      the current   task remains processing block 3). * If we are reading
+      through the last block in a block-compressed file,   or reading or
+      processing the last record in a perfectly splittable   input, this value
+      should be 1, because apart from the current task, no   additional
+      remainder can be split off.
   """
 
   consumedParallelism = _messages.MessageField('ReportedParallelism', 1)
@@ -112,9 +115,10 @@ class AutoscalingSettings(_messages.Message):
     """The algorithm to use for autoscaling.
 
     Values:
-      AUTOSCALING_ALGORITHM_UNKNOWN: <no description>
-      AUTOSCALING_ALGORITHM_NONE: <no description>
-      AUTOSCALING_ALGORITHM_BASIC: <no description>
+      AUTOSCALING_ALGORITHM_UNKNOWN: The algorithm is unknown, or unspecified.
+      AUTOSCALING_ALGORITHM_NONE: Disable autoscaling.
+      AUTOSCALING_ALGORITHM_BASIC: Increase worker count over time to reduce
+        job execution time.
     """
     AUTOSCALING_ALGORITHM_UNKNOWN = 0
     AUTOSCALING_ALGORITHM_NONE = 1
@@ -158,6 +162,221 @@ class ConcatPosition(_messages.Message):
 
   index = _messages.IntegerField(1, variant=_messages.Variant.INT32)
   position = _messages.MessageField('Position', 2)
+
+
+class CounterMetadata(_messages.Message):
+  """CounterMetadata includes all static non-name non-value counter
+  attributes.
+
+  Enums:
+    KindValueValuesEnum: Counter aggregation kind.
+    StandardUnitsValueValuesEnum: System defined Units, see above enum.
+
+  Fields:
+    description: Human-readable description of the counter semantics.
+    kind: Counter aggregation kind.
+    otherUnits: A string referring to the unit type.
+    standardUnits: System defined Units, see above enum.
+  """
+
+  class KindValueValuesEnum(_messages.Enum):
+    """Counter aggregation kind.
+
+    Values:
+      INVALID: Counter aggregation kind was not set.
+      SUM: Aggregated value is the sum of all contributed values.
+      MAX: Aggregated value is the max of all contributed values.
+      MIN: Aggregated value is the min of all contributed values.
+      MEAN: Aggregated value is the mean of all contributed values.
+      OR: Aggregated value represents the logical 'or' of all contributed
+        values.
+      AND: Aggregated value represents the logical 'and' of all contributed
+        values.
+      SET: Aggregated value is a set of unique contributed values.
+    """
+    INVALID = 0
+    SUM = 1
+    MAX = 2
+    MIN = 3
+    MEAN = 4
+    OR = 5
+    AND = 6
+    SET = 7
+
+  class StandardUnitsValueValuesEnum(_messages.Enum):
+    """System defined Units, see above enum.
+
+    Values:
+      BYTES: Counter returns a value in bytes.
+      BYTES_PER_SEC: Counter returns a value in bytes per second.
+      MILLISECONDS: Counter returns a value in milliseconds.
+      MICROSECONDS: Counter returns a value in microseconds.
+      NANOSECONDS: Counter returns a value in nanoseconds.
+      TIMESTAMP_MSEC: Counter returns a timestamp in milliseconds.
+      TIMESTAMP_USEC: Counter returns a timestamp in microseconds.
+      TIMESTAMP_NSEC: Counter returns a timestamp in nanoseconds.
+    """
+    BYTES = 0
+    BYTES_PER_SEC = 1
+    MILLISECONDS = 2
+    MICROSECONDS = 3
+    NANOSECONDS = 4
+    TIMESTAMP_MSEC = 5
+    TIMESTAMP_USEC = 6
+    TIMESTAMP_NSEC = 7
+
+  description = _messages.StringField(1)
+  kind = _messages.EnumField('KindValueValuesEnum', 2)
+  otherUnits = _messages.StringField(3)
+  standardUnits = _messages.EnumField('StandardUnitsValueValuesEnum', 4)
+
+
+class CounterStructuredName(_messages.Message):
+  """Identifies a counter within a per-job namespace. Counters whose
+  structured names are the same get merged into a single value for the job.
+
+  Enums:
+    PortionValueValuesEnum: Portion of this counter, either key or value.
+    StandardOriginValueValuesEnum: One of the standard Origins defined above.
+
+  Fields:
+    componentStepName: Name of the optimized step being executed by the
+      workers.
+    executionStepName: Name of the stage. An execution step contains multiple
+      component steps.
+    name: Counter name. Not necessarily globally-unique, but unique within the
+      context of the other fields. Required.
+    originalStepName: System generated name of the original step in the user's
+      graph, before optimization.
+    otherOrigin: A string containing the origin of the counter.
+    portion: Portion of this counter, either key or value.
+    standardOrigin: One of the standard Origins defined above.
+    workerId: ID of a particular worker.
+  """
+
+  class PortionValueValuesEnum(_messages.Enum):
+    """Portion of this counter, either key or value.
+
+    Values:
+      ALL: Counter portion has not been set.
+      KEY: Counter reports a key.
+      VALUE: Counter reports a value.
+    """
+    ALL = 0
+    KEY = 1
+    VALUE = 2
+
+  class StandardOriginValueValuesEnum(_messages.Enum):
+    """One of the standard Origins defined above.
+
+    Values:
+      DATAFLOW: Counter was created by the Dataflow system.
+      USER: Counter was created by the user.
+    """
+    DATAFLOW = 0
+    USER = 1
+
+  componentStepName = _messages.StringField(1)
+  executionStepName = _messages.StringField(2)
+  name = _messages.StringField(3)
+  originalStepName = _messages.StringField(4)
+  otherOrigin = _messages.StringField(5)
+  portion = _messages.EnumField('PortionValueValuesEnum', 6)
+  standardOrigin = _messages.EnumField('StandardOriginValueValuesEnum', 7)
+  workerId = _messages.StringField(8)
+
+
+class CounterStructuredNameAndMetadata(_messages.Message):
+  """A single message which encapsulates structured name and metadata for a
+  given counter.
+
+  Fields:
+    metadata: Metadata associated with a counter
+    name: Structured name of the counter.
+  """
+
+  metadata = _messages.MessageField('CounterMetadata', 1)
+  name = _messages.MessageField('CounterStructuredName', 2)
+
+
+class CounterUpdate(_messages.Message):
+  """An update to a Counter sent from a worker.
+
+  Fields:
+    boolean: Boolean value for And, Or.
+    cumulative: True if this counter is reported as the total cumulative
+      aggregate value accumulated since the worker started working on this
+      WorkItem. By default this is false, indicating that this counter is
+      reported as a delta.
+    floatingPoint: Floating point value for Sum, Max, Min.
+    floatingPointList: List of floating point numbers, for Set.
+    floatingPointMean: Floating point mean aggregation value for Mean.
+    integer: Integer value for Sum, Max, Min.
+    integerList: List of integers, for Set.
+    integerMean: Integer mean aggregation value for Mean.
+    internal: Value for internally-defined counters used by the Dataflow
+      service.
+    nameAndKind: Counter name and aggregation type.
+    shortId: The service-generated short identifier for this counter. The
+      short_id -> (name, metadata) mapping is constant for the lifetime of a
+      job.
+    stringList: List of strings, for Set.
+    structuredNameAndMetadata: Counter structured name and metadata.
+  """
+
+  boolean = _messages.BooleanField(1)
+  cumulative = _messages.BooleanField(2)
+  floatingPoint = _messages.FloatField(3)
+  floatingPointList = _messages.MessageField('FloatingPointList', 4)
+  floatingPointMean = _messages.MessageField('FloatingPointMean', 5)
+  integer = _messages.MessageField('SplitInt64', 6)
+  integerList = _messages.MessageField('IntegerList', 7)
+  integerMean = _messages.MessageField('IntegerMean', 8)
+  internal = _messages.MessageField('extra_types.JsonValue', 9)
+  nameAndKind = _messages.MessageField('NameAndKind', 10)
+  shortId = _messages.IntegerField(11)
+  stringList = _messages.MessageField('StringList', 12)
+  structuredNameAndMetadata = _messages.MessageField('CounterStructuredNameAndMetadata', 13)
+
+
+class CreateJobFromTemplateRequest(_messages.Message):
+  """Request to create a Dataflow job.
+
+  Messages:
+    ParametersValue: Dynamic parameterization of the job's runtime
+      environment.
+
+  Fields:
+    gcsPath: A path to the serialized JSON representation of the job.
+    parameters: Dynamic parameterization of the job's runtime environment.
+  """
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class ParametersValue(_messages.Message):
+    """Dynamic parameterization of the job's runtime environment.
+
+    Messages:
+      AdditionalProperty: An additional property for a ParametersValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type ParametersValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      """An additional property for a ParametersValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  gcsPath = _messages.StringField(1)
+  parameters = _messages.MessageField('ParametersValue', 2)
 
 
 class CustomSourceLocation(_messages.Message):
@@ -216,6 +435,36 @@ class DataflowProjectsJobsCreateRequest(_messages.Message):
   projectId = _messages.StringField(2, required=True)
   replaceJobId = _messages.StringField(3)
   view = _messages.EnumField('ViewValueValuesEnum', 4)
+
+
+class DataflowProjectsJobsDebugGetConfigRequest(_messages.Message):
+  """A DataflowProjectsJobsDebugGetConfigRequest object.
+
+  Fields:
+    getDebugConfigRequest: A GetDebugConfigRequest resource to be passed as
+      the request body.
+    jobId: The job id.
+    projectId: The project id.
+  """
+
+  getDebugConfigRequest = _messages.MessageField('GetDebugConfigRequest', 1)
+  jobId = _messages.StringField(2, required=True)
+  projectId = _messages.StringField(3, required=True)
+
+
+class DataflowProjectsJobsDebugSendCaptureRequest(_messages.Message):
+  """A DataflowProjectsJobsDebugSendCaptureRequest object.
+
+  Fields:
+    jobId: The job id.
+    projectId: The project id.
+    sendDebugCaptureRequest: A SendDebugCaptureRequest resource to be passed
+      as the request body.
+  """
+
+  jobId = _messages.StringField(1, required=True)
+  projectId = _messages.StringField(2, required=True)
+  sendDebugCaptureRequest = _messages.MessageField('SendDebugCaptureRequest', 3)
 
 
 class DataflowProjectsJobsGetMetricsRequest(_messages.Message):
@@ -285,13 +534,15 @@ class DataflowProjectsJobsListRequest(_messages.Message):
     """The kind of filter to use.
 
     Values:
+      UNKNOWN: <no description>
       ALL: <no description>
       TERMINATED: <no description>
       ACTIVE: <no description>
     """
-    ALL = 0
-    TERMINATED = 1
-    ACTIVE = 2
+    UNKNOWN = 0
+    ALL = 1
+    TERMINATED = 2
+    ACTIVE = 3
 
   class ViewValueValuesEnum(_messages.Enum):
     """Level of information requested in response. Default is SUMMARY.
@@ -325,7 +576,7 @@ class DataflowProjectsJobsMessagesListRequest(_messages.Message):
     jobId: The job to get messages about.
     minimumImportance: Filter to only get messages with importance >= level
     pageSize: If specified, determines the maximum number of messages to
-      return. If unspecified, the service may choose an appropriate default,
+      return.  If unspecified, the service may choose an appropriate default,
       or may return an arbitrarily large number of results.
     pageToken: If supplied, this should be the value of next_page_token
       returned by an earlier call. This will cause the next page of results to
@@ -407,6 +658,19 @@ class DataflowProjectsJobsWorkItemsReportStatusRequest(_messages.Message):
   reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 3)
 
 
+class DataflowProjectsTemplatesCreateRequest(_messages.Message):
+  """A DataflowProjectsTemplatesCreateRequest object.
+
+  Fields:
+    createJobFromTemplateRequest: A CreateJobFromTemplateRequest resource to
+      be passed as the request body.
+    projectId: The project which owns the job.
+  """
+
+  createJobFromTemplateRequest = _messages.MessageField('CreateJobFromTemplateRequest', 1)
+  projectId = _messages.StringField(2, required=True)
+
+
 class DataflowProjectsWorkerMessagesRequest(_messages.Message):
   """A DataflowProjectsWorkerMessagesRequest object.
 
@@ -439,10 +703,14 @@ class DerivedSource(_messages.Message):
     """What source to base the produced source on (if any).
 
     Values:
-      SOURCE_DERIVATION_MODE_UNKNOWN: <no description>
-      SOURCE_DERIVATION_MODE_INDEPENDENT: <no description>
-      SOURCE_DERIVATION_MODE_CHILD_OF_CURRENT: <no description>
-      SOURCE_DERIVATION_MODE_SIBLING_OF_CURRENT: <no description>
+      SOURCE_DERIVATION_MODE_UNKNOWN: The source derivation is unknown, or
+        unspecified.
+      SOURCE_DERIVATION_MODE_INDEPENDENT: Produce a completely independent
+        Source with no base.
+      SOURCE_DERIVATION_MODE_CHILD_OF_CURRENT: Produce a Source based on the
+        Source being split.
+      SOURCE_DERIVATION_MODE_SIBLING_OF_CURRENT: Produce a Source based on the
+        base of the Source being split.
     """
     SOURCE_DERIVATION_MODE_UNKNOWN = 0
     SOURCE_DERIVATION_MODE_INDEPENDENT = 1
@@ -457,21 +725,22 @@ class Disk(_messages.Message):
   """Describes the data disk used by a workflow job.
 
   Fields:
-    diskType: Disk storage type, as defined by Google Compute Engine. This
+    diskType: Disk storage type, as defined by Google Compute Engine.  This
       must be a disk type appropriate to the project and zone in which the
-      workers will run. If unknown or unspecified, the service will attempt to
-      choose a reasonable default. For example, the standard persistent disk
-      type is a resource name typically ending in "pd-standard". If SSD
+      workers will run.  If unknown or unspecified, the service will attempt
+      to choose a reasonable default.  For example, the standard persistent
+      disk type is a resource name typically ending in "pd-standard".  If SSD
       persistent disks are available, the resource name typically ends with
-      "pd-ssd". The actual valid values are defined the Google Compute Engine
+      "pd-ssd".  The actual valid values are defined the Google Compute Engine
       API, not by the Dataflow API; consult the Google Compute Engine
       documentation for more information about determining the set of
-      available disk types for a particular project and zone. Google Compute
+      available disk types for a particular project and zone.  Google Compute
       Engine Disk types are local to a particular project in a particular
       zone, and so the resource name will typically look something like this:
-      compute.googleapis.com/projects/ /zones//diskTypes/pd-standard
+      compute.googleapis.com/projects/<project-id>/zones/<zone>/diskTypes/pd-
+      standard
     mountPoint: Directory in a VM where disk is mounted.
-    sizeGb: Size of disk in GB. If zero or unspecified, the service will
+    sizeGb: Size of disk in GB.  If zero or unspecified, the service will
       attempt to choose a reasonable default.
   """
 
@@ -510,32 +779,34 @@ class Environment(_messages.Message):
       of the service are required in order to run the job.
 
   Fields:
-    clusterManagerApiService: The type of cluster manager API to use. If
+    clusterManagerApiService: The type of cluster manager API to use.  If
       unknown or unspecified, the service will attempt to choose a reasonable
-      default. This should be in the form of the API service name, e.g.
+      default.  This should be in the form of the API service name, e.g.
       "compute.googleapis.com".
     dataset: The dataset for the current project where various workflow
-      related tables are stored. The supported resource type is: Google
-      BigQuery: bigquery.googleapis.com/{dataset}
+      related tables are stored.  The supported resource type is:  Google
+      BigQuery:   bigquery.googleapis.com/{dataset}
     experiments: The list of experiments to enable.
     internalExperiments: Experimental settings.
     sdkPipelineOptions: The Dataflow SDK pipeline options specified by the
       user. These options are passed through the service and are used to
       recreate the SDK pipeline options on the worker in a language agnostic
       and platform independent way.
+    serviceAccountEmail: Identity to run virtual machines as. Defaults to the
+      default account.
     tempStoragePrefix: The prefix of the resources the system should use for
-      temporary storage. The system will append the suffix "/temp-{JOBNAME} to
-      this resource prefix, where {JOBNAME} is the value of the job_name
-      field. The resulting bucket and object prefix is used as the prefix of
+      temporary storage.  The system will append the suffix "/temp-{JOBNAME}
+      to this resource prefix, where {JOBNAME} is the value of the job_name
+      field.  The resulting bucket and object prefix is used as the prefix of
       the resources used to store temporary data needed during the job
-      execution. NOTE: This will override the value in taskrunner_settings.
-      The supported resource type is: Google Cloud Storage:
+      execution.  NOTE: This will override the value in taskrunner_settings.
+      The supported resource type is:  Google Cloud Storage:
       storage.googleapis.com/{bucket}/{object}
       bucket.storage.googleapis.com/{object}
     userAgent: A description of the process that generated the request.
     version: A structure describing which components and their versions of the
       service are required in order to run the job.
-    workerPools: Worker pools. At least one "harness" worker pool must be
+    workerPools: Worker pools.  At least one "harness" worker pool must be
       specified in order for the job to have workers.
   """
 
@@ -548,8 +819,8 @@ class Environment(_messages.Message):
         InternalExperimentsValue object.
 
     Fields:
-      additionalProperties: Properties of the object. Contains field @ype with
-        type URL.
+      additionalProperties: Properties of the object. Contains field @type
+        with type URL.
     """
 
     class AdditionalProperty(_messages.Message):
@@ -646,10 +917,11 @@ class Environment(_messages.Message):
   experiments = _messages.StringField(3, repeated=True)
   internalExperiments = _messages.MessageField('InternalExperimentsValue', 4)
   sdkPipelineOptions = _messages.MessageField('SdkPipelineOptionsValue', 5)
-  tempStoragePrefix = _messages.StringField(6)
-  userAgent = _messages.MessageField('UserAgentValue', 7)
-  version = _messages.MessageField('VersionValue', 8)
-  workerPools = _messages.MessageField('WorkerPool', 9, repeated=True)
+  serviceAccountEmail = _messages.StringField(6)
+  tempStoragePrefix = _messages.StringField(7)
+  userAgent = _messages.MessageField('UserAgentValue', 8)
+  version = _messages.MessageField('VersionValue', 9)
+  workerPools = _messages.MessageField('WorkerPool', 10, repeated=True)
 
 
 class FlattenInstruction(_messages.Message):
@@ -663,6 +935,51 @@ class FlattenInstruction(_messages.Message):
   inputs = _messages.MessageField('InstructionInput', 1, repeated=True)
 
 
+class FloatingPointList(_messages.Message):
+  """A metric value representing a list of floating point numbers.
+
+  Fields:
+    elements: Elements of the list.
+  """
+
+  elements = _messages.FloatField(1, repeated=True)
+
+
+class FloatingPointMean(_messages.Message):
+  """A representation of a floating point mean metric contribution.
+
+  Fields:
+    count: The number of values being aggregated.
+    sum: The sum of all values being aggregated.
+  """
+
+  count = _messages.MessageField('SplitInt64', 1)
+  sum = _messages.FloatField(2)
+
+
+class GetDebugConfigRequest(_messages.Message):
+  """Request to get updated debug configuration for component.
+
+  Fields:
+    componentId: The internal component id for which debug configuration is
+      requested.
+    workerId: The worker id, i.e., VM hostname.
+  """
+
+  componentId = _messages.StringField(1)
+  workerId = _messages.StringField(2)
+
+
+class GetDebugConfigResponse(_messages.Message):
+  """Response to a get debug configuration request.
+
+  Fields:
+    config: The encoded debug configuration for the requested component.
+  """
+
+  config = _messages.StringField(1)
+
+
 class InstructionInput(_messages.Message):
   """An input of an instruction, as a reference to an output of a producer
   instruction.
@@ -670,7 +987,7 @@ class InstructionInput(_messages.Message):
   Fields:
     outputNum: The output index (origin zero) within the producer.
     producerInstructionIndex: The index (origin zero) of the parallel
-      instruction that produces the output to be consumed by this input. This
+      instruction that produces the output to be consumed by this input.  This
       index is relative to the list of instructions in this input's
       instruction's containing MapTask.
   """
@@ -688,6 +1005,13 @@ class InstructionOutput(_messages.Message):
   Fields:
     codec: The codec to use to encode data being written via this output.
     name: The user-provided name of this output.
+    onlyCountKeyBytes: For system-generated byte and mean byte metrics,
+      certain instructions should only report the key size.
+    onlyCountValueBytes: For system-generated byte and mean byte metrics,
+      certain instructions should only report the value size.
+    originalName: System-defined name for this output in the original workflow
+      graph. Outputs that do not contribute to an original instruction do not
+      set this.
     systemName: System-defined name of this output. Unique across the
       workflow.
   """
@@ -718,28 +1042,59 @@ class InstructionOutput(_messages.Message):
 
   codec = _messages.MessageField('CodecValue', 1)
   name = _messages.StringField(2)
-  systemName = _messages.StringField(3)
+  onlyCountKeyBytes = _messages.BooleanField(3)
+  onlyCountValueBytes = _messages.BooleanField(4)
+  originalName = _messages.StringField(5)
+  systemName = _messages.StringField(6)
+
+
+class IntegerList(_messages.Message):
+  """A metric value representing a list of integers.
+
+  Fields:
+    elements: Elements of the list.
+  """
+
+  elements = _messages.MessageField('SplitInt64', 1, repeated=True)
+
+
+class IntegerMean(_messages.Message):
+  """A representation of an integer mean metric contribution.
+
+  Fields:
+    count: The number of values being aggregated.
+    sum: The sum of all values being aggregated.
+  """
+
+  count = _messages.MessageField('SplitInt64', 1)
+  sum = _messages.MessageField('SplitInt64', 2)
 
 
 class Job(_messages.Message):
   """Defines a job to be run by the Dataflow service.
 
   Enums:
-    CurrentStateValueValuesEnum: The current state of the job. Jobs are
-      created in the JOB_STATE_STOPPED state unless otherwise specified. A job
-      in the JOB_STATE_RUNNING state may asynchronously enter a terminal
-      state. Once a job has reached a terminal state, no further state updates
-      may be made. This field may be mutated by the Dataflow service; callers
-      cannot mutate it.
-    RequestedStateValueValuesEnum: The job's requested state. UpdateJob may be
-      used to switch between the JOB_STATE_STOPPED and JOB_STATE_RUNNING
-      states, by setting requested_state. UpdateJob may also be used to
+    CurrentStateValueValuesEnum: The current state of the job.  Jobs are
+      created in the JOB_STATE_STOPPED state unless otherwise specified.  A
+      job in the JOB_STATE_RUNNING state may asynchronously enter a terminal
+      state.  Once a job has reached a terminal state, no further state
+      updates may be made.  This field may be mutated by the Dataflow service;
+      callers cannot mutate it.
+    RequestedStateValueValuesEnum: The job's requested state.  UpdateJob may
+      be used to switch between the JOB_STATE_STOPPED and JOB_STATE_RUNNING
+      states, by setting requested_state.  UpdateJob may also be used to
       directly set a job's requested state to JOB_STATE_CANCELLED or
       JOB_STATE_DONE, irrevocably terminating the job if it has not already
       reached a terminal state.
     TypeValueValuesEnum: The type of dataflow job.
 
   Messages:
+    LabelsValue: User-defined labels for this job.  The labels map can contain
+      no more than 64 entries.  Entries of the labels map are UTF8 strings
+      that comply with the following restrictions:  * Keys must conform to
+      regexp:  \p{Ll}\p{Lo}{0,62} * Values must conform to regexp:
+      [\p{Ll}\p{Lo}\p{N}_-]{0,63} * Both keys and values are additionally
+      constrained to be <= 128 bytes in size.
     TransformNameMappingValue: Map of transform name prefixes of the job to be
       replaced to the corresponding name prefixes of the new job.
 
@@ -754,41 +1109,48 @@ class Job(_messages.Message):
       ignores it.
     createTime: Timestamp when job was initially created. Immutable, set by
       the Dataflow service.
-    currentState: The current state of the job. Jobs are created in the
-      JOB_STATE_STOPPED state unless otherwise specified. A job in the
-      JOB_STATE_RUNNING state may asynchronously enter a terminal state. Once
+    currentState: The current state of the job.  Jobs are created in the
+      JOB_STATE_STOPPED state unless otherwise specified.  A job in the
+      JOB_STATE_RUNNING state may asynchronously enter a terminal state.  Once
       a job has reached a terminal state, no further state updates may be
-      made. This field may be mutated by the Dataflow service; callers cannot
+      made.  This field may be mutated by the Dataflow service; callers cannot
       mutate it.
     currentStateTime: The timestamp associated with the current state.
     environment: Environment for the job.
     executionInfo: Information about how the Dataflow service will actually
       run the job.
-    id: The unique ID of this job. This field is set by the Dataflow service
+    id: The unique ID of this job.  This field is set by the Dataflow service
       when the Job is created, and is immutable for the life of the Job.
-    name: The user-specified Dataflow job name. Only one Job with a given name
-      may exist in a project at any given time. If a caller attempts to create
-      a Job with the same name as an already-existing Job, the attempt will
-      return the existing Job. The name must match the regular expression
-      [a-z]([-a-z0-9]{0,38}[a-z0-9])?
+    labels: User-defined labels for this job.  The labels map can contain no
+      more than 64 entries.  Entries of the labels map are UTF8 strings that
+      comply with the following restrictions:  * Keys must conform to regexp:
+      \p{Ll}\p{Lo}{0,62} * Values must conform to regexp:
+      [\p{Ll}\p{Lo}\p{N}_-]{0,63} * Both keys and values are additionally
+      constrained to be <= 128 bytes in size.
+    name: The user-specified Dataflow job name.  Only one Job with a given
+      name may exist in a project at any given time.  If a caller attempts to
+      create a Job with the same name as an already-existing Job, the attempt
+      will return the existing Job.  The name must match the regular
+      expression [a-z]([-a-z0-9]{0,38}[a-z0-9])?
     projectId: The project which owns the job.
     replaceJobId: If this job is an update of an existing job, this field will
-      be the ID of the job it replaced. When sending a CreateJobRequest, you
+      be the ID of the job it replaced.  When sending a CreateJobRequest, you
       can update a job by specifying it here. The job named here will be
       stopped, and its intermediate state transferred to this job.
     replacedByJobId: If another job is an update of this job (and thus, this
       job is in JOB_STATE_UPDATED), this field will contain the ID of that
       job.
-    requestedState: The job's requested state. UpdateJob may be used to switch
-      between the JOB_STATE_STOPPED and JOB_STATE_RUNNING states, by setting
-      requested_state. UpdateJob may also be used to directly set a job's
-      requested state to JOB_STATE_CANCELLED or JOB_STATE_DONE, irrevocably
-      terminating the job if it has not already reached a terminal state.
+    requestedState: The job's requested state.  UpdateJob may be used to
+      switch between the JOB_STATE_STOPPED and JOB_STATE_RUNNING states, by
+      setting requested_state.  UpdateJob may also be used to directly set a
+      job's requested state to JOB_STATE_CANCELLED or JOB_STATE_DONE,
+      irrevocably terminating the job if it has not already reached a terminal
+      state.
     steps: The top-level steps that constitute the entire job.
     tempFiles: A set of files the system should be aware of that are used for
       temporary storage. These temporary files will be removed on job
       completion. No duplicates are allowed. No file patterns are supported.
-      The supported files are: Google Cloud Storage:
+      The supported files are:  Google Cloud Storage:
       storage.googleapis.com/{bucket}/{object}
       bucket.storage.googleapis.com/{object}
     transformNameMapping: Map of transform name prefixes of the job to be
@@ -797,22 +1159,47 @@ class Job(_messages.Message):
   """
 
   class CurrentStateValueValuesEnum(_messages.Enum):
-    """The current state of the job. Jobs are created in the JOB_STATE_STOPPED
-    state unless otherwise specified. A job in the JOB_STATE_RUNNING state may
-    asynchronously enter a terminal state. Once a job has reached a terminal
-    state, no further state updates may be made. This field may be mutated by
-    the Dataflow service; callers cannot mutate it.
+    """The current state of the job.  Jobs are created in the
+    JOB_STATE_STOPPED state unless otherwise specified.  A job in the
+    JOB_STATE_RUNNING state may asynchronously enter a terminal state.  Once a
+    job has reached a terminal state, no further state updates may be made.
+    This field may be mutated by the Dataflow service; callers cannot mutate
+    it.
 
     Values:
-      JOB_STATE_UNKNOWN: <no description>
-      JOB_STATE_STOPPED: <no description>
-      JOB_STATE_RUNNING: <no description>
-      JOB_STATE_DONE: <no description>
-      JOB_STATE_FAILED: <no description>
-      JOB_STATE_CANCELLED: <no description>
-      JOB_STATE_UPDATED: <no description>
-      JOB_STATE_DRAINING: <no description>
-      JOB_STATE_DRAINED: <no description>
+      JOB_STATE_UNKNOWN: The job's run state isn't specified.
+      JOB_STATE_STOPPED: JOB_STATE_STOPPED indicates that the job is paused,
+        or has not yet started to run.
+      JOB_STATE_RUNNING: JOB_STATE_RUNNING indicates that the job is currently
+        running.
+      JOB_STATE_DONE: JOB_STATE_DONE indicates that the job has successfully
+        completed. This is a terminal job state.  This state may be set by the
+        Dataflow service, as a transition from JOB_STATE_RUNNING. It may also
+        be set via a Dataflow UpdateJob call, if the job has not yet reached a
+        terminal state.
+      JOB_STATE_FAILED: JOB_STATE_FAILED indicates that the job has failed.
+        This is a terminal job state.  This state may only be set by the
+        Dataflow service, and only as a transition from JOB_STATE_RUNNING.
+      JOB_STATE_CANCELLED: JOB_STATE_CANCELLED indicates that the job has been
+        explicitly cancelled.  This is a terminal job state.  This state may
+        only be set via a Dataflow UpdateJob call, and only if the job has not
+        yet reached another terminal state.
+      JOB_STATE_UPDATED: JOB_STATE_UPDATED indicates that the job was
+        successfully updated, meaning that this job was stopped and another
+        job was started, inheriting state from this one. This is a terminal
+        job state. This state may only be set by the Dataflow service, and
+        only as a transition from JOB_STATE_RUNNING.
+      JOB_STATE_DRAINING: JOB_STATE_DRAINING indicates that the job is in the
+        process of draining. A draining job has stopped pulling from its input
+        sources and is processing any data that remains in-flight. This state
+        may be set via a Dataflow UpdateJob call, but only as a transition
+        from JOB_STATE_RUNNING. Jobs that are draining may only transition to
+        JOB_STATE_DRAINED, JOB_STATE_CANCELLED, or JOB_STATE_FAILED.
+      JOB_STATE_DRAINED: JOB_STATE_DRAINED indicates that the job has been
+        drained. A drained job terminated by stopping pulling from its input
+        sources and processing any data that remained in-flight when draining
+        was requested. This state is a terminal state, may only be set by the
+        Dataflow service, and only as a transition from JOB_STATE_DRAINING.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -825,22 +1212,46 @@ class Job(_messages.Message):
     JOB_STATE_DRAINED = 8
 
   class RequestedStateValueValuesEnum(_messages.Enum):
-    """The job's requested state. UpdateJob may be used to switch between the
+    """The job's requested state.  UpdateJob may be used to switch between the
     JOB_STATE_STOPPED and JOB_STATE_RUNNING states, by setting
-    requested_state. UpdateJob may also be used to directly set a job's
+    requested_state.  UpdateJob may also be used to directly set a job's
     requested state to JOB_STATE_CANCELLED or JOB_STATE_DONE, irrevocably
     terminating the job if it has not already reached a terminal state.
 
     Values:
-      JOB_STATE_UNKNOWN: <no description>
-      JOB_STATE_STOPPED: <no description>
-      JOB_STATE_RUNNING: <no description>
-      JOB_STATE_DONE: <no description>
-      JOB_STATE_FAILED: <no description>
-      JOB_STATE_CANCELLED: <no description>
-      JOB_STATE_UPDATED: <no description>
-      JOB_STATE_DRAINING: <no description>
-      JOB_STATE_DRAINED: <no description>
+      JOB_STATE_UNKNOWN: The job's run state isn't specified.
+      JOB_STATE_STOPPED: JOB_STATE_STOPPED indicates that the job is paused,
+        or has not yet started to run.
+      JOB_STATE_RUNNING: JOB_STATE_RUNNING indicates that the job is currently
+        running.
+      JOB_STATE_DONE: JOB_STATE_DONE indicates that the job has successfully
+        completed. This is a terminal job state.  This state may be set by the
+        Dataflow service, as a transition from JOB_STATE_RUNNING. It may also
+        be set via a Dataflow UpdateJob call, if the job has not yet reached a
+        terminal state.
+      JOB_STATE_FAILED: JOB_STATE_FAILED indicates that the job has failed.
+        This is a terminal job state.  This state may only be set by the
+        Dataflow service, and only as a transition from JOB_STATE_RUNNING.
+      JOB_STATE_CANCELLED: JOB_STATE_CANCELLED indicates that the job has been
+        explicitly cancelled.  This is a terminal job state.  This state may
+        only be set via a Dataflow UpdateJob call, and only if the job has not
+        yet reached another terminal state.
+      JOB_STATE_UPDATED: JOB_STATE_UPDATED indicates that the job was
+        successfully updated, meaning that this job was stopped and another
+        job was started, inheriting state from this one. This is a terminal
+        job state. This state may only be set by the Dataflow service, and
+        only as a transition from JOB_STATE_RUNNING.
+      JOB_STATE_DRAINING: JOB_STATE_DRAINING indicates that the job is in the
+        process of draining. A draining job has stopped pulling from its input
+        sources and is processing any data that remains in-flight. This state
+        may be set via a Dataflow UpdateJob call, but only as a transition
+        from JOB_STATE_RUNNING. Jobs that are draining may only transition to
+        JOB_STATE_DRAINED, JOB_STATE_CANCELLED, or JOB_STATE_FAILED.
+      JOB_STATE_DRAINED: JOB_STATE_DRAINED indicates that the job has been
+        drained. A drained job terminated by stopping pulling from its input
+        sources and processing any data that remained in-flight when draining
+        was requested. This state is a terminal state, may only be set by the
+        Dataflow service, and only as a transition from JOB_STATE_DRAINING.
     """
     JOB_STATE_UNKNOWN = 0
     JOB_STATE_STOPPED = 1
@@ -856,13 +1267,44 @@ class Job(_messages.Message):
     """The type of dataflow job.
 
     Values:
-      JOB_TYPE_UNKNOWN: <no description>
-      JOB_TYPE_BATCH: <no description>
-      JOB_TYPE_STREAMING: <no description>
+      JOB_TYPE_UNKNOWN: The type of the job is unspecified, or unknown.
+      JOB_TYPE_BATCH: A batch job with a well-defined end point: data is read,
+        data is processed, data is written, and the job is done.
+      JOB_TYPE_STREAMING: A continuously streaming job with no end: data is
+        read, processed, and written continuously.
     """
     JOB_TYPE_UNKNOWN = 0
     JOB_TYPE_BATCH = 1
     JOB_TYPE_STREAMING = 2
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class LabelsValue(_messages.Message):
+    """User-defined labels for this job.  The labels map can contain no more
+    than 64 entries.  Entries of the labels map are UTF8 strings that comply
+    with the following restrictions:  * Keys must conform to regexp:
+    \p{Ll}\p{Lo}{0,62} * Values must conform to regexp:
+    [\p{Ll}\p{Lo}\p{N}_-]{0,63} * Both keys and values are additionally
+    constrained to be <= 128 bytes in size.
+
+    Messages:
+      AdditionalProperty: An additional property for a LabelsValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type LabelsValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      """An additional property for a LabelsValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class TransformNameMappingValue(_messages.Message):
@@ -898,15 +1340,16 @@ class Job(_messages.Message):
   environment = _messages.MessageField('Environment', 5)
   executionInfo = _messages.MessageField('JobExecutionInfo', 6)
   id = _messages.StringField(7)
-  name = _messages.StringField(8)
-  projectId = _messages.StringField(9)
-  replaceJobId = _messages.StringField(10)
-  replacedByJobId = _messages.StringField(11)
-  requestedState = _messages.EnumField('RequestedStateValueValuesEnum', 12)
-  steps = _messages.MessageField('Step', 13, repeated=True)
-  tempFiles = _messages.StringField(14, repeated=True)
-  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 15)
-  type = _messages.EnumField('TypeValueValuesEnum', 16)
+  labels = _messages.MessageField('LabelsValue', 8)
+  name = _messages.StringField(9)
+  projectId = _messages.StringField(10)
+  replaceJobId = _messages.StringField(11)
+  replacedByJobId = _messages.StringField(12)
+  requestedState = _messages.EnumField('RequestedStateValueValuesEnum', 13)
+  steps = _messages.MessageField('Step', 14, repeated=True)
+  tempFiles = _messages.StringField(15, repeated=True)
+  transformNameMapping = _messages.MessageField('TransformNameMappingValue', 16)
+  type = _messages.EnumField('TypeValueValuesEnum', 17)
 
 
 class JobExecutionInfo(_messages.Message):
@@ -968,7 +1411,7 @@ class JobMessage(_messages.Message):
     MessageImportanceValueValuesEnum: Importance level of the message.
 
   Fields:
-    id: Identifies the message. This is automatically generated by the
+    id: Identifies the message.  This is automatically generated by the
       service; the caller should treat it as an opaque string.
     messageImportance: Importance level of the message.
     messageText: The text of the message.
@@ -979,12 +1422,30 @@ class JobMessage(_messages.Message):
     """Importance level of the message.
 
     Values:
-      JOB_MESSAGE_IMPORTANCE_UNKNOWN: <no description>
-      JOB_MESSAGE_DEBUG: <no description>
-      JOB_MESSAGE_DETAILED: <no description>
-      JOB_MESSAGE_BASIC: <no description>
-      JOB_MESSAGE_WARNING: <no description>
-      JOB_MESSAGE_ERROR: <no description>
+      JOB_MESSAGE_IMPORTANCE_UNKNOWN: The message importance isn't specified,
+        or is unknown.
+      JOB_MESSAGE_DEBUG: The message is at the 'debug' level: typically only
+        useful for software engineers working on the code the job is running.
+        Typically, Dataflow pipeline runners do not display log messages at
+        this level by default.
+      JOB_MESSAGE_DETAILED: The message is at the 'detailed' level: somewhat
+        verbose, but potentially useful to users.  Typically, Dataflow
+        pipeline runners do not display log messages at this level by default.
+        These messages are displayed by default in the Dataflow monitoring UI.
+      JOB_MESSAGE_BASIC: The message is at the 'basic' level: useful for
+        keeping track of the execution of a Dataflow pipeline.  Typically,
+        Dataflow pipeline runners display log messages at this level by
+        default, and these messages are displayed by default in the Dataflow
+        monitoring UI.
+      JOB_MESSAGE_WARNING: The message is at the 'warning' level: indicating a
+        condition pertaining to a job which may require human intervention.
+        Typically, Dataflow pipeline runners display log messages at this
+        level by default, and these messages are displayed by default in the
+        Dataflow monitoring UI.
+      JOB_MESSAGE_ERROR: The message is at the 'error' level: indicating a
+        condition preventing a job from succeeding.  Typically, Dataflow
+        pipeline runners display log messages at this level by default, and
+        these messages are displayed by default in the Dataflow monitoring UI.
     """
     JOB_MESSAGE_IMPORTANCE_UNKNOWN = 0
     JOB_MESSAGE_DEBUG = 1
@@ -1002,7 +1463,7 @@ class JobMessage(_messages.Message):
 class JobMetrics(_messages.Message):
   """JobMetrics contains a collection of metrics descibing the detailed
   progress of a Dataflow job. Metrics correspond to user-defined and system-
-  defined metrics in the job. This resource captures only the most recent
+  defined metrics in the job.  This resource captures only the most recent
   values of each metric; time-series data can be queried for them (under the
   same metric names) from Cloud Monitoring.
 
@@ -1103,7 +1564,7 @@ class ListJobMessagesResponse(_messages.Message):
 
 
 class ListJobsResponse(_messages.Message):
-  """Response to a request to list Dataflow jobs. This may be a partial
+  """Response to a request to list Dataflow jobs.  This may be a partial
   response, depending on the page size in the ListJobsRequest.
 
   Fields:
@@ -1118,7 +1579,7 @@ class ListJobsResponse(_messages.Message):
 class MapTask(_messages.Message):
   """MapTask consists of an ordered set of instructions, each of which
   describes one particular low-level operation for the worker to perform in
-  order to accomplish the MapTask's WorkItem. Each instruction must appear in
+  order to accomplish the MapTask's WorkItem.  Each instruction must appear in
   the list before any instructions which depends on its output.
 
   Fields:
@@ -1134,22 +1595,38 @@ class MapTask(_messages.Message):
   systemName = _messages.StringField(3)
 
 
+class MetricShortId(_messages.Message):
+  """The metric short id is returned to the user alongside an offset into
+  ReportWorkItemStatusRequest
+
+  Fields:
+    metricIndex: The index of the corresponding metric in the
+      ReportWorkItemStatusRequest. Required.
+    shortId: The service-generated short identifier for the metric.
+  """
+
+  metricIndex = _messages.IntegerField(1, variant=_messages.Variant.INT32)
+  shortId = _messages.IntegerField(2)
+
+
 class MetricStructuredName(_messages.Message):
   """Identifies a metric, by describing the source which generated the metric.
 
   Messages:
     ContextValue: Zero or more labeled fields which identify the part of the
       job this metric is associated with, such as the name of a step or
-      collection. For example, built-in counters associated with steps will
-      have context['step'] = . Counters associated with PCollections in the
-      SDK will have context['pcollection'] = .
+      collection.  For example, built-in counters associated with steps will
+      have context['step'] = <step-name>. Counters associated with
+      PCollections in the SDK will have context['pcollection'] = <pcollection-
+      name>.
 
   Fields:
     context: Zero or more labeled fields which identify the part of the job
       this metric is associated with, such as the name of a step or
-      collection. For example, built-in counters associated with steps will
-      have context['step'] = . Counters associated with PCollections in the
-      SDK will have context['pcollection'] = .
+      collection.  For example, built-in counters associated with steps will
+      have context['step'] = <step-name>. Counters associated with
+      PCollections in the SDK will have context['pcollection'] = <pcollection-
+      name>.
     name: Worker-defined metric name.
     origin: Origin (namespace) of metric name. May be blank for user-define
       metrics; will be "dataflow" for metrics defined by the Dataflow service
@@ -1159,10 +1636,10 @@ class MetricStructuredName(_messages.Message):
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ContextValue(_messages.Message):
     """Zero or more labeled fields which identify the part of the job this
-    metric is associated with, such as the name of a step or collection. For
+    metric is associated with, such as the name of a step or collection.  For
     example, built-in counters associated with steps will have context['step']
-    = . Counters associated with PCollections in the SDK will have
-    context['pcollection'] = .
+    = <step-name>. Counters associated with PCollections in the SDK will have
+    context['pcollection'] = <pcollection-name>.
 
     Messages:
       AdditionalProperty: An additional property for a ContextValue object.
@@ -1199,9 +1676,9 @@ class MetricUpdate(_messages.Message):
       reported as a delta that is not associated with any WorkItem.
     internal: Worker-computed aggregate value for internal use by the Dataflow
       service.
-    kind: Metric aggregation kind. The possible metric aggregation kinds are
+    kind: Metric aggregation kind.  The possible metric aggregation kinds are
       "Sum", "Max", "Min", "Mean", "Set", "And", and "Or". The specified
-      aggregation kind is case-insensitive. If omitted, this is not an
+      aggregation kind is case-insensitive.  If omitted, this is not an
       aggregated value but instead a single metric sample value.
     meanCount: Worker-computed aggregate value for the "Mean" aggregation
       kind. This holds the count of the aggregated values and is used in
@@ -1213,11 +1690,11 @@ class MetricUpdate(_messages.Message):
       only possible value types are Long and Double.
     name: Name of the metric.
     scalar: Worker-computed aggregate value for aggregation kinds "Sum",
-      "Max", "Min", "And", and "Or". The possible value types are Long,
+      "Max", "Min", "And", and "Or".  The possible value types are Long,
       Double, and Boolean.
-    set: Worker-computed aggregate value for the "Set" aggregation kind. The
+    set: Worker-computed aggregate value for the "Set" aggregation kind.  The
       only possible value type is a list of Values whose type can be Long,
-      Double, or String, according to the metric's type. All Values in the
+      Double, or String, according to the metric's type.  All Values in the
       list must be of the same type.
     updateTime: Timestamp associated with the metric value. Optional when
       workers are reporting work progress; it will be filled in responses from
@@ -1258,17 +1735,56 @@ class MultiOutputInfo(_messages.Message):
   tag = _messages.StringField(1)
 
 
+class NameAndKind(_messages.Message):
+  """Basic metadata about a counter.
+
+  Enums:
+    KindValueValuesEnum: Counter aggregation kind.
+
+  Fields:
+    kind: Counter aggregation kind.
+    name: Name of the counter.
+  """
+
+  class KindValueValuesEnum(_messages.Enum):
+    """Counter aggregation kind.
+
+    Values:
+      INVALID: Counter aggregation kind was not set.
+      SUM: Aggregated value is the sum of all contributed values.
+      MAX: Aggregated value is the max of all contributed values.
+      MIN: Aggregated value is the min of all contributed values.
+      MEAN: Aggregated value is the mean of all contributed values.
+      OR: Aggregated value represents the logical 'or' of all contributed
+        values.
+      AND: Aggregated value represents the logical 'and' of all contributed
+        values.
+      SET: Aggregated value is a set of unique contributed values.
+    """
+    INVALID = 0
+    SUM = 1
+    MAX = 2
+    MIN = 3
+    MEAN = 4
+    OR = 5
+    AND = 6
+    SET = 7
+
+  kind = _messages.EnumField('KindValueValuesEnum', 1)
+  name = _messages.StringField(2)
+
+
 class Package(_messages.Message):
   """Packages that need to be installed in order for a worker to run the steps
-  of the Dataflow job which will be assigned to its worker pool. This is the
-  mechanism by which the SDK causes code to be loaded onto the workers. For
+  of the Dataflow job which will be assigned to its worker pool.  This is the
+  mechanism by which the SDK causes code to be loaded onto the workers.  For
   example, the Dataflow Java SDK might use this to install jars containing the
   user's code and all of the various dependencies (libraries, data files, etc)
   required in order for that code to run.
 
   Fields:
-    location: The resource to read the package from. The supported resource
-      type is: Google Cloud Storage: storage.googleapis.com/{bucket}
+    location: The resource to read the package from.  The supported resource
+      type is:  Google Cloud Storage:   storage.googleapis.com/{bucket}
       bucket.storage.googleapis.com/
     name: The name of the package.
   """
@@ -1330,6 +1846,8 @@ class ParallelInstruction(_messages.Message):
   Fields:
     flatten: Additional information for Flatten instructions.
     name: User-provided name of this operation.
+    originalName: System-defined name for the operation in the original
+      workflow graph.
     outputs: Describes the outputs of the instruction.
     parDo: Additional information for ParDo instructions.
     partialGroupByKey: Additional information for PartialGroupByKey
@@ -1342,12 +1860,13 @@ class ParallelInstruction(_messages.Message):
 
   flatten = _messages.MessageField('FlattenInstruction', 1)
   name = _messages.StringField(2)
-  outputs = _messages.MessageField('InstructionOutput', 3, repeated=True)
-  parDo = _messages.MessageField('ParDoInstruction', 4)
-  partialGroupByKey = _messages.MessageField('PartialGroupByKeyInstruction', 5)
-  read = _messages.MessageField('ReadInstruction', 6)
-  systemName = _messages.StringField(7)
-  write = _messages.MessageField('WriteInstruction', 8)
+  originalName = _messages.StringField(3)
+  outputs = _messages.MessageField('InstructionOutput', 4, repeated=True)
+  parDo = _messages.MessageField('ParDoInstruction', 5)
+  partialGroupByKey = _messages.MessageField('PartialGroupByKeyInstruction', 6)
+  read = _messages.MessageField('ReadInstruction', 7)
+  systemName = _messages.StringField(8)
+  write = _messages.MessageField('WriteInstruction', 9)
 
 
 class PartialGroupByKeyInstruction(_messages.Message):
@@ -1363,6 +1882,12 @@ class PartialGroupByKeyInstruction(_messages.Message):
     input: Describes the input to the partial group-by-key instruction.
     inputElementCodec: The codec to use for interpreting an element in the
       input PTable.
+    originalCombineValuesInputStoreName: If this instruction includes a
+      combining function this is the name of the intermediate store between
+      the GBK and the CombineValues.
+    originalCombineValuesStepName: If this instruction includes a combining
+      function, this is the name of the CombineValues instruction lifted into
+      this instruction.
     sideInputs: Zero or more side inputs.
     valueCombiningFn: The value combining function to invoke.
   """
@@ -1419,13 +1944,15 @@ class PartialGroupByKeyInstruction(_messages.Message):
 
   input = _messages.MessageField('InstructionInput', 1)
   inputElementCodec = _messages.MessageField('InputElementCodecValue', 2)
-  sideInputs = _messages.MessageField('SideInputInfo', 3, repeated=True)
-  valueCombiningFn = _messages.MessageField('ValueCombiningFnValue', 4)
+  originalCombineValuesInputStoreName = _messages.StringField(3)
+  originalCombineValuesStepName = _messages.StringField(4)
+  sideInputs = _messages.MessageField('SideInputInfo', 5, repeated=True)
+  valueCombiningFn = _messages.MessageField('ValueCombiningFnValue', 6)
 
 
 class Position(_messages.Message):
-  """Position defines a position within a collection of data. The value can be
-  either the end position, a key (used with ordered collections), a byte
+  """Position defines a position within a collection of data.  The value can
+  be either the end position, a key (used with ordered collections), a byte
   offset, or a record index.
 
   Fields:
@@ -1456,11 +1983,12 @@ class PubsubLocation(_messages.Message):
     idLabel: If set, contains a pubsub label from which to extract record ids.
       If left empty, record deduplication will be strictly best effort.
     subscription: A pubsub subscription, in the form of
-      "pubsub.googleapis.com/subscriptions/ /"
+      "pubsub.googleapis.com/subscriptions/<project-id>/<subscription-name>"
     timestampLabel: If set, contains a pubsub label from which to extract
       record timestamps. If left empty, record timestamps will be generated
       upon arrival.
-    topic: A pubsub topic, in the form of "pubsub.googleapis.com/topics/ /"
+    topic: A pubsub topic, in the form of "pubsub.googleapis.com/topics
+      /<project-id>/<topic-name>"
     trackingSubscription: If set, specifies the pubsub subscription that will
       be used for tracking custom time timestamps for watermark estimation.
   """
@@ -1491,8 +2019,8 @@ class ReportWorkItemStatusRequest(_messages.Message):
     workItemStatuses: The order is unimportant, except that the order of the
       WorkItemServiceState messages in the ReportWorkItemStatusResponse
       corresponds to the order of WorkItemStatus messages here.
-    workerId: The ID of the worker reporting the WorkItem status. If this does
-      not match the ID of the worker which the Dataflow service believes
+    workerId: The ID of the worker reporting the WorkItem status.  If this
+      does not match the ID of the worker which the Dataflow service believes
       currently has the lease on the WorkItem, the report will be dropped
       (with an error response).
   """
@@ -1530,6 +2058,26 @@ class ReportedParallelism(_messages.Message):
 
   isInfinite = _messages.BooleanField(1)
   value = _messages.FloatField(2)
+
+
+class SendDebugCaptureRequest(_messages.Message):
+  """Request to send encoded debug information.
+
+  Fields:
+    componentId: The internal component id for which debug information is
+      sent.
+    data: The encoded debug information.
+    workerId: The worker id, i.e., VM hostname.
+  """
+
+  componentId = _messages.StringField(1)
+  data = _messages.StringField(2)
+  workerId = _messages.StringField(3)
+
+
+class SendDebugCaptureResponse(_messages.Message):
+  """Response to a send capture request.
+nothing"""
 
 
 class SendWorkerMessagesRequest(_messages.Message):
@@ -1753,19 +2301,19 @@ class Source(_messages.Message):
     codec: The codec to use to decode data read from the source.
     doesNotNeedSplitting: Setting this value to true hints to the framework
       that the source doesn't need splitting, and using SourceSplitRequest on
-      it would yield SOURCE_SPLIT_OUTCOME_USE_CURRENT. E.g. a file splitter
+      it would yield SOURCE_SPLIT_OUTCOME_USE_CURRENT.  E.g. a file splitter
       may set this to true when splitting a single file into a set of byte
       ranges of appropriate size, and set this to false when splitting a
       filepattern into individual files. However, for efficiency, a file
       splitter may decide to produce file subranges directly from the
-      filepattern to avoid a splitting round-trip. See SourceSplitRequest for
-      an overview of the splitting process. This field is meaningful only in
+      filepattern to avoid a splitting round-trip.  See SourceSplitRequest for
+      an overview of the splitting process.  This field is meaningful only in
       the Source objects populated by the user (e.g. when filling in a
       DerivedSource). Source objects supplied by the framework to the user
       don't have this field populated.
     metadata: Optionally, metadata for this source can be supplied right away,
       avoiding a SourceGetMetadataOperation roundtrip (see
-      SourceOperationRequest). This field is meaningful only in the Source
+      SourceOperationRequest).  This field is meaningful only in the Source
       objects populated by the user (e.g. when filling in a DerivedSource).
       Source objects supplied by the framework to the user don't have this
       field populated.
@@ -1894,7 +2442,7 @@ class SourceMetadata(_messages.Message):
 
   Fields:
     estimatedSizeBytes: An estimate of the total size (in bytes) of the data
-      that would be read from this source. This estimate is in terms of
+      that would be read from this source.  This estimate is in terms of
       external storage size, before any decompression or other processing done
       by the reader.
     infinite: Specifies that the size of this source is known to be infinite
@@ -1951,11 +2499,11 @@ class SourceSplitOptions(_messages.Message):
 
 class SourceSplitRequest(_messages.Message):
   """Represents the operation to split a high-level Source specification into
-  bundles (parts for parallel processing). At a high level, splitting of a
+  bundles (parts for parallel processing).  At a high level, splitting of a
   source into bundles happens as follows: SourceSplitRequest is applied to the
   source. If it returns SOURCE_SPLIT_OUTCOME_USE_CURRENT, no further splitting
   happens and the source is used "as is". Otherwise, splitting is applied
-  recursively to each produced DerivedSource. As an optimization, for any
+  recursively to each produced DerivedSource.  As an optimization, for any
   Source, if its does_not_need_splitting is true, the framework assumes that
   splitting this source would return SOURCE_SPLIT_OUTCOME_USE_CURRENT, and
   doesn't initiate a SourceSplitRequest. This applies both to the initial
@@ -2000,9 +2548,12 @@ class SourceSplitResponse(_messages.Message):
     the source was split.
 
     Values:
-      SOURCE_SPLIT_OUTCOME_UNKNOWN: <no description>
-      SOURCE_SPLIT_OUTCOME_USE_CURRENT: <no description>
-      SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED: <no description>
+      SOURCE_SPLIT_OUTCOME_UNKNOWN: The source split outcome is unknown, or
+        unspecified.
+      SOURCE_SPLIT_OUTCOME_USE_CURRENT: The current source should be processed
+        "as is" without splitting.
+      SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED: Splitting produced a list of
+        bundles.
     """
     SOURCE_SPLIT_OUTCOME_UNKNOWN = 0
     SOURCE_SPLIT_OUTCOME_USE_CURRENT = 1
@@ -2028,10 +2579,14 @@ class SourceSplitShard(_messages.Message):
     """DEPRECATED
 
     Values:
-      SOURCE_DERIVATION_MODE_UNKNOWN: <no description>
-      SOURCE_DERIVATION_MODE_INDEPENDENT: <no description>
-      SOURCE_DERIVATION_MODE_CHILD_OF_CURRENT: <no description>
-      SOURCE_DERIVATION_MODE_SIBLING_OF_CURRENT: <no description>
+      SOURCE_DERIVATION_MODE_UNKNOWN: The source derivation is unknown, or
+        unspecified.
+      SOURCE_DERIVATION_MODE_INDEPENDENT: Produce a completely independent
+        Source with no base.
+      SOURCE_DERIVATION_MODE_CHILD_OF_CURRENT: Produce a Source based on the
+        Source being split.
+      SOURCE_DERIVATION_MODE_SIBLING_OF_CURRENT: Produce a Source based on the
+        base of the Source being split.
     """
     SOURCE_DERIVATION_MODE_UNKNOWN = 0
     SOURCE_DERIVATION_MODE_INDEPENDENT = 1
@@ -2042,8 +2597,25 @@ class SourceSplitShard(_messages.Message):
   source = _messages.MessageField('Source', 2)
 
 
+class SplitInt64(_messages.Message):
+  """A representation of an int64, n, that is immune to precision loss when
+  encoded in JSON.
+
+  Fields:
+    highBits: The high order bits, including the sign: n >> 32.
+    lowBits: The low order bits: n & 0xffffffff.
+  """
+
+  highBits = _messages.IntegerField(1, variant=_messages.Variant.INT32)
+  lowBits = _messages.IntegerField(2, variant=_messages.Variant.UINT32)
+
+
 class StandardQueryParameters(_messages.Message):
   """Query parameters accepted by all methods.
+
+  Enums:
+    FXgafvValueValuesEnum: V1 error format.
+    AltValueValuesEnum: Data format for response.
 
   Fields:
     f__xgafv: V1 error format.
@@ -2067,9 +2639,31 @@ class StandardQueryParameters(_messages.Message):
     upload_protocol: Upload protocol for media (e.g. "raw", "multipart").
   """
 
-  f__xgafv = _messages.StringField(1)
+  class AltValueValuesEnum(_messages.Enum):
+    """Data format for response.
+
+    Values:
+      json: Responses with Content-Type of application/json
+      media: Media download with context-dependent Content-Type
+      proto: Responses with Content-Type of application/x-protobuf
+    """
+    json = 0
+    media = 1
+    proto = 2
+
+  class FXgafvValueValuesEnum(_messages.Enum):
+    """V1 error format.
+
+    Values:
+      _1: v1 error format
+      _2: v2 error format
+    """
+    _1 = 0
+    _2 = 1
+
+  f__xgafv = _messages.EnumField('FXgafvValueValuesEnum', 1)
   access_token = _messages.StringField(2)
-  alt = _messages.StringField(3, default=u'json')
+  alt = _messages.EnumField('AltValueValuesEnum', 3, default=u'json')
   bearer_token = _messages.StringField(4)
   callback = _messages.StringField(5)
   fields = _messages.StringField(6)
@@ -2100,42 +2694,42 @@ class Status(_messages.Message):
   different programming environments, including REST APIs and RPC APIs. It is
   used by [gRPC](https://github.com/grpc). The error model is designed to be:
   - Simple to use and understand for most users - Flexible enough to meet
-  unexpected needs # Overview The `Status` message contains three pieces of
+  unexpected needs  # Overview  The `Status` message contains three pieces of
   data: error code, error message, and error details. The error code should be
   an enum value of google.rpc.Code, but it may accept additional error codes
-  if needed. The error message should be a developer-facing English message
+  if needed.  The error message should be a developer-facing English message
   that helps developers *understand* and *resolve* the error. If a localized
   user-facing error message is needed, put the localized message in the error
   details or localize it in the client. The optional error details may contain
   arbitrary information about the error. There is a predefined set of error
   detail types in the package `google.rpc` which can be used for common error
-  conditions. # Language mapping The `Status` message is the logical
+  conditions.  # Language mapping  The `Status` message is the logical
   representation of the error model, but it is not necessarily the actual wire
   format. When the `Status` message is exposed in different client libraries
   and different wire protocols, it can be mapped differently. For example, it
   will likely be mapped to some exceptions in Java, but more likely mapped to
-  some error codes in C. # Other uses The error model and the `Status` message
-  can be used in a variety of environments, either with or without APIs, to
-  provide a consistent developer experience across different environments.
-  Example uses of this error model include: - Partial errors. If a service
-  needs to return partial errors to the client, it may embed the `Status` in
-  the normal response to indicate the partial errors. - Workflow errors. A
-  typical workflow has multiple steps. Each step may have a `Status` message
-  for error reporting purpose. - Batch operations. If a client uses batch
-  request and batch response, the `Status` message should be used directly
-  inside batch response, one for each error sub-response. - Asynchronous
-  operations. If an API call embeds asynchronous operation results in its
-  response, the status of those operations should be represented directly
-  using the `Status` message. - Logging. If some API errors are stored in
-  logs, the message `Status` could be used directly after any stripping needed
-  for security/privacy reasons.
+  some error codes in C.  # Other uses  The error model and the `Status`
+  message can be used in a variety of environments, either with or without
+  APIs, to provide a consistent developer experience across different
+  environments.  Example uses of this error model include:  - Partial errors.
+  If a service needs to return partial errors to the client,     it may embed
+  the `Status` in the normal response to indicate the partial     errors.  -
+  Workflow errors. A typical workflow has multiple steps. Each step may
+  have a `Status` message for error reporting purpose.  - Batch operations. If
+  a client uses batch request and batch response, the     `Status` message
+  should be used directly inside batch response, one for     each error sub-
+  response.  - Asynchronous operations. If an API call embeds asynchronous
+  operation     results in its response, the status of those operations should
+  be     represented directly using the `Status` message.  - Logging. If some
+  API errors are stored in logs, the message `Status` could     be used
+  directly after any stripping needed for security/privacy reasons.
 
   Messages:
     DetailsValueListEntry: A DetailsValueListEntry object.
 
   Fields:
     code: The status code, which should be an enum value of google.rpc.Code.
-    details: A list of messages that carry the error details. There will be a
+    details: A list of messages that carry the error details.  There will be a
       common set of message types for APIs to use.
     message: A developer-facing error message, which should be in English. Any
       user-facing error message should be localized and sent in the
@@ -2151,8 +2745,8 @@ class Status(_messages.Message):
         object.
 
     Fields:
-      additionalProperties: Properties of the object. Contains field @ype with
-        type URL.
+      additionalProperties: Properties of the object. Contains field @type
+        with type URL.
     """
 
     class AdditionalProperty(_messages.Message):
@@ -2174,35 +2768,35 @@ class Status(_messages.Message):
 
 
 class Step(_messages.Message):
-  """Defines a particular step within a Dataflow job. A job consists of
+  """Defines a particular step within a Dataflow job.  A job consists of
   multiple steps, each of which performs some specific operation as part of
-  the overall job. Data is typically passed from one step to another as part
-  of the job. Here's an example of a sequence of steps which together
-  implement a Map-Reduce job: * Read a collection of data from some source,
-  parsing the collection's elements. * Validate the elements. * Apply a user-
-  defined function to map each element to some value and extract an element-
-  specific key value. * Group elements with the same key into a single element
-  with that key, transforming a multiply-keyed collection into a uniquely-
-  keyed collection. * Write the elements out to some data sink. (Note that the
-  Dataflow service may be used to run many different types of jobs, not just
-  Map-Reduce).
+  the overall job.  Data is typically passed from one step to another as part
+  of the job.  Here's an example of a sequence of steps which together
+  implement a Map-Reduce job:    * Read a collection of data from some source,
+  parsing the     collection's elements.    * Validate the elements.    *
+  Apply a user-defined function to map each element to some value     and
+  extract an element-specific key value.    * Group elements with the same key
+  into a single element with     that key, transforming a multiply-keyed
+  collection into a     uniquely-keyed collection.    * Write the elements out
+  to some data sink.  (Note that the Dataflow service may be used to run many
+  different types of jobs, not just Map-Reduce).
 
   Messages:
-    PropertiesValue: Named properties associated with the step. Each kind of
+    PropertiesValue: Named properties associated with the step.  Each kind of
       predefined step has its own required set of properties.
 
   Fields:
     kind: The kind of step in the dataflow Job.
     name: Name identifying the step. This must be unique for each step with
       respect to all other steps in the dataflow Job.
-    properties: Named properties associated with the step. Each kind of
+    properties: Named properties associated with the step.  Each kind of
       predefined step has its own required set of properties.
   """
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class PropertiesValue(_messages.Message):
-    """Named properties associated with the step. Each kind of predefined step
-    has its own required set of properties.
+    """Named properties associated with the step.  Each kind of predefined
+    step has its own required set of properties.
 
     Messages:
       AdditionalProperty: An additional property for a PropertiesValue object.
@@ -2247,6 +2841,22 @@ class StreamLocation(_messages.Message):
   streamingStageLocation = _messages.MessageField('StreamingStageLocation', 4)
 
 
+class StreamingComputationConfig(_messages.Message):
+  """Configuration information for a single streaming computation.
+
+  Fields:
+    computationId: Unique identifier for this computation.
+    instructions: Instructions that comprise the computation.
+    stageName: Stage name of this computation.
+    systemName: System defined name for this computation.
+  """
+
+  computationId = _messages.StringField(1)
+  instructions = _messages.MessageField('ParallelInstruction', 2, repeated=True)
+  stageName = _messages.StringField(3)
+  systemName = _messages.StringField(4)
+
+
 class StreamingComputationRanges(_messages.Message):
   """Describes full or partial data disk assignment information of the
   computation ranges.
@@ -2278,9 +2888,12 @@ class StreamingComputationTask(_messages.Message):
     """A type of streaming computation task.
 
     Values:
-      STREAMING_COMPUTATION_TASK_UNKNOWN: <no description>
-      STREAMING_COMPUTATION_TASK_STOP: <no description>
-      STREAMING_COMPUTATION_TASK_START: <no description>
+      STREAMING_COMPUTATION_TASK_UNKNOWN: The streaming computation task is
+        unknown, or unspecified.
+      STREAMING_COMPUTATION_TASK_STOP: Stop processing specified streaming
+        computation range(s).
+      STREAMING_COMPUTATION_TASK_START: Start processing specified streaming
+        computation range(s).
     """
     STREAMING_COMPUTATION_TASK_UNKNOWN = 0
     STREAMING_COMPUTATION_TASK_STOP = 1
@@ -2289,6 +2902,49 @@ class StreamingComputationTask(_messages.Message):
   computationRanges = _messages.MessageField('StreamingComputationRanges', 1, repeated=True)
   dataDisks = _messages.MessageField('MountedDataDisk', 2, repeated=True)
   taskType = _messages.EnumField('TaskTypeValueValuesEnum', 3)
+
+
+class StreamingConfigTask(_messages.Message):
+  """A task that carries configuration information for streaming computations.
+
+  Messages:
+    UserStepToStateFamilyNameMapValue: Map from user step names to state
+      families.
+
+  Fields:
+    streamingComputationConfigs: Set of computation configuration information.
+    userStepToStateFamilyNameMap: Map from user step names to state families.
+  """
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class UserStepToStateFamilyNameMapValue(_messages.Message):
+    """Map from user step names to state families.
+
+    Messages:
+      AdditionalProperty: An additional property for a
+        UserStepToStateFamilyNameMapValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type
+        UserStepToStateFamilyNameMapValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      """An additional property for a UserStepToStateFamilyNameMapValue
+      object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  streamingComputationConfigs = _messages.MessageField('StreamingComputationConfig', 1, repeated=True)
+  userStepToStateFamilyNameMap = _messages.MessageField('UserStepToStateFamilyNameMapValue', 2)
 
 
 class StreamingSetupTask(_messages.Message):
@@ -2335,6 +2991,16 @@ class StreamingStageLocation(_messages.Message):
   streamId = _messages.StringField(1)
 
 
+class StringList(_messages.Message):
+  """A metric value representing a list of strings.
+
+  Fields:
+    elements: Elements of the list.
+  """
+
+  elements = _messages.StringField(1, repeated=True)
+
+
 class TaskRunnerSettings(_messages.Message):
   """Taskrunner configuration settings.
 
@@ -2342,10 +3008,10 @@ class TaskRunnerSettings(_messages.Message):
     alsologtostderr: Also send taskrunner log info to stderr?
     baseTaskDir: Location on the worker for task-specific subdirectories.
     baseUrl: The base URL for the taskrunner to use when accessing Google
-      Cloud APIs. When workers access Google Cloud APIs, they logically do so
-      via relative URLs. If this field is specified, it supplies the base URL
-      to use for resolving these relative URLs. The normative algorithm used
-      is defined by RFC 1808, "Relative Uniform Resource Locators". If not
+      Cloud APIs.  When workers access Google Cloud APIs, they logically do so
+      via relative URLs.  If this field is specified, it supplies the base URL
+      to use for resolving these relative URLs.  The normative algorithm used
+      is defined by RFC 1808, "Relative Uniform Resource Locators".  If not
       specified, the default value is "http://www.googleapis.com/"
     commandlinesFileName: Store preprocessing commands in this file.
     continueOnException: Do we continue taskrunner if an exception is hit?
@@ -2355,9 +3021,9 @@ class TaskRunnerSettings(_messages.Message):
     logDir: Directory on the VM to store logs.
     logToSerialconsole: Send taskrunner log into to Google Compute Engine VM
       serial console?
-    logUploadLocation: Indicates where to put logs. If this is not specified,
-      the logs will not be uploaded. The supported resource type is: Google
-      Cloud Storage: storage.googleapis.com/{bucket}/{object}
+    logUploadLocation: Indicates where to put logs.  If this is not specified,
+      the logs will not be uploaded.  The supported resource type is:  Google
+      Cloud Storage:   storage.googleapis.com/{bucket}/{object}
       bucket.storage.googleapis.com/{object}
     oauthScopes: OAuth2 scopes to be requested by the taskrunner in order to
       access the dataflow API.
@@ -2368,8 +3034,8 @@ class TaskRunnerSettings(_messages.Message):
     taskUser: The UNIX user ID on the worker VM to use for tasks launched by
       taskrunner; e.g. "root".
     tempStoragePrefix: The prefix of the resources the taskrunner should use
-      for temporary storage. The supported resource type is: Google Cloud
-      Storage: storage.googleapis.com/{bucket}/{object}
+      for temporary storage.  The supported resource type is:  Google Cloud
+      Storage:   storage.googleapis.com/{bucket}/{object}
       bucket.storage.googleapis.com/{object}
     vmId: ID string of VM.
     workflowFileName: Store the workflow in this file.
@@ -2470,6 +3136,8 @@ class WorkItem(_messages.Message):
       WorkItems.
     streamingComputationTask: Additional information for
       StreamingComputationTask WorkItems.
+    streamingConfigTask: Additional information for StreamingConfigTask
+      WorkItems.
     streamingSetupTask: Additional information for StreamingSetupTask
       WorkItems.
   """
@@ -2487,7 +3155,8 @@ class WorkItem(_messages.Message):
   shellTask = _messages.MessageField('ShellTask', 11)
   sourceOperationTask = _messages.MessageField('SourceOperationRequest', 12)
   streamingComputationTask = _messages.MessageField('StreamingComputationTask', 13)
-  streamingSetupTask = _messages.MessageField('StreamingSetupTask', 14)
+  streamingConfigTask = _messages.MessageField('StreamingConfigTask', 14)
+  streamingSetupTask = _messages.MessageField('StreamingSetupTask', 15)
 
 
 class WorkItemServiceState(_messages.Message):
@@ -2502,6 +3171,11 @@ class WorkItemServiceState(_messages.Message):
     harnessData: Other data returned by the service, specific to the
       particular worker harness.
     leaseExpireTime: Time at which the current lease will expire.
+    metricShortId: The short ids that workers should use in subsequent metric
+      updates. Workers should strive to use short ids whenever possible, but
+      it is ok to request the short_id again if a worker lost track of it
+      (e.g. if the worker is recovering from a crash). NOTE: it is possible
+      that the response may have short ids for a subset of the metrics.
     nextReportIndex: The index value to use for the next report sent by the
       worker. Note: If the report call fails for whatever reason, the worker
       should reuse this index for subsequent report attempts.
@@ -2540,11 +3214,12 @@ class WorkItemServiceState(_messages.Message):
 
   harnessData = _messages.MessageField('HarnessDataValue', 1)
   leaseExpireTime = _messages.StringField(2)
-  nextReportIndex = _messages.IntegerField(3)
-  reportStatusInterval = _messages.StringField(4)
-  splitRequest = _messages.MessageField('ApproximateSplitRequest', 5)
-  suggestedStopPoint = _messages.MessageField('ApproximateProgress', 6)
-  suggestedStopPosition = _messages.MessageField('Position', 7)
+  metricShortId = _messages.MessageField('MetricShortId', 3, repeated=True)
+  nextReportIndex = _messages.IntegerField(4)
+  reportStatusInterval = _messages.StringField(5)
+  splitRequest = _messages.MessageField('ApproximateSplitRequest', 6)
+  suggestedStopPoint = _messages.MessageField('ApproximateProgress', 7)
+  suggestedStopPosition = _messages.MessageField('Position', 8)
 
 
 class WorkItemStatus(_messages.Message):
@@ -2553,20 +3228,21 @@ class WorkItemStatus(_messages.Message):
   Fields:
     completed: True if the WorkItem was completed (successfully or
       unsuccessfully).
+    counterUpdates: Worker output counters for this WorkItem.
     dynamicSourceSplit: See documentation of stop_position.
-    errors: Specifies errors which occurred during processing. If errors are
+    errors: Specifies errors which occurred during processing.  If errors are
       provided, and completed = true, then the WorkItem is considered to have
       failed.
-    metricUpdates: Worker output metrics (counters) for this WorkItem.
+    metricUpdates: DEPRECATED in favor of counter_updates.
     progress: DEPRECATED in favor of reported_progress.
-    reportIndex: The report index. When a WorkItem is leased, the lease will
-      contain an initial report index. When a WorkItem's status is reported to
-      the system, the report should be sent with that report index, and the
+    reportIndex: The report index.  When a WorkItem is leased, the lease will
+      contain an initial report index.  When a WorkItem's status is reported
+      to the system, the report should be sent with that report index, and the
       response will contain the index the worker should use for the next
-      report. Reports received with unexpected index values will be rejected
-      by the service. In order to preserve idempotency, the worker should not
+      report.  Reports received with unexpected index values will be rejected
+      by the service.  In order to preserve idempotency, the worker should not
       alter the contents of a report, even if the worker must submit the same
-      report multiple times before getting back a response. The worker should
+      report multiple times before getting back a response.  The worker should
       not submit a subsequent report until the response for the previous
       report had been received from the service.
     reportedProgress: The worker's progress through this WorkItem.
@@ -2585,14 +3261,14 @@ class WorkItemStatus(_messages.Message):
       way in which the original task is decomposed into the two parts is
       specified either as a position demarcating them (stop_position), or
       explicitly as two DerivedSources, if this task consumes a user-defined
-      source type (dynamic_source_split). The "current" task is adjusted as a
+      source type (dynamic_source_split).  The "current" task is adjusted as a
       result of the split: after a task with range [A, B) sends a
       stop_position update at C, its range is considered to be [A, C), e.g.: *
-      Progress should be interpreted relative to the new range, e.g. "75%
+      Progress should be interpreted relative to the new range, e.g.   "75%
       completed" means "75% of [A, C) completed" * The worker should interpret
-      proposed_stop_position relative to the new range, e.g. "split at 68%"
-      should be interpreted as "split at 68% of [A, C)". * If the worker
-      chooses to split again using stop_position, only stop_positions in [A,
+      proposed_stop_position relative to the   new range, e.g. "split at 68%"
+      should be interpreted as   "split at 68% of [A, C)". * If the worker
+      chooses to split again using stop_position, only   stop_positions in [A,
       C) will be accepted. * Etc. dynamic_source_split has similar semantics:
       e.g., if a task with source S splits using dynamic_source_split into {P,
       R} (where P and R must be together equivalent to S), then subsequent
@@ -2603,22 +3279,23 @@ class WorkItemStatus(_messages.Message):
   """
 
   completed = _messages.BooleanField(1)
-  dynamicSourceSplit = _messages.MessageField('DynamicSourceSplit', 2)
-  errors = _messages.MessageField('Status', 3, repeated=True)
-  metricUpdates = _messages.MessageField('MetricUpdate', 4, repeated=True)
-  progress = _messages.MessageField('ApproximateProgress', 5)
-  reportIndex = _messages.IntegerField(6)
-  reportedProgress = _messages.MessageField('ApproximateReportedProgress', 7)
-  requestedLeaseDuration = _messages.StringField(8)
-  sourceFork = _messages.MessageField('SourceFork', 9)
-  sourceOperationResponse = _messages.MessageField('SourceOperationResponse', 10)
-  stopPosition = _messages.MessageField('Position', 11)
-  workItemId = _messages.StringField(12)
+  counterUpdates = _messages.MessageField('CounterUpdate', 2, repeated=True)
+  dynamicSourceSplit = _messages.MessageField('DynamicSourceSplit', 3)
+  errors = _messages.MessageField('Status', 4, repeated=True)
+  metricUpdates = _messages.MessageField('MetricUpdate', 5, repeated=True)
+  progress = _messages.MessageField('ApproximateProgress', 6)
+  reportIndex = _messages.IntegerField(7)
+  reportedProgress = _messages.MessageField('ApproximateReportedProgress', 8)
+  requestedLeaseDuration = _messages.StringField(9)
+  sourceFork = _messages.MessageField('SourceFork', 10)
+  sourceOperationResponse = _messages.MessageField('SourceOperationResponse', 11)
+  stopPosition = _messages.MessageField('Position', 12)
+  workItemId = _messages.StringField(13)
 
 
 class WorkerHealthReport(_messages.Message):
-  """WorkerHealthReport contains information about the health of a worker. The
-  VM should be identified by the labels attached to the WorkerMessage that
+  """WorkerHealthReport contains information about the health of a worker.
+  The VM should be identified by the labels attached to the WorkerMessage that
   this health ping belongs to.
 
   Messages:
@@ -2626,7 +3303,7 @@ class WorkerHealthReport(_messages.Message):
 
   Fields:
     pods: The pods running on the worker. See: http://kubernetes.io/v1.1/docs
-      /api-reference/v1/definitions.html#_v1_pod This field is used by the
+      /api-reference/v1/definitions.html#_v1_pod  This field is used by the
       worker to send the status of the indvidual containers running on each
       worker.
     reportInterval: The interval at which the worker is sending health
@@ -2673,7 +3350,7 @@ class WorkerHealthReportResponse(_messages.Message):
 
   Fields:
     reportInterval: A positive value indicates the worker should change its
-      reporting interval to the specified value. The default value of zero
+      reporting interval to the specified value.  The default value of zero
       means no change in report rate is requested by the server.
   """
 
@@ -2686,8 +3363,8 @@ class WorkerMessage(_messages.Message):
   Messages:
     LabelsValue: Labels are used to group WorkerMessages. For example, a
       worker_message about a particular container might have the labels: {
-      "JOB_ID": "2015-04-22", "WORKER_ID": "wordcount-vm-2015\u2026"
-      "CONTAINER_TYPE": "worker", "CONTAINER_ID": "ac1234def"} Label tags
+      "JOB_ID": "2015-04-22",   "WORKER_ID": "wordcount-vm-2015\u2026"
+      "CONTAINER_TYPE": "worker",   "CONTAINER_ID": "ac1234def"} Label tags
       typically correspond to Label enum values. However, for ease of
       development other strings can be used as tags. LABEL_UNSPECIFIED should
       not be used here.
@@ -2695,8 +3372,8 @@ class WorkerMessage(_messages.Message):
   Fields:
     labels: Labels are used to group WorkerMessages. For example, a
       worker_message about a particular container might have the labels: {
-      "JOB_ID": "2015-04-22", "WORKER_ID": "wordcount-vm-2015\u2026"
-      "CONTAINER_TYPE": "worker", "CONTAINER_ID": "ac1234def"} Label tags
+      "JOB_ID": "2015-04-22",   "WORKER_ID": "wordcount-vm-2015\u2026"
+      "CONTAINER_TYPE": "worker",   "CONTAINER_ID": "ac1234def"} Label tags
       typically correspond to Label enum values. However, for ease of
       development other strings can be used as tags. LABEL_UNSPECIFIED should
       not be used here.
@@ -2709,10 +3386,10 @@ class WorkerMessage(_messages.Message):
   class LabelsValue(_messages.Message):
     """Labels are used to group WorkerMessages. For example, a worker_message
     about a particular container might have the labels: { "JOB_ID":
-    "2015-04-22", "WORKER_ID": "wordcount-vm-2015\u2026" "CONTAINER_TYPE":
-    "worker", "CONTAINER_ID": "ac1234def"} Label tags typically correspond to
-    Label enum values. However, for ease of development other strings can be
-    used as tags. LABEL_UNSPECIFIED should not be used here.
+    "2015-04-22",   "WORKER_ID": "wordcount-vm-2015\u2026"   "CONTAINER_TYPE":
+    "worker",   "CONTAINER_ID": "ac1234def"} Label tags typically correspond
+    to Label enum values. However, for ease of development other strings can
+    be used as tags. LABEL_UNSPECIFIED should not be used here.
 
     Messages:
       AdditionalProperty: An additional property for a LabelsValue object.
@@ -2744,62 +3421,62 @@ class WorkerMessageCode(_messages.Message):
   """A message code is used to report status and error messages to the
   service. The message codes are intended to be machine readable. The service
   will take care of translating these into user understandable messages if
-  necessary. Example use cases: 1. Worker processes reporting successful
-  startup. 2. Worker processes reporting specific errors (e.g. package staging
-  failure).
+  necessary.  Example use cases:   1. Worker processes reporting successful
+  startup.   2. Worker processes reporting specific errors (e.g. package
+  staging      failure).
 
   Messages:
     ParametersValue: Parameters contains specific information about the code.
-      This is a struct to allow parameters of different types. Examples: 1.
-      For a "HARNESS_STARTED" message parameters might provide the name of the
-      worker and additional data like timing information. 2. For a
-      "GCS_DOWNLOAD_ERROR" parameters might contain fields listing the GCS
-      objects being downloaded and fields containing errors. In general
+      This is a struct to allow parameters of different types.  Examples:  1.
+      For a "HARNESS_STARTED" message parameters might provide the name     of
+      the worker and additional data like timing information.  2. For a
+      "GCS_DOWNLOAD_ERROR" parameters might contain fields listing     the GCS
+      objects being downloaded and fields containing errors.  In general
       complex data structures should be avoided. If a worker needs to send a
       specific and complicated data structure then please consider defining a
       new proto and adding it to the data oneof in WorkerMessageResponse.
-      Conventions: Parameters should only be used for information that isn't
-      typically passed as a label. hostname and other worker identifiers
-      should almost always be passed as labels since they will be included on
+      Conventions:  Parameters should only be used for information that isn't
+      typically passed  as a label.  hostname and other worker identifiers
+      should almost always be passed  as labels since they will be included on
       most messages.
 
   Fields:
     code: The code is a string intended for consumption by a machine that
-      identifies the type of message being sent. Examples: 1.
+      identifies the type of message being sent. Examples:  1.
       "HARNESS_STARTED" might be used to indicate the worker harness has
-      started. 2. "GCS_DOWNLOAD_ERROR" might be used to indicate an error
-      downloading a GCS file as part of the boot process of one of the worker
-      containers. This is a string and not an enum to make it easy to add new
-      codes without waiting for an API change.
-    parameters: Parameters contains specific information about the code. This
-      is a struct to allow parameters of different types. Examples: 1. For a
-      "HARNESS_STARTED" message parameters might provide the name of the
-      worker and additional data like timing information. 2. For a
-      "GCS_DOWNLOAD_ERROR" parameters might contain fields listing the GCS
-      objects being downloaded and fields containing errors. In general
+      started.  2. "GCS_DOWNLOAD_ERROR" might be used to indicate an error
+      downloading     a GCS file as part of the boot process of one of the
+      worker containers.  This is a string and not an enum to make it easy to
+      add new codes without waiting for an API change.
+    parameters: Parameters contains specific information about the code.  This
+      is a struct to allow parameters of different types.  Examples:  1. For a
+      "HARNESS_STARTED" message parameters might provide the name     of the
+      worker and additional data like timing information.  2. For a
+      "GCS_DOWNLOAD_ERROR" parameters might contain fields listing     the GCS
+      objects being downloaded and fields containing errors.  In general
       complex data structures should be avoided. If a worker needs to send a
       specific and complicated data structure then please consider defining a
       new proto and adding it to the data oneof in WorkerMessageResponse.
-      Conventions: Parameters should only be used for information that isn't
-      typically passed as a label. hostname and other worker identifiers
-      should almost always be passed as labels since they will be included on
+      Conventions:  Parameters should only be used for information that isn't
+      typically passed  as a label.  hostname and other worker identifiers
+      should almost always be passed  as labels since they will be included on
       most messages.
   """
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class ParametersValue(_messages.Message):
-    """Parameters contains specific information about the code. This is a
-    struct to allow parameters of different types. Examples: 1. For a
-    "HARNESS_STARTED" message parameters might provide the name of the worker
-    and additional data like timing information. 2. For a "GCS_DOWNLOAD_ERROR"
-    parameters might contain fields listing the GCS objects being downloaded
-    and fields containing errors. In general complex data structures should be
-    avoided. If a worker needs to send a specific and complicated data
-    structure then please consider defining a new proto and adding it to the
-    data oneof in WorkerMessageResponse. Conventions: Parameters should only
-    be used for information that isn't typically passed as a label. hostname
-    and other worker identifiers should almost always be passed as labels
-    since they will be included on most messages.
+    """Parameters contains specific information about the code.  This is a
+    struct to allow parameters of different types.  Examples:  1. For a
+    "HARNESS_STARTED" message parameters might provide the name     of the
+    worker and additional data like timing information.  2. For a
+    "GCS_DOWNLOAD_ERROR" parameters might contain fields listing     the GCS
+    objects being downloaded and fields containing errors.  In general complex
+    data structures should be avoided. If a worker needs to send a specific
+    and complicated data structure then please consider defining a new proto
+    and adding it to the data oneof in WorkerMessageResponse.  Conventions:
+    Parameters should only be used for information that isn't typically passed
+    as a label.  hostname and other worker identifiers should almost always be
+    passed  as labels since they will be included on most messages.
 
     Messages:
       AdditionalProperty: An additional property for a ParametersValue object.
@@ -2844,21 +3521,22 @@ class WorkerPool(_messages.Message):
   various computational requirements of the various stages of the job.
 
   Enums:
-    DefaultPackageSetValueValuesEnum: The default package set to install. This
-      allows the service to select a default set of packages which are useful
-      to worker harnesses written in a particular language.
+    DefaultPackageSetValueValuesEnum: The default package set to install.
+      This allows the service to select a default set of packages which are
+      useful to worker harnesses written in a particular language.
+    IpConfigurationValueValuesEnum: Configuration for VM IPs.
     TeardownPolicyValueValuesEnum: Sets the policy for determining when to
       turndown worker pool. Allowed values are: TEARDOWN_ALWAYS,
       TEARDOWN_ON_SUCCESS, and TEARDOWN_NEVER. TEARDOWN_ALWAYS means workers
       are always torn down regardless of whether the job succeeds.
       TEARDOWN_ON_SUCCESS means workers are torn down if the job succeeds.
-      TEARDOWN_NEVER means the workers are never torn down. If the workers are
-      not torn down by the service, they will continue to run and use Google
-      Compute Engine VM resources in the user's project until they are
+      TEARDOWN_NEVER means the workers are never torn down.  If the workers
+      are not torn down by the service, they will continue to run and use
+      Google Compute Engine VM resources in the user's project until they are
       explicitly terminated by the user. Because of this, Google recommends
       using the TEARDOWN_ALWAYS policy except for small, manually supervised
-      test jobs. If unknown or unspecified, the service will attempt to choose
-      a reasonable default.
+      test jobs.  If unknown or unspecified, the service will attempt to
+      choose a reasonable default.
 
   Messages:
     MetadataValue: Metadata to set on the Google Compute Engine VMs.
@@ -2867,88 +3545,108 @@ class WorkerPool(_messages.Message):
   Fields:
     autoscalingSettings: Settings for autoscaling of this WorkerPool.
     dataDisks: Data disks that are used by a VM in this workflow.
-    defaultPackageSet: The default package set to install. This allows the
+    defaultPackageSet: The default package set to install.  This allows the
       service to select a default set of packages which are useful to worker
       harnesses written in a particular language.
-    diskSizeGb: Size of root disk for VMs, in GB. If zero or unspecified, the
+    diskSizeGb: Size of root disk for VMs, in GB.  If zero or unspecified, the
       service will attempt to choose a reasonable default.
     diskSourceImage: Fully qualified source image for disks.
-    diskType: Type of root disk for VMs. If empty or unspecified, the service
+    diskType: Type of root disk for VMs.  If empty or unspecified, the service
       will attempt to choose a reasonable default.
+    ipConfiguration: Configuration for VM IPs.
     kind: The kind of the worker pool; currently only 'harness' and 'shuffle'
       are supported.
-    machineType: Machine type (e.g. "n1-standard-1"). If empty or unspecified,
-      the service will attempt to choose a reasonable default.
+    machineType: Machine type (e.g. "n1-standard-1").  If empty or
+      unspecified, the service will attempt to choose a reasonable default.
     metadata: Metadata to set on the Google Compute Engine VMs.
-    network: Network to which VMs will be assigned. If empty or unspecified,
+    network: Network to which VMs will be assigned.  If empty or unspecified,
       the service will use the network "default".
     numThreadsPerWorker: The number of threads per worker harness. If empty or
       unspecified, the service will choose a number of threads (according to
       the number of cores on the selected machine type for batch, or 1 by
       convention for streaming).
     numWorkers: Number of Google Compute Engine workers in this pool needed to
-      execute the job. If zero or unspecified, the service will attempt to
+      execute the job.  If zero or unspecified, the service will attempt to
       choose a reasonable default.
     onHostMaintenance: The action to take on host maintenance, as defined by
       the Google Compute Engine API.
     packages: Packages to be installed on workers.
     poolArgs: Extra arguments for this worker pool.
-    subnetwork: Subnetwork to which VMs will be assigned, if desired. Expected
-      to be of the form "zones/ZONE/subnetworks/SUBNETWORK".
+    subnetwork: Subnetwork to which VMs will be assigned, if desired.
+      Expected to be of the form "regions/REGION/subnetworks/SUBNETWORK".
     taskrunnerSettings: Settings passed through to Google Compute Engine
-      workers when using the standard Dataflow task runner. Users should
+      workers when using the standard Dataflow task runner.  Users should
       ignore this field.
     teardownPolicy: Sets the policy for determining when to turndown worker
       pool. Allowed values are: TEARDOWN_ALWAYS, TEARDOWN_ON_SUCCESS, and
       TEARDOWN_NEVER. TEARDOWN_ALWAYS means workers are always torn down
       regardless of whether the job succeeds. TEARDOWN_ON_SUCCESS means
       workers are torn down if the job succeeds. TEARDOWN_NEVER means the
-      workers are never torn down. If the workers are not torn down by the
+      workers are never torn down.  If the workers are not torn down by the
       service, they will continue to run and use Google Compute Engine VM
       resources in the user's project until they are explicitly terminated by
       the user. Because of this, Google recommends using the TEARDOWN_ALWAYS
-      policy except for small, manually supervised test jobs. If unknown or
+      policy except for small, manually supervised test jobs.  If unknown or
       unspecified, the service will attempt to choose a reasonable default.
     workerHarnessContainerImage: Docker container image that executes Dataflow
       worker harness, residing in Google Container Registry. Required.
-    zone: Zone to run the worker pools in. If empty or unspecified, the
+    zone: Zone to run the worker pools in.  If empty or unspecified, the
       service will attempt to choose a reasonable default.
   """
 
   class DefaultPackageSetValueValuesEnum(_messages.Enum):
-    """The default package set to install. This allows the service to select a
-    default set of packages which are useful to worker harnesses written in a
-    particular language.
+    """The default package set to install.  This allows the service to select
+    a default set of packages which are useful to worker harnesses written in
+    a particular language.
 
     Values:
-      DEFAULT_PACKAGE_SET_UNKNOWN: <no description>
-      DEFAULT_PACKAGE_SET_NONE: <no description>
-      DEFAULT_PACKAGE_SET_JAVA: <no description>
-      DEFAULT_PACKAGE_SET_PYTHON: <no description>
+      DEFAULT_PACKAGE_SET_UNKNOWN: The default set of packages to stage is
+        unknown, or unspecified.
+      DEFAULT_PACKAGE_SET_NONE: Indicates that no packages should be staged at
+        the worker unless explicitly specified by the job.
+      DEFAULT_PACKAGE_SET_JAVA: Stage packages typically useful to workers
+        written in Java.
+      DEFAULT_PACKAGE_SET_PYTHON: Stage pacakges typically useful to workers
+        written in Python.
     """
     DEFAULT_PACKAGE_SET_UNKNOWN = 0
     DEFAULT_PACKAGE_SET_NONE = 1
     DEFAULT_PACKAGE_SET_JAVA = 2
     DEFAULT_PACKAGE_SET_PYTHON = 3
 
+  class IpConfigurationValueValuesEnum(_messages.Enum):
+    """Configuration for VM IPs.
+
+    Values:
+      WORKER_IP_UNSPECIFIED: The configuration is unknown, or unspecified.
+      WORKER_IP_PUBLIC: Workers should have public IP addresses.
+      WORKER_IP_PRIVATE: Workers should have private IP addresses.
+    """
+    WORKER_IP_UNSPECIFIED = 0
+    WORKER_IP_PUBLIC = 1
+    WORKER_IP_PRIVATE = 2
+
   class TeardownPolicyValueValuesEnum(_messages.Enum):
     """Sets the policy for determining when to turndown worker pool. Allowed
     values are: TEARDOWN_ALWAYS, TEARDOWN_ON_SUCCESS, and TEARDOWN_NEVER.
     TEARDOWN_ALWAYS means workers are always torn down regardless of whether
     the job succeeds. TEARDOWN_ON_SUCCESS means workers are torn down if the
-    job succeeds. TEARDOWN_NEVER means the workers are never torn down. If the
-    workers are not torn down by the service, they will continue to run and
-    use Google Compute Engine VM resources in the user's project until they
-    are explicitly terminated by the user. Because of this, Google recommends
-    using the TEARDOWN_ALWAYS policy except for small, manually supervised
-    test jobs. If unknown or unspecified, the service will attempt to choose a
-    reasonable default.
+    job succeeds. TEARDOWN_NEVER means the workers are never torn down.  If
+    the workers are not torn down by the service, they will continue to run
+    and use Google Compute Engine VM resources in the user's project until
+    they are explicitly terminated by the user. Because of this, Google
+    recommends using the TEARDOWN_ALWAYS policy except for small, manually
+    supervised test jobs.  If unknown or unspecified, the service will attempt
+    to choose a reasonable default.
 
     Values:
-      TEARDOWN_POLICY_UNKNOWN: <no description>
-      TEARDOWN_ALWAYS: <no description>
-      TEARDOWN_ON_SUCCESS: <no description>
-      TEARDOWN_NEVER: <no description>
+      TEARDOWN_POLICY_UNKNOWN: The teardown policy isn't specified, or is
+        unknown.
+      TEARDOWN_ALWAYS: Always teardown the resource.
+      TEARDOWN_ON_SUCCESS: Teardown the resource on success. This is useful
+        for debugging failures.
+      TEARDOWN_NEVER: Never teardown the resource. This is useful for
+        debugging and development.
     """
     TEARDOWN_POLICY_UNKNOWN = 0
     TEARDOWN_ALWAYS = 1
@@ -2987,8 +3685,8 @@ class WorkerPool(_messages.Message):
       AdditionalProperty: An additional property for a PoolArgsValue object.
 
     Fields:
-      additionalProperties: Properties of the object. Contains field @ype with
-        type URL.
+      additionalProperties: Properties of the object. Contains field @type
+        with type URL.
     """
 
     class AdditionalProperty(_messages.Message):
@@ -3010,40 +3708,41 @@ class WorkerPool(_messages.Message):
   diskSizeGb = _messages.IntegerField(4, variant=_messages.Variant.INT32)
   diskSourceImage = _messages.StringField(5)
   diskType = _messages.StringField(6)
-  kind = _messages.StringField(7)
-  machineType = _messages.StringField(8)
-  metadata = _messages.MessageField('MetadataValue', 9)
-  network = _messages.StringField(10)
-  numThreadsPerWorker = _messages.IntegerField(11, variant=_messages.Variant.INT32)
-  numWorkers = _messages.IntegerField(12, variant=_messages.Variant.INT32)
-  onHostMaintenance = _messages.StringField(13)
-  packages = _messages.MessageField('Package', 14, repeated=True)
-  poolArgs = _messages.MessageField('PoolArgsValue', 15)
-  subnetwork = _messages.StringField(16)
-  taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 17)
-  teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 18)
-  workerHarnessContainerImage = _messages.StringField(19)
-  zone = _messages.StringField(20)
+  ipConfiguration = _messages.EnumField('IpConfigurationValueValuesEnum', 7)
+  kind = _messages.StringField(8)
+  machineType = _messages.StringField(9)
+  metadata = _messages.MessageField('MetadataValue', 10)
+  network = _messages.StringField(11)
+  numThreadsPerWorker = _messages.IntegerField(12, variant=_messages.Variant.INT32)
+  numWorkers = _messages.IntegerField(13, variant=_messages.Variant.INT32)
+  onHostMaintenance = _messages.StringField(14)
+  packages = _messages.MessageField('Package', 15, repeated=True)
+  poolArgs = _messages.MessageField('PoolArgsValue', 16)
+  subnetwork = _messages.StringField(17)
+  taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 18)
+  teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 19)
+  workerHarnessContainerImage = _messages.StringField(20)
+  zone = _messages.StringField(21)
 
 
 class WorkerSettings(_messages.Message):
   """Provides data to pass through to the worker harness.
 
   Fields:
-    baseUrl: The base URL for accessing Google Cloud APIs. When workers access
-      Google Cloud APIs, they logically do so via relative URLs. If this field
-      is specified, it supplies the base URL to use for resolving these
-      relative URLs. The normative algorithm used is defined by RFC 1808,
-      "Relative Uniform Resource Locators". If not specified, the default
-      value is "http://www.googleapis.com/"
+    baseUrl: The base URL for accessing Google Cloud APIs.  When workers
+      access Google Cloud APIs, they logically do so via relative URLs.  If
+      this field is specified, it supplies the base URL to use for resolving
+      these relative URLs.  The normative algorithm used is defined by RFC
+      1808, "Relative Uniform Resource Locators".  If not specified, the
+      default value is "http://www.googleapis.com/"
     reportingEnabled: Send work progress updates to service.
     servicePath: The Dataflow service path relative to the root URL, for
       example, "dataflow/v1b3/projects".
     shuffleServicePath: The Shuffle service path relative to the root URL, for
       example, "shuffle/v1beta1".
     tempStoragePrefix: The prefix of the resources the system should use for
-      temporary storage. The supported resource type is: Google Cloud Storage:
-      storage.googleapis.com/{bucket}/{object}
+      temporary storage.  The supported resource type is:  Google Cloud
+      Storage:   storage.googleapis.com/{bucket}/{object}
       bucket.storage.googleapis.com/{object}
     workerId: ID of the worker running this pipeline.
   """
@@ -3070,4 +3769,10 @@ class WriteInstruction(_messages.Message):
 
 encoding.AddCustomJsonFieldMapping(
     StandardQueryParameters, 'f__xgafv', '$.xgafv',
+    package=u'dataflow')
+encoding.AddCustomJsonEnumMapping(
+    StandardQueryParameters.FXgafvValueValuesEnum, '_1', '1',
+    package=u'dataflow')
+encoding.AddCustomJsonEnumMapping(
+    StandardQueryParameters.FXgafvValueValuesEnum, '_2', '2',
     package=u'dataflow')
