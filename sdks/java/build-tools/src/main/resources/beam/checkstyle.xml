@@ -103,7 +103,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="com.google.api.client.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
     </module>
 
     <!--
