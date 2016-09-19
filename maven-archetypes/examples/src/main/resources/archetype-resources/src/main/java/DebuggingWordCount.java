@@ -151,7 +151,7 @@ public class DebuggingWordCount {
       }
     }
   }
-  
+
   /**
    * Options supported by {@link DebuggingWordCount}.
    *
