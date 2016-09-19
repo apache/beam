@@ -301,14 +301,21 @@ public class DataflowPipelineJob implements PipelineResult {
       dataflowOptions.getDataflowClient().projects().jobs()
           .update(projectId, jobId, content)
           .execute();
+      return State.CANCELLED;
     } catch (IOException e) {
-      String errorMsg = String.format(
-          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
-          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-      LOG.warn(errorMsg);
-      throw new IOException(errorMsg, e);
+      State state = getState();
+      if (state.isTerminal()) {
+        LOG.warn("Job is already terminated. State is {}", state);
+        return state;
+      } else {
+        String errorMsg = String.format(
+            "Failed to cancel the job, "
+                + "please go to the Developers Console to cancel it manually: %s",
+            MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+        LOG.warn(errorMsg);
+        throw new IOException(errorMsg, e);
+      }
     }
-    return State.CANCELLED;
   }
 
   @Override
