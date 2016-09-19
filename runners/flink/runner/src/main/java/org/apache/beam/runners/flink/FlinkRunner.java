@@ -25,8 +25,8 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -155,7 +155,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkRunnerResult(new HashMap<String, Object>(),0L);
+      return new FlinkRunnerResult(new HashMap<String, Object>(), 0L);
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
