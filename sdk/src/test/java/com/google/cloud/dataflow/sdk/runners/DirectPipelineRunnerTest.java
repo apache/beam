@@ -160,6 +160,7 @@ public class DirectPipelineRunnerTest implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("deprecation")  // test uses internal AvroCoder features.
   public void testAvroIOWriteWithDefaultShardingStrategy() throws Exception {
     String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "output");
     Pipeline p = DirectPipeline.createForTest();
@@ -181,6 +182,7 @@ public class DirectPipelineRunnerTest implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("deprecation")  // test uses internal AvroCoder features.
   public void testAvroIOWriteWithLimitedNumberOfShards() throws Exception {
     final int numShards = 3;
     String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "shardedOutput");

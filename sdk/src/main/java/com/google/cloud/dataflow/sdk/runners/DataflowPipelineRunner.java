@@ -2359,6 +2359,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       translateTyped(transform, context);
     }
 
+    @SuppressWarnings("deprecation")  // uses internal deprecated code deliberately.
     private <T> void translateTyped(
         PubsubIO.Read.Bound<T> transform,
         TranslationContext context) {
@@ -2435,6 +2436,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       translateTyped(transform, context);
     }
 
+    @SuppressWarnings("deprecation")  // uses internal deprecated code deliberately.
     private <T> void translateTyped(
         StreamingPubsubIOWrite<T> transform,
         TranslationContext context) {

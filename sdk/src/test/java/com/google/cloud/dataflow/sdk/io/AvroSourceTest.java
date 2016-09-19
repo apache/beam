@@ -95,6 +95,7 @@ public class AvroSourceTest {
     String path = tmpFile.toString();
 
     FileOutputStream os = new FileOutputStream(tmpFile);
+    @SuppressWarnings("deprecation")  // test uses internal AvroCoder code.
     DatumWriter<T> datumWriter = coder.createDatumWriter();
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
       writer.setCodec(CodecFactory.fromString(codec));
