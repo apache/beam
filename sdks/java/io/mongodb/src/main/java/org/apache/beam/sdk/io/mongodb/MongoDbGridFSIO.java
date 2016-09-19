@@ -25,15 +25,17 @@ import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Serializable;
-
+import java.util.Iterator;
 
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
@@ -60,47 +62,98 @@ import org.joda.time.Instant;
  * }</pre>
  */
 public class MongoDbGridFSIO {
+  static class InputStreamToStrings implements SerializableFunction<InputStream, Iterable<String>> {
+    @Override
+    public Iterable<String> apply(InputStream input) {
+        final BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+        try {
+          final String initialValue = reader.readLine();
+          return new Iterable<String>() {
+            @Override
+            public Iterator<String> iterator() {
+                    return new Iterator<String>() {
+                        String val = initialValue;
+                        @Override
+                        public boolean hasNext() {
+                            return val != null;
+                        }
+
+                        @Override
+                        public String next() {
+                            String valRet = val;
+                            try {
+                                val = reader.readLine();
+                            } catch (IOException e) {
+                                val = null;
+                            }
+                            return valRet;
+                        }
+
+                        @Override
+                        public void remove() {
+                            throw new UnsupportedOperationException("read-only");
+                        }
+                    };
+            }
+          };
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+  };
+
 
   /** Read data from GridFS. */
-  public static Read read() {
-    return new Read(new Read.GridFSOptions(null, null, null));
+  public static Read<String> read() {
+    return new Read<String>(new Read.GridFSOptions(null, null, null),
+                            new InputStreamToStrings());
   }
 
-
-
-  static class Read extends PTransform<PBegin, PCollection<String>> {
-    public Read withUri(String uri) {
-      return new Read(new GridFSOptions(uri, options.database, options.bucket));
+  static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+    public Read<T> withUri(String uri) {
+      return new Read<T>(new GridFSOptions(uri, options.database,
+                                           options.bucket), transform);
     }
 
-    public Read withDatabase(String database) {
-      return new Read(new GridFSOptions(options.uri, database, options.bucket));
+    public Read<T> withDatabase(String database) {
+      return new Read<T>(new GridFSOptions(options.uri, database,
+                                           options.bucket), transform);
     }
 
-    public Read withBucket(String bucket) {
-      return new Read(new GridFSOptions(options.uri, options.database, bucket));
+    public Read<T> withBucket(String bucket) {
+      return new Read<T>(new GridFSOptions(options.uri, options.database, bucket),
+                         transform);
     }
 
-    GridFSOptions options;
+    public Read<T> withParsingFn(SerializableFunction<InputStream, Iterable<T>> f) {
+      return new Read<T>(options, f);
+    }
 
-    Read(GridFSOptions options) {
+    private final GridFSOptions options;
+    private final SerializableFunction<InputStream, Iterable<T>> transform;
+
+
+    Read(GridFSOptions options,
+         SerializableFunction<InputStream, Iterable<T>> transform) {
       this.options = options;
+      this.transform = transform;
     }
 
     @Override
-    public PCollection<String> apply(PBegin input) {
-      PCollection<String> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn()));
-
+    public PCollection<T> apply(PBegin input) {
+      PCollection<T> output = input.apply(Create.of(options))
+          .apply(ParDo.of(new ReadFn(transform)));
       return output;
     }
 
     /**
      * A {@link DoFn} executing the query to read files from GridFS.
      */
-    public static class ReadFn extends DoFn<GridFSOptions, String> {
+    public static class ReadFn<T> extends DoFn<GridFSOptions, T> {
+      private final SerializableFunction<InputStream, Iterable<T>> transform;
 
-      private ReadFn() {
+      private ReadFn(SerializableFunction<InputStream, Iterable<T>> transform) {
+          this.transform = transform;
       }
 
       @ProcessElement
@@ -111,11 +164,8 @@ public class MongoDbGridFSIO {
         GridFS gridfs = options.bucket == null ? new GridFS(db) : new GridFS(db, options.bucket);
         for (GridFSDBFile file : gridfs.find(new BasicDBObject())) {
           Instant ts = new Instant(file.getUploadDate().getTime());
-          InputStream ins = file.getInputStream();
-          BufferedReader reader = new BufferedReader(new InputStreamReader(ins));
-          String line;
-          while ((line = reader.readLine()) != null) {
-            context.outputWithTimestamp(line, ts);
+          for (T t : transform.apply(file.getInputStream())) {
+              context.outputWithTimestamp(t, ts);
           }
         }
       }
