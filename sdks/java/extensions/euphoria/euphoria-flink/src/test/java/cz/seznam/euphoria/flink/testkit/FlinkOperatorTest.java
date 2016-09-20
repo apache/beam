@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.operator.test.flink;
+package cz.seznam.euphoria.flink.testkit;
 
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import cz.seznam.euphoria.operator.test.AllOperatorTest;
