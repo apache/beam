@@ -43,11 +43,32 @@ public class CountByKeyTest {
   }
 
   @Test
+  public void testBuild_Partitioner() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+
+    Time<String> windowing = Time.of(Duration.ofHours(1));
+    CountByKey.named("CountByKey1")
+            .of(dataset)
+            .keyBy(s -> s)
+            .setPartitioner((String element) -> element.hashCode() + 1)
+            .windowBy(windowing)
+            .output();
+
+    CountByKey count = (CountByKey) flow.operators().iterator().next();
+
+    int hash = "test".hashCode() + 1;
+    assertEquals(hash, count.getPartitioning().getPartitioner().getPartition("test"));
+    assertEquals(3, count.getPartitioning().getNumPartitions());
+  }
+
+
+  @Test
   public void testBuild_ImplicitName() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = CountByKey.of(dataset)
+    CountByKey.of(dataset)
             .keyBy(s -> s)
             .output();
 
@@ -60,7 +81,7 @@ public class CountByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = CountByKey.named("CountByKey1")
+    CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
             .windowBy(Time.of(Duration.ofHours(1)))
@@ -75,7 +96,7 @@ public class CountByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = CountByKey.named("CountByKey1")
+    CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
             .setPartitioning(new HashPartitioning<>(1))
@@ -87,11 +108,11 @@ public class CountByKeyTest {
   }
 
   @Test
-  public void testBuild_Partitioner() {
+  public void testBuild_Partitioner2() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = CountByKey.named("CountByKey1")
+    CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
             .setPartitioner(new HashPartitioner<>())
