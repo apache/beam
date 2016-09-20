@@ -28,7 +28,10 @@ public class TimeTrigger implements Trigger {
 
   @Override
   public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
-    LOG.debug("Firing TimeTrigger, time {}, window: {}", time, w.getWindowID());
-    return TriggerResult.FLUSH_AND_PURGE;
+    if (time == end) {
+      LOG.debug("Firing TimeTrigger, time {}, window: {}", time, w.getWindowID());
+      return TriggerResult.FLUSH_AND_PURGE;
+    }
+    return TriggerResult.NOOP;
   }
 }
