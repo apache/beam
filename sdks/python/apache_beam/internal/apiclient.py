@@ -117,6 +117,10 @@ class Environment(object):
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
 
+    if self.google_cloud_options.service_account_email:
+      self.proto.serviceAccountEmail = (
+          self.google_cloud_options.service_account_email)
+
     sdk_name, version_string = get_sdk_name_and_version()
 
     self.proto.userAgent.additionalProperties.extend([
