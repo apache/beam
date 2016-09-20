@@ -72,11 +72,11 @@ public final class TranslationUtils {
    * @param <InputT>  Grouped values type.
    * @param <OutputT> Output type.
    */
-  public static class CombineGorupedValues<K, InputT, OutputT> implements
+  public static class CombineGroupedValues<K, InputT, OutputT> implements
       Function<WindowedValue<KV<K, Iterable<InputT>>>, WindowedValue<KV<K, OutputT>>> {
     private final Combine.KeyedCombineFn<K, InputT, ?, OutputT> keyed;
 
-    public CombineGorupedValues(Combine.GroupedValues<K, InputT, OutputT> transform) {
+    public CombineGroupedValues(Combine.GroupedValues<K, InputT, OutputT> transform) {
       //noinspection unchecked
       keyed = (Combine.KeyedCombineFn<K, InputT, ?, OutputT>) transform.getFn();
     }
@@ -93,6 +93,12 @@ public final class TranslationUtils {
   /**
    * Checks if the window transformation should be applied or skipped.
    *
+   * <p>
+   * Avoid running assign windows if both source and destination are global window
+   * or if the user has not specified the WindowFn (meaning they are just messing
+   * with triggering or allowed lateness).
+   * </p>
+   *
    * @param transform The {@link Window.Bound} transformation.
    * @param context   The {@link EvaluationContext}.
    * @param <T>       PCollection type.
@@ -103,9 +109,6 @@ public final class TranslationUtils {
   skipAssignWindows(Window.Bound<T> transform, EvaluationContext context) {
     @SuppressWarnings("unchecked")
     WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
-    // Avoid running assign windows if both source and destination are global window
-    // or if the user has not specified the WindowFn (meaning they are just messing
-    // with triggering or allowed lateness)
     return windowFn == null
         || (context.getInput(transform).getWindowingStrategy().getWindowFn()
             instanceof GlobalWindows
