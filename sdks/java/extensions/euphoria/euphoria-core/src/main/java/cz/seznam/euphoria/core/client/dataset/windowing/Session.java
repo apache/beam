@@ -98,7 +98,7 @@ public final class Session<T, G> implements
         SessionInterval label,
         Duration earlyFiringDuration) {
       super(WindowID.unaligned(group, label),
-          earlyFiringDuration, label.getEndMillis());
+          earlyFiringDuration, label.getStartMillis(), label.getEndMillis());
    }
 
     @Override

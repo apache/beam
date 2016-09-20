@@ -19,7 +19,7 @@ public interface Trigger extends Serializable {
   /**
    * Called when a timer that was set using the trigger context fires.
    *
-   * @param time The timestamp at which the timer fired.
+   * @param time The timestamp for which the timer was registered.
    * @param ctx A context object that can be used to register timer callbacks.
    */
   TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx);

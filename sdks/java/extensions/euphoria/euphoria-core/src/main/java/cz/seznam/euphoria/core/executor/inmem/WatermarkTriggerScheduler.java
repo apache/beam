@@ -61,7 +61,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
           .collect(Collectors.toList())
           .forEach(p -> {
             Triggerable<?, ?> purged = purge(p.getSecond().getFirst(), p.getFirst());
-            purged.fire(stamp, (WindowContext) p.getSecond().getFirst());
+            purged.fire(p.getFirst(), (WindowContext) p.getSecond().getFirst());
           });
 
       // remove all expired events

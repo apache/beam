@@ -12,19 +12,18 @@ public class PeriodicTimeTrigger implements Trigger {
   private static final Logger LOG = LoggerFactory.getLogger(PeriodicTimeTrigger.class);
 
   private final long interval;
+  private final long startTime;
   private final long lastFireTime;
 
-  public PeriodicTimeTrigger(long interval, long lastFireTime) {
+  public PeriodicTimeTrigger(long interval, long startTime, long lastFireTime) {
     this.interval = interval;
+    this.startTime = startTime;
     this.lastFireTime = lastFireTime;
   }
 
   @Override
   public TriggerResult schedule(WindowContext w, TriggerContext ctx) {
-    long now = ctx.getCurrentTimestamp();
-    long start = now - (now + interval) % interval;
-
-    if (scheduleNext(start, w, ctx)) {
+    if (scheduleNext(startTime, w, ctx)) {
       return TriggerResult.NOOP;
     }
 
@@ -51,7 +50,6 @@ public class PeriodicTimeTrigger implements Trigger {
         return true;
       }
     }
-
     return false;
   }
 }

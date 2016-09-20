@@ -46,7 +46,7 @@ public class Time<T> implements AlignedWindowing<T, TimeInterval, Time.TimeWindo
     TimeWindowContext(long startMillis, long intervalMillis, Duration earlyTriggering) {
       super(
           WindowID.aligned(new TimeInterval(startMillis, intervalMillis)),
-          earlyTriggering, startMillis + intervalMillis);
+          earlyTriggering, startMillis, startMillis + intervalMillis);
       this.fireStamp = startMillis + intervalMillis;
     }
 

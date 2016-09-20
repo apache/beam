@@ -20,13 +20,14 @@ abstract class EarlyTriggeredWindowContext<GROUP, LABEL>
    */
   public EarlyTriggeredWindowContext(
       WindowID<GROUP, LABEL> windowID,
-      Duration interval, long endOfWindow) {
+      Duration interval, long startOfWindow, long endOfWindow) {
     super(windowID);
     if (interval != null) {
       // ~ last early trigger needs to be fired no later than end of window
       long lastFireTime = (endOfWindow - 1) - (endOfWindow - 1) % interval.toMillis();
 
-      this.earlyTrigger = new PeriodicTimeTrigger(interval.toMillis(), lastFireTime);
+      this.earlyTrigger = new PeriodicTimeTrigger(
+          interval.toMillis(), startOfWindow, lastFireTime);
     } else {
       this.earlyTrigger = null;
     }

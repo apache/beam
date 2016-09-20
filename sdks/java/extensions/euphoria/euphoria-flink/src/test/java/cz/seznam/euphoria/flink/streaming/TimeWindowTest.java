@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -26,12 +27,12 @@ public class TimeWindowTest {
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
             Arrays.asList(
-                Pair.of("one", 1),
-                Pair.of("one", 2),
-                Pair.of("two", 3),
-                Pair.of("two", 6),
-                Pair.of("two", 7),
-                Pair.of("two", 8),
+                Pair.of("one",   1),
+                Pair.of("one",   2),
+                Pair.of("two",   3),
+                Pair.of("two",   6),
+                Pair.of("two",   7),
+                Pair.of("two",   8),
                 Pair.of("three", 8)))
             .withReadDelay(Duration.ofMillis(200));
 
@@ -47,7 +48,9 @@ public class TimeWindowTest {
         .outputWindowed()
         .persist(output);
 
-    new TestFlinkExecutor().waitForCompletion(f);
+    new TestFlinkExecutor()
+        .setStateBackend(new RocksDBStateBackend("file:///tmp/flink-checkpoint"))
+        .waitForCompletion(f);
 
     assertEquals(
         Arrays.asList("0:one-2", "0:two-1", "5:three-1", "5:two-3"),
