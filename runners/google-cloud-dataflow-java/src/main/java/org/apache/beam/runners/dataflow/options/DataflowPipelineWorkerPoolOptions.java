@@ -192,7 +192,10 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
   /**
    * The policy for tearing down the workers spun up by the service.
+   *
+   * @deprecated Dataflow Service will only support TEARDOWN_ALWAYS policy in the future.
    */
+  @Deprecated
   public enum TeardownPolicy {
     /**
      * All VMs created for a Dataflow job are deleted when the job finishes, regardless of whether
