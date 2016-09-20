@@ -245,10 +245,15 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
     final ListStateStorage<RIGHT> rightElements;
 
     @SuppressWarnings("unchecked")
-    public JoinState(Collector<OUT> collector, StateStorageProvider storageProvider) {
-      super(collector, storageProvider);
-      leftElements = storageProvider.getListStorageFor((Class) Object.class);
-      rightElements = storageProvider.getListStorageFor((Class) Object.class);
+    public JoinState(
+        Operator<?, ?> associatedOperator,
+        Collector<OUT> collector,
+        StateStorageProvider storageProvider) {
+      super(associatedOperator, collector, storageProvider);
+      leftElements = storageProvider.getListStorage(
+          this, "left", (Class) Object.class);
+      rightElements = storageProvider.getListStorage(
+          this, "right",  (Class) Object.class);
     }
 
     @Override
@@ -274,6 +279,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
       if (outer) {
         flushUnjoinedElems();
       }
+      leftElements.clear();
+      rightElements.clear();
     }
 
     private void flushUnjoinedElems() {

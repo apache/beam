@@ -21,9 +21,9 @@ class FlinkStreamingStateStorageProvider implements StateStorageProvider, Serial
 
     final ValueState state;
 
-    ValueStorage(String operator, Class clz, RuntimeContext context) {
+    ValueStorage(String name, Class clz, RuntimeContext context) {
       state = context.getState(new ValueStateDescriptor(
-          "euphoria-state::" + operator + "::" + clz,
+          "euphoria-state::" + name,
           clz,
           null));
     }
@@ -58,9 +58,9 @@ class FlinkStreamingStateStorageProvider implements StateStorageProvider, Serial
 
     final ListState state;
 
-    ListStorage(String operator, Class clz, RuntimeContext context) {
+    ListStorage(String name, Class clz, RuntimeContext context) {
       state = context.getListState(new ListStateDescriptor(
-          "euphoria-state::" + operator + "::" + clz,
+          "euphoria-state::" + name,
           clz));
     }
 
@@ -97,14 +97,16 @@ class FlinkStreamingStateStorageProvider implements StateStorageProvider, Serial
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ValueStateStorage<T> getValueStorageFor(Class<T> what) {
-    return (ValueStateStorage) new ValueStorage("FIXME", what, context);
+  public <T> ValueStateStorage<T> getValueStorage(String name, Class<T> what) {
+
+    return (ValueStateStorage) new ValueStorage(name, what, context);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ListStateStorage<T> getListStorageFor(Class<T> what) {
-    return (ListStateStorage) new ListStorage("FIXME", what, context);
+  public <T> ListStateStorage<T> getListStorage(String name, Class<T> what) {
+    
+    return (ListStateStorage) new ListStorage(name, what, context);
   }
 
 
