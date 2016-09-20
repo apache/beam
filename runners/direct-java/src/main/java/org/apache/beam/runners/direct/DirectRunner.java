@@ -319,7 +319,10 @@ public class DirectRunner
   }
 
   private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
-    BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+    BundleFactory bundleFactory =
+        pipelineOptions.isEnforceEncodability()
+            ? CloningBundleFactory.create()
+            : ImmutableListBundleFactory.create();
     if (pipelineOptions.isEnforceImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
     }
