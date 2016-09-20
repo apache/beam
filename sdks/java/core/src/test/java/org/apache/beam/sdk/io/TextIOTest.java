@@ -24,8 +24,10 @@ import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1118,10 +1120,89 @@ public class TextIOTest {
   private TextSource<String> prepareSource(byte[] data) throws IOException {
     File file = tmpFolder.newFile();
     Files.write(file.toPath(), data);
+    return new TextSource<>(file.toPath().toString(), StringUtf8Coder.of());
+  }
 
-    TextSource<String> source = new TextSource<>(file.toPath().toString(), StringUtf8Coder.of());
+  @Test
+  public void testInitialSplitIntoBundlesAutoModeTxt() throws Exception {
+    String[] lines = makeLines(5000);
+    File file = tmpFolder.newFile("to_be_split_auto.txt");
+    writeToStreamAndClose(lines, new FileOutputStream(file));
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
 
-    return source;
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(file.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source = TextIO.Read.from(file.getPath()).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // At least 2 splits and they are equal to reading the whole file.
+    assertThat(splits, hasSize(greaterThan(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testInitialSplitIntoBundlesAutoModeGz() throws Exception {
+    String[] lines = makeLines(5000);
+    File file = tmpFolder.newFile("to_be_split_auto.gz");
+    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(file)));
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
+
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(file.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source = TextIO.Read.from(file.getPath()).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // Exactly 1 split, even in AUTO mode, since it is a gzip file.
+    assertThat(splits, hasSize(equalTo(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testInitialSplitIntoBundlesGzipModeTxt() throws Exception {
+    String[] lines = makeLines(5000);
+    File file = tmpFolder.newFile("to_be_split_gzip.txt");
+    writeToStreamAndClose(lines, new FileOutputStream(file));
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
+
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(file.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source =
+        TextIO.Read.from(file.getPath()).withCompressionType(CompressionType.GZIP).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // Exactly 1 split, even though .txt extension, since using GZIP mode.
+    assertThat(splits, hasSize(equalTo(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testInitialSplitIntoBundlesGzipModeGz() throws Exception {
+    String[] lines = makeLines(5000);
+    File file = tmpFolder.newFile("to_be_split_gzip.gz");
+    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(file)));
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
+
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(file.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source =
+        TextIO.Read.from(file.getPath()).withCompressionType(CompressionType.GZIP).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // Exactly 1 split using .gz extension and using GZIP mode.
+    assertThat(splits, hasSize(equalTo(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////
