@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
+import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
@@ -82,7 +83,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     // FIXME require keyExtractor to deliver `Comparable`s
     return tuples.groupBy(new TypedKeySelector<>())
-        .reduceGroup(new TypedReducer(stateFactory, stateStorageProvider))
+        .reduceGroup(
+            new TypedReducer(origOperator, stateFactory, stateStorageProvider))
         .setParallelism(operator.getParallelism())
         .name(operator.getName() + "::reduce");
   }
@@ -107,13 +109,16 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           implements GroupReduceFunction<WindowedElement<?, ?, WindowedPair>, WindowedElement<?, ?, WindowedPair>>,
           ResultTypeQueryable<WindowedElement<?, ?, Pair>>
   {
+    private final Operator<?, ?> operator;
     private final StateFactory<?, State> stateFactory;
     private final StateStorageProvider stateStorageProvider;
 
     public TypedReducer(
+        Operator<?, ?> operator,
         StateFactory<?, State> stateFactory,
         StateStorageProvider stateStorageProvider) {
 
+      this.operator = operator;
       this.stateFactory = stateFactory;
       this.stateStorageProvider = stateStorageProvider;
     }
@@ -130,7 +135,9 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       final WindowID wid = element.getWindowID();
       final Object key = element.get().getKey();
 
-      State state = stateFactory.apply(e -> out.collect(new WindowedElement<>(
+      State state = stateFactory.apply(
+          operator,
+          e -> out.collect(new WindowedElement<>(
               wid,
               WindowedPair.of(
                       wid.getLabel(),

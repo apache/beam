@@ -18,6 +18,7 @@ import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.GroupByKey;
 import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
@@ -255,9 +256,13 @@ public class InMemExecutorTest {
 
     final ListStateStorage<Integer> data;
 
-    SortState(Collector<Integer> c, StateStorageProvider storageProvider) {
-      super(c, storageProvider);
-      data = storageProvider.getListStorageFor(Integer.class);
+    SortState(
+        Operator<?, ?> operator,
+        Collector<Integer> c,
+        StateStorageProvider storageProvider) {
+      
+      super(operator, c, storageProvider);
+      data = storageProvider.getListStorage(this, Integer.class);
     }
 
     @Override
@@ -279,11 +284,19 @@ public class InMemExecutorTest {
       SortState ret = null;
       for (SortState s : others) {
         if (ret == null) {
-          ret = new SortState(s.getCollector(), s.getStorageProvider());
+          ret = new SortState(
+              s.getAssociatedOperator(),
+              s.getCollector(),
+              s.getStorageProvider());
         }
         ret.data.addAll(s.data.get());
       }
       return ret;
+    }
+
+    @Override
+    public void close() {
+      data.clear();
     }
 
   }

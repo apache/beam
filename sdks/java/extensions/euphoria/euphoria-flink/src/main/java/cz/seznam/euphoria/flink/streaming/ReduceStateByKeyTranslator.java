@@ -6,10 +6,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
+import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -66,7 +66,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
       // equivalent operation to "left fold"
       folded = windowedPairs.apply(new AttachedWindowFolder(
-              storageProvider, stateFactory))
+              origOperator, storageProvider, stateFactory))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     } else {
@@ -75,7 +75,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           windowedPairs = context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
       // equivalent operation to "left fold"
       folded = windowedPairs.apply(new NonAttachedWindowFolder(
-              storageProvider, stateFactory, windowing.getClass()))
+              origOperator, storageProvider, stateFactory, windowing.getClass()))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     }
@@ -100,13 +100,16 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           Object,
           W> {
 
+    private final Operator<?, ?> operator;
     private final StateFactory<?, State> stateFactory;
     private final FlinkStreamingStateStorageProvider storageProvider;
 
     WindowFolder(
+        Operator<?, ?> operator,
         FlinkStreamingStateStorageProvider storageProvider,
         StateFactory<?, State> stateFactory) {
-      
+
+      this.operator = operator;
       this.stateFactory = stateFactory;
       this.storageProvider = storageProvider;
     }
@@ -127,6 +130,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       long emissionWatermark = getEmissionWatermark(window);
 
       State state = stateFactory.apply(
+          operator,
           e -> out.collect(new StreamingWindowedElement<>(
               wid,
               WindowedPair.of(
@@ -166,11 +170,12 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     private final Class<? extends Windowing> windowingType;
 
     NonAttachedWindowFolder(
+        Operator<?, ?> operator,
         FlinkStreamingStateStorageProvider storageProvider,
         StateFactory<?, State> stateFactory,
         Class<? extends Windowing> windowingType) {
       
-      super(storageProvider, stateFactory);
+      super(operator, storageProvider, stateFactory);
       this.windowingType = windowingType;
     }
 
@@ -194,9 +199,11 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       extends WindowFolder<AttachedWindow>
   {
     AttachedWindowFolder(
+        Operator<?, ?> operator,
         FlinkStreamingStateStorageProvider storageProvider,
         StateFactory<?, State> stateFactory) {
-      super(storageProvider, stateFactory);
+      
+      super(operator, storageProvider, stateFactory);
     }
     @Override
     protected long getEmissionWatermark(AttachedWindow window) {

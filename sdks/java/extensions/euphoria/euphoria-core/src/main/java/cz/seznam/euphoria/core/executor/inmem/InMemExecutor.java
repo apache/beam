@@ -611,9 +611,9 @@ public class InMemExecutor implements Executor {
       final BlockingQueue<Datum> output = new ArrayBlockingQueue<>(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
       executor.execute(new ReduceStateByKeyReducer(
+          reduceStateByKey,
           reduceStateByKey.getName() + "#part-" + (i++),
-          q, output, windowing,
-          keyExtractor, valueExtractor, stateFactory, stateCombiner,
+          q, output, keyExtractor, valueExtractor,
           // if using attached windowing, we have to use watermark triggering
           windowing != null
               ? triggerSchedulerSupplier.get()

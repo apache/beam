@@ -55,13 +55,19 @@ public class InMemStateStorageProvider implements StateStorageProvider {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ValueStateStorage<T> getValueStorageFor(Class<T> what) {
+  public <T> ValueStateStorage<T> getValueStorage(
+      String name,
+      Class<T> what) {
+
     return new InMemValueStateStorage();
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ListStateStorage<T> getListStorageFor(Class<T> what) {
+  public <T> ListStateStorage<T> getListStorage(
+      String name,
+      Class<T> what) {
+    
     return new InMemListStateStorage();
   }
 

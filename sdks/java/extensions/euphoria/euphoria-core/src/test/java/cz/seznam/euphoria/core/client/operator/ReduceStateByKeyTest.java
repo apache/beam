@@ -261,10 +261,11 @@ public class ReduceStateByKeyTest {
     private final ValueStateStorage<Long> sum;
 
     protected WordCountState(
+        Operator<?, ?> operator,
         Collector<Long> collector,
         StateStorageProvider storageProvider) {
-      super(collector, storageProvider);
-      sum = storageProvider.getValueStorageFor(Long.class);
+      super(operator, collector, storageProvider);
+      sum = storageProvider.getValueStorage(this, Long.class);
     }
 
     @Override
@@ -281,12 +282,22 @@ public class ReduceStateByKeyTest {
       WordCountState state = null;
       for (WordCountState s : others) {
         if (state == null) {
-          state = new WordCountState(s.getCollector(), s.getStorageProvider());
+          state = new WordCountState(
+              s.getAssociatedOperator(),
+              s.getCollector(),
+              s.getStorageProvider());
         }
         state.add(s.sum.get());
       }
 
       return state;
     }
+
+    @Override
+    public void close() {
+      sum.clear();
+    }
+
+
   }
 }
