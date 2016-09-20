@@ -16,9 +16,7 @@ import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
 import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -425,15 +423,17 @@ public class ReduceByKey<
 
     final ListStateStorage<VALUE> reducableValues;
 
-    ReduceState(Collector<OUT> collector,
+    ReduceState(Operator<?, ?> associatedOperator,
+                Collector<OUT> collector,
                 StateStorageProvider storageProvider,
                 ReduceFunction<VALUE, OUT> reducer,
                 boolean combinable)
     {
-      super(collector, storageProvider);
+      super(associatedOperator, collector, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
       this.combinable = combinable;
-      reducableValues = storageProvider.getListStorageFor((Class) Object.class);
+      reducableValues = storageProvider.getListStorage(
+          this, (Class) Object.class);
     }
 
     @Override
@@ -464,6 +464,11 @@ public class ReduceByKey<
       }
     }
 
+    @Override
+    public void close() {
+      reducableValues.clear();
+    }
+
   }
 
   @Override
@@ -475,8 +480,8 @@ public class ReduceByKey<
     reduceState = new ReduceStateByKey<>(getName(),
         flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
-        (Collector<OUT> c, StateStorageProvider provider) -> new ReduceState<>(
-            c, provider, reducer, isCombinable()),
+        (Operator<?, ?> o, Collector<OUT> c, StateStorageProvider provider) -> new ReduceState<>(
+            o, c, provider, reducer, isCombinable()),
         (Iterable<ReduceState> states) -> {
           final ReduceState first;
           Iterator<ReduceState> i = states.iterator();

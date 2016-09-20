@@ -31,9 +31,13 @@ public class TopPerKey<
     final ValueStateStorage<Pair<V, C>> curr;
 
     @SuppressWarnings("unchecked")
-    MaxScored(Collector<Pair<V, C>> collector, StateStorageProvider storageProvider) {
-      super(collector, storageProvider);
-      curr = (ValueStateStorage) storageProvider.getValueStorageFor(Pair.class);
+    MaxScored(
+        Operator<?, ?> operator,
+        Collector<Pair<V, C>> collector,
+        StateStorageProvider storageProvider) {
+
+      super(operator, collector, storageProvider);
+      curr = (ValueStateStorage) storageProvider.getValueStorage(this, Pair.class);
     }
 
     void merge(MaxScored<V, C> other) {
@@ -55,6 +59,13 @@ public class TopPerKey<
         getCollector().collect(curr.get());
       }
     }
+
+    @Override
+    public void close() {
+      curr.clear();
+    }
+
+
   }
 
   public static class KeyByBuilder<IN> {

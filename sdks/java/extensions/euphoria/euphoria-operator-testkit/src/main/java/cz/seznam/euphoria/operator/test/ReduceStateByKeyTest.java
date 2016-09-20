@@ -4,6 +4,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
@@ -11,13 +12,11 @@ import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
 import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.flink.shaded.com.google.common.collect.Lists;
 
 import static org.junit.Assert.*;
 
@@ -29,7 +28,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
   @Override
   protected List<TestCase> getTestCases() {
     return Arrays.asList(
-        //testBatchSort(),
+        testBatchSort(),
         testSortWindowed()
     );
   }
@@ -38,9 +37,13 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
     final ListStateStorage<Integer> data;
 
-    SortState(Collector<Integer> c, StateStorageProvider storageProvider) {
-      super(c, storageProvider);
-      this.data = storageProvider.getListStorageFor(Integer.class);
+    SortState(
+        Operator<?, ?> operator,
+        Collector<Integer> c,
+        StateStorageProvider storageProvider) {
+
+      super(operator, c, storageProvider);
+      this.data = storageProvider.getListStorage(this, Integer.class);
     }
 
     @Override
@@ -57,11 +60,19 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
     }
 
+    @Override
+    public void close() {
+      data.clear();
+    }
+
     static SortState combine(Iterable<SortState> states) {
       SortState ret = null;
       for (SortState state : states) {
         if (ret == null) {
-          ret = new SortState(state.getCollector(), state.getStorageProvider());
+          ret = new SortState(
+              state.getAssociatedOperator(),
+              state.getCollector(),
+              state.getStorageProvider());
         }
         ret.data.addAll(state.data.get());
       }

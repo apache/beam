@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
@@ -38,7 +39,6 @@ import static java.util.Objects.requireNonNull;
 class ReduceStateByKeyReducer implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
-
 
   private static final class LRU<K, V> extends LinkedHashMap<K, V> {
     private final int maxSize;
@@ -135,6 +135,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private final class ProcessingState implements TriggerContext {
 
+    final ReduceStateByKey operator;
     final StateStorageProvider storageProvider;
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
@@ -155,6 +156,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @SuppressWarnings("unchecked")
     private ProcessingState(
+        ReduceStateByKey operator,
         BlockingQueue<Datum> output,
         TriggerScheduler triggering,
         StateFactory stateFactory,
@@ -163,6 +165,7 @@ class ReduceStateByKeyReducer implements Runnable {
         boolean isBounded,
         int maxKeyStatesPerWindow) {
 
+      this.operator = operator;
       this.storageProvider = storageProvider;
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
@@ -244,7 +247,7 @@ class ReduceStateByKeyReducer implements Runnable {
           }
         };
         collector.assignWindowing(w.getWindowID());
-        state = (State) stateFactory.apply(collector, storageProvider);
+        state = (State) stateFactory.apply(operator, collector, storageProvider);
         keyStates.put(itemKey, state);
       } else {
         keyStates.put(itemKey, state);
@@ -412,6 +415,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   } // ~ end of ProcessingState
 
+  private final ReduceStateByKey operator;
   private final BlockingQueue<Datum> input;
   private final BlockingQueue<Datum> output;
 
@@ -419,6 +423,8 @@ class ReduceStateByKeyReducer implements Runnable {
   private final Windowing windowing;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
+  private final StateFactory stateFactory;
+  private final CombinableReduceFunction stateCombiner;
   private final WatermarkEmitStrategy watermarkStrategy;
   private final String name;
 
@@ -429,30 +435,33 @@ class ReduceStateByKeyReducer implements Runnable {
   private final TriggerScheduler triggering;
 
   @SuppressWarnings("rawtypes")
-  ReduceStateByKeyReducer(String name,
+  ReduceStateByKeyReducer(ReduceStateByKey operator,
+                          String name,
                           BlockingQueue<Datum> input,
                           BlockingQueue<Datum> output,
-                          Windowing windowing,
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
-                          StateFactory stateFactory,
-                          CombinableReduceFunction stateCombiner,
                           TriggerScheduler triggering,
                           WatermarkEmitStrategy watermarkStrategy,
                           StateStorageProvider storageProvider,
                           boolean isBounded,
                           int maxKeyStatesPerWindow) {
 
+    this.operator = requireNonNull(operator);
     this.name = requireNonNull(name);
     this.input = requireNonNull(input);
     this.output = requireNonNull(output);
-    this.isAttachedWindowing = windowing == null;
-    this.windowing = isAttachedWindowing ? AttachedWindowing.INSTANCE : windowing;
+    this.isAttachedWindowing = operator.getWindowing() == null;
+    this.windowing = isAttachedWindowing
+        ? AttachedWindowing.INSTANCE : operator.getWindowing();
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
+    this.stateFactory = requireNonNull(operator.getStateFactory());
+    this.stateCombiner = requireNonNull(operator.getStateCombiner());
     this.watermarkStrategy = requireNonNull(watermarkStrategy);
     this.triggering = requireNonNull(triggering);
     this.processing = new ProcessingState(
+        operator,
         output, triggering,
         stateFactory, stateCombiner,
         storageProvider, isBounded,

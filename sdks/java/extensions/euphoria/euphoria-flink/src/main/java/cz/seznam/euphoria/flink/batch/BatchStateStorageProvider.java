@@ -13,6 +13,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -29,7 +34,7 @@ import org.slf4j.LoggerFactory;
  * We will store the data in memory, for some amount of data and then
  * flush in on disk.
  * We don't need to worry about checkpointing here, because the
- * storage is used in batch only and can therefore by reconstructed by
+ * storage is used in batch only and can therefore be reconstructed by
  * recalculation of the data.
  */
 class BatchStateStorageProvider implements StateStorageProvider, Serializable {
@@ -118,7 +123,7 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
 
       Input input;
       try {
-        input = serializedElements.exists()
+        input = serializedElements != null
                 ? new Input(IOUtils.toBufferedInputStream(new FileInputStream(serializedElements)))
                 : null;
       } catch (Exception ex) {
@@ -156,23 +161,22 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
 
     @Override
     public final void clear() {
-      try {
-        data.clear();
-        if (serializedElements != null) {
-          serializedElements.delete();
-        }
-        this.serializedElements = File.createTempFile("euphoria-state-storage", ".bin");
-        serializedElements.deleteOnExit();
-        this.output = new Output(new FileOutputStream(serializedElements));
-      } catch (IOException ex) {
-        throw new RuntimeException(ex);
+      data.clear();
+      if (serializedElements != null) {
+        serializedElements.delete();
       }
+      serializedElements = null;
     }
 
     private void flush() throws IOException {
 
-      if (data.isEmpty())
+      if (data.isEmpty()) {
         return;
+      }
+
+      if (serializedElements == null) {
+        initDiskStorage();
+      }
 
       try {
         for (Object o : data) {
@@ -186,6 +190,19 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
         output.flush();
       }
            
+    }
+
+    private void initDiskStorage() throws IOException {
+      try {
+        Path workDir = FileSystems.getFileSystem(new URI("file:///")).getPath("./");
+
+        this.serializedElements = Files.createTempFile(workDir,
+            "euphoria-state-provider", ".bin").toFile();
+        this.output = new Output(new FileOutputStream(serializedElements));
+      } catch (URISyntaxException ex) {
+        // should not happen
+        throw new IllegalStateException("This should not happen, fix code!", ex);
+      }
     }
 
   }
@@ -203,7 +220,10 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
 
   @Override
   @SuppressWarnings("uncheced")
-  public <T> ValueStateStorage<T> getValueStorageFor(Class<T> what) {
+  public <T> ValueStateStorage<T> getValueStorage(
+      String name,
+      Class<T> what) {
+    
     initKryo();
     // this is purely in memory
     return new ValueStorage();
@@ -211,7 +231,10 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ListStateStorage<T> getListStorageFor(Class<T> what) {
+  public <T> ListStateStorage<T> getListStorage(
+      String name,
+      Class<T> what) {
+    
     try {
       initKryo();
       return new ListStorage(MAX_ELEMENTS_IN_MEMORY, kryo, serializers);
