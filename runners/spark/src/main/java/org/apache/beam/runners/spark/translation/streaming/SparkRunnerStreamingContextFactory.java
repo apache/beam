@@ -18,6 +18,11 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Arrays;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -31,6 +36,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * A {@link JavaStreamingContext} factory for resilience.
  * @see <a href="https://spark.apache.org/docs/1.6.2/streaming-programming-guide.html#how-to-configure-checkpointing">how-to-configure-checkpointing</a>
@@ -38,6 +44,7 @@ import org.slf4j.LoggerFactory;
 public class SparkRunnerStreamingContextFactory implements JavaStreamingContextFactory {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkRunnerStreamingContextFactory.class);
+  private static final Iterable<String> KNOWN_RELIABLE_FS = Arrays.asList("hdfs", "s3", "gs");
 
   private final Pipeline pipeline;
   private final SparkPipelineOptions options;
@@ -65,7 +72,23 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
 
-    jssc.checkpoint(options.getCheckpointDir());
+    // set checkpoint dir.
+    String checkpointDir = options.getCheckpointDir();
+    LOG.info("Checkpoint dir set to: {}", checkpointDir);
+    try {
+      // validate checkpoint dir and warn if not of a known durable filesystem.
+      URL checkpointDirUrl = new URL(checkpointDir);
+      if (!Iterables.any(KNOWN_RELIABLE_FS, Predicates.equalTo(checkpointDirUrl.getProtocol()))) {
+        LOG.warn("Checkpoint dir URL {} does not match a reliable filesystem, in case of failures "
+            + "this job may not recover properly or even at all.", checkpointDirUrl);
+      }
+    } catch (MalformedURLException e) {
+      throw new RuntimeException("Failed to form checkpoint dir URL. CheckpointDir should be in "
+          + "the form of hdfs:///path/to/dir or other reliable fs protocol, "
+              + "or file:///path/to/dir for local mode.", e);
+    }
+    jssc.checkpoint(checkpointDir);
+
     return jssc;
   }
 
