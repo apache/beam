@@ -77,7 +77,7 @@ public class ReduceWindow<
   }
 
   public static class OutputBuilder<T, VALUE, OUT>
-      extends OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
+      implements OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
     
     final String name;
     final Dataset<T> input;

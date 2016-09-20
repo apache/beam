@@ -10,7 +10,7 @@ import java.util.Objects;
  * Default implementation of {@link Partitioning} with one partition and
  * hash partitioner
  */
-final class DefaultPartitioning<T> implements Partitioning<T> {
+public final class DefaultPartitioning<T> implements Partitioning<T> {
 
   private int numPartitions;
   private Partitioner<T> partitioner;

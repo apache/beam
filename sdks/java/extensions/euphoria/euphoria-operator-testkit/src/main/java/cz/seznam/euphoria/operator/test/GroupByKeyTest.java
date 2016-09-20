@@ -80,6 +80,7 @@ public class GroupByKeyTest extends OperatorTest {
             .valueBy(e -> e % 2)
             .output();
         return Distinct.of(grouped)
+            .mapped(e -> e)
             .setPartitioner(p -> p.getKey() % 2)
             .output();
       }
