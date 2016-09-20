@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -26,7 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<ReduceStateByKey> {
 
-  final static String CFG_MAX_MEMORY_ELEMENTS = "euphoria.flink.batch.state.max.memoryy.elements";
+  final static String CFG_MAX_MEMORY_ELEMENTS = "euphoria.flink.batch.state.max.memory.elements";
   
   final StateStorageProvider stateStorageProvider;
 

@@ -2,7 +2,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
-import cz.seznam.euphoria.core.client.operator.state.StateStorage;
 import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
 import java.util.ArrayList;
@@ -13,17 +12,17 @@ import java.util.List;
  */
 public class InMemStateStorageProvider implements StateStorageProvider {
 
-  private static class InMemValueStateStorage<T> implements ValueStateStorage<Object> {
+  private static class InMemValueStateStorage<T> implements ValueStateStorage<T> {
 
-    Object value;
+    T value;
 
     @Override
-    public void set(Object value) {
+    public void set(T value) {
       this.value = value;
     }
 
     @Override
-    public Object get() {
+    public T get() {
       return value;
     }
 
@@ -33,17 +32,17 @@ public class InMemStateStorageProvider implements StateStorageProvider {
     }
   }
 
-  private static class InMemListStateStorage<T> implements ListStateStorage<Object> {
+  private static class InMemListStateStorage<T> implements ListStateStorage<T> {
 
-    List<Object> values = new ArrayList<>();
+    List<T> values = new ArrayList<>();
 
     @Override
-    public void add(Object element) {
+    public void add(T element) {
       values.add(element);
     }
 
     @Override
-    public Iterable<Object> get() {
+    public Iterable<T> get() {
       return values;
     }
 
