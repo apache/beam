@@ -1032,6 +1032,7 @@ class WriteImpl(ptransform.PTransform):
                                               _WriteBundleDoFn(), self.sink,
                                               AsSingleton(init_result_coll))
                            | core.Map(lambda x: (None, x))
+                           | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | core.FlatMap(lambda x: x[1]))
     return do_once | core.FlatMap(
