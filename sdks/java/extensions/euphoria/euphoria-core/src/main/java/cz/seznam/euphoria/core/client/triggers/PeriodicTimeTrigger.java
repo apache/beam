@@ -26,18 +26,18 @@ public class PeriodicTimeTrigger implements Trigger {
     if (scheduleNext(startTime, w, ctx)) {
       return TriggerResult.NOOP;
     }
-
     return TriggerResult.PASSED;
   }
 
   @Override
   public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
-    LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, w.getWindowID());
-
-    // ~ reschedule the trigger
-    scheduleNext(time, w, ctx);
-
-    return TriggerResult.FLUSH;
+    if (time >= startTime && time <= lastFireTime && time % interval == 0) {
+      LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, w.getWindowID());
+      // ~ reschedule the trigger
+      scheduleNext(time, w, ctx);
+      return TriggerResult.FLUSH;
+    }
+    return TriggerResult.NOOP;
   }
 
   /**
