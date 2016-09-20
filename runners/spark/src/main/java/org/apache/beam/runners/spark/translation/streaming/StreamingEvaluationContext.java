@@ -184,8 +184,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
     } else {
       jssc.awaitTermination();
     }
-    //TODO: stop gracefully ?
-    jssc.stop(false, false);
+    // stop streaming context gracefully, so checkpointing (and other computations) get to
+    // finish before shutdown.
+    jssc.stop(false, true);
     state = State.DONE;
     super.close();
   }
