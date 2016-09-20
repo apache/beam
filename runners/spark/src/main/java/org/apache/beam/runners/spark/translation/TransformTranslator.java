@@ -103,7 +103,7 @@ public final class TransformTranslator {
     };
   }
 
-  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbk() {
+  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbko() {
     return new TransformEvaluator<GroupByKeyOnly<K, V>>() {
       @Override
       public void evaluate(GroupByKeyOnly<K, V> transform, EvaluationContext context) {
@@ -153,7 +153,7 @@ public final class TransformTranslator {
             (JavaRDDLike<WindowedValue<KV<K, Iterable<InputT>>>, ?>)
                 context.getInputRDD(transform);
         context.setOutputRDD(transform, inRDD.map(
-            new TranslationUtils.CombineGorupedValues<>(transform)));
+            new TranslationUtils.CombineGroupedValues<>(transform)));
       }
     };
   }
@@ -568,7 +568,7 @@ public final class TransformTranslator {
     EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
     EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
-    EVALUATORS.put(GroupByKeyOnly.class, gbk());
+    EVALUATORS.put(GroupByKeyOnly.class, gbko());
     EVALUATORS.put(GroupAlsoByWindow.class, gabw());
     EVALUATORS.put(Combine.GroupedValues.class, grouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());

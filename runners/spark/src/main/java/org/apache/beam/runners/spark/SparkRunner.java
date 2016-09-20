@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The SparkRunner translate operations defined on a pipeline to a representation
  * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
- * a dataflow pipeline with the default options of a single threaded spark instance in local mode,
+ * a Beam pipeline with the default options of a single threaded spark instance in local mode,
  * we would do the following:
  *
  * {@code
@@ -227,8 +227,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       doVisitTransform(node);
     }
 
-    <TransformT extends PTransform<? super PInput, POutput>>
-    void doVisitTransform(TransformTreeNode node) {
+    <TransformT extends PTransform<? super PInput, POutput>> void
+        doVisitTransform(TransformTreeNode node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
