@@ -937,8 +937,8 @@ public class DirectPipelineRunner
     public <T> void setPCollectionValuesWithMetadata(
         PCollection<T> pc, List<ValueWithMetadata<T>> elements) {
       LOG.debug("Setting {} = {}", pc, elements);
-      ensurePCollectionEncodable(pc, elements);
-      setPValue(pc, elements);
+      List<ValueWithMetadata<T>> encoded = ensurePCollectionEncodable(pc, elements);
+      setPValue(pc, encoded);
     }
 
     @Override
