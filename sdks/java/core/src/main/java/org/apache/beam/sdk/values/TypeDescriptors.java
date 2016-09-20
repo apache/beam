@@ -139,6 +139,30 @@ public class TypeDescriptors {
   }
 
   /**
+   * The {@link TypeDescriptor} for Character.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Character&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for Character
+   */
+  public static TypeDescriptor<Character> characters() {
+    return new TypeDescriptor<Character>() {};
+  }
+
+  /**
+   * The {@link TypeDescriptor} for Byte.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Byte&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for Byte
+   */
+  public static TypeDescriptor<Byte> bytes() {
+    return new TypeDescriptor<Byte>() {};
+  }
+
+  /**
    * The {@link TypeDescriptor} for nulls/Void.
    * This is the equivalent of:
    * <pre>
