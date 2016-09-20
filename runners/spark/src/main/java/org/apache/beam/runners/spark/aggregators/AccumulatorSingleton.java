@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.aggregators;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -43,7 +44,7 @@ public class AccumulatorSingleton {
     return instance;
   }
 
-  /** For testing only. */
+  @VisibleForTesting
   public static void clear() {
     synchronized (AccumulatorSingleton.class) {
       instance = null;
