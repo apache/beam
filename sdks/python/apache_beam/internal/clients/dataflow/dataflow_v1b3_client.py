@@ -25,6 +25,7 @@ class DataflowV1b3(base_api.BaseApiClient):
   """Generated client library for service dataflow version v1b3."""
 
   MESSAGES_MODULE = messages
+  BASE_URL = u'https://dataflow.googleapis.com/'
 
   _PACKAGE = u'dataflow'
   _SCOPES = [u'https://www.googleapis.com/auth/cloud-platform', u'https://www.googleapis.com/auth/userinfo.email']
@@ -42,7 +43,7 @@ class DataflowV1b3(base_api.BaseApiClient):
                credentials_args=None, default_global_params=None,
                additional_http_headers=None):
     """Create a new dataflow handle."""
-    url = url or u'https://dataflow.googleapis.com/'
+    url = url or self.BASE_URL
     super(DataflowV1b3, self).__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
@@ -50,10 +51,75 @@ class DataflowV1b3(base_api.BaseApiClient):
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers)
+    self.projects_jobs_debug = self.ProjectsJobsDebugService(self)
     self.projects_jobs_messages = self.ProjectsJobsMessagesService(self)
     self.projects_jobs_workItems = self.ProjectsJobsWorkItemsService(self)
     self.projects_jobs = self.ProjectsJobsService(self)
+    self.projects_templates = self.ProjectsTemplatesService(self)
     self.projects = self.ProjectsService(self)
+
+  class ProjectsJobsDebugService(base_api.BaseApiService):
+    """Service class for the projects_jobs_debug resource."""
+
+    _NAME = u'projects_jobs_debug'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsJobsDebugService, self).__init__(client)
+      self._method_configs = {
+          'GetConfig': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.jobs.debug.getConfig',
+              ordered_params=[u'projectId', u'jobId'],
+              path_params=[u'jobId', u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/jobs/{jobId}/debug/getConfig',
+              request_field=u'getDebugConfigRequest',
+              request_type_name=u'DataflowProjectsJobsDebugGetConfigRequest',
+              response_type_name=u'GetDebugConfigResponse',
+              supports_download=False,
+          ),
+          'SendCapture': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.jobs.debug.sendCapture',
+              ordered_params=[u'projectId', u'jobId'],
+              path_params=[u'jobId', u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/jobs/{jobId}/debug/sendCapture',
+              request_field=u'sendDebugCaptureRequest',
+              request_type_name=u'DataflowProjectsJobsDebugSendCaptureRequest',
+              response_type_name=u'SendDebugCaptureResponse',
+              supports_download=False,
+          ),
+          }
+
+      self._upload_configs = {
+          }
+
+    def GetConfig(self, request, global_params=None):
+      """Get encoded debug configuration for component. Not cacheable.
+
+      Args:
+        request: (DataflowProjectsJobsDebugGetConfigRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (GetDebugConfigResponse) The response message.
+      """
+      config = self.GetMethodConfig('GetConfig')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    def SendCapture(self, request, global_params=None):
+      """Send encoded debug capture data for component.
+
+      Args:
+        request: (DataflowProjectsJobsDebugSendCaptureRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (SendDebugCaptureResponse) The response message.
+      """
+      config = self.GetMethodConfig('SendCapture')
+      return self._RunMethod(
+          config, request, global_params=global_params)
 
   class ProjectsJobsMessagesService(base_api.BaseApiService):
     """Service class for the projects_jobs_messages resource."""
@@ -291,6 +357,44 @@ class DataflowV1b3(base_api.BaseApiClient):
         (Job) The response message.
       """
       config = self.GetMethodConfig('Update')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+  class ProjectsTemplatesService(base_api.BaseApiService):
+    """Service class for the projects_templates resource."""
+
+    _NAME = u'projects_templates'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsTemplatesService, self).__init__(client)
+      self._method_configs = {
+          'Create': base_api.ApiMethodInfo(
+              http_method=u'POST',
+              method_id=u'dataflow.projects.templates.create',
+              ordered_params=[u'projectId'],
+              path_params=[u'projectId'],
+              query_params=[],
+              relative_path=u'v1b3/projects/{projectId}/templates',
+              request_field=u'createJobFromTemplateRequest',
+              request_type_name=u'DataflowProjectsTemplatesCreateRequest',
+              response_type_name=u'Job',
+              supports_download=False,
+          ),
+          }
+
+      self._upload_configs = {
+          }
+
+    def Create(self, request, global_params=None):
+      """Creates a dataflow job from a template.
+
+      Args:
+        request: (DataflowProjectsTemplatesCreateRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Job) The response message.
+      """
+      config = self.GetMethodConfig('Create')
       return self._RunMethod(
           config, request, global_params=global_params)
 
