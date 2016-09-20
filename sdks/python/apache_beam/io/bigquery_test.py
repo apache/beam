@@ -175,33 +175,6 @@ class TestBigQuerySink(unittest.TestCase):
             {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
         sink.schema_as_json())
 
-  def test_schema_as_json_invalid_nan(self):
-    sink = beam.io.BigQuerySink(
-        'dataset.table', schema='s:STRING, n:INTEGER')
-    self.assertEqual(
-        json.dumps({'fields': [
-            {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
-        sink.schema_as_json())
-
-  def test_schema_as_json_invalid_inf(self):
-    sink = beam.io.BigQuerySink(
-        'dataset.table', schema='s:STRING, n:INTEGER')
-    self.assertEqual(
-        json.dumps({'fields': [
-            {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
-        sink.schema_as_json())
-
-  def test_schema_as_json_invalid_n(self):
-    sink = beam.io.BigQuerySink(
-        'dataset.table', schema='s:STRING, n:INTEGER')
-    self.assertEqual(
-        json.dumps({'fields': [
-            {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}),
-        sink.schema_as_json())
-
   def test_nested_schema_as_json(self):
     string_field = bigquery.TableFieldSchema(
         name='s', type='STRING', mode='NULLABLE', description='s description')
