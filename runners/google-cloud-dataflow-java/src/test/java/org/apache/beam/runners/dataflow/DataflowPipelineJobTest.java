@@ -663,17 +663,17 @@ public class DataflowPipelineJobTest {
   @Test
   public void testCancelUnterminatedJobThatSucceeds() throws IOException {
     Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
-    Job content = new Job();
-    content.setProjectId(PROJECT_ID);
-    content.setId(JOB_ID);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
     when(update.execute()).thenReturn(new Job());
 
     DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
 
     assertEquals(State.CANCELLED, job.cancel());
-    verify(mockJobs).update(anyString(), anyString(), any(Job.class));
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(JOB_ID), eq(content));
     verifyNoMoreInteractions(mockJobs);
   }
 
@@ -683,15 +683,11 @@ public class DataflowPipelineJobTest {
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_RUNNING");
-    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(mockJobs.get(anyString(), anyString())).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
-    Job content = new Job();
-    content.setProjectId(PROJECT_ID);
-    content.setId(JOB_ID);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
     when(update.execute()).thenThrow(new IOException());
 
     DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
@@ -700,6 +696,13 @@ public class DataflowPipelineJobTest {
     thrown.expectMessage("Failed to cancel the job, "
         + "please go to the Developers Console to cancel it manually:");
     job.cancel();
+
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(JOB_ID), eq(content));
+    verify(mockJobs).get(eq(PROJECT_ID), eq(JOB_ID));
   }
 
   @Test
@@ -708,22 +711,22 @@ public class DataflowPipelineJobTest {
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_FAILED");
-    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(mockJobs.get(anyString(), anyString())).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     Dataflow.Projects.Jobs.Update update = mock(Dataflow.Projects.Jobs.Update.class);
-    Job content = new Job();
-    content.setProjectId(PROJECT_ID);
-    content.setId(JOB_ID);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    when(mockJobs.update(eq(PROJECT_ID), eq(JOB_ID), eq(content))).thenReturn(update);
+    when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
     when(update.execute()).thenThrow(new IOException());
 
     DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
 
     assertEquals(State.FAILED, job.cancel());
-    verify(mockJobs).get(anyString(), anyString());
-    verify(mockJobs).update(anyString(), anyString(), any(Job.class));
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(JOB_ID), eq(content));
+    verify(mockJobs).get(eq(PROJECT_ID), eq(JOB_ID));
     verifyNoMoreInteractions(mockJobs);
   }
 }
