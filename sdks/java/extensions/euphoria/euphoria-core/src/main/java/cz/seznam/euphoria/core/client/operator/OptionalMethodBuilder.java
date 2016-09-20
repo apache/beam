@@ -9,10 +9,10 @@ import java.util.Objects;
  * of `applyIf` call.
  * @param BUILDER the class of the builder that extends this class
  */
-public abstract class OptionalMethodBuilder<BUILDER> {
+public interface OptionalMethodBuilder<BUILDER> {
 
   @SuppressWarnings("unchecked")
-  public BUILDER applyIf(boolean cond, UnaryFunction<BUILDER, BUILDER> apply) {
+  default BUILDER applyIf(boolean cond, UnaryFunction<BUILDER, BUILDER> apply) {
     Objects.requireNonNull(apply);
     return cond ? apply.apply((BUILDER) this) : (BUILDER) this;
   }

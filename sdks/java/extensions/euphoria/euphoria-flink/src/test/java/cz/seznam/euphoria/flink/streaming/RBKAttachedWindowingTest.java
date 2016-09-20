@@ -276,6 +276,7 @@ public class RBKAttachedWindowingTest {
     // ~ distinct queries per user
     Dataset<Query> distinctByUser =
         Distinct.of(f.createInput(source))
+            .mapped(e -> e)
             .setNumPartitions(1)
             .windowBy(Time.of(Duration.ofMillis(5))
                 .using(e -> e.time))
