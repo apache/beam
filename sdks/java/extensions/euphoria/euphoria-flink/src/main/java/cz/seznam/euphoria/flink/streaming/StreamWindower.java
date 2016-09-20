@@ -9,13 +9,12 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowAssigner;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindowAssigner;
-import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
+import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindowID;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindowAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -23,8 +22,6 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.functions.timestamps
     .BoundedOutOfOrdernessTimestampExtractor;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -84,19 +81,19 @@ class StreamWindower {
          Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
 
     if (windowing instanceof Time<?>) {
-//      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
-      Time<T> twin = (Time<T>) windowing;
-      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
-          input, keyExtractor, valueExtractor,
-          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
+      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
+//      Time<T> twin = (Time<T>) windowing;
+//      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+//          input, keyExtractor, valueExtractor,
+//          TumblingEventTimeWindows.of(millisTime(twin.getDuration())));
     } else if (windowing instanceof TimeSliding<?>) {
-//      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
-      TimeSliding<T> twin = (TimeSliding<T>) windowing;
-      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
-          input, keyExtractor, valueExtractor,
-          SlidingEventTimeWindows.of(
-              millisTime(twin.getDuration()),
-              millisTime(twin.getSlide())));
+      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
+//      TimeSliding<T> twin = (TimeSliding<T>) windowing;
+//      return (WindowedStream) keyWindow(twin, twin.getEventTimeFn(),
+//          input, keyExtractor, valueExtractor,
+//          SlidingEventTimeWindows.of(
+//              millisTime(twin.getDuration()),
+//              millisTime(twin.getSlide())));
     } else {
       throw new UnsupportedOperationException("Not yet supported: " + windowing);
     }
@@ -105,7 +102,7 @@ class StreamWindower {
 
   @SuppressWarnings("unchecked")
   <T, LABEL, GROUP, KEY, VALUE, W extends Window>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<FlinkWindow>>
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<FlinkWindowID>>
   genericWindow(DataStream<StreamingWindowedElement<?, ?, T>> input,
       UnaryFunction<T, KEY> keyExtractor,
       UnaryFunction<T, VALUE> valueExtractor,

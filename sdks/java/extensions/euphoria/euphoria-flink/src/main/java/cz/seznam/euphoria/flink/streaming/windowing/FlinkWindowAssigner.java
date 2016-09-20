@@ -15,7 +15,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
-        extends WindowAssigner<StreamingWindowedElement<?, ?, T>, FlinkWindow> {
+        extends WindowAssigner<StreamingWindowedElement<?, ?, T>, FlinkWindowID> {
 
   private final Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing;
 
@@ -26,23 +26,23 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
   }
 
   @Override
-  public Collection<FlinkWindow> assignWindows(
+  public Collection<FlinkWindowID> assignWindows(
       StreamingWindowedElement<?, ?, T> element,
       long timestamp, WindowAssignerContext context) {
     
     WindowID<GROUP, LABEL> wid = (WindowID) element.getWindowID();
-    return Arrays.asList(new FlinkWindow(windowing.createWindowContext(wid)));
+    return Arrays.asList(new FlinkWindowID(windowing.createWindowContext(wid)));
   }
 
   @Override
-  public Trigger<StreamingWindowedElement<?, ?, T>, FlinkWindow> getDefaultTrigger(
+  public Trigger<StreamingWindowedElement<?, ?, T>, FlinkWindowID> getDefaultTrigger(
       StreamExecutionEnvironment env) {
-    return new FlinkTrigger<>();
+    return new FlinkTrigger<>(windowing);
   }
 
   @Override
-  public TypeSerializer<FlinkWindow> getWindowSerializer(ExecutionConfig executionConfig) {
-    return new KryoSerializer<>(FlinkWindow.class, executionConfig);
+  public TypeSerializer<FlinkWindowID> getWindowSerializer(ExecutionConfig executionConfig) {
+    return new KryoSerializer<>(FlinkWindowID.class, executionConfig);
   }
 
   @Override
