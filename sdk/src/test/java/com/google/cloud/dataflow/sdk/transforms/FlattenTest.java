@@ -40,7 +40,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.collect.ImmutableSet;
-
+import com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -49,7 +49,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,6 +111,26 @@ public class FlattenTest implements Serializable {
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of());
 
     DataflowAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFlattenInputMultipleCopies() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> lines = p.apply("mkLines", Create.of(LINES));
+    PCollection<String> lines2 = p.apply("mkOtherLines", Create.of(LINES2));
+
+    PCollection<String> flattened = PCollectionList.of(lines)
+        .and(lines2)
+        .and(lines)
+        .and(lines)
+        .apply(Flatten.<String>pCollections());
+
+    DataflowAssert.that(flattened)
+        .containsInAnyOrder(Iterables.concat(LINES, LINES, LINES, LINES2));
+
     p.run();
   }
 
