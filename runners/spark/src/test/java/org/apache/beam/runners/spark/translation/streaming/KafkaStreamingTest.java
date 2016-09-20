@@ -25,14 +25,13 @@ import java.util.Properties;
 import kafka.serializer.StringDecoder;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -43,7 +42,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.spark.streaming.Durations;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -64,7 +62,6 @@ public class KafkaStreamingTest {
       "k1", "v1", "k2", "v2", "k3", "v3", "k4", "v4"
   );
   private static final String[] EXPECTED = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
-  private static final long TEST_TIMEOUT_MSEC = 1000L;
 
   @BeforeClass
   public static void init() throws IOException {
@@ -88,26 +85,19 @@ public class KafkaStreamingTest {
   @Rule
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
+  @Rule
+  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+
   @Test
   public void testRun() throws Exception {
-    checkpointParentDir.create();
-
-    // test read from Kafka
-    SparkPipelineOptions options =
-        PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    options.setStreaming(true);
-    options.setCheckpointDir(checkpointParentDir.getRoot().getAbsolutePath()
-        + "/tmp/kafka-streaming-test");
-    options.setBatchIntervalMillis(Durations.seconds(1).milliseconds());
-    options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
-    Pipeline p = Pipeline.create(options);
-
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
+        checkpointParentDir.newFolder(getClass().getSimpleName()));
     Map<String, String> kafkaParams = ImmutableMap.of(
         "metadata.broker.list", EMBEDDED_KAFKA_CLUSTER.getBrokerList(),
         "auto.offset.reset", "smallest"
     );
 
+    Pipeline p = Pipeline.create(options);
     PCollection<KV<String, String>> kafkaInput = p.apply(KafkaIO.Read.from(StringDecoder.class,
         StringDecoder.class, String.class, String.class, Collections.singleton(TOPIC),
         kafkaParams))
