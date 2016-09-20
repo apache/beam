@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -8,6 +9,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -16,6 +18,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Arrays;
+import org.apache.flink.api.java.operators.Operator;
 
 public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKey> {
 
@@ -47,7 +50,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     }
 
     // extract key/value from data
-    DataSet tuples = (DataSet) input.map(i -> {
+    DataSet<WindowedElement> tuples = (DataSet) input.map(i -> {
           WindowedElement wel = (WindowedElement) i;
           WindowID wid = wel.getWindowID();
           Object el = wel.get();
@@ -60,11 +63,29 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
         .setParallelism(operator.getParallelism())
         .returns((Class) WindowedElement.class);
 
+
+
     // XXX require keyExtractor to deliver `Comparable`s
-    return tuples.groupBy((KeySelector) new TypedKeySelector<>())
+    Operator<WindowedElement<?, ?, Pair>, ?> reduced = tuples
+        .groupBy((KeySelector) new TypedKeySelector<>())
         .reduce(new TypedReducer(reducer))
         .setParallelism(operator.getParallelism())
         .name(operator.getName() + "::reduce");
+
+    // FIXME partitioner should be applied during "reduce" to avoid
+    // unnecessary shuffle, but there is no (known) way how to set custom
+    // partitioner to "groupBy" transformation
+
+    // apply custom partitioner if different from default HashPartitioner
+    if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
+      reduced = reduced
+          .partitionCustom(
+              new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
+              new TypedKeySelector())
+          .setParallelism(operator.getParallelism());
+    }
+
+    return reduced;
   }
 
   private static class TypedKeySelector<KEY>

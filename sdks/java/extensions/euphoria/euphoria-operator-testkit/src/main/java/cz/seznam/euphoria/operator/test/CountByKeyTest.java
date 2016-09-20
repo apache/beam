@@ -2,11 +2,12 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.CountByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,7 +23,7 @@ public class CountByKeyTest extends OperatorTest {
     return Arrays.asList(
       testOnStream(),
       testOnBatch(),
-      testWithCountWindow()
+      testWithEventTimeWindow()
       // FIXME
       // testWithCountWindowAggregating()
     );
@@ -36,8 +37,8 @@ public class CountByKeyTest extends OperatorTest {
           Dataset<Integer> input) {
         return CountByKey.of(input)
             .keyBy(e -> e)
-            .setPartitioner(e -> e)
-            .windowBy(Count.of(7))
+            .setPartitioner(i -> i)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
@@ -131,29 +132,30 @@ public class CountByKeyTest extends OperatorTest {
     };
   }
 
-  TestCase testWithCountWindow() {
-    return new AbstractTestCase<Integer, Pair<Integer, Long>>() {
+  TestCase testWithEventTimeWindow() {
+    return new AbstractTestCase<Pair<Integer, Long>, Pair<Integer, Long>>() {
 
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(
-          Dataset<Integer> input) {
+          Dataset<Pair<Integer, Long>> input) {
         return CountByKey.of(input)
-            .keyBy(e -> e)
-            .windowBy(Count.of(3))
+            .keyBy(Pair::getFirst)
+            .windowBy(Time.of(Duration.ofSeconds(1))
+                .using(Pair::getSecond))
             .output();
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
+      protected DataSource<Pair<Integer, Long>> getDataSource() {
         return ListDataSource.unbounded(
             Arrays.asList(
-                1, 2, 1,
-                3, 3, 4,
-                5, 5, 5,
-                5, 5, 6,
-                7, 7, 10,
-                10, 9, 9,
-                9, 9)
+                Pair.of(1, 200L), Pair.of(2, 500L), Pair.of(1, 800L),
+                Pair.of(3, 1400L), Pair.of(3, 1200L), Pair.of(4, 1800L),
+                Pair.of(5, 2100L), Pair.of(5, 2300L), Pair.of(5, 2700L),
+                Pair.of(5, 3500L), Pair.of(5, 3300L), Pair.of(6, 3800L),
+                Pair.of(7, 4400L), Pair.of(7, 4500L), Pair.of(10, 4600L),
+                Pair.of(10, 5100L), Pair.of(9, 5200L), Pair.of(9, 5500L),
+                Pair.of(9, 6300L), Pair.of(9, 6700L))
         );
       }
 
