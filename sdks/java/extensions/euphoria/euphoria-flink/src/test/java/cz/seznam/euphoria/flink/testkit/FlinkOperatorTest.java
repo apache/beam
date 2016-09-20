@@ -15,12 +15,6 @@ public class FlinkOperatorTest extends AllOperatorTest {
 
   @Override
   @Ignore
-  public void testDistinct() throws Exception {
-    // TODO
-  }
-
-  @Override
-  @Ignore
   public void testCountByKey() throws Exception {
     // TODO
   }

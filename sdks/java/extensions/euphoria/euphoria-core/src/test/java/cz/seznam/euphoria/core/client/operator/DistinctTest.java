@@ -5,7 +5,6 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import org.junit.Test;
 
