@@ -28,7 +28,6 @@ import org.apache.beam.runners.core.AssignWindowsDoFn;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
-import org.apache.beam.runners.spark.BroadcastSideInputs;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -226,7 +225,7 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbk() {
+  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbko() {
     return new TransformEvaluator<GroupByKeyOnly<K, V>>() {
       @Override
       public void evaluate(GroupByKeyOnly<K, V> transform, EvaluationContext context) {
@@ -297,7 +296,7 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> dStream =
             (JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>>) sec.getStream(transform);
         sec.setStream(transform, dStream.map(
-            new TranslationUtils.CombineGorupedValues<>(transform)));
+            new TranslationUtils.CombineGroupedValues<>(transform)));
       }
     };
   }
@@ -404,9 +403,9 @@ public final class StreamingTransformTranslator {
       public void evaluate(final ParDo.Bound<InputT, OutputT> transform,
                            final EvaluationContext context) {
         final StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
-        final Map<TupleTag<?>, BroadcastHelper<?>> providedSideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
+        final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs =
+            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<InputT>> dStream =
             (JavaDStream<WindowedValue<InputT>>) sec.getStream(transform);
@@ -419,9 +418,6 @@ public final class StreamingTransformTranslator {
               Exception {
             final Accumulator<NamedAggregators> accum =
                 AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
-            final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs =
-                BroadcastSideInputs.getOrCreateBroadcast(
-                    new JavaSparkContext(rdd.context()), providedSideInputs);
             return rdd.mapPartitions(
                 new DoFnFunction<>(accum, transform.getFn(), runtimeContext, sideInputs));
           }
@@ -439,9 +435,9 @@ public final class StreamingTransformTranslator {
       public void evaluate(final ParDo.BoundMulti<InputT, OutputT> transform,
                            final EvaluationContext context) {
         final StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
-        final Map<TupleTag<?>, BroadcastHelper<?>> providedSideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
+        final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs =
+            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<InputT>> dStream =
             (JavaDStream<WindowedValue<InputT>>) sec.getStream(transform);
@@ -453,9 +449,6 @@ public final class StreamingTransformTranslator {
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
                 AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
-            final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs =
-                BroadcastSideInputs.getOrCreateBroadcast(
-                    new JavaSparkContext(rdd.context()), providedSideInputs);
             return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getFn(),
                 runtimeContext, transform.getMainOutputTag(), sideInputs));
           }
@@ -480,7 +473,7 @@ public final class StreamingTransformTranslator {
       .newHashMap();
 
   static {
-    EVALUATORS.put(GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly.class, gbk());
+    EVALUATORS.put(GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly.class, gbko());
     EVALUATORS.put(GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow.class, gabw());
     EVALUATORS.put(Combine.GroupedValues.class, grouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
@@ -493,19 +486,6 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(Window.Bound.class, window());
     EVALUATORS.put(Flatten.FlattenPCollectionList.class, flattenPColl());
   }
-
-
-  //TODO: should use this to set foreachRDD instead of map in ParDo ?
-  // or is EvaluationContext#computeOutputs enough ?
-//  @SuppressWarnings("unchecked")
-//  private static <TransformT extends PTransform<?, ?>> boolean isLeaf(Class<TransformT> clazz) {
-//    // Beam leafs should translate into Spark actions.
-//    // If the Beam PTransform output class is of type PDone, the transformation (ParDo) should
-//    // be applied as a Spark foreachRDD function instead of a map.
-//    Type[] types = ((ParameterizedType) clazz.getGenericSuperclass()).getActualTypeArguments();
-//    Class<?> pTOutputClazz = TypeToken.of(clazz).resolveType(types[1]).getRawType();
-//    return PDone.class.equals(pTOutputClazz);
-//  }
 
   /**
    * Translator matches Beam transformation with the appropriate evaluator.
