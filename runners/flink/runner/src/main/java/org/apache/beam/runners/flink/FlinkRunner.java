@@ -155,7 +155,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      Map<String,Object> accumulators = Collections.emptyMap();
+      Map<String, Object> accumulators = Collections.emptyMap();
       return new FlinkRunnerResult(accumulators, -1L);
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
