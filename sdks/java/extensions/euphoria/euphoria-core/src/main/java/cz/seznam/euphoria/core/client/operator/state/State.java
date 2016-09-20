@@ -5,12 +5,11 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.Operator;
 
 import java.io.Closeable;
-import java.io.Serializable;
 
 /**
  * A state for stateful operations.
  */
-public abstract class State<IN, OUT> implements Closeable, Serializable {
+public abstract class State<IN, OUT> implements Closeable {
 
   /** Operator associated with this state. */
   private final Operator<?, ?> associatedOperator;
