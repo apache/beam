@@ -701,7 +701,7 @@ public class TextIOTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testTxtReadRead() throws Exception {
+  public void testTxtRead() throws Exception {
     // Files with non-compressed extensions should work in AUTO and UNCOMPRESSED modes.
     for (CompressionType type : new CompressionType[] { AUTO, UNCOMPRESSED }) {
       assertReadingCompressedFileMatchesExpected(emptyTxt, type, EMPTY);
@@ -1073,7 +1073,7 @@ public class TextIOTest {
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
 
- @Test
+  @Test
   public void testInitialSplitIntoBundlesAutoModeGz() throws Exception {
     long desiredBundleSize = 1000;
     PipelineOptions options = TestPipeline.testingPipelineOptions();
