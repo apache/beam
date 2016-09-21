@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.Accumulator;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,10 +111,12 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   @Override
   public <AggregatprInputT, AggregatorOutputT>
   Aggregator<AggregatprInputT, AggregatorOutputT> createAggregatorInternal(
-      String named,
-      Combine.CombineFn<AggregatprInputT, ?, AggregatorOutputT> combineFn) {
-    return mRuntimeContext.createAggregator(named, combineFn);
+          String named,
+          Combine.CombineFn<AggregatprInputT, ?, AggregatorOutputT> combineFn) {
+    return mRuntimeContext.createAggregator(getAccumulator(), named, combineFn);
   }
+
+  public abstract Accumulator<NamedAggregators> getAccumulator();
 
   @Override
   public InputT element() {

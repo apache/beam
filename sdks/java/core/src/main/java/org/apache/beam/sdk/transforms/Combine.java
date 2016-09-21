@@ -1410,6 +1410,13 @@ public class Combine {
           ImmutableList.copyOf(sideInputs));
     }
 
+    /**
+     * Returns the {@link GlobalCombineFn} used by this Combine operation.
+     */
+    public GlobalCombineFn<? super InputT, ?, OutputT> getFn() {
+      return fn;
+    }
+
     @Override
     public PCollection<OutputT> apply(PCollection<InputT> input) {
       PCollection<KV<Void, InputT>> withKeys = input

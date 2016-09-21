@@ -24,12 +24,15 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Iterator;
 import java.util.Map;
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.joda.time.Instant;
+
 import scala.Tuple2;
 
 /**
@@ -39,23 +42,49 @@ import scala.Tuple2;
  * @param <InputT> Input type for DoFunction.
  * @param <OutputT> Output type for DoFunction.
  */
-class MultiDoFnFunction<InputT, OutputT>
-    implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
+public class MultiDoFnFunction<InputT, OutputT>
+    implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>,
+        WindowedValue<?>> {
+  private final Accumulator<NamedAggregators> accum;
   private final OldDoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final TupleTag<OutputT> mMainOutputTag;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
-  MultiDoFnFunction(
+  /**
+   * @param accum          The Spark Accumulator that handles the Beam Aggregators.
+   * @param fn             DoFunction to be wrapped.
+   * @param runtimeContext Runtime to apply function in.
+   * @param mainOutputTag  The main output {@link TupleTag}.
+   * @param sideInputs     Side inputs used in DoFunction.
+   */
+  public MultiDoFnFunction(
+      Accumulator<NamedAggregators> accum,
       OldDoFn<InputT, OutputT> fn,
       SparkRuntimeContext runtimeContext,
       TupleTag<OutputT> mainOutputTag,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+    this.accum = accum;
     this.mFunction = fn;
     this.mRuntimeContext = runtimeContext;
     this.mMainOutputTag = mainOutputTag;
     this.mSideInputs = sideInputs;
   }
+
+  /**
+   * @param fn             DoFunction to be wrapped.
+   * @param runtimeContext Runtime to apply function in.
+   * @param mainOutputTag  The main output {@link TupleTag}.
+   * @param sideInputs     Side inputs used in DoFunction.
+   */
+  public MultiDoFnFunction(
+      OldDoFn<InputT, OutputT> fn,
+      SparkRuntimeContext runtimeContext,
+      TupleTag<OutputT> mainOutputTag,
+      Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+    this(null, fn, runtimeContext, mainOutputTag, sideInputs);
+  }
+
 
   @Override
   public Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>>
@@ -96,6 +125,15 @@ class MultiDoFnFunction<InputT, OutputT>
     public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
       outputs.put(tupleTag, WindowedValue.of(t, instant,
           windowedValue.getWindows(), windowedValue.getPane()));
+    }
+
+    @Override
+    public Accumulator<NamedAggregators> getAccumulator() {
+      if (accum == null) {
+        throw new UnsupportedOperationException("SparkRunner does not provide Aggregator support "
+             + "for MultiDoFnFunction of type: " + mFunction.getClass().getCanonicalName());
+      }
+      return accum;
     }
 
     @Override
