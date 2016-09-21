@@ -8,12 +8,25 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * A presentation of {@link cz.seznam.euphoria.core.client.dataset.windowing.WindowID}
  * to Flink.
  */
-public class FlinkWindow extends Window {
+public class FlinkWindow<GROUP, LABEL> extends Window
+  implements WindowProperties<GROUP, LABEL>
+{
 
-  private final WindowID<?, ?> windowID;
+  private final WindowID<GROUP, LABEL> windowID;
 
-  public FlinkWindow(WindowContext<?, ?> euphoriaContext) {
+  private transient long emissionWatermark = Long.MIN_VALUE;
+
+  public FlinkWindow(WindowContext<GROUP, LABEL> euphoriaContext) {
     this.windowID = euphoriaContext.getWindowID();
+  }
+
+  @Override
+  public long getEmissionWatermark() {
+    return emissionWatermark;
+  }
+
+  public void setEmissionWatermark(long emissionWatermark) {
+    this.emissionWatermark = emissionWatermark;
   }
 
   @Override
@@ -22,7 +35,8 @@ public class FlinkWindow extends Window {
     return Long.MAX_VALUE;
   }
 
-  public WindowID<?, ?> getWindowID() {
+  @Override
+  public WindowID<GROUP, LABEL> getWindowID() {
     return windowID;
   }
 
@@ -39,4 +53,11 @@ public class FlinkWindow extends Window {
     return windowID.hashCode();
   }
 
+  @Override
+  public String toString() {
+    return "FlinkWindow{" +
+        "windowID=" + windowID +
+        ", emissionWatermark=" + emissionWatermark +
+        '}';
+  }
 }

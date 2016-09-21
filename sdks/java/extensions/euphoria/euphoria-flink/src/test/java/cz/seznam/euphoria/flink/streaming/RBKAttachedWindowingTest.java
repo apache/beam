@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-public class AttachedWindowingTest {
+public class RBKAttachedWindowingTest {
 
   @Test
   public void testAttachedWindow() throws Exception {
@@ -101,28 +101,87 @@ public class AttachedWindowingTest {
             .collect(Collectors.toList()));
   }
 
+  @Test
+  public void testAttachedWindowNonCombining() throws Exception {
+    ListDataSource<Pair<String, Integer>> source =
+        ListDataSource.unbounded(
+            asList(
+                Pair.of("one",   1),
+                Pair.of("one",   2),
+                Pair.of("two",   3),
+                Pair.of("two",   4),
+                Pair.of("three", 5),
+                Pair.of("one",   10),
+                Pair.of("two",   11),
+                Pair.of("one",   12),
+                Pair.of("one",   13),
+                Pair.of("quux",  13),
+                Pair.of("quux",  13),
+                Pair.of("foo",   21)))
+            .withReadDelay(Duration.ofMillis(200))
+            .withFinalDelay(Duration.ofSeconds(2));
+
+    Flow f = Flow.create("test-attached-windowing");
+
+    // ~ reduce using a specified windowing
+    Dataset<Pair<String, Long>> uniq =
+        ReduceByKey.of(f.createInput(source))
+            .keyBy(Pair::getFirst)
+            .valueBy(e -> 1L)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofMillis(10))
+                .using(e -> (long) e.getSecond()))
+            .setNumPartitions(2)
+            .output();
+
+    ListDataSink<WindowedPair<TimeInterval, String, HashMap<String, Long>>> output
+        = ListDataSink.get(1);
+
+    // ~ reduce the output using attached windowing, i.e. producing
+    // one output element per received window
+    Dataset<WindowedPair<TimeInterval, String, HashMap<String, Long>>>
+        reduced = ReduceByKey
+        .of(uniq)
+        .keyBy(e -> "")
+        .valueBy(e -> e)
+        .reduceBy(xs -> {
+          HashMap<String, Long> m = new HashMap<>();
+          for (Pair<String, Long> x : xs) {
+            m.put(x.getFirst(), x.getSecond());
+          }
+          return m;
+        })
+        .setNumPartitions(1)
+        .outputWindowed();
+    reduced.persist(output);
+
+    new TestFlinkExecutor()
+        .setAutoWatermarkInterval(Duration.ofMillis(10))
+        .setAllowedLateness(Duration.ofMillis(0))
+        .waitForCompletion(f);
+
+    // ~ we had two windows
+    assertEquals(3, output.getOutput(0).size());
+    assertEquals(
+        Lists.newArrayList(
+            Pair.of(new TimeInterval(0, 10),
+                toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
+            Pair.of(new TimeInterval(10, 10),
+                toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
+            Pair.of(new TimeInterval(20, 10),
+                toMap(Pair.of("foo", 1L)))),
+        output.getOutput(0)
+            .stream()
+            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .collect(Collectors.toList()));
+  }
+
   static <K, V> HashMap<K, V> toMap(Pair<K, V> ... ps) {
     HashMap<K, V> m = new HashMap<>();
     for (Pair<K, V> p : ps) {
       m.put(p.getKey(), p.getValue());
     }
     return m;
-  }
-
-  static <K, V> List<String> outputToString(List<Pair<String, HashMap<K, V>>> output) {
-    ArrayList<String> xs = new ArrayList<>(output.size());
-
-    for (Pair<String, HashMap<K, V>> p : output) {
-      ArrayList<String> elems = new ArrayList<>();
-      for (Map.Entry<K, V> e : p.getSecond().entrySet()) {
-        elems.add(e.getKey() + "=" + e.getValue());
-      }
-      elems.sort(String::compareTo);
-      elems.add(0, p.getFirst());
-      xs.add(Joiner.on(", ").join(elems));
-    }
-    xs.sort(String::compareTo);
-    return xs;
   }
 
   static class ToHashMap<K, V, P extends Pair<K, V>>

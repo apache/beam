@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -10,14 +9,13 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 
-import java.util.List;
 import java.util.Objects;
 
 
-public class FlinkWindowTrigger<T> extends Trigger<T, FlinkWindow> {
+public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<GROUP, LABEL>> {
 
-  private final Windowing windowing;
-  private final ValueStateDescriptor<WindowContext> windowState;
+  private final Windowing<T, GROUP, LABEL, ?> windowing;
+  private final ValueStateDescriptor<WindowContext<GROUP, LABEL>> windowState;
 
   public FlinkWindowTrigger(Windowing windowing, ExecutionConfig cfg) {
     this.windowing = Objects.requireNonNull(windowing);
@@ -26,22 +24,39 @@ public class FlinkWindowTrigger<T> extends Trigger<T, FlinkWindow> {
   }
 
   @Override
-  public TriggerResult onElement(T element,
-                                 long timestamp,
-                                 FlinkWindow window,
-                                 TriggerContext ctx) throws Exception {
+  public TriggerResult onElement(
+      T element, long timestamp, FlinkWindow<GROUP, LABEL> window, TriggerContext ctx)
+      throws Exception {
+    return trackEmissionWatermark(
+        window, ctx, onElementImpl(element, timestamp, window, ctx));
+  }
 
-    ValueState<WindowContext> state = ctx.getPartitionedState(windowState);
-    WindowContext wContext = state.value();
+  @Override
+  public TriggerResult onProcessingTime(long time,
+                                        FlinkWindow<GROUP, LABEL> window,
+                                        TriggerContext ctx) throws Exception {
+    return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
+  }
+
+  @Override
+  public TriggerResult onEventTime(long time,
+                                   FlinkWindow<GROUP, LABEL> window,
+                                   TriggerContext ctx) throws Exception {
+
+    return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
+  }
+
+  private TriggerResult onElementImpl(
+      T element, long timestamp, FlinkWindow<GROUP, LABEL> window, TriggerContext ctx)
+      throws Exception {
+
+    ValueState<WindowContext<GROUP, LABEL>> state = ctx.getPartitionedState(windowState);
+    WindowContext<GROUP, LABEL> wContext = state.value();
     if (wContext == null) {
       wContext = windowing.createWindowContext(window.getWindowID());
 
-      @SuppressWarnings("unchecked")
-      List<cz.seznam.euphoria.core.client.triggers.Trigger> eTriggers =
-          wContext.createTriggers();
-
       TriggerResult tr = TriggerResult.PURGE;
-      for (cz.seznam.euphoria.core.client.triggers.Trigger t : eTriggers) {
+      for (cz.seznam.euphoria.core.client.triggers.Trigger t : wContext.createTriggers()) {
         cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult sched =
             t.schedule(wContext, new TriggerContextWrapper(ctx));
         if (sched != cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult.PASSED) {
@@ -51,32 +66,18 @@ public class FlinkWindowTrigger<T> extends Trigger<T, FlinkWindow> {
       if (!tr.isPurge()) {
         state.update(wContext);
       }
+      return tr;
+    } else {
+      return TriggerResult.CONTINUE;
     }
-
-    return TriggerResult.CONTINUE;
-  }
-
-  @Override
-  public TriggerResult onProcessingTime(long time,
-                                        FlinkWindow window,
-                                        TriggerContext ctx) throws Exception {
-    return onTimeEvent(time, window, ctx);
-  }
-
-  @Override
-  public TriggerResult onEventTime(long time,
-                                   FlinkWindow window,
-                                   TriggerContext ctx) throws Exception {
-
-    return onTimeEvent(time, window, ctx);
   }
 
   private TriggerResult onTimeEvent(long time,
-                                    FlinkWindow window,
+                                    FlinkWindow<GROUP, LABEL> window,
                                     TriggerContext ctx) throws Exception {
 
-    ValueState<WindowContext> state = ctx.getPartitionedState(windowState);
-    WindowContext wContext = state.value();
+    ValueState<WindowContext<GROUP, LABEL>> state = ctx.getPartitionedState(windowState);
+    WindowContext<GROUP, LABEL> wContext = state.value();
     if (wContext == null) {
       wContext = windowing.createWindowContext(window.getWindowID());
     }
@@ -84,8 +85,7 @@ public class FlinkWindowTrigger<T> extends Trigger<T, FlinkWindow> {
     @SuppressWarnings("unchecked")
     TriggerContextWrapper triggerContext = new TriggerContextWrapper(ctx);
     TriggerResult r = TriggerResult.CONTINUE;
-    for (cz.seznam.euphoria.core.client.triggers.Trigger trigger :
-        (List< cz.seznam.euphoria.core.client.triggers.Trigger>) wContext.createTriggers()) {
+    for (cz.seznam.euphoria.core.client.triggers.Trigger trigger : wContext.createTriggers()) {
       r = TriggerResult.merge(r, translateResult(trigger.onTimeEvent(time, wContext, triggerContext)));
     }
     if (!r.isPurge()) {
@@ -111,6 +111,16 @@ public class FlinkWindowTrigger<T> extends Trigger<T, FlinkWindow> {
       default:
         throw new IllegalStateException("Unknown result:" + euphoriaResult.name());
     }
+  }
+
+  private TriggerResult trackEmissionWatermark(FlinkWindow<GROUP, LABEL> window,
+                                               TriggerContext ctx,
+                                               TriggerResult r)
+  {
+    if (r.isFire()) {
+      window.setEmissionWatermark(ctx.getCurrentWatermark() + 1);
+    }
+    return r;
   }
 
   @Override
