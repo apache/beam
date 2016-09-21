@@ -11,7 +11,9 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.IteratorIterable;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
-import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
+import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
+import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElement;
+import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElementWindowFunction;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterators;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -28,6 +30,7 @@ import org.apache.flink.util.Collector;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Set;
 
 class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> {
 
@@ -59,31 +62,32 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     // apply windowing first
-    WindowedStream windowedPairs;
-    WindowFunction<?, ?, ?, ?> emissionFunction;
-    if (windowing == null) {
-      windowedPairs = context.attachedWindowStream(
-              (DataStream) input, keyExtractor, valueExtractor);
-      emissionFunction = new PassThroughWindowFunction<>();
-    } else {
-      windowedPairs = context.windowStream(
-              (DataStream) input, keyExtractor, valueExtractor, windowing);
-      emissionFunction = new ForwardEmissionWatermark(windowing.getClass());
-    }
-
     SingleOutputStreamOperator<StreamingWindowedElement<?, ?, WindowedPair>> reduced;
-    // ~ ForwardEmissionWatermark will
-    // 1) assign the {@link StreamingWindowedElement#emissionWatermark}
-    // 2) re-assign the {@link StreamingWindowedElement#windowId} which fixes
-    // the short comings of {@link StreamWindower#window} for time sliding windows
-    if (origOperator.isCombinable()) {
-      // reduce incrementally
-      reduced = windowedPairs.apply(
-              new IncrementalReducer(reducer), emissionFunction);
+    if (windowing == null) {
+      WindowedStream windowedPairs =
+          context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
+      if (origOperator.isCombinable()) {
+        // reduce incrementally
+        reduced = windowedPairs.apply(
+            new StreamingWindowedElementIncrementalReducer(reducer), new PassThroughWindowFunction<>());
+      } else {
+        // reduce all elements at once when the window is fired
+        reduced = windowedPairs.apply(
+            new StreamingWindowedElementWindowedReducer(reducer, new PassThroughWindowFunction<>()));
+      }
     } else {
-      // reduce all elements at once when the window is fired
-      reduced = windowedPairs.apply(
-              new WindowedReducer(reducer, emissionFunction));
+      WindowedStream windowedPairs = context.flinkWindow(
+              (DataStream) input, keyExtractor, valueExtractor, windowing);
+      if (origOperator.isCombinable()) {
+        // reduce incrementally
+        reduced = windowedPairs.apply(
+            new MultiWindowedElementIncrementalReducer(reducer), new MultiWindowedElementWindowFunction());
+
+      } else {
+        // reduce all elements at once when the window is fired
+        reduced = windowedPairs.apply(
+            new MultiWindowedElementWindowedReducer(reducer, new MultiWindowedElementWindowFunction()));
+      }
     }
 
     DataStream<StreamingWindowedElement<?, ?, WindowedPair>> out =
@@ -105,52 +109,15 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
   }
 
   /**
-   * Windowing function to extract the emission watermark from the window being
-   * emitted and forward it along the emitted element(s).
-   */
-  private static class ForwardEmissionWatermark
-      implements WindowFunction<
-      StreamingWindowedElement<?, ?, WindowedPair>,
-      StreamingWindowedElement<?, ?, WindowedPair>,
-      Object,
-      EmissionWindow<Window>> {
-
-    private final Class<? extends Windowing> windowingType;
-
-    public ForwardEmissionWatermark(Class<? extends Windowing> windowingType) {
-      this.windowingType = windowingType;
-    }
-
-    @Override
-    public void apply(Object o,
-                      EmissionWindow<Window> window,
-                      Iterable<StreamingWindowedElement<?, ?, WindowedPair>> input,
-                      Collector<StreamingWindowedElement<?, ?, WindowedPair>> out) {
-      for (StreamingWindowedElement<?, ?, WindowedPair> i : input) {
-        // FIXME *cough* *cough* see StreamWindower#windowIdFromSlidingFlinkWindow
-        final WindowID<?, ?> wid;
-        wid = StreamWindower.windowIdFromSlidingFlinkWindow(
-            windowingType, window.getInner());
-        if (wid != null) {
-          WindowedPair wp = i.get();
-          wp = WindowedPair.of(wid.getLabel(), wp.getFirst(), wp.getSecond());
-          i = new StreamingWindowedElement<>(wid, wp);
-        }
-        out.collect(i.withEmissionWatermark(window.getEmissionWatermark()));
-      }
-    }
-  } // ~ end of ForwardEmissionWatermark
-
-  /**
    * Performs incremental reduction (in case of combining reduce).
    */
-  private static class IncrementalReducer
+  private static class StreamingWindowedElementIncrementalReducer
           implements ReduceFunction<StreamingWindowedElement<?, ?, WindowedPair>>,
           ResultTypeQueryable<StreamingWindowedElement<?, ?, WindowedPair>> {
 
     final UnaryFunction<Iterable, Object> reducer;
 
-    public IncrementalReducer(UnaryFunction<Iterable, Object> reducer) {
+    public StreamingWindowedElementIncrementalReducer(UnaryFunction<Iterable, Object> reducer) {
       this.reducer = reducer;
     }
 
@@ -179,12 +146,12 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     public TypeInformation<StreamingWindowedElement<?, ?, WindowedPair>> getProducedType() {
       return TypeInformation.of((Class) StreamingWindowedElement.class);
     }
-  } // ~ end of IncrementalReducer
+  } // ~ end of StreamingWindowedElementIncrementalReducer
 
   /**
    * Performs non-incremental reduction (in case of non-combining reduce).
    */
-  private static class WindowedReducer
+  private static class StreamingWindowedElementWindowedReducer
           implements WindowFunction<
           StreamingWindowedElement<?, ?, WindowedPair>,
           StreamingWindowedElement<?, ?, WindowedPair>,
@@ -196,8 +163,8 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
             StreamingWindowedElement<?, ?, WindowedPair>, Object, Window> emissionFunction;
 
     @SuppressWarnings("unchecked")
-    public WindowedReducer(UnaryFunction<Iterable, Object> reducer,
-                           WindowFunction emissionFunction) {
+    public StreamingWindowedElementWindowedReducer(UnaryFunction<Iterable, Object> reducer,
+                                                   WindowFunction emissionFunction) {
       this.reducer = reducer;
       this.emissionFunction = emissionFunction;
     }
@@ -238,5 +205,91 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       // decorate resulting item with emission watermark from fired window
       emissionFunction.apply(key, window, Collections.singletonList(out), collector);
     }
-  } // ~ end of WindowedReducer
+  } // ~ end of StreamingWindowedElementWindowedReducer
+
+
+  /**
+   * Performs incremental reduction (in case of combining reduce) on
+   * {@link MultiWindowedElement}s. Assumes the result is emitted using
+   * {@link MultiWindowedElementWindowFunction}.
+   */
+  private static class MultiWindowedElementIncrementalReducer<GROUP, LABEL, KEY, VALUE>
+      implements ReduceFunction<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>,
+      ResultTypeQueryable<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>> {
+
+    final UnaryFunction<Iterable<VALUE>, VALUE> reducer;
+
+    public MultiWindowedElementIncrementalReducer(UnaryFunction<Iterable<VALUE>, VALUE> reducer) {
+      this.reducer = reducer;
+    }
+
+    @Override
+    public MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> reduce(
+        MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> p1,
+        MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> p2) {
+
+      VALUE v1 = p1.get().getSecond();
+      VALUE v2 = p2.get().getSecond();
+      Set<WindowID<GROUP, LABEL>> s = Collections.emptySet();
+      return new MultiWindowedElement<>(s,
+          Pair.of(p1.get().getFirst(), reducer.apply(Arrays.asList(v1, v2))));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public TypeInformation<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>
+    getProducedType() {
+      return TypeInformation.of((Class) StreamingWindowedElement.class);
+    }
+  } // ~ end of MultiWindowedElementIncrementalReducer
+
+  /**
+   * Performs non-incremental reduction (in case of non-combining reduce).
+   */
+  private static class MultiWindowedElementWindowedReducer<GROUP, LABEL, KEY, VALUEIN, VALUEOUT>
+      implements WindowFunction<
+      MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>,
+      StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>,
+      KEY,
+      FlinkWindow<GROUP, LABEL>> {
+
+    private final UnaryFunction<Iterable<VALUEIN>, VALUEOUT> reducer;
+    private final MultiWindowedElementWindowFunction<GROUP, LABEL, KEY, VALUEOUT> emissionFunction;
+
+    public MultiWindowedElementWindowedReducer(
+        UnaryFunction<Iterable<VALUEIN>, VALUEOUT> reducer,
+        MultiWindowedElementWindowFunction<GROUP, LABEL, KEY, VALUEOUT> emissionFunction) {
+      this.reducer = reducer;
+      this.emissionFunction = emissionFunction;
+    }
+
+    @Override
+    public void apply(KEY key,
+                      FlinkWindow<GROUP, LABEL> window,
+                      Iterable<MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>> input,
+                      Collector<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> collector)
+        throws Exception {
+
+      Iterator<MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>> it = input.iterator();
+
+      // read the first element to obtain window metadata
+      MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>> element = it.next();
+
+      // concat the already read element with rest of the opened iterator
+      Iterator<MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>> concatIt =
+          Iterators.concat(Iterators.singletonIterator(element), it);
+
+      // unwrap all elements to be used in user defined reducer
+      Iterator<VALUEIN> unwrapped =
+          Iterators.transform(concatIt, e -> e.get().getValue());
+
+      MultiWindowedElement<Object, Object, Pair<KEY, VALUEOUT>> reduced =
+          new MultiWindowedElement<>(
+              Collections.emptySet(),
+              Pair.of(key, reducer.apply(new IteratorIterable<>(unwrapped))));
+      this.emissionFunction.apply(key, window,
+          Collections.singletonList(reduced), collector);
+    }
+  } // ~ end of MultiWindowedElementWindowedReducer
+
 }

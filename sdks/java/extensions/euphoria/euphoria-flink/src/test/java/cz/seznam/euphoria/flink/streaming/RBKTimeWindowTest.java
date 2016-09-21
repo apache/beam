@@ -11,6 +11,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
@@ -20,22 +21,22 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-public class TimeWindowTest {
+public class RBKTimeWindowTest {
   @Test
   public void testEventWindowing() throws Exception {
     ListDataSink<WindowedPair<TimeInterval, String, Long>> output = ListDataSink.get(1);
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
-            Arrays.asList(
+            asList(
                 Pair.of("one",   1),
                 Pair.of("one",   2),
                 Pair.of("two",   3),
@@ -62,7 +63,7 @@ public class TimeWindowTest {
         .waitForCompletion(f);
 
     assertEquals(
-        Arrays.asList("0:one-2", "0:two-1", "5:three-1", "5:two-3"),
+        asList("0:one-2", "0:two-1", "5:three-1", "5:two-3"),
         output.getOutput(0)
             .stream()
             .map(p -> p.getWindowLabel().getStartMillis() + ":" + p.getFirst() + "-" + p.getSecond())
@@ -77,7 +78,7 @@ public class TimeWindowTest {
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
-            Arrays.asList(
+            asList(
                 Pair.of("one",     1),
                 Pair.of("two",     2),
                 Pair.of("three",   3),
@@ -117,7 +118,7 @@ public class TimeWindowTest {
         .waitForCompletion(f);
 
     assertEquals(
-        Arrays.asList("00: 02 => one, two",
+        asList("00: 02 => one, two",
                       "00: 04 => four, one, three, two",
                       "00: 05 => five, four, one, three, two",
                       "06: 03 => eight, seven, six",
@@ -138,4 +139,65 @@ public class TimeWindowTest {
             .sorted()
             .collect(Collectors.toList()));
   }
+
+  @Test
+  public void testEventWindowingNonCombining() throws Exception {
+    ListDataSink<WindowedPair<TimeInterval, String, String>> output = ListDataSink.get(2);
+
+    ListDataSource<Triple<String, String, Integer>> source =
+        ListDataSource.unbounded(
+            asList(
+                Triple.of("one",   "a",   1),
+                Triple.of("aaa",   "A",   1), // ~ this one goes to a different partition than the rest
+                Triple.of("one",   "b",   2),
+                Triple.of("aaa",   "B",   2), // ~ this one goes to a different partition than the rest
+                Triple.of("aaa",   "C",   2), // ~ this one goes to a different partition than the rest
+                Triple.of("two",   "X",   3),
+                Triple.of("two",   "Q",   6),
+                Triple.of("three", "F",   6),
+                Triple.of("two",   "W",   7),
+                Triple.of("two",   "E",   8),
+                Triple.of("three", "G",   8),
+                Triple.of("one",   "c",   8)))
+            .withReadDelay(Duration.ofMillis(500))
+            .withFinalDelay(Duration.ofMillis(1000));
+
+    Flow f = Flow.create("test-attached-windowing");
+    ReduceByKey.of(f.createInput(source))
+        .keyBy(Triple::getFirst)
+        .valueBy(Triple::getSecond)
+        .combineBy(xs -> {
+          StringBuilder buf = new StringBuilder();
+          xs.forEach(buf::append);
+          return buf.toString();
+        })
+        .windowBy(Time.of(Duration.ofMillis(5))
+            // ~ event time
+            .using(e -> (long) e.getThird()))
+        .setNumPartitions(2)
+        .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
+        .outputWindowed()
+        .persist(output);
+
+    new TestFlinkExecutor()
+        .setAllowedLateness(Duration.ofMillis(0))
+        .setAutoWatermarkInterval(Duration.ofMillis(100))
+        .waitForCompletion(f);
+
+    assertEquals(
+        asList("0: one=ab", "0: two=X", "5: one=c", "5: three=FG", "5: two=QWE"),
+        fmt(output.getOutput(0)));
+    assertEquals(
+        asList("0: aaa=ABC"),
+        fmt(output.getOutput(1)));
+  }
+
+  private List<String> fmt(List<WindowedPair<TimeInterval, String, String>> xs) {
+    return xs.stream()
+        .map(p -> p.getWindowLabel().getStartMillis() + ": " + p.getFirst() + "=" + p.getSecond())
+        .sorted()
+        .collect(Collectors.toList());
+  }
+
+
 }
