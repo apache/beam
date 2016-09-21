@@ -82,12 +82,12 @@ public class ReduceStateByKeyTest extends OperatorTest {
   }
 
   TestCase testBatchSort() {
-    return new AbstractTestCase<Integer, Pair<Void, Integer>>() {
+    return new AbstractTestCase<Integer, Pair<String, Integer>>() {
 
       @Override
-      protected Dataset<Pair<Void, Integer>> getOutput(Dataset<Integer> input) {
+      protected Dataset<Pair<String, Integer>> getOutput(Dataset<Integer> input) {
         return ReduceStateByKey.of(input)
-            .keyBy(e -> (Void) null)
+            .keyBy(e -> "")
             .valueBy(e -> e)
             .stateFactory(SortState::new)
             .combineStateBy(SortState::combine)
@@ -110,9 +110,9 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Void, Integer>>> partitions) {
+      public void validate(List<List<Pair<String, Integer>>> partitions) {
         assertEquals(1, partitions.size());
-        List<Pair<Void, Integer>> first = partitions.get(0);
+        List<Pair<String, Integer>> first = partitions.get(0);
         assertEquals(10, first.size());
         List<Integer> values = first.stream().map(Pair::getSecond)
             .collect(Collectors.toList());

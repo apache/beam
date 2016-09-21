@@ -13,29 +13,18 @@ public class FlinkOperatorTest extends AllOperatorTest {
   // ignore tests using windowing operators
 
   @Override
-  public void testSumByKey() throws Exception {
-    // TODO
-  }
-
-  @Override
   public void testJoin() throws Exception {
-    // TODO
-  }
-
-  @Override
-  public void testGroupBy() throws Exception {
     // TODO
   }
 
   @Override
   public void testReduceByKey() throws Exception {
     // TODO
-  }
-
+  } 
   
   @Override
   public void testReduceStateByKey() throws Exception {
     // TODO
-  }
+  } 
   
 }

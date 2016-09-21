@@ -8,6 +8,7 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -42,6 +43,7 @@ public class BatchFlowTranslator extends FlowTranslator {
     TRANSLATORS.put((Class) FlowUnfolder.InputOperator.class, new InputTranslator());
     TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
     TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings, env));
+    TRANSLATORS.put((Class) Union.class, new UnionTranslator());
 
     // derived operators
     TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());

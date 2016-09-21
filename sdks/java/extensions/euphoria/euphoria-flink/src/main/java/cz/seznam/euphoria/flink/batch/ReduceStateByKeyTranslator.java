@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -13,7 +14,9 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.ComparablePair;
+import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -80,13 +83,26 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     // TODO in case of merging widows elements should be sorted by window label first
     // and windows having the same label should be given chance to merge
-
     // FIXME require keyExtractor to deliver `Comparable`s
-    return tuples.groupBy(new TypedKeySelector<>())
+    DataSet<WindowedElement<?, ?, Pair>> reduced;
+    reduced = tuples.groupBy(new TypedKeySelector<>())
         .reduceGroup(
             new TypedReducer(origOperator, stateFactory, stateStorageProvider))
         .setParallelism(operator.getParallelism())
         .name(operator.getName() + "::reduce");
+
+    // apply custom partitioner if different from default HashPartitioner
+    if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
+      reduced = reduced
+          .partitionCustom(new PartitionerWrapper<>(
+              origOperator.getPartitioning().getPartitioner()),
+              Utils.wrapQueryable(
+                  (WindowedElement<?, ?, Pair> we) -> (Comparable) we.get().getKey(),
+                  Comparable.class))
+          .setParallelism(operator.getParallelism());
+    }
+
+    return reduced;
   }
 
   private static class TypedKeySelector<LABEL, KEY>
@@ -142,6 +158,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
                       wid.getLabel(),
                       key,
                       e))), stateStorageProvider);
+
       // add the first element to the state
       state.add(element.get().getValue());
 

@@ -3,12 +3,14 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.GroupByKey;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -80,8 +82,8 @@ public class GroupByKeyTest extends OperatorTest {
             .valueBy(e -> e % 2)
             .output();
         return Distinct.of(grouped)
-            .mapped(e -> e)
             .setPartitioner(p -> p.getKey() % 2)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
