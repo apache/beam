@@ -17,13 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-
 import com.google.common.collect.Lists;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
@@ -36,9 +33,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -72,7 +67,8 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
     // override defaults
     options.setBatchIntervalMillis(BATCH_INTERVAL_MILLIS.getMillis());
-    options.setTimeout(BATCH_INTERVAL_MILLIS.multipliedBy(3).getMillis());
+    // the timeout plays no role here since we have a graceful stop in place
+    options.setTimeout(1L);
 
     Pipeline pipeline = Pipeline.create(options);
 
