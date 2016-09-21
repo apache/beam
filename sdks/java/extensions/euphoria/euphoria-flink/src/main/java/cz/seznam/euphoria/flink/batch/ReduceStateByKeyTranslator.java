@@ -9,7 +9,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -28,7 +28,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
   final static String CFG_MAX_MEMORY_ELEMENTS = "euphoria.flink.batch.state.max.memory.elements";
   
-  final StateStorageProvider stateStorageProvider;
+  final StorageProvider stateStorageProvider;
 
   public ReduceStateByKeyTranslator(Settings settings, ExecutionEnvironment env) {
     int maxMemoryElements = settings.getInt(CFG_MAX_MEMORY_ELEMENTS, 1000);
@@ -111,12 +111,12 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   {
     private final Operator<?, ?> operator;
     private final StateFactory<?, State> stateFactory;
-    private final StateStorageProvider stateStorageProvider;
+    private final StorageProvider stateStorageProvider;
 
     public TypedReducer(
         Operator<?, ?> operator,
         StateFactory<?, State> stateFactory,
-        StateStorageProvider stateStorageProvider) {
+        StorageProvider stateStorageProvider) {
 
       this.operator = operator;
       this.stateFactory = stateFactory;
@@ -136,7 +136,6 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       final Object key = element.get().getKey();
 
       State state = stateFactory.apply(
-          operator,
           e -> out.collect(new WindowedElement<>(
               wid,
               WindowedPair.of(

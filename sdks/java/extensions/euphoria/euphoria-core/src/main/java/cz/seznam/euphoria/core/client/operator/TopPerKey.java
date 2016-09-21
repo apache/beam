@@ -1,8 +1,8 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
-import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
@@ -11,6 +11,7 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 
@@ -28,34 +29,35 @@ public class TopPerKey<
   private static final class MaxScored<V, C extends Comparable<C>>
       extends State<Pair<V, C>, Pair<V, C>> {
     
-    final ValueStateStorage<Pair<V, C>> curr;
+    final ValueStorage<Pair<V, C>> curr;
 
     @SuppressWarnings("unchecked")
     MaxScored(
-        Operator<?, ?> operator,
         Collector<Pair<V, C>> collector,
-        StateStorageProvider storageProvider) {
+        StorageProvider storageProvider) {
 
-      super(operator, collector, storageProvider);
-      curr = (ValueStateStorage) storageProvider.getValueStorage(this, Pair.class);
+      super(collector, storageProvider);
+      curr = (ValueStorage) storageProvider.getValueStorage(
+          ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null)));
     }
 
     void merge(MaxScored<V, C> other) {
-      if (other.curr.get() != null) {
+      if (other.curr.get().getFirst() != null) {
         this.add(other.curr.get());
       }
     }
 
     @Override
     public void add(Pair<V, C> element) {
-      if (curr.get() == null || element.getSecond().compareTo(curr.get().getSecond()) > 0) {
+      if (curr.get().getFirst() == null
+          || element.getSecond().compareTo(curr.get().getSecond()) > 0) {
         curr.set(element);
       }
     }
 
     @Override
     public void flush() {
-      if (curr.get() != null) {
+      if (curr.get().getFirst() != null) {
         getCollector().collect(curr.get());
       }
     }
