@@ -8,8 +8,8 @@ import cz.seznam.euphoria.core.client.util.Pair;
  */
 public class ComparablePair<T0, T1>
         extends Pair<T0, T1>
-        implements Comparable<ComparablePair<T0, T1>>
-{
+        implements Comparable<ComparablePair<T0, T1>> {
+  
   ComparablePair(T0 first, T1 second) {
     super(first, second);
   }
@@ -33,7 +33,8 @@ public class ComparablePair<T0, T1>
     if (obj1 instanceof Comparable && obj2 instanceof Comparable) {
       return ((Comparable) obj1).compareTo(obj2);
     }
-
-    return Integer.compare(obj1.hashCode(), obj2.hashCode());
+    final Object wrong = obj1 instanceof Comparable ? obj2 : obj1;
+    throw new IllegalArgumentException("Got class " + wrong.getClass()
+        + " which is not Comparable! Please pass two Comparables for now!");
   }
 }
