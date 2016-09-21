@@ -251,8 +251,8 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
         # nonetheless correspond to unique virtual position locations.
         for eof, record, delta_offset in self.read_records():
           if eof:
-            # Can't read from this source anymore and the record and delta_offset
-            # are non-sensical; hence we are done.
+            # Can't read from this source anymore and the record and
+            # delta_offset are non-sensical; hence we are done.
             return
           else:
             self.notify_observers(record, is_encoded=False)
@@ -297,9 +297,9 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
 
     return iobase.ReaderProgress(
         position=iobase.ReaderPosition(
-            byte_offset = self.range_tracker.last_record_start),
-        consumed_split_points = consumed_split_points,
-        remaining_split_points = remaining_split_points)
+            byte_offset=self.range_tracker.last_record_start),
+        consumed_split_points=consumed_split_points,
+        remaining_split_points=remaining_split_points)
 
   def request_dynamic_split(self, dynamic_split_request):
     if ChannelFactory.is_compressed(self.file):

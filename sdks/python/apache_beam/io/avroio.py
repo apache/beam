@@ -17,8 +17,7 @@
 """Implements a source for reading Avro files."""
 
 import os
-import StringIO
-import threading
+import cStringIO as StringIO
 import zlib
 
 from avro import datafile
@@ -127,6 +126,7 @@ class _AvroUtils(object):
       ValueError: If the block cannot be read properly because the file doesn't
         match the specification.
     """
+    offset = f.tell()
     decoder = avroio.BinaryDecoder(f)
     num_records = decoder.read_long()
     block_size = decoder.read_long()
@@ -136,7 +136,7 @@ class _AvroUtils(object):
       raise ValueError('Unexpected sync marker (actual "%s" vs expected "%s"). '
                        'Maybe the underlying avro file is corrupted?',
                        sync_marker, expected_sync_marker)
-    return _AvroBlock(block_bytes, num_records, codec, schema, f.tell())
+    return _AvroBlock(block_bytes, num_records, codec, schema, offset)
 
   @staticmethod
   def advance_file_past_next_sync_marker(f, sync_marker):
@@ -224,58 +224,54 @@ class _AvroSource(filebasedsource.FileBasedSource):
   for parallel processing.
   """
 
-  def __init__(self, file_pattern, min_bundle_size):
-    super(_AvroSource, self).__init__(file_pattern, min_bundle_size)
-    self._progress_lock = threading.Lock()
-
   def read_records(self, file_name, range_tracker):
+    next_block_start = -1
     current_block_offset = -1
-    current_block_size = -1
 
-
-
-    def _callback(stop_position):
+    def _split_points_remaining(stop_position):
+      # Given stop position for the byte range currently being read. This gives
+      # the remaining number of split points between the position currently
+      # being read and the new stop position.
+      # Note that the returned value includes the stop position currently being
+      # read.
 
       if range_tracker.done():
         return 0
 
-      # Locking progressing to next block  to provide a consistent result.
-      # This makes sure that values of parameters used within this method are
-      # for a single Avro block.
+      if next_block_start >= stop_position:
+        # This block ends after the last byte that belongs to the suggested
+        # position range of the source. Hence this has to be the last block
+        # that belongs to the position range.
+        return 1
 
-      with self._progress_lock:
-        if (current_block_offset + current_block_size >= range_tracker.stop_position()):
-          # This block ends after the last byte that belongs to the position
-          # range of the source. Hence this has to be the last block that
-          # belongs to the position range.
-
-          return 1
-
-      return filebasedsource.FileBasedSource.remaining_split_points_helper(
+      return filebasedsource.FileBasedSource.split_points_remaining_helper(
           stop_position, current_block_offset, range_tracker.done())
 
-    range_tracker.set_split_points_remaining_callback(_callback)
+    range_tracker.set_split_points_remaining_callback(_split_points_remaining)
 
     start_offset = range_tracker.start_position()
     if start_offset is None:
       start_offset = 0
 
-    with self.open_file(file_name) as f:
-      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(f)
+    try:
+      with self.open_file(file_name) as f:
+        codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(
+            f)
 
-      # We have to start at current position if previous bundle ended at the
-      # end of a sync marker.
-      start_offset = max(0, start_offset - len(sync_marker))
-      f.seek(start_offset)
-      _AvroUtils.advance_file_past_next_sync_marker(f, sync_marker)
+        # We have to start at current position if previous bundle ended at the
+        # end of a sync marker.
+        start_offset = max(0, start_offset - len(sync_marker))
+        f.seek(start_offset)
+        _AvroUtils.advance_file_past_next_sync_marker(f, sync_marker)
 
-      while range_tracker.try_claim(f.tell()):
-        block = _AvroUtils.read_block_from_file(f, codec, schema_string,
-                                                sync_marker)
+        while range_tracker.try_claim(f.tell()):
+          block = _AvroUtils.read_block_from_file(f, codec, schema_string,
+                                                  sync_marker)
 
-        with self._progress_lock:
           current_block_offset = block.offset()
-          current_block_size = block.size()
+          next_block_start = current_block_offset + block.size()
 
-        for record in block.records():
-          yield record
+          for record in block.records():
+            yield record
+    finally:
+      range_tracker.set_done()

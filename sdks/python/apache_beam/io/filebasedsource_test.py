@@ -43,11 +43,11 @@ class LineSource(FileBasedSource):
   def read_records(self, file_name, range_tracker):
     current = -1
 
-    def _callback(stop_position):
-      return FileBasedSource.remaining_split_points_helper(
+    def _split_points_remaining(stop_position):
+      return FileBasedSource.split_points_remaining_helper(
           stop_position, current, range_tracker.done())
 
-    range_tracker.set_split_points_remaining_callback(_callback)
+    range_tracker.set_split_points_remaining_callback(_split_points_remaining)
 
     f = self.open_file(file_name)
     try:
@@ -382,21 +382,21 @@ class TestFileBasedSource(unittest.TestCase):
   def test_remaining_split_points_helper(self):
     # If current record is at last byte this must be the last split point.
     self.assertEqual(
-        1, FileBasedSource.remaining_split_points_helper(100, 99, False))
+        1, FileBasedSource.split_points_remaining_helper(100, 99, False))
     # Current record is after stop position but we haven't reached the next
     # split point
     self.assertEqual(
-        1, FileBasedSource.remaining_split_points_helper(100, 110, False))
+        1, FileBasedSource.split_points_remaining_helper(100, 110, False))
     # After RangeTracker.set_done() is invoked, there should not be any
     # remaining split points.
     self.assertEqual(
-        0, FileBasedSource.remaining_split_points_helper(100, 110, True))
+        0, FileBasedSource.split_points_remaining_helper(100, 110, True))
 
-    # If we are at a position < (stop_position -1), FileBasedSource cannot
+    # If we are at a position < (stop_position - 1), FileBasedSource cannot
     # determine the remaining number of split points.
     self.assertEqual(
         iobase.RangeTracker.SPLIT_POINTS_UNKNOWN,
-        FileBasedSource.remaining_split_points_helper(100, 90, False))
+        FileBasedSource.split_points_remaining_helper(100, 90, False))
 
 
 class TestSingleFileSource(unittest.TestCase):

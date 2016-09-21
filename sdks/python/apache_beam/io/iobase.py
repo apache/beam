@@ -793,8 +793,13 @@ class RangeTracker(object):
     the range [current_position, stop_position). Note that this should include
     the split point currently being consumed by the source.
 
+    The given callback must only be invoked after acquiring the lock of the
+    current ``RangeTracker`` this simplifies the callback implementation since
+    the implementer has the assurance that a call to ``try_claim()`` will block
+    while this callback is being invoked.
+
     Args:
-      callback: a function that takes the a single parameter, a stop position,
+      callback: a function that takes a single parameter, a stop position,
                 and returns remaining number of split points for the source read
                 operation that is calling this function. Value returned from
                 callback should be either a integer larger than or equal to zero
@@ -810,6 +815,9 @@ class RangeTracker(object):
     [self.start_position(), self.stop_position()) have been consumed.
 
     For a given ``RangeTracker`` instance, this should only be invoked once.
+
+    After method ``set_done()`` is invoked methods ``try_claim()`` or
+    ``set_current_position()`` must not be invoked.
     """
     if self._done:
       raise ValueError('\'set_done()\' was invoked more than once.')

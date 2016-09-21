@@ -187,7 +187,7 @@ class TestAvro(unittest.TestCase):
 
     # desired_bundle_size should be large enough to make sure that first split
     # is not a trivial one.
-    splits = [split for split in unsplit_source.split(1000)]
+    splits = list(unsplit_source.split(1000))
     if len(splits) < 1:
       raise ValueError('Split of source %r did not produce any results',
                        unsplit_source)

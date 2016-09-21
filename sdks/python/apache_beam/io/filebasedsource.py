@@ -223,7 +223,7 @@ class FileBasedSource(iobase.BoundedSource):
     return self._splittable
 
   @staticmethod
-  def remaining_split_points_helper(
+  def split_points_remaining_helper(
       stop_position, current_position, done_reading):
     """A utility function for implementing a remaining splits points callback.
 
@@ -253,6 +253,7 @@ class FileBasedSource(iobase.BoundedSource):
       stop_position: stop position of the range of positions to be read by the
                      source.
       current_position: position of the current record being read by the source.
+                        Should be negative if no records have been read.
       done_reading: ``True``, if source has finished reading all the records
       that belong to the range of positions assigned to the source. ``False``
       otherwise.
@@ -265,7 +266,7 @@ class FileBasedSource(iobase.BoundedSource):
     if done_reading:
       # We have finished reading. All split points have been consumed.
       return 0
-    elif current_position + 1 >= stop_position:
+    elif current_position >= 0 and current_position + 1 >= stop_position:
       # Next element is outside the range. Since done_reading is not set we are
       # at the last split point.
       return 1

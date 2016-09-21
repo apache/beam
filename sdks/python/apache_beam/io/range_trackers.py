@@ -105,6 +105,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
           record_start)
 
   def try_claim(self, record_start):
+    assert not self.done()
     with self._lock:
       if self.done():
         raise ValueError('Trying to claim record at %r after already closing '
@@ -148,6 +149,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       return True
 
   def set_current_position(self, record_start):
+    assert not self.done()
     with self._lock:
       self._validate_record_start(record_start, False)
       self._last_record_start = record_start
@@ -300,6 +302,7 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
                              else 'non-')))
 
   def try_claim(self, decoded_group_start):
+    assert not self.done()
     with self._lock:
       if self.done():
         raise ValueError('Trying to claim record at %r after already closing '
@@ -317,6 +320,7 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
       return True
 
   def set_current_position(self, decoded_group_start):
+    assert not self.done()
     with self._lock:
       self._validate_decoded_group_start(decoded_group_start, False)
       self._decoded_last_group_start = decoded_group_start
