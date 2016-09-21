@@ -233,10 +233,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
       Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
-      PCollection.IsBounded isBounded = isNodeBounded(node);
-      LOG.info("Translating {} as {}", transform, isBounded);
       @SuppressWarnings("unchecked") TransformEvaluator<TransformT> evaluator =
-          translator.translate(transformClass, isBounded);
+          translate(node, transform, transformClass);
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<PInput, POutput, TransformT> appliedTransform =
           AppliedPTransform.of(node.getFullName(), node.getInput(), node.getOutput(), transform);
@@ -245,10 +243,15 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       ctxt.setCurrentTransform(null);
     }
 
-    /** Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded. */
-    private PCollection.IsBounded isNodeBounded(TransformTreeNode node) {
-      // usually, the input determines PCollection to apply the next transformation to is BOUNDED
-      // or UNBOUNDED, meaning RDD/DStream - thus mapping to Streaming/EvaluationContext.
+    /**
+     *  Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
+     *  translate with the proper translator.
+     */
+    private <TransformT extends PTransform<? super PInput, POutput>> TransformEvaluator<TransformT>
+        translate(TransformTreeNode node, TransformT transform, Class<TransformT> transformClass) {
+      //--- determine if node is bounded/unbounded.
+      // usually, the input determines if the PCollection to apply the next transformation to
+      // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
       Collection<? extends PValue> pValues;
       PInput pInput = node.getInput();
       if (pInput instanceof PBegin) {
@@ -257,7 +260,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       } else {
         pValues = pInput.expand();
       }
-      return isBoundedCollection(pValues);
+      PCollection.IsBounded isNodeBounded = isBoundedCollection(pValues);
+      // translate accordingly.
+      LOG.debug("Translating {} as {}", transform, isNodeBounded);
+      return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
+          ? translator.translateBounded(transformClass)
+              : translator.translateUnbounded(transformClass);
     }
 
     private PCollection.IsBounded isBoundedCollection(Collection<? extends PValue> pValues) {

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -500,23 +502,26 @@ public final class StreamingTransformTranslator {
 
     @Override
     public boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz) {
-      // streaming includes rdd transformations as well
+      // streaming includes rdd/bounded transformations as well
       return EVALUATORS.containsKey(clazz) || batchTranslator.hasTranslation(clazz);
     }
 
     @Override
-    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translate(
-            Class<TransformT> clazz, PCollection.IsBounded isBounded) {
-      TransformEvaluator<TransformT> transformEvaluator;
-      if (isBounded.equals(PCollection.IsBounded.BOUNDED)) {
-        transformEvaluator = batchTranslator.translate(clazz, PCollection.IsBounded.BOUNDED);
-      } else {
-        //noinspection unchecked
-        transformEvaluator = (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
-      }
-      if (transformEvaluator == null) {
-        throw new IllegalStateException("No TransformEvaluator registered for " + clazz);
-      }
+    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
+        translateBounded(Class<TransformT> clazz) {
+      TransformEvaluator<TransformT> transformEvaluator = batchTranslator.translateBounded(clazz);
+      checkState(transformEvaluator != null,
+          "No TransformEvaluator registered for BOUNDED transform %s", clazz);
+      return transformEvaluator;
+    }
+
+    @Override
+    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
+        translateUnbounded(Class<TransformT> clazz) {
+      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> transformEvaluator =
+          (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
+      checkState(transformEvaluator != null,
+          "No TransformEvaluator registered for for UNBOUNDED transform %s", clazz);
       return transformEvaluator;
     }
   }

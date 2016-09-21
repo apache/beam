@@ -19,6 +19,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
@@ -592,19 +593,20 @@ public final class TransformTranslator {
     }
 
     @Override
-    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT> translate(
-        Class<TransformT> clazz, PCollection.IsBounded isBounded) {
-      if (isBounded.equals(PCollection.IsBounded.UNBOUNDED)) {
-        throw new IllegalStateException("TransformTranslator only handles BOUNDED.");
-      }
-      @SuppressWarnings("unchecked")
-      TransformEvaluator<TransformT> transformEvaluator =
+    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
+        translateBounded (Class<TransformT> clazz) {
+      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> transformEvaluator =
           (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
-      if (transformEvaluator == null) {
-        throw new IllegalStateException("No TransformEvaluator registered for " + clazz);
-      }
+      checkState(transformEvaluator != null,
+          "No TransformEvaluator registered for BOUNDED transform %s", clazz);
       return transformEvaluator;
     }
-  }
 
+    @Override
+    public <TransformT extends PTransform<?, ?>> TransformEvaluator<TransformT>
+        translateUnbounded(Class<TransformT> clazz) {
+      throw new IllegalStateException("TransformTranslator used in a batch pipeline only "
+          + "supports BOUNDED transforms.");
+    }
+  }
 }
