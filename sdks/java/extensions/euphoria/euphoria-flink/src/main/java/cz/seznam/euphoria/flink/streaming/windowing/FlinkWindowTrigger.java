@@ -14,12 +14,12 @@ import java.util.List;
 import java.util.Objects;
 
 
-public class FlinkTrigger<T> extends Trigger<T, FlinkWindowID> {
+public class FlinkWindowTrigger<T> extends Trigger<T, FlinkWindow> {
 
   private final Windowing windowing;
   private final ValueStateDescriptor<WindowContext> windowState;
 
-  public FlinkTrigger(Windowing windowing, ExecutionConfig cfg) {
+  public FlinkWindowTrigger(Windowing windowing, ExecutionConfig cfg) {
     this.windowing = Objects.requireNonNull(windowing);
     this.windowState = new ValueStateDescriptor<>(
         "window-context", new KryoSerializer(WindowContext.class, cfg), null);
@@ -28,7 +28,7 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindowID> {
   @Override
   public TriggerResult onElement(T element,
                                  long timestamp,
-                                 FlinkWindowID window,
+                                 FlinkWindow window,
                                  TriggerContext ctx) throws Exception {
 
     ValueState<WindowContext> state = ctx.getPartitionedState(windowState);
@@ -58,21 +58,21 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindowID> {
 
   @Override
   public TriggerResult onProcessingTime(long time,
-                                        FlinkWindowID window,
+                                        FlinkWindow window,
                                         TriggerContext ctx) throws Exception {
     return onTimeEvent(time, window, ctx);
   }
 
   @Override
   public TriggerResult onEventTime(long time,
-                                   FlinkWindowID window,
+                                   FlinkWindow window,
                                    TriggerContext ctx) throws Exception {
 
     return onTimeEvent(time, window, ctx);
   }
 
   private TriggerResult onTimeEvent(long time,
-                                    FlinkWindowID window,
+                                    FlinkWindow window,
                                     TriggerContext ctx) throws Exception {
 
     ValueState<WindowContext> state = ctx.getPartitionedState(windowState);
@@ -114,7 +114,7 @@ public class FlinkTrigger<T> extends Trigger<T, FlinkWindowID> {
   }
 
   @Override
-  public void clear(FlinkWindowID window, TriggerContext ctx) throws Exception {
+  public void clear(FlinkWindow window, TriggerContext ctx) throws Exception {
     // ~ clear our partitions state - if any
     ctx.getPartitionedState(windowState).clear();
     // ~ our flink-window-ids windows have maxTimestamp == Long.MAX_VALUE; need to
