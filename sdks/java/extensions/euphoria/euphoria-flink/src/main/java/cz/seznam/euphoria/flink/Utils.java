@@ -36,7 +36,7 @@ public class Utils {
     }
 
   }
-
+  
   @SuppressWarnings("unchecked")
   public static <K, V, P extends Pair<K, V>> KeySelector<P, K> keyByPairFirst() {
     return wrapQueryable(Pair::getFirst);
