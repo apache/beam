@@ -95,7 +95,7 @@ class StreamWindower {
 //              millisTime(twin.getDuration()),
 //              millisTime(twin.getSlide())));
     } else {
-      throw new UnsupportedOperationException("Not yet supported: " + windowing);
+      return (WindowedStream) genericWindow(input, keyExtractor, valueExtractor, windowing);
     }
   }
 
@@ -140,7 +140,7 @@ class StreamWindower {
 
     return keyed.window((WindowAssigner)
         new EmissionWindowAssigner<>(
-            new FlinkWindowAssigner<>(genericWindowing)));
+            new FlinkWindowAssigner<>(genericWindowing, keyed.getExecutionConfig())));
   }
 
 
