@@ -2,10 +2,12 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.SumByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,6 +34,7 @@ public class SumByKeyTest extends OperatorTest {
             .keyBy(e -> e % 2)
             .valueBy(e -> (long) e)
             .setPartitioner(e -> e % 2)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
