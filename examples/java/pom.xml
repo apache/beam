@@ -184,7 +184,7 @@
                     <beamTestPipelineOptions>
                       [
                       "--project=apache-beam-testing",
-                      "--tempRoot=/tmp",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
                       "--runner=org.apache.beam.runners.spark.TestSparkRunner"
                       ]
                     </beamTestPipelineOptions>
