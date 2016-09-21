@@ -12,7 +12,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.triggers.Triggerable;
@@ -135,8 +135,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private final class ProcessingState implements TriggerContext {
 
-    final ReduceStateByKey operator;
-    final StateStorageProvider storageProvider;
+    final StorageProvider storageProvider;
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
 
@@ -156,16 +155,14 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @SuppressWarnings("unchecked")
     private ProcessingState(
-        ReduceStateByKey operator,
         BlockingQueue<Datum> output,
         TriggerScheduler triggering,
         StateFactory stateFactory,
         CombinableReduceFunction stateCombiner,
-        StateStorageProvider storageProvider,
+        StorageProvider storageProvider,
         boolean isBounded,
         int maxKeyStatesPerWindow) {
 
-      this.operator = operator;
       this.storageProvider = storageProvider;
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
@@ -247,7 +244,7 @@ class ReduceStateByKeyReducer implements Runnable {
           }
         };
         collector.assignWindowing(w.getWindowID());
-        state = (State) stateFactory.apply(operator, collector, storageProvider);
+        state = (State) stateFactory.apply(collector, storageProvider);
         keyStates.put(itemKey, state);
       } else {
         keyStates.put(itemKey, state);
@@ -415,7 +412,6 @@ class ReduceStateByKeyReducer implements Runnable {
 
   } // ~ end of ProcessingState
 
-  private final ReduceStateByKey operator;
   private final BlockingQueue<Datum> input;
   private final BlockingQueue<Datum> output;
 
@@ -443,11 +439,10 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction valueExtractor,
                           TriggerScheduler triggering,
                           WatermarkEmitStrategy watermarkStrategy,
-                          StateStorageProvider storageProvider,
+                          StorageProvider storageProvider,
                           boolean isBounded,
                           int maxKeyStatesPerWindow) {
 
-    this.operator = requireNonNull(operator);
     this.name = requireNonNull(name);
     this.input = requireNonNull(input);
     this.output = requireNonNull(output);
@@ -461,7 +456,6 @@ class ReduceStateByKeyReducer implements Runnable {
     this.watermarkStrategy = requireNonNull(watermarkStrategy);
     this.triggering = requireNonNull(triggering);
     this.processing = new ProcessingState(
-        operator,
         output, triggering,
         stateFactory, stateCombiner,
         storageProvider, isBounded,

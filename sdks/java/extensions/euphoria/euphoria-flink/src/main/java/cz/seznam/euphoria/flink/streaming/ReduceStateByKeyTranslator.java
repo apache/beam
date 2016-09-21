@@ -66,7 +66,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
       // equivalent operation to "left fold"
       folded = windowedPairs.apply(new AttachedWindowFolder(
-              origOperator, storageProvider, stateFactory))
+              storageProvider, stateFactory))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     } else {
@@ -75,7 +75,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           windowedPairs = context.windowStream((DataStream) input, keyExtractor, valueExtractor, windowing);
       // equivalent operation to "left fold"
       folded = windowedPairs.apply(new NonAttachedWindowFolder(
-              origOperator, storageProvider, stateFactory, windowing.getClass()))
+              storageProvider, stateFactory, windowing.getClass()))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     }
@@ -100,16 +100,13 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           Object,
           W> {
 
-    private final Operator<?, ?> operator;
     private final StateFactory<?, State> stateFactory;
     private final FlinkStreamingStateStorageProvider storageProvider;
 
-    WindowFolder(
-        Operator<?, ?> operator,
+    WindowFolder(      
         FlinkStreamingStateStorageProvider storageProvider,
         StateFactory<?, State> stateFactory) {
 
-      this.operator = operator;
       this.stateFactory = stateFactory;
       this.storageProvider = storageProvider;
     }
@@ -130,7 +127,6 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       long emissionWatermark = getEmissionWatermark(window);
 
       State state = stateFactory.apply(
-          operator,
           e -> out.collect(new StreamingWindowedElement<>(
               wid,
               WindowedPair.of(
@@ -170,12 +166,11 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     private final Class<? extends Windowing> windowingType;
 
     NonAttachedWindowFolder(
-        Operator<?, ?> operator,
         FlinkStreamingStateStorageProvider storageProvider,
         StateFactory<?, State> stateFactory,
         Class<? extends Windowing> windowingType) {
       
-      super(operator, storageProvider, stateFactory);
+      super(storageProvider, stateFactory);
       this.windowingType = windowingType;
     }
 
@@ -199,11 +194,10 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       extends WindowFolder<AttachedWindow>
   {
     AttachedWindowFolder(
-        Operator<?, ?> operator,
         FlinkStreamingStateStorageProvider storageProvider,
         StateFactory<?, State> stateFactory) {
       
-      super(operator, storageProvider, stateFactory);
+      super(storageProvider, stateFactory);
     }
     @Override
     protected long getEmissionWatermark(AttachedWindow window) {

@@ -25,7 +25,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.ExecUnit;
 import cz.seznam.euphoria.core.executor.Executor;
@@ -242,7 +242,7 @@ public class InMemExecutor implements Executor {
 
   private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
 
-  private StateStorageProvider storageProvider = new InMemStateStorageProvider();
+  private StorageProvider storageProvider = new InMemStorageProvider();
 
   public InMemExecutor setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
     this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
@@ -278,8 +278,8 @@ public class InMemExecutor implements Executor {
     return this;
   }
 
-  /** Set provider for state's storage. Defaults to {@code InMemStateStorageProvider}. */
-  public InMemExecutor setStateStorageProvider(StateStorageProvider provider) {
+  /** Set provider for state's storage. Defaults to {@code InMemStorageProvider}. */
+  public InMemExecutor setStateStorageProvider(StorageProvider provider) {
     this.storageProvider = provider;
     return this;
   }

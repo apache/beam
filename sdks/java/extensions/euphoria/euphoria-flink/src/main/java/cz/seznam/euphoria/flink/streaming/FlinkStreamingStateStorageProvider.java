@@ -1,9 +1,11 @@
 
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
-import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import java.io.Serializable;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
@@ -14,18 +16,18 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 /**
  * Storage provider using flink's state API.
  */
-class FlinkStreamingStateStorageProvider implements StateStorageProvider, Serializable {
+class FlinkStreamingStateStorageProvider implements StorageProvider, Serializable {
 
   @SuppressWarnings("unchecked")
-  private static class ValueStorage implements ValueStateStorage<Object> {
+  private static class FlinkValueStorage implements ValueStorage<Object> {
 
     final ValueState state;
 
-    ValueStorage(String name, Class clz, RuntimeContext context) {
-      state = context.getState(new ValueStateDescriptor(
-          "euphoria-state::" + name,
-          clz,
-          null));
+    FlinkValueStorage(ValueStorageDescriptor descriptor, RuntimeContext context) {
+      state = context.getState(new ValueStateDescriptor<>(
+          descriptor.getName(),
+          descriptor.getValueClass(),
+          descriptor.getDefaultValue()));
     }
 
     @Override
@@ -54,14 +56,14 @@ class FlinkStreamingStateStorageProvider implements StateStorageProvider, Serial
   }
 
   @SuppressWarnings("unchecked")
-  private static class ListStorage implements ListStateStorage<Object> {
+  private static class FlinkListStorage implements ListStorage<Object> {
 
     final ListState state;
 
-    ListStorage(String name, Class clz, RuntimeContext context) {
+    FlinkListStorage(ListStorageDescriptor descriptor, RuntimeContext context) {
       state = context.getListState(new ListStateDescriptor(
-          "euphoria-state::" + name,
-          clz));
+          descriptor.getName(),
+          descriptor.getElementClass()));
     }
 
     @Override
@@ -97,16 +99,14 @@ class FlinkStreamingStateStorageProvider implements StateStorageProvider, Serial
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ValueStateStorage<T> getValueStorage(String name, Class<T> what) {
-
-    return (ValueStateStorage) new ValueStorage(name, what, context);
+  public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
+    return (ValueStorage) new FlinkValueStorage(descriptor, context);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ListStateStorage<T> getListStorage(String name, Class<T> what) {
-    
-    return (ListStateStorage) new ListStorage(name, what, context);
+  public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {    
+    return (ListStorage) new FlinkListStorage(descriptor, context);
   }
 
 

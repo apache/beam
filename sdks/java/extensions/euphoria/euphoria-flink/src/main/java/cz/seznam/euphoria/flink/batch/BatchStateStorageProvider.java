@@ -5,9 +5,11 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
-import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -37,14 +39,18 @@ import org.slf4j.LoggerFactory;
  * storage is used in batch only and can therefore be reconstructed by
  * recalculation of the data.
  */
-class BatchStateStorageProvider implements StateStorageProvider, Serializable {
+class BatchStateStorageProvider implements StorageProvider, Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BatchStateStorageProvider.class);
 
   @SuppressWarnings("unchecked")
-  static class ValueStorage implements ValueStateStorage {
+  static class MemValueStorage implements ValueStorage {
 
       Object value;
+
+      MemValueStorage(Object defVal) {
+        this.value = defVal;
+      }
 
       @Override
       public void set(Object value) {
@@ -63,7 +69,7 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
   }
 
   @SuppressWarnings("unchecked")
-  static class ListStorage implements ListStateStorage {
+  static class MemListStorage implements ListStorage {
 
     final int MAX_ELEMENTS_IN_MEMORY;
     final Kryo kryo;
@@ -79,7 +85,7 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
 
     
 
-    ListStorage(
+    MemListStorage(
         int maxElementsInMemory,
         Kryo kryo,
         final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> serializers)
@@ -220,24 +226,18 @@ class BatchStateStorageProvider implements StateStorageProvider, Serializable {
 
   @Override
   @SuppressWarnings("uncheced")
-  public <T> ValueStateStorage<T> getValueStorage(
-      String name,
-      Class<T> what) {
-    
+  public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
     initKryo();
     // this is purely in memory
-    return new ValueStorage();
+    return new MemValueStorage(descriptor.getDefaultValue());
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> ListStateStorage<T> getListStorage(
-      String name,
-      Class<T> what) {
-    
+  public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
     try {
       initKryo();
-      return new ListStorage(MAX_ELEMENTS_IN_MEMORY, kryo, serializers);
+      return new MemListStorage(MAX_ELEMENTS_IN_MEMORY, kryo, serializers);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }

@@ -8,8 +8,9 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import java.util.Arrays;
@@ -35,15 +36,15 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
   static class SortState extends State<Integer, Integer> {
 
-    final ListStateStorage<Integer> data;
+    final ListStorage<Integer> data;
 
-    SortState(
-        Operator<?, ?> operator,
+    SortState(        
         Collector<Integer> c,
-        StateStorageProvider storageProvider) {
+        StorageProvider storageProvider) {
 
-      super(operator, c, storageProvider);
-      this.data = storageProvider.getListStorage(this, Integer.class);
+      super(c, storageProvider);
+      this.data = storageProvider.getListStorage(
+          ListStorageDescriptor.of("data", Integer.class));
     }
 
     @Override
@@ -70,7 +71,6 @@ public class ReduceStateByKeyTest extends OperatorTest {
       for (SortState state : states) {
         if (ret == null) {
           ret = new SortState(
-              state.getAssociatedOperator(),
               state.getCollector(),
               state.getStorageProvider());
         }

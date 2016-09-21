@@ -10,17 +10,15 @@ public interface StorageProvider extends Serializable {
 
   /**
    * Retrieve new instance of state storage for values of given type.
-   * @param name the name of the storage (unique)
-   * @param what the class to be stored in the storage
+   * @param descriptor descriptor of the storage within scope of given key and window/operator
    */
-  <T> ValueStateStorage<T> getValueStorage(String name, Class<T> what);
+  <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor);
 
   /**
    * Retrieve new instance of state storage for lists of values of given type.
-   * @param name the name of the storage (unique)
-   * @param what the class to be stored in the storage
+   * @param descriptor descriptor of the storage
    */
-  <T> ListStateStorage<T> getListStorage(String name, Class<T> what);
+  <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor);
 
 
 }
