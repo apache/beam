@@ -21,9 +21,16 @@ import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitA
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -58,11 +65,11 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
-
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -70,7 +77,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -83,7 +89,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import javax.annotation.Nullable;
 
 /**
@@ -221,12 +226,8 @@ public class BigtableIOTest {
     final String table = "TEST-EMPTY-TABLE";
     service.createTable(table);
 
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(defaultRead.withTableId(table));
-    DataflowAssert.that(rows).empty();
-
-    p.run();
-    logged.verifyInfo(String.format("Closing reader after reading 0 records."));
+    runReadTest(defaultRead.withTableId(table), new ArrayList<Row>());
+    logged.verifyInfo("Closing reader after reading 0 records.");
   }
 
   /** Tests reading all rows from a table. */
@@ -236,11 +237,7 @@ public class BigtableIOTest {
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
 
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(defaultRead.withTableId(table));
-    DataflowAssert.that(rows).containsInAnyOrder(testRows);
-
-    p.run();
+    runReadTest(defaultRead.withTableId(table), testRows);
     logged.verifyInfo(String.format("Closing reader after reading %d records.", numRows));
   }
 
@@ -257,6 +254,68 @@ public class BigtableIOTest {
       verifyNotNull(input, "input");
       return input.toStringUtf8().matches(regex);
     }
+  }
+
+  private static List<Row> filterToRange(List<Row> rows, final ByteKeyRange range) {
+    return Lists.newArrayList(Iterables.filter(
+        rows,
+        new Predicate<Row>() {
+          @Override
+          public boolean apply(@Nullable Row input) {
+            verifyNotNull(input, "input");
+            return range.containsKey(ByteKey.of(input.getKey()));
+          }
+        }));
+  }
+
+  private static void runReadTest(BigtableIO.Read read, List<Row> expected) {
+    TestPipeline p = TestPipeline.create();
+    PCollection<Row> rows = p.apply(read);
+    DataflowAssert.that(rows).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted
+   * range [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingWithKeyRange() throws Exception {
+    final String table = "TEST-KEY-RANGE-TABLE";
+    final int numRows = 1001;
+    List<Row> testRows = makeTableData(table, numRows);
+    ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes());
+    ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes());
+
+    // Test prefix: [beginning, startKey).
+    final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
+    List<Row> prefixRows = filterToRange(testRows, prefixRange);
+    runReadTest(defaultRead.withTableId(table).withKeyRange(prefixRange), prefixRows);
+
+    // Test suffix: [startKey, end).
+    final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
+    List<Row> suffixRows = filterToRange(testRows, suffixRange);
+    runReadTest(defaultRead.withTableId(table).withKeyRange(suffixRange), suffixRows);
+
+    // Test restricted range: [startKey, endKey).
+    final ByteKeyRange middleRange = ByteKeyRange.of(startKey, endKey);
+    List<Row> middleRows = filterToRange(testRows, middleRange);
+    runReadTest(defaultRead.withTableId(table).withKeyRange(middleRange), middleRows);
+
+    //////// Size and content sanity checks //////////
+
+    // Prefix, suffix, middle should be non-trivial (non-zero,non-all).
+    assertThat(prefixRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+    assertThat(suffixRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+    assertThat(middleRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+
+    // Prefix + suffix should be exactly all rows.
+    List<Row> union = Lists.newArrayList(prefixRows);
+    union.addAll(suffixRows);
+    assertThat("prefix + suffix = total", union, containsInAnyOrder(testRows.toArray(new Row[]{})));
+
+    // Suffix should contain the middle.
+    assertThat(suffixRows, hasItems(middleRows.toArray(new Row[]{})));
   }
 
   /** Tests reading all rows using a filter. */
@@ -281,11 +340,8 @@ public class BigtableIOTest {
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();
 
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(defaultRead.withTableId(table).withRowFilter(filter));
-    DataflowAssert.that(rows).containsInAnyOrder(filteredRows);
-
-    p.run();
+    runReadTest(
+        defaultRead.withTableId(table).withRowFilter(filter), Lists.newArrayList(filteredRows));
   }
 
   /**
@@ -411,15 +467,20 @@ public class BigtableIOTest {
         .setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*"))
         .build();
 
+    ByteKeyRange keyRange = ByteKeyRange.ALL_KEYS.withEndKey(ByteKey.of(0xab, 0xcd));
     BigtableIO.Read read = BigtableIO.read()
         .withBigtableOptions(BIGTABLE_OPTIONS)
         .withTableId("fooTable")
-        .withRowFilter(rowFilter);
+        .withRowFilter(rowFilter)
+        .withKeyRange(keyRange);
 
     DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+    assertThat(displayData, hasDisplayItem(allOf(hasKey("tableId"), hasValue("fooTable"))));
+
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
+
+    assertThat(displayData, hasDisplayItem("keyRange", keyRange.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
