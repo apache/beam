@@ -22,6 +22,9 @@ import static org.junit.Assert.assertEquals;
 import com.mongodb.DB;
 import com.mongodb.Mongo;
 import com.mongodb.gridfs.GridFS;
+import com.mongodb.gridfs.GridFSDBFile;
+import com.mongodb.gridfs.GridFSInputFile;
+
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
@@ -33,20 +36,32 @@ import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
 
-
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Serializable;
+import java.util.Random;
+import java.util.Scanner;
 
-
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.ParseCallback;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -105,6 +120,34 @@ public class MongoDBGridFSIOTest implements Serializable {
     for (int x = 0; x < 5; x++) {
       gridfs.createFile(new ByteArrayInputStream(out.toByteArray()), "file" + x).save();
     }
+
+    gridfs = new GridFS(database, "mapBucket");
+    long now = System.currentTimeMillis();
+    Random random = new Random();
+    String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
+        "Newton", "Bohr", "Galilei", "Maxwell"};
+    for (int x = 0; x < 10; x++) {
+      GridFSInputFile file = gridfs.createFile("file_" + x);
+      OutputStream outf = file.getOutputStream();
+      OutputStreamWriter writer = new OutputStreamWriter(outf);
+      for (int y = 0; y < 5000; y++) {
+        long time = now - random.nextInt(3600000);
+        String name = scientists[y % scientists.length];
+        writer.write(Long.toString(time) + "\t");
+        writer.write(name + "\t");
+        writer.write(Integer.toString(random.nextInt(100)));
+        writer.write("\n");
+      }
+      for (int y = 0; y < scientists.length; y++) {
+        String name = scientists[y % scientists.length];
+        writer.write(Long.toString(now) + "\t");
+        writer.write(name + "\t");
+        writer.write("101");
+        writer.write("\n");
+      }
+      writer.flush();
+      writer.close();
+    }
   }
 
   @After
@@ -137,6 +180,52 @@ public class MongoDBGridFSIOTest implements Serializable {
       }
     });
 
+    pipeline.run();
+  }
+
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadWithParser() throws Exception {
+    TestPipeline pipeline = TestPipeline.create();
+
+    PCollection<KV<String, Integer>> output = pipeline.apply(
+        MongoDbGridFSIO.read()
+            .withUri("mongodb://localhost:" + PORT)
+            .withDatabase(DATABASE)
+            .withBucket("mapBucket")
+            .withParsingFn(new ParseCallback<KV<String, Integer>>() {
+              @Override
+              public void parse(GridFSDBFile input, DoFn<?, KV<String, Integer>>.Context c)
+                  throws IOException {
+                try (BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+                  String line;
+                  while ((line = reader.readLine()) != null) {
+                    try (Scanner scanner = new Scanner(line.trim()).useDelimiter("\\t")) {
+                      long timestamp = scanner.nextLong();
+                      String name = scanner.next();
+                      int score = scanner.nextInt();
+                      c.outputWithTimestamp(KV.of(name, score), new Instant(timestamp));
+                    }
+                  }
+                }
+              }
+            }, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+
+    PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
+        .isEqualTo(50100L);
+
+    PAssert.that(output.apply("Max PerElement", Max.<String>integersPerKey()))
+      .satisfies(new SerializableFunction<Iterable<KV<String, Integer>>, Void>() {
+      @Override
+      public Void apply(Iterable<KV<String, Integer>> input) {
+        for (KV<String, Integer> element : input) {
+          assertEquals(101, element.getValue().longValue());
+        }
+        return null;
+      }
+    });
     pipeline.run();
   }
 

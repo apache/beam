@@ -25,7 +25,6 @@ import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Serializable;
 
@@ -67,7 +66,7 @@ public class MongoDbGridFSIO {
    * @param <T>
    */
   public interface ParseCallback<T> extends Serializable {
-    public void parse(GridFSDBFile input, DoFn<?, T>.Context c);
+    public void parse(GridFSDBFile input, DoFn<?, T>.Context c) throws Exception;
   }
 
 
@@ -76,19 +75,16 @@ public class MongoDbGridFSIO {
    * strings splitting on the cr/lf.
    */
   public static class StringsParseCallback implements ParseCallback<String> {
-    public void parse(GridFSDBFile file, DoFn<?, String>.Context context) {
+    public void parse(GridFSDBFile file, DoFn<?, String>.Context context) throws Exception {
       final Instant ts = new Instant(file.getUploadDate().getTime());
-      try {
-          final BufferedReader reader =
-              new BufferedReader(new InputStreamReader(file.getInputStream()));
-          String val = reader.readLine();
-          while (val != null) {
-            context.outputWithTimestamp(val, ts);
-            val = reader.readLine();
-          }
-          reader.close();
-      } catch (IOException ex) {
-          //
+      try (BufferedReader reader =
+            new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+        String val = reader.readLine();
+        while (val != null) {
+          context.outputWithTimestamp(val, ts);
+          val = reader.readLine();
+        }
+        reader.close();
       }
     }
   }
@@ -99,7 +95,7 @@ public class MongoDbGridFSIO {
                             new StringsParseCallback(), StringUtf8Coder.of());
   }
 
-  static class Read<T extends Serializable> extends PTransform<PBegin, PCollection<T>> {
+  static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
       return new Read<T>(new GridFSOptions(uri, options.database,
                                            options.bucket), transform, coder);
@@ -115,9 +111,9 @@ public class MongoDbGridFSIO {
                          transform, coder);
     }
 
-    public Read<T> withParsingFn(ParseCallback<T> f,
-                                 Coder<T> c) {
-      return new Read<T>(options, f, c);
+    public <X> Read<X> withParsingFn(ParseCallback<X> f,
+                                 Coder<X> c) {
+      return new Read<X>(options, f, c);
     }
 
     private final GridFSOptions options;
@@ -143,7 +139,7 @@ public class MongoDbGridFSIO {
     /**
      * A {@link DoFn} executing the query to read files from GridFS.
      */
-    public static class ReadFn<T extends Serializable> extends DoFn<GridFSOptions, T> {
+    public static class ReadFn<T> extends DoFn<GridFSOptions, T> {
       private final ParseCallback<T> transform;
 
       private ReadFn(ParseCallback<T> transform) {
