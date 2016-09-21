@@ -10,9 +10,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  */
 public class StreamingWindowedElement<GROUP, LABEL, T>
     extends WindowedElement<GROUP, LABEL, T>
+    implements ElementProvider<T>
 {
   /** The watermark when the window this element is part of was emitted. */
-  private long emissionWatermark = -1;
+  private long emissionWatermark = Long.MIN_VALUE;
 
   public StreamingWindowedElement(WindowID<GROUP, LABEL> windowID, T element) {
     super(windowID, element);
