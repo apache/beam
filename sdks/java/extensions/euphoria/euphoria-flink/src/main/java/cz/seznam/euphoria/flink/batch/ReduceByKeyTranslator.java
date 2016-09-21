@@ -3,12 +3,15 @@ package cz.seznam.euphoria.flink.batch;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.Utils;
+import cz.seznam.euphoria.flink.functions.ComparablePair;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -18,6 +21,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Arrays;
+import java.util.Set;
 import org.apache.flink.api.java.operators.Operator;
 
 public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKey> {
@@ -25,13 +29,14 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
   @Override
   @SuppressWarnings("unchecked")
   public DataSet translate(FlinkOperator<ReduceByKey> operator,
-                           BatchExecutorContext context)
-  {
+                           BatchExecutorContext context) {
+    
     DataSet<?> input =
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
     ReduceByKey origOperator = operator.getOriginalOperator();
     final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
+    final Windowing windowing = origOperator.getWindowing();
 
     final UnaryFunction udfKey;
     final UnaryFunction udfValue;
@@ -50,12 +55,15 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     }
 
     // extract key/value from data
-    DataSet<WindowedElement> tuples = (DataSet) input.map(i -> {
+    DataSet<WindowedElement> tuples = (DataSet) input.flatMap((i, c) -> {
           WindowedElement wel = (WindowedElement) i;
-          WindowID wid = wel.getWindowID();
-          Object el = wel.get();
-          return new WindowedElement(
-              wid, WindowedPair.of(wid.getLabel(), udfKey.apply(el), udfValue.apply(el)));
+          Set<WindowID> assigned = windowing.assignWindowsToElement(wel);
+          for (WindowID wid : assigned) {
+            Object el = wel.get();
+            c.collect(new WindowedElement(
+                wid, WindowedPair.of(wid.getLabel(),
+                udfKey.apply(el), udfValue.apply(el))));
+          }
         })
         .name(operator.getName() + "::map-input")
         // FIXME parallelism should be set to the same level as parent
@@ -64,6 +72,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
         .returns((Class) WindowedElement.class);
 
 
+    // FIXME: missing window merging here
 
     // XXX require keyExtractor to deliver `Comparable`s
     Operator<WindowedElement<?, ?, Pair>, ?> reduced = tuples
@@ -81,22 +90,26 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       reduced = reduced
           .partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              new TypedKeySelector())
+              Utils.wrapQueryable(
+                  (WindowedElement<?, ?, Pair> we) -> (Comparable) we.get().getKey(),
+                  Comparable.class))
           .setParallelism(operator.getParallelism());
     }
 
     return reduced;
   }
 
-  private static class TypedKeySelector<KEY>
-      implements KeySelector<WindowedElement<?, ?, ? extends Pair<KEY, ?>>, KEY>,
-      ResultTypeQueryable<KEY>
-  {
+  @SuppressWarnings("unchecked")
+  private static class TypedKeySelector<LABEL, KEY>
+      implements KeySelector<WindowedElement<?, ?, ? extends Pair<KEY, ?>>,
+          ComparablePair<LABEL, KEY>>,
+      ResultTypeQueryable<KEY> {
+    
     @Override
-    public KEY getKey(WindowedElement<?, ?, ? extends Pair<KEY, ?>> value)
-        throws Exception
-    {
-      return value.get().getKey();
+    public ComparablePair<LABEL, KEY> getKey(WindowedElement<?, ?, ? extends Pair<KEY, ?>> value)
+        throws Exception {
+      
+      return (ComparablePair) ComparablePair.of(value.getWindowID().getLabel(), value.get().getKey());
     }
 
     @Override
@@ -104,6 +117,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     public TypeInformation<KEY> getProducedType() {
       return TypeInformation.of((Class) Comparable.class);
     }
+    
   }
 
   private static class TypedReducer
