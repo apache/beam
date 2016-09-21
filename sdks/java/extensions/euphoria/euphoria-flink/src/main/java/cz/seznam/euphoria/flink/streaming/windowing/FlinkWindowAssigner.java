@@ -18,11 +18,14 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
         extends WindowAssigner<StreamingWindowedElement<?, ?, T>, FlinkWindowID> {
 
   private final Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing;
+  private final ExecutionConfig cfg;
 
   public FlinkWindowAssigner(
-      Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
+      Windowing<IN, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing,
+      ExecutionConfig cfg) {
     
     this.windowing = windowing;
+    this.cfg = cfg;
   }
 
   @Override
@@ -37,7 +40,7 @@ public class FlinkWindowAssigner<T, IN, GROUP, LABEL>
   @Override
   public Trigger<StreamingWindowedElement<?, ?, T>, FlinkWindowID> getDefaultTrigger(
       StreamExecutionEnvironment env) {
-    return new FlinkTrigger<>(windowing);
+    return new FlinkTrigger<>(windowing, cfg);
   }
 
   @Override

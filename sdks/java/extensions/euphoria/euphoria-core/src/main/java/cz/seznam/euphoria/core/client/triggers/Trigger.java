@@ -19,6 +19,12 @@ public interface Trigger extends Serializable {
   /**
    * Called when a timer that was set using the trigger context fires.
    *
+   * <p>In the case of a composite trigger (i.e. multiple triggers for
+   * {@link WindowContext#createTriggers()}) a particular trigger might be invoked
+   * for a time which it has not registered. Implementations are advised to
+   * validate the given {@code time} and return {@code NOOP} in case the stamp
+   * does not correspond to the particular trigger.
+   *
    * @param time The timestamp for which the timer was registered.
    * @param ctx A context object that can be used to register timer callbacks.
    */
