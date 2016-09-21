@@ -14,7 +14,7 @@ import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowAssigner;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindowAssigner;
-import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindowID;
+import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindowAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -102,7 +102,7 @@ class StreamWindower {
 
   @SuppressWarnings("unchecked")
   <T, LABEL, GROUP, KEY, VALUE, W extends Window>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<FlinkWindowID>>
+  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY, EmissionWindow<FlinkWindow>>
   genericWindow(DataStream<StreamingWindowedElement<?, ?, T>> input,
       UnaryFunction<T, KEY> keyExtractor,
       UnaryFunction<T, VALUE> valueExtractor,

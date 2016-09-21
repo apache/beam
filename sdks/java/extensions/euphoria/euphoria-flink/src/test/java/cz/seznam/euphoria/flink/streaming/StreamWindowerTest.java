@@ -11,7 +11,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.streaming.io.DataSinkWrapper;
 import cz.seznam.euphoria.flink.streaming.io.DataSourceWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.EmissionWindow;
-import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindowID;
+import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.shaded.com.google.common.collect.Sets;
@@ -61,7 +61,7 @@ public class StreamWindowerTest {
             Arrays.asList(Pair.of(1, 8), Pair.of(1, 7), Pair.of(2, 6), Pair.of(3, 5)))
     ));
 
-    WindowedStream<StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>, Integer, EmissionWindow<FlinkWindowID>> windowed;
+    WindowedStream<StreamingWindowedElement<Void, TimeInterval, WindowedPair<TimeInterval, Integer, Integer>>, Integer, EmissionWindow<FlinkWindow>> windowed;
     windowed = windower.genericWindow(
         input, (Pair<Integer, Integer> i) -> i.getSecond() % 2,
         (Pair<Integer, Integer> i) -> 2 * i.getSecond(),
@@ -154,7 +154,7 @@ public class StreamWindowerTest {
   }
 
   private <LABEL> SingleOutputStreamOperator<WindowedPair<LABEL, Integer, Integer>> sumReduce(
-      WindowedStream<WindowedPair<LABEL, Integer, Integer>, Integer, FlinkWindowID> windowed)
+      WindowedStream<WindowedPair<LABEL, Integer, Integer>, Integer, FlinkWindow> windowed)
   {
     SingleOutputStreamOperator<WindowedPair<LABEL, Integer, Integer>> reduce;
     reduce = windowed.reduce(
