@@ -12,8 +12,9 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Iterator;
@@ -421,19 +422,18 @@ public class ReduceByKey<
     private final ReduceFunction<VALUE, OUT> reducer;
     private final boolean combinable;
 
-    final ListStateStorage<VALUE> reducableValues;
+    final ListStorage<VALUE> reducableValues;
 
-    ReduceState(Operator<?, ?> associatedOperator,
-                Collector<OUT> collector,
-                StateStorageProvider storageProvider,
+    ReduceState(Collector<OUT> collector,
+                StorageProvider storageProvider,
                 ReduceFunction<VALUE, OUT> reducer,
                 boolean combinable)
     {
-      super(associatedOperator, collector, storageProvider);
+      super(collector, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
       this.combinable = combinable;
       reducableValues = storageProvider.getListStorage(
-          this, (Class) Object.class);
+          ListStorageDescriptor.of("values", (Class) Object.class));
     }
 
     @Override
@@ -480,8 +480,8 @@ public class ReduceByKey<
     reduceState = new ReduceStateByKey<>(getName(),
         flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
-        (Operator<?, ?> o, Collector<OUT> c, StateStorageProvider provider) -> new ReduceState<>(
-            o, c, provider, reducer, isCombinable()),
+        (Collector<OUT> c, StorageProvider provider) -> new ReduceState<>(
+            c, provider, reducer, isCombinable()),
         (Iterable<ReduceState> states) -> {
           final ReduceState first;
           Iterator<ReduceState> i = states.iterator();

@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator.state;
 /**
  * State storage storing lists.
  */
-public interface ListStateStorage<T> extends StateStorage<T> {
+public interface ListStorage<T> extends Storage<T> {
 
   /** Add element to the state. */
   void add(T element);

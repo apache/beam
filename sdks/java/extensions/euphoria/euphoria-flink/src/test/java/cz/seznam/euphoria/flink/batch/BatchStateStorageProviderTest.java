@@ -2,9 +2,11 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.ValueStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,29 +30,26 @@ public class BatchStateStorageProviderTest {
 
   ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
   BatchStateStorageProvider provider;
-  State state;
 
   @Before
   public void setUp() {
     provider = new BatchStateStorageProvider(MAX_MEMORY_ELEMENTS, env);
-    state = mock(State.class);
-    when(state.getAssociatedOperator()).thenReturn(mock(Operator.class));
   }
   
   @Test
   @SuppressWarnings("unchecked")
   public void testSimpleAddValue() {
-    ValueStateStorage<Integer> storage = provider.getValueStorage(
-        state, Integer.class);
-    assertNull(storage.get());
+    ValueStorage<Integer> storage = provider.getValueStorage(
+        ValueStorageDescriptor.of("storage", Integer.class, 0));
+    assertEquals(0, (int) storage.get());
     storage.set(1);
     assertEquals(1, (int) storage.get());
   }
 
   @Test
   public void testSimpleListAdd() {
-    ListStateStorage<Integer> storage = provider.getListStorage(
-        state, Integer.class);
+    ListStorage<Integer> storage = provider.getListStorage(
+        ListStorageDescriptor.of("storage", Integer.class));
     List<Integer> list = Lists.newArrayList(storage.get());
     assertTrue(list.isEmpty());
 
@@ -63,8 +62,8 @@ public class BatchStateStorageProviderTest {
   @Test
   public void testMemorySpill() {
     List<Integer> data = new ArrayList<>();
-    ListStateStorage<Integer> storage = provider.getListStorage(
-        state, Integer.class);
+    ListStorage<Integer> storage = provider.getListStorage(
+        ListStorageDescriptor.of("storage", Integer.class));
 
     for (int i = 0; i < 1_000_003; i++) {
       data.add(i);
