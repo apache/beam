@@ -74,7 +74,9 @@ public class MongoDbGridFSIO {
    * Default implementation for parsing the InputStream to collection of
    * strings splitting on the cr/lf.
    */
-  public static class StringsParseCallback implements ParseCallback<String> {
+  private static class StringsParseCallback implements ParseCallback<String> {
+    static final StringsParseCallback INSTANCE = new StringsParseCallback();
+
     public void parse(GridFSDBFile file, DoFn<?, String>.Context context) throws Exception {
       final Instant ts = new Instant(file.getUploadDate().getTime());
       try (BufferedReader reader =
@@ -92,7 +94,7 @@ public class MongoDbGridFSIO {
   /** Read data from GridFS. */
   public static Read<String> read() {
     return new Read<String>(new Read.GridFSOptions(null, null, null),
-                            new StringsParseCallback(), StringUtf8Coder.of());
+                            StringsParseCallback.INSTANCE, StringUtf8Coder.of());
   }
 
   static class Read<T> extends PTransform<PBegin, PCollection<T>> {
@@ -111,9 +113,12 @@ public class MongoDbGridFSIO {
                          transform, coder);
     }
 
-    public <X> Read<X> withParsingFn(ParseCallback<X> f,
-                                 Coder<X> c) {
-      return new Read<X>(options, f, c);
+    public <X> Read<X> withParsingFn(ParseCallback<X> f) {
+      return new Read<X>(options, f, null);
+    }
+
+    public Read<T> withCoder(Coder<T> coder) {
+      return new Read<T>(options, transform, coder);
     }
 
     private final GridFSOptions options;
@@ -132,7 +137,7 @@ public class MongoDbGridFSIO {
     @Override
     public PCollection<T> apply(PBegin input) {
       PCollection<T> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn<T>(transform))).setCoder(coder);
+          .apply(ParDo.of(new ReadFn<T>(transform))); //.setCoder(coder);
       return output;
     }
 

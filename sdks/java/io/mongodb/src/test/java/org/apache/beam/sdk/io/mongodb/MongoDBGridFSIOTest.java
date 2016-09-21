@@ -211,7 +211,7 @@ public class MongoDBGridFSIOTest implements Serializable {
                   }
                 }
               }
-            }, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+            })).setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
         .isEqualTo(50100L);
