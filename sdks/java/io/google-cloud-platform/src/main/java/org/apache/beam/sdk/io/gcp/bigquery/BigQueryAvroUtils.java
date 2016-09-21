@@ -26,6 +26,8 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.BaseEncoding;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -202,7 +204,7 @@ class BigQueryAvroUtils {
         ByteBuffer byteBuffer = (ByteBuffer) v;
         byte[] bytes = new byte[byteBuffer.limit()];
         byteBuffer.get(bytes);
-        return bytes;
+        return BaseEncoding.base64().encode(bytes);
       default:
         throw new UnsupportedOperationException(
             String.format(

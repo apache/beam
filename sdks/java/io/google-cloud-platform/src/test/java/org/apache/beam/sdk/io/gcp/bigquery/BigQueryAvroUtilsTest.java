@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
+import com.google.common.io.BaseEncoding;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,12 +94,14 @@ public class BigQueryAvroUtilsTest {
       record.put("flighted", Boolean.TRUE);
       record.put("sound", soundByteBuffer);
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
-      assertEquals("5", convertedRow.get("number"));
-      assertEquals("1970-01-01 00:00:00.000005 UTC", convertedRow.get("birthday"));
-      assertEquals(5.0, convertedRow.get("quality"));
-      assertEquals(new ArrayList<TableRow>(), convertedRow.get("associates"));
-      assertEquals(Boolean.TRUE, convertedRow.get("flighted"));
-      assertArrayEquals(soundBytes, (byte[]) convertedRow.get("sound"));
+      TableRow row = new TableRow()
+          .set("number", "5")
+          .set("birthday", "1970-01-01 00:00:00.000005 UTC")
+          .set("quality", 5.0)
+          .set("associates", new ArrayList<TableRow>())
+          .set("flighted", Boolean.TRUE)
+          .set("sound", BaseEncoding.base64().encode(soundBytes));
+      assertEquals(row, convertedRow);
     }
     {
       // Test repeated fields.

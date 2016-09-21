@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -166,12 +165,13 @@ public class BigQueryTableRowIteratorTest {
     when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
 
     byte[] photoBytes = "photograph".getBytes();
+    String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
     // Mock table data fetch.
     when(mockTabledataList.execute())
-        .thenReturn(rawDataList(rawRow("Arthur", 42, BaseEncoding.base64().encode(photoBytes))));
+        .thenReturn(rawDataList(rawRow("Arthur", 42, photoBytesEncoded)));
 
     // Run query and verify
-    String query = "SELECT name, count from table";
+    String query = "SELECT name, count, photoBytes from table";
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
       iterator.open();
@@ -183,7 +183,7 @@ public class BigQueryTableRowIteratorTest {
       assertTrue(row.containsKey("photo"));
       assertEquals("Arthur", row.get("name"));
       assertEquals(42, row.get("answer"));
-      assertArrayEquals(photoBytes, (byte[]) row.get("photo"));
+      assertEquals(photoBytesEncoded, row.get("photo"));
 
       assertFalse(iterator.advance());
     }
