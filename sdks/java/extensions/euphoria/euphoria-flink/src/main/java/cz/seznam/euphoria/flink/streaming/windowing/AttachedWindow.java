@@ -6,7 +6,9 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.util.Objects;
 
-public class AttachedWindow<GROUP, LABEL> extends Window {
+public class AttachedWindow<GROUP, LABEL>
+    extends Window
+    implements WindowProperties<GROUP, LABEL> {
 
   private final WindowID<GROUP, LABEL> id;
   private final long emissionWatermark;
@@ -20,6 +22,12 @@ public class AttachedWindow<GROUP, LABEL> extends Window {
     this.emissionWatermark = emissionWatermark;
   }
 
+  @Override
+  public WindowID<GROUP, LABEL> getWindowID() {
+    return id;
+  }
+
+  @Override
   public long getEmissionWatermark() {
     return emissionWatermark;
   }
