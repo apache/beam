@@ -136,7 +136,7 @@ public class DatastoreWordCount {
       }
 
       entityBuilder.setKey(keyBuilder.build());
-      entityBuilder.getProperties().put("content", makeValue(content).build());
+      entityBuilder.getMutableProperties().put("content", makeValue(content).build());
       return entityBuilder.build();
     }
 
@@ -162,7 +162,7 @@ public class DatastoreWordCount {
     String getOutput();
     void setOutput(String value);
 
-    // Note: This maps to Project ID for v1beta3 version of datastore
+    // Note: This maps to Project ID for v1 version of datastore
     @Description("Dataset ID to read from Cloud Datastore")
     @Validation.Required
     String getDataset();
