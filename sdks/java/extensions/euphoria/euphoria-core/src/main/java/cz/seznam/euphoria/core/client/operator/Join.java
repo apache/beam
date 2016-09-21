@@ -12,8 +12,9 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 
@@ -241,19 +242,18 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
   private class JoinState extends State<Either<LEFT, RIGHT>, OUT> {
 
     // store the elements in memory for this implementation
-    final ListStateStorage<LEFT> leftElements;
-    final ListStateStorage<RIGHT> rightElements;
+    final ListStorage<LEFT> leftElements;
+    final ListStorage<RIGHT> rightElements;
 
     @SuppressWarnings("unchecked")
     public JoinState(
-        Operator<?, ?> associatedOperator,
         Collector<OUT> collector,
-        StateStorageProvider storageProvider) {
-      super(associatedOperator, collector, storageProvider);
+        StorageProvider storageProvider) {
+      super(collector, storageProvider);
       leftElements = storageProvider.getListStorage(
-          this, "left", (Class) Object.class);
+          ListStorageDescriptor.of("left", (Class) Object.class));
       rightElements = storageProvider.getListStorage(
-          this, "right",  (Class) Object.class);
+          ListStorageDescriptor.of("right", (Class) Object.class));
     }
 
     @Override
@@ -302,7 +302,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
 
     @SuppressWarnings("unchecked")
     private void emitJoinedElements(
-        Either<LEFT, RIGHT> element, ListStateStorage otherElements) {
+        Either<LEFT, RIGHT> element, ListStorage otherElements) {
       if (element.isLeft()) {
         for (Object right : otherElements.get()) {
           functor.apply(element.left(), (RIGHT) right, getCollector());
