@@ -128,8 +128,9 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
                       Collector<StreamingWindowedElement<?, ?, WindowedPair>> out) {
       for (StreamingWindowedElement<?, ?, WindowedPair> i : input) {
         // FIXME *cough* *cough* see StreamWindower#windowIdFromSlidingFlinkWindow
-        WindowID<?, ?> wid =
-                StreamWindower.windowIdFromSlidingFlinkWindow(windowingType, window.getInner());
+        final WindowID<?, ?> wid;
+        wid = StreamWindower.windowIdFromSlidingFlinkWindow(
+            windowingType, window.getInner());
         if (wid != null) {
           WindowedPair wp = i.get();
           wp = WindowedPair.of(wid.getLabel(), wp.getFirst(), wp.getSecond());
@@ -180,6 +181,9 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
   } // ~ end of IncrementalReducer
 
+  /**
+   * Performs non-incremental reduction (in case of non-combining reduce).
+   */
   private static class WindowedReducer
           implements WindowFunction<
           StreamingWindowedElement<?, ?, WindowedPair>,
