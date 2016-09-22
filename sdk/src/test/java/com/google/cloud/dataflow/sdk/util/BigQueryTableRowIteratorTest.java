@@ -126,6 +126,16 @@ public class BigQueryTableRowIteratorTest {
                 .setFields(
                     Arrays.asList(
                         new TableFieldSchema().setName("name").setType("STRING"),
+                        new TableFieldSchema().setName("answer").setType("INTEGER"))));
+  }
+
+  private static Table tableSchemaWithBytes() {
+    return new Table()
+        .setSchema(
+            new TableSchema()
+                .setFields(
+                    Arrays.asList(
+                        new TableFieldSchema().setName("name").setType("STRING"),
                         new TableFieldSchema().setName("answer").setType("INTEGER"),
                         new TableFieldSchema().setName("photo").setType("BYTES"))));
   }
@@ -173,7 +183,7 @@ public class BigQueryTableRowIteratorTest {
     when(mockJobsGet.execute()).thenReturn(getJob);
 
     // Mock table schema fetch.
-    when(mockTablesGet.execute()).thenReturn(tableWithLocation(), tableWithBasicSchema());
+    when(mockTablesGet.execute()).thenReturn(tableWithLocation(), tableSchemaWithBytes());
 
     byte[] photoBytes = "photograph".getBytes();
     String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
