@@ -67,20 +67,20 @@ class CompressionTypes(object):
   #   .gz (implies GZIP as described below)
   #   .z  (implies ZLIB as described below).
   # Any non-recognized extension implies UNCOMPRESSED as described below.
-  AUTO = _CompressionType(1)
+  AUTO = _CompressionType('auto')
 
   # GZIP compression (deflate with GZIP headers).
-  GZIP = _CompressionType(2)
+  GZIP = _CompressionType('gzip')
 
   # ZLIB compression (deflate with ZLIB headers).
-  ZLIB = _CompressionType(3)
+  ZLIB = _CompressionType('zlib')
 
   # Uncompressed (i.e., may be split).
-  UNCOMPRESSED = _CompressionType(4)
+  UNCOMPRESSED = _CompressionType('uncompressed')
 
   # TODO: Remove this backwards-compatibility soon.
-  NO_COMPRESSION = _CompressionType(4)  # Deprecated. Use UNCOMPRESSED instead.
-  assert NO_COMPRESSION == UNCOMPRESSED
+  # Deprecated. Use UNCOMPRESSED instead.
+  NO_COMPRESSION = UNCOMPRESSED
 
   @classmethod
   def is_valid_compression_type(cls, compression_type):
