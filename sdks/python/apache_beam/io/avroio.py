@@ -28,6 +28,8 @@ from apache_beam.io import filebasedsource
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
+__all__ = ['ReadFromAvro']
+
 
 class ReadFromAvro(PTransform):
   """A ``PTransform`` for reading avro files."""
