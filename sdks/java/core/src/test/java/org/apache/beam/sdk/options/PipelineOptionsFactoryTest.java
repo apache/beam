@@ -786,17 +786,22 @@ public class PipelineOptionsFactoryTest {
   public void testListInt() {
     String[] manyArgs =
         new String[] {"--integer=1", "--integer=2", "--integer=3"};
+    String[] manyArgsShort =
+        new String[] {"--integer=1,2,3"};
     String[] oneArg = new String[] {"--integer=1"};
     String[] missingArg = new String[] {"--integer="};
 
     Lists options = PipelineOptionsFactory.fromArgs(manyArgs).as(Lists.class);
+    assertEquals(ImmutableList.of(1, 2, 3), options.getInteger());
+    options = PipelineOptionsFactory.fromArgs(manyArgsShort).as(Lists.class);
     assertEquals(ImmutableList.of(1, 2, 3), options.getInteger());
     options = PipelineOptionsFactory.fromArgs(oneArg).as(Lists.class);
     assertEquals(ImmutableList.of(1), options.getInteger());
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collection");
+      "Empty argument value is only allowed for String, String Array, and Collections of Strings,"
+      + " but received: java.util.List<java.lang.Integer>");
     options = PipelineOptionsFactory.fromArgs(missingArg).as(Lists.class);
   }
 

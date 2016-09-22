@@ -33,7 +33,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -853,9 +852,7 @@ public class PipelineOptionsFactory {
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
         PipelineOptionsReflector.getPropertyNamesToGetters(methods).entries()) {
-      if (entry.getValue().getDeclaringClass().equals(beanClass)) {
-        propertyNamesToGetters.put(entry.getKey(), entry.getValue());
-      }
+      propertyNamesToGetters.put(entry.getKey(), entry.getValue());
     }
 
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
@@ -878,7 +875,7 @@ public class PipelineOptionsFactory {
       if (getterMethod != null) {
         Type getterPropertyType = getterMethod.getGenericReturnType();
         Type setterPropertyType = method.getGenericParameterTypes()[0];
-        if (getterPropertyType != setterPropertyType) {
+        if (!getterPropertyType.equals(setterPropertyType)) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;
           mismatch.getterPropertyType = getterPropertyType;
@@ -981,12 +978,9 @@ public class PipelineOptionsFactory {
     }
     // Ignore standard infrastructure methods on the generated class.
     try {
-      methods.add(klass.getMethod("equals", Object.class));
-      methods.add(klass.getMethod("hashCode"));
-      methods.add(klass.getMethod("toString"));
-      methods.add(klass.getMethod("as", Class.class));
-      methods.add(klass.getMethod("cloneAs", Class.class));
-      methods.add(klass.getMethod("populateDisplayData", DisplayData.Builder.class));
+      methods.add(iface.getMethod("as", Class.class));
+      methods.add(iface.getMethod("cloneAs", Class.class));
+      methods.add(iface.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw new RuntimeException(e);
     }
@@ -1032,7 +1026,7 @@ public class PipelineOptionsFactory {
       methodNameToAllMethodMap.put(method, method);
     }
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, klass);
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
 
     List<InconsistentlyIgnoredGetters> incompletelyIgnoredGetters = new ArrayList<>();
     List<IgnoredSetter> ignoredSetters = new ArrayList<>();
@@ -1111,7 +1105,7 @@ public class PipelineOptionsFactory {
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
     unknownMethods.addAll(
         Sets.filter(
-            Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
+            Sets.difference(Sets.newHashSet(iface.getMethods()), methods),
             NOT_SYNTHETIC_PREDICATE));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
@@ -1442,11 +1436,12 @@ public class PipelineOptionsFactory {
                 }
           }).toList();
 
-          if (returnType.isArray() && !returnType.getComponentType().equals(String.class) || Collection.class.isAssignableFrom(returnType)) {
+          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)
+              || Collection.class.isAssignableFrom(returnType)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
                   "Empty argument value is only allowed for String, String Array, "
-                  + "and Collections of Strings, but received: " + returnType);
+                  + "and Collections of Strings, but received: " + method.getGenericReturnType());
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
@@ -1454,13 +1449,13 @@ public class PipelineOptionsFactory {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
               "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + returnType);
+               + " but received: " + method.getGenericReturnType());
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
               "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + returnType);
+               + " but received: " + method.getGenericReturnType());
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
