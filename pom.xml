@@ -474,7 +474,7 @@
         <artifactId>grpc-google-pubsub-v1</artifactId>
         <version>${pubsubgrpc.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
