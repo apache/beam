@@ -6,7 +6,7 @@ import java.io.Serializable;
 /**
  * Descriptor of storage.
  */
-public abstract class StorageDescriptorBase<T> implements Serializable {
+public abstract class StorageDescriptorBase implements Serializable {
 
   final String name;
 
