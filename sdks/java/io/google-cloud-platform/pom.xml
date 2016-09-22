@@ -32,7 +32,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <bigtable.version>0.9.1</bigtable.version>
+    <bigtable.version>0.9.2</bigtable.version>
   </properties>
 
   <build>
@@ -121,6 +121,11 @@
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-protos</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-lite</artifactId>
     </dependency>
 
     <dependency>
