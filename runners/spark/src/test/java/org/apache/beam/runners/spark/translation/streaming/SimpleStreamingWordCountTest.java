@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -45,33 +44,47 @@ import org.junit.rules.TemporaryFolder;
  */
 public class SimpleStreamingWordCountTest implements Serializable {
 
-  private static final String[] WORDS_ARRAY = {
-      "hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
-  private static final List<Iterable<String>> WORDS_QUEUE =
-      Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY));
-  private static final String[] EXPECTED_COUNTS = {"hi: 5", "there: 1", "sue: 2", "bob: 2"};
-
   @Rule
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
   public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
 
+  private static final String[] WORDS = {"hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
+
+  private static final List<Iterable<String>> MANY_WORDS =
+      Lists.<Iterable<String>>newArrayList(Arrays.asList(WORDS), Arrays.asList(WORDS));
+
+  private static final String[] EXPECTED_WORD_COUNTS = {"hi: 10", "there: 2", "sue: 4", "bob: 4"};
+
+  private static final Duration BATCH_INTERVAL = Duration.standardSeconds(1);
+
+  private static final Duration windowDuration = BATCH_INTERVAL.multipliedBy(2);
+
   @Test
-  public void testRun() throws Exception {
+  public void testFixedWindows() throws Exception {
+
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
         checkpointParentDir.newFolder(getClass().getSimpleName()));
 
-    Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords =
-        p.apply(CreateStream.fromQueue(WORDS_QUEUE)).setCoder(StringUtf8Coder.of());
-    PCollection<String> windowedWords = inputWords
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
-    PCollection<String> output = windowedWords.apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    // override defaults
+    options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());
+    // graceful stop is on, so no worries about the timeout and window being equal
+    options.setTimeout(windowDuration.getMillis());
 
-    PAssertStreaming.assertContents(output, EXPECTED_COUNTS);
-    EvaluationResult res = (EvaluationResult) p.run();
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<String> output =
+        pipeline
+            .apply(CreateStream.fromQueue(MANY_WORDS))
+            .setCoder(StringUtf8Coder.of())
+            .apply(Window.<String>into(FixedWindows.of(windowDuration)))
+            .apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+
+    PAssertStreaming.assertContents(output, EXPECTED_WORD_COUNTS);
+
+    EvaluationResult res = (EvaluationResult) pipeline.run();
     res.close();
   }
 }

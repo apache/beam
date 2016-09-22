@@ -191,27 +191,29 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dStream =
             (JavaDStream<WindowedValue<T>>) sec.getStream(transform);
+        // get the right window durations.
+        Duration windowDuration;
+        Duration slideDuration;
         if (windowFn instanceof FixedWindows) {
-          Duration windowDuration = Durations.milliseconds(((FixedWindows) windowFn).getSize()
-              .getMillis());
-          sec.setStream(transform, dStream.window(windowDuration));
+          windowDuration = Durations.milliseconds(((FixedWindows) windowFn).getSize().getMillis());
+          slideDuration = windowDuration;
         } else if (windowFn instanceof SlidingWindows) {
-          Duration windowDuration = Durations.milliseconds(((SlidingWindows) windowFn).getSize()
-              .getMillis());
-          Duration slideDuration = Durations.milliseconds(((SlidingWindows) windowFn).getPeriod()
-              .getMillis());
-          sec.setStream(transform, dStream.window(windowDuration, slideDuration));
+          SlidingWindows slidingWindows = (SlidingWindows) windowFn;
+          windowDuration = Durations.milliseconds(slidingWindows.getSize().getMillis());
+          slideDuration = Durations.milliseconds(slidingWindows.getPeriod().getMillis());
+        } else {
+          throw new UnsupportedOperationException(String.format("WindowFn %s is not supported.",
+              windowFn.getClass().getCanonicalName()));
         }
+        JavaDStream<WindowedValue<T>> windowedDStream =
+            dStream.window(windowDuration, slideDuration);
         //--- then we apply windowing to the elements
-        @SuppressWarnings("unchecked")
-        JavaDStream<WindowedValue<T>> dStream2 =
-            (JavaDStream<WindowedValue<T>>) sec.getStream(transform);
         if (TranslationUtils.skipAssignWindows(transform, context)) {
-          sec.setStream(transform, dStream2);
+          sec.setStream(transform, windowedDStream);
         } else {
           final OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
-          JavaDStream<WindowedValue<T>> outStream = dStream2.transform(
+          JavaDStream<WindowedValue<T>> outStream = windowedDStream.transform(
               new Function<JavaRDD<WindowedValue<T>>, JavaRDD<WindowedValue<T>>>() {
             @Override
             public JavaRDD<WindowedValue<T>> call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
