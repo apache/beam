@@ -23,6 +23,9 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.Lists;
+import com.google.common.io.BaseEncoding;
+
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -61,6 +64,7 @@ public class BigQueryAvroUtilsTest {
             new TableFieldSchema().setName("quantity").setType("INTEGER") /* default to NULLABLE */,
             new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
             new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
+            new TableFieldSchema().setName("sound").setType("BYTES").setMode("NULLABLE"),
             new TableFieldSchema().setName("scion").setType("RECORD").setMode("NULLABLE")
                 .setFields(subFields),
             new TableFieldSchema().setName("associates").setType("RECORD").setMode("REPEATED")
@@ -79,19 +83,24 @@ public class BigQueryAvroUtilsTest {
       assertEquals(row, convertedRow);
     }
     {
-      // Test type conversion for TIMESTAMP, INTEGER, BOOLEAN, and FLOAT.
+      // Test type conversion for TIMESTAMP, INTEGER, BOOLEAN, BYTES, and FLOAT.
       GenericRecord record = new GenericData.Record(avroSchema);
+      byte[] soundBytes = "chirp,chirp".getBytes();
+      ByteBuffer soundByteBuffer = ByteBuffer.allocate(soundBytes.length).put(soundBytes);
+      soundByteBuffer.rewind();
       record.put("number", 5L);
       record.put("quality", 5.0);
       record.put("birthday", 5L);
       record.put("flighted", Boolean.TRUE);
+      record.put("sound", soundByteBuffer);
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row = new TableRow()
           .set("number", "5")
           .set("birthday", "1970-01-01 00:00:00.000005 UTC")
           .set("quality", 5.0)
           .set("associates", new ArrayList<TableRow>())
-          .set("flighted", Boolean.TRUE);
+          .set("flighted", Boolean.TRUE)
+          .set("sound", BaseEncoding.base64().encode(soundBytes));
       assertEquals(row, convertedRow);
     }
     {
@@ -123,6 +132,7 @@ public class BigQueryAvroUtilsTest {
     @Nullable Long quantity;
     @Nullable Long birthday;  // Exercises TIMESTAMP.
     @Nullable Boolean flighted;
+    @Nullable ByteBuffer sound;
     @Nullable SubBird scion;
     SubBird[] associates;
 
