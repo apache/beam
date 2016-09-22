@@ -48,6 +48,7 @@ from collections import namedtuple
 import logging
 
 from multiprocessing.pool import ThreadPool
+from apache_beam.internal import pickler
 from apache_beam.io import iobase
 
 
@@ -80,7 +81,7 @@ def readFromSource(source, start_position, stop_position):
   values = []
   range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
-  reader = source.read(range_tracker)
+  reader = _copy_source(source).read(range_tracker)
   for value in reader:
     values.append(value)
 
@@ -172,7 +173,7 @@ def assertSplitAtFractionBehavior(source, num_items_to_read_before_split,
     source while the second value of the tuple will be '-1'.
   """
   assert isinstance(source, iobase.BoundedSource)
-  expected_items = readFromSource(source, None, None)
+  expected_items = readFromSource(_copy_source(source), None, None)
   return _assertSplitAtFractionBehavior(
       source, expected_items, num_items_to_read_before_split, split_fraction,
       expected_outcome)
@@ -180,12 +181,12 @@ def assertSplitAtFractionBehavior(source, num_items_to_read_before_split,
 
 def _assertSplitAtFractionBehavior(
     source, expected_items, num_items_to_read_before_split,
-    split_fraction, expected_outcome):
+    split_fraction, expected_outcome, start_position=None, stop_position=None):
 
-  range_tracker = source.get_range_tracker(None, None)
+  range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
   current_items = []
-  reader = source.read(range_tracker)
+  reader = _copy_source(source).read(range_tracker)
   # Reading 'num_items_to_read_before_split' items.
   reader_iter = iter(reader)
   for _ in range(num_items_to_read_before_split):
@@ -352,7 +353,8 @@ def assertSplitAtFractionFails(source, num_items_to_read_before_split,
 def assertSplitAtFractionBinary(source, expected_items,
                                 num_items_to_read_before_split, left_fraction,
                                 left_result,
-                                right_fraction, right_result, stats):
+                                right_fraction, right_result, stats,
+                                start_position=None, stop_position=None):
   """Performs dynamic work rebalancing for fractions within a given range.
 
   Asserts that given a start position, a source can be split at every
@@ -418,7 +420,9 @@ MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM = 100
 MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL = 1000
 
 
-def assertSplitAtFractionExhaustive(source, perform_multi_threaded_test=True):
+def assertSplitAtFractionExhaustive(
+    source, start_position=None, stop_position=None,
+    perform_multi_threaded_test=True):
   """Performs and tests dynamic work rebalancing exhaustively.
 
   Asserts that for each possible start position, a source can be split at
@@ -435,7 +439,7 @@ def assertSplitAtFractionExhaustive(source, perform_multi_threaded_test=True):
     ValueError: if the exhaustive splitting test fails.
   """
 
-  expected_items = readFromSource(source, None, None)
+  expected_items = readFromSource(source, start_position, stop_position)
   if not expected_items:
     raise ValueError('Source %r is empty.', source)
 
@@ -532,7 +536,7 @@ def _assertSplitAtFractionConcurrent(
 
   range_tracker = source.get_range_tracker(None, None)
   stop_position_before_split = range_tracker.stop_position()
-  reader = source.read(range_tracker)
+  reader = _copy_source(source).read(range_tracker)
   reader_iter = iter(reader)
 
   current_items = []
@@ -571,3 +575,7 @@ def _assertSplitAtFractionConcurrent(
       primary_range, residual_range, split_fraction)
 
   return res[1] > 0
+
+
+def _copy_source(source):
+  return pickler.loads(pickler.dumps(source))

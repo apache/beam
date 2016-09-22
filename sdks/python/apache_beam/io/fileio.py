@@ -693,11 +693,7 @@ class FileSink(iobase.Sink):
   The output of this write is a PCollection of all written shards.
   """
 
-  # Approximate number of write results be assigned for each rename thread.
-  _WRITE_RESULTS_PER_RENAME_THREAD = 100
-
-  # Max number of threads to be used for renaming even if it means each thread
-  # will process more write results.
+  # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
 
   def __init__(self,
@@ -785,8 +781,7 @@ class FileSink(iobase.Sink):
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
     channel_factory = ChannelFactory()
-    min_threads = min(num_shards / FileSink._WRITE_RESULTS_PER_RENAME_THREAD,
-                      FileSink._MAX_RENAME_THREADS)
+    min_threads = min(num_shards, FileSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
 
     rename_ops = []
@@ -943,6 +938,11 @@ class TextFileSink(FileSink):
         mime_type='text/plain',
         compression_type=compression_type)
     self.append_trailing_newlines = append_trailing_newlines
+
+    if type(self) is TextFileSink:
+      logging.warning('Direct usage of TextFileSink is deprecated. Please use '
+                      '\'textio.WriteToText()\' instead of directly '
+                      'instantiating a TextFileSink object.')
 
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""

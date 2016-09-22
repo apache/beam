@@ -24,6 +24,7 @@ import unittest
 
 import apache_beam as beam
 
+from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io import source_test_utils
@@ -77,7 +78,7 @@ class LineSource(iobase.BoundedSource):
     return range_trackers.OffsetRangeTracker(start_position, stop_position)
 
   def default_output_coder(self):
-    return beam.coders.ToStringCoder()
+    return coders.BytesCoder()
 
 
 class RangeSource(iobase.BoundedSource):

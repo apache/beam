@@ -57,6 +57,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 
 
@@ -194,7 +195,7 @@ def _populate_requirements_cache(requirements_file, cache_dir):
   # It will get the packages downloaded in the order they are presented in
   # the requirements file and will not download package dependencies.
   cmd_args = [
-      'pip', 'install', '--download', cache_dir,
+      sys.executable, '-m', 'pip', 'install', '--download', cache_dir,
       '-r', requirements_file,
       # Download from PyPI source distributions.
       '--no-binary', ':all:']
@@ -374,7 +375,7 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(os.path.dirname(setup_file))
     if build_setup_args is None:
       build_setup_args = [
-          'python', os.path.basename(setup_file),
+          sys.executable, os.path.basename(setup_file),
           'sdist', '--dist-dir', temp_dir]
     logging.info('Executing command: %s', build_setup_args)
     processes.check_call(build_setup_args)
@@ -460,7 +461,7 @@ def _download_pypi_sdk_package(temp_dir):
   version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
-      'pip', 'install', '--download', temp_dir,
+      sys.executable, '-m', 'pip', 'install', '--download', temp_dir,
       '%s==%s' % (GOOGLE_PACKAGE_NAME, version),
       '--no-binary', ':all:', '--no-deps']
   logging.info('Executing command: %s', cmd_args)

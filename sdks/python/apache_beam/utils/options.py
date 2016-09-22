@@ -248,6 +248,9 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Path to a file containing the P12 service '
                         'credentials.')
+    parser.add_argument('--service_account_email',
+                        default=None,
+                        help='Identity to run virtual machines as.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
 
   def validate(self, validator):

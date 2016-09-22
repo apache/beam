@@ -1030,9 +1030,13 @@ class WriteImpl(ptransform.PTransform):
                                       AsSingleton(init_result_coll)))
     else:
       min_shards = 1
-      write_result_coll = pcoll | core.ParDo('write_bundles',
-                                             _WriteBundleDoFn(), self.sink,
-                                             AsSingleton(init_result_coll))
+      write_result_coll = (pcoll | core.ParDo('write_bundles',
+                                              _WriteBundleDoFn(), self.sink,
+                                              AsSingleton(init_result_coll))
+                           | core.Map(lambda x: (None, x))
+                           | core.WindowInto(window.GlobalWindows())
+                           | core.GroupByKey()
+                           | core.FlatMap(lambda x: x[1]))
     return do_once | core.FlatMap(
         'finalize_write',
         _finalize_write,
