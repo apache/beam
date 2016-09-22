@@ -80,8 +80,8 @@ public class PubsubGrpcClientTest {
 
   @Before
   public void setup() {
-    channelName = PubsubGrpcClientTest.class.getName()
-        + "-" + ThreadLocalRandom.current().nextInt();
+    channelName = String.format("%s-%s",
+        PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
     inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
     mockCredentials = Mockito.mock(GoogleCredentials.class);
     client = new PubsubGrpcClient(TIMESTAMP_LABEL, ID_LABEL, 10, inProcessChannel, mockCredentials);
