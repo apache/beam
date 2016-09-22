@@ -395,6 +395,7 @@ public class BigQueryIO {
       @Nullable final String query;
       final boolean validate;
       @Nullable final Boolean flattenResults;
+      @Nullable final Boolean useLegacySql;
       @Nullable BigQueryServices testBigQueryServices;
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
@@ -408,17 +409,20 @@ public class BigQueryIO {
             null /* jsonTableRef */,
             true /* validate */,
             null /* flattenResults */,
+            null /* useLegacySql */,
             null /* testBigQueryServices */);
       }
 
       private Bound(
           String name, @Nullable String query, @Nullable String jsonTableRef, boolean validate,
-          @Nullable Boolean flattenResults, @Nullable BigQueryServices testBigQueryServices) {
+          @Nullable Boolean flattenResults, @Nullable Boolean useLegacySql,
+          @Nullable BigQueryServices testBigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.query = query;
         this.validate = validate;
         this.flattenResults = flattenResults;
+        this.useLegacySql = useLegacySql;
         this.testBigQueryServices = testBigQueryServices;
       }
 
@@ -428,7 +432,9 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound named(String name) {
-        return new Bound(name, query, jsonTableRef, validate, flattenResults, testBigQueryServices);
+        return new Bound(
+            name, query, jsonTableRef, validate, flattenResults, useLegacySql,
+            testBigQueryServices);
       }
 
       /**
@@ -448,7 +454,8 @@ public class BigQueryIO {
        */
       public Bound from(TableReference table) {
         return new Bound(
-            name, query, toJsonString(table), validate, flattenResults, testBigQueryServices);
+            name, query, toJsonString(table), validate, flattenResults, useLegacySql,
+            testBigQueryServices);
       }
 
       /**
@@ -460,17 +467,24 @@ public class BigQueryIO {
        * "flattenResults" in the <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">
        * Jobs documentation</a> for more information.  To disable flattening, use
        * {@link BigQueryIO.Read.Bound#withoutResultFlattening}.
+       *
+       * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery
+       * Standard SQL dialect, use {@link BigQueryIO.Read.Bound#usingStandardSql}.
        */
       public Bound fromQuery(String query) {
         return new Bound(name, query, jsonTableRef, validate,
-            MoreObjects.firstNonNull(flattenResults, Boolean.TRUE), testBigQueryServices);
+            MoreObjects.firstNonNull(flattenResults, Boolean.TRUE),
+            MoreObjects.firstNonNull(useLegacySql, Boolean.TRUE),
+            testBigQueryServices);
       }
 
       /**
        * Disable table validation.
        */
       public Bound withoutValidation() {
-        return new Bound(name, query, jsonTableRef, false, flattenResults, testBigQueryServices);
+        return new Bound(
+            name, query, jsonTableRef, false /* validate */, flattenResults, useLegacySql,
+            testBigQueryServices);
       }
 
       /**
@@ -481,69 +495,93 @@ public class BigQueryIO {
        * from a table will cause an error during validation.
        */
       public Bound withoutResultFlattening() {
-        return new Bound(name, query, jsonTableRef, validate, false, testBigQueryServices);
+        return new Bound(
+            name, query, jsonTableRef, validate, false /* flattenResults */, useLegacySql,
+            testBigQueryServices);
+      }
+
+      /**
+       * Enables BigQuery's Standard SQL dialect when reading from a query.
+       *
+       * <p>Only valid when a query is used ({@link #fromQuery}). Setting this option when reading
+       * from a table will cause an error during validation.
+       */
+      public Bound usingStandardSql() {
+        return new Bound(
+            name, query, jsonTableRef, validate, flattenResults, false /* useLegacySql */,
+            testBigQueryServices);
       }
 
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
-        return new Bound(name, query, jsonTableRef, validate, flattenResults, testServices);
+        return new Bound(
+            name, query, jsonTableRef, validate, flattenResults, useLegacySql, testServices);
       }
 
       @Override
       public void validate(PInput input) {
-        if (validate) {
-          BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+        if (!validate) {
+          // Note that a table or query check can fail if the table or dataset are created by
+          // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
+          // For these cases the withoutValidation method can be used to disable the check.
+          return;
+        }
 
-          String tempLocation = bqOptions.getTempLocation();
-          checkArgument(
-              !Strings.isNullOrEmpty(tempLocation),
-              "BigQueryIO.Read needs a GCS temp location to store temp files.");
-          if (testBigQueryServices == null) {
-            try {
-              GcsPath.fromUri(tempLocation);
-            } catch (IllegalArgumentException e) {
-              throw new IllegalArgumentException(
-                  String.format(
-                      "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
-                      tempLocation),
-                  e);
-            }
-          }
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
-          TableReference table = getTableWithDefaultProject(bqOptions);
-          if (table == null && query == null) {
-            throw new IllegalStateException(
-                "Invalid BigQuery read operation, either table reference or query has to be set");
-          } else if (table != null && query != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
-                + " query and a table, only one of these should be provided");
-          } else if (table != null && flattenResults != null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " table with a result flattening preference, which is not configurable");
-          } else if (query != null && flattenResults == null) {
-            throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
-                + " query without a result flattening preference");
+        String tempLocation = bqOptions.getTempLocation();
+        checkArgument(
+            !Strings.isNullOrEmpty(tempLocation),
+            "BigQueryIO.Read needs a GCS temp location to store temp files.");
+        if (testBigQueryServices == null) {
+          try {
+            GcsPath.fromUri(tempLocation);
+          } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                    tempLocation),
+                e);
           }
+        }
 
-          // Check for source table/query presence for early failure notification.
-          // Note that a presence check can fail if the table or dataset are created by earlier
-          // stages of the pipeline or if a query depends on earlier stages of a pipeline. For these
-          // cases the withoutValidation method can be used to disable the check.
-          if (table != null) {
-            verifyDatasetPresence(bqOptions, table);
-            verifyTablePresence(bqOptions, table);
-          }
-          if (query != null) {
-            dryRunQuery(bqOptions, query);
-          }
+        TableReference table = getTableWithDefaultProject(bqOptions);
+
+        checkState(
+            table == null || query == null,
+            "Invalid BigQueryIO.Read: table reference and query may not both be set");
+        checkState(
+            table != null || query != null,
+            "Invalid BigQueryIO.Read: one of table reference and query must be set");
+
+        if (table != null) {
+          checkState(
+              flattenResults == null,
+              "Invalid BigQueryIO.Read: Specifies a table with a result flattening"
+                  + " preference, which only applies to queries");
+          checkState(
+              useLegacySql == null,
+              "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
+                  + " preference, which only applies to queries");
+
+          // Check for source table presence for early failure notification.
+
+          verifyDatasetPresence(bqOptions, table);
+          verifyTablePresence(bqOptions, table);
+        } else /* query != null */ {
+          checkState(flattenResults != null, "flattenResults should not be null if query is set");
+          checkState(useLegacySql != null, "useLegacySql should not be null if query is set");
+          dryRunQuery(bqOptions, query, useLegacySql);
         }
       }
 
-      private static void dryRunQuery(BigQueryOptions options, String query) {
+      private static void dryRunQuery(
+          BigQueryOptions options, String query, boolean useLegacySql) {
         Bigquery client = Transport.newBigQueryClient(options).build();
         QueryRequest request = new QueryRequest();
         request.setQuery(query);
         request.setDryRun(true);
+        request.setUseLegacySql(useLegacySql);
 
         String queryValidationErrorMsg = String.format(QUERY_VALIDATION_FAILURE_ERROR, query);
         try {
@@ -586,7 +624,7 @@ public class BigQueryIO {
               .setTableId(queryTempTableId);
 
           source = BigQueryQuerySource.create(
-              jobIdToken, query, queryTempTableRef, flattenResults,
+              jobIdToken, query, queryTempTableRef, flattenResults, useLegacySql,
               extractDestinationDir, bqServices);
         } else {
           TableReference inputTable = getTableWithDefaultProject(bqOptions);
@@ -646,6 +684,8 @@ public class BigQueryIO {
               .withLabel("Query"))
             .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
               .withLabel("Flatten Query Results"))
+            .addIfNotNull(DisplayData.item("useLegacySql", useLegacySql)
+              .withLabel("Use Legacy SQL Dialect"))
             .addIfNotDefault(DisplayData.item("validation", validate)
               .withLabel("Validation Enabled"),
                 true);
@@ -692,6 +732,15 @@ public class BigQueryIO {
        */
       public Boolean getFlattenResults() {
         return flattenResults;
+      }
+
+      /**
+       * Returns true (false) if the query will (will not) use BigQuery's legacy SQL mode, or null
+       * if not applicable.
+       */
+      @Nullable
+      public Boolean getUseLegacySql() {
+        return useLegacySql;
       }
 
       private BigQueryServices getBigQueryServices() {
@@ -834,15 +883,18 @@ public class BigQueryIO {
         String query,
         TableReference queryTempTableRef,
         Boolean flattenResults,
+        Boolean useLegacySql,
         String extractDestinationDir,
         BigQueryServices bqServices) {
       return new BigQueryQuerySource(
-          jobIdToken, query, queryTempTableRef, flattenResults, extractDestinationDir, bqServices);
+          jobIdToken, query, queryTempTableRef, flattenResults, useLegacySql, extractDestinationDir,
+          bqServices);
     }
 
     private final String query;
     private final String jsonQueryTempTable;
     private final Boolean flattenResults;
+    private final boolean useLegacySql;
     private transient AtomicReference<JobStatistics> dryRunJobStats;
 
     private BigQueryQuerySource(
@@ -850,6 +902,7 @@ public class BigQueryIO {
         String query,
         TableReference queryTempTableRef,
         Boolean flattenResults,
+        Boolean useLegacySql,
         String extractDestinationDir,
         BigQueryServices bqServices) {
       super(jobIdToken, extractDestinationDir, bqServices,
@@ -857,6 +910,7 @@ public class BigQueryIO {
       this.query = checkNotNull(query, "query");
       this.jsonQueryTempTable = toJsonString(queryTempTableRef);
       this.flattenResults = checkNotNull(flattenResults, "flattenResults");
+      this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
       this.dryRunJobStats = new AtomicReference<>();
     }
 
@@ -870,7 +924,7 @@ public class BigQueryIO {
     public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       return new BigQueryReader(this, bqServices.getReaderFromQuery(
-          bqOptions, query, executingProject, flattenResults));
+          bqOptions, query, executingProject, flattenResults, useLegacySql));
     }
 
     @Override
@@ -901,6 +955,7 @@ public class BigQueryIO {
           query,
           tableToExtract,
           flattenResults,
+          useLegacySql,
           bqServices.getJobService(bqOptions));
       return tableToExtract;
     }
@@ -939,6 +994,7 @@ public class BigQueryIO {
         String query,
         TableReference destinationTable,
         boolean flattenResults,
+        boolean useLegacySql,
         JobService jobService) throws IOException, InterruptedException {
       JobReference jobRef = new JobReference()
           .setProjectId(executingProject)
@@ -950,6 +1006,7 @@ public class BigQueryIO {
           .setCreateDisposition("CREATE_IF_NEEDED")
           .setDestinationTable(destinationTable)
           .setFlattenResults(flattenResults)
+          .setUseLegacySql(useLegacySql)
           .setPriority("BATCH")
           .setWriteDisposition("WRITE_EMPTY");
       jobService.startQueryJob(jobRef, queryConfig);

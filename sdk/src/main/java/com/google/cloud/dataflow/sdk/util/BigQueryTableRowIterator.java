@@ -92,6 +92,8 @@ public class BigQueryTableRowIterator implements AutoCloseable {
   private final String query;
   // Whether to flatten query results.
   private final boolean flattenResults;
+  // Whether to use the BigQuery legacy SQL dialect..
+  private final boolean useLegacySql;
   // Temporary dataset used to store query results.
   private String temporaryDatasetId = null;
   // Temporary table used to store query results.
@@ -99,12 +101,13 @@ public class BigQueryTableRowIterator implements AutoCloseable {
 
   private BigQueryTableRowIterator(
       @Nullable TableReference ref, @Nullable String query, @Nullable String projectId,
-      Bigquery client, boolean flattenResults) {
+      Bigquery client, boolean flattenResults, boolean useLegacySql) {
     this.ref = ref;
     this.query = query;
     this.projectId = projectId;
     this.client = checkNotNull(client, "client");
     this.flattenResults = flattenResults;
+    this.useLegacySql = useLegacySql;
   }
 
   /**
@@ -113,7 +116,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
   public static BigQueryTableRowIterator fromTable(TableReference ref, Bigquery client) {
     checkNotNull(ref, "ref");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client, true);
+    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client, true, true);
   }
 
   /**
@@ -121,12 +124,14 @@ public class BigQueryTableRowIterator implements AutoCloseable {
    * specified query in the specified project.
    */
   public static BigQueryTableRowIterator fromQuery(
-      String query, String projectId, Bigquery client, @Nullable Boolean flattenResults) {
+      String query, String projectId, Bigquery client, @Nullable Boolean flattenResults,
+      @Nullable Boolean useLegacySql) {
     checkNotNull(query, "query");
     checkNotNull(projectId, "projectId");
     checkNotNull(client, "client");
     return new BigQueryTableRowIterator(null, query, projectId, client,
-        MoreObjects.firstNonNull(flattenResults, Boolean.TRUE));
+        MoreObjects.firstNonNull(flattenResults, Boolean.TRUE),
+        MoreObjects.firstNonNull(useLegacySql, Boolean.TRUE));
   }
 
   /**
@@ -415,6 +420,8 @@ public class BigQueryTableRowIterator implements AutoCloseable {
     queryConfig.setQuery(query);
     queryConfig.setAllowLargeResults(true);
     queryConfig.setFlattenResults(flattenResults);
+    queryConfig.setUseLegacySql(useLegacySql);
+
 
     TableReference destinationTable = new TableReference();
     destinationTable.setProjectId(projectId);

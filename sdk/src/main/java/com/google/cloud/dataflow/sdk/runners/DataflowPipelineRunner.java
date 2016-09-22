@@ -2184,6 +2184,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         context.addInput(PropertyNames.BIGQUERY_QUERY, originalTransform.getQuery());
         context.addInput(
             PropertyNames.BIGQUERY_FLATTEN_RESULTS, originalTransform.getFlattenResults());
+        context.addInput(
+            PropertyNames.BIGQUERY_USE_LEGACY_SQL, originalTransform.getUseLegacySql());
       } else {
         TableReference table = originalTransform.getTable();
         if (table.getProjectId() == null) {

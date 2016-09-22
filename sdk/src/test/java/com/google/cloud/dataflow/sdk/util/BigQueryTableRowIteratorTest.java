@@ -179,7 +179,7 @@ public class BigQueryTableRowIteratorTest {
     // Run query and verify
     String query = "SELECT name, count from table";
     try (BigQueryTableRowIterator iterator =
-            BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
+            BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null, null)) {
       iterator.open();
       assertTrue(iterator.advance());
       TableRow row = iterator.getCurrent();
@@ -248,7 +248,7 @@ public class BigQueryTableRowIteratorTest {
     // Run query and verify
     String query = "SELECT \"Arthur\" as name, 42 as count";
     try (BigQueryTableRowIterator iterator =
-        BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
+        BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null, null)) {
       iterator.open();
       assertTrue(iterator.advance());
       TableRow row = iterator.getCurrent();
@@ -299,7 +299,7 @@ public class BigQueryTableRowIteratorTest {
 
     String query = "NOT A QUERY";
     try (BigQueryTableRowIterator iterator =
-            BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
+            BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null, null)) {
 
       try {
         iterator.open();
