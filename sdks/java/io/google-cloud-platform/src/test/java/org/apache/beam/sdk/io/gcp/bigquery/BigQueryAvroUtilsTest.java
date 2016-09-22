@@ -88,7 +88,7 @@ public class BigQueryAvroUtilsTest {
       // Test type conversion for INTEGER, FLOAT, TIMESTAMP, BOOLEAN, BYTES, and DATE.
       GenericRecord record = new GenericData.Record(avroSchema);
       byte[] soundBytes = "chirp,chirp".getBytes();
-      ByteBuffer soundByteBuffer = ByteBuffer.allocate(soundBytes.length).put(soundBytes);
+      ByteBuffer soundByteBuffer = ByteBuffer.wrap(soundBytes);
       soundByteBuffer.rewind();
       record.put("number", 5L);
       record.put("quality", 5.0);

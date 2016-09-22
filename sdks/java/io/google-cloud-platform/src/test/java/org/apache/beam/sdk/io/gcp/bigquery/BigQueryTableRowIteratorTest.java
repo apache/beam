@@ -172,7 +172,7 @@ public class BigQueryTableRowIteratorTest {
         .thenReturn(rawDataList(rawRow("Arthur", 42, photoBytesEncoded, "2000-01-01")));
 
     // Run query and verify
-    String query = "SELECT name, count, photoBytes, anniversary from table";
+    String query = "SELECT name, count, photo, anniversary from table";
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
       iterator.open();
