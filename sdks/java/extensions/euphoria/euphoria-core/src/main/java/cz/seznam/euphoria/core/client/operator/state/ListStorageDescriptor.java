@@ -5,7 +5,7 @@ package cz.seznam.euphoria.core.client.operator.state;
 /**
  * Descriptor of list storage.
  */
-public class ListStorageDescriptor<T> extends StorageDescriptorBase<T> {
+public class ListStorageDescriptor<T> extends StorageDescriptorBase {
   
   public static <T> ListStorageDescriptor<T> of(String name, Class<T> elementCls) {
     return new ListStorageDescriptor<>(name, elementCls);
