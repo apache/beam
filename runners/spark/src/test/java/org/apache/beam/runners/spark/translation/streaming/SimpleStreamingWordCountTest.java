@@ -55,7 +55,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
   private static final List<Iterable<String>> MANY_WORDS =
       Lists.<Iterable<String>>newArrayList(Arrays.asList(WORDS), Arrays.asList(WORDS));
 
-  private static final String[] EXPECTED_WORD_COUNTS = {"hi: 5", "there: 1", "sue: 2", "bob: 2"};
+  private static final String[] EXPECTED_WORD_COUNTS = {"hi: 10", "there: 2", "sue: 4", "bob: 4"};
 
   private static final Duration BATCH_INTERVAL_MILLIS = Duration.standardSeconds(1);
 
