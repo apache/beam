@@ -18,14 +18,14 @@
 
 package org.apache.beam.runners.spark.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.Dependency;
 import org.apache.spark.InterruptibleIterator;
@@ -71,6 +71,7 @@ public class SourceRDD {
       // local[*] = estimation of the machine's cores).
       // ** the configuration "spark.default.parallelism" takes precedence over all of the above **
       this.numPartitions = sc.defaultParallelism();
+      checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
     }
 
     private static final long DEFAULT_BUNDLE_SIZE = 64 * 1024 * 1024;
@@ -125,19 +126,20 @@ public class SourceRDD {
             }
             return !finished;
           } catch (IOException e) {
+            closeIfNotClosed();
             throw new RuntimeException("Failed to read from reader.", e);
           }
         }
 
         @Override
         public WindowedValue<T> next() {
-          return WindowedValue.of(reader.getCurrent(), reader.getCurrentTimestamp(),
-              GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+          return WindowedValue.timestampedValueInGlobalWindow(reader.getCurrent(),
+              reader.getCurrentTimestamp());
         }
 
         @Override
         public void remove() {
-          // do nothing.
+          throw new UnsupportedOperationException("Remove from partition iterator is not allowed.");
         }
 
         private void closeIfNotClosed() {
@@ -173,7 +175,7 @@ public class SourceRDD {
 
     private final int rddId;
     private final int index;
-    final Source<T> source;
+    private final Source<T> source;
 
     SourcePartition(int rddId, int index, Source<T> source) {
       this.rddId = rddId;
@@ -188,7 +190,7 @@ public class SourceRDD {
 
     @Override
     public int hashCode() {
-      return 31 * (31 + rddId) + index;
+      return 41 * (41 + rddId) + index;
     }
 
     @Override
