@@ -36,7 +36,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.util.Utf8;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -180,6 +179,7 @@ class BigQueryAvroUtils {
         fieldSchema.getName());
     switch (fieldSchema.getType()) {
       case "STRING":
+      case "DATE":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
@@ -209,9 +209,6 @@ class BigQueryAvroUtils {
         byte[] bytes = new byte[byteBuffer.limit()];
         byteBuffer.get(bytes);
         return BaseEncoding.base64().encode(bytes);
-      case "DATE":
-        verify(v instanceof Utf8, "Expected Utf8, got %s", v.getClass());
-        return ((Utf8) v).toString();
       default:
         throw new UnsupportedOperationException(
             String.format(
