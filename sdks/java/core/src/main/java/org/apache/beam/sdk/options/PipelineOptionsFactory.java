@@ -883,10 +883,11 @@ public class PipelineOptionsFactory {
           mismatches.add(mismatch);
           continue;
         }
+        // Properties can appear multiple times with subclasses, and we don't
+        // want to clobber a good entry with a bad one.
+        descriptors.add(new PropertyDescriptor(
+            propertyName, getterMethod, method));
       }
-
-      descriptors.add(new PropertyDescriptor(
-          propertyName, getterMethod, method));
     }
     throwForTypeMismatches(mismatches);
 
@@ -1102,6 +1103,8 @@ public class PipelineOptionsFactory {
     throwForMissingBeanMethod(iface, missingBeanMethods);
 
     // Verify that no additional methods are on an interface that aren't a bean property.
+    // TODO: Figure out if this can be enabled.
+    /*
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
     unknownMethods.addAll(
         Sets.filter(
@@ -1111,6 +1114,7 @@ public class PipelineOptionsFactory {
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
+    */
 
     return descriptors;
   }

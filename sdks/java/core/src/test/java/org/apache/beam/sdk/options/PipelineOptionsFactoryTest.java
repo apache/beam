@@ -849,7 +849,6 @@ public class PipelineOptionsFactoryTest {
     expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option");
   }
 
-
   /** A test interface containing all supported List return types. */
   public static interface Maps extends PipelineOptions {
     Map<Integer, Integer> getMap();
