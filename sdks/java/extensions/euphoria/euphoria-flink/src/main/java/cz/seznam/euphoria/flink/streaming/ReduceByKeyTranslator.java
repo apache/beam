@@ -239,7 +239,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     @SuppressWarnings("unchecked")
     public TypeInformation<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>
     getProducedType() {
-      return TypeInformation.of((Class) StreamingWindowedElement.class);
+      return TypeInformation.of((Class) MultiWindowedElement.class);
     }
   } // ~ end of MultiWindowedElementIncrementalReducer
 
