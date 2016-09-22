@@ -44,7 +44,6 @@ import com.google.common.collect.ListMultimap;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -215,15 +214,13 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  @Ignore
   public void testMultiGetterSetterTypeMismatchThrows() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Type mismatches between getters and setters detected:");
     expectedException.expectMessage("Property [value]: Getter is of type "
         + "[boolean] whereas setter is of type [int].");
     expectedException.expectMessage("Property [other]: Getter is of type [long] "
-        + "whereas setter is of type [java.lang.String].");
-
+        + "whereas setter is of type [class java.lang.String].");
     PipelineOptionsFactory.as(MultiGetterSetterTypeMismatch.class);
   }
 
@@ -313,45 +310,6 @@ public class PipelineOptionsFactoryTest {
 
     PipelineOptionsFactory.as(MultiReturnTypeConflict.class);
   }
-
-  /** A test interface that has a complex type. */
-  public static interface ComplexMultiReturnTypeConflictBase extends CombinedObject {
-    List<Integer> getObject();
-    void setObject(List<Integer> value);
-  }
-
-  /** A complex test interface that has conflicting return types with its parent. */
-  public static interface ComplexMultiReturnTypeConflict extends ComplexMultiReturnTypeConflictBase {
-    List<Long> getObjects();
-    void setObjects(List<Long> value);
-  }
-
-  /*
-  @Test
-  public void testComplexMultipleReturnTypeConflictsThrows() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("[org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict]");
-    expectedException.expectMessage(
-        "Methods with multiple definitions with different return types");
-    expectedException.expectMessage("Method [getObject] has multiple definitions");
-    expectedException.expectMessage("public abstract java.lang.Object "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
-        + "MissingSetter.getObject()");
-    expectedException.expectMessage(
-        "public abstract java.lang.String org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getObject()");
-    expectedException.expectMessage("Method [getOther] has multiple definitions");
-    expectedException.expectMessage("public abstract java.lang.Object "
-        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
-        + "MultiReturnTypeConflictBase.getOther()");
-    expectedException.expectMessage(
-        "public abstract java.lang.Long org.apache.beam.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getOther()");
-
-    PipelineOptionsFactory.as(ComplexMultiReturnTypeConflict.class);
-  }
-  */
 
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on a setter for a property. */
   public static interface SetterWithJsonIgnore extends PipelineOptions {
