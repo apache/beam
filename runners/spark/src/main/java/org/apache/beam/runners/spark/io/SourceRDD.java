@@ -83,8 +83,8 @@ public class SourceRDD {
         desiredSizeBytes = source.getEstimatedSizeBytes(
             runtimeContext.getPipelineOptions()) / numPartitions;
       } catch (Exception e) {
-        LOG.warn("Failed to get estimated size of bundle, default is {} bytes.",
-            DEFAULT_BUNDLE_SIZE);
+        LOG.warn("Failed to get estimated bundle size for source {}, using default bundle "
+            + "size of {} bytes.", source, DEFAULT_BUNDLE_SIZE);
       }
       try {
         List<? extends Source<T>> partitionedSources = source.splitIntoBundles(desiredSizeBytes,
@@ -95,7 +95,8 @@ public class SourceRDD {
         }
         return partitions;
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create partitions.", e);
+        throw new RuntimeException("Failed to create partitions for source "
+            + source.getClass().getSimpleName(), e);
       }
     }
 
@@ -191,11 +192,6 @@ public class SourceRDD {
     @Override
     public int hashCode() {
       return 41 * (41 + rddId) + index;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return super.equals(other);
     }
   }
 }
