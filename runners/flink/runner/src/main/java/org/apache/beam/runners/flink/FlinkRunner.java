@@ -25,6 +25,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.program.DetachedEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,18 +153,23 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
       throw new RuntimeException("Pipeline execution failed", e);
     }
 
-    LOG.info("Execution finished in {} msecs", result.getNetRuntime());
+    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+      LOG.info("Pipeline submitted in Detached mode");
+      Map<String, Object> accumulators = Collections.emptyMap();
+      return new FlinkRunnerResult(accumulators, -1L);
+    } else {
+      LOG.info("Execution finished in {} msecs", result.getNetRuntime());
+      Map<String, Object> accumulators = result.getAllAccumulatorResults();
+      if (accumulators != null && !accumulators.isEmpty()) {
+        LOG.info("Final aggregator values:");
 
-    Map<String, Object> accumulators = result.getAllAccumulatorResults();
-    if (accumulators != null && !accumulators.isEmpty()) {
-      LOG.info("Final aggregator values:");
-
-      for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-        LOG.info("{} : {}", entry.getKey(), entry.getValue());
+        for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
+          LOG.info("{} : {}", entry.getKey(), entry.getValue());
+        }
       }
-    }
 
-    return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+    }
   }
 
   /**
