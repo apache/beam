@@ -149,61 +149,6 @@ class SourcesTest(unittest.TestCase):
   def test_range_source(self):
     source_test_utils.assertSplitAtFractionExhaustive(RangeSource(0, 10, 3))
 
-  def test_conact_source(self):
-    source = iobase.ConcatSource([RangeSource(0, 4),
-                                  RangeSource(4, 8),
-                                  RangeSource(8, 12),
-                                  RangeSource(12, 16),
-                                 ])
-    self.assertEqual(list(source.read(source.get_range_tracker())),
-                     range(16))
-    self.assertEqual(list(source.read(source.get_range_tracker((1, None),
-                                                               (2, 10)))),
-                     range(4, 10))
-    range_tracker = source.get_range_tracker(None, None)
-    self.assertEqual(range_tracker.position_at_fraction(0), (0, 0))
-    self.assertEqual(range_tracker.position_at_fraction(.5), (2, 8))
-    self.assertEqual(range_tracker.position_at_fraction(.625), (2, 10))
-
-    # Simulate a read.
-    self.assertEqual(range_tracker.try_claim((0, None)), True)
-    self.assertEqual(range_tracker.sub_range_tracker(0).try_claim(2), True)
-    self.assertEqual(range_tracker.fraction_consumed(), 0.125)
-
-    self.assertEqual(range_tracker.try_claim((1, None)), True)
-    self.assertEqual(range_tracker.sub_range_tracker(1).try_claim(6), True)
-    self.assertEqual(range_tracker.fraction_consumed(), 0.375)
-    self.assertEqual(range_tracker.try_split((0, 1)), None)
-    self.assertEqual(range_tracker.try_split((1, 5)), None)
-
-    self.assertEqual(range_tracker.try_split((3, 14)), ((3, None), 0.75))
-    self.assertEqual(range_tracker.try_claim((3, None)), False)
-    self.assertEqual(range_tracker.sub_range_tracker(1).try_claim(7), True)
-    self.assertEqual(range_tracker.try_claim((2, None)), True)
-    self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(9), True)
-
-    self.assertEqual(range_tracker.try_split((2, 8)), None)
-    self.assertEqual(range_tracker.try_split((2, 11)), ((2, 11), 11. / 12))
-    self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
-    self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
-
-  def test_run_concat_direct(self):
-    source = iobase.ConcatSource([RangeSource(0, 10),
-                                  RangeSource(10, 100),
-                                  RangeSource(100, 1000),
-                                 ])
-    pipeline = beam.Pipeline('DirectPipelineRunner')
-    pcoll = pipeline | beam.Read(source)
-    assert_that(pcoll, equal_to(range(1000)))
-
-    pipeline.run()
-
-  def test_conact_source_exhaustive(self):
-    source = iobase.ConcatSource([RangeSource(0, 10),
-                                  RangeSource(100, 110),
-                                  RangeSource(1000, 1010),
-                                 ])
-    source_test_utils.assertSplitAtFractionExhaustive(source)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

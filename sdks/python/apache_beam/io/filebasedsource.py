@@ -28,6 +28,7 @@ For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 from multiprocessing.pool import ThreadPool
 
 from apache_beam.internal import pickler
+from apache_beam.io import concat_source
 from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
@@ -107,7 +108,7 @@ class FileBasedSource(iobase.BoundedSource):
             sizes[index],
             min_bundle_size=self._min_bundle_size)
         single_file_sources.append(single_file_source)
-      self._concat_source = iobase.ConcatSource(single_file_sources)
+      self._concat_source = concat_source.ConcatSource(single_file_sources)
     return self._concat_source
 
   def open_file(self, file_name):
