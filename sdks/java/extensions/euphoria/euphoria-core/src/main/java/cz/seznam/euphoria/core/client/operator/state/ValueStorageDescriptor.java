@@ -6,15 +6,15 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 /**
  * Descriptor of {@code ValueStorage}.
  */
-public class ValueStorageDescriptor<T> extends StorageDescriptorBase<T> {
+public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
 
-  private static final class MergeableValueStorageDescriptor<T>
+  private static final class MergingValueStorageDescriptor<T>
       extends ValueStorageDescriptor<T>
       implements MergingStorageDescriptor<T> {
 
     private final BinaryFunction<T, T, T> merger;
 
-    MergeableValueStorageDescriptor(
+    MergingValueStorageDescriptor(
         String name, Class<T> cls, T defVal,
         BinaryFunction<T, T, T> merger) {
       super(name, cls, defVal);
@@ -43,7 +43,7 @@ public class ValueStorageDescriptor<T> extends StorageDescriptorBase<T> {
    */
   public static <T> ValueStorageDescriptor<T> of(
       String name, Class<T> cls, T defVal, BinaryFunction<T, T, T> merger) {
-    return new MergeableValueStorageDescriptor<>(name, cls, defVal, merger);
+    return new MergingValueStorageDescriptor<>(name, cls, defVal, merger);
   }
 
   private final Class<T> cls;
