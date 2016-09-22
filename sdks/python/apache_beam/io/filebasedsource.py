@@ -177,7 +177,7 @@ class _SingleFileSource(iobase.BoundedSource):
       raise TypeError(
           'start_offset must be a number. Received: %r', start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, (int, long)):
         raise TypeError(
             'stop_offset must be a number. Received: %r', stop_offset)
       if start_offset >= stop_offset:
