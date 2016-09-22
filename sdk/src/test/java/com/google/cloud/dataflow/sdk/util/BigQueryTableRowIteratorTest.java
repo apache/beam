@@ -126,16 +126,6 @@ public class BigQueryTableRowIteratorTest {
                 .setFields(
                     Arrays.asList(
                         new TableFieldSchema().setName("name").setType("STRING"),
-                        new TableFieldSchema().setName("answer").setType("INTEGER"))));
-  }
-
-  private static Table tableSchemaWithBytes() {
-    return new Table()
-        .setSchema(
-            new TableSchema()
-                .setFields(
-                    Arrays.asList(
-                        new TableFieldSchema().setName("name").setType("STRING"),
                         new TableFieldSchema().setName("answer").setType("INTEGER"),
                         new TableFieldSchema().setName("photo").setType("BYTES"))));
   }
@@ -183,7 +173,7 @@ public class BigQueryTableRowIteratorTest {
     when(mockJobsGet.execute()).thenReturn(getJob);
 
     // Mock table schema fetch.
-    when(mockTablesGet.execute()).thenReturn(tableWithLocation(), tableSchemaWithBytes());
+    when(mockTablesGet.execute()).thenReturn(tableWithLocation(), tableWithBasicSchema());
 
     byte[] photoBytes = "photograph".getBytes();
     String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
@@ -259,11 +249,16 @@ public class BigQueryTableRowIteratorTest {
     // Mock table schema fetch.
     when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
 
+    byte[] photoBytes = "photograph".getBytes();
+    String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
     // Mock table data fetch.
-    when(mockTabledataList.execute()).thenReturn(rawDataList(rawRow("Arthur", 42)));
+    when(mockTabledataList.execute())
+        .thenReturn(rawDataList(rawRow("Arthur", 42, photoBytesEncoded)));
 
     // Run query and verify
-    String query = "SELECT \"Arthur\" as name, 42 as count";
+    String query = String.format(
+        "SELECT \"Arthur\" as name, 42 as count, %s as photo",
+        photoBytesEncoded);
     try (BigQueryTableRowIterator iterator =
         BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
       iterator.open();
@@ -272,8 +267,10 @@ public class BigQueryTableRowIteratorTest {
 
       assertTrue(row.containsKey("name"));
       assertTrue(row.containsKey("answer"));
+      assertTrue(row.containsKey("photo"));
       assertEquals("Arthur", row.get("name"));
       assertEquals(42, row.get("answer"));
+      assertEquals(photoBytesEncoded, row.get("photo"));
 
       assertFalse(iterator.advance());
     }
