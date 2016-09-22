@@ -137,7 +137,10 @@ public class MongoDbGridFSIO {
     @Override
     public PCollection<T> apply(PBegin input) {
       PCollection<T> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn<T>(transform))); //.setCoder(coder);
+          .apply(ParDo.of(new ReadFn<T>(transform)));
+      if (coder != null) {
+        output.setCoder(coder);
+      }
       return output;
     }
 
