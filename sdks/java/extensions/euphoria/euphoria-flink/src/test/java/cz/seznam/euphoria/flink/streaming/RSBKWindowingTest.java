@@ -10,12 +10,12 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
-import cz.seznam.euphoria.core.client.operator.state.ListStateStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StateStorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import org.junit.Test;
@@ -31,13 +31,13 @@ import static org.junit.Assert.assertEquals;
 public class RSBKWindowingTest {
 
   private static class AccState<VALUE> extends State<VALUE, VALUE> {
-    final ListStateStorage<VALUE> reducableValues;
-    AccState(Operator associatedOperator,
-             Collector<VALUE> collector,
-             StateStorageProvider storageProvider)
+    final ListStorage<VALUE> reducableValues;
+    AccState(Collector<VALUE> collector,
+             StorageProvider storageProvider)
     {
-      super(associatedOperator, collector, storageProvider);
-      reducableValues = storageProvider.getListStorage(this, (Class) Object.class);
+      super(collector, storageProvider);
+      reducableValues = storageProvider.getListStorage(
+          ListStorageDescriptor.of("vals", (Class) Object.class));
     }
 
     @Override
@@ -94,9 +94,7 @@ public class RSBKWindowingTest {
     ReduceStateByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>,
-            AccState<Pair<String, Integer>>>)
-            (first, second, third) -> new AccState<>(first, second, third))
+        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5))
             // ~ event time
@@ -147,9 +145,7 @@ public class RSBKWindowingTest {
             .createInput(source))
             .keyBy(Pair::getFirst)
             .valueBy(e -> e)
-            .stateFactory((StateFactory<Pair<String, Integer>,
-                AccState<Pair<String, Integer>>>)
-                (first, second, third) -> new AccState<>(first, second, third))
+            .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
             .combineStateBy(AccState::combine)
             .windowBy(Time.of(Duration.ofMillis(5))
                 // ~ event time
@@ -164,9 +160,7 @@ public class RSBKWindowingTest {
     ReduceStateByKey.of(secondStep)
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>,
-            AccState<Pair<String, Integer>>>)
-            (first, second, third) -> new AccState<>(first, second, third))
+        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5))
             // ~ event time
