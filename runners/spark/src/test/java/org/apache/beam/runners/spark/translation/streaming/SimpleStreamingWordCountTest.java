@@ -57,9 +57,9 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
   private static final String[] EXPECTED_WORD_COUNTS = {"hi: 10", "there: 2", "sue: 4", "bob: 4"};
 
-  private static final Duration BATCH_INTERVAL_MILLIS = Duration.standardSeconds(1);
+  private static final Duration BATCH_INTERVAL = Duration.standardSeconds(1);
 
-  private static final Duration windowDuration = BATCH_INTERVAL_MILLIS.multipliedBy(2);
+  private static final Duration windowDuration = BATCH_INTERVAL.multipliedBy(2);
 
   @Test
   public void testFixedWindows() throws Exception {
@@ -68,7 +68,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
         checkpointParentDir.newFolder(getClass().getSimpleName()));
 
     // override defaults
-    options.setBatchIntervalMillis(BATCH_INTERVAL_MILLIS.getMillis());
+    options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());
     // graceful stop is on, so no worries about the timeout and window being equal
     options.setTimeout(windowDuration.getMillis());
 
