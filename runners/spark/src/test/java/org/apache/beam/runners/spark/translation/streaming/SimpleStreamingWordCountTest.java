@@ -62,7 +62,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
   private static final Duration windowDuration = BATCH_INTERVAL_MILLIS.multipliedBy(2);
 
   @Test
-  public void testRun() throws Exception {
+  public void testFixedWindows() throws Exception {
 
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
         checkpointParentDir.newFolder(getClass().getSimpleName()));
