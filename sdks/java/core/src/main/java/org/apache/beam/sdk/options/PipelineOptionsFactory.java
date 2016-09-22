@@ -857,6 +857,7 @@ public class PipelineOptionsFactory {
 
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
     List<TypeMismatch> mismatches = new ArrayList<>();
+    Set<String> usedDescriptors = Sets.newHashSet();
     /*
      * Add all the getter/setter pairs to the list of descriptors removing the getter once
      * it has been paired up.
@@ -883,10 +884,13 @@ public class PipelineOptionsFactory {
           mismatches.add(mismatch);
           continue;
         }
-        // Properties can appear multiple times with subclasses, and we don't
-        // want to clobber a good entry with a bad one.
+      }
+      // Properties can appear multiple times with subclasses, and we don't
+      // want to clobber a good entry with a bad one.
+      if (!usedDescriptors.contains(propertyName)) {
         descriptors.add(new PropertyDescriptor(
             propertyName, getterMethod, method));
+        usedDescriptors.add(propertyName);
       }
     }
     throwForTypeMismatches(mismatches);
@@ -1103,8 +1107,8 @@ public class PipelineOptionsFactory {
     throwForMissingBeanMethod(iface, missingBeanMethods);
 
     // Verify that no additional methods are on an interface that aren't a bean property.
-    // TODO: Figure out if this can be enabled.
     /*
+      TODO: Find a better solution here.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
     unknownMethods.addAll(
         Sets.filter(
