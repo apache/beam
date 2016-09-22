@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.base.Verify.verifyNotNull;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -35,6 +36,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.util.Utf8;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -162,11 +164,13 @@ class BigQueryAvroUtils {
             .put("BOOLEAN", Type.BOOLEAN)
             .put("TIMESTAMP", Type.LONG)
             .put("RECORD", Type.RECORD)
+            .put("DATE", Type.STRING)
             .build();
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
     // is required, so it may not be null.
     String bqType = fieldSchema.getType();
     Type expectedAvroType = fieldMap.get(bqType);
+    verifyNotNull(expectedAvroType, "Unsupported BigQuery type: %s", bqType);
     verify(
         avroType == expectedAvroType,
         "Expected Avro schema type %s, not %s, for BigQuery %s field %s",
@@ -205,6 +209,9 @@ class BigQueryAvroUtils {
         byte[] bytes = new byte[byteBuffer.limit()];
         byteBuffer.get(bytes);
         return BaseEncoding.base64().encode(bytes);
+      case "DATE":
+        verify(v instanceof Utf8, "Expected Utf8, got %s", v.getClass());
+        return ((Utf8) v).toString();
       default:
         throw new UnsupportedOperationException(
             String.format(
