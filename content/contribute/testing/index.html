@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Beam Testing Guide</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <link rel="canonical" href="http://beam.incubator.apache.org/contribute/testing/" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Use <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/use">User Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">General</li>
+			  <li><a href="/use/beam-overview/">Beam Overview</a></li>
+			  <li><a href="/use/quickstart/">Quickstart</a></li>  
+			  <li><a href="/use/releases">Release Information</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Example Walkthroughs</li>
+			  <li><a href="/use/walkthroughs/">WordCount</a></li>
+			  <li><a href="/use/walkthroughs/">Mobile Gaming</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Support</li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+			  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on StackOverflow</a></li>
+              <li><a href="http://apachebeam.slack.com">Beam Slack Channel</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Learn <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/learn">Learner Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="/learn/programming-guide/">Programming Guide</a></li>
+			  <li><a href="/learn/presentation-materials/">Presentation Materials</a></li>
+			  <li><a href="/learn/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+			  <li><a href="/learn/sdks/javadoc/">Java SDK API Reference</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="/learn/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="/learn/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/learn/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="/learn/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="/learn/runners/dataflow/">Cloud Dataflow Runner</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/contribute">Contributor Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Basics</li>
+			  <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+			  <li><a href="/contribute/testing/">Testing</a></li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/contribute/source-repository/">Source Repository</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Technical Resources</li>
+			  <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+		  </ul>
+	    </li>
+        <li><a href="/blog">Blog</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/project/logos/">Logos and design</a></li>
+            <li><a href="/project/public-meetings/">Public Meetings</a></li>
+			<li><a href="/project/team/">Team</a></li>
+          </ul>
+        </li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:24px;">Apache Software Foundation<span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="row">
+        <h1 id="beam-testing-documentation">Beam Testing Documentation</h1>
+
+<ul id="markdown-toc">
+  <li><a href="#beam-testing-documentation" id="markdown-toc-beam-testing-documentation">Beam Testing Documentation</a>    <ul>
+      <li><a href="#overview" id="markdown-toc-overview">Overview</a></li>
+      <li><a href="#testing-matrix" id="markdown-toc-testing-matrix">Testing Matrix</a>        <ul>
+          <li><a href="#java-sdk" id="markdown-toc-java-sdk">Java SDK</a></li>
+          <li><a href="#python-sdk" id="markdown-toc-python-sdk">Python SDK</a></li>
+        </ul>
+      </li>
+      <li><a href="#testing-scenarios" id="markdown-toc-testing-scenarios">Testing Scenarios</a>        <ul>
+          <li><a href="#precommit" id="markdown-toc-precommit">Precommit</a></li>
+          <li><a href="#postcommit" id="markdown-toc-postcommit">Postcommit</a></li>
+        </ul>
+      </li>
+      <li><a href="#testing-types" id="markdown-toc-testing-types">Testing Types</a>        <ul>
+          <li><a href="#unit" id="markdown-toc-unit">Unit</a></li>
+          <li><a href="#runnableonservice-working-title" id="markdown-toc-runnableonservice-working-title">RunnableOnService (Working Title)</a></li>
+          <li><a href="#e2e" id="markdown-toc-e2e">E2E</a></li>
+        </ul>
+      </li>
+      <li><a href="#testing-systems" id="markdown-toc-testing-systems">Testing Systems</a>        <ul>
+          <li><a href="#e2e-testing-framework" id="markdown-toc-e2e-testing-framework">E2E Testing Framework</a></li>
+          <li><a href="#runnableonservice-tests" id="markdown-toc-runnableonservice-tests">RunnableOnService Tests</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="overview">Overview</h2>
+
+<p>Apache Beam (incubating) is a rapidly-maturing software project with a strong
+commitment to testing. Consequently, it has many testing-related needs. It
+requires precommit tests to ensure code going into the repository meets a
+certain quality bar and it requires ongoing postcommit tests to make sure that
+more subtle changes which escape precommit are nonetheless caught. This document
+outlines how to write tests, which tests are appropriate where, and when tests
+are run, with some additional information about the testing systems at the
+bottom.</p>
+
+<p>If you’re writing tests, take a look at the testing matrix first, find what you
+want to test, then look into the “Scenarios” and “Types” sections below for more
+details on those testing types.</p>
+
+<h2 id="testing-matrix">Testing Matrix</h2>
+
+<h3 id="java-sdk">Java SDK</h3>
+
+<table>
+  <tr>
+   <td><strong>Component to Test</strong>
+   </td>
+   <td><strong>Test Scenario</strong>
+   </td>
+   <td><strong>Tool to Use</strong>
+   </td>
+   <td><strong>Link to Example</strong>
+   </td>
+   <td><strong>Type</strong>
+   </td>
+   <td><strong>Runs In</strong>
+   </td>
+  </tr>
+  <tr>
+   <td>DoFn
+   </td>
+   <td>Correctness on one/few bundles
+   </td>
+   <td>DoFnTester
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIOTest.java#L1325">BigQueryIOTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit, Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>BoundedSource
+   </td>
+   <td>Correctly Reads Input
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L128">SourceTestUtils.readFromSource</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L972">TextIOTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit, Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Correct Initial Splitting
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L201">SourceTestUtils.assertSourcesEqualReferenceSource</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/8b1e64a668489297e11926124c4eee6c8f69a3a7/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L339">BigtableTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit, Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Correct Dynamic Splitting
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L541">SourceTestUtils. assertSplitAtFractionExhaustive</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L1021">TextIOTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit, Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>Transform
+   </td>
+   <td>Correctness
+   </td>
+   <td>@NeedsRunner Test
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java#L1199">ParDoTest</a>
+   </td>
+   <td>@NeedsRunner
+   </td>
+   <td>
+   </td>
+  </tr>
+  <tr>
+   <td>Example Pipeline
+   </td>
+   <td>Verify Behavior on Each Runner
+   </td>
+   <td>E2E Test
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L76">WordCountIT</a>
+   </td>
+   <td>E2E
+   </td>
+   <td>Postcommit (Except WordCountIT)
+   </td>
+  </tr>
+  <tr>
+   <td>Source/Sink with external resource
+   </td>
+   <td>External Resource Faked
+   </td>
+   <td>Unit / @NeedsRunner Test
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L646">FakeBigtableService in BigtableTest</a>
+   </td>
+   <td>Unit / @NeedsRunner
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Real Interactions With External Resource
+   </td>
+   <td>E2E Test
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableReadIT.java#L40">BigtableReadIT</a>
+   </td>
+   <td>E2E
+   </td>
+   <td>Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>Runner
+   </td>
+   <td>Correctness
+   </td>
+   <td>E2E Test, <a href="https://github.com/apache/incubator-beam/blob/master/runners/pom.xml#L47">@RunnableonService</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
+   </td>
+   <td>E2E, @RunnableonService
+   </td>
+   <td>Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>Triggers
+   </td>
+   <td>Correctness
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/util/TriggerTester.java">TriggerTester</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/windowing/AfterWatermarkTest.java">AfterWatermarkTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>Coders
+   </td>
+   <td>Encoding/decoding elements
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Serialization/deserialization of Coder
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Sizing of elements
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Deterministic
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+  <tr>
+   <td>
+   </td>
+   <td>Structural value equality
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   </td>
+   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   </td>
+   <td>Unit
+   </td>
+   <td>Precommit / Postcommit
+   </td>
+  </tr>
+</table>
+
+<h3 id="python-sdk">Python SDK</h3>
+
+<p>The Python SDK is currently under development on a feature branch. We have initial
+postcommit tests by a Jenkins build; precommit testing and a full testing 
+matrix will be coming soon.</p>
+
+<h2 id="testing-scenarios">Testing Scenarios</h2>
+
+<p>With the tools at our disposal, we have a good set of utilities which we can use
+to verify Beam correctness. To ensure an ongoing high quality of code, we use
+precommit and postcommit testing.</p>
+
+<h3 id="precommit">Precommit</h3>
+
+<p>For precommit testing, Beam uses
+<a href="https://builds.apache.org/view/Beam/">Jenkins</a>,
+<a href="http://travis-ci.org/apache/incubator-beam">Travis</a>, and a code coverage tool
+called <a href="https://coveralls.io/github/apache/incubator-beam">Coveralls</a>, hooked up
+to <a href="https://github.com/apache/incubator-beam">Github</a>, to ensure that pull
+requests meet a certain quality bar. These precommits verify correctness via two
+of the below testing tools: unit tests (with coverage monitored by Coveralls)
+and E2E tests. We run the full slate of unit tests in precommit, ensuring
+correctness at a basic level, and then run the WordCount E2E test in both batch
+and streaming (coming soon!) against each supported SDK / runner combination as
+a smoke test, to verify that a basic level of functionality exists. We think
+that this hits the appropriate tradeoff between a desire for short (ideally
+&lt;30m) precommit times and a desire to verify that pull requests going into Beam
+function in the way in which they are intended.</p>
+
+<p>Precommit tests are kicked off when a user makes a Pull Request against the
+apache/incubator-beam repository and the Travis, Jenkins, and Coveralls statuses
+are displayed at the bottom of the pull request page. Clicking on “Details” will
+open the status page in the selected tool; there, test status and output can be
+viewed.</p>
+
+<h3 id="postcommit">Postcommit</h3>
+
+<p>Running in postcommit removes as stringent of a time constraint, which gives us
+the ability to do some more comprehensive testing. In postcommit we have a test
+suite running the RunnableOnService tests against each supported runner, and
+another for running the full set of E2E tests against each runner.
+Currently-supported runners are Dataflow, Flink, Spark, and Gearpump, with
+others soon to follow. Work is ongoing to enable Flink, Spark, and Gearpump in
+the E2E framework, with full support targeted for end of August 2016. Postcommit
+tests run periodically, with timing defined in their Jenkins configurations.</p>
+
+<p>Adding new postcommit E2E tests is generally as easy as adding a *IT.java file
+to the repository - Failsafe will notice it and run it - but if you want to do
+more interesting things, take a look at
+<a href="https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java">WordCountIT.java</a>.</p>
+
+<p>Postcommit test results can be found in
+<a href="https://builds.apache.org/view/Beam/">Jenkins</a>.</p>
+
+<h2 id="testing-types">Testing Types</h2>
+
+<h3 id="unit">Unit</h3>
+
+<p>Unit tests are, in Beam as everywhere else, the first line of defense in
+ensuring software correctness. As all of the contributors to Beam understand the
+importance of testing, Beam has a robust set of unit tests, as well as testing
+coverage measurement tools, which protect the codebase from simple to moderate
+breakages. Beam Java unit tests are written in JUnit.</p>
+
+<h3 id="runnableonservice-working-title">RunnableOnService (Working Title)</h3>
+
+<p>RunnableOnService tests contain components of both component and end-to-end
+tests. They fulfill the typical purpose of a component test - they are meant to
+test a well-scoped piece of Beam functionality or the interactions between two
+such pieces and can be run in a component-test-type fashion against the
+DirectRunner. Additionally, they are built with the ability to run in an
+end-to-end fashion against a runner, allowing them to verify not only core Beam
+functionality, but runner functionality as well. They are more lightweight than
+a traditional end-to-end test and, because of their well-scoped nature, provide
+good signal as to what exactly is working or broken against a particular runner.</p>
+
+<p>The name “RunnableOnService” is an artifact of when Beam was still the Google
+Cloud Dataflow SDK and <a href="https://issues.apache.org/jira/browse/BEAM-655">will be
+changing</a> to something more
+indicative of its use in the coming months.</p>
+
+<h3 id="e2e">E2E</h3>
+
+<p>End-to-End tests are meant to verify at the very highest level that the Beam
+codebase is working as intended. Because they are implemented as a thin wrapper
+around existing pipelines, they can be used to prove that the core Beam
+functionality is available. They will be used to verify runner correctness, but
+they can also be used for IO connectors and other core functionality.</p>
+
+<h2 id="testing-systems">Testing Systems</h2>
+
+<h3 id="e2e-testing-framework">E2E Testing Framework</h3>
+
+<p>The Beam end-to-end testing framework is a framework designed in a
+runner-agnostic fashion to exercise the entire lifecycle of a Beam pipeline. We
+run a pipeline as a user would and allow it to run to completion in the same
+way, verifying after completion that it behaved how we expected. Using pipelines
+from the Beam examples, or custom-built pipelines, the framework will provide
+hooks during several pipeline lifecycle events, e.g., pipeline creation,
+pipeline success, and pipeline failure, to allow verification of pipeline state.</p>
+
+<p>The E2E testing framework is currently built to hook into the <a href="http://maven.apache.org/surefire/maven-failsafe-plugin/">Maven Failsafe
+Integration Test
+plugin</a>, which means it
+is tightly integrated with the overall build process. Once it is determined how
+Python and other future languages will integrate into the overall build/test
+system (via Maven or otherwise) we will adjust this. The framework provides a
+wrapper around actual Beam pipelines, enabling those pipelines to be run in an
+environment which facilitates verification of pipeline results and details.</p>
+
+<p>Verifiers include:</p>
+
+<ul>
+  <li>Output verification. Output verifiers ensure that the pipeline has produced
+the expected output. Current verifiers check text-based output, but future
+verifiers could support other output such as BigQuery and Datastore.</li>
+  <li>Aggregator verification. Aggregator verifiers ensure that the user-defined
+aggregators present in the pipelines under test finish in the expected
+state.</li>
+</ul>
+
+<p>The E2E framework will support running on various different configurations of
+environments. We currently provide the ability to run against the DirectRunner,
+against a local Spark instance, a local Flink instance, and against the Google
+Cloud Dataflow service.</p>
+
+<h3 id="runnableonservice-tests">RunnableOnService Tests</h3>
+
+<p>RunnableOnService tests are tests built to use the Beam TestPipeline class,
+which enables test authors to write simple functionality verification. They are
+meant to use some of the built-in utilities of the SDK, namely PAssert, to
+verify that the simple pipelines they run end in the correct state.</p>
+
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">&copy; Copyright 2016
+                <a href="http://www.apache.org">The Apache Software Foundation.</a> All Rights Reserved.</p>
+                <p class="text-center"><a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a></p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>
