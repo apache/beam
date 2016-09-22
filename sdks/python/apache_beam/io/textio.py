@@ -26,6 +26,8 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 
+__all__ = ['ReadFromText', 'WriteToText']
+
 
 class _TextSource(filebasedsource.FileBasedSource):
   """A source for reading text files.
