@@ -436,6 +436,9 @@ public class DataflowPipelineTranslator {
       workerPool.setPackages(packages);
       workerPool.setNumWorkers(options.getNumWorkers());
 
+      if (options.getLabels() != null) {
+        job.setLabels(options.getLabels());
+      }
       if (options.isStreaming()
           && (options.getExperiments() == null
               || !options.getExperiments().contains("enable_windmill_service"))) {

@@ -24,6 +24,8 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.util.Map;
+
 /**
  * Options that can be used to configure the {@link DataflowPipeline}.
  */
@@ -114,4 +116,11 @@ public interface DataflowPipelineOptions extends
       return normalizedAppName + "-" + normalizedUserName + "-" + datePart;
     }
   }
+
+  /**
+   * Labels that will be applied to the billing records for this job.
+   */
+  @Description("Labels that will be applied to the billing records for this job.")
+  Map<String, String> getLabels();
+  void setLabels(Map<String, String> labels);
 }
