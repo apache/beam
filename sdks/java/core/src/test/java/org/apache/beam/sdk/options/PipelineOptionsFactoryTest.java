@@ -311,6 +311,45 @@ public class PipelineOptionsFactoryTest {
 
     PipelineOptionsFactory.as(MultiReturnTypeConflict.class);
   }
+  
+  /** A test interface that has a complex type. */
+  public static interface ComplexMultiReturnTypeConflictBase extends PipelineOptions {
+    @Override
+    List<Integer> getObject();
+    void setObject(List<Integer> value);
+  }
+
+  /** A complex test interface that has conflicting return types with its parent. */
+  public static interface ComplexMultiReturnTypeConflict extends ComplexMultiReturnTypeConflictBase {
+    @Override
+    List<Long> getObject();
+    void setObject(List<Long> value);
+  }
+
+  @Test
+  public void testComplexMultipleReturnTypeConflictsThrows() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("[org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict]");
+    expectedException.expectMessage(
+        "Methods with multiple definitions with different return types");
+    expectedException.expectMessage("Method [getObject] has multiple definitions");
+    expectedException.expectMessage("public abstract java.lang.Object "
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
+        + "MissingSetter.getObject()");
+    expectedException.expectMessage(
+        "public abstract java.lang.String org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getObject()");
+    expectedException.expectMessage("Method [getOther] has multiple definitions");
+    expectedException.expectMessage("public abstract java.lang.Object "
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
+        + "MultiReturnTypeConflictBase.getOther()");
+    expectedException.expectMessage(
+        "public abstract java.lang.Long org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getOther()");
+
+    PipelineOptionsFactory.as(ComplexMultiReturnTypeConflict.class);
+  }
 
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on a setter for a property. */
   public static interface SetterWithJsonIgnore extends PipelineOptions {
@@ -780,7 +819,7 @@ public class PipelineOptionsFactoryTest {
 
     options = PipelineOptionsFactory.fromArgs(oneArg).as(Lists.class);
     assertEquals(ImmutableList.of("stringValue1"), options.getString());
-}
+  }
 
   @Test
   public void testListInt() {
