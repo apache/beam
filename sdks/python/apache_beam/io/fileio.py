@@ -60,10 +60,23 @@ class _CompressionType(object):
 
 class CompressionTypes(object):
   """Enum-like class representing known compression types."""
-  AUTO = _CompressionType(1)  # Detect compression based on filename extension.
-  GZIP = _CompressionType(2)  # gzip compression (deflate with gzip headers).
-  ZLIB = _CompressionType(3)  # zlib compression (deflate with zlib headers).
-  UNCOMPRESSED = _CompressionType(4)  # Uncompressed (i.e., may be split).
+
+  # Detect compression based on filename extension.
+  #
+  # The following extensions are currently recognized by auto-detection:
+  #   .gz (implies GZIP as described below)
+  #   .z  (implies ZLIB as described below).
+  # Any non-recognized extension implies UNCOMPRESSED as described below.
+  AUTO = _CompressionType(1)
+
+  # GZIP compression (deflate with GZIP headers).
+  GZIP = _CompressionType(2)
+
+  # ZLIB compression (deflate with ZLIB headers).
+  ZLIB = _CompressionType(3)
+
+  # Uncompressed (i.e., may be split).
+  UNCOMPRESSED = _CompressionType(4)
 
   # TODO: Remove this backwards-compatibility soon.
   NO_COMPRESSION = _CompressionType(4)  # Deprecated. Use UNCOMPRESSED instead.
