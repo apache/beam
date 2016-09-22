@@ -337,22 +337,7 @@
 
     <dependency>
       <groupId>com.google.api.grpc</groupId>
-      <artifactId>grpc-pubsub-v1</artifactId>
-      <version>${pubsubgrpc.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled in by a transitive 
-          dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-        <!-- grpc-all does not obey IWYU, so we need to exclude from compile
-          scope and depend on it at runtime. -->
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-all</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>grpc-google-pubsub-v1</artifactId>
     </dependency>
 
     <dependency>
