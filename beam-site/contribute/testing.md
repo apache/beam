@@ -1,10 +1,13 @@
 ---
 layout: default
 title: 'Beam Testing Guide'
-redirect_from: '/docs/testing'
+permalink: /contribute/testing/
 ---
 
 # Beam Testing Documentation
+
+* TOC
+{:toc}
 
 ## Overview
 
@@ -21,7 +24,9 @@ If you’re writing tests, take a look at the testing matrix first, find what yo
 want to test, then look into the “Scenarios” and “Types” sections below for more
 details on those testing types.
 
-## Beam Java Testing Matrix
+## Testing Matrix
+
+### Java SDK
 
 <table>
   <tr>
@@ -250,10 +255,11 @@ details on those testing types.
   </tr>
 </table>
 
-## Beam Python Testing Matrix
+### Python SDK
 
-Beam Python Testing Matrix coming soon. Python is currently tested in postcommit
-by a Jenkins build; precommit testing will be coming soon.
+The Python SDK is currently under development on a feature branch. We have initial
+postcommit tests by a Jenkins build; precommit testing and a full testing 
+matrix will be coming soon.
 
 ## Testing Scenarios
 
