@@ -13,7 +13,9 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
+import cz.seznam.euphoria.core.executor.inmem.WatermarkEmitStrategy;
 import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
@@ -166,38 +168,42 @@ public class BasicOperatorTest {
     return starts[0];
   }
 
-  /** FIXME: this test fails nondeterministically! */
   @Test
   public void testWordCountStreamEarlyTriggered() throws Exception {
-    ListDataSource<String> input =
+    ListDataSource<Pair<String, Integer>> input =
         ListDataSource.unbounded(asList(
-            "one two three four four two two",
-            "one one one two two three"))
-        .withReadDelay(Duration.ofSeconds(3));
+            Pair.of("one two three four four two two", 1_000),
+            Pair.of("one one one two two three", 4_000)));
 
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(input);
+    Dataset<Pair<String, Integer>> lines = flow.createInput(input);
 
     // expand it to words
-    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using(toWordCountPair())
+    Dataset<Triple<String, Long, Integer>> words = FlatMap.of(lines)
+        .using((Pair<String, Integer> p, Collector<Triple<String, Long, Integer>> out) -> {
+          for (String word : p.getFirst().split(" ")) {
+            out.collect(Triple.of(word, 1L, p.getSecond()));
+          }
+        })
         .output();
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
     Dataset<Pair<String, Long>> streamOutput = ReduceByKey
         .of(words)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
+        .keyBy(Triple::getFirst)
+        .valueBy(Triple::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofSeconds(1)))
+            .earlyTriggering(Duration.ofSeconds(1))
+            .using(e -> (long) e.getThird()))
         .output();
 
 
     ListDataSink<Pair<String, Long>> s = ListDataSink.get(1);
     streamOutput.persist(s);
 
+    executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
     executor.waitForCompletion(flow);
 
     @SuppressWarnings("unchecked")
