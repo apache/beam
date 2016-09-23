@@ -528,7 +528,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithoutTableQueryOrValidation() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -543,7 +543,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndQuery() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -562,7 +562,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlatten() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -581,7 +581,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -833,7 +833,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildWriteWithoutTable() {
     Pipeline p = TestPipeline.create();
     thrown.expect(IllegalStateException.class);
