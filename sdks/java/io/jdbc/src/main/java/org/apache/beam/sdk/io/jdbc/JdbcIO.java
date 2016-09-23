@@ -40,11 +40,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * IO to read and write data on JDBC.
- * <p>
+ * <p>IO to read and write data on JDBC.</p>
+ *
  * <h3>Reading from JDBC datasource</h3>
  * <p>
- * JdbcIO source returns a bounded collection of {@codeT} as a
+ * JdbcIO source returns a bounded collection of {@code T} as a
  * {@code PCollection<T>}. T is the type returned by the provided {@link RowMapper}.
  * </p>
  * <p>
