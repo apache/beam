@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.options;
 
 /**
- * Properties needed when using CloudResourceManager with the Dataflow SDK.
+ * Properties needed when using CloudResourceManager with the Beam SDK.
  */
 @Description("Options that are used to configure CloudResourceManager. See "
     + "https://cloud.google.com/resource-manager/ for details on CloudResourceManager.")

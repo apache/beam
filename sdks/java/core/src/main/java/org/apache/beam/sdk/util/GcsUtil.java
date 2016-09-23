@@ -50,6 +50,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.NoSuchFileException;;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -352,7 +355,8 @@ public class GcsUtil {
   /**
    * Returns the project number of the project which owns this bucket.
    * If the bucket exists, it must be accessible otherwise the permissions
-   * exception will be propagated.
+   * exception will be propagated.  If the bucket does not exist, an exception
+   * will be thrown.
    */
   public long bucketOwner(GcsPath path) throws IOException {
     return getBucket(
@@ -378,7 +382,11 @@ public class GcsUtil {
    */
   @VisibleForTesting
   boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
-    return getBucket(path, backoff, sleeper) != null;
+    try {
+      return getBucket(path, backoff, sleeper) != null;
+    } catch (AccessDeniedException|NoSuchFileException e) {
+      return false;
+    }
   }
 
   @VisibleForTesting
@@ -405,8 +413,11 @@ public class GcsUtil {
 
         return bucket;
       } catch (GoogleJsonResponseException e) {
-        if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-          return null;
+        if (errorExtractor.accessDenied(e)) {
+          throw new AccessDeniedException(path.toString(), e);
+        }
+        if (errorExtractor.itemNotFound(e)) {
+          throw new NoSuchFileException(path.toString(), e);
         }
         throw e;
       } catch (InterruptedException e) {
@@ -431,8 +442,8 @@ public class GcsUtil {
         backoff,
         new RetryDeterminer<IOException>() {
           @Override
-            public boolean shouldRetry(IOException e) {
-            if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+          public boolean shouldRetry(IOException e) {
+            if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
               return false;
             }
             return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
@@ -441,6 +452,14 @@ public class GcsUtil {
         IOException.class,
         sleeper);
       return;
+    } catch (GoogleJsonResponseException e) {
+      if (errorExtractor.accessDenied(e)) {
+        throw new AccessDeniedException(path.toString(), e);
+      }
+      if (errorExtractor.itemAlreadyExists(e)) {
+        throw new FileAlreadyExistsException(path.toString(), e);
+      }
+      throw e;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException(
