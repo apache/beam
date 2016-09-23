@@ -31,7 +31,8 @@ public interface CloudResourceManagerOptions extends ApplicationNameOptions, Gcp
    * The GcpProjectUtil instance that should be used to communicate with Google Cloud Storage.
    */
   @JsonIgnore
-  @Description("The GcpProjectUtil instance that should be used to communicate with Google Cloud Storage.")
+  @Description("The GcpProjectUtil instance that should be used to communicate"
+               + " with Google Cloud Resource Manager.")
   @Default.InstanceFactory(GcpProjectUtil.GcpProjectUtilFactory.class)
   @Hidden
   GcpProjectUtil getGcpProjectUtil();

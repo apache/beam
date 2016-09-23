@@ -383,7 +383,7 @@ public class GcsUtil {
   boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     try {
       return getBucket(path, backoff, sleeper) != null;
-    } catch (AccessDeniedException|FileNotFoundException e) {
+    } catch (AccessDeniedException | FileNotFoundException e) {
       return false;
     }
   }
@@ -413,10 +413,10 @@ public class GcsUtil {
         return bucket;
       } catch (GoogleJsonResponseException e) {
         if (errorExtractor.accessDenied(e)) {
-          throw new AccessDeniedException(path.toString(), e);
+          throw new AccessDeniedException(path.toString(), null, e.getMessage());
         }
         if (errorExtractor.itemNotFound(e)) {
-          throw new FileNotFoundException(path.toString(), e);
+          throw new FileNotFoundException(path.toString(), null, e.getMessage());
         }
         throw e;
       } catch (InterruptedException e) {
@@ -453,10 +453,10 @@ public class GcsUtil {
       return;
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(path.toString(), e);
+        throw new AccessDeniedException(path.toString(), null, e.getMessage());
       }
       if (errorExtractor.itemAlreadyExists(e)) {
-        throw new FileAlreadyExistsException(path.toString(), e);
+        throw new FileAlreadyExistsException(path.toString(), null, e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {

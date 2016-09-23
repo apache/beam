@@ -66,6 +66,11 @@ public class GcpProjectUtil {
     this.crmClient = crmClient;
   }
 
+  // Use this only for testing purposes.
+  protected void setCrmClient(CloudResourceManager crmClient) {
+    this.crmClient = crmClient;
+  }
+
   /**
    * Returns the project number or throws an exception if the project does not
    * exist or has other access exceptions.

@@ -27,6 +27,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
@@ -59,7 +60,6 @@ import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -395,13 +395,13 @@ public class GcsUtilTest {
     BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.insert()).thenReturn(mockStorageInsert);
+    when(mockStorageObjects.insert("5L", any(Bucket.class))).thenReturn(mockStorageInsert);
     when(mockStorageInsert.execute())
         .thenThrow(new SocketTimeoutException("SocketException"))
-        .thenReturn();
+        .thenReturn(new Bucket());
 
     gcsUtil.createBucket(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper());
+                         5L, mockBackOff, new FastNanoClockAndSleeper());
   }
 
   @Test
@@ -421,14 +421,14 @@ public class GcsUtilTest {
             "Waves hand mysteriously", "These aren't the buckets your looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.insert()).thenReturn(mockStorageInsert);
+    when(mockStorageObjects.insert("5L", any(Bucket.class))).thenReturn(mockStorageInsert);
     when(mockStorageInsert.execute())
         .thenThrow(expectedException);
 
     thrown.expect(AccessDeniedException.class);
 
     gcsUtil.createBucket(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper());
+                         5L, mockBackOff, new FastNanoClockAndSleeper());
   }
 
   @Test
