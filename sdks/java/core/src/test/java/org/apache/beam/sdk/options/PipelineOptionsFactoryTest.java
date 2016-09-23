@@ -44,7 +44,6 @@ import com.google.common.collect.ListMultimap;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -240,7 +239,6 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  @Ignore
   public void testHavingExtraneousMethodThrows() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
