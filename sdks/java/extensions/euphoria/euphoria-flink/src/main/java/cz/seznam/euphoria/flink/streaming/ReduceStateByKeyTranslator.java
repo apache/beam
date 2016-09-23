@@ -33,7 +33,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       = new FlinkStreamingStateStorageProvider();
 
   @Override
-//  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<ReduceStateByKey> operator,
                                  StreamingExecutorContext context)
   {
