@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.util.AvroUtils.AvroMetadata;
 import com.google.common.collect.Lists;
+import com.google.common.io.BaseEncoding;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -43,6 +44,7 @@ import org.junit.runners.JUnit4;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -104,7 +106,7 @@ public class AvroUtilsTest {
     AvroMetadata metadata = AvroUtils.readMetadataFromFile(filename);
     // By default, parse validates the schema, which is what we want.
     Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
-    assertEquals(8, schema.getFields().size());
+    assertEquals(9, schema.getFields().size());
   }
 
   @Test
@@ -128,6 +130,7 @@ public class AvroUtilsTest {
             new TableFieldSchema().setName("quantity").setType("INTEGER") /* default to NULLABLE */,
             new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
             new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
+            new TableFieldSchema().setName("sound").setType("BYTES").setMode("NULLABLE"),
             new TableFieldSchema().setName("scion").setType("RECORD").setMode("NULLABLE")
                 .setFields(subFields),
             new TableFieldSchema().setName("associates").setType("RECORD").setMode("REPEATED")
@@ -146,19 +149,24 @@ public class AvroUtilsTest {
       assertEquals(row, convertedRow);
     }
     {
-      // Test type conversion for TIMESTAMP, INTEGER, BOOLEAN, and FLOAT.
+      // Test type conversion for TIMESTAMP, INTEGER, BOOLEAN, BYTES and FLOAT.
       GenericRecord record = new GenericData.Record(avroSchema);
+      byte[] soundBytes = "chirp,chirp".getBytes();
+      ByteBuffer soundByteBuffer = ByteBuffer.allocate(soundBytes.length).put(soundBytes);
+      soundByteBuffer.rewind();
       record.put("number", 5L);
       record.put("quality", 5.0);
       record.put("birthday", 5L);
       record.put("flighted", Boolean.TRUE);
+      record.put("sound", soundByteBuffer);
       TableRow convertedRow = AvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row = new TableRow()
           .set("number", "5")
           .set("birthday", "1970-01-01 00:00:00.000005 UTC")
           .set("quality", 5.0)
           .set("associates", new ArrayList<TableRow>())
-          .set("flighted", Boolean.TRUE);
+          .set("flighted", Boolean.TRUE)
+          .set("sound", BaseEncoding.base64().encode(soundBytes));
       assertEquals(row, convertedRow);
     }
     {
@@ -189,6 +197,7 @@ public class AvroUtilsTest {
     @Nullable Long quantity;
     @Nullable Long birthday;  // Exercises TIMESTAMP.
     @Nullable Boolean flighted;
+    @Nullable ByteBuffer sound;
     @Nullable SubBird scion;
     SubBird[] associates;
 
