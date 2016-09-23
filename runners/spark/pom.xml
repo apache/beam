@@ -59,40 +59,40 @@
       <id>local-runnable-on-service-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <build>
-        <pluginManagement>
-          <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-surefire-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>runnable-on-service-tests</id>
-                  <configuration>
-                    <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-                    <parallel>none</parallel>
-                    <failIfNoTests>true</failIfNoTests>
-                    <dependenciesToScan>
-                      <dependency>org.apache.beam:java-sdk-all</dependency>
-                    </dependenciesToScan>
-                    <excludes>
-                      org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest
-                    </excludes>
-                    <systemPropertyVariables>
-                      <beamTestPipelineOptions>
-                        [
-                          "--runner=TestSparkRunner",
-                          "--streaming=false"
-                        ]
-                      </beamTestPipelineOptions>
-                      <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
-                      <spark.ui.enabled>false</spark.ui.enabled>
-                    </systemPropertyVariables>
-                  </configuration>
-                </execution>
-              </executions>
-            </plugin>
-          </plugins>
-        </pluginManagement>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>runnable-on-service-tests</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <forkCount>1</forkCount>
+                  <reuseForks>false</reuseForks>
+                  <failIfNoTests>true</failIfNoTests>
+                  <dependenciesToScan>
+                    <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                  </dependenciesToScan>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                        "--runner=TestSparkRunner",
+                        "--streaming=false"
+                      ]
+                    </beamTestPipelineOptions>
+                    <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
+                    <spark.ui.enabled>false</spark.ui.enabled>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
       </build>
     </profile>
   </profiles>
@@ -145,6 +145,11 @@
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <version>${hadoop.version}</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+      <version>1.3.9</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

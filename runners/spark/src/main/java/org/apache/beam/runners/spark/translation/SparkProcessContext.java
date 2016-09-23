@@ -18,26 +18,37 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
@@ -45,31 +56,60 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+
 /**
  * Spark runner process context.
  */
 public abstract class SparkProcessContext<InputT, OutputT, ValueT>
     extends OldDoFn<InputT, OutputT>.ProcessContext {
-
   private static final Logger LOG = LoggerFactory.getLogger(SparkProcessContext.class);
 
   private final OldDoFn<InputT, OutputT> fn;
   private final SparkRuntimeContext mRuntimeContext;
-  private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
+  private final SideInputReader sideInputReader;
+  private final WindowFn<Object, ?> windowFn;
 
-  protected WindowedValue<InputT> windowedValue;
+  WindowedValue<InputT> windowedValue;
 
   SparkProcessContext(OldDoFn<InputT, OutputT> fn,
-      SparkRuntimeContext runtime,
-      Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+                      SparkRuntimeContext runtime,
+                      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+                      WindowFn<Object, ?> windowFn) {
     fn.super();
     this.fn = fn;
     this.mRuntimeContext = runtime;
-    this.mSideInputs = sideInputs;
+    this.sideInputReader = new SparkSideInputReader(sideInputs);
+    this.windowFn = windowFn;
   }
 
   void setup() {
     setupDelegateAggregators();
+  }
+
+  Iterable<ValueT> callWithCtxt(Iterator<WindowedValue<InputT>> iter) throws Exception{
+    this.setup();
+    // skip if bundle is empty.
+    if (!iter.hasNext()) {
+      return Lists.newArrayList();
+    }
+    try {
+      fn.setup();
+      fn.startBundle(this);
+      return this.getOutputIterable(iter, fn);
+    } catch (Exception e) {
+      try {
+        // this teardown handles exceptions encountered in setup() and startBundle(). teardown
+        // after execution or due to exceptions in process element is called in the iterator
+        // produced by ctxt.getOutputIterable returned from this method.
+        fn.teardown();
+      } catch (Exception teardownException) {
+        LOG.error(
+            "Suppressing exception while tearing down Function {}", fn, teardownException);
+        e.addSuppressed(teardownException);
+      }
+      throw wrapUserCodeException(e);
+    }
   }
 
   @Override
@@ -79,15 +119,17 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
 
   @Override
   public <T> T sideInput(PCollectionView<T> view) {
-    @SuppressWarnings("unchecked")
-    BroadcastHelper<Iterable<WindowedValue<?>>> broadcastHelper =
-        (BroadcastHelper<Iterable<WindowedValue<?>>>) mSideInputs.get(view.getTagInternal());
-    Iterable<WindowedValue<?>> contents = broadcastHelper.getValue();
-    return view.getViewFn().apply(contents);
+    //validate element window.
+    final Collection<? extends BoundedWindow> elementWindows = windowedValue.getWindows();
+    checkState(elementWindows.size() == 1, "sideInput can only be called when the main "
+        + "input element is in exactly one window");
+    return sideInputReader.get(view, elementWindows.iterator().next());
   }
 
   @Override
-  public abstract void output(OutputT output);
+  public void output(OutputT output) {
+    outputWithTimestamp(output, windowedValue != null ? windowedValue.getTimestamp() : null);
+  }
 
   public abstract void output(WindowedValue<OutputT> output);
 
@@ -109,10 +151,10 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   }
 
   @Override
-  public <AggregatprInputT, AggregatorOutputT>
-  Aggregator<AggregatprInputT, AggregatorOutputT> createAggregatorInternal(
+  public <AggregatorInputT, AggregatorOutputT>
+  Aggregator<AggregatorInputT, AggregatorOutputT> createAggregatorInternal(
           String named,
-          Combine.CombineFn<AggregatprInputT, ?, AggregatorOutputT> combineFn) {
+          Combine.CombineFn<AggregatorInputT, ?, AggregatorOutputT> combineFn) {
     return mRuntimeContext.createAggregator(getAccumulator(), named, combineFn);
   }
 
@@ -125,8 +167,48 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
 
   @Override
   public void outputWithTimestamp(OutputT output, Instant timestamp) {
-    output(WindowedValue.of(output, timestamp,
-        windowedValue.getWindows(), windowedValue.getPane()));
+    if (windowedValue == null) {
+      // this is start/finishBundle.
+      output(noElementWindowedValue(output, timestamp, windowFn));
+    } else {
+      output(WindowedValue.of(output, timestamp, windowedValue.getWindows(),
+          windowedValue.getPane()));
+    }
+  }
+
+  static <T> WindowedValue<T> noElementWindowedValue(final T output,
+                                                     final Instant timestamp,
+                                                     WindowFn<Object, ?> windowFn) {
+    WindowFn.AssignContext assignContext = windowFn.new AssignContext() {
+
+      @Override
+      public Object element() {
+        return output;
+      }
+
+      @Override
+      public Instant timestamp() {
+        if (timestamp != null) {
+          return timestamp;
+        }
+        throw new UnsupportedOperationException("outputWithTimestamp was called with "
+            + "null timestamp.");
+      }
+
+      @Override
+      public BoundedWindow window() {
+        throw new UnsupportedOperationException("Window not available for "
+            + "start/finishBundle output.");
+      }
+    };
+    try {
+      @SuppressWarnings("unchecked")
+      Collection<? extends BoundedWindow> windows = windowFn.assignWindows(assignContext);
+      Instant outputTimestamp = timestamp != null ? timestamp : BoundedWindow.TIMESTAMP_MIN_VALUE;
+      return WindowedValue.of(output, outputTimestamp, windows, PaneInfo.NO_FIRING);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to assign windows at start/finishBundle.", e);
+    }
   }
 
   @Override
@@ -198,6 +280,7 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   }
 
   protected abstract void clearOutput();
+
   protected abstract Iterator<ValueT> getOutputIterator();
 
   protected Iterable<ValueT> getOutputIterable(final Iterator<WindowedValue<InputT>> iter,
@@ -235,24 +318,32 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
           return outputIterator.next();
         } else if (inputIterator.hasNext()) {
           clearOutput();
+          // grab the next element and process it.
           windowedValue = inputIterator.next();
-          try {
-            doFn.processElement(SparkProcessContext.this);
-          } catch (Exception e) {
-            handleProcessingException(e);
-            throw new SparkProcessException(e);
+          if (windowedValue.getWindows().size() <= 1
+              || (!RequiresWindowAccess.class.isAssignableFrom(doFn.getClass())
+                  && sideInputReader.isEmpty())) {
+            // if there's no reason to explode, process compacted.
+            invokeProcessElement();
+          } else {
+            // explode and process the element in each of it's assigned windows.
+            for (WindowedValue<InputT> wv: windowedValue.explodeWindows()) {
+              windowedValue = wv;
+              invokeProcessElement();
+            }
           }
           outputIterator = getOutputIterator();
         } else {
           // no more input to consume, but finishBundle can produce more output
           if (!calledFinish) {
+            windowedValue = null; // clear the last element processed
             clearOutput();
             try {
               calledFinish = true;
               doFn.finishBundle(SparkProcessContext.this);
             } catch (Exception e) {
               handleProcessingException(e);
-              throw new SparkProcessException(e);
+              throw wrapUserCodeException(e);
             }
             outputIterator = getOutputIterator();
             continue; // try to consume outputIterator from start of loop
@@ -268,6 +359,15 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
     }
 
+    private void invokeProcessElement() {
+      try {
+        doFn.processElement(SparkProcessContext.this);
+      } catch (Exception e) {
+        handleProcessingException(e);
+        throw wrapUserCodeException(e);
+      }
+    }
+
     private void handleProcessingException(Exception e) {
       try {
         doFn.teardown();
@@ -278,13 +378,13 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
     }
   }
 
-  /**
-   * Spark process runtime exception.
-   */
-  public static class SparkProcessException extends RuntimeException {
-    SparkProcessException(Throwable t) {
-      super(t);
-    }
+
+  private RuntimeException wrapUserCodeException(Throwable t) {
+    throw UserCodeException.wrapIf(!isSystemDoFn(), t);
+  }
+
+  private boolean isSystemDoFn() {
+    return fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
   }
 
 }
