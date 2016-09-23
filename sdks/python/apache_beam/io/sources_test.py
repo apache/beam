@@ -81,47 +81,6 @@ class LineSource(iobase.BoundedSource):
     return coders.BytesCoder()
 
 
-class RangeSource(iobase.BoundedSource):
-
-  def __init__(self, start, end, split_freq=1):
-    assert start <= end
-    self._start = start
-    self._end = end
-    self._split_freq = split_freq
-
-  def _normalize(self, start_position, end_position):
-    return (self._start if start_position is None else start_position,
-            self._end if end_position is None else end_position)
-
-  def _round_up(self, index):
-    """Rounds up to the nearest mulitple of split_freq."""
-    return index - index % -self._split_freq
-
-  def estimate_size(self):
-    return self._stop - self._start
-
-  def split(self, desired_bundle_size, start_position=None, end_position=None):
-    start, end = self._normalize(start_position, end_position)
-    for sub_start in range(start, end, desired_bundle_size):
-      sub_end = min(self._end, sub_start + desired_bundle_size)
-      yield iobase.SourceBundle(
-          sub_end - sub_start,
-          RangeSource(sub_start, sub_end, self._split_freq),
-          None, None)
-
-  def get_range_tracker(self, start_position, end_position):
-    start, end = self._normalize(start_position, end_position)
-    return range_trackers.OffsetRangeTracker(start, end)
-
-  def read(self, range_tracker):
-    for k in range(self._round_up(range_tracker.start_position()),
-                   self._round_up(range_tracker.stop_position())):
-      if k % self._split_freq == 0:
-        if not range_tracker.try_claim(k):
-          return
-      yield k
-
-
 class SourcesTest(unittest.TestCase):
 
   def _create_temp_file(self, contents):
@@ -145,9 +104,6 @@ class SourcesTest(unittest.TestCase):
     assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
 
     pipeline.run()
-
-  def test_range_source(self):
-    source_test_utils.assertSplitAtFractionExhaustive(RangeSource(0, 10, 3))
 
 
 if __name__ == '__main__':
