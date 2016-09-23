@@ -24,7 +24,6 @@ import com.google.api.client.util.BackOff;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import java.net.SocketTimeoutException;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
@@ -48,14 +47,14 @@ public class GcpProjectUtilTest {
   }
 
   @Test
-  public void testGetProjectNumber() {
+  public void testGetProjectNumber() throws Exception {
     CloudResourceManagerOptions pipelineOptions = crmOptionsWithTestCredential();
     GcpProjectUtil projectUtil = pipelineOptions.getGcpProjectUtil();
 
     CloudResourceManager.Projects mockProjects = Mockito.mock(
         CloudResourceManager.Projects.class);
     CloudResourceManager mockCrm = Mockito.mock(CloudResourceManager.class);
-    projectUtil.setGcpUtil(projectUtil);
+    projectUtil.setCrmClient(mockCrm);
 
     CloudResourceManager.Projects.Get mockProjectsGet =
         Mockito.mock(CloudResourceManager.Projects.Get.class);
@@ -68,6 +67,6 @@ public class GcpProjectUtilTest {
       .thenThrow(new SocketTimeoutException("SocketException"))
       .thenReturn(new Project());
 
-    assertNotNull(projectUtil.getProjectNumber("foo", mockBackOff, new FastNanoClockAndSleeper());    
+    assertNotNull(projectUtil.getProjectNumber("foo", mockBackOff, new FastNanoClockAndSleeper()));
   }
 }
