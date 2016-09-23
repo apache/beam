@@ -270,23 +270,10 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
                       Collector<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> collector)
         throws Exception {
 
-      Iterator<MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>> it = input.iterator();
-
-      // read the first element to obtain window metadata
-      MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>> element = it.next();
-
-      // concat the already read element with rest of the opened iterator
-      Iterator<MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>> concatIt =
-          Iterators.concat(Iterators.singletonIterator(element), it);
-
-      // unwrap all elements to be used in user defined reducer
-      Iterator<VALUEIN> unwrapped =
-          Iterators.transform(concatIt, e -> e.get().getValue());
-
+      VALUEOUT reducedValue = reducer.apply(new IteratorIterable<>(
+          Iterators.transform(input.iterator(), e -> e.get().getValue())));
       MultiWindowedElement<Object, Object, Pair<KEY, VALUEOUT>> reduced =
-          new MultiWindowedElement<>(
-              Collections.emptySet(),
-              Pair.of(key, reducer.apply(new IteratorIterable<>(unwrapped))));
+          new MultiWindowedElement<>(Collections.emptySet(), Pair.of(key, reducedValue));
       this.emissionFunction.apply(key, window,
           Collections.singletonList(reduced), collector);
     }
