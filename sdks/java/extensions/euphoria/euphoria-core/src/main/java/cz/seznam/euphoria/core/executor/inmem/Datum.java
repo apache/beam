@@ -11,7 +11,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  *  * end-of-stream marks
  *  * watermarks
  */
-class Datum extends WindowedElement<Object, Object, Object> {
+class Datum extends WindowedElement<Object, Object> {
 
   @SuppressWarnings("unchecked")
   static Datum of(WindowID windowID, Object element) {
@@ -84,7 +84,7 @@ class Datum extends WindowedElement<Object, Object, Object> {
     super(null, null);
   }
 
-  private Datum(WindowID<Object, Object> windowID, Object element) {
+  private Datum(WindowID<Object> windowID, Object element) {
     super(windowID, element);
   }
 

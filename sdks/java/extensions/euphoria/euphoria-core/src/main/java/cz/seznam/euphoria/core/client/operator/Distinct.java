@@ -17,7 +17,7 @@ import java.util.Objects;
 /**
  * Operator outputting distinct (based on equals) elements.
  */
-public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
+public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>, OUT>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, ELEM, OUT, WLABEL, W, Distinct<IN, ELEM, WLABEL, W, OUT>>
 {
@@ -57,8 +57,8 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
     public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
     }
-    public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, ELEM, WLABEL, W>
-    windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
+    public <WLABEL, W extends WindowContext<WLABEL>> OutputBuilder<IN, ELEM, WLABEL, W>
+    windowBy(Windowing<IN, WLABEL, W> windowing) {
       return new OutputBuilder<>(this, windowing);
     }
     @Override
@@ -67,12 +67,12 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
     }
   }
 
-  public static class OutputBuilder<IN, ELEM, WLABEL, W extends WindowContext<?, WLABEL>>
+  public static class OutputBuilder<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<ELEM>
   {
     private final WindowingBuilder<IN, ELEM> prev;
-    private final Windowing<IN, ?, WLABEL, W> windowing;
-    OutputBuilder(WindowingBuilder<IN, ELEM> prev, Windowing<IN, ?, WLABEL, W> windowing) {
+    private final Windowing<IN, WLABEL, W> windowing;
+    OutputBuilder(WindowingBuilder<IN, ELEM> prev, Windowing<IN, WLABEL, W> windowing) {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
@@ -110,7 +110,7 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<?, WLABEL>, OUT>
            Flow flow,
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
-           Windowing<IN, ?, WLABEL, W> windowing,
+           Windowing<IN, WLABEL, W> windowing,
            Partitioning<ELEM> partitioning,
            boolean windowedOutput)
   {

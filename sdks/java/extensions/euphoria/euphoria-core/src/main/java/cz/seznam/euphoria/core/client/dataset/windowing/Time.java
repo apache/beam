@@ -17,7 +17,7 @@ import java.util.Set;
 /**
  * Time based tumbling windowing.
  */
-public class Time<T> implements AlignedWindowing<T, TimeInterval, Time.TimeWindowContext> {
+public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContext> {
 
   public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
     private static final ProcessingTime INSTANCE = new ProcessingTime();
@@ -39,13 +39,13 @@ public class Time<T> implements AlignedWindowing<T, TimeInterval, Time.TimeWindo
   } // ~ end of ProcessingTime
 
   public static class TimeWindowContext
-      extends EarlyTriggeredWindowContext<Void, TimeInterval> {
+      extends EarlyTriggeredWindowContext<TimeInterval> {
 
     private final long fireStamp;
 
     TimeWindowContext(long startMillis, long intervalMillis, Duration earlyTriggering) {
       super(
-          WindowID.aligned(new TimeInterval(startMillis, intervalMillis)),
+          new WindowID<>(new TimeInterval(startMillis, intervalMillis)),
           earlyTriggering, startMillis, startMillis + intervalMillis);
       this.fireStamp = startMillis + intervalMillis;
     }
@@ -120,16 +120,16 @@ public class Time<T> implements AlignedWindowing<T, TimeInterval, Time.TimeWindo
   }
 
   @Override
-  public Set<WindowID<Void, TimeInterval>> assignWindowsToElement(
-      WindowedElement<?, ?, T> input) {
+  public Set<WindowID<TimeInterval>> assignWindowsToElement(
+      WindowedElement<?, T> input) {
     long ts = eventTimeFn.apply(input.get());
-    return singleton(WindowID.aligned(new TimeInterval(
+    return singleton(new WindowID<>(new TimeInterval(
         ts - (ts + durationMillis) % durationMillis, durationMillis)));
   }
 
   
   @Override
-  public TimeWindowContext createWindowContext(WindowID<Void, TimeInterval> id) {
+  public TimeWindowContext createWindowContext(WindowID<TimeInterval> id) {
     return new TimeWindowContext(
         id.getLabel().getStartMillis(),
         id.getLabel().getIntervalMillis(),

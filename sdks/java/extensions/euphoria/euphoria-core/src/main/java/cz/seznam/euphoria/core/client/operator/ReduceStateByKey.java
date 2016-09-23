@@ -28,7 +28,7 @@ import java.util.Objects;
  */
 public class ReduceStateByKey<
     IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE extends State<VALUE, OUT>,
-    WLABEL, W extends WindowContext<?, WLABEL>, PAIROUT extends Pair<KEYOUT, OUT>>
+    WLABEL, W extends WindowContext<WLABEL>, PAIROUT extends Pair<KEYOUT, OUT>>
     extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY,
     PAIROUT, WLABEL, W,
         ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE, WLABEL, W, PAIROUT>>
@@ -152,9 +152,9 @@ public class ReduceStateByKey<
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
     }
-    public <WIN, WLABEL, W extends WindowContext<?, WLABEL>>
+    public <WIN, WLABEL, W extends WindowContext<WLABEL>>
     DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>
-    windowBy(Windowing<WIN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<WIN, WLABEL, W> windowing)
     {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
@@ -169,7 +169,7 @@ public class ReduceStateByKey<
 
   public static class DatasetBuilder6<
           IN, WIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
-          WLABEL, W extends WindowContext<?, WLABEL>>
+          WLABEL, W extends WindowContext<WLABEL>>
       extends PartitioningBuilder<
           KEY,DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
       implements OutputBuilder<Pair<KEY, OUT>>
@@ -180,7 +180,7 @@ public class ReduceStateByKey<
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final Windowing<WIN, ?, WLABEL, W> windowing;
+    private final Windowing<WIN, WLABEL, W> windowing;
 
     DatasetBuilder6(String name,
                     Dataset<IN> input,
@@ -188,7 +188,7 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     StateFactory<OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
-                    Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
+                    Windowing<WIN, WLABEL, W> windowing /* optional */,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -325,9 +325,9 @@ public class ReduceStateByKey<
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
     }
-    public <WIN, WLABEL, W extends WindowContext<?, WLABEL>>
+    public <WIN, WLABEL, W extends WindowContext<WLABEL>>
     GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>
-    windowBy(Windowing<WIN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<WIN, WLABEL, W> windowing)
     {
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
@@ -343,7 +343,7 @@ public class ReduceStateByKey<
 
   public static class GroupedDatasetBuilder6<
           IN, KIN, WIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
-          WLABEL, W extends WindowContext<?, WLABEL>>
+          WLABEL, W extends WindowContext<WLABEL>>
       extends PartitioningBuilder<
           KEY, GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, WLABEL, W>>
       implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
@@ -354,7 +354,7 @@ public class ReduceStateByKey<
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
-    private final Windowing<WIN, ?, WLABEL, W> windowing;
+    private final Windowing<WIN, WLABEL, W> windowing;
 
     GroupedDatasetBuilder6(String name,
                            GroupedDataset<IN, KIN> input,
@@ -362,7 +362,7 @@ public class ReduceStateByKey<
                            UnaryFunction<KIN, VALUE> valueExtractor,
                            StateFactory<OUT, STATE> stateFactory,
                            CombinableReduceFunction<STATE> stateCombiner,
-                           Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
+                           Windowing<WIN, WLABEL, W> windowing /* optional */,
                            PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -422,7 +422,7 @@ public class ReduceStateByKey<
                    Dataset<IN> input,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, ?, WLABEL, W> windowing,
+                   Windowing<WIN, WLABEL, W> windowing,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
@@ -437,7 +437,7 @@ public class ReduceStateByKey<
                    GroupedDataset<IN, KIN> groupedInput,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, ?, WLABEL, W> windowing,
+                   Windowing<WIN, WLABEL, W> windowing,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
@@ -452,7 +452,7 @@ public class ReduceStateByKey<
                    boolean grouped,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, ?, WLABEL, W> windowing,
+                   Windowing<WIN, WLABEL, W> windowing,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)

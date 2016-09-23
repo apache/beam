@@ -1,7 +1,5 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
-
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -12,8 +10,7 @@ import java.util.Set;
  * batch processing.
  */
 public final class Batch<T>
-    implements AlignedWindowing<T, Batch.Label, Batch.BatchWindowContext>
-{
+    implements Windowing<T, Batch.Label, Batch.BatchWindowContext> {
 
   public static final class Label implements Serializable, Comparable<Label> {
     static final Label INSTANCE = new Label();
@@ -42,13 +39,13 @@ public final class Batch<T>
     }
   } // ~ end of Label
 
-  public static class BatchWindowContext extends WindowContext<Void, Label> {
+  public static class BatchWindowContext extends WindowContext<Label> {
 
     static final BatchWindowContext INSTANCE = new BatchWindowContext();
     static final Set<BatchWindowContext> INSTANCE_SET = Collections.singleton(INSTANCE);
 
     private BatchWindowContext() {
-      super(WindowID.aligned(Label.INSTANCE));
+      super(new WindowID<>(Label.INSTANCE));
     }
 
     private Object readResolve() throws ObjectStreamException {
@@ -60,13 +57,13 @@ public final class Batch<T>
   private Batch() {}
 
   @Override
-  public Set<WindowID<Void, Label>> assignWindowsToElement(
-      WindowedElement<?, ?, T> input) {
-    return Collections.singleton(WindowID.aligned(Label.INSTANCE));
+  public Set<WindowID<Label>> assignWindowsToElement(
+      WindowedElement<?, T> input) {
+    return Collections.singleton(new WindowID<>(Label.INSTANCE));
   }
 
   @Override
-  public BatchWindowContext createWindowContext(WindowID<Void, Label> label) {
+  public BatchWindowContext createWindowContext(WindowID<Label> label) {
     return BatchWindowContext.INSTANCE;
   }
 

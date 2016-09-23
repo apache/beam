@@ -5,7 +5,6 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -22,8 +21,8 @@ import java.util.Set;
 /**
  * Session windowing.
  */
-public final class Session<T, G> implements
-    MergingWindowing<T, G, Session.SessionInterval, Session.SessionWindowContext<G>> {
+public final class Session<T> implements
+    MergingWindowing<T, Session.SessionInterval, Session.SessionWindowContext> {
 
   public static final class SessionInterval
       implements Serializable, Comparable<SessionInterval> {
@@ -90,14 +89,13 @@ public final class Session<T, G> implements
     }
   } // ~ end of SessionInterval
 
-  public static final class SessionWindowContext<G>
-      extends EarlyTriggeredWindowContext<G, SessionInterval> {
+  public static final class SessionWindowContext
+      extends EarlyTriggeredWindowContext<SessionInterval> {
 
     SessionWindowContext(
-        G group,
         SessionInterval label,
         Duration earlyFiringDuration) {
-      super(WindowID.unaligned(group, label),
+      super(new WindowID<>(label),
           earlyFiringDuration, label.getStartMillis(), label.getEndMillis());
    }
 
@@ -134,14 +132,8 @@ public final class Session<T, G> implements
       return new EarlyTriggeringChain(this, requireNonNull(timeout));
     }
 
-    public <T, G> Session<T, G> using(UnaryFunction<T, G> groupFn) {
-      return new EarlyTriggeringChain(this, null).using(groupFn);
-    }
-
-    public <T, G> Session<T, G> using(
-        UnaryFunction<T, G> groupFn, UnaryFunction<T, Long> eventFn)
-    {
-      return new EarlyTriggeringChain(this, null).using(groupFn, eventFn);
+    public <T, G> Session<T> using(UnaryFunction<T, Long> eventFn) {
+      return new EarlyTriggeringChain(this, null).using(eventFn);
     }
   } // ~ end of OfChain
 
@@ -157,16 +149,9 @@ public final class Session<T, G> implements
       this.earlyTriggering = earlyTriggering;
     }
 
-    public <T, G> Session<T, G> using(UnaryFunction<T, G> groupFn) {
-      return new Session<>(groupFn, Time.ProcessingTime.get(),
-          this.ofChain.gapMillis, null);
-    }
-
-    public <T, G> Session<T, G> using(
-        UnaryFunction<T, G> groupFn, UnaryFunction<T, Long> eventFn) {
+    public <T, G> Session<T> using(UnaryFunction<T, Long> eventFn) {
       
-      return new Session<>(groupFn, eventFn,
-          this.ofChain.gapMillis, this.earlyTriggering);
+      return new Session<>(eventFn, this.ofChain.gapMillis, this.earlyTriggering);
     }
     
   }
@@ -175,56 +160,52 @@ public final class Session<T, G> implements
     return new OfChain(gapDuration);
   }
 
-  final UnaryFunction<T, G> groupFn;
   final UnaryFunction<T, Long> eventTimeFn;
   final long gapDurationMillis;
   final Duration earlyTriggeringPeriod;
 
   private Session(
-      UnaryFunction<T, G> groupFn,
       UnaryFunction<T, Long> eventTimeFn,
       long gapDurationMillis,
       Duration earlyTriggeringPeriod /* optional */)
   {
-    this.groupFn = requireNonNull(groupFn);
     this.eventTimeFn = requireNonNull(eventTimeFn);
     this.gapDurationMillis = gapDurationMillis;
     this.earlyTriggeringPeriod = earlyTriggeringPeriod;
   }
 
   @Override
-  public Set<WindowID<G, SessionInterval>> assignWindowsToElement(
-      WindowedElement<?, ?, T> input) {
+  public Set<WindowID<SessionInterval>> assignWindowsToElement(
+      WindowedElement<?, T> input) {
     long evtMillis = this.eventTimeFn.apply(input.get());
-    WindowID<G, SessionInterval> ret = WindowID.unaligned(
-        this.groupFn.apply(input.get()),
+    WindowID<SessionInterval> ret = new WindowID<>(
         new SessionInterval(evtMillis, evtMillis + gapDurationMillis));
     return Collections.singleton(ret);
   }
 
   @Override
-  public Collection<Pair<Collection<SessionWindowContext<G>>, SessionWindowContext<G>>>
-  mergeWindows(Collection<SessionWindowContext<G>> actives) {
+  public Collection<Pair<Collection<SessionWindowContext>, SessionWindowContext>>
+  mergeWindows(Collection<SessionWindowContext> actives) {
     if (actives.size() < 2) {
       return Collections.emptyList();
     }
 
-    ArrayList<SessionWindowContext<G>> sorted = new ArrayList<>(actives);
+    ArrayList<SessionWindowContext> sorted = new ArrayList<>(actives);
     sorted.sort(Comparator.comparing(w -> w.getWindowID().getLabel()));
 
-    Iterator<SessionWindowContext<G>> windows = sorted.iterator();
+    Iterator<SessionWindowContext> windows = sorted.iterator();
 
     // ~ the final collection of merges to be performed by the framework
-    List<Pair<Collection<SessionWindowContext<G>>, SessionWindowContext<G>>> merges = null;
+    List<Pair<Collection<SessionWindowContext>, SessionWindowContext>> merges = null;
 
     // ~ holds the list of existing session windows to be merged
-    List<SessionWindowContext<G>> toMerge = null;
+    List<SessionWindowContext> toMerge = null;
     // ~ the current merge candidate
-    SessionWindowContext<G> mergeCandidate = windows.next();
+    SessionWindowContext mergeCandidate = windows.next();
     // ~ true if `mergeCandidate` is a newly created window
     boolean transientCandidate = false;
     while (windows.hasNext()) {
-      SessionWindowContext<G> w = windows.next();
+      SessionWindowContext w = windows.next();
       if (mergeCandidate.getWindowID().getLabel().intersects(w.getWindowID().getLabel())) {
         if (toMerge == null) {
           toMerge = new ArrayList<>();
@@ -233,8 +214,7 @@ public final class Session<T, G> implements
           toMerge.add(mergeCandidate);
         }
         toMerge.add(w);
-        mergeCandidate = new SessionWindowContext<>(
-            mergeCandidate.getWindowID().getGroup(),
+        mergeCandidate = new SessionWindowContext(
             mergeCandidate.getWindowID().getLabel()
                 .createSpanned(w.getWindowID().getLabel()),
             earlyTriggeringPeriod);
@@ -264,9 +244,8 @@ public final class Session<T, G> implements
   }
 
   @Override
-  public SessionWindowContext<G> createWindowContext(WindowID<G, SessionInterval> id) {
-    return new SessionWindowContext<>(
-        id.getGroup(),
+  public SessionWindowContext createWindowContext(WindowID<SessionInterval> id) {
+    return new SessionWindowContext(
         id.getLabel(),
         earlyTriggeringPeriod);
   }
