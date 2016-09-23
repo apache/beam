@@ -32,6 +32,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
@@ -1105,20 +1106,29 @@ public class PipelineOptionsFactory {
       methods.add(propertyDescriptor.getWriteMethod());
     }
     throwForMissingBeanMethod(iface, missingBeanMethods);
+    final Set<String> knownMethods = Sets.newHashSet();
+    for (Method method : methods) {
+      knownMethods.add(method.getName());
+    }
 
     // Verify that no additional methods are on an interface that aren't a bean property.
-    /*
-      TODO: Find a better solution here.
+    // Because methods can have multiple declarations, we do a name-based comparison
+    // here to prevent false positives.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
     unknownMethods.addAll(
         Sets.filter(
             Sets.difference(Sets.newHashSet(iface.getMethods()), methods),
-            NOT_SYNTHETIC_PREDICATE));
+            Predicates.and(NOT_SYNTHETIC_PREDICATE,
+                           new Predicate<Method>() {
+                             @Override
+                               public boolean apply(@Nonnull Method input) {
+                                 return !knownMethods.contains(input.getName());
+                             }
+                           })));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
-    */
 
     return descriptors;
   }
