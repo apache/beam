@@ -17,25 +17,34 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
 import com.mongodb.Mongo;
 import com.mongodb.MongoURI;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Serializable;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.bson.types.ObjectId;
 import org.joda.time.Instant;
 
 
@@ -66,7 +75,25 @@ public class MongoDbGridFSIO {
    * @param <T>
    */
   public interface ParseCallback<T> extends Serializable {
-    public void parse(GridFSDBFile input, DoFn<?, T>.Context c) throws Exception;
+    /**
+     * Each value parsed from the file should be output as an
+     * Iterable of Line<T>.  If timestamp is omitted, it will
+     * use the uploadDate of the GridFSDBFile.
+     */
+    public static class Line<T> {
+      final Instant timestamp;
+      final T value;
+
+      public Line(T value, Instant timestamp) {
+        this.value = value;
+        this.timestamp = timestamp;
+      }
+      public Line(T value) {
+        this.value = value;
+        this.timestamp = null;
+      }
+    };
+    public Iterator<Line<T>> parse(GridFSDBFile input) throws IOException;
   }
 
 
@@ -77,107 +104,283 @@ public class MongoDbGridFSIO {
   private static class StringsParseCallback implements ParseCallback<String> {
     static final StringsParseCallback INSTANCE = new StringsParseCallback();
 
-    public void parse(GridFSDBFile file, DoFn<?, String>.Context context) throws Exception {
-      final Instant ts = new Instant(file.getUploadDate().getTime());
-      try (BufferedReader reader =
-            new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+    @Override
+    public Iterator<Line<String>> parse(final GridFSDBFile input) throws IOException {
+      final BufferedReader reader =
+          new BufferedReader(new InputStreamReader(input.getInputStream()));
+      return new Iterator<Line<String>>() {
         String val = reader.readLine();
-        while (val != null) {
-          context.outputWithTimestamp(val, ts);
-          val = reader.readLine();
+        @Override
+        public boolean hasNext() {
+          return val != null;
         }
-        reader.close();
-      }
+        @Override
+        public Line<String> next() {
+          Line<String> l = new Line<String>(val);
+          try {
+            val = reader.readLine();
+          } catch (IOException e) {
+            val = null;
+          }
+          return l;
+        }
+
+        @Override
+        public void remove() {
+          throw new UnsupportedOperationException("Remove not supported");
+        }
+      };
     }
   }
 
   /** Read data from GridFS. */
   public static Read<String> read() {
-    return new Read<String>(new Read.GridFSOptions(null, null, null),
-                            StringsParseCallback.INSTANCE, StringUtf8Coder.of());
+    return new Read<String>(new Read.BoundedGridFSSource<String>(null, null, null,
+                            StringsParseCallback.INSTANCE, StringUtf8Coder.of()));
   }
 
   static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
-      return new Read<T>(new GridFSOptions(uri, options.database,
-                                           options.bucket), transform, coder);
+      return new Read<T>(new BoundedGridFSSource<T>(uri, options.database,
+                                           options.bucket,
+                                           options.parser, options.coder));
     }
 
     public Read<T> withDatabase(String database) {
-      return new Read<T>(new GridFSOptions(options.uri, database,
-                                           options.bucket), transform, coder);
+      return new Read<T>(new BoundedGridFSSource<T>(options.uri, database,
+                                           options.bucket,
+                                           options.parser, options.coder));
     }
 
     public Read<T> withBucket(String bucket) {
-      return new Read<T>(new GridFSOptions(options.uri, options.database, bucket),
-                         transform, coder);
+      return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database, bucket,
+                                                     options.parser, options.coder));
     }
 
     public <X> Read<X> withParsingFn(ParseCallback<X> f) {
-      return new Read<X>(options, f, null);
+      return new Read<X>(new BoundedGridFSSource<X>(options.uri, options.database,
+          options.bucket, f, null));
     }
 
     public Read<T> withCoder(Coder<T> coder) {
-      return new Read<T>(options, transform, coder);
+      return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database,
+          options.bucket, options.parser, coder));
     }
 
-    private final GridFSOptions options;
-    private final ParseCallback<T> transform;
-    private final Coder<T> coder;
+    private final BoundedGridFSSource<T> options;
 
 
-    Read(GridFSOptions options,
-            ParseCallback<T> transform,
-            Coder<T> coder) {
+    Read(BoundedGridFSSource<T> options) {
       this.options = options;
-      this.transform = transform;
-      this.coder = coder;
     }
 
     @Override
     public PCollection<T> apply(PBegin input) {
-      PCollection<T> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn<T>(transform)));
-      if (coder != null) {
-        output.setCoder(coder);
+      org.apache.beam.sdk.io.Read.Bounded<T> unbounded =
+          org.apache.beam.sdk.io.Read.from(options);
+      PCollection<T> output = input.getPipeline().apply(unbounded);
+      if (options.coder != null) {
+        output.setCoder(options.coder);
       }
       return output;
     }
 
-    /**
-     * A {@link DoFn} executing the query to read files from GridFS.
-     */
-    public static class ReadFn<T> extends DoFn<GridFSOptions, T> {
-      private final ParseCallback<T> transform;
-
-      private ReadFn(ParseCallback<T> transform) {
-          this.transform = transform;
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext context) throws Exception {
-        GridFSOptions options = context.element();
-        Mongo mongo = options.uri == null ? new Mongo() : new Mongo(new MongoURI(options.uri));
-        DB db = options.database == null ? mongo.getDB("gridfs") : mongo.getDB(options.database);
-        GridFS gridfs = options.bucket == null ? new GridFS(db) : new GridFS(db, options.bucket);
-        for (GridFSDBFile file : gridfs.find(new BasicDBObject())) {
-          transform.parse(file, context);
-        }
-      }
-    }
-
-    static class GridFSOptions implements Serializable {
+    static class BoundedGridFSSource<T> extends BoundedSource<T> {
       private final String uri;
       private final String database;
       private final String bucket;
+      private final ParseCallback<T> parser;
+      private final Coder<T> coder;
 
-      GridFSOptions(String uri, String database, String bucket) {
+      @Nullable
+      private List<ObjectId> objectIds;
+
+      private transient Mongo mongo;
+      private transient GridFS gridfs;
+
+
+      BoundedGridFSSource(String uri, String database, String bucket,
+          ParseCallback<T> parser, Coder<T> coder) {
         this.uri = uri;
         this.database = database;
         this.bucket = bucket;
+        this.parser = parser;
+        this.coder = coder;
+      }
+      BoundedGridFSSource(String uri, String database, String bucket,
+          ParseCallback<T> parser, Coder<T> coder, List<ObjectId> objectIds) {
+        this.uri = uri;
+        this.database = database;
+        this.bucket = bucket;
+        this.parser = parser;
+        this.coder = coder;
+        this.objectIds = objectIds;
+      }
+      private synchronized void setupGridFS() {
+        if (gridfs == null) {
+          mongo = uri == null ? new Mongo() : new Mongo(new MongoURI(uri));
+          DB db = database == null ? mongo.getDB("gridfs") : mongo.getDB(database);
+          gridfs = bucket == null ? new GridFS(db) : new GridFS(db, bucket);
+        }
+      }
+      private synchronized void closeGridFS() {
+        if (gridfs != null) {
+          gridfs = null;
+          mongo.close();
+          mongo = null;
+        }
+      }
+
+      @Override
+      public List<? extends BoundedSource<T>> splitIntoBundles(long desiredBundleSizeBytes,
+          PipelineOptions options) throws Exception {
+        try {
+          setupGridFS();
+          DBCursor cursor = gridfs.getFileList().sort(null);
+          long size = 0;
+          List<BoundedGridFSSource<T>> list = new LinkedList<>();
+          List<ObjectId> objects = new LinkedList<>();
+          while (cursor.hasNext()) {
+            GridFSDBFile file = (GridFSDBFile) cursor.next();
+            long len = file.getLength();
+            if ((size + len) > desiredBundleSizeBytes && !objects.isEmpty()) {
+              list.add(new BoundedGridFSSource<T>(uri, database, bucket, parser, coder, objects));
+              size = 0;
+              objects = new LinkedList<>();
+            }
+            objects.add((ObjectId) file.getId());
+            size += len;
+          }
+          if (!objects.isEmpty()) {
+            list.add(new BoundedGridFSSource<T>(uri, database, bucket, parser, coder, objects));
+          }
+          return list;
+        } finally {
+          closeGridFS();
+        }
+      }
+      @Override
+      public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+        try {
+          setupGridFS();
+          DBCursor cursor = gridfs.getFileList().sort(null);
+          long size = 0;
+          while (cursor.hasNext()) {
+            GridFSDBFile file = (GridFSDBFile) cursor.next();
+            size += file.getLength();
+          }
+          return size;
+        } finally {
+          closeGridFS();
+        }
+      }
+
+      @Override
+      public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+        return false;
+      }
+      @Override
+      public org.apache.beam.sdk.io.BoundedSource.BoundedReader<T> createReader(
+          PipelineOptions options) throws IOException {
+        return new GridFSReader(this);
+      }
+
+
+      @Override
+      public void validate() {
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public Coder<T> getDefaultOutputCoder() {
+        if (coder != null) {
+          return coder;
+        }
+        return (Coder<T>) SerializableCoder.of(Serializable.class);
+      }
+
+      class GridFSReader extends org.apache.beam.sdk.io.BoundedSource.BoundedReader<T> {
+        final BoundedGridFSSource<T> source;
+
+        Instant timestamp = Instant.now();
+        Iterator<ParseCallback.Line<T>> currentIterator;
+        ParseCallback.Line<T> currentLine;
+
+        GridFSReader(BoundedGridFSSource<T> source) {
+          this.source = source;
+        }
+
+        @Override
+        public boolean start() throws IOException {
+          setupGridFS();
+          if (objectIds == null) {
+            objectIds = new LinkedList<>();
+            DBCursor cursor = gridfs.getFileList().sort(null);
+            while (cursor.hasNext()) {
+              DBObject ob = cursor.next();
+              objectIds.add((ObjectId) ob.get("_id"));
+            }
+          }
+          return advance();
+        }
+
+        @Override
+        public boolean advance() throws IOException {
+          if (currentIterator != null && !currentIterator.hasNext()) {
+            objectIds.remove(0);
+            currentIterator = null;
+          }
+          if (currentIterator == null) {
+            if (objectIds.isEmpty()) {
+              return false;
+            }
+            ObjectId oid = objectIds.get(0);
+            GridFSDBFile file = gridfs.find(oid);
+            if (file == null) {
+              return false;
+            }
+            timestamp = new Instant(file.getUploadDate().getTime());
+            currentIterator = parser.parse(file);
+          }
+
+          if (currentIterator.hasNext()) {
+            currentLine = currentIterator.next();
+            return true;
+          }
+          return false;
+        }
+
+        @Override
+        public BoundedSource<T> getCurrentSource() {
+          return source;
+        }
+
+        @Override
+        public T getCurrent() throws NoSuchElementException {
+          if (currentLine != null) {
+            return currentLine.value;
+          }
+          throw new NoSuchElementException();
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          if (currentLine != null) {
+            if (currentLine.timestamp != null) {
+              return currentLine.timestamp;
+            }
+            return timestamp;
+          }
+          throw new NoSuchElementException();
+        }
+
+        @Override
+        public void close() throws IOException {
+          closeGridFS();
+        }
+
       }
     }
-
   }
 
 }
