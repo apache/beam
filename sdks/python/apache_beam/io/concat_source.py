@@ -262,4 +262,3 @@ class ConcatRangeTracker(iobase.RangeTracker):
           self._range_trackers[source_ix] = source.source.get_range_tracker(
               start, stop)
     return self._range_trackers[source_ix]
-

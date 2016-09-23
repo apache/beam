@@ -27,7 +27,6 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
-from apache_beam.io import source_test_utils
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 

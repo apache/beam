@@ -31,10 +31,8 @@ the sink.
 
 from collections import namedtuple
 
-import bisect
 import logging
 import random
-import threading
 import uuid
 
 from apache_beam import pvalue

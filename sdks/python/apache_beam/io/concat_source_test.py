@@ -18,8 +18,6 @@
 """Unit tests for the sources framework."""
 
 import logging
-import os
-import tempfile
 import unittest
 
 import apache_beam as beam
@@ -76,7 +74,6 @@ class RangeSource(iobase.BoundedSource):
 class ConcatSourceTest(unittest.TestCase):
 
   def test_range_source(self):
-    return # XXX
     source_test_utils.assertSplitAtFractionExhaustive(RangeSource(0, 10, 3))
 
   def test_conact_source(self):
@@ -125,12 +122,12 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(source.estimate_size(), 1000)
 
   def test_position_at_fration(self):
-    ranges = [(0, 4), (4, 16), (16, 24), (24, 32)]    
+    ranges = [(0, 4), (4, 16), (16, 24), (24, 32)]
     source = ConcatSource([iobase.SourceBundle((range[1] - range[0]) / 32.,
                                                RangeSource(*range),
                                                None, None)
                            for range in ranges])
-    
+
     range_tracker = source.get_range_tracker()
     self.assertEquals(range_tracker.position_at_fraction(0), (0, 0))
     self.assertEquals(range_tracker.position_at_fraction(.01), (0, 1))
@@ -175,7 +172,7 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEquals(read_all(ConcatSource([range10]), (0, 5)), range(5, 10))
     self.assertEquals(read_all(ConcatSource([range10]), None, (0, 5)),
                       range(5))
-    
+
   def test_source_with_empty_ranges(self):
     read_all = source_test_utils.readFromSource
 
@@ -201,7 +198,7 @@ class ConcatSourceTest(unittest.TestCase):
                            empty,
                           ])
     source_test_utils.assertSplitAtFractionExhaustive(source)
-    
+
   def test_run_concat_direct(self):
     source = ConcatSource([RangeSource(0, 10),
                            RangeSource(10, 100),
@@ -214,7 +211,6 @@ class ConcatSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_conact_source_exhaustive(self):
-    return # XXX
     source = ConcatSource([RangeSource(0, 10),
                            RangeSource(100, 110),
                            RangeSource(1000, 1010),
