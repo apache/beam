@@ -37,16 +37,13 @@ import org.slf4j.LoggerFactory;
  */
 public class GcpProjectUtil {
   /**
-   * This is a {@link DefaultValueFactory} able to create a {@link GcpProjectUtil} using
+   * A {@link DefaultValueFactory} able to create a {@link GcpProjectUtil} using
    * any transport flags specified on the {@link PipelineOptions}.
    */
   public static class GcpProjectUtilFactory implements DefaultValueFactory<GcpProjectUtil> {
     /**
      * Returns an instance of {@link GcpProjectUtil} based on the
      * {@link PipelineOptions}.
-     *
-     * <p>If no instance has previously been created, one is created and the value
-     * stored in {@code options}.
      */
     @Override
     public GcpProjectUtil create(PipelineOptions options) {
@@ -70,8 +67,8 @@ public class GcpProjectUtil {
   }
 
   /**
-   * Returns the project number or throws an error if the project does not
-   * exist or has other access errors.
+   * Returns the project number or throws an exception if the project does not
+   * exist or has other access exceptions.
    */
   long getProjectNumber(String projectId) throws IOException {
     return getProjectNumber(
