@@ -19,6 +19,7 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -106,6 +107,14 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   Bigquery newBigqueryClient(String applicationName) {
     HttpTransport transport = Transport.getTransport();
     JsonFactory jsonFactory = Transport.getJsonFactory();
+    Credential credential = getDefaultCredential(transport, jsonFactory);
+
+    return new Bigquery.Builder(transport, jsonFactory, credential)
+        .setApplicationName(applicationName)
+        .build();
+  }
+
+  Credential getDefaultCredential(HttpTransport transport, JsonFactory jsonFactory) {
     GoogleCredential credential;
     try {
       credential = GoogleCredential.getApplicationDefault(transport, jsonFactory);
@@ -117,9 +126,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       Collection<String> bigqueryScope = BigqueryScopes.all();
       credential = credential.createScoped(bigqueryScope);
     }
-    return new Bigquery.Builder(transport, jsonFactory, credential)
-        .setApplicationName(applicationName)
-        .build();
+    return credential;
   }
 
   String hashing(List<TableRow> rows) {

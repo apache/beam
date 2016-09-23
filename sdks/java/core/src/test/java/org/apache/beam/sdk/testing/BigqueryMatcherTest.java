@@ -25,11 +25,14 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import autovalue.shaded.com.google.common.common.collect.Lists;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
@@ -37,6 +40,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.util.TestCredential;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,7 +74,7 @@ public class BigqueryMatcherTest {
   public void testBigqueryMatcherThatSucceed() throws IOException {
     BigqueryMatcher matcher = spy(new BigqueryMatcher(
         appName, projectId, query, "1f342f9531b4ed978419cf6d3495736a4055b3d9"));
-    when(matcher.newBigqueryClient(anyString())).thenReturn(mockBigqueryClient);
+    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockBigqueryClient.jobs()).thenReturn(mockJobs);
 
     TableRow row = new TableRow();
@@ -91,7 +95,7 @@ public class BigqueryMatcherTest {
   public void testBigqueryMatcherFailsForServiecFails() throws IOException {
     BigqueryMatcher matcher = spy(new BigqueryMatcher(
         appName, projectId, query, "some-checksum"));
-    when(matcher.newBigqueryClient(anyString())).thenReturn(mockBigqueryClient);
+    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockBigqueryClient.jobs()).thenReturn(mockJobs);
     when(mockJobs.query(anyString(), any(QueryRequest.class))).thenReturn(mockQuery);
     when(mockQuery.execute()).thenThrow(new IOException());
@@ -107,7 +111,7 @@ public class BigqueryMatcherTest {
   public void testBigqueryMatcherFailsForInvalidQueryResponse() throws IOException {
     BigqueryMatcher matcher = spy(new BigqueryMatcher(
         appName, projectId, query, "some-checksum"));
-    when(matcher.newBigqueryClient(anyString())).thenReturn(mockBigqueryClient);
+    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockBigqueryClient.jobs()).thenReturn(mockJobs);
     when(mockJobs.query(anyString(), any(QueryRequest.class))).thenReturn(mockQuery);
     when(mockQuery.execute()).thenReturn(null);
@@ -129,6 +133,8 @@ public class BigqueryMatcherTest {
   public void testNewBigqueryClient() {
     BigqueryMatcher matcher = spy(
         new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    doReturn(new TestCredential())
+        .when(matcher).getDefaultCredential(any(HttpTransport.class), any(JsonFactory.class));
     Bigquery client = matcher.newBigqueryClient(appName);
     assertEquals(appName, client.getApplicationName());
   }
@@ -177,5 +183,4 @@ public class BigqueryMatcherTest {
     thrown.expectMessage("Expected valid argument, but was ");
     matcher.validateArguments(appName, projectId, "");
   }
-
 }
