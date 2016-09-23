@@ -15,10 +15,10 @@ import java.util.Set;
  * `assignWindows` if you want to operate on raw data. There is no
  * need to override both methods.
  */
-public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL>>
+public interface Windowing<T, LABEL, W extends WindowContext<LABEL>>
     extends Serializable {
 
-  static enum Type {
+  enum Type {
     /** Processing time based. */
     PROCESSING,
     /** Event time. */
@@ -30,17 +30,16 @@ public interface Windowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL
    * The element will always have assigned old window ID, which can be reused
    * by this windowing.
    * The default windowing assigned on input is derived from batch windowing.
-   * @returns set of windows to be assign this element into, never null.
+   * @return set of windows to be assign this element into, never null.
    */
-  Set<WindowID<GROUP, LABEL>> assignWindowsToElement(
-      WindowedElement<?, ?, T> input);
+  Set<WindowID<LABEL>> assignWindowsToElement(WindowedElement<?, T> input);
 
   /**
    * Create the window context for given window ID.
    * The context is created when processing elements belonging to the
    * same group (i.e. after grouping the elements).
    */
-  W createWindowContext(WindowID<GROUP, LABEL> id);
+  W createWindowContext(WindowID<LABEL> id);
 
 
   /**

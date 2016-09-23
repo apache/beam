@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.triggers;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 
 @FunctionalInterface
-public interface Triggerable<GROUP, LABEL> {
+public interface Triggerable<LABEL> {
 
   /**
    * This method is invoked with the timestamp for which the trigger was scheduled.
@@ -14,5 +14,5 @@ public interface Triggerable<GROUP, LABEL> {
    *
    * @param timestamp The timestamp for which the trigger event was scheduled.
    */
-  void fire(long timestamp, WindowContext<GROUP, LABEL> w);
+  void fire(long timestamp, WindowContext<LABEL> w);
 }

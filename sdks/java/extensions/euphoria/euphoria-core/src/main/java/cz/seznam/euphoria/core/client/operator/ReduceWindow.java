@@ -17,7 +17,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
  * Reduce all elements in window.
  */
 public class ReduceWindow<
-    IN, VALUE, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
+    IN, VALUE, OUT, WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, Byte, OUT, WLABEL, W,
             ReduceWindow<IN, VALUE, OUT, WLABEL, W>> {
@@ -84,7 +84,7 @@ public class ReduceWindow<
     final UnaryFunction<T, VALUE> valueExtractor;    
     final ReduceFunction<VALUE, OUT> reducer;
     int numPartitions = -1;
-    Windowing<T, ?, ?, ?> windowing;
+    Windowing<T, ?, ?> windowing;
 
     public OutputBuilder(
         String name,
@@ -104,8 +104,8 @@ public class ReduceWindow<
       flow.add(operator);
       return operator.output();
     }
-    public <GROUP, LABEL, W extends WindowContext<GROUP, LABEL>> OutputBuilder<T, VALUE, OUT>
-    windowBy(Windowing<T, GROUP, LABEL, W> windowing) {
+    public <LABEL, W extends WindowContext<LABEL>> OutputBuilder<T, VALUE, OUT>
+    windowBy(Windowing<T, LABEL, W> windowing) {
       this.windowing = windowing;
       return this;
     }
@@ -135,7 +135,7 @@ public class ReduceWindow<
       Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, ?, WLABEL, W> windowing,
+      Windowing<IN, WLABEL, W> windowing,
       ReduceFunction<VALUE, OUT> reducer,
       int numPartitions) {
     super(name, flow, input, e -> B_ZERO, windowing,

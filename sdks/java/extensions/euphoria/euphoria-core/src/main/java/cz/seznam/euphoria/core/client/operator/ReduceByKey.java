@@ -31,7 +31,7 @@ import java.util.Objects;
  * @param <OUT> Type of output value
  */
 public class ReduceByKey<
-    IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W extends WindowContext<?, WLABEL>,
+    IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W extends WindowContext<WLABEL>,
     PAIROUT extends Pair<KEYOUT, OUT>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, KIN, KEY, PAIROUT, WLABEL, W,
@@ -135,9 +135,9 @@ public class ReduceByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
     }
-    public  <WLABEL, W extends WindowContext<?, WLABEL>>
+    public  <WLABEL, W extends WindowContext<WLABEL>>
     DatasetBuilder5<IN, KEY, VALUE, OUT, WLABEL, W>
-    windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
+    windowBy(Windowing<IN, WLABEL, W> windowing) {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
               reducer, Objects.requireNonNull(windowing), this);
     }
@@ -159,7 +159,7 @@ public class ReduceByKey<
   }
 
   public static class DatasetBuilder5<
-          IN, KEY, VALUE, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
+          IN, KEY, VALUE, OUT, WLABEL, W extends WindowContext<WLABEL>>
       extends PartitioningBuilder<KEY, DatasetBuilder5<IN, KEY, VALUE, OUT, WLABEL, W>>
       implements OutputBuilder<Pair<KEY, OUT>>
   {
@@ -168,14 +168,14 @@ public class ReduceByKey<
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
-    private final Windowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, WLABEL, W> windowing;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
-                    Windowing<IN, ?, WLABEL, W> windowing /* optional */,
+                    Windowing<IN, WLABEL, W> windowing /* optional */,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize default partitioning according to input
@@ -287,9 +287,9 @@ public class ReduceByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
     }
-    public <WLABEL, W extends WindowContext<?, WLABEL>>
+    public <WLABEL, W extends WindowContext<WLABEL>>
     GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, WLABEL, W>
-    windowBy(Windowing<IN, ?, WLABEL, W> windowing) {
+    windowBy(Windowing<IN, WLABEL, W> windowing) {
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
               reducer, Objects.requireNonNull(windowing), this);
     }
@@ -301,7 +301,7 @@ public class ReduceByKey<
   }
 
   public static class GroupedDatasetBuilder5<
-          IN, KIN, KEY, VALUE, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
+          IN, KIN, KEY, VALUE, OUT, WLABEL, W extends WindowContext<WLABEL>>
       extends PartitioningBuilder<
           KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, WLABEL, W>>
       implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
@@ -311,13 +311,13 @@ public class ReduceByKey<
     private final UnaryFunction<KIN, KEY> keyExtractor;
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
-    private final Windowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, WLABEL, W> windowing;
     GroupedDatasetBuilder5(String name,
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
                            ReduceFunction<VALUE, OUT> reducer,
-                           Windowing<IN, ?, WLABEL, W> windowing,
+                           Windowing<IN, WLABEL, W> windowing,
                            PartitioningBuilder<KEY, ?> partitioning)
     {
       super(partitioning);
@@ -371,7 +371,7 @@ public class ReduceByKey<
               Dataset<IN> input,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              Windowing<IN, ?, WLABEL, W> windowing,
+              Windowing<IN, WLABEL, W> windowing,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning)
   {
@@ -387,7 +387,7 @@ public class ReduceByKey<
               GroupedDataset<IN, KIN> groupedInput,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              Windowing<IN, ?, WLABEL, W> windowing,
+              Windowing<IN, WLABEL, W> windowing,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning)
   {

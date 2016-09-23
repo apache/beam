@@ -391,31 +391,31 @@ public class WindowingTest {
   }
 
   @SuppressWarnings("unchecked")
-  <GROUP, LABEL, T> Set<WindowID<GROUP, LABEL>> assignWindows(
-      Windowing<T, GROUP, LABEL, ?> windowing, T elem) {
+  <LABEL, T> Set<WindowID<LABEL>> assignWindows(
+      Windowing<T, LABEL, ?> windowing, T elem) {
     return windowing.assignWindowsToElement(
-        new WindowedElement(WindowID.unaligned(null, null), elem));
+        new WindowedElement(new WindowID(null), elem));
   }
 
   @Test
   public void testWindowing_SessionMergeWindows() {
-    Session<Long, Void> windowing =
+    Session<Long> windowing =
         Session.of(Duration.ofSeconds(10))
-            .using(e -> (Void) null, e -> e);
+            .using(e -> e);
 
-    WindowID<Void, SessionInterval> w1 = assertSessionWindow(
-        assignWindows(windowing, 1_000L), null, 1_000L, 11_000L);
-    WindowID<Void, SessionInterval> w2 = assertSessionWindow(
-        assignWindows(windowing, 10_000L), null, 10_000L, 20_000L);
-    WindowID<Void, SessionInterval> w3 = assertSessionWindow(
-        assignWindows(windowing, 21_000L), null, 21_000L, 31_000L);
+    WindowID<SessionInterval> w1 = assertSessionWindow(
+        assignWindows(windowing, 1_000L), 1_000L, 11_000L);
+    WindowID<SessionInterval> w2 = assertSessionWindow(
+        assignWindows(windowing, 10_000L), 10_000L, 20_000L);
+    WindowID<SessionInterval> w3 = assertSessionWindow(
+        assignWindows(windowing, 21_000L), 21_000L, 31_000L);
     // ~ a small window which is fully contained in w1
-    WindowID<Void, SessionInterval> w4 = WindowID.aligned(
+    WindowID<SessionInterval> w4 = new WindowID<>(
         new SessionInterval(3_000L, 8_000L));
 
 
     
-    Map<WindowID<Void, SessionInterval>, WindowID<Void, SessionInterval>> merges;
+    Map<WindowID<SessionInterval>, WindowID<SessionInterval>> merges;
     merges = windowing.mergeWindows(
         Arrays
             .asList(w4, w3, w2, w1)
@@ -434,28 +434,27 @@ public class WindowingTest {
     assertNotNull(merges.get(w4));
     assertNotNull(merges.get(w2));
 
-    Set<WindowID<Void, SessionInterval>> target = merges.values().stream().
+    Set<WindowID<SessionInterval>> target = merges.values().stream().
         collect(Collectors.toSet());
     assertEquals(1, target.size());
-    WindowID<Void, SessionInterval> targetWindow = target.iterator().next();
-    assertSessionWindow(targetWindow, null, 1_000L, 20_000L);
+    WindowID<SessionInterval> targetWindow = target.iterator().next();
+    assertSessionWindow(targetWindow, 1_000L, 20_000L);
   }
 
-  private <G> WindowID<G, Session.SessionInterval> assertSessionWindow(
-      Set<WindowID<G, Session.SessionInterval>> window,
-      G expectedGroup, long expectedStartMillis, long expectedEndMillis)
+  private WindowID<Session.SessionInterval> assertSessionWindow(
+      Set<WindowID<Session.SessionInterval>> window,
+      long expectedStartMillis, long expectedEndMillis)
   {
-    WindowID<G, SessionInterval> w = Iterables.getOnlyElement(window);
-    assertSessionWindow(w, expectedGroup, expectedStartMillis, expectedEndMillis);
+    WindowID<SessionInterval> w = Iterables.getOnlyElement(window);
+    assertSessionWindow(w, expectedStartMillis, expectedEndMillis);
     return w;
   }
 
-  private <G> void assertSessionWindow(
-      WindowID<G, Session.SessionInterval> window,
-      G expectedGroup, long expectedStartMillis, long expectedEndMillis)
-  {
+  private void assertSessionWindow(
+      WindowID<Session.SessionInterval> window,
+      long expectedStartMillis, long expectedEndMillis) {
+
     assertNotNull(window);
-    assertEquals(expectedGroup, window.getGroup());
     SessionInterval label = window.getLabel();
     assertNotNull(label);
     assertEquals(expectedStartMillis, label.getStartMillis());
@@ -488,7 +487,7 @@ public class WindowingTest {
         .valueBy(e -> e.word)
         .reduceBy(Sets::newHashSet)
         .windowBy(Session.of(Duration.ofSeconds(5))
-            .using((Item e) -> e.word.charAt(0), e -> NOW + e.evtTs * 1_000L))
+            .using(e -> NOW + e.evtTs * 1_000L))
         .setNumPartitions(1)
         .outputWindowed()
         .persist(out);
