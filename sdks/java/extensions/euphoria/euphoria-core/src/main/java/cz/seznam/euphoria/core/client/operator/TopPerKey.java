@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 public class TopPerKey<
         IN, KEY, VALUE, SCORE extends Comparable<SCORE>,
-        WLABEL, W extends WindowContext<?, WLABEL>>
+        WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, WLABEL, W,
     TopPerKey<IN, KEY, VALUE, SCORE, WLABEL, W>> {
@@ -139,9 +139,9 @@ public class TopPerKey<
       this.scoreFn = scoreFn;
     }
 
-    public <WLABEL, W extends WindowContext<?, WLABEL>>
+    public <WLABEL, W extends WindowContext<WLABEL>>
     OutputBuilder<IN, K, V, S, WLABEL, W>
-    windowBy(Windowing<IN, ?, WLABEL, W> windowing)
+    windowBy(Windowing<IN, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(input, keyFn, valueFn, scoreFn, requireNonNull(windowing));
     }
@@ -153,18 +153,18 @@ public class TopPerKey<
   }
 
   public static class OutputBuilder<
-      IN, K, V, S extends Comparable<S>, WLABEL, W extends WindowContext<?, WLABEL>>
+      IN, K, V, S extends Comparable<S>, WLABEL, W extends WindowContext<WLABEL>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
   {
     private final Dataset<IN> input;
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
-    private final Windowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, WLABEL, W> windowing;
 
     OutputBuilder(Dataset<IN> input, UnaryFunction<IN, K> keyFn,
                   UnaryFunction<IN, V> valueFn, UnaryFunction<IN, S> scoreFn,
-                  Windowing<IN, ?, WLABEL, W> windowing)
+                  Windowing<IN, WLABEL, W> windowing)
     {
       this.input = input;
       this.keyFn = keyFn;
@@ -196,7 +196,7 @@ public class TopPerKey<
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
-            Windowing<IN, ?, WLABEL, W> windowing)
+            Windowing<IN, WLABEL, W> windowing)
   {
     super("Top", flow, input, keyFn, windowing);
     this.valueFn = valueFn;

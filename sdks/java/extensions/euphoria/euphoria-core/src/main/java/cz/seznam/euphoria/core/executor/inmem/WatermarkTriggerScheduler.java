@@ -29,9 +29,9 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
   private volatile long currentWatermark;
 
   // following fields are accessed from owner thread only
-  private final SortedMap<Long, List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>>>
+  private final SortedMap<Long, List<Pair<WindowContext<?>, Triggerable<?>>>>
       scheduledEvents = new TreeMap<>();
-  private final Map<WindowContext<?, ?>, Set<Long>> eventStampsForWindow
+  private final Map<WindowContext<?>, Set<Long>> eventStampsForWindow
       = new HashMap<>();
  
   /**
@@ -52,7 +52,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
 
       // fire all triggers that passed watermark duration
 
-      SortedMap<Long, List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>>> headMap;
+      SortedMap<Long, List<Pair<WindowContext<?>, Triggerable<?>>>> headMap;
       headMap = scheduledEvents.headMap(triggeringStamp);
 
       headMap.entrySet().stream()
@@ -60,7 +60,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
           // need to collect to list to prevent ConcurrentModificationException
           .collect(Collectors.toList())
           .forEach(p -> {
-            Triggerable<?, ?> purged = purge(p.getSecond().getFirst(), p.getFirst());
+            Triggerable<?> purged = purge(p.getSecond().getFirst(), p.getFirst());
             purged.fire(p.getFirst(), (WindowContext) p.getSecond().getFirst());
           });
 
@@ -77,7 +77,7 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
 
   @Override
   public boolean scheduleAt(
-      long stamp, WindowContext<?, ?> w, Triggerable<?, ?> trigger) {
+      long stamp, WindowContext<?> w, Triggerable<?> trigger) {
     if (stamp < currentWatermark) return false;
     purge(w, stamp);
     add(stamp, trigger, w);
@@ -106,20 +106,20 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
   }
 
   /** Purge the scheduled event from all indices and return it (if exists). */
-  private Triggerable<?, ?> purge(WindowContext<?, ?> w, long stamp) {
+  private Triggerable<?> purge(WindowContext<?> w, long stamp) {
     Set<Long> scheduled = eventStampsForWindow.get(w);
     if (scheduled == null || !scheduled.remove(stamp)) {
       return null;
     }
 
-    List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>> eventsForWindow;
+    List<Pair<WindowContext<?>, Triggerable<?>>> eventsForWindow;
     eventsForWindow = scheduledEvents.get(stamp);
 
-    List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>> filtered
+    List<Pair<WindowContext<?>, Triggerable<?>>> filtered
         = eventsForWindow.stream().filter(p -> p.getFirst() == w)
             .collect(Collectors.toList());
 
-    Pair<WindowContext<?, ?>, Triggerable<?, ?>> event
+    Pair<WindowContext<?>, Triggerable<?>> event
       = Iterables.getOnlyElement(filtered);
 
     eventsForWindow.remove(event);
@@ -131,8 +131,8 @@ public class WatermarkTriggerScheduler implements TriggerScheduler {
   }
 
 
-  private void add(long stamp, Triggerable<?, ?> trigger, WindowContext<?, ?> w) {
-    List<Pair<WindowContext<?, ?>, Triggerable<?, ?>>> scheduledForTime
+  private void add(long stamp, Triggerable<?> trigger, WindowContext<?> w) {
+    List<Pair<WindowContext<?>, Triggerable<?>>> scheduledForTime
         = scheduledEvents.get(stamp);
     if (scheduledForTime == null) {
       scheduledEvents.put(stamp, scheduledForTime = new ArrayList<>());

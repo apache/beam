@@ -17,7 +17,7 @@ import java.util.Objects;
  * Operator counting elements with same key.
  */
 public class CountByKey<
-    IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>,
+    IN, KEY, WLABEL, W extends WindowContext<WLABEL>,
     PAIROUT extends Pair<KEY, Long>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, PAIROUT,
@@ -60,8 +60,8 @@ public class CountByKey<
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
-    public <WLABEL, W extends WindowContext<?, WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
-    windowBy(Windowing<IN, ?, WLABEL, W> windowing)
+    public <WLABEL, W extends WindowContext<WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
+    windowBy(Windowing<IN, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
     }
@@ -69,11 +69,11 @@ public class CountByKey<
       return new OutputBuilder<>(this, Batch.get()).output();
     }
   }
-  public static class OutputBuilder<IN, KEY, WLABEL, W extends WindowContext<?, WLABEL>> {
+  public static class OutputBuilder<IN, KEY, WLABEL, W extends WindowContext<WLABEL>> {
     private final WindowingBuilder<IN, KEY> prev;
-    private final Windowing<IN, ?, WLABEL, W> windowing;
+    private final Windowing<IN, WLABEL, W> windowing;
     OutputBuilder(WindowingBuilder<IN, KEY> prev,
-                  Windowing<IN, ?, WLABEL, W> windowing)
+                  Windowing<IN, WLABEL, W> windowing)
     {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
@@ -105,7 +105,7 @@ public class CountByKey<
       Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, KEY> extractor,
-      Windowing<IN, ?, WLABEL, W> windowing,
+      Windowing<IN, WLABEL, W> windowing,
       Partitioning<KEY> partitioning)
   {
     super(name, flow, input, extractor, windowing, partitioning);

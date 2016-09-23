@@ -15,16 +15,16 @@ import java.util.Objects;
  *
  * @see Windowing
  */
-public abstract class WindowContext<GROUP, LABEL> implements Serializable {
+public abstract class WindowContext<LABEL> implements Serializable {
 
-  protected final WindowID<GROUP, LABEL> windowID;
+  protected final WindowID<LABEL> windowID;
 
-  protected WindowContext(WindowID<GROUP, LABEL> windowID) {
+  protected WindowContext(WindowID<LABEL> windowID) {
     this.windowID = Objects.requireNonNull(windowID);
   }
 
   /** Retrieve window ID. */
-  public WindowID<GROUP, LABEL> getWindowID() {
+  public WindowID<LABEL> getWindowID() {
     return windowID;
   }
   
@@ -57,7 +57,7 @@ public abstract class WindowContext<GROUP, LABEL> implements Serializable {
     if (getClass() != obj.getClass()) {
       return false;
     }
-    final WindowContext<?, ?> other = (WindowContext<?, ?>) obj;
+    final WindowContext<?> other = (WindowContext<?>) obj;
     return other.getWindowID().equals(windowID);
   }
 

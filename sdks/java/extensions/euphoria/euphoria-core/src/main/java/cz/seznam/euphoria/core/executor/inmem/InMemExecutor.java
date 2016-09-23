@@ -103,7 +103,7 @@ public class InMemExecutor implements Executor {
       Object next = this.reader.next();
       // we assign it to batch
       // which means null group, and batch label
-      return Datum.of(WindowID.aligned(Batch.Label.get()), next);
+      return Datum.of(new WindowID(Batch.Label.get()), next);
     }
   }
 

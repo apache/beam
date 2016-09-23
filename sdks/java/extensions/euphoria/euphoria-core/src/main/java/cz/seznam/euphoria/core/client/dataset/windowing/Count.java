@@ -16,8 +16,7 @@ import java.util.stream.Collectors;
  * Count tumbling windowing.
  */
 public final class Count<T> implements
-    AlignedWindowing<T, Count.Counted, Count.CountWindowContext>,
-    MergingWindowing<T, Void, Count.Counted, Count.CountWindowContext> {
+    MergingWindowing<T, Count.Counted, Count.CountWindowContext> {
 
   private final int size;
 
@@ -29,12 +28,12 @@ public final class Count<T> implements
     // ~ no equals/hashCode ... every instance is unique
   } // ~ end of Counted
 
-  public static class CountWindowContext extends WindowContext<Void, Counted> {
+  public static class CountWindowContext extends WindowContext<Counted> {
 
     int currentCount;
 
     CountWindowContext(int currentCount) {
-      super(WindowID.aligned(new Counted()));
+      super(new WindowID<>(new Counted()));
       this.currentCount = currentCount;
     }
 
@@ -46,9 +45,9 @@ public final class Count<T> implements
   } // ~ end of CountWindowContext
 
   @Override
-  public Set<WindowID<Void, Counted>> assignWindowsToElement(
-      WindowedElement<?, ?, T> input) {
-    return singleton(WindowID.aligned(new Counted()));
+  public Set<WindowID<Counted>> assignWindowsToElement(
+      WindowedElement<?, T> input) {
+    return singleton(new WindowID<>(new Counted()));
   }
 
   @Override
@@ -89,7 +88,7 @@ public final class Count<T> implements
   }
 
   @Override
-  public CountWindowContext createWindowContext(WindowID<Void, Counted> id) {
+  public CountWindowContext createWindowContext(WindowID<Counted> id) {
     return new CountWindowContext(1);
   }
 

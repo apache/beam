@@ -16,11 +16,11 @@ import java.util.Set;
  * Time sliding windowing.
  */
 public final class TimeSliding<T>
-    implements AlignedWindowing<T, TimeInterval, TimeSliding.SlidingWindowContext> {
+    implements Windowing<T, TimeInterval, TimeSliding.SlidingWindowContext> {
 
-  public static class SlidingWindowContext extends WindowContext<Void, TimeInterval> {
+  public static class SlidingWindowContext extends WindowContext<TimeInterval> {
 
-    private SlidingWindowContext(WindowID<Void, TimeInterval> interval) {
+    private SlidingWindowContext(WindowID<TimeInterval> interval) {
       super(interval);
     }
 
@@ -69,20 +69,20 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Set<WindowID<Void, TimeInterval>> assignWindowsToElement(
-      WindowedElement<?, ?, T> input) {
+  public Set<WindowID<TimeInterval>> assignWindowsToElement(
+      WindowedElement<?, T> input) {
     long evtTime = eventTimeFn.apply(input.get());
-    Set<WindowID<Void, TimeInterval>> ret = new HashSet<>();
+    Set<WindowID<TimeInterval>> ret = new HashSet<>();
     for (long start = evtTime - evtTime % this.slide;
          start > evtTime - this.duration;
          start -= this.slide) {
-      ret.add(WindowID.aligned(new TimeInterval(start, this.duration)));
+      ret.add(new WindowID<>(new TimeInterval(start, this.duration)));
     }
     return ret;
   }
 
   @Override
-  public SlidingWindowContext createWindowContext(WindowID<Void, TimeInterval> id) {
+  public SlidingWindowContext createWindowContext(WindowID<TimeInterval> id) {
     return new SlidingWindowContext(id);
   }
 

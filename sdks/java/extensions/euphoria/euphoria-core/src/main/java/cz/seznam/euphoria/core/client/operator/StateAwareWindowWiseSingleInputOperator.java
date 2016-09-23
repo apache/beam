@@ -15,7 +15,7 @@ import java.util.Collections;
  * Operator operating on window level with state information.
  */
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, WIN, KIN, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>,
+    IN, WIN, KIN, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>,
     OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, WLABEL, W, OP>>
     extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, WLABEL, W, OP> {
 
@@ -24,7 +24,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
           String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-          Windowing<WIN, ?, WLABEL, W> windowing /* optional */,
+          Windowing<WIN, WLABEL, W> windowing /* optional */,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, extractor, partitioning);
@@ -34,7 +34,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
       String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-      Windowing<WIN, ?, WLABEL,  W> windowing) {
+      Windowing<WIN, WLABEL, W> windowing) {
     this(name, flow, input, extractor, windowing, input.getPartitioning());
   }
 

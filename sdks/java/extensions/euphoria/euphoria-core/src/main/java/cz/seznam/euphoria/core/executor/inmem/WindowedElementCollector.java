@@ -8,13 +8,13 @@ import java.util.Objects;
 class WindowedElementCollector<T> implements Collector<T> {
   private final Collector<Datum> wrap;
 
-  protected WindowID<Object, Object> windowID;
+  protected WindowID<Object> windowID;
 
   WindowedElementCollector(Collector<Datum> wrap) {
     this.wrap = Objects.requireNonNull(wrap);
   }
 
-  void assignWindowing(WindowID<Object, Object> windowID) {
+  void assignWindowing(WindowID<Object> windowID) {
     this.windowID = windowID;
   }
 

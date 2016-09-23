@@ -187,7 +187,7 @@ class ReduceStateByKeyReducer implements Runnable {
      * Flushes (emits result) the specified window
      * @return accumulated states for the specified window
      */
-    private Collection<State<?, ?>> flushWindowStates(WindowContext<Object, Object> w) {
+    private Collection<State<?, ?>> flushWindowStates(WindowContext<Object> w) {
       WindowStorage wKeyStates = wRegistry.getWindowStorage(w.getWindowID());
 
       if (wKeyStates == null) {

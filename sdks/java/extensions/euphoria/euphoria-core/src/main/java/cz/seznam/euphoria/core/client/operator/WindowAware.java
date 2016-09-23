@@ -7,8 +7,8 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 /**
  * Operator aware of windows.
  */
-public interface WindowAware<IN, W extends WindowContext<?, ?>> {
+public interface WindowAware<IN, W extends WindowContext<?>> {
 
-  Windowing<IN, ?, ?, W> getWindowing();
+  Windowing<IN, ?, W> getWindowing();
 
 }

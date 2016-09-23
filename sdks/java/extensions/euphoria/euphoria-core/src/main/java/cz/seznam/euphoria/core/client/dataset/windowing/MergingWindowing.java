@@ -1,12 +1,11 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;
 
-public interface MergingWindowing<T, GROUP, LABEL, W extends WindowContext<GROUP, LABEL>>
-    extends Windowing<T, GROUP, LABEL, W>
+public interface MergingWindowing<T, LABEL, W extends WindowContext<LABEL>>
+    extends Windowing<T, LABEL, W>
 {
   /**
    * Given a set of active windows (for a single group) determine which of the windows
@@ -14,7 +13,7 @@ public interface MergingWindowing<T, GROUP, LABEL, W extends WindowContext<GROUP
    * "(windows-to-be-merged, merge-window)". Returning the same window to be merged
    * multiple times into another is considered erroneous. Note that a window's
    * identity (within the scope of a group) is solely determined by the window's
-   * {@link Window#getLabel()}.
+   * {@link WindowContext#getWindowID}.
    *
    * @param actives a set of active windows
    *
@@ -28,7 +27,7 @@ public interface MergingWindowing<T, GROUP, LABEL, W extends WindowContext<GROUP
    * <p />
    *
    * An alternative way to signal completeness is to fire the trigger function
-   * specified by the window method {@link Window#createTriggers()}}.
+   * specified by the window method {@link WindowContext#createTriggers()}}.
    *
    * @return {@code true} if this window is complete and can be evicted
    */
