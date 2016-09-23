@@ -20,14 +20,27 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.net.InetAddress;
+import java.sql.Array;
+import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Connection;
+import java.sql.Date;
+import java.sql.NClob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -103,6 +116,71 @@ public class JdbcIOTest implements Serializable {
     connection.close();
   }
 
+  /**
+   * Example of {@link PCollection} element that a
+   * {@link org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper} can return.
+   */
+  public class JdbcDataRecord implements Serializable {
+
+    private String[] tableNames;
+    private String[] columnNames;
+    private Object[] columnValues;
+    private int[] columnTypes;
+
+    public JdbcDataRecord() {
+    }
+
+    public JdbcDataRecord(int size) {
+      this.tableNames = new String[size];
+      this.columnNames = new String[size];
+      this.columnValues = new Object[size];
+      this.columnTypes = new int[size];
+    }
+
+    public String[] getTableNames() {
+      return tableNames;
+    }
+
+    public void setTableNames(String[] tableName) {
+      this.tableNames = tableName;
+    }
+
+    public String[] getColumnNames() {
+      return columnNames;
+    }
+
+    public void setColumnNames(String[] columnNames) {
+      this.columnNames = columnNames;
+    }
+
+    public Object[] getColumnValues() {
+      return columnValues;
+    }
+
+    public void setColumnValues(Object[] columnValues) {
+      this.columnValues = columnValues;
+    }
+
+    public int[] getColumnTypes() {
+      return columnTypes;
+    }
+
+    public void setColumnTypes(int[] columnTypes) {
+      this.columnTypes = columnTypes;
+    }
+
+    public String toString() {
+      StringBuilder builder = new StringBuilder();
+      for (int i = 0; i < tableNames.length; i++) {
+        builder.append("Table: ").append(tableNames[i]).append(" | Column: ")
+            .append(columnNames[i]).append(" | Type: ").append(columnTypes[i])
+            .append(" | Value: ").append(columnValues[i]).append("\n");
+      }
+      return builder.toString();
+    }
+
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
@@ -111,7 +189,98 @@ public class JdbcIOTest implements Serializable {
     PCollection<JdbcDataRecord> output = pipeline.apply(
         JdbcIO.read()
             .withDataSource(dataSource)
-            .withQuery("select * from BEAM"));
+            .withQuery("select * from BEAM")
+            .withRowMapper(new JdbcIO.RowMapper<JdbcDataRecord>() {
+              @Override
+              public JdbcDataRecord mapRow(ResultSet resultSet) {
+                JdbcDataRecord record = null;
+                try {
+                  ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
+                  record = new JdbcDataRecord(resultSetMetaData.getColumnCount());
+                  for (int i = 1; i <= resultSetMetaData.getColumnCount(); i++) {
+                    String columnName = resultSetMetaData.getColumnName(i);
+                    record.getColumnNames()[i - 1] = columnName;
+                    String tableName = resultSetMetaData.getTableName(i);
+                    record.getTableNames()[i - 1] = tableName;
+                    int columnType = resultSetMetaData.getColumnType(i);
+                    record.getColumnTypes()[i - 1] = columnType;
+                    Object payload = null;
+                    switch (columnType) {
+                      case Types.ARRAY:
+                        payload = resultSet.getArray(i);
+                        break;
+                      case Types.BIGINT:
+                        payload = resultSet.getInt(i);
+                        break;
+                      case Types.BIT:
+                        payload = resultSet.getInt(i);
+                        break;
+                      case Types.BLOB:
+                        payload = resultSet.getBlob(i);
+                        break;
+                      case Types.BOOLEAN:
+                        payload = resultSet.getBoolean(i);
+                        break;
+                      case Types.CHAR:
+                        payload = resultSet.getString(i);
+                        break;
+                      case Types.CLOB:
+                        payload = resultSet.getClob(i);
+                        break;
+                      case Types.DATE:
+                        payload = resultSet.getDate(i);
+                        break;
+                      case Types.DECIMAL:
+                        payload = resultSet.getBigDecimal(i);
+                        break;
+                      case Types.DOUBLE:
+                        payload = resultSet.getDouble(i);
+                        break;
+                      case Types.FLOAT:
+                        payload = resultSet.getFloat(i);
+                        break;
+                      case Types.INTEGER:
+                        payload = resultSet.getInt(i);
+                        break;
+                      case Types.LONGNVARCHAR:
+                        payload = resultSet.getString(i);
+                        break;
+                      case Types.LONGVARCHAR:
+                        payload = resultSet.getString(i);
+                        break;
+                      case Types.NCHAR:
+                        payload = resultSet.getNString(i);
+                        break;
+                      case Types.NCLOB:
+                        payload = resultSet.getNClob(i);
+                        break;
+                      case Types.SMALLINT:
+                        payload = resultSet.getInt(i);
+                        break;
+                      case Types.TIME:
+                        payload = resultSet.getTime(i);
+                        break;
+                      case Types.TIMESTAMP:
+                        payload = resultSet.getTimestamp(i);
+                        break;
+                      case Types.TINYINT:
+                        payload = resultSet.getInt(i);
+                        break;
+                      case Types.VARCHAR:
+                        payload = resultSet.getString(i);
+                        break;
+                      default:
+                        payload = resultSet.getObject(i);
+                        break;
+                    }
+                    record.getColumnValues()[i - 1] = payload;
+                  }
+                } catch (Exception e) {
+                  LOGGER.error("Can't map row", e);
+                }
+                return record;
+              }
+            })).setCoder(SerializableCoder.of(JdbcDataRecord.class));
 
     PAssert.thatSingleton(
         output.apply("Count All", Count.<JdbcDataRecord>globally()))
@@ -150,6 +319,33 @@ public class JdbcIOTest implements Serializable {
     pipeline.run();
   }
 
+  private class InsertRecord {
+
+    private int columnType;
+    private Object columnValue;
+
+    public InsertRecord(int columnType, Object columnValue) {
+      this.columnType = columnType;
+      this.columnValue = columnValue;
+    }
+
+    public int getColumnType() {
+      return columnType;
+    }
+
+    public void setColumnType(int columnType) {
+      this.columnType = columnType;
+    }
+
+    public Object getColumnValue() {
+      return columnValue;
+    }
+
+    public void setColumnValue(Object columnValue) {
+      this.columnValue = columnValue;
+    }
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
@@ -169,7 +365,114 @@ public class JdbcIOTest implements Serializable {
       data.add(record);
     }
     pipeline.apply(Create.of(data))
-        .apply(JdbcIO.write().withDataSource(dataSource));
+        .apply(JdbcIO.write().withDataSource(dataSource)
+            .withElementInserter(new JdbcIO.ElementInserter<JdbcDataRecord>() {
+              public PreparedStatement insert(JdbcDataRecord element, Connection connection) {
+                PreparedStatement statement = null;
+                // map record per table
+                Map<String, List<InsertRecord>> tableMap = new HashMap<>();
+                Map<String, String> insertPerTable = new HashMap<>();
+                for (int i = 0; i < element.getTableNames().length; i++) {
+                  String tableName = element.getTableNames()[i];
+                  List<InsertRecord> recordList = tableMap.get(tableName);
+                  if (recordList == null) {
+                    recordList = new ArrayList<>();
+                  }
+                  recordList.add(new InsertRecord(
+                                  element.getColumnTypes()[i],
+                                  element.getColumnValues()[i]));
+                  tableMap.put(tableName, recordList);
+                }
+                // create insert string
+                for (String tableName : tableMap.keySet()) {
+                  String insertString = "insert into " + tableName + " values(";
+                  for (InsertRecord insertRecord : tableMap.get(tableName)) {
+                    insertString = insertString + "?,";
+                  }
+                  // remove trailing ',' and close parentheses
+                  insertString = insertString.substring(0, insertString.length() - 1) + ")";
+                  LOGGER.debug(insertString);
+                  try {
+                    statement = connection.prepareStatement(insertString);
+                    int index = 1;
+                    for (InsertRecord insertRecord : tableMap.get(tableName)) {
+                      switch (insertRecord.getColumnType()) {
+                        case Types.ARRAY:
+                          statement.setArray(index, (Array) insertRecord.getColumnValue());
+                          break;
+                        case Types.BIGINT:
+                          statement.setInt(index, (int) insertRecord.getColumnValue());
+                          break;
+                        case Types.BIT:
+                          statement.setInt(index, (int) insertRecord.getColumnValue());
+                          break;
+                        case Types.BLOB:
+                          statement.setBlob(index, (Blob) insertRecord.getColumnValue());
+                          break;
+                        case Types.BOOLEAN:
+                          statement.setBoolean(index, (boolean) insertRecord.getColumnValue());
+                          break;
+                        case Types.CHAR:
+                          statement.setString(index, (String) insertRecord.getColumnValue());
+                          break;
+                        case Types.CLOB:
+                          statement.setClob(index, (Clob) insertRecord.getColumnValue());
+                          break;
+                        case Types.DATE:
+                          statement.setDate(index, (Date) insertRecord.getColumnValue());
+                          break;
+                        case Types.DECIMAL:
+                          statement.setBigDecimal(index,
+                              (BigDecimal) insertRecord.getColumnValue());
+                          break;
+                        case Types.DOUBLE:
+                          statement.setDouble(index, (double) insertRecord.getColumnValue());
+                          break;
+                        case Types.FLOAT:
+                          statement.setFloat(index, (float) insertRecord.getColumnValue());
+                          break;
+                        case Types.INTEGER:
+                          statement.setInt(index, (int) insertRecord.getColumnValue());
+                          break;
+                        case Types.LONGNVARCHAR:
+                          statement.setString(index, (String) insertRecord.getColumnValue());
+                          break;
+                        case Types.LONGVARCHAR:
+                          statement.setString(index, (String) insertRecord.getColumnValue());
+                          break;
+                        case Types.NCHAR:
+                          statement.setNString(index, (String) insertRecord.getColumnValue());
+                          break;
+                        case Types.NCLOB:
+                          statement.setNClob(index, (NClob) insertRecord.getColumnValue());
+                          break;
+                        case Types.SMALLINT:
+                          statement.setInt(index, (int) insertRecord.getColumnValue());
+                          break;
+                        case Types.TIME:
+                          statement.setTime(index, (Time) insertRecord.getColumnValue());
+                          break;
+                        case Types.TIMESTAMP:
+                          statement.setTimestamp(index, (Timestamp) insertRecord.getColumnValue());
+                          break;
+                        case Types.TINYINT:
+                          statement.setInt(index, (int) insertRecord.getColumnValue());
+                          break;
+                        case Types.VARCHAR:
+                          statement.setString(index, (String) insertRecord.getColumnValue());
+                          break;
+                        default:
+                          statement.setObject(index, insertRecord.getColumnValue());
+                          break;
+                      }
+                      index++;
+                    }
+                  } catch (Exception e) {
+                    LOGGER.error("Can't prepare statement", e);
+                  }
+            }
+              return statement;
+              }}));
 
     pipeline.run();
 

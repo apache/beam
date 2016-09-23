@@ -21,23 +21,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
-import java.sql.Array;
-import java.sql.Blob;
-import java.sql.Clob;
 import java.sql.Connection;
-import java.sql.Date;
-import java.sql.NClob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
@@ -58,12 +44,8 @@ import org.slf4j.LoggerFactory;
  * <p>
  * <h3>Reading from JDBC datasource</h3>
  * <p>
- * JdbcIO source returns a bounded collection of {@link JdbcDataRecord} as a
- * {@code PCollection<JdbcDataRecord>}.
- * </p>
- * <p>
- * {@link JdbcDataRecord} contains table name, column name, column type and column value for
- * each record.
+ * JdbcIO source returns a bounded collection of {@codeT} as a
+ * {@code PCollection<T>}. T is the type returned by the provided {@link RowMapper}.
  * </p>
  * <p>
  * To configure the JDBC source, you have to provide a {@link DataSource}. The username and
@@ -81,8 +63,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to JDBC datasource</h3>
  * <p>
  * JDBC sink supports writing records into a database. It expects a
- * {@code PCollection<JdbcDataRecord>}, converts the {@link JdbcDataRecord}s as SQL statement
- * and insert into the database.
+ * {@code PCollection<T>}, converts the {@code T} elements as SQL statement
+ * and insert into the database. T is the type expected by the provided {@link ElementInserter}.
  * </p>
  * <p>
  * Like the source, to configure JDBC sink, you have to provide a datasource. For instance:
@@ -106,8 +88,8 @@ public class JdbcIO {
    *
    * @return a {@link Read} {@link PTransform}.
    */
-  public static Read read() {
-    return new Read(new Read.JdbcOptions(null, null, null, null));
+  public static Read<?> read() {
+    return new Read(new Read.JdbcOptions(null, null, null, null), null);
   }
 
   /**
@@ -115,50 +97,68 @@ public class JdbcIO {
    *
    * @return a {@link Write} {@link PTransform}.
    */
-  public static Write write() {
-    return new Write(new Write.JdbcWriter(null, null, null));
+  public static Write<?> write() {
+    return new Write(new Write.JdbcWriter(null, null, null, null));
   }
 
   private JdbcIO() {
   }
 
   /**
+   * An interface used by the JdbcIO Read for mapping rows of a ResultSet on a per-row basis.
+   * Implementations of this interface perform the actual work of mapping each row to a result
+   * object used in the {@link PCollection}.
+   */
+  public interface RowMapper<T> extends Serializable {
+
+      T mapRow(ResultSet resultSet);
+
+  }
+
+  /**
    * A {@link PTransform} to read data from a JDBC datasource.
    */
-  public static class Read extends PTransform<PBegin, PCollection<JdbcDataRecord>> {
+  public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
-    public Read withDataSource(DataSource dataSource) {
-      return new Read(options.withDataSource(dataSource));
+    public Read<T> withDataSource(DataSource dataSource) {
+      return new Read<T>(options.withDataSource(dataSource), rowMapper);
     }
 
-    public Read withQuery(String query) {
-      return new Read(options.withQuery(query));
+    public Read<T> withQuery(String query) {
+      return new Read<T>(options.withQuery(query), rowMapper);
     }
 
-    public Read withUsername(String username) {
-      return new Read(options.withUsername(username));
+    public <X> Read<X> withRowMapper(RowMapper<X> rowMapper) {
+      return new Read<X>(options, rowMapper);
     }
 
-    public Read withPassword(String password) {
-      return new Read(options.withPassword(password));
+    public Read<T> withUsername(String username) {
+      return new Read<T>(options.withUsername(username), rowMapper);
+    }
+
+    public Read<T> withPassword(String password) {
+      return new Read<T>(options.withPassword(password), rowMapper);
     }
 
     private final JdbcOptions options;
+    private final RowMapper<T> rowMapper;
 
-    private Read(JdbcOptions options) {
+    private Read(JdbcOptions options, RowMapper<T> rowMapper) {
       this.options = options;
+      this.rowMapper = rowMapper;
     }
 
     @Override
-    public PCollection<JdbcDataRecord> apply(PBegin input) {
-      PCollection<JdbcDataRecord> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn()));
+    public PCollection<T> apply(PBegin input) {
+      PCollection<T> output = input.apply(Create.of(options))
+          .apply(ParDo.of(new ReadFn<>(rowMapper)));
 
       return output;
     }
 
     @Override
     public void validate(PBegin input) {
+      Preconditions.checkNotNull(rowMapper, "rowMapper");
       options.validate();
     }
 
@@ -179,7 +179,8 @@ public class JdbcIO {
       @Nullable
       private final String password;
 
-      private JdbcOptions(DataSource dataSource, String query, @Nullable String username,
+      private JdbcOptions(DataSource dataSource, String query,
+                          @Nullable String username,
                           @Nullable String password) {
         this.dataSource = dataSource;
         this.query = query;
@@ -192,6 +193,10 @@ public class JdbcIO {
       }
 
       public JdbcOptions withQuery(String query) {
+        return new JdbcOptions(dataSource, query, username, password);
+      }
+
+      public JdbcOptions withRowMapper(RowMapper rowMapper) {
         return new JdbcOptions(dataSource, query, username, password);
       }
 
@@ -236,9 +241,12 @@ public class JdbcIO {
     /**
      * A {@link DoFn} executing the SQL query to read from the database.
      */
-    public static class ReadFn extends DoFn<JdbcOptions, JdbcDataRecord> {
+    public static class ReadFn<T> extends DoFn<JdbcOptions, T> {
 
-      private ReadFn() {
+      private final RowMapper<T> rowMapper;
+
+      private ReadFn(RowMapper<T> rowMapper) {
+        this.rowMapper = rowMapper;
       }
 
       @ProcessElement
@@ -251,89 +259,11 @@ public class JdbcIO {
 
           try (PreparedStatement statement = connection.prepareStatement(options.getQuery())) {
             try (ResultSet resultSet = statement.executeQuery()) {
-              ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
               while (resultSet.next()) {
-                JdbcDataRecord record = new JdbcDataRecord(resultSetMetaData.getColumnCount());
-
-                for (int i = 1; i <= resultSetMetaData.getColumnCount(); i++) {
-                  String columnName = resultSetMetaData.getColumnName(i);
-                  record.getColumnNames()[i - 1] = columnName;
-                  String tableName = resultSetMetaData.getTableName(i);
-                  record.getTableNames()[i - 1] = tableName;
-                  int columnType = resultSetMetaData.getColumnType(i);
-                  record.getColumnTypes()[i - 1] = columnType;
-                  Object payload = null;
-                  switch (columnType) {
-                    case Types.ARRAY:
-                      payload = resultSet.getArray(i);
-                      break;
-                    case Types.BIGINT:
-                      payload = resultSet.getInt(i);
-                      break;
-                    case Types.BIT:
-                      payload = resultSet.getInt(i);
-                      break;
-                    case Types.BLOB:
-                      payload = resultSet.getBlob(i);
-                      break;
-                    case Types.BOOLEAN:
-                      payload = resultSet.getBoolean(i);
-                      break;
-                    case Types.CHAR:
-                      payload = resultSet.getString(i);
-                      break;
-                    case Types.CLOB:
-                      payload = resultSet.getClob(i);
-                      break;
-                    case Types.DATE:
-                      payload = resultSet.getDate(i);
-                      break;
-                    case Types.DECIMAL:
-                      payload = resultSet.getBigDecimal(i);
-                      break;
-                    case Types.DOUBLE:
-                      payload = resultSet.getDouble(i);
-                      break;
-                    case Types.FLOAT:
-                      payload = resultSet.getFloat(i);
-                      break;
-                    case Types.INTEGER:
-                      payload = resultSet.getInt(i);
-                      break;
-                    case Types.LONGNVARCHAR:
-                      payload = resultSet.getString(i);
-                      break;
-                    case Types.LONGVARCHAR:
-                      payload = resultSet.getString(i);
-                      break;
-                    case Types.NCHAR:
-                      payload = resultSet.getNString(i);
-                      break;
-                    case Types.NCLOB:
-                      payload = resultSet.getNClob(i);
-                      break;
-                    case Types.SMALLINT:
-                      payload = resultSet.getInt(i);
-                      break;
-                    case Types.TIME:
-                      payload = resultSet.getTime(i);
-                      break;
-                    case Types.TIMESTAMP:
-                      payload = resultSet.getTimestamp(i);
-                      break;
-                    case Types.TINYINT:
-                      payload = resultSet.getInt(i);
-                      break;
-                    case Types.VARCHAR:
-                      payload = resultSet.getString(i);
-                      break;
-                    default:
-                      payload = resultSet.getObject(i);
-                      break;
-                  }
-                  record.getColumnValues()[i - 1] = payload;
+                T record = rowMapper.mapRow(resultSet);
+                if (record != null) {
+                  context.output(record);
                 }
-                context.output(record);
               }
             }
           }
@@ -343,20 +273,36 @@ public class JdbcIO {
   }
 
   /**
+   * An interface used by the JdbcIO Write for mapping {@link PCollection} elements as a  rows of a
+   * ResultSet on a per-row basis.
+   * Implementations of this interface perform the actual work of mapping each row to a result
+   * object used in the {@link PCollection}.
+   */
+  public interface ElementInserter<T> extends Serializable {
+
+    PreparedStatement insert(T element, Connection connection);
+
+  }
+
+  /**
    * A {@link PTransform} to write to a JDBC datasource.
    */
-  public static class Write extends PTransform<PCollection<JdbcDataRecord>, PDone> {
+  public static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
-    public Write withDataSource(DataSource dataSource) {
-      return new Write(writer.withDataSource(dataSource));
+    public Write<T> withDataSource(DataSource dataSource) {
+      return new Write<>(writer.withDataSource(dataSource));
     }
 
-    public Write withUsername(String username) {
-      return new Write(writer.withUsername(username));
+    public Write<T> withUsername(String username) {
+      return new Write<>(writer.withUsername(username));
     }
 
-    public Write withPassword(String password) {
-      return new Write(writer.withPassword(password));
+    public Write<T> withPassword(String password) {
+      return new Write<>(writer.withPassword(password));
+    }
+
+    public <X> Write<X> withElementInserter(ElementInserter<X> elementInserter) {
+      return new Write<>(writer.withElementInserter(elementInserter));
     }
 
     private final JdbcWriter writer;
@@ -366,44 +312,52 @@ public class JdbcIO {
     }
 
     @Override
-    public PDone apply(PCollection<JdbcDataRecord> input) {
+    public PDone apply(PCollection<T> input) {
       input.apply(ParDo.of(writer));
       return PDone.in(input.getPipeline());
     }
 
     @Override
-    public void validate(PCollection<JdbcDataRecord> input) {
+    public void validate(PCollection<T> input) {
       writer.validate();
     }
 
-    private static class JdbcWriter extends DoFn<JdbcDataRecord, Void> {
+    private static class JdbcWriter<T> extends DoFn<T, Void> {
 
       private final DataSource dataSource;
       private final String username;
       private final String password;
+      private final ElementInserter<T> elementInserter;
 
       private Connection connection;
 
-      public JdbcWriter(DataSource dataSource, String username, String password) {
+      public JdbcWriter(DataSource dataSource, String username, String password,
+                        ElementInserter<T> elementInserter) {
         this.dataSource = dataSource;
         this.username = username;
         this.password = password;
+        this.elementInserter = elementInserter;
       }
 
-      public JdbcWriter withDataSource(DataSource dataSource) {
-        return new JdbcWriter(dataSource, username, password);
+      public JdbcWriter<T> withDataSource(DataSource dataSource) {
+        return new JdbcWriter<>(dataSource, username, password, elementInserter);
       }
 
-      public JdbcWriter withUsername(String username) {
-        return new JdbcWriter(dataSource, username, password);
+      public JdbcWriter<T> withUsername(String username) {
+        return new JdbcWriter<>(dataSource, username, password, elementInserter);
       }
 
-      public JdbcWriter withPassword(String password) {
-        return new JdbcWriter(dataSource, username, password);
+      public JdbcWriter<T> withPassword(String password) {
+        return new JdbcWriter<>(dataSource, username, password, elementInserter);
+      }
+
+      public JdbcWriter<T> withElementInserter(ElementInserter<T> elementInserter) {
+        return new JdbcWriter<>(dataSource, username, password, elementInserter);
       }
 
       public void validate() {
         Preconditions.checkNotNull(dataSource, "dataSource");
+        Preconditions.checkNotNull(elementInserter, "elementInserter");
       }
 
       @Setup
@@ -413,114 +367,23 @@ public class JdbcIO {
         } else {
           connection = dataSource.getConnection();
         }
+        connection.setAutoCommit(false);
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) {
-        JdbcDataRecord record = context.element();
-        // map record per table
-        Map<String, List<InsertRecord>> tableMap = new HashMap<>();
-        Map<String, String> insertPerTable = new HashMap<>();
-        for (int i = 0; i < record.getTableNames().length; i++) {
-          String tableName = record.getTableNames()[i];
-          List<InsertRecord> recordList = tableMap.get(tableName);
-          if (recordList == null) {
-            recordList = new ArrayList<>();
-          }
-          recordList.add(
-              new InsertRecord(
-                  record.getColumnTypes()[i],
-                  record.getColumnValues()[i]));
-          tableMap.put(tableName, recordList);
-        }
-        // create insert string
-        for (String tableName : tableMap.keySet()) {
-          String insertString = "insert into " + tableName + " values(";
-          for (InsertRecord insertRecord : tableMap.get(tableName)) {
-            insertString = insertString + "?,";
-          }
-          // remove trailing ',' and close parentheses
-          insertString = insertString.substring(0, insertString.length() - 1) + ")";
-          LOGGER.debug(insertString);
-          try {
-            PreparedStatement statement = connection.prepareStatement(insertString);
-            int index = 1;
-            for (InsertRecord insertRecord : tableMap.get(tableName)) {
-              switch (insertRecord.getColumnType()) {
-                case Types.ARRAY:
-                  statement.setArray(index, (Array) insertRecord.getColumnValue());
-                  break;
-                case Types.BIGINT:
-                  statement.setInt(index, (int) insertRecord.getColumnValue());
-                  break;
-                case Types.BIT:
-                  statement.setInt(index, (int) insertRecord.getColumnValue());
-                  break;
-                case Types.BLOB:
-                  statement.setBlob(index, (Blob) insertRecord.getColumnValue());
-                  break;
-                case Types.BOOLEAN:
-                  statement.setBoolean(index, (boolean) insertRecord.getColumnValue());
-                  break;
-                case Types.CHAR:
-                  statement.setString(index, (String) insertRecord.getColumnValue());
-                  break;
-                case Types.CLOB:
-                  statement.setClob(index, (Clob) insertRecord.getColumnValue());
-                  break;
-                case Types.DATE:
-                  statement.setDate(index, (Date) insertRecord.getColumnValue());
-                  break;
-                case Types.DECIMAL:
-                  statement.setBigDecimal(index, (BigDecimal) insertRecord.getColumnValue());
-                  break;
-                case Types.DOUBLE:
-                  statement.setDouble(index, (double) insertRecord.getColumnValue());
-                  break;
-                case Types.FLOAT:
-                  statement.setFloat(index, (float) insertRecord.getColumnValue());
-                  break;
-                case Types.INTEGER:
-                  statement.setInt(index, (int) insertRecord.getColumnValue());
-                  break;
-                case Types.LONGNVARCHAR:
-                  statement.setString(index, (String) insertRecord.getColumnValue());
-                  break;
-                case Types.LONGVARCHAR:
-                  statement.setString(index, (String) insertRecord.getColumnValue());
-                  break;
-                case Types.NCHAR:
-                  statement.setNString(index, (String) insertRecord.getColumnValue());
-                  break;
-                case Types.NCLOB:
-                  statement.setNClob(index, (NClob) insertRecord.getColumnValue());
-                  break;
-                case Types.SMALLINT:
-                  statement.setInt(index, (int) insertRecord.getColumnValue());
-                  break;
-                case Types.TIME:
-                  statement.setTime(index, (Time) insertRecord.getColumnValue());
-                  break;
-                case Types.TIMESTAMP:
-                  statement.setTimestamp(index, (Timestamp) insertRecord.getColumnValue());
-                  break;
-                case Types.TINYINT:
-                  statement.setInt(index, (int) insertRecord.getColumnValue());
-                  break;
-                case Types.VARCHAR:
-                  statement.setString(index, (String) insertRecord.getColumnValue());
-                  break;
-                default:
-                  statement.setObject(index, insertRecord.getColumnValue());
-                  break;
-              }
-              index++;
+        T record = context.element();
+        try {
+          PreparedStatement statement = elementInserter.insert(record, connection);
+          if (statement != null) {
+            try {
+              statement.executeUpdate();
+            } finally {
+              statement.close();
             }
-            statement.executeUpdate();
-            statement.close();
-          } catch (Exception e) {
-            LOGGER.warn("Can't insert data into table", e);
           }
+        } catch (Exception e) {
+          LOGGER.warn("Can't insert data into table", e);
         }
       }
 
@@ -536,33 +399,6 @@ public class JdbcIO {
         }
       }
 
-    }
-
-    private static class InsertRecord {
-
-      private int columnType;
-      private Object columnValue;
-
-      public InsertRecord(int columnType, Object columnValue) {
-        this.columnType = columnType;
-        this.columnValue = columnValue;
-      }
-
-      public int getColumnType() {
-        return columnType;
-      }
-
-      public void setColumnType(int columnType) {
-        this.columnType = columnType;
-      }
-
-      public Object getColumnValue() {
-        return columnValue;
-      }
-
-      public void setColumnValue(Object columnValue) {
-        this.columnValue = columnValue;
-      }
     }
 
   }
