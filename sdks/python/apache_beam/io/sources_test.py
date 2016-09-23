@@ -104,6 +104,7 @@ class SourcesTest(unittest.TestCase):
 
     pipeline.run()
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
