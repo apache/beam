@@ -26,7 +26,7 @@ import java.util.Objects;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>,
+public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>,
                   PAIROUT extends Pair<KEY, OUT>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
@@ -141,23 +141,23 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
       return new OutputBuilder<>(this, Batch.get()).output();
     }
 
-    public <WLABEL, W extends WindowContext<?, WLABEL>>
+    public <WLABEL, W extends WindowContext<WLABEL>>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing)
+    windowBy(Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
     }
   }
 
   public static class OutputBuilder<
-      LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLABEL>>
+      LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
     
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
-    private final Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing;
+    private final Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing;
 
     OutputBuilder(WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev,
-                  Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing) {
+                  Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing) {
       
       this.prev = prev;
       this.windowing = windowing;
@@ -202,7 +202,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<?, WLAB
   Join(String name,
       Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
-      Windowing<Either<LEFT, RIGHT>, ?, WLABEL, W> windowing,
+      Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing,
       Partitioning<KEY> partitioning,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,

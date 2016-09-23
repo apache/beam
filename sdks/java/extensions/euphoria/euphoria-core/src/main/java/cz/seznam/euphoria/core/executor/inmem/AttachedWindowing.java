@@ -9,15 +9,15 @@ import java.util.Collections;
 import java.util.Set;
 
 class AttachedWindowing implements
-    Windowing<Object, Object, Object, AttachedWindowing.AttachedWindowContext> {
+    Windowing<Object, Object, AttachedWindowing.AttachedWindowContext> {
 
-  static class AttachedWindowContext extends WindowContext<Object, Object> {
+  static class AttachedWindowContext extends WindowContext<Object> {
 
-    AttachedWindowContext(Object group, Object label) {
-      super(WindowID.unaligned(group, label));
+    AttachedWindowContext(Object label) {
+      super(new WindowID<>(label));
     }
     
-    AttachedWindowContext(WindowID<Object, Object> id) {
+    AttachedWindowContext(WindowID<Object> id) {
       super(id);
     }
 
@@ -32,14 +32,14 @@ class AttachedWindowing implements
 
   @Override
   @SuppressWarnings("unchecked")
-  public Set<WindowID<Object, Object>> assignWindowsToElement(
-      WindowedElement<?, ?, Object> input) {
+  public Set<WindowID<Object>> assignWindowsToElement(
+      WindowedElement<?, Object> input) {
     return Collections.singleton((WindowID) input.getWindowID());
   }
 
 
   @Override
-  public AttachedWindowContext createWindowContext(WindowID<Object, Object> id) {
+  public AttachedWindowContext createWindowContext(WindowID<Object> id) {
     return new AttachedWindowContext(id);
   }
 
