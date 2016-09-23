@@ -52,7 +52,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.NoSuchFileException;;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -384,7 +383,7 @@ public class GcsUtil {
   boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     try {
       return getBucket(path, backoff, sleeper) != null;
-    } catch (AccessDeniedException|NoSuchFileException e) {
+    } catch (AccessDeniedException|FileNotFoundException e) {
       return false;
     }
   }
@@ -417,7 +416,7 @@ public class GcsUtil {
           throw new AccessDeniedException(path.toString(), e);
         }
         if (errorExtractor.itemNotFound(e)) {
-          throw new NoSuchFileException(path.toString(), e);
+          throw new FileNotFoundException(path.toString(), e);
         }
         throw e;
       } catch (InterruptedException e) {
