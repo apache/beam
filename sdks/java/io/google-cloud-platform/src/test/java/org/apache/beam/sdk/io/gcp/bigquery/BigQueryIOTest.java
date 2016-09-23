@@ -502,7 +502,7 @@ public class BigQueryIOTest implements Serializable {
   public void testValidateReadSetsDefaultProject() throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject(projectId);
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
@@ -528,9 +528,9 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithoutTableQueryOrValidation() {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
@@ -543,9 +543,9 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndQuery() {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
@@ -562,9 +562,9 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlatten() {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
@@ -581,9 +581,9 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
@@ -603,7 +603,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReadFromTable() throws IOException {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
@@ -638,7 +638,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
@@ -676,7 +676,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteUnknown() throws Exception {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
@@ -833,7 +833,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildWriteWithoutTable() {
     Pipeline p = TestPipeline.create();
     thrown.expect(IllegalStateException.class);
