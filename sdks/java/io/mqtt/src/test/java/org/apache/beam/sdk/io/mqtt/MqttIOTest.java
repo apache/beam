@@ -39,9 +39,9 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -53,10 +53,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MqttIOTest implements Serializable {
 
-  private transient BrokerService broker;
+  private static transient BrokerService broker;
 
-  @Before
-  public void startBroker() throws Exception {
+  @BeforeClass
+  public static void startBroker() throws Exception {
     broker = new BrokerService();
     broker.setUseJmx(false);
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
@@ -67,26 +67,15 @@ public class MqttIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
-    // produce message on the broker
-    MqttClient client = new MqttClient("tcp://localhost:11883", "test");
-    client.connect();
-    for (int i = 0; i < 10; i++) {
-      MqttMessage message = new MqttMessage();
-      message.setQos(2);
-      message.setRetained(true);
-      message.setPayload("This is a test".getBytes());
-      client.publish("BEAM", message);
-    }
-    client.disconnect();
-    client.close();
-
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
-          .withClientId("BEAM_PIPELINE")
-          .withServerUri("tcp://localhost:11883")
-          .withTopic("BEAM")
+            .withMqttConnectionConfiguration(
+                MqttIO.MqttConnectionConfiguration.create(
+                    "tcp://localhost:11883",
+                    "BEAM_PIPELINE",
+                    "READ_TOPIC"))
           .withMaxNumRecords(10));
 
     PAssert.thatSingleton(output.apply("Count", Count.<byte[]>globally()))
@@ -101,6 +90,35 @@ public class MqttIOTest implements Serializable {
         return null;
       }
     });
+
+    // produce messages on the broker in another thread
+    Thread thread = new Thread() {
+      public void run() {
+        try {
+          // gives time to the pipeline to start
+          Thread.sleep(2000);
+        } catch (Exception e) {
+          // nothing to do
+        }
+        try {
+          MqttClient client = new MqttClient("tcp://localhost:11883", "publisher");
+          client.connect();
+          for (int i = 0; i < 10; i++) {
+            MqttMessage message = new MqttMessage();
+            message.setQos(0);
+            message.setRetained(false);
+            message.setPayload("This is a test".getBytes());
+            client.publish("READ_TOPIC", message);
+          }
+          client.disconnect();
+          client.close();
+        } catch (Exception e) {
+          // nothing to do
+        }
+      }
+    };
+    thread.start();
+
     pipeline.run();
   }
 
@@ -117,8 +135,12 @@ public class MqttIOTest implements Serializable {
       data.add("Test".getBytes());
     }
     pipeline.apply(Create.of(data))
-        .apply(MqttIO.write().withClientId("BEAM_PIPELINE")
-            .withServerUri("tcp://localhost:11883").withTopic("BEAM_TOPIC")
+        .apply(MqttIO.write()
+            .withMqttConnectionConfiguration(
+                MqttIO.MqttConnectionConfiguration.create(
+                    "tcp://localhost:11883",
+                    "BEAM_PIPELINE",
+                    "WRITE_TOPIC"))
             .withRetained(true).withQoS(2));
     pipeline.run();
 
@@ -129,7 +151,7 @@ public class MqttIOTest implements Serializable {
   }
 
   private MqttClient receive(final List<MqttMessage> messages) throws MqttException {
-    MqttClient client = new MqttClient("tcp://localhost:11883", "test");
+    MqttClient client = new MqttClient("tcp://localhost:11883", "receiver");
     MqttCallback callback = new MqttCallback() {
       @Override
       public void connectionLost(Throwable cause) {
@@ -147,13 +169,13 @@ public class MqttIOTest implements Serializable {
       }
     };
     client.connect();
-    client.subscribe("BEAM_TOPIC");
+    client.subscribe("WRITE_TOPIC");
     client.setCallback(callback);
     return client;
   }
 
-  @After
-  public void stopBroker() throws Exception {
+  @AfterClass
+  public static void stopBroker() throws Exception {
     if (broker != null) {
       broker.stop();
     }
