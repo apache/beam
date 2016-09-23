@@ -257,7 +257,7 @@ public class BigQueryTableRowIteratorTest {
 
     // Run query and verify
     String query = String.format(
-        "SELECT \"Arthur\" as name, 42 as count, %s as photo",
+        "SELECT \"Arthur\" as name, 42 as count, \"%s\" as photo",
         photoBytesEncoded);
     try (BigQueryTableRowIterator iterator =
         BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
