@@ -79,7 +79,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
       outStream.write(ENCODE_NULL);
     } else {
       outStream.write(ENCODE_PRESENT);
-      valueCoder.encode(value, outStream, context.nested());
+      valueCoder.encode(value, outStream, context);
     }
   }
 
@@ -94,7 +94,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
             "NullableCoder expects either a byte valued %s (null) or %s (present), got %s",
             ENCODE_NULL, ENCODE_PRESENT, b));
     }
-    return valueCoder.decode(inStream, context.nested());
+    return valueCoder.decode(inStream, context);
   }
 
   @Override
