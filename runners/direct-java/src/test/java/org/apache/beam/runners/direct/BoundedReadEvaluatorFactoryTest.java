@@ -60,7 +60,7 @@ import org.mockito.MockitoAnnotations;
 public class BoundedReadEvaluatorFactoryTest {
   private BoundedSource<Long> source;
   private PCollection<Long> longs;
-  private TransformEvaluatorFactory factory;
+  private BoundedReadEvaluatorFactory factory;
   @Mock private EvaluationContext context;
   private BundleFactory bundleFactory;
 
@@ -72,6 +72,7 @@ public class BoundedReadEvaluatorFactoryTest {
     longs = p.apply(Read.from(source));
 
     factory = new BoundedReadEvaluatorFactory(context);
+    factory.getInitialInputs(longs.getProducingTransformInternal());
     bundleFactory = ImmutableListBundleFactory.create();
   }
 
@@ -159,6 +160,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    factory.getInitialInputs(sourceTransform);
 
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
@@ -177,6 +179,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    factory.getInitialInputs(sourceTransform);
 
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);

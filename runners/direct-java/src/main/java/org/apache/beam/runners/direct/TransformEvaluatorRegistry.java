@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
@@ -42,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
-class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
+class TransformEvaluatorRegistry implements RootTransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
   public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
     @SuppressWarnings("rawtypes")
@@ -74,6 +76,19 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories) {
     this.factories = factories;
+  }
+
+  @Override
+  public List<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    checkState(!finished.get(),
+        "Tried to get initial inputs for a finished TransformEvaluatorRegistry");
+    TransformEvaluatorFactory factory = factories.get(transform.getTransform().getClass());
+    checkArgument(factory instanceof RootTransformEvaluatorFactory,
+        "Tried to get intial inputs of transform %s of type %s, "
+            + "which cannot be evaluated as a root transform",
+        transform.getFullName(),
+        transform.getTransform().getClass().getSimpleName());
+    return ((RootTransformEvaluatorFactory) factory).getInitialInputs(transform);
   }
 
   @Override

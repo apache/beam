@@ -19,6 +19,8 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -41,7 +43,7 @@ import org.joda.time.Instant;
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
  */
-class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
+class UnboundedReadEvaluatorFactory implements RootTransformEvaluatorFactory {
   // Resume from a checkpoint every nth invocation, to ensure close-and-resume is exercised
   @VisibleForTesting static final int MAX_READER_REUSE_COUNT = 20;
 
@@ -65,53 +67,51 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     sourceEvaluators = new ConcurrentHashMap<>();
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
-  @Nullable
-  public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle) {
-    return getTransformEvaluator((AppliedPTransform) application);
+  public List<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    int availableEvaluators = createEvaluators((AppliedPTransform) transform).size();
+    List<CommittedBundle<?>> bundles = new ArrayList<>(availableEvaluators);
+    for (int i = 0; i < availableEvaluators; i++) {
+      bundles.add(ImpulseBundle.create());
+    }
+    return bundles;
   }
 
   /**
    * Get a {@link TransformEvaluator} that produces elements for the provided application of {@link
    * Unbounded Read.Unbounded}, initializing the queue of evaluators if required.
-   *
-   * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
-   * already done so.
    */
   private <OutputT, CheckpointMarkT extends CheckpointMark>
-      TransformEvaluator<?> getTransformEvaluator(
-          final AppliedPTransform<?, PCollection<OutputT>, ?> transform) {
+      ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>
+      createEvaluators(final AppliedPTransform<?, PCollection<OutputT>, ?> transform) {
     ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>> evaluatorQueue =
-        (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
-            sourceEvaluators.get(transform);
-    if (evaluatorQueue == null) {
-      evaluatorQueue = new ConcurrentLinkedQueue<>();
-      if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
-        // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
-        // factory for this transform
-        Unbounded<OutputT> unbounded = (Unbounded<OutputT>) transform.getTransform();
-        UnboundedSource<OutputT, CheckpointMarkT> source =
-            (UnboundedSource<OutputT, CheckpointMarkT>) unbounded.getSource();
-        UnboundedReadDeduplicator deduplicator;
-        if (source.requiresDeduping()) {
-          deduplicator = UnboundedReadDeduplicator.CachedIdDeduplicator.create();
-        } else {
-          deduplicator = UnboundedReadDeduplicator.NeverDeduplicator.create();
-        }
-        UnboundedReadEvaluator<OutputT, CheckpointMarkT> evaluator =
-            new UnboundedReadEvaluator<>(
-                transform, evaluationContext, source, deduplicator, evaluatorQueue);
-        evaluatorQueue.offer(evaluator);
-      } else {
-        // otherwise return the existing Queue that arrived before us
-        evaluatorQueue =
-            (ConcurrentLinkedQueue<UnboundedReadEvaluator<OutputT, CheckpointMarkT>>)
-                sourceEvaluators.get(transform);
-      }
+        new ConcurrentLinkedQueue<>();
+    Unbounded<OutputT> unbounded = (Unbounded<OutputT>) transform.getTransform();
+    UnboundedSource<OutputT, CheckpointMarkT> source =
+        (UnboundedSource<OutputT, CheckpointMarkT>) unbounded.getSource();
+    UnboundedReadDeduplicator deduplicator;
+    if (source.requiresDeduping()) {
+      deduplicator = UnboundedReadDeduplicator.CachedIdDeduplicator.create();
+    } else {
+      deduplicator = UnboundedReadDeduplicator.NeverDeduplicator.create();
     }
-    return evaluatorQueue.poll();
+    UnboundedReadEvaluator<OutputT, CheckpointMarkT> evaluator = new UnboundedReadEvaluator<>(
+        transform,
+        evaluationContext,
+        source,
+        deduplicator,
+        evaluatorQueue);
+    evaluatorQueue.offer(evaluator);
+    sourceEvaluators.put(transform, evaluatorQueue);
+    return evaluatorQueue;
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @Override
+  @Nullable
+  public <InputT> TransformEvaluator<InputT> forApplication(
+      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle) {
+    return (TransformEvaluator<InputT>) sourceEvaluators.get(application).poll();
   }
 
   @Override

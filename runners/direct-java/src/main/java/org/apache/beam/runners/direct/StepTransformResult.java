@@ -22,7 +22,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -37,32 +36,6 @@ import org.joda.time.Instant;
  */
 @AutoValue
 public abstract class StepTransformResult implements TransformResult {
-  @Override
-  public abstract AppliedPTransform<?, ?, ?> getTransform();
-
-  @Override
-  public abstract Iterable<? extends UncommittedBundle<?>> getOutputBundles();
-
-  @Override
-  public abstract Iterable<? extends WindowedValue<?>> getUnprocessedElements();
-
-  @Override
-  @Nullable
-  public abstract AggregatorContainer.Mutator getAggregatorChanges();
-
-  @Override
-  public abstract Instant getWatermarkHold();
-
-  @Nullable
-  @Override
-  public abstract CopyOnAccessInMemoryStateInternals<?> getState();
-
-  @Override
-  public abstract TimerUpdate getTimerUpdate();
-
-  @Override
-  public abstract Set<OutputType> getOutputTypes();
-
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
