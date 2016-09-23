@@ -442,14 +442,14 @@ class SetupOptions(PipelineOptions):
         action='append',
         default=None,
         help=
-        ('Local path to a Python package file. The file is expected to be a '
-         'compressed tarball with the suffix \'.tar.gz\' which can be '
-         'installed using the easy_install command of the standard setuptools '
-         'package. Multiple --extra_package options can be specified if more '
-         'than one package is needed. During job submission the files will be '
-         'staged in the staging area (--staging_location option) and the '
-         'workers will install them in same order they were specified on the '
-         'command line.'))
+        ('Local path to a Python package file. The file is expected to be (1) '
+         'a package tarball (".tar") or (2) a compressed package tarball '
+         '(".tar.gz") which can be installed using the "pip install" command '
+         'of the standard pip package. Multiple --extra_package options can '
+         'be specified if more than one package is needed. During job '
+         'submission, the files will be staged in the staging area '
+         '(--staging_location option) and the workers will install them in '
+         'same order they were specified on the command line.'))
 
 # TODO(silviuc): Add --files_to_stage option.
 # This could potentially replace the --requirements_file and --setup_file.
