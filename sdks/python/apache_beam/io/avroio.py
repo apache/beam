@@ -37,7 +37,7 @@ __all__ = ['ReadFromAvro', 'WriteToAvro']
 class ReadFromAvro(PTransform):
   """A ``PTransform`` for reading avro files."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0):
+  def __init__(self, file_pattern=None, coder=None, min_bundle_size=0):
     """Initializes ``ReadFromAvro``.
 
     Uses source '_AvroSource' to read a set of Avro files defined by a given
@@ -68,6 +68,7 @@ class ReadFromAvro(PTransform):
     Args:
       label: label of the PTransform.
       file_pattern: the set of files to be read.
+      coder: a coder to use to decode values (iff the record type is BYTES).
       min_bundle_size: the minimum size in bytes, to be considered when
                        splitting the input into bundles.
       **kwargs: Additional keyword arguments to be passed to the base class.
@@ -75,12 +76,14 @@ class ReadFromAvro(PTransform):
     super(ReadFromAvro, self).__init__()
 
     self._file_pattern = file_pattern
+    self._coder = coder
     self._min_bundle_size = min_bundle_size
 
   def apply(self, pcoll):
     return pcoll.pipeline | Read(
         _AvroSource(
             file_pattern=self._file_pattern,
+            coder=self._coder,
             min_bundle_size=self._min_bundle_size))
 
 
@@ -225,6 +228,16 @@ class _AvroSource(filebasedsource.FileBasedSource):
   file-based sources such as file-pattern expansion and splitting into bundles
   for parallel processing.
   """
+  def __init__(self,
+               file_pattern,
+               coder=None,
+               min_bundle_size=0):
+    super(_AvroSource, self).__init__(
+        file_pattern,
+        min_bundle_size=min_bundle_size,
+        compression_type=fileio.CompressionTypes.UNCOMPRESSED,
+        splittable=True)
+    self._coder = coder
 
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
@@ -244,7 +257,13 @@ class _AvroSource(filebasedsource.FileBasedSource):
         block = _AvroUtils.read_block_from_file(f, codec, schema_string,
                                                 sync_marker)
         for record in block.records():
-          yield record
+          if self._coder:
+            yield self._coder.decode(record)
+          else:
+            yield record
+
+  def default_output_coder(self):
+    return self._coder or super(_AvroSource, self).default_output_coder()
 
 
 _avro_codecs = {
@@ -259,7 +278,8 @@ class WriteToAvro(beam.transforms.PTransform):
 
   def __init__(self,
                file_path_prefix,
-               schema,
+               schema=None,
+               coder=None,
                file_name_suffix='',
                num_shards=0,
                shard_name_template=None,
@@ -273,7 +293,10 @@ class WriteToAvro(beam.transforms.PTransform):
         end in a common extension, if given by file_name_suffix. In most cases,
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
-      schema: The schema to use, as returned by avro.schema.parse
+      schema: The schema to use, as returned by avro.schema.parse, if coder
+        not given.
+      coder: The coder to use, if schema not given (in which case the schema
+        will be BYTES).
       file_name_suffix: Suffix for the files written.
       append_trailing_newlines: indicate whether this sink should write an
         additional newline char after writing each element.
@@ -298,10 +321,14 @@ class WriteToAvro(beam.transforms.PTransform):
     Returns:
       A WriteToAvro transform usable for writing.
     """
+    if not (schema is None) ^ (coder is None):
+      raise ValueError("Exactly one of schema or coder must be None.")
+    if schema is None:
+      schema = avro.schema.parse('{"type": "bytes"}')
     if compression_type not in _avro_codecs:
       raise ValueError(
           'Compression type %s not supported by avro.' % compression_type)
-    self.args = (file_path_prefix, schema, file_name_suffix, num_shards,
+    self.args = (file_path_prefix, schema, coder, file_name_suffix, num_shards,
                  shard_name_template, mime_type, compression_type)
 
   def apply(self, pcoll):
@@ -315,6 +342,7 @@ class _AvroSink(fileio.FileSink):
   def __init__(self,
                file_path_prefix,
                schema,
+               coder,
                file_name_suffix,
                num_shards,
                shard_name_template,
@@ -325,7 +353,7 @@ class _AvroSink(fileio.FileSink):
         file_name_suffix=file_name_suffix,
         num_shards=num_shards,
         shard_name_template=shard_name_template,
-        coder=None,
+        coder=coder,
         mime_type=mime_type,
         # Compression happens at the block level, not the file level.
         compression_type=fileio.CompressionTypes.UNCOMPRESSED)
@@ -339,4 +367,7 @@ class _AvroSink(fileio.FileSink):
         _avro_codecs[self.avro_compression_type])
 
   def write_record(self, writer, value):
-    writer.append(value)
+    if self.coder:
+      writer.append(self.coder.encode(value))
+    else:
+      writer.append(value)
