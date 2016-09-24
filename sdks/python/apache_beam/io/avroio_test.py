@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import json
 import logging
 import os
 import tempfile
@@ -33,7 +34,7 @@ from apache_beam.io.avroio import _AvroSource as AvroSource
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
-import avro.schema as avro_schema
+import avro.schema
 
 
 class TestAvro(unittest.TestCase):
@@ -67,25 +68,27 @@ class TestAvro(unittest.TestCase):
                                          'favorite_number': 6,
                                          'favorite_color': 'Green'}]
 
+  SCHEMA = avro.schema.parse('''
+  {"namespace": "example.avro",
+   "type": "record",
+   "name": "User",
+   "fields": [
+       {"name": "name", "type": "string"},
+       {"name": "favorite_number",  "type": ["int", "null"]},
+       {"name": "favorite_color", "type": ["string", "null"]}
+   ]
+  }
+  ''')
+
   def _write_data(self,
                   directory=None,
                   prefix=tempfile.template,
                   codec='null',
                   count=len(RECORDS)):
-    schema = ('{\"namespace\": \"example.avro\",'
-              '\"type\": \"record\",'
-              '\"name\": \"User\",'
-              '\"fields\": ['
-              '{\"name\": \"name\", \"type\": \"string\"},'
-              '{\"name\": \"favorite_number\",  \"type\": [\"int\", \"null\"]},'
-              '{\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}'
-              ']}')
-
-    schema = avro_schema.parse(schema)
 
     with tempfile.NamedTemporaryFile(
         delete=False, dir=directory, prefix=prefix) as f:
-      writer = DataFileWriter(f, DatumWriter(), schema, codec=codec)
+      writer = DataFileWriter(f, DatumWriter(), self.SCHEMA, codec=codec)
       len_records = len(self.RECORDS)
       for i in range(count):
         writer.append(self.RECORDS[i % len_records])
@@ -227,10 +230,22 @@ class TestAvro(unittest.TestCase):
       source_test_utils.readFromSource(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
-  def test_pipeline(self):
+  def test_source_transform(self):
     path = self._write_data()
     with beam.Pipeline('DirectPipelineRunner') as p:
       assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
+
+  def test_sink_transform(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with beam.Pipeline('DirectPipelineRunner') as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(self.RECORDS) | avroio.WriteToAvro(path, self.SCHEMA)
+      with beam.Pipeline('DirectPipelineRunner') as p:
+        # json used for stable sortability
+        readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
