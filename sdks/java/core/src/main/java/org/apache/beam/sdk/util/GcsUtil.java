@@ -416,7 +416,7 @@ public class GcsUtil {
           throw new AccessDeniedException(path.toString(), null, e.getMessage());
         }
         if (errorExtractor.itemNotFound(e)) {
-          throw new FileNotFoundException(path.toString(), null, e.getMessage());
+          throw new FileNotFoundException(e.getMessage());
         }
         throw e;
       } catch (InterruptedException e) {

@@ -395,7 +395,8 @@ public class GcsUtilTest {
     BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.insert("5L", any(Bucket.class))).thenReturn(mockStorageInsert);
+    when(mockStorageObjects.insert(
+           any(String.class), any(Bucket.class))).thenReturn(mockStorageInsert);
     when(mockStorageInsert.execute())
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
@@ -421,7 +422,8 @@ public class GcsUtilTest {
             "Waves hand mysteriously", "These aren't the buckets your looking for");
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.insert("5L", any(Bucket.class))).thenReturn(mockStorageInsert);
+    when(mockStorageObjects.insert(
+           any(String.class), any(Bucket.class))).thenReturn(mockStorageInsert);
     when(mockStorageInsert.execute())
         .thenThrow(expectedException);
 
