@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -61,13 +61,16 @@ public class GcpProjectUtilTest {
         Mockito.mock(CloudResourceManager.Projects.Get.class);
 
     BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    Project project = new Project();
+    project.setProjectNumber(5L);
 
     when(mockCrm.projects()).thenReturn(mockProjects);
     when(mockProjects.get(any(String.class))).thenReturn(mockProjectsGet);
     when(mockProjectsGet.execute())
       .thenThrow(new SocketTimeoutException("SocketException"))
-      .thenReturn(new Project());
+      .thenReturn(project);
 
-    assertNotNull(projectUtil.getProjectNumber("foo", mockBackOff, new FastNanoClockAndSleeper()));
+    assertEquals(5L, projectUtil.getProjectNumber(
+        "foo", mockBackOff, new FastNanoClockAndSleeper()));
   }
 }
