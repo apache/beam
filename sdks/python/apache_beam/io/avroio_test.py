@@ -20,8 +20,12 @@ import os
 import tempfile
 import unittest
 
+import apache_beam as beam
+from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 
 # Importing following private class for testing purposes.
 from apache_beam.io.avroio import _AvroSource as AvroSource
@@ -223,6 +227,10 @@ class TestAvro(unittest.TestCase):
       source_test_utils.readFromSource(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
+  def test_pipeline(self):
+    path = self._write_data()
+    with beam.Pipeline('DirectPipelineRunner') as p:
+      assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

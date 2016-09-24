@@ -34,8 +34,7 @@ __all__ = ['ReadFromAvro']
 class ReadFromAvro(PTransform):
   """A ``PTransform`` for reading avro files."""
 
-  def __init__(self, label=None, file_pattern=None, min_bundle_size=0,
-               **kwargs):
+  def __init__(self, file_pattern=None, min_bundle_size=0):
     """Initializes ``ReadFromAvro``.
 
     Uses source '_AvroSource' to read a set of Avro files defined by a given
@@ -70,7 +69,7 @@ class ReadFromAvro(PTransform):
                        splitting the input into bundles.
       **kwargs: Additional keyword arguments to be passed to the base class.
     """
-    super(ReadFromAvro, self).__init__(label, **kwargs)
+    super(ReadFromAvro, self).__init__()
 
     self._file_pattern = file_pattern
     self._min_bundle_size = min_bundle_size
