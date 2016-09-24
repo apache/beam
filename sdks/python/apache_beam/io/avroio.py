@@ -20,15 +20,18 @@ import os
 import StringIO
 import zlib
 
+import avro
 from avro import datafile
 from avro import io as avroio
 from avro import schema
 
+import apache_beam as beam
 from apache_beam.io import filebasedsource
+from apache_beam.io import fileio
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
-__all__ = ['ReadFromAvro']
+__all__ = ['ReadFromAvro', 'WriteToAvro']
 
 
 class ReadFromAvro(PTransform):
@@ -242,3 +245,97 @@ class _AvroSource(filebasedsource.FileBasedSource):
                                                 sync_marker)
         for record in block.records():
           yield record
+
+
+_avro_codecs = {
+    fileio.CompressionTypes.UNCOMPRESSED: 'null',
+    fileio.CompressionTypes.ZLIB: 'deflate',
+#    fileio.CompressionTypes.SNAPPY: 'snappy',
+}
+
+
+class WriteToAvro(beam.transforms.PTransform):
+  """A ``PTransform`` for writing avro files."""
+
+  def __init__(self,
+               file_path_prefix,
+               schema,
+               file_name_suffix='',
+               num_shards=0,
+               shard_name_template=None,
+               mime_type='application/x-avro',
+               compression_type=fileio.CompressionTypes.ZLIB):
+    """Initialize a WriteToAvro transform.
+
+    Args:
+      file_path_prefix: The file path to write to. The files written will begin
+        with this prefix, followed by a shard identifier (see num_shards), and
+        end in a common extension, if given by file_name_suffix. In most cases,
+        only this argument is specified and num_shards, shard_name_template, and
+        file_name_suffix use default values.
+      schema: The schema to use, as returned by avro.schema.parse
+      file_name_suffix: Suffix for the files written.
+      append_trailing_newlines: indicate whether this sink should write an
+        additional newline char after writing each element.
+      num_shards: The number of files (shards) used for output. If not set, the
+        service will decide on the optimal number of shards.
+        Constraining the number of shards is likely to reduce
+        the performance of a pipeline.  Setting this value is not recommended
+        unless you require a specific number of output files.
+      shard_name_template: A template string containing placeholders for
+        the shard number and shard count. Currently only '' and
+        '-SSSSS-of-NNNNN' are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
+        number and shard count respectively.  This argument can be '' in which
+        case it behaves as if num_shards was set to 1 and only one file will be
+        generated. The default pattern used is '-SSSSS-of-NNNNN'.
+      mime_type: The MIME type to use for the produced files, if the filesystem
+        supports specifying MIME types.
+      compression_type: Used to handle compressed output files. Defaults to
+        CompressionTypes.ZLIB
+
+    Returns:
+      A WriteToAvro transform usable for writing.
+    """
+    if compression_type not in _avro_codecs:
+      raise ValueError(
+          'Compression type %s not supported by avro.' % compression_type)
+    self.args = (file_path_prefix, schema, file_name_suffix, num_shards,
+                 shard_name_template, mime_type, compression_type)
+
+  def apply(self, pcoll):
+    pcoll | beam.io.iobase.Write(_AvroSink(*self.args))
+
+
+class _AvroSink(fileio.FileSink):
+  """A sink to avro files."""
+
+  def __init__(self,
+               file_path_prefix,
+               schema,
+               file_name_suffix,
+               num_shards,
+               shard_name_template,
+               mime_type,
+               compression_type):
+    super(_AvroSink, self).__init__(
+        file_path_prefix,
+        file_name_suffix=file_name_suffix,
+        num_shards=num_shards,
+        shard_name_template=shard_name_template,
+        coder=None,
+        mime_type=mime_type,
+        # Compression happens at the block level, not the file level.
+        compression_type=fileio.CompressionTypes.UNCOMPRESSED)
+    self.schema = schema
+    self.avro_compression_type = compression_type
+
+  def open(self, temp_path):
+    file_handle = super(_AvroSink, self).open(temp_path)
+    return avro.datafile.DataFileWriter(
+        file_handle, avro.io.DatumWriter(), self.schema,
+        _avro_codecs[self.avro_compression_type])
+
+  def write_record(self, writer, value):
+    writer.append(value)
