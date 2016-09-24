@@ -428,8 +428,6 @@ public class GcsUtil {
   @VisibleForTesting
   void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
         throws IOException {
-    Bucket bucket = new Bucket();
-    bucket.setName(path.getBucket());
     Storage.Buckets.Insert insertBucket =
       storageClient.buckets().insert(projectId, bucket);
 
