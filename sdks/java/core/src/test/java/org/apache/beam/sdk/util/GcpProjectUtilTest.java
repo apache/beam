@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.BackOff;
@@ -62,7 +63,7 @@ public class GcpProjectUtilTest {
     BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
 
     when(mockCrm.projects()).thenReturn(mockProjects);
-    when(mockProjects.get("foo")).thenReturn(mockProjectsGet);
+    when(mockProjects.get(any(String.class))).thenReturn(mockProjectsGet);
     when(mockProjectsGet.execute())
       .thenThrow(new SocketTimeoutException("SocketException"))
       .thenReturn(new Project());
