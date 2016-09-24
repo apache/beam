@@ -21,6 +21,7 @@ import tempfile
 import unittest
 
 from apache_beam.io import filebasedsource
+from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 
 # Importing following private class for testing purposes.
@@ -179,6 +180,29 @@ class TestAvro(unittest.TestCase):
     pattern = self._write_pattern(3)
     expected_result = self.RECORDS * 3
     self._run_avro_test(pattern, 100, True, expected_result)
+
+  def test_read_split_points(self):
+    file_name = self._write_data(count=20)
+    unsplit_source = AvroSource(file_name)
+
+    # desired_bundle_size should be large enough to make sure that first split
+    # is not a trivial one.
+    splits = list(unsplit_source.split(1000))
+    if len(splits) < 1:
+      raise ValueError('Split of source %r did not produce any results',
+                       unsplit_source)
+
+    source = splits[0].source
+    start_position = splits[0].start_position
+    stop_position = splits[0].stop_position
+
+    range_tracker = source.get_range_tracker(start_position, stop_position)
+    assert isinstance(range_tracker, iobase.RangeTracker)
+    reader = source.read(range_tracker)
+    for _ in reader:
+      self.assertEquals((0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN),
+                        range_tracker.split_points())
+    self.assertEquals((1, 0), range_tracker.split_points())
 
   def test_dynamic_work_rebalancing_exhaustive(self):
     # Adjusting block size so that we can perform a exhaustive dynamic

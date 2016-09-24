@@ -41,6 +41,14 @@ from apache_beam.transforms.util import equal_to
 class LineSource(FileBasedSource):
 
   def read_records(self, file_name, range_tracker):
+    current = -1
+
+    def _split_points_remaining(stop_position):
+      return FileBasedSource.split_points_remaining_helper(
+          stop_position, current, range_tracker.done())
+
+    range_tracker.set_split_points_remaining_callback(_split_points_remaining)
+
     f = self.open_file(file_name)
     try:
       start = range_tracker.start_position()
@@ -58,6 +66,7 @@ class LineSource(FileBasedSource):
         current += len(line)
     finally:
       f.close()
+      range_tracker.set_done()
 
 
 class EOL(object):
@@ -369,6 +378,25 @@ class TestFileBasedSource(unittest.TestCase):
         splittable=False,
         compression_type=fileio.CompressionTypes.ZLIB))
     assert_that(pcoll, equal_to(lines))
+
+  def test_remaining_split_points_helper(self):
+    # If current record is at last byte this must be the last split point.
+    self.assertEqual(
+        1, FileBasedSource.split_points_remaining_helper(100, 99, False))
+    # Current record is after stop position but we haven't reached the next
+    # split point
+    self.assertEqual(
+        1, FileBasedSource.split_points_remaining_helper(100, 110, False))
+    # After RangeTracker.set_done() is invoked, there should not be any
+    # remaining split points.
+    self.assertEqual(
+        0, FileBasedSource.split_points_remaining_helper(100, 110, True))
+
+    # If we are at a position < (stop_position - 1), FileBasedSource cannot
+    # determine the remaining number of split points.
+    self.assertEqual(
+        iobase.RangeTracker.SPLIT_POINTS_UNKNOWN,
+        FileBasedSource.split_points_remaining_helper(100, 90, False))
 
 
 class TestSingleFileSource(unittest.TestCase):

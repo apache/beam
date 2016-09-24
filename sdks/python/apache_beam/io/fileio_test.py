@@ -561,8 +561,13 @@ class TestTextFileSource(unittest.TestCase):
           expected_split_response)
 
       # Reading remaining records from the updated reader.
-      for line in reader:
-        records_of_first_split += line
+
+      try:
+        while True:
+          records_of_first_split += next(reader_iter)
+      except StopIteration:
+        # Done reading all records from the iterator
+        pass
 
     if split_response is not None:
       # Total contents received by reading the two splits should be equal to the

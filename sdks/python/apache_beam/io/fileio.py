@@ -250,26 +250,29 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
                       self.current_offset)
       return
 
-    while True:
-      if not self.range_tracker.try_claim(record_start=self.current_offset):
-        # Reader has completed reading the set of records in its range. Note
-        # that the end offset of the range may be smaller than the original
-        # end offset defined when creating the reader due to reader accepting
-        # a dynamic split request from the service.
-        return
-
-      # Note that for compressed sources, delta_offsets are virtual and don't
-      # actually correspond to byte offsets in the underlying file. They
-      # nonetheless correspond to unique virtual position locations.
-      for eof, record, delta_offset in self.read_records():
-        if eof:
-          # Can't read from this source anymore and the record and delta_offset
-          # are non-sensical; hence we are done.
+    try:
+      while True:
+        if not self.range_tracker.try_claim(record_start=self.current_offset):
+          # Reader has completed reading the set of records in its range. Note
+          # that the end offset of the range may be smaller than the original
+          # end offset defined when creating the reader due to reader accepting
+          # a dynamic split request from the service.
           return
-        else:
-          self.notify_observers(record, is_encoded=False)
-          self.current_offset += delta_offset
-          yield record
+
+        # Note that for compressed sources, delta_offsets are virtual and don't
+        # actually correspond to byte offsets in the underlying file. They
+        # nonetheless correspond to unique virtual position locations.
+        for eof, record, delta_offset in self.read_records():
+          if eof:
+            # Can't read from this source anymore and the record and
+            # delta_offset are non-sensical; hence we are done.
+            return
+          else:
+            self.notify_observers(record, is_encoded=False)
+            self.current_offset += delta_offset
+            yield record
+    finally:
+      self.range_tracker.set_done()
 
   def seek_to_true_start_offset(self):
     """Seeks the underlying file to the appropriate start_offset that is
@@ -302,8 +305,14 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
     raise NotImplementedError
 
   def get_progress(self):
-    return iobase.ReaderProgress(position=iobase.ReaderPosition(
-        byte_offset=self.range_tracker.last_record_start))
+    consumed_split_points, remaining_split_points = (
+        self.range_tracker.split_points())
+
+    return iobase.ReaderProgress(
+        position=iobase.ReaderPosition(
+            byte_offset=self.range_tracker.last_record_start),
+        consumed_split_points=consumed_split_points,
+        remaining_split_points=remaining_split_points)
 
   def request_dynamic_split(self, dynamic_split_request):
     if ChannelFactory.is_compressed(self.file):

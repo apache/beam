@@ -155,7 +155,8 @@ class NativeSourceReader(object):
 class ReaderProgress(object):
   """A representation of how far a NativeSourceReader has read."""
 
-  def __init__(self, position=None, percent_complete=None, remaining_time=None):
+  def __init__(self, position=None, percent_complete=None, remaining_time=None,
+               consumed_split_points=None, remaining_split_points=None):
 
     self._position = position
 
@@ -168,6 +169,8 @@ class ReaderProgress(object):
     self._percent_complete = percent_complete
 
     self._remaining_time = remaining_time
+    self._remaining_split_points = remaining_split_points
+    self._consumed_split_points = consumed_split_points
 
   @property
   def position(self):
@@ -190,6 +193,14 @@ class ReaderProgress(object):
   def remaining_time(self):
     """Returns progress, represented as an estimated time remaining."""
     return self._remaining_time
+
+  @property
+  def remaining_split_points(self):
+    return self._remaining_split_points
+
+  @property
+  def consumed_split_points(self):
+    return self._consumed_split_points
 
 
 class ReaderPosition(object):
@@ -543,6 +554,11 @@ class RangeTracker(object):
   the current reader and by a reader of the task starting at 43).
   """
 
+  SPLIT_POINTS_UNKNOWN = object()
+
+  def __init__(self):
+    self._done = False
+
   def start_position(self):
     """Returns the starting position of the current range, inclusive."""
     raise NotImplementedError(type(self))
@@ -658,6 +674,167 @@ class RangeTracker(object):
       0.0 if no such calls have happened.
     """
     raise NotImplementedError
+
+  def split_points(self):
+    """Gives the number of split points consumed and remaining.
+
+    For a ``RangeTracker`` used by a ``BoundedSource`` (within a
+    ``BoundedSource.read()`` invocation) this method produces a 2-tuple that
+    gives the number of split points consumed by the ``BoundedSource`` and the
+    number of split points remaining within the range of the ``RangeTracker``
+    that has not been consumed by the ``BoundedSource``.
+
+    More specifically, given that the position of the current record being read
+    by ``BoundedSource`` is current_position this method produces a tuple that
+    consists of
+    (1) number of split points in the range [self.start_position(),
+    current_position) without including the split point that is currently being
+    consumed. This represents the total amount of parallelism in the consumed
+    part of the source.
+    (2) number of split points within the range
+    [current_position, self.stop_position()) including the split point that is
+    currently being consumed. This represents the total amount of parallelism in
+    the unconsumed part of the source.
+
+    Similar to other methods of class ``RangeTracker``, this method may get
+    invoked by multiple threads hence must be thread safe, e.g. by using a
+    single lock object.
+
+    ** Determining consumed and remaining number of split points **
+
+    Consider the following examples: (1) An input that can be read in parallel
+    down to the individual records, is called "perfectly splittable".
+    (2) a "block-compressed" file format such as ``avroio``, in which a block of
+    records has to be read as a whole, but different blocks can be read in
+    parallel. (3) an "unsplittable" input such as a cursor in a database.
+
+    consumed number of split points:
+
+      * Before a source read (``BoundedSource.read()`` invocation) claims the
+        first split point, number of consumed split points is 0. This condition
+        holds independent of whether the input is splittable.
+      * Any source read that has only claimed one split point for which
+        ``RangeTracker.set_done()`` has not been invoked has 0 consumed split
+        points: the first split point is the current split point and is still
+        being processed. This condition holds independent of whether the input
+        is splittable.
+      * For an empty source read (which never invokes
+        ``RangeTracker.try_claim()``), the consumed number of split points is 0.
+        This condition holds independent of whether the input is splittable.
+      * For a non-empty, finished source read (in which
+        ``RangeTracker.try_claim()`` was invoked at least once and
+        ``RangeTracker.set_done()`` has been invoked), the value returned must
+        be at least 1 and should equal the total number of split points in the
+        source.
+      * For example (1): After returning record #30 (starting at 1) out of 50 in
+        a perfectly splittable 50-record input, this value should be 29. When
+        finished, the number of split points consumed should be 50.
+      * For example (2): In a block-compressed value consisting of 5 blocks, the
+        value should stay at 0 until the first record of the second block is
+        returned; stay at 1 until the first record of the third block is
+        returned, etc. Only once the end-of-file is reached then the fifth block
+        has been consumed and the value should stay at 5.
+      * For example (3): For any non-empty unsplittable input, the consumed
+        number of split points is 0 until ``RangeTracker.set_done()`` is
+        invoked, at which point it becomes 1.
+
+    Remaining number of split points:
+
+    Assume for examples (1) and (2) that the number of records or blocks
+    remaining is known:
+
+    * Any source read for which ``RangeTracker.set_done()`` has not been
+      invoked, remaining number of split points should not be zero, because this
+      unfinished read itself represents a unfinished split point. This
+      condition holds independent of whether the input is splittable.
+    * A finished read, for which RangeTracker.set_done() has been invoked,
+      remaining number of split points is 0. This condition holds independent of
+      whether the input is splittable.
+    * For example 1: After returning record #30 (starting at 1) out of 50 in a
+      perfectly splittable 50-record input, remaining number of split points
+      should be 21 (20 remaining + 1 current) if the total number of records is
+      known.
+    * For example 2: After returning a record in block 3 in a block-compressed
+      file consisting of 5 blocks, remaining number of split points should be 3
+      (since blocks 4 and 5 can be processed in parallel by new source read
+      invocations produced via dynamic work rebalancing, while the current
+      source read continues processing block 3) if the total number of blocks is
+      known.
+    * For example (3): a source read for any non-empty unsplittable input,
+      remaining number of split points is 1 until ``RangeTracker.set_done()`` is
+      invoked, at which point remaining number of split points is 0.
+    * For any source read: After ``RangeTracker.try_claim()`` is invoked for the
+      last split point in a file (e.g., the last record in example (1), the
+      first record in the last block for example (2), or the first record in
+      the file for example (3), number of remaining split points is 1, which
+      represents the current source read.
+
+    By default ``RangeTracker` returns ``RangeTracker.SPLIT_POINTS_UNKNOWN`` for
+    both consumed and remaining number of split points, which indicates that the
+    number of split points consumed and remaining is unknown.
+
+    Returns:
+      a pair that gives consumed and remaining number of split points. Each
+      value should be an integer that is larger than or equal to zero or
+      ``RangeTracker.SPLIT_POINTS_UNKNOWN``.
+    """
+    return (RangeTracker.SPLIT_POINTS_UNKNOWN,
+            RangeTracker.SPLIT_POINTS_UNKNOWN)
+
+  def set_split_points_remaining_callback(self, callback):
+    """Sets a callback function for determining split points remaining.
+
+    By invoking this function, a ``BoundedSource`` can set a callback function
+    that may get invoked by the RangeTracker to determine the number of
+    remaining (unconsumed) split points. The callback function accepts a single
+    parameter, a stop position for the BoundedSource (stop_position). If the
+    record currently being consumed by the ``BoundedSource`` is at position
+    current_position, callback should return the number of split points within
+    the range [current_position, stop_position). Note that this should include
+    the split point currently being consumed by the source.
+
+    The given callback must only be invoked after acquiring the lock of the
+    current ``RangeTracker`` this simplifies the callback implementation since
+    the implementer has the assurance that a call to ``try_claim()`` will block
+    while this callback is being invoked.
+
+    Args:
+      callback: a function that takes a single parameter, a stop position,
+                and returns remaining number of split points for the source read
+                operation that is calling this function. Value returned from
+                callback should be either a integer larger than or equal to zero
+                or ``RangeTracker.SPLIT_POINTS_UNKNOWN``.
+    """
+    pass
+
+  def set_done(self):
+    """Marks that all records within the range have been consumed.
+
+    A source that uses a ``RangeTracker`` (for a ``BoundedSource.read()``
+    invocation) should call this when all records within the position range
+    [self.start_position(), self.stop_position()) have been consumed.
+
+    For a given ``RangeTracker`` instance, this should only be invoked once.
+
+    After method ``set_done()`` is invoked methods ``try_claim()`` or
+    ``set_current_position()`` must not be invoked.
+    """
+    if self._done:
+      raise ValueError('\'set_done()\' was invoked more than once.')
+    self._done = True
+
+  def done(self):
+    """Returns ``True`` if all records have been consumed.
+
+    See comments in method ``set_done()`` for more details.
+
+    Initially this will be ``False``. This will return ``True``, once method
+    ``set_done()`` has been invoked.
+
+    Returns:
+      A boolean that specifies if all records have been consumed.
+    """
+    return self._done
 
 
 class Sink(object):

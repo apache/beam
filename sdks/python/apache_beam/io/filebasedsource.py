@@ -168,6 +168,59 @@ class FileBasedSource(iobase.BoundedSource):
   def splittable(self):
     return self._splittable
 
+  @staticmethod
+  def split_points_remaining_helper(
+      stop_position, current_position, done_reading):
+    """A utility function for implementing a remaining splits points callback.
+
+    This helper function can be used to develop a remaining split points
+    callback, which can be set to a RangeTracker using method
+    ``RangeTracker.set_split_points_remaining_callback()``.
+
+    For example uses of this function see:
+     * ``filebasedsource_test.LineSource``
+     * ``avroio.AvroSource``
+
+    Developing a remaining split points callback using this function will be
+    better than not setting a callback at all. Latter will result in
+    ``RangeTracker.split_points()`` function always returning
+    ``RangeTracker.SPLIT_POINTS_UNKNOWN`` for the number of remaining split
+    points.
+
+    If this function returns ``iobase.RangeTracker.SPLIT_POINTS_UNKNOWN``,
+    callers of this function may use other means to exactly determine the number
+    of remaining split points.
+
+    This was developed as a static helper instead of a method in
+    ``FileBasedSource`` since ``FileBasedSource`` is not aware of the current
+    state of the source read operation.
+
+    Args:
+      stop_position: stop position of the range of positions to be read by the
+                     source.
+      current_position: position of the current record being read by the source.
+                        Should be negative if no records have been read.
+      done_reading: ``True``, if source has finished reading all the records
+      that belong to the range of positions assigned to the source. ``False``
+      otherwise.
+    Returns:
+      number of split points remaining. Returns
+      ``iobase.RangeTracker.SPLIT_POINTS_UNKNOWN`` if number of split points
+      remaining cannot be determined.
+    """
+
+    if done_reading:
+      # We have finished reading. All split points have been consumed.
+      return 0
+    elif current_position >= 0 and current_position + 1 >= stop_position:
+      # Next element is outside the range. Since done_reading is not set we are
+      # at the last split point.
+      return 1
+    else:
+      # Number of remaining split points cannot be determined with the provided
+      # information.
+      return iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+
 
 class _SingleFileSource(iobase.BoundedSource):
   """Denotes a source for a specific file type."""

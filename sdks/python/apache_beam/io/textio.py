@@ -55,7 +55,14 @@ class _TextSource(filebasedsource.FileBasedSource):
     self._buffer_size = buffer_size
 
   def read_records(self, file_name, range_tracker):
+    next_record_start_position = -1
+
+    def _split_points_remaining(stop_position):
+      return filebasedsource.FileBasedSource.split_points_remaining_helper(
+          stop_position, next_record_start_position, range_tracker.done())
+
     start_offset = range_tracker.start_position()
+    range_tracker.set_split_points_remaining_callback(_split_points_remaining)
 
     self._file = self.open_file(file_name)
     try:
@@ -85,6 +92,7 @@ class _TextSource(filebasedsource.FileBasedSource):
           break
         next_record_start_position += num_bytes_to_next_record
     finally:
+      range_tracker.set_done()
       self._file.close()
 
   def _find_separator_bounds(self):
