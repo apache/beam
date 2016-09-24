@@ -545,11 +545,11 @@ class RangeTracker(object):
 
   def start_position(self):
     """Returns the starting position of the current range, inclusive."""
-    raise NotImplementedError
+    raise NotImplementedError(type(self))
 
   def stop_position(self):
     """Returns the ending position of the current range, exclusive."""
-    raise NotImplementedError
+    raise NotImplementedError(type(self))
 
   def try_claim(self, position):  # pylint: disable=unused-argument
     """Atomically determines if a record at a split point is within the range.
@@ -638,7 +638,8 @@ class RangeTracker(object):
       position: suggested position where the current range should try to
                 be split at.
     Returns:
-      a tuple containing the split position and split fraction.
+      a tuple containing the split position and split fraction if split is
+      successful. Returns ``None`` otherwise.
     """
     raise NotImplementedError
 
@@ -1027,9 +1028,13 @@ class WriteImpl(ptransform.PTransform):
                                       AsSingleton(init_result_coll)))
     else:
       min_shards = 1
-      write_result_coll = pcoll | core.ParDo('write_bundles',
-                                             _WriteBundleDoFn(), self.sink,
-                                             AsSingleton(init_result_coll))
+      write_result_coll = (pcoll | core.ParDo('write_bundles',
+                                              _WriteBundleDoFn(), self.sink,
+                                              AsSingleton(init_result_coll))
+                           | core.Map(lambda x: (None, x))
+                           | core.WindowInto(window.GlobalWindows())
+                           | core.GroupByKey()
+                           | core.FlatMap(lambda x: x[1]))
     return do_once | core.FlatMap(
         'finalize_write',
         _finalize_write,

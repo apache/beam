@@ -26,82 +26,71 @@ For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 """
 
 from multiprocessing.pool import ThreadPool
-import range_trackers
 
+from apache_beam.internal import pickler
+from apache_beam.io import concat_source
 from apache_beam.io import fileio
 from apache_beam.io import iobase
+from apache_beam.io import range_trackers
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
-
-
-class _ConcatSource(iobase.BoundedSource):
-  """A ``BoundedSource`` that can group a set of ``BoundedSources``."""
-
-  def __init__(self, sources):
-    self._sources = sources
-
-  @property
-  def sources(self):
-    return self._sources
-
-  def estimate_size(self):
-    return sum(s.estimate_size() for s in self._sources)
-
-  def split(
-      self, desired_bundle_size=None, start_position=None, stop_position=None):
-    if start_position or stop_position:
-      raise ValueError(
-          'Multi-level initial splitting is not supported. Expected start and '
-          'stop positions to be None. Received %r and %r respectively.',
-          start_position, stop_position)
-
-    for source in self._sources:
-      # We assume all sub-sources to produce bundles that specify weight using
-      # the same unit. For example, all sub-sources may specify the size in
-      # bytes as their weight.
-      for bundle in source.split(desired_bundle_size, None, None):
-        yield bundle
-
-  def get_range_tracker(self, start_position, stop_position):
-    assert start_position is None
-    assert stop_position is None
-    # This will be invoked only when FileBasedSource is read without splitting.
-    # For that case, we only support reading the whole source.
-    return range_trackers.OffsetRangeTracker(0, len(self.sources))
-
-  def read(self, range_tracker):
-    for index, sub_source in enumerate(self.sources):
-      if not range_tracker.try_claim(index):
-        return
-
-      sub_source_tracker = sub_source.get_range_tracker(None, None)
-      for record in sub_source.read(sub_source_tracker):
-        yield record
-
-  def default_output_coder(self):
-    if self._sources:
-      # Getting coder from the first sub-sources. This assumes all sub-sources
-      # to produce the same coder.
-      return self._sources[0].default_output_coder()
-    else:
-      # Defaulting to PickleCoder.
-      return super(_ConcatSource, self).default_output_coder()
 
 
 class FileBasedSource(iobase.BoundedSource):
   """A ``BoundedSource`` for reading a file glob of a given type."""
 
-  def __init__(self, file_pattern, min_bundle_size=0):
+  def __init__(self,
+               file_pattern,
+               min_bundle_size=0,
+               # TODO(BEAM-614)
+               compression_type=fileio.CompressionTypes.UNCOMPRESSED,
+               splittable=True):
     """Initializes ``FileBasedSource``.
 
     Args:
       file_pattern: the file glob to read.
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
+      compression_type: compression type to use
+      splittable: whether FileBasedSource should try to logically split a single
+                  file into data ranges so that different parts of the same file
+                  can be read in parallel. If set to False, FileBasedSource will
+                  prevent both initial and dynamic splitting of sources for
+                  single files. File patterns that represent multiple files may
+                  still get split into sources for individual files. Even if set
+                  to True by the user, FileBasedSource may choose to not split
+                  the file, for example, for compressed files where currently
+                  it is not possible to efficiently read a data range without
+                  decompressing the whole file.
+    Raises:
+      TypeError: when compression_type is not valid or if file_pattern is not a
+                 string.
+      ValueError: when compression and splittable files are specified.
     """
+    if not isinstance(file_pattern, basestring):
+      raise TypeError(
+          '%s: file_pattern must be a string;  got %r instead' %
+          (self.__class__.__name__, file_pattern))
+
+    if compression_type == fileio.CompressionTypes.AUTO:
+      raise ValueError('FileBasedSource currently does not support '
+                       'CompressionTypes.AUTO. Please explicitly specify the '
+                       'compression type or use '
+                       'CompressionTypes.UNCOMPRESSED if file is '
+                       'uncompressed.')
+
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
+    if not fileio.CompressionTypes.is_valid_compression_type(compression_type):
+      raise TypeError('compression_type must be CompressionType object but '
+                      'was %s' % type(compression_type))
+    self._compression_type = compression_type
+    if compression_type != fileio.CompressionTypes.UNCOMPRESSED:
+      # We can't split compressed files efficiently so turn off splitting.
+      self._splittable = False
+    else:
+      self._splittable = splittable
 
   def _get_concat_source(self):
     if self._concat_source is None:
@@ -119,12 +108,13 @@ class FileBasedSource(iobase.BoundedSource):
             sizes[index],
             min_bundle_size=self._min_bundle_size)
         single_file_sources.append(single_file_source)
-      self._concat_source = _ConcatSource(single_file_sources)
+      self._concat_source = concat_source.ConcatSource(single_file_sources)
     return self._concat_source
 
   def open_file(self, file_name):
     return fileio.ChannelFactory.open(
-        file_name, 'rb', 'application/octet-stream')
+        file_name, 'rb', 'application/octet-stream',
+        compression_type=self._compression_type)
 
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):
@@ -174,25 +164,28 @@ class FileBasedSource(iobase.BoundedSource):
     """
     raise NotImplementedError
 
+  @property
+  def splittable(self):
+    return self._splittable
+
 
 class _SingleFileSource(iobase.BoundedSource):
-  """Denotes a source for a specific file type.
-
-  This should be sub-classed to add support for reading a new file type.
-  """
+  """Denotes a source for a specific file type."""
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0):
-    if not (isinstance(start_offset, int) or isinstance(start_offset, long)):
-      raise ValueError(
-          'start_offset must be a number. Received: %r', start_offset)
-    if not (isinstance(stop_offset, int) or isinstance(stop_offset, long)):
-      raise ValueError(
-          'stop_offset must be a number. Received: %r', stop_offset)
-    if start_offset >= stop_offset:
-      raise ValueError(
-          'start_offset must be smaller than stop_offset. Received %d and %d '
-          'for start and stop offsets respectively', start_offset, stop_offset)
+    if not isinstance(start_offset, (int, long)):
+      raise TypeError(
+          'start_offset must be a number. Received: %r' % start_offset)
+    if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
+      if not isinstance(stop_offset, (int, long)):
+        raise TypeError(
+            'stop_offset must be a number. Received: %r' % stop_offset)
+      if start_offset >= stop_offset:
+        raise ValueError(
+            'start_offset must be smaller than stop_offset. Received %d and %d '
+            'for start and stop offsets respectively' %
+            (start_offset, stop_offset))
 
     self._file_name = file_name
     self._is_gcs_file = file_name.startswith('gs://') if file_name else False
@@ -207,22 +200,41 @@ class _SingleFileSource(iobase.BoundedSource):
     if stop_offset is None:
       stop_offset = self._stop_offset
 
-    bundle_size = max(desired_bundle_size, self._min_bundle_size)
+    if self._file_based_source.splittable:
+      bundle_size = max(desired_bundle_size, self._min_bundle_size)
 
-    bundle_start = start_offset
-    while bundle_start < stop_offset:
-      bundle_stop = min(bundle_start + bundle_size, stop_offset)
+      bundle_start = start_offset
+      while bundle_start < stop_offset:
+        bundle_stop = min(bundle_start + bundle_size, stop_offset)
+        yield iobase.SourceBundle(
+            bundle_stop - bundle_start,
+            _SingleFileSource(
+                # Copying this so that each sub-source gets a fresh instance.
+                pickler.loads(pickler.dumps(self._file_based_source)),
+                self._file_name,
+                bundle_start,
+                bundle_stop,
+                min_bundle_size=self._min_bundle_size),
+            bundle_start,
+            bundle_stop)
+        bundle_start = bundle_stop
+    else:
+      # Returning a single sub-source with end offset set to OFFSET_INFINITY (so
+      # that all data of the source gets read) since this source is
+      # unsplittable. Choosing size of the file as end offset will be wrong for
+      # certain unsplittable source, e.g., compressed sources.
       yield iobase.SourceBundle(
-          bundle_stop - bundle_start,
+          stop_offset - start_offset,
           _SingleFileSource(
               self._file_based_source,
               self._file_name,
-              bundle_start,
-              bundle_stop,
-              min_bundle_size=self._min_bundle_size),
-          bundle_start,
-          bundle_stop)
-      bundle_start = bundle_stop
+              start_offset,
+              range_trackers.OffsetRangeTracker.OFFSET_INFINITY,
+              min_bundle_size=self._min_bundle_size
+          ),
+          start_offset,
+          range_trackers.OffsetRangeTracker.OFFSET_INFINITY
+      )
 
   def estimate_size(self):
     return self._stop_offset - self._start_offset
@@ -231,9 +243,20 @@ class _SingleFileSource(iobase.BoundedSource):
     if start_position is None:
       start_position = self._start_offset
     if stop_position is None:
-      stop_position = self._stop_offset
+      # If file is unsplittable we choose OFFSET_INFINITY as the default end
+      # offset so that all data of the source gets read. Choosing size of the
+      # file as end offset will be wrong for certain unsplittable source, for
+      # e.g., compressed sources.
+      stop_position = (
+          self._stop_offset if self._file_based_source.splittable
+          else range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
 
-    return range_trackers.OffsetRangeTracker(start_position, stop_position)
+    range_tracker = range_trackers.OffsetRangeTracker(
+        start_position, stop_position)
+    if not self._file_based_source.splittable:
+      range_tracker = range_trackers.UnsplittableRangeTracker(range_tracker)
+
+    return range_tracker
 
   def read(self, range_tracker):
     return self._file_based_source.read_records(self._file_name, range_tracker)

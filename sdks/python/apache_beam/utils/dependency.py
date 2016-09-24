@@ -22,7 +22,7 @@ Workflows, with the exception of very simple ones, are organized in multiple
 modules and packages. Typically, these modules and packages have
 dependencies on other standard libraries. Dataflow relies on the Python
 setuptools package to handle these scenarios. For further details please read:
-https://pythonhosted.org/setuptools/setuptools.html
+https://pythonhosted.org/an_example_pypi_project/setuptools.html
 
 When a runner tries to run a pipeline it will check for a --requirements_file
 and a --setup_file option.
@@ -55,7 +55,9 @@ TODO(silviuc): We should allow customizing the exact command for setup build.
 import glob
 import logging
 import os
+import re
 import shutil
+import sys
 import tempfile
 
 
@@ -193,7 +195,7 @@ def _populate_requirements_cache(requirements_file, cache_dir):
   # It will get the packages downloaded in the order they are presented in
   # the requirements file and will not download package dependencies.
   cmd_args = [
-      'pip', 'install', '--download', cache_dir,
+      sys.executable, '-m', 'pip', 'install', '--download', cache_dir,
       '-r', requirements_file,
       # Download from PyPI source distributions.
       '--no-binary', ':all:']
@@ -373,7 +375,7 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(os.path.dirname(setup_file))
     if build_setup_args is None:
       build_setup_args = [
-          'python', os.path.basename(setup_file),
+          sys.executable, os.path.basename(setup_file),
           'sdist', '--dist-dir', temp_dir]
     logging.info('Executing command: %s', build_setup_args)
     processes.check_call(build_setup_args)
@@ -431,7 +433,11 @@ def get_required_container_version():
     version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
     # We drop any pre/post parts of the version and we keep only the X.Y.Z
     # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
-    return '%s.%s.%s' % pkg.parse_version(version)._version.release
+    container_version = '%s.%s.%s' % pkg.parse_version(version)._version.release
+    # We do, however, keep the ".dev" suffix if it is present.
+    if re.match(r'.*\.dev[0-9]*$', version):
+      container_version += '.dev'
+    return container_version
   except pkg.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
@@ -455,7 +461,7 @@ def _download_pypi_sdk_package(temp_dir):
   version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
-      'pip', 'install', '--download', temp_dir,
+      sys.executable, '-m', 'pip', 'install', '--download', temp_dir,
       '%s==%s' % (GOOGLE_PACKAGE_NAME, version),
       '--no-binary', ':all:', '--no-deps']
   logging.info('Executing command: %s', cmd_args)

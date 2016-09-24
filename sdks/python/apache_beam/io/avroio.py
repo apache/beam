@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Implements a source for reading Avro files."""
 
 import os
@@ -22,12 +21,14 @@ import StringIO
 import zlib
 
 from avro import datafile
-from avro import io as avro_io
+from avro import io as avroio
 from avro import schema
 
 from apache_beam.io import filebasedsource
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
+
+__all__ = ['ReadFromAvro']
 
 
 class ReadFromAvro(PTransform):
@@ -75,127 +76,13 @@ class ReadFromAvro(PTransform):
     self._min_bundle_size = min_bundle_size
 
   def apply(self, pcoll):
-    return pcoll.pipeline | Read(_AvroSource(
-        file_pattern=self._file_pattern, min_bundle_size=self._min_bundle_size))
+    return pcoll.pipeline | Read(
+        _AvroSource(
+            file_pattern=self._file_pattern,
+            min_bundle_size=self._min_bundle_size))
 
 
-class _AvroSource(filebasedsource.FileBasedSource):
-  """A source for reading Avro files.
-
-  ``_AvroSource`` is implemented using the file-based source framework available
-  in module 'filebasedsource'. Hence please refer to module 'filebasedsource'
-  to fully understand how this source implements operations common to all
-  file-based sources such as file-pattern expansion and splitting into bundles
-  for parallel processing.
-  """
-
-  def __init__(self, file_pattern, min_bundle_size=0):
-    super(_AvroSource, self).__init__(file_pattern, min_bundle_size)
-    self._avro_schema = None
-    self._codec = None
-    self._sync_marker = None
-
-  class AvroBlock(object):
-    """Represents a block of an Avro file."""
-
-    def __init__(self, block_bytes, num_records, avro_schema, avro_codec,
-                 offset):
-      self._block_bytes = block_bytes
-      self._num_records = num_records
-      self._avro_schema = avro_schema
-      self._avro_codec = avro_codec
-      self._offset = offset
-
-    def size(self):
-      return len(self._block_bytes)
-
-    def _decompress_bytes(self, encoding, data):
-      if encoding == 'null':
-        return data
-      elif encoding == 'deflate':
-        # zlib.MAX_WBITS is the window size. '-' sign indicates that this is
-        # raw data (without headers). See zlib and Avro documentations for more
-        # details.
-        return zlib.decompress(data, -zlib.MAX_WBITS)
-      else:
-        raise ValueError('Unsupported compression type: %r', encoding)
-
-    def records(self):
-      decompressed_bytes = self._decompress_bytes(self._avro_codec,
-                                                  self._block_bytes)
-      decoder = avro_io.BinaryDecoder(StringIO.StringIO(decompressed_bytes))
-      reader = avro_io.DatumReader(
-          writers_schema=schema.parse(self._avro_schema),
-          readers_schema=schema.parse(self._avro_schema))
-
-      current_record = 0
-      while current_record < self._num_records:
-        yield reader.read(decoder)
-        current_record += 1
-
-    def offset(self):
-      return self._offset
-
-  def read_records(self, file_name, range_tracker):
-    start_offset = range_tracker.start_position()
-    if start_offset is None:
-      start_offset = 0
-
-    f = self.open_file(file_name)
-    try:
-      self._codec, self._avro_schema, self._sync_marker = (
-          AvroUtils.read_meta_data_from_file(f))
-
-      # We have to start at current position if previous bundle ended at the
-      # end of a sync marker.
-      start_offset = max(0, start_offset - len(self._sync_marker))
-
-      f.seek(start_offset)
-      while self.advance_pass_next_sync_marker(f):
-        if not range_tracker.try_claim(f.tell()):
-          return
-        next_block = self.read_next_block(f)
-        if next_block:
-          for record in next_block.records():
-            yield record
-        else:
-          return
-    finally:
-      f.close()
-
-  def advance_pass_next_sync_marker(self, f):
-    buf_size = 10000
-
-    data = f.read(buf_size)
-    while data:
-      pos = data.find(self._sync_marker)
-      if pos >= 0:
-        # Adjusting the current position to the ending position of the sync
-        # marker.
-        backtrack = len(data) - pos - len(self._sync_marker)
-        f.seek(-1 * backtrack, os.SEEK_CUR)
-        return True
-      else:
-        if f.tell() >= len(self._sync_marker):
-          # Backtracking in case we partially read the sync marker during the
-          # previous read. We only have to backtrack if there are at least
-          # len(sync_marker) bytes before current position. We only have to
-          # backtrack (len(sync_marker) - 1) bytes.
-          f.seek(-1 * (len(self._sync_marker) - 1), os.SEEK_CUR)
-        data = f.read(buf_size)
-
-  def read_next_block(self, f):
-    decoder = avro_io.BinaryDecoder(f)
-    num_records = decoder.read_long()
-    block_size = decoder.read_long()
-
-    block_bytes = decoder.read(block_size)
-    return _AvroSource.AvroBlock(block_bytes, num_records,
-                                 self._avro_schema,
-                                 self._codec, f.tell()) if block_bytes else None
-
-
-class AvroUtils(object):
+class _AvroUtils(object):
 
   @staticmethod
   def read_meta_data_from_file(f):
@@ -211,14 +98,15 @@ class AvroUtils(object):
       ValueError: if the file does not start with the byte sequence defined in
                   the specification.
     """
-    f.seek(0, 0)
-    header = avro_io.DatumReader().read_data(datafile.META_SCHEMA,
-                                             datafile.META_SCHEMA,
-                                             avro_io.BinaryDecoder(f))
+    if f.tell() > 0:
+      f.seek(0)
+    decoder = avroio.BinaryDecoder(f)
+    header = avroio.DatumReader().read_data(datafile.META_SCHEMA,
+                                            datafile.META_SCHEMA, decoder)
     if header.get('magic') != datafile.MAGIC:
       raise ValueError('Not an Avro file. File header should start with %s but'
-                       'started with %s instead.',
-                       datafile.MAGIC, header.get('magic'))
+                       'started with %s instead.', datafile.MAGIC,
+                       header.get('magic'))
 
     meta = header['meta']
 
@@ -231,3 +119,127 @@ class AvroUtils(object):
     sync_marker = header['sync']
 
     return codec, schema_string, sync_marker
+
+  @staticmethod
+  def read_block_from_file(f, codec, schema, expected_sync_marker):
+    """Reads a block from a given Avro file.
+
+    Args:
+      f: Avro file to read.
+    Returns:
+      A single _AvroBlock.
+
+    Raises:
+      ValueError: If the block cannot be read properly because the file doesn't
+        match the specification.
+    """
+    decoder = avroio.BinaryDecoder(f)
+    num_records = decoder.read_long()
+    block_size = decoder.read_long()
+    block_bytes = decoder.read(block_size)
+    sync_marker = decoder.read(len(expected_sync_marker))
+    if sync_marker != expected_sync_marker:
+      raise ValueError('Unexpected sync marker (actual "%s" vs expected "%s"). '
+                       'Maybe the underlying avro file is corrupted?',
+                       sync_marker, expected_sync_marker)
+    return _AvroBlock(block_bytes, num_records, codec, schema)
+
+  @staticmethod
+  def advance_file_past_next_sync_marker(f, sync_marker):
+    buf_size = 10000
+
+    data = f.read(buf_size)
+    while data:
+      pos = data.find(sync_marker)
+      if pos >= 0:
+        # Adjusting the current position to the ending position of the sync
+        # marker.
+        backtrack = len(data) - pos - len(sync_marker)
+        f.seek(-1 * backtrack, os.SEEK_CUR)
+        return True
+      else:
+        if f.tell() >= len(sync_marker):
+          # Backtracking in case we partially read the sync marker during the
+          # previous read. We only have to backtrack if there are at least
+          # len(sync_marker) bytes before current position. We only have to
+          # backtrack (len(sync_marker) - 1) bytes.
+          f.seek(-1 * (len(sync_marker) - 1), os.SEEK_CUR)
+        data = f.read(buf_size)
+
+
+class _AvroBlock(object):
+  """Represents a block of an Avro file."""
+
+  def __init__(self, block_bytes, num_records, codec, schema_string):
+    self._block_bytes = block_bytes
+    self._num_records = num_records
+    self._codec = codec
+    self._schema = schema.parse(schema_string)
+
+  def _decompress_bytes(self, data):
+    if self._codec == 'null':
+      return data
+    elif self._codec == 'deflate':
+      # zlib.MAX_WBITS is the window size. '-' sign indicates that this is
+      # raw data (without headers). See zlib and Avro documentations for more
+      # details.
+      return zlib.decompress(data, -zlib.MAX_WBITS)
+    elif self._codec == 'snappy':
+      # Snappy is an optional avro codec.
+      # See Snappy and Avro documentation for more details.
+      try:
+        import snappy
+      except ImportError:
+        raise ValueError('Snappy does not seem to be installed.')
+
+      # Compressed data includes a 4-byte CRC32 checksum which we verify.
+      result = snappy.decompress(data[:-4])
+      avroio.BinaryDecoder(StringIO.StringIO(data[-4:])).check_crc32(result)
+      return result
+    else:
+      raise ValueError('Unknown codec: %r', self._codec)
+
+  def num_records(self):
+    return self._num_records
+
+  def records(self):
+    decompressed_bytes = self._decompress_bytes(self._block_bytes)
+    decoder = avroio.BinaryDecoder(StringIO.StringIO(decompressed_bytes))
+    reader = avroio.DatumReader(
+        writers_schema=self._schema, readers_schema=self._schema)
+
+    current_record = 0
+    while current_record < self._num_records:
+      yield reader.read(decoder)
+      current_record += 1
+
+
+class _AvroSource(filebasedsource.FileBasedSource):
+  """A source for reading Avro files.
+
+  ``_AvroSource`` is implemented using the file-based source framework available
+  in module 'filebasedsource'. Hence please refer to module 'filebasedsource'
+  to fully understand how this source implements operations common to all
+  file-based sources such as file-pattern expansion and splitting into bundles
+  for parallel processing.
+  """
+
+  def read_records(self, file_name, range_tracker):
+    start_offset = range_tracker.start_position()
+    if start_offset is None:
+      start_offset = 0
+
+    with self.open_file(file_name) as f:
+      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(f)
+
+      # We have to start at current position if previous bundle ended at the
+      # end of a sync marker.
+      start_offset = max(0, start_offset - len(sync_marker))
+      f.seek(start_offset)
+      _AvroUtils.advance_file_past_next_sync_marker(f, sync_marker)
+
+      while range_tracker.try_claim(f.tell()):
+        block = _AvroUtils.read_block_from_file(f, codec, schema_string,
+                                                sync_marker)
+        for record in block.records():
+          yield record

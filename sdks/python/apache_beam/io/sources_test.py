@@ -24,6 +24,7 @@ import unittest
 
 import apache_beam as beam
 
+from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.transforms.util import assert_that
@@ -76,7 +77,7 @@ class LineSource(iobase.BoundedSource):
     return range_trackers.OffsetRangeTracker(start_position, stop_position)
 
   def default_output_coder(self):
-    return beam.coders.ToStringCoder()
+    return coders.BytesCoder()
 
 
 class SourcesTest(unittest.TestCase):
@@ -102,6 +103,7 @@ class SourcesTest(unittest.TestCase):
     assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
 
     pipeline.run()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

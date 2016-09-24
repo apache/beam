@@ -138,10 +138,10 @@ class OffsetRangeTracker(iobase.RangeTracker):
         return
 
       logging.debug('Agreeing to split %r at %d', self, split_offset)
-      self._stop_offset = split_offset
 
       split_fraction = (float(split_offset - self._start_offset) / (
           self._stop_offset - self._start_offset))
+      self._stop_offset = split_offset
 
       return self._stop_offset, split_fraction
 
@@ -284,3 +284,43 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
     raise RuntimeError('GroupedShuffleRangeTracker does not measure fraction'
                        ' consumed due to positions being opaque strings'
                        ' that are interpreted by the service')
+
+
+class UnsplittableRangeTracker(iobase.RangeTracker):
+  """A RangeTracker that always ignores split requests.
+
+  This can be used to make a given ``RangeTracker`` object unsplittable by
+  ignoring all calls to ``try_split()``. All other calls will be delegated to
+  the given ``RangeTracker``.
+  """
+
+  def __init__(self, range_tracker):
+    """Initializes UnsplittableRangeTracker.
+
+    Args:
+      range_tracker: a ``RangeTracker`` to which all method calls expect calls
+      to ``try_split()`` will be delegated.
+    """
+    assert range_tracker
+    self._range_tracker = range_tracker
+
+  def start_position(self):
+    return self._range_tracker.start_position()
+
+  def stop_position(self):
+    return self._range_tracker.stop_position()
+
+  def position_at_fraction(self, fraction):
+    return self._range_tracker.position_at_fraction(fraction)
+
+  def try_claim(self, position):
+    return self._range_tracker.try_claim(position)
+
+  def try_split(self, position):
+    return None
+
+  def set_current_position(self, position):
+    self._range_tracker.set_current_position(position)
+
+  def fraction_consumed(self):
+    return self._range_tracker.fraction_consumed()

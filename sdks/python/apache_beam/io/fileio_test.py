@@ -31,31 +31,44 @@ from apache_beam import coders
 from apache_beam.io import fileio
 from apache_beam.io import iobase
 
+# TODO: Add tests for file patterns (ie not just individual files) for both
+# uncompressed
+
+# TODO: Update code to not use NamedTemporaryFile (or to use it in a way that
+# doesn't violate its assumptions).
+
 
 class TestTextFileSource(unittest.TestCase):
 
-  def create_temp_file(self, text):
-    temp = tempfile.NamedTemporaryFile(delete=False)
+  def create_temp_file(self, text, suffix=''):
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     with temp.file as tmp:
       tmp.write(text)
     return temp.name
 
-  def read_with_offsets(self, input_lines, output_lines,
-                        start_offset=None, end_offset=None):
+  def read_with_offsets(self,
+                        input_lines,
+                        output_lines,
+                        start_offset=None,
+                        end_offset=None):
     source = fileio.TextFileSource(
         file_path=self.create_temp_file('\n'.join(input_lines)),
-        start_offset=start_offset, end_offset=end_offset)
+        start_offset=start_offset,
+        end_offset=end_offset)
     read_lines = []
     with source.reader() as reader:
       for line in reader:
         read_lines.append(line)
     self.assertEqual(read_lines, output_lines)
 
-  def progress_with_offsets(self, input_lines,
-                            start_offset=None, end_offset=None):
+  def progress_with_offsets(self,
+                            input_lines,
+                            start_offset=None,
+                            end_offset=None):
     source = fileio.TextFileSource(
         file_path=self.create_temp_file('\n'.join(input_lines)),
-        start_offset=start_offset, end_offset=end_offset)
+        start_offset=start_offset,
+        end_offset=end_offset)
     progress_record = []
     with source.reader() as reader:
       self.assertEqual(reader.get_progress().position.byte_offset, -1)
@@ -78,6 +91,170 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, lines)
 
+  def test_read_entire_file_empty(self):
+    source = fileio.TextFileSource(file_path=self.create_temp_file(''))
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_read_entire_file_gzip(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_read_entire_file_gzip_auto(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(file_path=self.create_temp_file(
+        data, suffix='.gz'))
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_read_entire_file_gzip_empty(self):
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('') + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_read_entire_file_gzip_large(self):
+    lines = ['Line %d' % d for d in range(10 * 1000)]
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_read_entire_file_zlib(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_read_entire_file_zlib_auto(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(file_path=self.create_temp_file(
+        data, suffix='.Z'))
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_read_entire_file_zlib_empty(self):
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('') + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_read_entire_file_zlib_large(self):
+    lines = ['Line %d' % d for d in range(10 * 1000)]
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_skip_entire_file_gzip(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        start_offset=1,  # Anything other than 0 should lead to a null-read.
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_skip_entire_file_zlib(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        start_offset=1,  # Anything other than 0 should lead to a null-read.
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, [])
+
+  def test_consume_entire_file_gzip(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        end_offset=1,  # Any end_offset should effectively be ignored.
+        compression_type=fileio.CompressionTypes.GZIP)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
+  def test_consume_entire_file_zlib(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        end_offset=1,  # Any end_offset should effectively be ignored.
+        compression_type=fileio.CompressionTypes.ZLIB)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
+
   def test_progress_entire_file(self):
     lines = ['First', 'Second', 'Third']
     source = fileio.TextFileSource(
@@ -89,6 +266,44 @@ class TestTextFileSource(unittest.TestCase):
         self.assertIsNotNone(line)
         progress_record.append(reader.get_progress().position.byte_offset)
       self.assertEqual(13, reader.get_progress().position.byte_offset)
+
+    self.assertEqual(len(progress_record), 3)
+    self.assertEqual(progress_record, [0, 6, 13])
+
+  def test_progress_entire_file_gzip(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.GZIP)
+    progress_record = []
+    with source.reader() as reader:
+      self.assertEqual(-1, reader.get_progress().position.byte_offset)
+      for line in reader:
+        self.assertIsNotNone(line)
+        progress_record.append(reader.get_progress().position.byte_offset)
+      self.assertEqual(18,  # Reading the entire contents before we decide EOF.
+                       reader.get_progress().position.byte_offset)
+
+    self.assertEqual(len(progress_record), 3)
+    self.assertEqual(progress_record, [0, 6, 13])
+
+  def test_progress_entire_file_zlib(self):
+    lines = ['First', 'Second', 'Third']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.ZLIB)
+    progress_record = []
+    with source.reader() as reader:
+      self.assertEqual(-1, reader.get_progress().position.byte_offset)
+      for line in reader:
+        self.assertIsNotNone(line)
+        progress_record.append(reader.get_progress().position.byte_offset)
+      self.assertEqual(18,  # Reading the entire contents before we decide EOF.
+                       reader.get_progress().position.byte_offset)
 
     self.assertEqual(len(progress_record), 3)
     self.assertEqual(progress_record, [0, 6, 13])
@@ -107,6 +322,66 @@ class TestTextFileSource(unittest.TestCase):
                        actual_response.stop_position.byte_offset)
 
       return actual_response
+
+  def test_gzip_file_unsplittable(self):
+    lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.GZIP)
+
+    with source.reader() as reader:
+      percents_complete = [x / 100.0 for x in range(101)]
+
+      # Cursor at beginning of file.
+      for percent_complete in percents_complete:
+        self.try_splitting_reader_at(
+            reader,
+            iobase.DynamicSplitRequest(
+                iobase.ReaderProgress(percent_complete=percent_complete)),
+            None)
+
+      # Cursor passed beginning of file.
+      reader_iter = iter(reader)
+      next(reader_iter)
+      next(reader_iter)
+      for percent_complete in percents_complete:
+        self.try_splitting_reader_at(
+            reader,
+            iobase.DynamicSplitRequest(
+                iobase.ReaderProgress(percent_complete=percent_complete)),
+            None)
+
+  def test_zlib_file_unsplittable(self):
+    lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
+    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.ZLIB)
+
+    with source.reader() as reader:
+      percents_complete = [x / 100.0 for x in range(101)]
+
+      # Cursor at beginning of file.
+      for percent_complete in percents_complete:
+        self.try_splitting_reader_at(
+            reader,
+            iobase.DynamicSplitRequest(
+                iobase.ReaderProgress(percent_complete=percent_complete)),
+            None)
+
+      # Cursor passed beginning of file.
+      reader_iter = iter(reader)
+      next(reader_iter)
+      next(reader_iter)
+      for percent_complete in percents_complete:
+        self.try_splitting_reader_at(
+            reader,
+            iobase.DynamicSplitRequest(
+                iobase.ReaderProgress(percent_complete=percent_complete)),
+            None)
 
   def test_update_stop_position_for_percent_complete(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
@@ -132,23 +407,23 @@ class TestTextFileSource(unittest.TestCase):
       # Splitting at positions on or before start offset of the last record
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(percent_complete=
-                                                           0.2)),
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(percent_complete=0.2)),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(percent_complete=
-                                                           0.4)),
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(percent_complete=0.4)),
           None)
 
       # Splitting at a position after the start offset of the last record should
       # be successful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(percent_complete=
-                                                           0.6)),
-          iobase.DynamicSplitResultWithPosition(iobase.ReaderPosition(
-              byte_offset=15)))
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(percent_complete=0.6)),
+          iobase.DynamicSplitResultWithPosition(
+              iobase.ReaderPosition(byte_offset=15)))
 
   def test_update_stop_position_percent_complete_for_position(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
@@ -164,35 +439,40 @@ class TestTextFileSource(unittest.TestCase):
       # Splitting at end of the range should be unsuccessful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(
-              position=iobase.ReaderPosition(byte_offset=0))),
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(position=iobase.ReaderPosition(
+                  byte_offset=0))),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(
-              position=iobase.ReaderPosition(byte_offset=25))),
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(position=iobase.ReaderPosition(
+                  byte_offset=25))),
           None)
 
       # Splitting at positions on or before start offset of the last record
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(
-              position=iobase.ReaderPosition(byte_offset=5))),
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(position=iobase.ReaderPosition(
+                  byte_offset=5))),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(
-              position=iobase.ReaderPosition(byte_offset=10))),
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(position=iobase.ReaderPosition(
+                  byte_offset=10))),
           None)
 
       # Splitting at a position after the start offset of the last record should
       # be successful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(
-              position=iobase.ReaderPosition(byte_offset=15))),
-          iobase.DynamicSplitResultWithPosition(iobase.ReaderPosition(
-              byte_offset=15)))
+          iobase.DynamicSplitRequest(
+              iobase.ReaderProgress(position=iobase.ReaderPosition(
+                  byte_offset=15))),
+          iobase.DynamicSplitResultWithPosition(
+              iobase.ReaderPosition(byte_offset=15)))
 
   def run_update_stop_position_exhaustive(self, lines, newline):
     """An exhaustive test for dynamic splitting.
@@ -240,13 +520,12 @@ class TestTextFileSource(unittest.TestCase):
         ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee'], '\r\n')
 
   def test_update_stop_position_exhaustive_multi_byte(self):
-    self.run_update_stop_position_exhaustive(
-        [u'අඅඅඅ'.encode('utf-8'), u'බබබබ'.encode('utf-8'),
-         u'කකකක'.encode('utf-8')], '\n')
+    self.run_update_stop_position_exhaustive([u'අඅඅඅ'.encode('utf-8'),
+                                              u'බබබබ'.encode('utf-8'),
+                                              u'කකකක'.encode('utf-8')], '\n')
 
   def run_update_stop_position(self, start_offset, end_offset, stop_offset,
-                               records_to_read,
-                               file_path):
+                               records_to_read, file_path):
     source = fileio.TextFileSource(file_path, start_offset, end_offset)
 
     records_of_first_split = ''
@@ -296,9 +575,7 @@ class TestTextFileSource(unittest.TestCase):
           records_of_original += line
 
       new_source = fileio.TextFileSource(
-          file_path,
-          split_response.stop_position.byte_offset,
-          end_offset)
+          file_path, split_response.stop_position.byte_offset, end_offset)
       with new_source.reader() as reader:
         for line in reader:
           records_of_second_split += line
@@ -331,78 +608,87 @@ class TestTextFileSource(unittest.TestCase):
     self.progress_with_offsets(lines, start_offset=20, end_offset=20)
 
 
-class NativeTestTextFileSink(unittest.TestCase):
-
-  def create_temp_file(self):
-    temp = tempfile.NamedTemporaryFile(delete=False)
-    return temp.name
-
-  def test_write_entire_file(self):
-    lines = ['First', 'Second', 'Third']
-    file_path = self.create_temp_file()
-    sink = fileio.NativeTextFileSink(file_path)
-    with sink.writer() as writer:
-      for line in lines:
-        writer.Write(line)
-    with open(file_path, 'r') as f:
-      self.assertEqual(f.read().splitlines(), lines)
-
-
-class TestTextFileSink(unittest.TestCase):
+class TestNativeTextFileSink(unittest.TestCase):
 
   def setUp(self):
     self.lines = ['Line %d' % d for d in range(100)]
     self.path = tempfile.NamedTemporaryFile().name
 
   def _write_lines(self, sink, lines):
-    f = sink.open(self.path)
-    for line in lines:
-      sink.write_record(f, line)
-    sink.close(f)
+    with sink.writer() as writer:
+      for line in lines:
+        writer.Write(line)
 
   def test_write_text_file(self):
-    sink = fileio.TextFileSink(self.path)
+    sink = fileio.NativeTextFileSink(self.path)
     self._write_lines(sink, self.lines)
 
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  def test_write_deflate_file(self):
-    sink = fileio.TextFileSink(self.path,
-                               compression_type=fileio.CompressionTypes.DEFLATE)
-    self._write_lines(sink, self.lines)
+  def test_write_text_file_empty(self):
+    sink = fileio.NativeTextFileSink(self.path)
+    self._write_lines(sink, [])
 
     with open(self.path, 'r') as f:
-      content = f.read()
-      self.assertEqual(
-          zlib.decompress(content, -zlib.MAX_WBITS).splitlines(), self.lines)
+      self.assertEqual(f.read().splitlines(), [])
 
-  def test_write_gzip_file(self):
-    sink = fileio.TextFileSink(self.path,
-                               compression_type=fileio.CompressionTypes.GZIP)
+  def test_write_text_gzip_file(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.GZIP)
     self._write_lines(sink, self.lines)
 
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  def test_write_zlib_file(self):
-    sink = fileio.TextFileSink(self.path,
-                               compression_type=fileio.CompressionTypes.ZLIB)
+  def test_write_text_gzip_file_auto(self):
+    self.path = tempfile.NamedTemporaryFile(suffix='.gz').name
+    sink = fileio.NativeTextFileSink(self.path)
+    self._write_lines(sink, self.lines)
+
+    with gzip.GzipFile(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), self.lines)
+
+  def test_write_text_gzip_file_empty(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.GZIP)
+    self._write_lines(sink, [])
+
+    with gzip.GzipFile(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_text_zlib_file(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.ZLIB)
     self._write_lines(sink, self.lines)
 
     with open(self.path, 'r') as f:
-      content = f.read()
-      # Below decompress option should work for both zlib/gzip header
-      # auto detection.
       self.assertEqual(
-          zlib.decompress(content, zlib.MAX_WBITS | 32).splitlines(),
-          self.lines)
+          zlib.decompress(f.read(), zlib.MAX_WBITS).splitlines(), self.lines)
+
+  def test_write_text_zlib_file_auto(self):
+    self.path = tempfile.NamedTemporaryFile(suffix='.Z').name
+    sink = fileio.NativeTextFileSink(self.path)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(
+          zlib.decompress(f.read(), zlib.MAX_WBITS).splitlines(), self.lines)
+
+  def test_write_text_zlib_file_empty(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.ZLIB)
+    self._write_lines(sink, [])
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(
+          zlib.decompress(f.read(), zlib.MAX_WBITS).splitlines(), [])
 
 
 class MyFileSink(fileio.FileSink):
 
   def open(self, temp_path):
-    # TODO(robertwb): Fix main session pickling.
+    # TODO: Fix main session pickling.
     # file_handle = super(MyFileSink, self).open(temp_path)
     file_handle = fileio.FileSink.open(self, temp_path)
     file_handle.write('[start]')
@@ -415,7 +701,7 @@ class MyFileSink(fileio.FileSink):
 
   def close(self, file_handle):
     file_handle.write('[end]')
-    # TODO(robertwb): Fix main session pickling.
+    # TODO: Fix main session pickling.
     # file_handle = super(MyFileSink, self).close(file_handle)
     file_handle = fileio.FileSink.close(self, file_handle)
 
@@ -424,9 +710,8 @@ class TestFileSink(unittest.TestCase):
 
   def test_file_sink_writing(self):
     temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(temp_path,
-                      file_name_suffix='.foo',
-                      coder=coders.ToStringCoder())
+    sink = MyFileSink(
+        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -442,7 +727,7 @@ class TestFileSink(unittest.TestCase):
     writer2.write('z')
     res2 = writer2.close()
 
-    res = list(sink.finalize_write(init_token, [res1, res2]))
+    _ = list(sink.finalize_write(init_token, [res1, res2]))
     # Retry the finalize operation (as if the first attempt was lost).
     res = list(sink.finalize_write(init_token, [res1, res2]))
 
@@ -458,37 +743,37 @@ class TestFileSink(unittest.TestCase):
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(temp_path,
-                      file_name_suffix='.foo',
-                      coder=coders.ToStringCoder())
+    sink = MyFileSink(
+        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
     p = beam.Pipeline('DirectPipelineRunner')
     p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
-    self.assertEqual(open(temp_path + '-00000-of-00001.foo').read(),
-                     '[start][end]')
+    self.assertEqual(
+        open(temp_path + '-00000-of-00001.foo').read(), '[start][end]')
 
   def test_fixed_shard_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(temp_path,
-                      file_name_suffix='.foo',
-                      num_shards=3,
-                      shard_name_template='_NN_SSS_',
-                      coder=coders.ToStringCoder())
+    sink = MyFileSink(
+        temp_path,
+        file_name_suffix='.foo',
+        num_shards=3,
+        shard_name_template='_NN_SSS_',
+        coder=coders.ToStringCoder())
     p = beam.Pipeline('DirectPipelineRunner')
     p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
     p.run()
 
-    concat = ''.join(open(temp_path + '_03_%03d_.foo' % shard_num).read()
-                     for shard_num in range(3))
+    concat = ''.join(
+        open(temp_path + '_03_%03d_.foo' % shard_num).read()
+        for shard_num in range(3))
     self.assertTrue('][a][' in concat, concat)
     self.assertTrue('][b][' in concat, concat)
 
   def test_file_sink_multi_shards(self):
     temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(temp_path,
-                      file_name_suffix='.foo',
-                      coder=coders.ToStringCoder())
+    sink = MyFileSink(
+        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -522,9 +807,8 @@ class TestFileSink(unittest.TestCase):
 
   def test_file_sink_io_error(self):
     temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(temp_path,
-                      file_name_suffix='.foo',
-                      coder=coders.ToStringCoder())
+    sink = MyFileSink(
+        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()

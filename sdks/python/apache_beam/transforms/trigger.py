@@ -713,6 +713,26 @@ class TriggerDriver(object):
     pass
 
 
+class _UnwindowedValues(observable.ObservableMixin):
+  """Exposes iterable of windowed values as interable of unwindowed values."""
+
+  def __init__(self, windowed_values):
+    super(_UnwindowedValues, self).__init__()
+    self._windowed_values = windowed_values
+
+  def __iter__(self):
+    for wv in self._windowed_values:
+      unwindowed_value = wv.value
+      self.notify_observers(unwindowed_value)
+      yield unwindowed_value
+
+  def __repr__(self):
+    return '<_UnwindowedValues of %s>' % self._windowed_values
+
+  def __reduce__(self):
+    return list, (list(self),)
+
+
 class DefaultGlobalBatchTriggerDriver(TriggerDriver):
   """Breaks a bundles into window (pane)s according to the default triggering.
   """
@@ -725,16 +745,7 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
     if isinstance(windowed_values, list):
       unwindowed = [wv.value for wv in windowed_values]
     else:
-      class UnwindowedValues(observable.ObservableMixin):
-        def __iter__(self):
-          for wv in windowed_values:
-            unwindowed_value = wv.value
-            self.notify_observers(unwindowed_value)
-            yield unwindowed_value
-
-        def __repr__(self):
-          return '<UnwindowedValues of %s>' % windowed_values
-      unwindowed = UnwindowedValues()
+      unwindowed = _UnwindowedValues(windowed_values)
     yield WindowedValue(unwindowed, MIN_TIMESTAMP, self.GLOBAL_WINDOW_TUPLE)
 
   def process_timer(self, window_id, name, time_domain, timestamp, state):

@@ -221,7 +221,7 @@ class PTransform(WithTypeHints):
     Args:
       args: A tuple of position arguments.
       kwargs: A dictionary of keyword arguments.
-      arg_name: The name of the second ergument.
+      arg_name: The name of the second argument.
 
     Returns:
       A (label, value) tuple. The label will be the one passed in or one
@@ -685,8 +685,13 @@ def ptransform_fn(fn):
   The equivalent approach using PTransform subclassing::
 
     class CustomMapper(PTransform):
-      def apply(self, pcoll, mapfn):
-        return pcoll | ParDo(mapfn)
+
+      def __init__(self, mapfn):
+        super(CustomMapper, self).__init__()
+        self.mapfn = mapfn
+
+      def apply(self, pcoll):
+        return pcoll | ParDo(self.mapfn)
 
   With either method the custom PTransform can be used in pipelines as if
   it were one of the "native" PTransforms::

@@ -248,6 +248,9 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Path to a file containing the P12 service '
                         'credentials.')
+    parser.add_argument('--service_account_email',
+                        default=None,
+                        help='Identity to run virtual machines as.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
 
   def validate(self, validator):
@@ -407,9 +410,10 @@ class SetupOptions(PipelineOptions):
          'specified, the file\'s containing folder is assumed to have the '
          'structure required for a setuptools setup package. The file must be '
          'named setup.py. More details: '
-         'https://pythonhosted.org/setuptools/setuptools.html During job '
-         'submission a source distribution will be built and the worker will '
-         'install the resulting package before running any custom code.'))
+         'https://pythonhosted.org/an_example_pypi_project/setuptools.html '
+         'During job submission a source distribution will be built and the '
+         'worker will install the resulting package before running any custom '
+         'code.'))
     parser.add_argument(
         '--save_main_session',
         default=False,

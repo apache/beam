@@ -15,10 +15,12 @@
 # limitations under the License.
 #
 
+import logging
 import tempfile
 import unittest
-from filebasedsource_test import LineSource
-import source_test_utils
+
+from apache_beam.io.filebasedsource_test import LineSource
+import apache_beam.io.source_test_utils as source_test_utils
 
 
 class SourceTestUtilsTest(unittest.TestCase):
@@ -115,3 +117,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     source = self._create_source(data)
 
     source_test_utils.assertSplitAtFractionExhaustive(source)
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
