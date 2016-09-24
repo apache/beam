@@ -34,10 +34,18 @@ import avro.schema as avro_schema
 
 class TestAvro(unittest.TestCase):
 
+  _temp_files = []
+
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
+
+  def tearDown(self):
+    for path in self._temp_files:
+      if os.path.exists(path):
+        os.remove(path)
+    self._temp_files = []
 
   RECORDS = [{'name': 'Thomas',
               'favorite_number': 1,
@@ -79,6 +87,7 @@ class TestAvro(unittest.TestCase):
         writer.append(self.RECORDS[i % len_records])
       writer.close()
 
+      self._temp_files.append(f.name)
       return f.name
 
   def _write_pattern(self, num_files):
