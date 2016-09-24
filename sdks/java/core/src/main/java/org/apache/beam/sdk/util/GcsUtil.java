@@ -365,14 +365,12 @@ public class GcsUtil {
   }
 
   /**
-   * Creates a bucket for the provided project or propagates an error.
+   * Creates a {@link Bucket} under the specified project in Cloud Storage or
+   * propagates an exception.
    */
-  public void createBucket(GcsPath path, long projectNumber) throws IOException {
+  public void createBucket(String projectId, Bucket bucket) throws IOException {
     createBucket(
-        path,
-        projectNumber,
-        BACKOFF_FACTORY.backoff(),
-        Sleeper.DEFAULT);
+        projectId, bucket, BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
   }
 
   /**
@@ -428,12 +426,10 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  void createBucket(GcsPath path, long projectNumber, BackOff backoff, Sleeper sleeper)
+  void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
         throws IOException {
-    Bucket bucket = new Bucket();
-    bucket.setName(path.getBucket());
     Storage.Buckets.Insert insertBucket =
-      storageClient.buckets().insert(String.valueOf(projectNumber), bucket);
+      storageClient.buckets().insert(projectId, bucket);
 
     try {
       ResilientOperation.retry(
@@ -453,17 +449,17 @@ public class GcsUtil {
       return;
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(path.toString(), null, e.getMessage());
+        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
       }
       if (errorExtractor.itemAlreadyExists(e)) {
-        throw new FileAlreadyExistsException(path.toString(), null, e.getMessage());
+        throw new FileAlreadyExistsException(bucket.getName(), null, e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException(
         String.format("Error while attempting to create bucket gs://%s for rproject %s",
-                      path.getBucket(), projectNumber), e);
+                      bucket.getName(), projectId), e);
     }
   }
 

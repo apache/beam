@@ -401,8 +401,7 @@ public class GcsUtilTest {
         .thenThrow(new SocketTimeoutException("SocketException"))
         .thenReturn(new Bucket());
 
-    gcsUtil.createBucket(GcsPath.fromComponents("testbucket", "testobject"),
-                         5L, mockBackOff, new FastNanoClockAndSleeper());
+    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper());
   }
 
   @Test
@@ -429,8 +428,7 @@ public class GcsUtilTest {
 
     thrown.expect(AccessDeniedException.class);
 
-    gcsUtil.createBucket(GcsPath.fromComponents("testbucket", "testobject"),
-                         5L, mockBackOff, new FastNanoClockAndSleeper());
+    gcsUtil.createBucket("a", new Bucket(), mockBackOff, new FastNanoClockAndSleeper());
   }
 
   @Test
