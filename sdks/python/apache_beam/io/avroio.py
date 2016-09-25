@@ -250,7 +250,7 @@ class _AvroSource(filebasedsource.FileBasedSource):
 _avro_codecs = {
     fileio.CompressionTypes.UNCOMPRESSED: 'null',
     fileio.CompressionTypes.ZLIB: 'deflate',
-#    fileio.CompressionTypes.SNAPPY: 'snappy',
+    # fileio.CompressionTypes.SNAPPY: 'snappy',
 }
 
 
@@ -305,6 +305,7 @@ class WriteToAvro(beam.transforms.PTransform):
                  shard_name_template, mime_type, compression_type)
 
   def apply(self, pcoll):
+    # pylint: disable=expression-not-assigned
     pcoll | beam.io.iobase.Write(_AvroSink(*self.args))
 
 

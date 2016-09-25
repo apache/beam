@@ -239,6 +239,7 @@ class TestAvro(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with beam.Pipeline('DirectPipelineRunner') as p:
+        # pylint: disable=expression-not-assigned
         p | beam.Create(self.RECORDS) | avroio.WriteToAvro(path, self.SCHEMA)
       with beam.Pipeline('DirectPipelineRunner') as p:
         # json used for stable sortability
