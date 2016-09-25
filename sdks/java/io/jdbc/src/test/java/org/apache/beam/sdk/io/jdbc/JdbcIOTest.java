@@ -20,25 +20,14 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.net.InetAddress;
-import java.sql.Array;
-import java.sql.Blob;
-import java.sql.Clob;
 import java.sql.Connection;
-import java.sql.Date;
-import java.sql.NClob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -351,128 +340,21 @@ public class JdbcIOTest implements Serializable {
   public void testWrite() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
-    ArrayList<JdbcDataRecord> data = new ArrayList<>();
+    ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
-      JdbcDataRecord record = new JdbcDataRecord(2);
-      record.getTableNames()[0] = "TEST";
-      record.getColumnNames()[0] = "ID";
-      record.getColumnTypes()[0] = Types.INTEGER;
-      record.getColumnValues()[0] = i;
-      record.getTableNames()[1] = "TEST";
-      record.getColumnNames()[1] = "NAME";
-      record.getColumnTypes()[1] = Types.VARCHAR;
-      record.getColumnValues()[1] = "Test";
-      data.add(record);
+      KV<Integer, String> kv = KV.of(i, "TEST");
+      data.add(kv);
     }
     pipeline.apply(Create.of(data))
         .apply(JdbcIO.write().withDataSource(dataSource)
-            .withElementInserter(new JdbcIO.ElementInserter<JdbcDataRecord>() {
-              public PreparedStatement insert(JdbcDataRecord element, Connection connection) {
-                PreparedStatement statement = null;
-                // map record per table
-                Map<String, List<InsertRecord>> tableMap = new HashMap<>();
-                Map<String, String> insertPerTable = new HashMap<>();
-                for (int i = 0; i < element.getTableNames().length; i++) {
-                  String tableName = element.getTableNames()[i];
-                  List<InsertRecord> recordList = tableMap.get(tableName);
-                  if (recordList == null) {
-                    recordList = new ArrayList<>();
-                  }
-                  recordList.add(new InsertRecord(
-                                  element.getColumnTypes()[i],
-                                  element.getColumnValues()[i]));
-                  tableMap.put(tableName, recordList);
-                }
-                // create insert string
-                for (String tableName : tableMap.keySet()) {
-                  String insertString = "insert into " + tableName + " values(";
-                  for (InsertRecord insertRecord : tableMap.get(tableName)) {
-                    insertString = insertString + "?,";
-                  }
-                  // remove trailing ',' and close parentheses
-                  insertString = insertString.substring(0, insertString.length() - 1) + ")";
-                  LOGGER.debug(insertString);
-                  try {
-                    statement = connection.prepareStatement(insertString);
-                    int index = 1;
-                    for (InsertRecord insertRecord : tableMap.get(tableName)) {
-                      switch (insertRecord.getColumnType()) {
-                        case Types.ARRAY:
-                          statement.setArray(index, (Array) insertRecord.getColumnValue());
-                          break;
-                        case Types.BIGINT:
-                          statement.setInt(index, (int) insertRecord.getColumnValue());
-                          break;
-                        case Types.BIT:
-                          statement.setInt(index, (int) insertRecord.getColumnValue());
-                          break;
-                        case Types.BLOB:
-                          statement.setBlob(index, (Blob) insertRecord.getColumnValue());
-                          break;
-                        case Types.BOOLEAN:
-                          statement.setBoolean(index, (boolean) insertRecord.getColumnValue());
-                          break;
-                        case Types.CHAR:
-                          statement.setString(index, (String) insertRecord.getColumnValue());
-                          break;
-                        case Types.CLOB:
-                          statement.setClob(index, (Clob) insertRecord.getColumnValue());
-                          break;
-                        case Types.DATE:
-                          statement.setDate(index, (Date) insertRecord.getColumnValue());
-                          break;
-                        case Types.DECIMAL:
-                          statement.setBigDecimal(index,
-                              (BigDecimal) insertRecord.getColumnValue());
-                          break;
-                        case Types.DOUBLE:
-                          statement.setDouble(index, (double) insertRecord.getColumnValue());
-                          break;
-                        case Types.FLOAT:
-                          statement.setFloat(index, (float) insertRecord.getColumnValue());
-                          break;
-                        case Types.INTEGER:
-                          statement.setInt(index, (int) insertRecord.getColumnValue());
-                          break;
-                        case Types.LONGNVARCHAR:
-                          statement.setString(index, (String) insertRecord.getColumnValue());
-                          break;
-                        case Types.LONGVARCHAR:
-                          statement.setString(index, (String) insertRecord.getColumnValue());
-                          break;
-                        case Types.NCHAR:
-                          statement.setNString(index, (String) insertRecord.getColumnValue());
-                          break;
-                        case Types.NCLOB:
-                          statement.setNClob(index, (NClob) insertRecord.getColumnValue());
-                          break;
-                        case Types.SMALLINT:
-                          statement.setInt(index, (int) insertRecord.getColumnValue());
-                          break;
-                        case Types.TIME:
-                          statement.setTime(index, (Time) insertRecord.getColumnValue());
-                          break;
-                        case Types.TIMESTAMP:
-                          statement.setTimestamp(index, (Timestamp) insertRecord.getColumnValue());
-                          break;
-                        case Types.TINYINT:
-                          statement.setInt(index, (int) insertRecord.getColumnValue());
-                          break;
-                        case Types.VARCHAR:
-                          statement.setString(index, (String) insertRecord.getColumnValue());
-                          break;
-                        default:
-                          statement.setObject(index, insertRecord.getColumnValue());
-                          break;
-                      }
-                      index++;
-                    }
-                  } catch (Exception e) {
-                    LOGGER.error("Can't prepare statement", e);
-                  }
-            }
-              return statement;
-              }}));
+            .withQuery("insert into TEST values(?, ?)")
+            .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+              public void setParameters(KV<Integer, String> element, PreparedStatement statement)
+                  throws Exception {
+                statement.setInt(1, element.getKey());
+                statement.setString(2, element.getValue());
+              }
+            }));
 
     pipeline.run();
 
