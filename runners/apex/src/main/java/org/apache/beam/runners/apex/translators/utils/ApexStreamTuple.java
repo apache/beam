@@ -27,9 +27,12 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StandardCoder;
+
+import com.datatorrent.api.Operator;
 
 public interface ApexStreamTuple<T>
 {
@@ -186,6 +189,14 @@ public interface ApexStreamTuple<T>
       return valueCoder;
     }
 
+  }
+
+  final class Logging
+  {
+    public static boolean isDebugEnabled(ApexPipelineOptions options, Operator operator)
+    {
+      return options.isTupleTracingEnabled();
+    }
   }
 
 }

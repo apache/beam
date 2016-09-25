@@ -28,8 +28,11 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.google.common.base.Throwables;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.InputOperator;
@@ -40,10 +43,14 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.io.IOException;
 
 /**
- * Apex input operator that wraps Beam UnboundedSource.
+ * Apex input operator that wraps Beam {@link UnboundedSource}.
  */
 public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     implements InputOperator {
+  private static final Logger LOG = LoggerFactory.getLogger(
+      ApexReadUnboundedInputOperator.class);
+  private boolean traceTuples = false;
+  private long outputWatermark = 0;
 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions pipelineOptions;
@@ -51,6 +58,7 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
   private final UnboundedSource<OutputT, CheckpointMarkT> source;
   private transient UnboundedSource.UnboundedReader<OutputT> reader;
   private transient boolean available = false;
+  @OutputPortFieldAnnotation(optional=true)
   public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<OutputT>>> output = new DefaultOutputPort<>();
 
   public ApexReadUnboundedInputOperator(UnboundedSource<OutputT, CheckpointMarkT> source, ApexPipelineOptions options) {
@@ -66,12 +74,23 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
   @Override
   public void beginWindow(long windowId)
   {
-    Instant mark = reader.getWatermark();
-    output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<OutputT>>of(mark.getMillis()));
     if (!available && source instanceof ValuesSource) {
-      // if it's a Create transformation and the input was consumed,
+      // if it's a Create and the input was consumed, emit final watermark
+      emitWatermarkIfNecessary(GlobalWindow.TIMESTAMP_MAX_VALUE.getMillis());
       // terminate the stream (allows tests to finish faster)
       BaseOperator.shutdown();
+    } else {
+      emitWatermarkIfNecessary(reader.getWatermark().getMillis());
+    }
+  }
+
+  private void emitWatermarkIfNecessary(long mark) {
+    if (mark > outputWatermark) {
+      outputWatermark = mark;
+      if (traceTuples) {
+        LOG.debug("\nemitting watermark {}\n", mark);
+      }
+      output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<OutputT>>of(mark));
     }
   }
 
@@ -83,6 +102,7 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
   @Override
   public void setup(OperatorContext context)
   {
+    this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(pipelineOptions.get(), this);
     try {
       reader = source.createReader(this.pipelineOptions.get(), null);
       available = reader.start();
@@ -114,6 +134,9 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
         OutputT data = reader.getCurrent();
         Instant timestamp = reader.getCurrentTimestamp();
         available = reader.advance();
+        if (traceTuples) {
+          LOG.debug("\nemitting {}\n", data);
+        }
         output.emit(DataTuple.of(WindowedValue.of(
             data, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
       }

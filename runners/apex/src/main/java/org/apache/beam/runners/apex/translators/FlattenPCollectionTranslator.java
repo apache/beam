@@ -18,19 +18,23 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import java.util.Collections;
 import java.util.List;
 
+import org.apache.beam.runners.apex.translators.functions.ApexFlattenOperator;
+import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
+import org.apache.beam.runners.apex.translators.io.ValuesSource;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-import com.datatorrent.lib.stream.StreamMerger;
 import com.google.common.collect.Lists;
 
 /**
- * Flatten.FlattenPCollectionList translation to Apex operator.
- * TODO: support more than two streams
+ * {@link Flatten.FlattenPCollectionList} translation to Apex operator.
  */
 public class FlattenPCollectionTranslator<T> implements
     TransformTranslator<Flatten.FlattenPCollectionList<T>> {
@@ -38,16 +42,28 @@ public class FlattenPCollectionTranslator<T> implements
 
   @Override
   public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
-    PCollection<T> firstCollection = null;
     PCollectionList<T> input = context.getInput();
     List<PCollection<T>> collections = input.getAll();
+
+    if (collections.isEmpty()) {
+      // create a dummy source that never emits anything
+      @SuppressWarnings("unchecked")
+      UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(Collections.EMPTY_LIST,
+          (Coder<T>) VoidCoder.of());
+      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
+          unboundedSource, context.getPipelineOptions());
+      context.addOperator(operator, operator.output);
+      return;
+    }
+
     List<PCollection<T>> remainingCollections = Lists.newArrayList();
+    PCollection<T> firstCollection = null;
     while (!collections.isEmpty()) {
       for (PCollection<T> collection : collections) {
         if (null == firstCollection) {
           firstCollection = collection;
         } else {
-          StreamMerger<T> operator = new StreamMerger<>();
+          ApexFlattenOperator<T> operator = new ApexFlattenOperator<>();
           context.addStream(firstCollection, operator.data1);
           context.addStream(collection, operator.data2);
           if (collections.size() > 2) {

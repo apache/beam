@@ -19,6 +19,7 @@ package org.apache.beam.runners.apex.translators.functions;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import org.apache.beam.runners.apex.translators.utils.SerializablePipelineOption
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -55,6 +58,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
@@ -79,16 +84,22 @@ import com.google.common.collect.Multimap;
  */
 public class ApexGroupByKeyOperator<K, V> implements Operator
 {
+  private static final Logger LOG = LoggerFactory.getLogger(ApexGroupByKeyOperator.class);
+  private boolean traceTuples = true;
+
   @Bind(JavaSerializer.class)
   private WindowingStrategy<V, BoundedWindow> windowingStrategy;
+  @Bind(JavaSerializer.class)
+  private Coder<K> keyCoder;
   @Bind(JavaSerializer.class)
   private Coder<V> valueCoder;
 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
-  private Map<K, StateInternals<K>> perKeyStateInternals = new HashMap<>();
-  private Map<K, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
+// TODO: InMemoryStateInternals not serializable
+transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
+  private Map<ByteBuffer, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;
   private transient OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> fn;
@@ -100,13 +111,18 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
     @Override
     public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t)
     {
-      //System.out.println("\n***RECEIVED: " +t);
       try {
         if (t instanceof ApexStreamTuple.WatermarkTuple) {
           ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>)t;
           processWatermark(mark);
+          if (traceTuples) {
+            LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
+          }
           output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<KV<K, Iterable<V>>>>of(mark.getTimestamp()));
           return;
+        }
+        if (traceTuples) {
+          LOG.debug("\ninput {}\n", t.getValue());
         }
         processElement(t.getValue());
       } catch (Exception e) {
@@ -124,6 +140,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
     Preconditions.checkNotNull(pipelineOptions);
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.windowingStrategy = (WindowingStrategy<V, BoundedWindow>)input.getWindowingStrategy();
+    this.keyCoder = ((KvCoder<K, V>)input.getCoder()).getKeyCoder();
     this.valueCoder = ((KvCoder<K, V>)input.getCoder()).getValueCoder();
   }
 
@@ -146,6 +163,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
   @Override
   public void setup(OperatorContext context)
   {
+    this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(serializedOptions.get(), this);
     StateInternalsFactory<K> stateInternalsFactory = new GroupByKeyStateInternalsFactory();
     this.fn = GroupAlsoByWindowViaWindowSetDoFn.create(this.windowingStrategy, stateInternalsFactory,
         SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder));
@@ -163,16 +181,16 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
    * We keep these timers in a Set, so that they are deduplicated, as the same
    * timer can be registered multiple times.
    */
-  private Multimap<K, TimerInternals.TimerData> getTimersReadyToProcess(long currentWatermark) {
+  private Multimap<ByteBuffer, TimerInternals.TimerData> getTimersReadyToProcess(long currentWatermark) {
 
     // we keep the timers to return in a different list and launch them later
     // because we cannot prevent a trigger from registering another trigger,
     // which would lead to concurrent modification exception.
-    Multimap<K, TimerInternals.TimerData> toFire = HashMultimap.create();
+    Multimap<ByteBuffer, TimerInternals.TimerData> toFire = HashMultimap.create();
 
-    Iterator<Map.Entry<K, Set<TimerInternals.TimerData>>> it = activeTimers.entrySet().iterator();
+    Iterator<Map.Entry<ByteBuffer, Set<TimerInternals.TimerData>>> it = activeTimers.entrySet().iterator();
     while (it.hasNext()) {
-      Map.Entry<K, Set<TimerInternals.TimerData>> keyWithTimers = it.next();
+      Map.Entry<ByteBuffer, Set<TimerInternals.TimerData>> keyWithTimers = it.next();
 
       Iterator<TimerInternals.TimerData> timerIt = keyWithTimers.getValue().iterator();
       while (timerIt.hasNext()) {
@@ -205,44 +223,64 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
     fn.processElement(context);
   }
 
-  private StateInternals<K> getStateInternalsForKey(K key) {
-    StateInternals<K> stateInternals = perKeyStateInternals.get(key);
+  private StateInternals<K> getStateInternalsForKey(K key)
+  {
+    final ByteBuffer keyBytes;
+    try {
+      keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
+    } catch (CoderException e) {
+      throw Throwables.propagate(e);
+    }
+    StateInternals<K> stateInternals = perKeyStateInternals.get(keyBytes);
     if (stateInternals == null) {
       //Coder<? extends BoundedWindow> windowCoder = this.windowingStrategy.getWindowFn().windowCoder();
       //OutputTimeFn<? super BoundedWindow> outputTimeFn = this.windowingStrategy.getOutputTimeFn();
       stateInternals = InMemoryStateInternals.forKey(key);
-      perKeyStateInternals.put(key, stateInternals);
+      perKeyStateInternals.put(keyBytes, stateInternals);
     }
     return stateInternals;
   }
 
   private void registerActiveTimer(K key, TimerInternals.TimerData timer) {
-    Set<TimerInternals.TimerData> timersForKey = activeTimers.get(key);
+    final ByteBuffer keyBytes;
+    try {
+      keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
+    } catch (CoderException e) {
+      throw Throwables.propagate(e);
+    }
+    Set<TimerInternals.TimerData> timersForKey = activeTimers.get(keyBytes);
     if (timersForKey == null) {
       timersForKey = new HashSet<>();
     }
     timersForKey.add(timer);
-    activeTimers.put(key, timersForKey);
+    activeTimers.put(keyBytes, timersForKey);
   }
 
   private void unregisterActiveTimer(K key, TimerInternals.TimerData timer) {
-    Set<TimerInternals.TimerData> timersForKey = activeTimers.get(key);
+    final ByteBuffer keyBytes;
+    try {
+      keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
+    } catch (CoderException e) {
+      throw Throwables.propagate(e);
+    }
+    Set<TimerInternals.TimerData> timersForKey = activeTimers.get(keyBytes);
     if (timersForKey != null) {
       timersForKey.remove(timer);
       if (timersForKey.isEmpty()) {
-        activeTimers.remove(key);
+        activeTimers.remove(keyBytes);
       } else {
-        activeTimers.put(key, timersForKey);
+        activeTimers.put(keyBytes, timersForKey);
       }
     }
   }
 
   private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) throws Exception {
     this.inputWatermark = new Instant(mark.getTimestamp());
-    Multimap<K, TimerInternals.TimerData> timers = getTimersReadyToProcess(mark.getTimestamp());
+    Multimap<ByteBuffer, TimerInternals.TimerData> timers = getTimersReadyToProcess(mark.getTimestamp());
     if (!timers.isEmpty()) {
-      for (K key : timers.keySet()) {
-        KeyedWorkItem<K, V> kwi = KeyedWorkItems.<K, V>timersWorkItem(key, timers.get(key));
+      for (ByteBuffer keyBytes : timers.keySet()) {
+        K key = CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+        KeyedWorkItem<K, V> kwi = KeyedWorkItems.<K, V>timersWorkItem(key, timers.get(keyBytes));
         context.setElement(kwi, getStateInternalsForKey(kwi.key()));
         fn.processElement(context);
       }
@@ -315,7 +353,9 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
 
         @Override
         public void outputWindowedValue(KV<K, Iterable<V>> output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-          System.out.println("\n***EMITTING: " + output + ", timestamp=" + timestamp);
+          if (traceTuples) {
+            LOG.debug("\nemitting {} timestamp {}\n", output, timestamp);
+          }
           ApexGroupByKeyOperator.this.output.emit(ApexStreamTuple.DataTuple.of(WindowedValue.of(output, timestamp, windows, pane)));
         }
 

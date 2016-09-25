@@ -50,6 +50,12 @@ public interface ApexPipelineOptions extends PipelineOptions, java.io.Serializab
   @Default.Boolean(true)
   boolean isEmbeddedExecutionDebugMode();
 
+  @Description("output data received and emitted on ports (for debugging)")
+  void setTupleTracingEnabled(boolean enabled);
+
+  @Default.Boolean(false)
+  boolean isTupleTracingEnabled();
+
   @Description("how long the client should wait for the pipeline to run")
   void setRunMillis(long runMillis);
 

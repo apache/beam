@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.apex;
 
+import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
 import org.apache.beam.runners.apex.translators.CreateValuesTranslator;
 import org.apache.beam.runners.apex.translators.FlattenPCollectionTranslator;
 import org.apache.beam.runners.apex.translators.GroupByKeyTranslator;
@@ -35,8 +36,8 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +72,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     registerTransformTranslator(Flatten.FlattenPCollectionList.class,
         new FlattenPCollectionTranslator());
     registerTransformTranslator(Create.Values.class, new CreateValuesTranslator());
+    registerTransformTranslator(CreateApexPCollectionView.class, new CreatePCollectionViewTranslator());
   }
 
   public ApexPipelineTranslator(TranslationContext translationContext) {
@@ -98,7 +100,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     PTransform transform = node.getTransform();
     TransformTranslator translator = getTransformTranslator(transform.getClass());
     if (null == translator) {
-      throw new IllegalStateException(
+      throw new UnsupportedOperationException(
           "no translator registered for " + transform);
     }
     translationContext.setCurrentTransform(node);
@@ -145,6 +147,19 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       context.addOperator(operator, operator.output);
     }
 
+  }
+
+  private static class CreatePCollectionViewTranslator<ElemT, ViewT> implements TransformTranslator<CreateApexPCollectionView<ElemT, ViewT>>
+  {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public void translate(CreateApexPCollectionView<ElemT, ViewT> transform, TranslationContext context)
+    {
+      PCollectionView<ViewT> view = transform.getView();
+      context.addView(view);
+      LOG.debug("view {}", view.getName());
+    }
   }
 
 }

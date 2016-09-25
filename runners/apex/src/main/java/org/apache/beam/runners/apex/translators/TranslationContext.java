@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -54,6 +55,17 @@ public class TranslationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final Map<PCollection, Pair<OutputPort<?>, List<InputPort<?>>>> streams = new HashMap<>();
   private final Map<String, Operator> operators = new HashMap<>();
+  private final Map<PCollectionView<?>, PInput> viewInputs = new HashMap<>();
+
+  public void addView(PCollectionView<?> view) {
+    this.viewInputs.put(view, this.getInput());
+  }
+
+  public <InputT extends PInput> InputT getViewInput(PCollectionView<?> view) {
+    PInput input = this.viewInputs.get(view);
+    checkArgument(input != null, "unknown view " + view.getName());
+    return (InputT)input;
+  }
 
   public TranslationContext(ApexPipelineOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
@@ -102,7 +114,7 @@ public class TranslationContext {
 
   public void addStream(PInput input, InputPort inputPort) {
     Pair<OutputPort<?>, List<InputPort<?>>> stream = this.streams.get(input);
-    checkArgument(stream != null, "no upstream operator defined");
+    checkArgument(stream != null, "no upstream operator defined for %s", input);
     stream.getRight().add(inputPort);
   }
 

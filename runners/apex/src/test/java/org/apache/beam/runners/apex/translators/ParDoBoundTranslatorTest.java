@@ -20,20 +20,25 @@ package org.apache.beam.runners.apex.translators;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translators.functions.ApexParDoOperator;
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
+import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 import com.datatorrent.api.DAG;
+import com.datatorrent.lib.util.KryoCloneUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -48,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -123,13 +129,11 @@ public class ParDoBoundTranslatorTest {
     }
   }
 
-
-  @Ignore
   @Test
   public void testAssertionFailure() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
-    options.setRunner(ApexRunner.class);
+    options.setRunner(TestApexRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<Integer> pcollection = pipeline
@@ -149,6 +153,16 @@ public class ParDoBoundTranslatorTest {
         expectedPattern.matcher(exc.getMessage()).find());
   }
 
+  @Test
+  public void testContainsInAnyOrder() throws Exception {
+    ApexPipelineOptions options = PipelineOptionsFactory.create().as(ApexPipelineOptions.class);
+    options.setRunner(TestApexRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
+    PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
+    pipeline.run();
+  }
+
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
     // We cannot use thrown.expect(AssertionError.class) because the AssertionError
     // is first caught by JUnit and causes a test failure.
@@ -161,4 +175,19 @@ public class ParDoBoundTranslatorTest {
     throw new RuntimeException("unreachable");
   }
 
+  @Test
+  public void testSerialization() throws Exception {
+    ApexPipelineOptions options = PipelineOptionsFactory.create()
+        .as(ApexPipelineOptions.class);
+    ApexParDoOperator<Integer, Integer> operator = new ApexParDoOperator<>(options,
+        new Add(0), WindowingStrategy.globalDefault(), Collections.<PCollectionView<?>> emptyList());
+    operator.setup(null);
+    operator.beginWindow(0);
+    WindowedValue<Integer> wv = WindowedValue.valueInGlobalWindow(0);
+    operator.input.process(ApexStreamTuple.DataTuple.of(wv));
+    operator.input.process(ApexStreamTuple.WatermarkTuple.<WindowedValue<Integer>>of(0));
+    operator.endWindow();
+    Assert.assertNotNull("Serialization", KryoCloneUtils.cloneObject(operator));
+
+  }
 }
