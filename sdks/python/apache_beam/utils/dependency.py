@@ -189,13 +189,26 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   return resources
 
 
+def _get_python_executable():
+  # Allow overriding the python executable to use for downloading and
+  # installing dependencies, otherwise use the python executable for
+  # the current process.
+  beam_python = os.environ.get('BEAM_PYTHON')
+  if beam_python:
+    return beam_python
+  python_bin = sys.executable
+  if not python_bin:
+    raise ValueError('Could not find Python executable.')
+  return python_bin
+
+
 def _populate_requirements_cache(requirements_file, cache_dir):
   # The 'pip download' command will not download again if it finds the
   # tarball with the proper version already present.
   # It will get the packages downloaded in the order they are presented in
   # the requirements file and will not download package dependencies.
   cmd_args = [
-      sys.executable, '-m', 'pip', 'install', '--download', cache_dir,
+      _get_python_executable(), '-m', 'pip', 'install', '--download', cache_dir,
       '-r', requirements_file,
       # Download from PyPI source distributions.
       '--no-binary', ':all:']
@@ -375,7 +388,7 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(os.path.dirname(setup_file))
     if build_setup_args is None:
       build_setup_args = [
-          sys.executable, os.path.basename(setup_file),
+          _get_python_executable(), os.path.basename(setup_file),
           'sdist', '--dist-dir', temp_dir]
     logging.info('Executing command: %s', build_setup_args)
     processes.check_call(build_setup_args)
@@ -461,7 +474,7 @@ def _download_pypi_sdk_package(temp_dir):
   version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
-      sys.executable, '-m', 'pip', 'install', '--download', temp_dir,
+      _get_python_executable(), '-m', 'pip', 'install', '--download', temp_dir,
       '%s==%s' % (GOOGLE_PACKAGE_NAME, version),
       '--no-binary', ':all:', '--no-deps']
   logging.info('Executing command: %s', cmd_args)
