@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -66,6 +65,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
+import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -462,7 +462,8 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
         }
       }
       return new RuntimeValueProvider(
-        method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(), proxy.getOptionsId());
+        method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+        proxy.getOptionsId());
     }
     for (Annotation annotation : method.getAnnotations()) {
       Object o = returnDefaultHelper(annotation, proxy, method);

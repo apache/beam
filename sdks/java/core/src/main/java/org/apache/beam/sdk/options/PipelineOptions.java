@@ -326,6 +326,7 @@ public interface PipelineOptions extends HasDisplayData {
       return String.format("%s-%s-%s-%s",
           normalizedAppName, normalizedUserName, datePart, randomPart);
     }
+  }
 
 
   /**
