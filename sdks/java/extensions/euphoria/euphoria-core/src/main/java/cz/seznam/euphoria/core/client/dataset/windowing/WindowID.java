@@ -21,15 +21,16 @@ public final class WindowID<LABEL> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof WindowID)) return false;
-    WindowID<?> other = (WindowID<?>) o;
-    return Objects.equals(other.label, label);
+    if (o instanceof WindowID) {
+      WindowID<?> that = (WindowID<?>) o;
+      return Objects.equals(this.label, that.label);
+    }
+    return false;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(label);
+    return label == null ? 0 : label.hashCode();
   }
 
   @Override
