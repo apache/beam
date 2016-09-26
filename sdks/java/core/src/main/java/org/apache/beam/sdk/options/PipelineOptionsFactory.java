@@ -54,6 +54,7 @@ import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -1440,8 +1441,12 @@ public class PipelineOptionsFactory {
             }
           }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
-                || returnType.getComponentType().isEnum()))
-            || Collection.class.isAssignableFrom(returnType)) {
+                   || returnType.getComponentType().isEnum()))
+                   || Collection.class.isAssignableFrom(returnType)
+                   || (returnType.equals(ValueProvider.class)
+                       && MAPPER.getTypeFactory().constructType(
+                         ((ParameterizedType) method.getGenericReturnType())
+                         .getActualTypeArguments()[0]).isCollectionLikeType())) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
@@ -1452,7 +1457,8 @@ public class PipelineOptionsFactory {
           }).toList();
 
           if (returnType.isArray() && !returnType.getComponentType().equals(String.class)
-              || Collection.class.isAssignableFrom(returnType)) {
+              || Collection.class.isAssignableFrom(returnType)
+              || returnType.equals(ValueProvider.class)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
                   "Empty argument value is only allowed for String, String Array, "
@@ -1461,7 +1467,8 @@ public class PipelineOptionsFactory {
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
+        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
+                   || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
                "Empty argument value is only allowed for String, String Array, "
