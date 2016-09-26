@@ -29,14 +29,13 @@ import java.util.ArrayList;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.derby.drda.NetworkServerControl;
@@ -108,37 +107,27 @@ public class JdbcIOTest implements Serializable {
   public void testRead() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
-    PCollection<KV<Integer, String>> output = pipeline.apply(
+    PCollection<KV<String, Integer>> output = pipeline.apply(
         JdbcIO.read()
             .withDataSource(dataSource)
-            .withStatement("select id,name from BEAM")
-            .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+            .withQuery("select name,id from BEAM")
+            .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
               @Override
-              public KV<Integer, String> mapRow(ResultSet resultSet) {
-                try {
-                  KV<Integer, String> kv =
-                      KV.of(resultSet.getInt("id"), resultSet.getString("name"));
+              public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
+                  KV<String, Integer> kv =
+                      KV.of(resultSet.getString("name"), resultSet.getInt("id"));
                   return kv;
-                } catch (Exception e) {
-                  return null;
-                }
               }
             }))
         .setCoder(KvCoder.of(
-            SerializableCoder.of(Integer.class), SerializableCoder.of(String.class)));
+            StringUtf8Coder.of(), SerializableCoder.of(Integer.class)));
 
     PAssert.thatSingleton(
-        output.apply("Count All", Count.<KV<Integer, String>>globally()))
+        output.apply("Count All", Count.<KV<String, Integer>>globally()))
         .isEqualTo(1000L);
 
     PAssert.that(output
-        .apply("Map Scientist", MapElements.via(
-            new SimpleFunction<KV<Integer, String>, KV<String, Void>>() {
-              public KV<String, Void> apply(KV<Integer, String> input) {
-                return KV.of(input.getValue(), null);
-              }
-            }))
-        .apply("Count Scientist", Count.<String, Void>perKey())
+        .apply("Count Scientist", Count.<String, Integer>perKey())
     ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
       @Override
       public Void apply(Iterable<KV<String, Long>> input) {
