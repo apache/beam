@@ -887,7 +887,8 @@ public class PipelineOptionsFactory {
         }
       }
       // Properties can appear multiple times with subclasses, and we don't
-      // want to clobber a good entry with a bad one.
+      // want to add a bad entry if we have already added a good one (with both
+      // getter and setter).
       if (!usedDescriptors.contains(propertyName)) {
         descriptors.add(new PropertyDescriptor(
             propertyName, getterMethod, method));
@@ -917,8 +918,8 @@ public class PipelineOptionsFactory {
           "Type mismatch between getter and setter methods for property [%s]. "
           + "Getter is of type [%s] whereas setter is of type [%s].",
           mismatch.propertyName,
-          mismatch.getterPropertyType.toString(),
-          mismatch.setterPropertyType.toString()));
+          mismatch.getterPropertyType,
+          mismatch.setterPropertyType));
     } else if (mismatches.size() > 1) {
       StringBuilder builder = new StringBuilder(
           "Type mismatches between getters and setters detected:");
@@ -982,7 +983,7 @@ public class PipelineOptionsFactory {
         methods.add(method);
       }
     }
-    // Ignore standard infrastructure methods on the generated class.
+    // Ignore methods on the base PipelineOptions interface.
     try {
       methods.add(iface.getMethod("as", Class.class));
       methods.add(iface.getMethod("cloneAs", Class.class));
@@ -1459,22 +1460,24 @@ public class PipelineOptionsFactory {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
                   "Empty argument value is only allowed for String, String Array, "
-                  + "and Collections of Strings, but received: "
-                  + method.getGenericReturnType());
+                            + "and Collections of Strings, but received: %s",
+                            method.getGenericReturnType());
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + method.getGenericReturnType());
+               "Empty argument value is only allowed for String, String Array, "
+                        + "and Collections of Strings, but received: %s",
+                        method.getGenericReturnType());
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + method.getGenericReturnType());
+                "Empty argument value is only allowed for String, String Array, "
+                        + "and Collections of Strings, but received: %s",
+                        method.getGenericReturnType());
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {

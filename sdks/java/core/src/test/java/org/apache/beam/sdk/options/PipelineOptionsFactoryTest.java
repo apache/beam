@@ -502,7 +502,8 @@ public class PipelineOptionsFactoryTest {
         "--byte="};
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collection");
+        "Empty argument value is only allowed for String, String Array, and Collections"
+        + " of Strings");
     PipelineOptionsFactory.fromArgs(args).as(Primitives.class);
   }
 
@@ -710,7 +711,8 @@ public class PipelineOptionsFactoryTest {
   public void testEmptyInNonStringArrays() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collection");
+        "Empty argument value is only allowed for String, String Array, and Collections"
+        + " of Strings");
 
     String[] args = new String[] {
         "--boolean=true",
@@ -724,7 +726,8 @@ public class PipelineOptionsFactoryTest {
   public void testEmptyInNonStringArraysWithCommaList() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Empty argument value is only allowed for String, String Array, and Collection");
+        "Empty argument value is only allowed for String, String Array, and Collections"
+        + " of Strings");
 
     String[] args = new String[] {
         "--int=1,,9"};
@@ -758,7 +761,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  public void testListRaw() {
+  public void testListRawDefaultsToString() {
     String[] manyArgs =
         new String[] {"--list=stringValue1", "--list=stringValue2", "--list=stringValue3"};
 
@@ -873,7 +876,8 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
       "Empty argument value is only allowed for String, String Array, and "
-      + "Collection, but received: java.util.Map<java.lang.Integer, java.lang.Integer>");
+      + "Collections of Strings, but received: java.util.Map<java.lang.Integer, "
+      + "java.lang.Integer>");
     options = PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
   }
 
@@ -894,9 +898,9 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-      "Empty argument value is only allowed for String, String Array, and Collection, "
-      + "but received: java.util.Map<java.lang.Integer, java.util.Map<java.lang.Integer, "
-      + "java.lang.Integer>>");
+      "Empty argument value is only allowed for String, String Array, and Collections of "
+      + "Strings, but received: java.util.Map<java.lang.Integer, "
+      + "java.util.Map<java.lang.Integer, java.lang.Integer>>");
     options = PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
   }
 
