@@ -164,6 +164,8 @@ class BigQueryAvroUtils {
             .put("TIMESTAMP", Type.LONG)
             .put("RECORD", Type.RECORD)
             .put("DATE", Type.STRING)
+            .put("DATETIME", Type.STRING)
+            .put("TIME", Type.STRING)
             .build();
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
     // is required, so it may not be null.
@@ -180,6 +182,8 @@ class BigQueryAvroUtils {
     switch (fieldSchema.getType()) {
       case "STRING":
       case "DATE":
+      case "DATETIME":
+      case "TIME":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
