@@ -176,7 +176,7 @@ public class BigQueryTableRowIteratorTest {
 
     // Run query and verify
     String query = "SELECT name, count, photo, anniversary_date, "
-        + "anniversary_datetime, anniversary_time  from table";
+        + "anniversary_datetime, anniversary_time from table";
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
       iterator.open();
