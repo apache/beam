@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -51,122 +53,180 @@ public class DoFnTesterTest {
 
   @Test
   public void processElement() throws Exception {
-    CounterDoFn counterDoFn = new CounterDoFn();
-    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+    for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
+      try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+        tester.setCloningBehavior(cloning);
+        tester.processElement(1L);
 
-    tester.processElement(1L);
+        List<String> take = tester.takeOutputElements();
 
-    List<String> take = tester.takeOutputElements();
+        assertThat(take, hasItems("1"));
 
-    assertThat(take, hasItems("1"));
-
-    // Following takeOutputElements(), neither takeOutputElements()
-    // nor peekOutputElements() return anything.
-    assertTrue(tester.takeOutputElements().isEmpty());
-    assertTrue(tester.peekOutputElements().isEmpty());
-
-    // processElement() caused startBundle() to be called, but finishBundle() was never called.
-    CounterDoFn deserializedDoFn = (CounterDoFn) tester.fn;
-    assertTrue(deserializedDoFn.wasStartBundleCalled());
-    assertFalse(deserializedDoFn.wasFinishBundleCalled());
+        // Following takeOutputElements(), neither takeOutputElements()
+        // nor peekOutputElements() return anything.
+        assertTrue(tester.takeOutputElements().isEmpty());
+        assertTrue(tester.peekOutputElements().isEmpty());
+      }
+    }
   }
 
   @Test
   public void processElementsWithPeeks() throws Exception {
-    CounterDoFn counterDoFn = new CounterDoFn();
-    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+    for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
+      try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+        tester.setCloningBehavior(cloning);
+        // Explicitly call startBundle().
+        tester.startBundle();
 
-    // Explicitly call startBundle().
-    tester.startBundle();
+        // process a couple of elements.
+        tester.processElement(1L);
+        tester.processElement(2L);
 
-    // verify startBundle() was called but not finishBundle().
-    CounterDoFn deserializedDoFn = (CounterDoFn) tester.fn;
-    assertTrue(deserializedDoFn.wasStartBundleCalled());
-    assertFalse(deserializedDoFn.wasFinishBundleCalled());
+        // peek the first 2 outputs.
+        List<String> peek = tester.peekOutputElements();
+        assertThat(peek, hasItems("1", "2"));
 
-    // process a couple of elements.
-    tester.processElement(1L);
-    tester.processElement(2L);
+        // process a couple more.
+        tester.processElement(3L);
+        tester.processElement(4L);
 
-    // peek the first 2 outputs.
-    List<String> peek = tester.peekOutputElements();
-    assertThat(peek, hasItems("1", "2"));
+        // peek all the outputs so far.
+        peek = tester.peekOutputElements();
+        assertThat(peek, hasItems("1", "2", "3", "4"));
+        // take the outputs.
+        List<String> take = tester.takeOutputElements();
+        assertThat(take, hasItems("1", "2", "3", "4"));
 
-    // process a couple more.
-    tester.processElement(3L);
-    tester.processElement(4L);
+        // Following takeOutputElements(), neither takeOutputElements()
+        // nor peekOutputElements() return anything.
+        assertTrue(tester.peekOutputElements().isEmpty());
+        assertTrue(tester.takeOutputElements().isEmpty());
 
-    // peek all the outputs so far.
-    peek = tester.peekOutputElements();
-    assertThat(peek, hasItems("1", "2", "3", "4"));
-    // take the outputs.
-    List<String> take = tester.takeOutputElements();
-    assertThat(take, hasItems("1", "2", "3", "4"));
+        // process a couple more.
+        tester.processElement(5L);
+        tester.processElement(6L);
 
-    // Following takeOutputElements(), neither takeOutputElements()
-    // nor peekOutputElements() return anything.
-    assertTrue(tester.peekOutputElements().isEmpty());
-    assertTrue(tester.takeOutputElements().isEmpty());
+        // peek and take now have only the 2 last outputs.
+        peek = tester.peekOutputElements();
+        assertThat(peek, hasItems("5", "6"));
+        take = tester.takeOutputElements();
+        assertThat(take, hasItems("5", "6"));
 
-    // verify finishBundle() hasn't been called yet.
-    assertTrue(deserializedDoFn.wasStartBundleCalled());
-    assertFalse(deserializedDoFn.wasFinishBundleCalled());
-
-    // process a couple more.
-    tester.processElement(5L);
-    tester.processElement(6L);
-
-    // peek and take now have only the 2 last outputs.
-    peek = tester.peekOutputElements();
-    assertThat(peek, hasItems("5", "6"));
-    take = tester.takeOutputElements();
-    assertThat(take, hasItems("5", "6"));
-
-    tester.finishBundle();
-
-    // verify finishBundle() was called.
-    assertTrue(deserializedDoFn.wasStartBundleCalled());
-    assertTrue(deserializedDoFn.wasFinishBundleCalled());
+        tester.finishBundle();
+      }
+    }
   }
 
   @Test
-  public void processElementAfterFinish() throws Exception {
-    DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn());
-    tester.finishBundle();
+  public void processBundle() throws Exception {
+    for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
+      try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+        tester.setCloningBehavior(cloning);
+        // processBundle() returns all the output like takeOutputElements().
+        assertThat(tester.processBundle(1L, 2L, 3L, 4L), hasItems("1", "2", "3", "4"));
 
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("finishBundle() has already been called");
-    tester.processElement(1L);
+        // peek now returns nothing.
+        assertTrue(tester.peekOutputElements().isEmpty());
+      }
+    }
   }
 
   @Test
-  public void processBatch() throws Exception {
-    CounterDoFn counterDoFn = new CounterDoFn();
-    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+  public void processMultipleBundles() throws Exception {
+    for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
+      try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+        tester.setCloningBehavior(cloning);
+        // processBundle() returns all the output like takeOutputElements().
+        assertThat(tester.processBundle(1L, 2L, 3L, 4L), hasItems("1", "2", "3", "4"));
+        assertThat(tester.processBundle(5L, 6L, 7L), hasItems("5", "6", "7"));
+        assertThat(tester.processBundle(8L, 9L), hasItems("8", "9"));
 
-    // processBundle() returns all the output like takeOutputElements().
-    List<String> take = tester.processBundle(1L, 2L, 3L, 4L);
+        // peek now returns nothing.
+        assertTrue(tester.peekOutputElements().isEmpty());
+      }
+    }
+  }
 
-    assertThat(take, hasItems("1", "2", "3", "4"));
+  @Test
+  public void doNotClone() throws Exception {
+    final AtomicInteger numSetupCalls = new AtomicInteger();
+    final AtomicInteger numTeardownCalls = new AtomicInteger();
+    DoFn<Long, String> fn =
+        new DoFn<Long, String>() {
+          @ProcessElement
+          public void process(ProcessContext context) {}
 
-    // peek now returns nothing.
-    assertTrue(tester.peekOutputElements().isEmpty());
+          @Setup
+          public void setup() {
+            numSetupCalls.addAndGet(1);
+          }
 
-    // verify startBundle() and finishBundle() were both called.
-    CounterDoFn deserializedDoFn = (CounterDoFn) tester.fn;
-    assertTrue(deserializedDoFn.wasStartBundleCalled());
-    assertTrue(deserializedDoFn.wasFinishBundleCalled());
+          @Teardown
+          public void teardown() {
+            numTeardownCalls.addAndGet(1);
+          }
+        };
+
+    try (DoFnTester<Long, String> tester = DoFnTester.of(fn)) {
+      tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
+
+      tester.processBundle(1L, 2L, 3L);
+      tester.processBundle(4L, 5L);
+      tester.processBundle(6L);
+    }
+    assertEquals(1, numSetupCalls.get());
+    assertEquals(1, numTeardownCalls.get());
+  }
+
+  private static class CountBundleCallsFn extends DoFn<Long, String> {
+    private int numStartBundleCalls = 0;
+    private int numFinishBundleCalls = 0;
+
+    @ProcessElement
+    public void process(ProcessContext context) {
+      context.output(numStartBundleCalls + "/" + numFinishBundleCalls);
+    }
+
+    @StartBundle
+    public void startBundle(Context context) {
+      ++numStartBundleCalls;
+    }
+
+    @FinishBundle
+    public void finishBundle(Context context) {
+      ++numFinishBundleCalls;
+    }
+  }
+
+  @Test
+  public void cloneOnce() throws Exception {
+    try (DoFnTester<Long, String> tester = DoFnTester.of(new CountBundleCallsFn())) {
+      tester.setCloningBehavior(DoFnTester.CloningBehavior.CLONE_ONCE);
+
+      assertThat(tester.processBundle(1L, 2L, 3L), contains("1/0", "1/0", "1/0"));
+      assertThat(tester.processBundle(4L, 5L), contains("2/1", "2/1"));
+      assertThat(tester.processBundle(6L), contains("3/2"));
+    }
+  }
+
+  @Test
+  public void clonePerBundle() throws Exception {
+    try (DoFnTester<Long, String> tester = DoFnTester.of(new CountBundleCallsFn())) {
+      tester.setCloningBehavior(DoFnTester.CloningBehavior.CLONE_PER_BUNDLE);
+
+      assertThat(tester.processBundle(1L, 2L, 3L), contains("1/0", "1/0", "1/0"));
+      assertThat(tester.processBundle(4L, 5L), contains("1/0", "1/0"));
+      assertThat(tester.processBundle(6L), contains("1/0"));
+    }
   }
 
   @Test
   public void processTimestampedElement() throws Exception {
-    DoFn<Long, TimestampedValue<Long>> reifyTimestamps = new ReifyTimestamps();
-
-    DoFnTester<Long, TimestampedValue<Long>> tester = DoFnTester.of(reifyTimestamps);
-
-    TimestampedValue<Long> input = TimestampedValue.of(1L, new Instant(100));
-    tester.processTimestampedElement(input);
-    assertThat(tester.takeOutputElements(), contains(input));
+    try (DoFnTester<Long, TimestampedValue<Long>> tester = DoFnTester.of(new ReifyTimestamps())) {
+      TimestampedValue<Long> input = TimestampedValue.of(1L, new Instant(100));
+      tester.processTimestampedElement(input);
+      assertThat(tester.takeOutputElements(), contains(input));
+    }
   }
 
   static class ReifyTimestamps extends DoFn<Long, TimestampedValue<Long>> {
@@ -178,86 +238,83 @@ public class DoFnTesterTest {
 
   @Test
   public void processElementWithOutputTimestamp() throws Exception {
-    CounterDoFn counterDoFn = new CounterDoFn();
-    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+    try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+      tester.processElement(1L);
+      tester.processElement(2L);
 
-    tester.processElement(1L);
-    tester.processElement(2L);
+      List<TimestampedValue<String>> peek = tester.peekOutputElementsWithTimestamp();
+      TimestampedValue<String> one = TimestampedValue.of("1", new Instant(1000L));
+      TimestampedValue<String> two = TimestampedValue.of("2", new Instant(2000L));
+      assertThat(peek, hasItems(one, two));
 
-    List<TimestampedValue<String>> peek = tester.peekOutputElementsWithTimestamp();
-    TimestampedValue<String> one = TimestampedValue.of("1", new Instant(1000L));
-    TimestampedValue<String> two = TimestampedValue.of("2", new Instant(2000L));
-    assertThat(peek, hasItems(one, two));
+      tester.processElement(3L);
+      tester.processElement(4L);
 
-    tester.processElement(3L);
-    tester.processElement(4L);
+      TimestampedValue<String> three = TimestampedValue.of("3", new Instant(3000L));
+      TimestampedValue<String> four = TimestampedValue.of("4", new Instant(4000L));
+      peek = tester.peekOutputElementsWithTimestamp();
+      assertThat(peek, hasItems(one, two, three, four));
+      List<TimestampedValue<String>> take = tester.takeOutputElementsWithTimestamp();
+      assertThat(take, hasItems(one, two, three, four));
 
-    TimestampedValue<String> three = TimestampedValue.of("3", new Instant(3000L));
-    TimestampedValue<String> four = TimestampedValue.of("4", new Instant(4000L));
-    peek = tester.peekOutputElementsWithTimestamp();
-    assertThat(peek, hasItems(one, two, three, four));
-    List<TimestampedValue<String>> take = tester.takeOutputElementsWithTimestamp();
-    assertThat(take, hasItems(one, two, three, four));
+      // Following takeOutputElementsWithTimestamp(), neither takeOutputElementsWithTimestamp()
+      // nor peekOutputElementsWithTimestamp() return anything.
+      assertTrue(tester.takeOutputElementsWithTimestamp().isEmpty());
+      assertTrue(tester.peekOutputElementsWithTimestamp().isEmpty());
 
-    // Following takeOutputElementsWithTimestamp(), neither takeOutputElementsWithTimestamp()
-    // nor peekOutputElementsWithTimestamp() return anything.
-    assertTrue(tester.takeOutputElementsWithTimestamp().isEmpty());
-    assertTrue(tester.peekOutputElementsWithTimestamp().isEmpty());
-
-    // peekOutputElements() and takeOutputElements() also return nothing.
-    assertTrue(tester.peekOutputElements().isEmpty());
-    assertTrue(tester.takeOutputElements().isEmpty());
+      // peekOutputElements() and takeOutputElements() also return nothing.
+      assertTrue(tester.peekOutputElements().isEmpty());
+      assertTrue(tester.takeOutputElements().isEmpty());
+    }
   }
 
   @Test
   public void getAggregatorValuesShouldGetValueOfCounter() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
-    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
-    tester.processBundle(1L, 2L, 4L, 8L);
-
-    Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
-
-    assertThat(aggregatorVal, equalTo(15L));
+    try (DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn)) {
+      tester.processBundle(1L, 2L, 4L, 8L);
+      assertThat(tester.getAggregatorValue(counterDoFn.agg), equalTo(15L));
+    }
   }
 
   @Test
   public void getAggregatorValuesWithEmptyCounterShouldSucceed() throws Exception {
     CounterDoFn counterDoFn = new CounterDoFn();
-    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
-    tester.processBundle();
-    Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
-    // empty bundle
-    assertThat(aggregatorVal, equalTo(0L));
+    try (DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn)) {
+      tester.processBundle();
+      // empty bundle
+      assertThat(tester.getAggregatorValue(counterDoFn.agg), equalTo(0L));
+    }
   }
 
   @Test
   public void getAggregatorValuesInStartFinishBundleShouldGetValues() throws Exception {
-    CounterDoFn fn = new CounterDoFn(1L, 2L);
-    DoFnTester<Long, String> tester = DoFnTester.of(fn);
-    tester.processBundle(0L, 0L);
+    CounterDoFn fn = new CounterDoFn();
+    try (DoFnTester<Long, String> tester = DoFnTester.of(fn)) {
+      tester.processBundle(1L, 2L, 3L, 4L);
 
-    Long aggValue = tester.getAggregatorValue(fn.agg);
-    assertThat(aggValue, equalTo(1L + 2L));
+      assertThat(tester.getAggregatorValue(fn.startBundleCalls), equalTo(1L));
+      assertThat(tester.getAggregatorValue(fn.finishBundleCalls), equalTo(1L));
+    }
   }
 
   @Test
   public void peekValuesInWindow() throws Exception {
-    CounterDoFn fn = new CounterDoFn(1L, 2L);
-    DoFnTester<Long, String> tester = DoFnTester.of(fn);
+    try (DoFnTester<Long, String> tester = DoFnTester.of(new CounterDoFn())) {
+      tester.startBundle();
+      tester.processElement(1L);
+      tester.processElement(2L);
+      tester.finishBundle();
 
-    tester.startBundle();
-    tester.processElement(1L);
-    tester.processElement(2L);
-    tester.finishBundle();
-
-    assertThat(
-        tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
-        containsInAnyOrder(
-            TimestampedValue.of("1", new Instant(1000L)),
-            TimestampedValue.of("2", new Instant(2000L))));
-    assertThat(
-        tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
-        Matchers.<TimestampedValue<String>>emptyIterable());
+      assertThat(
+          tester.peekOutputElementsInWindow(GlobalWindow.INSTANCE),
+          containsInAnyOrder(
+              TimestampedValue.of("1", new Instant(1000L)),
+              TimestampedValue.of("2", new Instant(2000L))));
+      assertThat(
+          tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
+          Matchers.<TimestampedValue<String>>emptyIterable());
+    }
   }
 
   @Test
@@ -265,15 +322,14 @@ public class DoFnTesterTest {
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
             TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
-    OldDoFn<Integer, Integer> fn = new SideInputDoFn(value);
 
-    DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
-
-    tester.processElement(1);
-    tester.processElement(2);
-    tester.processElement(4);
-    tester.processElement(8);
-    assertThat(tester.peekOutputElements(), containsInAnyOrder(0, 0, 0, 0));
+    try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
+      tester.processElement(1);
+      tester.processElement(2);
+      tester.processElement(4);
+      tester.processElement(8);
+      assertThat(tester.peekOutputElements(), containsInAnyOrder(0, 0, 0, 0));
+    }
   }
 
   @Test
@@ -281,17 +337,17 @@ public class DoFnTesterTest {
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
             TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
-    OldDoFn<Integer, Integer> fn = new SideInputDoFn(value);
 
-    DoFnTester<Integer, Integer> tester = DoFnTester.of(fn);
-    tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
-    tester.processElement(16);
-    tester.processElement(32);
-    tester.processElement(64);
-    tester.processElement(128);
-    tester.finishBundle();
+    try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
+      tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
+      tester.processElement(16);
+      tester.processElement(32);
+      tester.processElement(64);
+      tester.processElement(128);
+      tester.finishBundle();
 
-    assertThat(tester.peekOutputElements(), containsInAnyOrder(-2, -2, -2, -2));
+      assertThat(tester.peekOutputElements(), containsInAnyOrder(-2, -2, -2, -2));
+    }
   }
 
   private static class SideInputDoFn extends OldDoFn<Integer, Integer> {
@@ -308,50 +364,56 @@ public class DoFnTesterTest {
   }
 
   /**
-   * An {@link OldDoFn} that adds values to an aggregator and converts input to String in
+   * A {@link DoFn} that adds values to an aggregator and converts input to String in
    * {@link OldDoFn#processElement).
    */
-  private static class CounterDoFn extends OldDoFn<Long, String> {
+  private static class CounterDoFn extends DoFn<Long, String> {
     Aggregator<Long, Long> agg = createAggregator("ctr", new Sum.SumLongFn());
-    private final long startBundleVal;
-    private final long finishBundleVal;
-    private boolean startBundleCalled;
-    private boolean finishBundleCalled;
+    Aggregator<Long, Long> startBundleCalls =
+        createAggregator("startBundleCalls", new Sum.SumLongFn());
+    Aggregator<Long, Long> finishBundleCalls =
+        createAggregator("finishBundleCalls", new Sum.SumLongFn());
 
-    public CounterDoFn() {
-      this(0L, 0L);
+    private enum LifecycleState {
+      UNINITIALIZED,
+      SET_UP,
+      INSIDE_BUNDLE,
+      TORN_DOWN
+    }
+    private LifecycleState state = LifecycleState.UNINITIALIZED;
+
+    @Setup
+    public void setup() {
+      checkState(state == LifecycleState.UNINITIALIZED, "Wrong state: %s", state);
+      state = LifecycleState.SET_UP;
     }
 
-    public CounterDoFn(long start, long finish) {
-      this.startBundleVal = start;
-      this.finishBundleVal = finish;
-    }
-
-    @Override
+    @StartBundle
     public void startBundle(Context c) {
-      agg.addValue(startBundleVal);
-      startBundleCalled = true;
+      checkState(state == LifecycleState.SET_UP, "Wrong state: %s", state);
+      state = LifecycleState.INSIDE_BUNDLE;
+      startBundleCalls.addValue(1L);
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
+      checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
       agg.addValue(c.element());
       Instant instant = new Instant(1000L * c.element());
       c.outputWithTimestamp(c.element().toString(), instant);
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) {
-      agg.addValue(finishBundleVal);
-      finishBundleCalled = true;
+      checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
+      state = LifecycleState.SET_UP;
+      finishBundleCalls.addValue(1L);
     }
 
-    boolean wasStartBundleCalled() {
-      return startBundleCalled;
-    }
-
-    boolean wasFinishBundleCalled() {
-      return finishBundleCalled;
+    @Teardown
+    public void teardown() {
+      checkState(state == LifecycleState.SET_UP, "Wrong state: %s", state);
+      state = LifecycleState.TORN_DOWN;
     }
   }
 }
