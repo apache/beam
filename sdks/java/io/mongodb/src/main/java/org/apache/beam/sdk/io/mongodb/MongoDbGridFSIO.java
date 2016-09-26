@@ -24,6 +24,7 @@ import com.mongodb.Mongo;
 import com.mongodb.MongoURI;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
+import com.mongodb.util.JSON;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -67,6 +68,13 @@ import org.joda.time.Instant;
  *   .withBucket("my-bucket"))
  *
  * }</pre>
+ *
+ * <p>The source also accepts an optional configuration: {@code withQueryFilter()} allows you to
+ * define a JSON filter to get subset of files in the database.</p>
+ *
+ * <p>There is also an optional {@code ParseCallback} that can be specified that can be used to
+ * parse the InputStream into objects usable with Beam.  By default, MongoDbGridFSIO will parse
+ * into Strings, splitting on line breaks and using the uploadDate of the file as the timestamp.
  */
 public class MongoDbGridFSIO {
 
@@ -135,36 +143,41 @@ public class MongoDbGridFSIO {
 
   /** Read data from GridFS. */
   public static Read<String> read() {
-    return new Read<String>(new Read.BoundedGridFSSource<String>(null, null, null,
+    return new Read<String>(new Read.BoundedGridFSSource<String>(null, null, null, null,
                             StringsParseCallback.INSTANCE, StringUtf8Coder.of()));
   }
 
   static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
       return new Read<T>(new BoundedGridFSSource<T>(uri, options.database,
-                                           options.bucket,
+                                           options.bucket, options.filterJson,
                                            options.parser, options.coder));
     }
 
     public Read<T> withDatabase(String database) {
       return new Read<T>(new BoundedGridFSSource<T>(options.uri, database,
-                                           options.bucket,
+                                           options.bucket, options.filterJson,
                                            options.parser, options.coder));
     }
 
     public Read<T> withBucket(String bucket) {
       return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database, bucket,
-                                                     options.parser, options.coder));
+          options.filterJson, options.parser, options.coder));
     }
 
     public <X> Read<X> withParsingFn(ParseCallback<X> f) {
       return new Read<X>(new BoundedGridFSSource<X>(options.uri, options.database,
-          options.bucket, f, null));
+          options.bucket, options.filterJson, f, null));
     }
 
     public Read<T> withCoder(Coder<T> coder) {
       return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database,
-          options.bucket, options.parser, coder));
+          options.bucket, options.filterJson, options.parser, coder));
+    }
+
+    public Read<T> withQueryFilter(String filterJson) {
+      return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database,
+          options.bucket, filterJson, options.parser, options.coder));
     }
 
     private final BoundedGridFSSource<T> options;
@@ -189,6 +202,7 @@ public class MongoDbGridFSIO {
       private final String uri;
       private final String database;
       private final String bucket;
+      private final String filterJson;
       private final ParseCallback<T> parser;
       private final Coder<T> coder;
       @Nullable
@@ -196,15 +210,16 @@ public class MongoDbGridFSIO {
       private transient Mongo mongo;
       private transient GridFS gridfs;
 
-      BoundedGridFSSource(String uri, String database, String bucket,
+      BoundedGridFSSource(String uri, String database, String bucket, String filterJson,
           ParseCallback<T> parser, Coder<T> coder) {
         this.uri = uri;
         this.database = database;
         this.bucket = bucket;
         this.parser = parser;
         this.coder = coder;
+        this.filterJson = filterJson;
       }
-      BoundedGridFSSource(String uri, String database, String bucket,
+      BoundedGridFSSource(String uri, String database, String bucket, String filterJson,
           ParseCallback<T> parser, Coder<T> coder, List<ObjectId> objectIds) {
         this.uri = uri;
         this.database = database;
@@ -212,6 +227,7 @@ public class MongoDbGridFSIO {
         this.parser = parser;
         this.coder = coder;
         this.objectIds = objectIds;
+        this.filterJson = filterJson;
       }
       private synchronized void setupGridFS() {
         if (gridfs == null) {
@@ -233,15 +249,22 @@ public class MongoDbGridFSIO {
           PipelineOptions options) throws Exception {
         try {
           setupGridFS();
-          DBCursor cursor = gridfs.getFileList().sort(null);
-          long size = 0;
+          DBCursor cursor;
+          if (filterJson != null) {
+            DBObject query = (DBObject) JSON.parse(filterJson);
+            cursor = gridfs.getFileList(query).sort(null);
+          } else {
+            cursor = gridfs.getFileList().sort(null);
+          }
+                    long size = 0;
           List<BoundedGridFSSource<T>> list = new LinkedList<>();
           List<ObjectId> objects = new LinkedList<>();
           while (cursor.hasNext()) {
             GridFSDBFile file = (GridFSDBFile) cursor.next();
             long len = file.getLength();
             if ((size + len) > desiredBundleSizeBytes && !objects.isEmpty()) {
-              list.add(new BoundedGridFSSource<T>(uri, database, bucket, parser, coder, objects));
+              list.add(new BoundedGridFSSource<T>(uri, database, bucket, filterJson,
+                                                  parser, coder, objects));
               size = 0;
               objects = new LinkedList<>();
             }
@@ -249,7 +272,8 @@ public class MongoDbGridFSIO {
             size += len;
           }
           if (!objects.isEmpty() || list.isEmpty()) {
-            list.add(new BoundedGridFSSource<T>(uri, database, bucket, parser, coder, objects));
+            list.add(new BoundedGridFSSource<T>(uri, database, bucket, filterJson,
+                                                parser, coder, objects));
           }
           return list;
         } finally {
@@ -260,7 +284,13 @@ public class MongoDbGridFSIO {
       public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
         try {
           setupGridFS();
-          DBCursor cursor = gridfs.getFileList().sort(null);
+          DBCursor cursor;
+          if (filterJson != null) {
+            DBObject query = (DBObject) JSON.parse(filterJson);
+            cursor = gridfs.getFileList(query).sort(null);
+          } else {
+            cursor = gridfs.getFileList().sort(null);
+          }
           long size = 0;
           while (cursor.hasNext()) {
             GridFSDBFile file = (GridFSDBFile) cursor.next();
