@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * <p>IO to read and write data on JDBC.</p>
- *
+ * <p>
  * <h3>Reading from JDBC datasource</h3>
  * <p>
  * JdbcIO source returns a bounded collection of {@code T} as a
@@ -59,25 +59,23 @@ import org.slf4j.LoggerFactory;
  *
  * pipeline.apply(JdbcIO.read()
  *   .withDataSource(myDataSource)
- *   .withRowMapper(new JdbcIO.RowMapper<MyElement>() {
- *     public MyElement mapRow(ResultSet resultSet) {
- *       // use the resultSet to build the element of the PCollection
- *       // for instance:
- *       // return resultSet.getString(2);
+ *   .withStatement("select id,name from Person")
+ *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+ *     public KV<Integer, String> mapRow(ResultSet resultSet) {
+ *       KV<Integer, String> kv = KV.of(resultSet.getInt(1), resultSet.getString(2));
  *     }
  *   })
  *
  *   }
  * </pre>
  * <p>
- *   You can find an full {@link RowMapper} example in {@code JdbcIOTest}.
+ * You can find a full {@link RowMapper} example in {@code JdbcIOTest}.
  * </p>
  * <h3>Writing to JDBC datasource</h3>
  * <p>
- * JDBC sink supports writing records into a database. It expects a
- * {@code PCollection<T>}, converts the {@code T} elements as SQL statement
- * and setParameters into the database. T is the type expected by the
- * provided {@link PreparedStatementSetter}.
+ * JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
+ * database by converting each T into a {@link PreparedStatement} via an user-provided
+ * {@link PreparedStatementSetter}.
  * </p>
  * <p>
  * Like the source, to configure JDBC sink, you have to provide a datasource. For instance:
@@ -89,19 +87,21 @@ import org.slf4j.LoggerFactory;
  *   .apply(...)
  *   .apply(JdbcIO.write()
  *      .withDataSource(myDataSource)
- *      .withQuery(query)
- *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<MyElement>() {
+ *      .withStatement("insert into Person values(?, ?)")
+ *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
  *        public void setParameters(MyElement element, PreparedStatement statement) {
  *          // use the PCollection element to set parameters of the SQL statement used to insert
  *          // in the database
- *          // for instance: statement.setString(0, element.toString());
+ *          // for instance:
+ *          statement.setInt(1, kv.getKey());
+ *          statement.setString(2, kv.getValue());
  *        }
  *      })
  *
  *   }
  * </pre>
  * <p>
- *   You can find a full {@link PreparedStatementSetter} in {@code JdbcIOTest}.
+ * You can find a full {@link PreparedStatementSetter} in {@code JdbcIOTest}.
  * </p>
  */
 public class JdbcIO {
@@ -123,7 +123,7 @@ public class JdbcIO {
    * @return a {@link Write} {@link PTransform}.
    */
   public static Write<?> write() {
-    return new Write(new Write.JdbcWriter(null, null, null, null,
+    return new Write(new Write.WriteFn(null, null, null, null,
         null, 1024L));
   }
 
@@ -136,7 +136,7 @@ public class JdbcIO {
    * object used in the {@link PCollection}.
    */
   public interface RowMapper<T> extends Serializable {
-      T mapRow(ResultSet resultSet);
+    T mapRow(ResultSet resultSet);
   }
 
   /**
@@ -148,8 +148,8 @@ public class JdbcIO {
       return new Read<T>(options.withDataSource(dataSource), rowMapper);
     }
 
-    public Read<T> withQuery(String query) {
-      return new Read<T>(options.withQuery(query), rowMapper);
+    public Read<T> withStatement(String statement) {
+      return new Read<T>(options.withStatement(statement), rowMapper);
     }
 
     public <X> Read<X> withRowMapper(RowMapper<X> rowMapper) {
@@ -197,75 +197,58 @@ public class JdbcIO {
     static class JdbcOptions implements Serializable {
 
       private final DataSource dataSource;
-      private final String query;
+      private final String statement;
       @Nullable
       private final String username;
       @Nullable
       private final String password;
 
-      private JdbcOptions(DataSource dataSource, String query,
+      private JdbcOptions(DataSource dataSource, String statement,
                           @Nullable String username,
                           @Nullable String password) {
         this.dataSource = dataSource;
-        this.query = query;
+        this.statement = statement;
         this.username = username;
         this.password = password;
       }
 
       public JdbcOptions withDataSource(DataSource dataSource) {
-        return new JdbcOptions(dataSource, query, username, password);
+        return new JdbcOptions(dataSource, statement, username, password);
       }
 
-      public JdbcOptions withQuery(String query) {
-        return new JdbcOptions(dataSource, query, username, password);
+      public JdbcOptions withStatement(String statement) {
+        return new JdbcOptions(dataSource, statement, username, password);
       }
 
       public JdbcOptions withRowMapper(RowMapper rowMapper) {
-        return new JdbcOptions(dataSource, query, username, password);
+        return new JdbcOptions(dataSource, statement, username, password);
       }
 
       public JdbcOptions withUsername(String username) {
-        return new JdbcOptions(dataSource, query, username, password);
+        return new JdbcOptions(dataSource, statement, username, password);
       }
 
       public JdbcOptions withPassword(String password) {
-        return new JdbcOptions(dataSource, query, username, password);
+        return new JdbcOptions(dataSource, statement, username, password);
       }
 
       public void validate() {
         Preconditions.checkNotNull(dataSource, "dataSource");
-        Preconditions.checkNotNull(query, "query");
+        Preconditions.checkNotNull(statement, "statement");
       }
 
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.add(DisplayData.item("dataSource", dataSource.getClass().getName()));
-        builder.add(DisplayData.item("query", query));
+        builder.add(DisplayData.item("statement", statement));
         builder.addIfNotNull(DisplayData.item("username", username));
       }
 
-      public DataSource getDataSource() {
-        return dataSource;
-      }
-
-      public String getQuery() {
-        return query;
-      }
-
-      @Nullable
-      public String getUsername() {
-        return username;
-      }
-
-      @Nullable
-      public String getPassword() {
-        return password;
-      }
     }
 
     /**
-     * A {@link DoFn} executing the SQL query to read from the database.
+     * A {@link DoFn} executing the SQL statement to read from the database.
      */
-    public static class ReadFn<T> extends DoFn<JdbcOptions, T> {
+    static class ReadFn<T> extends DoFn<JdbcOptions, T> {
 
       private final RowMapper<T> rowMapper;
 
@@ -277,15 +260,15 @@ public class JdbcIO {
       public void processElement(ProcessContext context) throws Exception {
         JdbcOptions options = context.element();
 
-        try (Connection connection = (options.getUsername() != null)
-            ? options.getDataSource().getConnection(options.getUsername(), options.getPassword())
-            : options.getDataSource().getConnection()) {
+        try (Connection connection = (options.username != null)
+            ? options.dataSource.getConnection(options.username, options.password)
+            : options.dataSource.getConnection()) {
 
-          try (PreparedStatement statement = connection.prepareStatement(options.getQuery())) {
+          try (PreparedStatement statement = connection.prepareStatement(options.statement)) {
             try (ResultSet resultSet = statement.executeQuery()) {
               while (resultSet.next()) {
                 T record = rowMapper.mapRow(resultSet);
-                  context.output(record);
+                context.output(record);
               }
             }
           }
@@ -308,103 +291,104 @@ public class JdbcIO {
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
     public Write<T> withDataSource(DataSource dataSource) {
-      return new Write<>(writer.withDataSource(dataSource));
+      return new Write<>(writeFn.withDataSource(dataSource));
     }
 
-    public Write<T> withQuery(String query) {
-      return new Write<>(writer.withQuery(query));
+    public Write<T> withStatement(String statement) {
+      return new Write<>(writeFn.withStatement(statement));
     }
 
     public Write<T> withUsername(String username) {
-      return new Write<>(writer.withUsername(username));
+      return new Write<>(writeFn.withUsername(username));
     }
 
     public Write<T> withPassword(String password) {
-      return new Write<>(writer.withPassword(password));
+      return new Write<>(writeFn.withPassword(password));
     }
 
     public <X> Write<X> withPreparedStatementSetter(
         PreparedStatementSetter<X> preparedStatementSetter) {
-      return new Write<>(writer.withPreparedStatementSetter(preparedStatementSetter));
+      return new Write<>(writeFn.withPreparedStatementSetter(preparedStatementSetter));
     }
 
     public Write<T> withBatchSize(long batchSize) {
-      return new Write<>(writer.withBatchSize(batchSize));
+      return new Write<>(writeFn.withBatchSize(batchSize));
     }
 
-    private final JdbcWriter writer;
+    private final WriteFn writeFn;
 
-    private Write(JdbcWriter writer) {
-      this.writer = writer;
+    private Write(WriteFn writeFn) {
+      this.writeFn = writeFn;
     }
 
     @Override
     public PDone apply(PCollection<T> input) {
-      input.apply(ParDo.of(writer));
+      input.apply(ParDo.of(writeFn));
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<T> input) {
-      writer.validate();
+      writeFn.validate();
     }
 
-    private static class JdbcWriter<T> extends DoFn<T, Void> {
+    private static class WriteFn<T> extends DoFn<T, Void> {
 
       private final DataSource dataSource;
-      private final String query;
+      private final String statement;
       private final String username;
       private final String password;
       private final PreparedStatementSetter<T> preparedStatementSetter;
       private long batchSize;
 
       private Connection connection;
+      private PreparedStatement preparedStatement;
       private List<T> batch;
 
-      public JdbcWriter(DataSource dataSource, String query, String username, String password,
-                        PreparedStatementSetter<T> preparedStatementSetter, long batchSize) {
+      public WriteFn(DataSource dataSource, String statement, String username, String password,
+                     PreparedStatementSetter<T> preparedStatementSetter, long batchSize) {
         this.dataSource = dataSource;
-        this.query = query;
+        this.statement = statement;
         this.username = username;
         this.password = password;
         this.preparedStatementSetter = preparedStatementSetter;
         this.batchSize = batchSize;
       }
 
-      public JdbcWriter<T> withDataSource(DataSource dataSource) {
-        return new JdbcWriter<>(dataSource, query, username, password, preparedStatementSetter,
+      public WriteFn<T> withDataSource(DataSource dataSource) {
+        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
             batchSize);
       }
 
-      public JdbcWriter<T> withQuery(String query) {
-        return new JdbcWriter<>(dataSource, query, username, password, preparedStatementSetter,
+      public WriteFn<T> withStatement(String statement) {
+        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
             batchSize);
       }
 
-      public JdbcWriter<T> withUsername(String username) {
-        return new JdbcWriter<>(dataSource, query, username, password, preparedStatementSetter,
+      public WriteFn<T> withUsername(String username) {
+        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
             batchSize);
       }
 
-      public JdbcWriter<T> withPassword(String password) {
-        return new JdbcWriter<>(dataSource, query, username, password, preparedStatementSetter,
+      public WriteFn<T> withPassword(String password) {
+        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
             batchSize);
       }
 
-      public JdbcWriter<T> withPreparedStatementSetter(
+      public WriteFn<T> withPreparedStatementSetter(
           PreparedStatementSetter<T> preparedStatementSetter) {
-        return new JdbcWriter<>(dataSource, query, username, password, preparedStatementSetter,
+        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
             batchSize);
       }
 
-      public JdbcWriter<T> withBatchSize(long batchSize) {
-        return new JdbcWriter<>(dataSource, query, username, password, preparedStatementSetter,
+      public WriteFn<T> withBatchSize(long batchSize) {
+        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
             batchSize);
       }
 
       public void validate() {
         Preconditions.checkNotNull(dataSource, "dataSource");
-        Preconditions.checkNotNull(query, "query");
+        Preconditions.checkNotNull(statement, "statement");
         Preconditions.checkNotNull(preparedStatementSetter, "preparedStatementSetter");
       }
 
@@ -416,6 +400,7 @@ public class JdbcIO {
           connection = dataSource.getConnection();
         }
         connection.setAutoCommit(true);
+        preparedStatement = connection.prepareStatement(statement);
       }
 
       @StartBundle
@@ -436,23 +421,19 @@ public class JdbcIO {
       @FinishBundle
       public void finishBundle(Context context) throws Exception {
         for (T record : batch) {
-          try {
-            PreparedStatement statement = connection.prepareStatement(query);
-            preparedStatementSetter.setParameters(record, statement);
-            try {
-              statement.executeUpdate();
-            } finally {
-              statement.close();
-            }
-          } catch (Exception e) {
-            LOGGER.error("Can't insert into database", e);
-          }
+          preparedStatementSetter.setParameters(record, preparedStatement);
+          preparedStatement.executeUpdate();
         }
+        // TODO clear only record actually inserted in the database (remove from batch
+        // when statement didn't throw exception)
         batch.clear();
       }
 
       @Teardown
       public void closeConnection() throws Exception {
+        if (preparedStatement != null) {
+          preparedStatement.close();
+        }
         if (connection != null) {
           connection.close();
         }

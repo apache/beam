@@ -24,11 +24,10 @@ import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.Statement;
-import java.sql.Types;
 import java.util.ArrayList;
 
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -78,7 +77,6 @@ public class JdbcIOTest implements Serializable {
     Statement statement = connection.createStatement();
     try {
       statement.executeUpdate("create table BEAM(id INT, name VARCHAR(500))");
-      statement.executeUpdate("create table TEST(ID INT, NAME VARCHAR(200))");
     } catch (Exception e) {
       LOGGER.warn("Can't create table BEAM, it probably already exists", e);
     } finally {
@@ -91,7 +89,7 @@ public class JdbcIOTest implements Serializable {
 
     String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
         "Newton", "Bohr", "Galilei", "Maxwell"};
-    for (int i = 1; i <= 1000; i++) {
+    for (int i = 0; i < 1000; i++) {
       int index = i % scientists.length;
       PreparedStatement preparedStatement = connection.prepareStatement("insert into BEAM "
           + "values (?,?)");
@@ -105,193 +103,39 @@ public class JdbcIOTest implements Serializable {
     connection.close();
   }
 
-  /**
-   * Example of {@link PCollection} element that a
-   * {@link org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper} can return.
-   */
-  public class JdbcDataRecord implements Serializable {
-
-    private String[] tableNames;
-    private String[] columnNames;
-    private Object[] columnValues;
-    private int[] columnTypes;
-
-    public JdbcDataRecord() {
-    }
-
-    public JdbcDataRecord(int size) {
-      this.tableNames = new String[size];
-      this.columnNames = new String[size];
-      this.columnValues = new Object[size];
-      this.columnTypes = new int[size];
-    }
-
-    public String[] getTableNames() {
-      return tableNames;
-    }
-
-    public void setTableNames(String[] tableName) {
-      this.tableNames = tableName;
-    }
-
-    public String[] getColumnNames() {
-      return columnNames;
-    }
-
-    public void setColumnNames(String[] columnNames) {
-      this.columnNames = columnNames;
-    }
-
-    public Object[] getColumnValues() {
-      return columnValues;
-    }
-
-    public void setColumnValues(Object[] columnValues) {
-      this.columnValues = columnValues;
-    }
-
-    public int[] getColumnTypes() {
-      return columnTypes;
-    }
-
-    public void setColumnTypes(int[] columnTypes) {
-      this.columnTypes = columnTypes;
-    }
-
-    public String toString() {
-      StringBuilder builder = new StringBuilder();
-      for (int i = 0; i < tableNames.length; i++) {
-        builder.append("Table: ").append(tableNames[i]).append(" | Column: ")
-            .append(columnNames[i]).append(" | Type: ").append(columnTypes[i])
-            .append(" | Value: ").append(columnValues[i]).append("\n");
-      }
-      return builder.toString();
-    }
-
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
-    PCollection<JdbcDataRecord> output = pipeline.apply(
+    PCollection<KV<Integer, String>> output = pipeline.apply(
         JdbcIO.read()
             .withDataSource(dataSource)
-            .withQuery("select * from BEAM")
-            .withRowMapper(new JdbcIO.RowMapper<JdbcDataRecord>() {
+            .withStatement("select id,name from BEAM")
+            .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
               @Override
-              public JdbcDataRecord mapRow(ResultSet resultSet) {
-                JdbcDataRecord record = null;
+              public KV<Integer, String> mapRow(ResultSet resultSet) {
                 try {
-                  ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
-                  record = new JdbcDataRecord(resultSetMetaData.getColumnCount());
-                  for (int i = 1; i <= resultSetMetaData.getColumnCount(); i++) {
-                    String columnName = resultSetMetaData.getColumnName(i);
-                    record.getColumnNames()[i - 1] = columnName;
-                    String tableName = resultSetMetaData.getTableName(i);
-                    record.getTableNames()[i - 1] = tableName;
-                    int columnType = resultSetMetaData.getColumnType(i);
-                    record.getColumnTypes()[i - 1] = columnType;
-                    Object payload = null;
-                    switch (columnType) {
-                      case Types.ARRAY:
-                        payload = resultSet.getArray(i);
-                        break;
-                      case Types.BIGINT:
-                        payload = resultSet.getInt(i);
-                        break;
-                      case Types.BIT:
-                        payload = resultSet.getInt(i);
-                        break;
-                      case Types.BLOB:
-                        payload = resultSet.getBlob(i);
-                        break;
-                      case Types.BOOLEAN:
-                        payload = resultSet.getBoolean(i);
-                        break;
-                      case Types.CHAR:
-                        payload = resultSet.getString(i);
-                        break;
-                      case Types.CLOB:
-                        payload = resultSet.getClob(i);
-                        break;
-                      case Types.DATE:
-                        payload = resultSet.getDate(i);
-                        break;
-                      case Types.DECIMAL:
-                        payload = resultSet.getBigDecimal(i);
-                        break;
-                      case Types.DOUBLE:
-                        payload = resultSet.getDouble(i);
-                        break;
-                      case Types.FLOAT:
-                        payload = resultSet.getFloat(i);
-                        break;
-                      case Types.INTEGER:
-                        payload = resultSet.getInt(i);
-                        break;
-                      case Types.LONGNVARCHAR:
-                        payload = resultSet.getString(i);
-                        break;
-                      case Types.LONGVARCHAR:
-                        payload = resultSet.getString(i);
-                        break;
-                      case Types.NCHAR:
-                        payload = resultSet.getNString(i);
-                        break;
-                      case Types.NCLOB:
-                        payload = resultSet.getNClob(i);
-                        break;
-                      case Types.SMALLINT:
-                        payload = resultSet.getInt(i);
-                        break;
-                      case Types.TIME:
-                        payload = resultSet.getTime(i);
-                        break;
-                      case Types.TIMESTAMP:
-                        payload = resultSet.getTimestamp(i);
-                        break;
-                      case Types.TINYINT:
-                        payload = resultSet.getInt(i);
-                        break;
-                      case Types.VARCHAR:
-                        payload = resultSet.getString(i);
-                        break;
-                      default:
-                        payload = resultSet.getObject(i);
-                        break;
-                    }
-                    record.getColumnValues()[i - 1] = payload;
-                  }
+                  KV<Integer, String> kv =
+                      KV.of(resultSet.getInt("id"), resultSet.getString("name"));
+                  return kv;
                 } catch (Exception e) {
-                  LOGGER.error("Can't map row", e);
+                  return null;
                 }
-                return record;
               }
-            })).setCoder(SerializableCoder.of(JdbcDataRecord.class));
+            }))
+        .setCoder(KvCoder.of(
+            SerializableCoder.of(Integer.class), SerializableCoder.of(String.class)));
 
     PAssert.thatSingleton(
-        output.apply("Count All", Count.<JdbcDataRecord>globally()))
+        output.apply("Count All", Count.<KV<Integer, String>>globally()))
         .isEqualTo(1000L);
 
     PAssert.that(output
         .apply("Map Scientist", MapElements.via(
-            new SimpleFunction<JdbcDataRecord, KV<String, Void>>() {
-              public KV<String, Void> apply(JdbcDataRecord input) {
-                // find NAME column id
-                int index = -1;
-                for (int i = 0; i < input.getColumnNames().length; i++) {
-                  if (input.getColumnNames()[i].equals("NAME")) {
-                    index = i;
-                    break;
-                  }
-                }
-                if (index != -1) {
-                  return KV.of(input.getColumnValues()[index].toString(), null);
-                } else {
-                  return KV.of(null, null);
-                }
+            new SimpleFunction<KV<Integer, String>, KV<String, Void>>() {
+              public KV<String, Void> apply(KV<Integer, String> input) {
+                return KV.of(input.getValue(), null);
               }
             }))
         .apply("Count Scientist", Count.<String, Void>perKey())
@@ -308,33 +152,6 @@ public class JdbcIOTest implements Serializable {
     pipeline.run();
   }
 
-  private class InsertRecord {
-
-    private int columnType;
-    private Object columnValue;
-
-    public InsertRecord(int columnType, Object columnValue) {
-      this.columnType = columnType;
-      this.columnValue = columnValue;
-    }
-
-    public int getColumnType() {
-      return columnType;
-    }
-
-    public void setColumnType(int columnType) {
-      this.columnType = columnType;
-    }
-
-    public Object getColumnValue() {
-      return columnValue;
-    }
-
-    public void setColumnValue(Object columnValue) {
-      this.columnValue = columnValue;
-    }
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
@@ -342,12 +159,12 @@ public class JdbcIOTest implements Serializable {
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
-      KV<Integer, String> kv = KV.of(i, "TEST");
+      KV<Integer, String> kv = KV.of(i, "Test");
       data.add(kv);
     }
     pipeline.apply(Create.of(data))
         .apply(JdbcIO.write().withDataSource(dataSource)
-            .withQuery("insert into TEST values(?, ?)")
+            .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
                   throws Exception {
@@ -361,13 +178,11 @@ public class JdbcIOTest implements Serializable {
     Connection connection = dataSource.getConnection();
 
     Statement statement = connection.createStatement();
-    ResultSet resultSet = statement.executeQuery("select * from TEST");
-    int count = 0;
-    while (resultSet.next()) {
-      count++;
-    }
+    ResultSet resultSet = statement.executeQuery("select count(*) from BEAM");
+    resultSet.next();
+    int count = resultSet.getInt(1);
 
-    Assert.assertEquals(1000, count);
+    Assert.assertEquals(2000, count);
   }
 
   @After
@@ -377,7 +192,6 @@ public class JdbcIOTest implements Serializable {
 
       Statement statement = connection.createStatement();
       statement.executeUpdate("drop table BEAM");
-      statement.executeUpdate("drop table TEST");
       statement.close();
 
       connection.close();
