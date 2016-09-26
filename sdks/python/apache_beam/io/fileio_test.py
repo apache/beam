@@ -151,17 +151,17 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, lines)
 
   def test_read_entire_file_bzip(self):
-      lines = ['First', 'Second', 'Third']
-      compressor = bz2.BZ2Compressor(8)
-      data = compressor.compress('\n'.join(lines)) +compressor.flush()
-      source = fileio.TextFileSource(
-          file_path=self.create_temp_file(data),
-          compression_type=fileio.CompressionTypes.BZIP2)
-      read_lines = []
-      with source.reader() as reader:
-          for line in reader:
-              read_lines.append(line)
-      self.assertEqual(read_lines, lines)
+    lines = ['First', 'Second', 'Third']
+    compressor = bz2.BZ2Compressor(8)
+    data = compressor.compress('\n'.join(lines)) +compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.BZIP2)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    self.assertEqual(read_lines, lines)
 
   def test_read_entire_file_bzip_auto(self):
     lines = ['First', 'Second', 'Third']
@@ -277,7 +277,6 @@ class TestTextFileSource(unittest.TestCase):
       for line in reader:
         read_lines.append(line)
     self.assertEqual(read_lines, [])
-
 
   def test_skip_entire_file_gzip(self):
     lines = ['First', 'Second', 'Third']
@@ -481,7 +480,6 @@ class TestTextFileSource(unittest.TestCase):
             iobase.DynamicSplitRequest(
                 iobase.ReaderProgress(percent_complete=percent_complete)),
             None)
-
 
   def test_zlib_file_unsplittable(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
