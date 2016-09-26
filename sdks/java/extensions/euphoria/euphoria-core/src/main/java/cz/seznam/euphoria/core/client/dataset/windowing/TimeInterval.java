@@ -1,9 +1,10 @@
+
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import java.io.Serializable;
 import java.util.Objects;
 
-public final class TimeInterval implements Serializable {
+public final class TimeInterval implements Serializable, Comparable<TimeInterval> {
   private final long startMillis;
   private final long intervalMillis;
 
@@ -45,5 +46,14 @@ public final class TimeInterval implements Serializable {
         "startMillis=" + startMillis +
         ", intervalMillis=" + intervalMillis +
         '}';
+  }
+
+  @Override
+  public int compareTo(TimeInterval o) {
+    long cmp = startMillis - o.startMillis;
+    if (cmp != 0) {
+      return cmp < 0 ? -1 : 1;
+    }
+    return intervalMillis - o.intervalMillis < 0 ? -1 : 1;
   }
 }
