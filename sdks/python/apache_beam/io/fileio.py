@@ -103,7 +103,9 @@ class CompressionTypes(object):
   @classmethod
   def detect_compression_type(cls, file_path):
     """Returns the compression type of a file (based on its suffix)"""
-    compression_types_by_suffix = {'.gz': cls.GZIP, '.z': cls.ZLIB, '.bz2': cls.BZIP2}
+    compression_types_by_suffix = {'.gz': cls.GZIP,
+                                   '.z': cls.ZLIB,
+                                   '.bz2': cls.BZIP2}
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.iteritems():
       if lowercased_path.endswith(suffix):
@@ -600,20 +602,21 @@ class _CompressedFile(object):
     self._compression_type = compression_type
 
     if self._readable():
-      if self._compression_type==CompressionTypes.BZIP2:
+      if self._compression_type == CompressionTypes.BZIP2:
         self._decompressor = bz2.BZ2Decompressor()
       else:
-        self._decompressor = zlib.decompressobj(self._type_mask[compression_type])
+        self._decompressor = zlib.decompressobj(\
+                            self._type_mask[compression_type])
     else:
       self._decompressor = None
 
     if self._writeable():
-      if self._compression_type==CompressionTypes.BZIP2:
+      if self._compression_type == CompressionTypes.BZIP2:
         self._compressor = bz2.BZ2Compressor(9)
       else:
         self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                          zlib.DEFLATED,
-                                          self._type_mask[compression_type])
+                                            zlib.DEFLATED,
+                                            self._type_mask[compression_type])
     else:
       self._compressor = None
 
@@ -648,7 +651,7 @@ class _CompressedFile(object):
       buf = self._file.read(self._read_size)
       if buf:
         self._data += self._decompressor.decompress(buf)
-      elif self._compression_type!=CompressionTypes.BZIP2:
+      elif self._compression_type != CompressionTypes.BZIP2:
         # EOF reached, flush. BZIP2 does not have this flush method,
         # because of it's block nature
         self._data += self._decompressor.flush()
