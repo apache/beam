@@ -121,8 +121,20 @@ public class BigQueryTableRowIterator implements AutoCloseable {
 
   /**
    * Constructs a {@code BigQueryTableRowIterator} that reads from the results of executing the
-   * specified query in the specified project.
+   * specified query in the specified project with useLegacySql set to True.
+   *
+   * @deprecated use {@link #fromQuery(String, String, Bigquery, Boolean, Boolean)}.
    */
+  @Deprecated
+  public static BigQueryTableRowIterator fromQuery(
+      String query, String projectId, Bigquery client, @Nullable Boolean flattenResults) {
+    return fromQuery(query, projectId, client, flattenResults, null /* useLegacySql */);
+  }
+
+  /**
+     * Constructs a {@code BigQueryTableRowIterator} that reads from the results of executing the
+     * specified query in the specified project.
+     */
   public static BigQueryTableRowIterator fromQuery(
       String query, String projectId, Bigquery client, @Nullable Boolean flattenResults,
       @Nullable Boolean useLegacySql) {
