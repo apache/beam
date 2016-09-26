@@ -77,7 +77,7 @@ public class MongoDbGridFSIO {
   public interface ParseCallback<T> extends Serializable {
     /**
      * Each value parsed from the file should be output as an
-     * Iterable of Line<T>.  If timestamp is omitted, it will
+     * Iterable of Line&lt;T&gt;.  If timestamp is omitted, it will
      * use the uploadDate of the GridFSDBFile.
      */
     public static class Line<T> {
@@ -191,13 +191,10 @@ public class MongoDbGridFSIO {
       private final String bucket;
       private final ParseCallback<T> parser;
       private final Coder<T> coder;
-
       @Nullable
       private List<ObjectId> objectIds;
-
       private transient Mongo mongo;
       private transient GridFS gridfs;
-
 
       BoundedGridFSSource(String uri, String database, String bucket,
           ParseCallback<T> parser, Coder<T> coder) {
