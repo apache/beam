@@ -41,7 +41,7 @@ def annotate(label, since, current):
       if label == 'deprecated':
         warning_type = DeprecationWarning
       else:
-        FutureWarning
+        warning_type = FutureWarning
       message = '%s is %s' % (fnc.__name__, label)
       if label == 'deprecated':
         message += ' since %s' %since
