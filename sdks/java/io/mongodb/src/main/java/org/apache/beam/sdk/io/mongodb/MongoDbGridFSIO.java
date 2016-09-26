@@ -248,7 +248,7 @@ public class MongoDbGridFSIO {
             objects.add((ObjectId) file.getId());
             size += len;
           }
-          if (!objects.isEmpty()) {
+          if (!objects.isEmpty() || list.isEmpty()) {
             list.add(new BoundedGridFSSource<T>(uri, database, bucket, parser, coder, objects));
           }
           return list;
