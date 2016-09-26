@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) {
  *       KV<Integer, String> kv = KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *       return kv;
  *     }
  *   })
  *
