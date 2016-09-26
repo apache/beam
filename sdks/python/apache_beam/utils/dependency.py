@@ -193,7 +193,7 @@ def _get_python_executable():
   # Allow overriding the python executable to use for downloading and
   # installing dependencies, otherwise use the python executable for
   # the current process.
-  beam_python = os.environ.get('BEAM_PYTHON') or sys.executable
+  python_bin = os.environ.get('BEAM_PYTHON') or sys.executable
   if not python_bin:
     raise ValueError('Could not find Python executable.')
   return python_bin
