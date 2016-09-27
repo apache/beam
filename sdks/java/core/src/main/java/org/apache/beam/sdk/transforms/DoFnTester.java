@@ -81,7 +81,7 @@ import org.joda.time.Instant;
 public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link DoFn}. By default, uses {@link CloningBehavior#CLONE_PER_BUNDLE}.
+   * {@link DoFn}. By default, uses {@link CloningBehavior#CLONE_ONCE}.
    */
   @SuppressWarnings("unchecked")
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
@@ -110,7 +110,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    * {@link DoFn} takes no side inputs.
    */
   public void setSideInputs(Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
-    checkState(state == State.UNINITIALIZED, "Wrong state: %s", state);
+    checkState(
+        state == State.UNINITIALIZED,
+        "Can't add side inputs: DoFnTester is already initialized, in state %s",
+        state);
     this.sideInputs = sideInputs;
   }
 
@@ -125,7 +128,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    * that is used.
    */
   public <T> void setSideInput(PCollectionView<T> sideInput, BoundedWindow window, T value) {
-    checkState(state == State.UNINITIALIZED, "Wrong state: %s", state);
+    checkState(
+        state == State.UNINITIALIZED,
+        "Can't add side inputs: DoFnTester is already initialized, in state %s",
+        state);
     Map<BoundedWindow, T> windowValues = (Map<BoundedWindow, T>) sideInputs.get(sideInput);
     if (windowValues == null) {
       windowValues = new HashMap<>();
@@ -223,7 +229,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
-    state = State.INSIDE_BUNDLE;
+    state = State.BUNDLE_STARTED;
   }
 
   private static void unwrapUserCodeException(UserCodeException e) throws Exception {
@@ -263,7 +269,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
     checkNotNull(element, "Timestamped element cannot be null");
-    if (state != State.INSIDE_BUNDLE) {
+    if (state != State.BUNDLE_STARTED) {
       startBundle();
     }
     try {
@@ -285,7 +291,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   public void finishBundle() throws Exception {
     checkState(
-        state == State.INSIDE_BUNDLE,
+        state == State.BUNDLE_STARTED,
         "Must be inside bundle to call finishBundle, but was: %s",
         state);
     try {
@@ -721,7 +727,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if (state == State.INSIDE_BUNDLE) {
+    if (state == State.BUNDLE_STARTED) {
       finishBundle();
     }
     if (state == State.BUNDLE_FINISHED) {
@@ -736,7 +742,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** The possible states of processing a {@link DoFn}. */
   private enum State {
     UNINITIALIZED,
-    INSIDE_BUNDLE,
+    BUNDLE_STARTED,
     BUNDLE_FINISHED,
     TORN_DOWN
   }
@@ -751,7 +757,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    *
    * <p>Worker-side {@link DoFn DoFns} may not be serializable, and are not required to be.
    */
-  private CloningBehavior cloningBehavior = CloningBehavior.CLONE_PER_BUNDLE;
+  private CloningBehavior cloningBehavior = CloningBehavior.CLONE_ONCE;
 
   /** The side input values to provide to the {@link DoFn} under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
