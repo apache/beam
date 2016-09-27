@@ -179,9 +179,9 @@ public class ValueProviderTest {
     // This is the expected behavior of the runner: deserialize and set the
     // the runtime options.
     String anchor = "\"appName\":\"ValueProviderTest\"";
-    assertThat(serializedOptions, containsString(anchor));
+    assertThat(serializedOptions, containsString("\"foo\":null"));
     String runnerString = serializedOptions.replaceAll(
-      anchor, anchor + ",\"foo\":\"quux\"");
+      "\"foo\":null", "\"foo\":\"quux\"");
     TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
       .as(TestOptions.class);
 
