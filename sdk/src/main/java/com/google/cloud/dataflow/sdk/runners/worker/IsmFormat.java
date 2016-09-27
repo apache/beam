@@ -37,7 +37,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -249,7 +248,7 @@ public class IsmFormat {
         @JsonProperty(PropertyNames.NUM_SHARD_CODERS) int numberOfShardCoders,
         @JsonProperty(PropertyNames.NUM_METADATA_SHARD_CODERS) int numberOfMetadataShardCoders,
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() >= 2,
+      checkArgument(components.size() >= 2,
           "Expecting at least 2 components, got " + components.size());
       return of(
           numberOfShardCoders,
@@ -531,7 +530,7 @@ public class IsmFormat {
     @JsonCreator
     public static MetadataKeyCoder<?> of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
+      checkArgument(components.size() == 1,
           "Expecting one component, got " + components.size());
       return of(components.get(0));
     }
@@ -821,7 +820,7 @@ public class IsmFormat {
     @Override
     protected long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
         throws Exception {
-      Preconditions.checkNotNull(value);
+      checkNotNull(value);
       return VarInt.getLength(value.sharedKeySize) + VarInt.getLength(value.unsharedKeySize);
     }
   }

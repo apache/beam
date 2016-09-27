@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -54,7 +56,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -1345,7 +1346,7 @@ public class Combine {
      */
     public Globally<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      Preconditions.checkState(fn instanceof RequiresContextInternal);
+      checkState(fn instanceof RequiresContextInternal);
       return new Globally<>(name, fn, fnDisplayData, insertDefault, fanout,
           ImmutableList.copyOf(sideInputs));
     }
@@ -1729,7 +1730,7 @@ public class Combine {
      */
     public PerKey<K, InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      Preconditions.checkState(fn instanceof RequiresContextInternal);
+      checkState(fn instanceof RequiresContextInternal);
       return new PerKey<>(name, fn, fnDisplayData, fewKeys,
           ImmutableList.copyOf(sideInputs));
     }

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter;
@@ -23,7 +25,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Preconditions;
 
 import java.io.OutputStream;
 import java.nio.channels.Channels;
@@ -203,9 +204,9 @@ public class XmlSink {
      */
     @Override
     public void validate(PipelineOptions options) {
-      Preconditions.checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
-      Preconditions.checkNotNull(rootElementName, "Missing a root element name.");
-      Preconditions.checkNotNull(baseOutputFilename, "Missing a filename to write to.");
+      checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
+      checkNotNull(rootElementName, "Missing a root element name.");
+      checkNotNull(baseOutputFilename, "Missing a filename to write to.");
       try {
         JAXBContext.newInstance(classToBind);
       } catch (JAXBException e) {

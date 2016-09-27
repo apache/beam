@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
@@ -34,7 +36,6 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.joda.time.Duration;
@@ -171,7 +172,7 @@ public class BigQueryTableInserter {
   public void insertAll(TableReference ref, List<TableRow> rowList,
       @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator)
       throws IOException {
-    Preconditions.checkNotNull(ref, "ref");
+    checkNotNull(ref, "ref");
     if (insertIdList != null && rowList.size() != insertIdList.size()) {
       throw new AssertionError("If insertIdList is not null it needs to have at least "
           + "as many elements as rowList");

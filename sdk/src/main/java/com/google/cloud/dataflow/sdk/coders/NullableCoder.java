@@ -16,10 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -49,8 +50,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   public static NullableCoder<?> of(
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
       List<Coder<?>> components) {
-    Preconditions.checkArgument(components.size() == 1,
-        "Expecting 1 components, got " + components.size());
+    checkArgument(components.size() == 1, "Expecting 1 components, got " + components.size());
     return of(components.get(0));
   }
 

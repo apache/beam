@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
@@ -25,7 +27,6 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.util.AvroUtils;
 import com.google.cloud.dataflow.sdk.util.AvroUtils.AvroMetadata;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -263,7 +264,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       AvroMetadata metadata;
       try {
         Collection<String> files = FileBasedSource.expandFilePattern(fileName);
-        Preconditions.checkArgument(files.size() <= 1, "More than 1 file matched %s");
+        checkArgument(files.size() <= 1, "More than 1 file matched %s");
         metadata = AvroUtils.readMetadataFromFile(fileName);
       } catch (IOException e) {
         throw new RuntimeException("Error reading metadata from file " + fileName, e);
@@ -341,10 +342,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   private DatumReader<T> createDatumReader() {
     Schema readSchema = getReadSchema();
     Schema fileSchema = getFileSchema();
-    Preconditions.checkNotNull(
-        readSchema, "No read schema has been initialized for source %s", this);
-    Preconditions.checkNotNull(
-        fileSchema, "No file schema has been initialized for source %s", this);
+    checkNotNull(readSchema, "No read schema has been initialized for source %s", this);
+    checkNotNull(fileSchema, "No file schema has been initialized for source %s", this);
     if (type == GenericRecord.class) {
       return new GenericDatumReader<>(fileSchema, readSchema);
     } else {

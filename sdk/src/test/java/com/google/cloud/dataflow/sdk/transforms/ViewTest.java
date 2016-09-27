@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -52,7 +54,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
@@ -205,8 +206,8 @@ public class ViewTest implements Serializable {
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
-                Preconditions.checkArgument(c.sideInput(view).size() == 4);
-                Preconditions.checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
+                checkArgument(c.sideInput(view).size() == 4);
+                checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
                 for (Integer i : c.sideInput(view)) {
                   c.output(i);
                 }
@@ -244,8 +245,8 @@ public class ViewTest implements Serializable {
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
-                Preconditions.checkArgument(c.sideInput(view).size() == 4);
-                Preconditions.checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
+                checkArgument(c.sideInput(view).size() == 4);
+                checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
                 for (Integer i : c.sideInput(view)) {
                   c.output(i);
                 }

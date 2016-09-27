@@ -17,12 +17,12 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addBoolean;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -49,8 +49,7 @@ public class KvCoder<K, V> extends KvCoderBase<KV<K, V>> {
   public static KvCoder<?, ?> of(
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
       List<Coder<?>> components) {
-    Preconditions.checkArgument(components.size() == 2,
-        "Expecting 2 components, got " + components.size());
+    checkArgument(components.size() == 2, "Expecting 2 components, got " + components.size());
     return of(components.get(0), components.get(1));
   }
 

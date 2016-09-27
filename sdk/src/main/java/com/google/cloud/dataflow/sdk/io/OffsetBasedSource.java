@@ -14,11 +14,12 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.io.range.RangeTracker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
-import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,17 +138,17 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
   @Override
   public void validate() {
-    Preconditions.checkArgument(
+    checkArgument(
         this.startOffset >= 0,
         "Start offset has value %s, must be non-negative", this.startOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         this.endOffset >= 0,
         "End offset has value %s, must be non-negative", this.endOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         this.startOffset < this.endOffset,
         "Start offset %s must be before end offset %s",
         this.startOffset, this.endOffset);
-    Preconditions.checkArgument(
+    checkArgument(
         this.minBundleSize >= 0,
         "minBundleSize has value %s, must be non-negative",
         this.minBundleSize);

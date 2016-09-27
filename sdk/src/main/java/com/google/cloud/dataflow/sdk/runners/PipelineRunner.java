@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
@@ -26,7 +28,6 @@ import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
-import com.google.common.base.Preconditions;
 
 /**
  * A {@link PipelineRunner} can execute, translate, or otherwise process a
@@ -43,7 +44,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    */
   public static PipelineRunner<? extends PipelineResult> fromOptions(PipelineOptions options) {
     GcsOptions gcsOptions = PipelineOptionsValidator.validate(GcsOptions.class, options);
-    Preconditions.checkNotNull(options);
+    checkNotNull(options);
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerStandardIOFactories(gcsOptions);

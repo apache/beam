@@ -16,8 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.client.util.BackOff;
-import com.google.common.base.Preconditions;
 
 /**
  * Implementation of {@link BackOff} that increases the back off period for each retry attempt
@@ -53,10 +54,9 @@ public class AttemptBoundedExponentialBackOff implements BackOff {
   private int currentAttempt;
 
   public AttemptBoundedExponentialBackOff(int maximumNumberOfAttempts, long initialIntervalMillis) {
-    Preconditions.checkArgument(maximumNumberOfAttempts > 0,
+    checkArgument(maximumNumberOfAttempts > 0,
         "Maximum number of attempts must be greater than zero.");
-    Preconditions.checkArgument(initialIntervalMillis > 0,
-        "Initial interval must be greater than zero.");
+    checkArgument(initialIntervalMillis > 0, "Initial interval must be greater than zero.");
     this.maximumNumberOfAttempts = maximumNumberOfAttempts;
     this.initialIntervalMillis = initialIntervalMillis;
     reset();

@@ -23,6 +23,8 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -58,7 +60,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -292,7 +293,7 @@ public class ParDoTest implements Serializable {
     @Override
     public void processElement(ProcessContext c) {
       Instant timestamp = c.timestamp();
-      Preconditions.checkNotNull(timestamp);
+      checkNotNull(timestamp);
       Integer value = c.element();
       c.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
@@ -301,7 +302,7 @@ public class ParDoTest implements Serializable {
   static class TestFormatTimestampDoFn extends DoFn<Integer, String> {
     @Override
     public void processElement(ProcessContext c) {
-      Preconditions.checkNotNull(c.timestamp());
+      checkNotNull(c.timestamp());
       c.output("processing: " + c.element() + ", timestamp: " + c.timestamp().getMillis());
     }
   }

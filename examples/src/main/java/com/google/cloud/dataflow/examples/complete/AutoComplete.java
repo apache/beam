@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.examples.complete;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
@@ -58,7 +59,6 @@ import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Value;
@@ -476,7 +476,7 @@ public class AutoComplete {
     PTransform<? super PBegin, PCollection<String>> readSource;
     WindowFn<Object, ?> windowFn;
     if (options.isStreaming()) {
-      Preconditions.checkArgument(
+      checkArgument(
           !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
       dataflowUtils.setupPubsub();
 

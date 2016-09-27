@@ -16,11 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
@@ -39,7 +40,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   AfterFirst(List<Trigger<W>> subTriggers) {
     super(subTriggers);
-    Preconditions.checkArgument(subTriggers.size() > 1);
+    checkArgument(subTriggers.size() > 1);
   }
 
   /**

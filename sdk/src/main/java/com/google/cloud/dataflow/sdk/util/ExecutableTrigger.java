@@ -16,10 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -59,7 +61,7 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
   }
 
   private ExecutableTrigger(Trigger<W> trigger, int nextUnusedIndex) {
-    this.trigger = Preconditions.checkNotNull(trigger, "trigger must not be null");
+    this.trigger = checkNotNull(trigger, "trigger must not be null");
     this.triggerIndex = nextUnusedIndex++;
 
     if (trigger.subTriggers() != null) {
@@ -101,8 +103,8 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
   }
 
   public ExecutableTrigger<W> getSubTriggerContaining(int index) {
-    Preconditions.checkNotNull(subTriggers);
-    Preconditions.checkState(index > triggerIndex && index < firstIndexAfterSubtree,
+    checkNotNull(subTriggers);
+    checkState(index > triggerIndex && index < firstIndexAfterSubtree,
         "Cannot find sub-trigger containing index not in this tree.");
     ExecutableTrigger<W> previous = null;
     for (ExecutableTrigger<W> subTrigger : subTriggers) {

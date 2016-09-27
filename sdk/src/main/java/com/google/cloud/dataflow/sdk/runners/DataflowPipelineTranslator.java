@@ -29,6 +29,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.AutoscalingSettings;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -76,7 +77,6 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -688,8 +688,7 @@ public class DataflowPipelineTranslator {
       // The inputValueCoder for the input PCollection should be some
       // WindowedValueCoder of the input PCollection's element
       // coder.
-      Preconditions.checkState(
-          inputValueCoder instanceof WindowedValue.WindowedValueCoder);
+      checkState(inputValueCoder instanceof WindowedValue.WindowedValueCoder);
       // The outputValueCoder for the output should be an
       // IterableCoder of the inputValueCoder. This is a property
       // of the backend "CollectionToSingleton" step.

@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
@@ -41,7 +42,6 @@ import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
@@ -230,7 +230,7 @@ public class GcsUtil {
             +  ", prefix " + prefix + " against pattern " + p.toString(), e);
       }
       //Objects objects = listObject.execute();
-      Preconditions.checkNotNull(objects);
+      checkNotNull(objects);
 
       if (objects.getItems() == null) {
         break;

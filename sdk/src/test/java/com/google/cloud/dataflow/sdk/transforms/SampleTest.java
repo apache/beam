@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -33,7 +34,6 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -217,8 +217,7 @@ public class SampleTest {
   }
 
   void runPickAnyTest(final List<String> lines, int limit) {
-    Preconditions.checkArgument(new HashSet<String>(lines).size() == lines.size(),
-        "Duplicates are unsupported.");
+    checkArgument(new HashSet<String>(lines).size() == lines.size(), "Duplicates are unsupported.");
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(lines)

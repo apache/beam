@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
@@ -27,7 +29,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import org.joda.time.Instant;
@@ -100,7 +101,7 @@ public class IntraBundleParallelization {
     }
 
     Unbound(int maxParallelism) {
-      Preconditions.checkArgument(maxParallelism > 0,
+      checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.maxParallelism = maxParallelism;
     }
@@ -141,7 +142,7 @@ public class IntraBundleParallelization {
     private final int maxParallelism;
 
     Bound(DoFn<InputT, OutputT> doFn, int maxParallelism) {
-      Preconditions.checkArgument(maxParallelism > 0,
+      checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
       this.maxParallelism = maxParallelism;
@@ -196,7 +197,7 @@ public class IntraBundleParallelization {
       extends DoFn<InputT, OutputT> {
 
     public MultiThreadedIntraBundleProcessingDoFn(DoFn<InputT, OutputT> doFn, int maxParallelism) {
-      Preconditions.checkArgument(maxParallelism > 0,
+      checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
       this.maxParallelism = maxParallelism;

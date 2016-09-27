@@ -18,10 +18,10 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.decodeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.common.base.Preconditions;
 
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
@@ -118,7 +118,7 @@ public class SerializableUtils {
               + "See Coder for details.", coder), e
       );
     }
-    Preconditions.checkState(coder.equals(decoded),
+    checkState(coder.equals(decoded),
         String.format("Coder not equal to original after serialization, "
             + "indicating that the Coder may not implement serialization "
             + "correctly.  Before: %s, after: %s, cloud encoding: %s",

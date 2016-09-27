@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
@@ -30,7 +32,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
@@ -373,9 +374,7 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
     private final ComparatorT compareFn;
 
     public TopCombineFn(int count, ComparatorT compareFn) {
-      Preconditions.checkArgument(
-          count >= 0,
-          "count must be >= 0");
+      checkArgument(count >= 0, "count must be >= 0");
       this.count = count;
       this.compareFn = compareFn;
     }

@@ -135,7 +135,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ForwardingMap;
@@ -266,7 +265,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    Preconditions.checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
+    checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
         && Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())),
         "Missing required value: at least one of tempLocation or stagingLocation must be set.");
 
@@ -2365,7 +2364,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     private <T> void translateTyped(
         PubsubIO.Read.Bound<T> transform,
         TranslationContext context) {
-      Preconditions.checkState(context.getPipelineOptions().isStreaming(),
+      checkState(context.getPipelineOptions().isStreaming(),
                                "StreamingPubsubIORead is only for streaming pipelines.");
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
@@ -2442,7 +2441,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     private <T> void translateTyped(
         StreamingPubsubIOWrite<T> transform,
         TranslationContext context) {
-      Preconditions.checkState(context.getPipelineOptions().isStreaming(),
+      checkState(context.getPipelineOptions().isStreaming(),
                                "StreamingPubsubIOWrite is only for streaming pipelines.");
       PubsubIO.Write.Bound<T> overriddenTransform = transform.getOverriddenTransform();
       context.addStep(transform, "ParallelWrite");

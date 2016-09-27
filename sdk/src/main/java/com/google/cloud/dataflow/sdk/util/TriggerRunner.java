@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
@@ -24,7 +26,6 @@ import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
@@ -63,7 +64,7 @@ public class TriggerRunner<W extends BoundedWindow> {
   private final TriggerContextFactory<W> contextFactory;
 
   public TriggerRunner(ExecutableTrigger<W> rootTrigger, TriggerContextFactory<W> contextFactory) {
-    Preconditions.checkState(rootTrigger.getTriggerIndex() == 0);
+    checkState(rootTrigger.getTriggerIndex() == 0);
     this.rootTrigger = rootTrigger;
     this.contextFactory = contextFactory;
   }

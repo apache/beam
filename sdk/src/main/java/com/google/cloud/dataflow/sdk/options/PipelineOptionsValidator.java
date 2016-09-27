@@ -16,9 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.SortedSetMultimap;
@@ -44,10 +46,10 @@ public class PipelineOptionsValidator {
    * @return The type
    */
   public static <T extends PipelineOptions> T validate(Class<T> klass, PipelineOptions options) {
-    Preconditions.checkNotNull(klass);
-    Preconditions.checkNotNull(options);
-    Preconditions.checkArgument(Proxy.isProxyClass(options.getClass()));
-    Preconditions.checkArgument(Proxy.getInvocationHandler(options)
+    checkNotNull(klass);
+    checkNotNull(options);
+    checkArgument(Proxy.isProxyClass(options.getClass()));
+    checkArgument(Proxy.getInvocationHandler(options)
         instanceof ProxyInvocationHandler);
 
     // Ensure the methods for T are registered on the ProxyInvocationHandler
@@ -66,7 +68,7 @@ public class PipelineOptionsValidator {
             requiredGroups.put(requiredGroup, method);
           }
         } else {
-          Preconditions.checkArgument(handler.invoke(asClassOptions, method, null) != null,
+          checkArgument(handler.invoke(asClassOptions, method, null) != null,
               "Missing required value for [" + method + ", \"" + getDescription(method) + "\"]. ");
         }
       }

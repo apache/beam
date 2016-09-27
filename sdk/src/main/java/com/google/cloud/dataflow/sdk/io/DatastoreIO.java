@@ -61,7 +61,6 @@ import com.google.cloud.dataflow.sdk.util.FluentBackoff;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 
@@ -354,9 +353,9 @@ public class DatastoreIO {
 
     @Override
     public void validate() {
-      Preconditions.checkNotNull(host, "host");
-      Preconditions.checkNotNull(query, "query");
-      Preconditions.checkNotNull(datasetId, "datasetId");
+      checkNotNull(host, "host");
+      checkNotNull(query, "query");
+      checkNotNull(datasetId, "datasetId");
     }
 
     @Override
@@ -609,9 +608,9 @@ public class DatastoreIO {
      */
     @Override
     public void validate(PipelineOptions options) {
-      Preconditions.checkNotNull(
+      checkNotNull(
           host, "Host is a required parameter. Please use withHost to set the host.");
-      Preconditions.checkNotNull(
+      checkNotNull(
           datasetId,
           "Dataset ID is a required parameter. Please use withDataset to to set the datasetId.");
     }

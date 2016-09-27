@@ -14,12 +14,13 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.JAXBCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
-import com.google.common.base.Preconditions;
 
 import org.codehaus.stax2.XMLInputFactory2;
 
@@ -35,6 +36,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
+
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -205,12 +207,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
   @Override
   public void validate() {
     super.validate();
-    Preconditions.checkNotNull(
+    checkNotNull(
         rootElement, "rootElement is null. Use builder method withRootElement() to set this.");
-    Preconditions.checkNotNull(
+    checkNotNull(
         recordElement,
         "recordElement is null. Use builder method withRecordElement() to set this.");
-    Preconditions.checkNotNull(
+    checkNotNull(
         recordClass, "recordClass is null. Use builder method withRecordClass() to set this.");
   }
 
