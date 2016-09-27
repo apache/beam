@@ -78,10 +78,10 @@ import org.joda.time.Instant;
  * @param <InputT> the type of the {@link DoFn}'s (main) input elements
  * @param <OutputT> the type of the {@link DoFn}'s (main) output elements
  */
-public class DoFnTester<InputT, OutputT> {
+public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link DoFn}.
+   * {@link DoFn}. By default, uses {@link CloningBehavior#CLONE_ONCE}.
    */
   @SuppressWarnings("unchecked")
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
@@ -91,6 +91,8 @@ public class DoFnTester<InputT, OutputT> {
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
    * {@link OldDoFn}.
+   *
+   * @see #of(DoFn)
    */
   @SuppressWarnings("unchecked")
    public static <InputT, OutputT> DoFnTester<InputT, OutputT>
@@ -108,8 +110,11 @@ public class DoFnTester<InputT, OutputT> {
    * {@link DoFn} takes no side inputs.
    */
   public void setSideInputs(Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
+    checkState(
+        state == State.UNINITIALIZED,
+        "Can't add side inputs: DoFnTester is already initialized, in state %s",
+        state);
     this.sideInputs = sideInputs;
-    resetState();
   }
 
   /**
@@ -123,6 +128,10 @@ public class DoFnTester<InputT, OutputT> {
    * that is used.
    */
   public <T> void setSideInput(PCollectionView<T> sideInput, BoundedWindow window, T value) {
+    checkState(
+        state == State.UNINITIALIZED,
+        "Can't add side inputs: DoFnTester is already initialized, in state %s",
+        state);
     Map<BoundedWindow, T> windowValues = (Map<BoundedWindow, T>) sideInputs.get(sideInput);
     if (windowValues == null) {
       windowValues = new HashMap<>();
@@ -132,10 +141,24 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
-   * Whether or not a {@link DoFnTester} should clone the {@link DoFn} under test.
+   * When a {@link DoFnTester} should clone the {@link DoFn} under test and how it should manage
+   * the lifecycle of the {@link DoFn}.
    */
   public enum CloningBehavior {
-    CLONE,
+    /**
+     * Clone the {@link DoFn} and call {@link DoFn.Setup} every time a bundle starts; call {@link
+     * DoFn.Teardown} every time a bundle finishes.
+     */
+    CLONE_PER_BUNDLE,
+    /**
+     * Clone the {@link DoFn} and call {@link DoFn.Setup} on the first access; call {@link
+     * DoFn.Teardown} only explicitly.
+     */
+    CLONE_ONCE,
+    /**
+     * Do not clone the {@link DoFn}; call {@link DoFn.Setup} on the first access; call {@link
+     * DoFn.Teardown} only explicitly.
+     */
     DO_NOT_CLONE
   }
 
@@ -143,6 +166,7 @@ public class DoFnTester<InputT, OutputT> {
    * Instruct this {@link DoFnTester} whether or not to clone the {@link DoFn} under test.
    */
   public void setCloningBehavior(CloningBehavior newValue) {
+    checkState(state == State.UNINITIALIZED, "Wrong state: %s", state);
     this.cloningBehavior = newValue;
   }
 
@@ -187,11 +211,17 @@ public class DoFnTester<InputT, OutputT> {
   /**
    * Calls the {@link DoFn.StartBundle} method on the {@link DoFn} under test.
    *
-   * <p>If needed, first creates a fresh instance of the {@link DoFn} under test.
+   * <p>If needed, first creates a fresh instance of the {@link DoFn} under test and calls
+   * {@link DoFn.Setup}.
    */
   public void startBundle() throws Exception {
-    resetState();
-    initializeState();
+    checkState(
+        state == State.UNINITIALIZED || state == State.BUNDLE_FINISHED,
+        "Wrong state during startBundle: %s",
+        state);
+    if (state == State.UNINITIALIZED) {
+      initializeState();
+    }
     TestContext<InputT, OutputT> context = createContext(fn);
     context.setupDelegateAggregators();
     try {
@@ -199,7 +229,7 @@ public class DoFnTester<InputT, OutputT> {
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
-    state = State.STARTED;
+    state = State.BUNDLE_STARTED;
   }
 
   private static void unwrapUserCodeException(UserCodeException e) throws Exception {
@@ -236,15 +266,10 @@ public class DoFnTester<InputT, OutputT> {
    * already been called.
    *
    * <p>If the input timestamp is {@literal null}, the minimum timestamp will be used.
-   *
-   * @throws IllegalStateException if the {@code OldDoFn} under test has already
-   * been finished
    */
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
     checkNotNull(element, "Timestamped element cannot be null");
-    checkState(state != State.FINISHED, "finishBundle() has already been called");
-
-    if (state == State.UNSTARTED) {
+    if (state != State.BUNDLE_STARTED) {
       startBundle();
     }
     try {
@@ -257,25 +282,30 @@ public class DoFnTester<InputT, OutputT> {
   /**
    * Calls the {@link DoFn.FinishBundle} method of the {@link DoFn} under test.
    *
-   * <p>Will call {@link #startBundle} automatically, if it hasn't
-   * already been called.
+   * <p>If {@link #setCloningBehavior} was called with {@link CloningBehavior#CLONE_PER_BUNDLE},
+   * then also calls {@link DoFn.Teardown} on the {@link DoFn}, and it will be cloned and
+   * {@link DoFn.Setup} again when processing the next bundle.
    *
-   * @throws IllegalStateException if the {@link DoFn} under test has already
-   * been finished
+   * @throws IllegalStateException if {@link DoFn.FinishBundle} has already been called
+   * for this bundle.
    */
   public void finishBundle() throws Exception {
-    if (state == State.FINISHED) {
-      throw new IllegalStateException("finishBundle() has already been called");
-    }
-    if (state == State.UNSTARTED) {
-      startBundle();
-    }
+    checkState(
+        state == State.BUNDLE_STARTED,
+        "Must be inside bundle to call finishBundle, but was: %s",
+        state);
     try {
       fn.finishBundle(createContext(fn));
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
-    state = State.FINISHED;
+    if (cloningBehavior == CloningBehavior.CLONE_PER_BUNDLE) {
+      fn.teardown();
+      fn = null;
+      state = State.UNINITIALIZED;
+    } else {
+      state = State.BUNDLE_FINISHED;
+    }
   }
 
   /**
@@ -695,13 +725,26 @@ public class DoFnTester<InputT, OutputT> {
     }
   }
 
+  @Override
+  public void close() throws Exception {
+    if (state == State.BUNDLE_STARTED) {
+      finishBundle();
+    }
+    if (state == State.BUNDLE_FINISHED) {
+      fn.teardown();
+      fn = null;
+    }
+    state = State.TORN_DOWN;
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /** The possible states of processing a {@link DoFn}. */
-  enum State {
-    UNSTARTED,
-    STARTED,
-    FINISHED
+  private enum State {
+    UNINITIALIZED,
+    BUNDLE_STARTED,
+    BUNDLE_FINISHED,
+    TORN_DOWN
   }
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
@@ -714,7 +757,7 @@ public class DoFnTester<InputT, OutputT> {
    *
    * <p>Worker-side {@link DoFn DoFns} may not be serializable, and are not required to be.
    */
-  private CloningBehavior cloningBehavior = CloningBehavior.CLONE;
+  private CloningBehavior cloningBehavior = CloningBehavior.CLONE_ONCE;
 
   /** The side input values to provide to the {@link DoFn} under test. */
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
@@ -732,22 +775,16 @@ public class DoFnTester<InputT, OutputT> {
   private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
   /** The state of processing of the {@link DoFn} under test. */
-  private State state;
+  private State state = State.UNINITIALIZED;
 
   private DoFnTester(OldDoFn<InputT, OutputT> origFn) {
     this.origFn = origFn;
-    resetState();
-  }
-
-  private void resetState() {
-    fn = null;
-    outputs = null;
-    accumulators = null;
-    state = State.UNSTARTED;
   }
 
   @SuppressWarnings("unchecked")
-  private void initializeState() {
+  private void initializeState() throws Exception {
+    checkState(state == State.UNINITIALIZED, "Already initialized");
+    checkState(fn == null, "Uninitialized but fn != null");
     if (cloningBehavior.equals(CloningBehavior.DO_NOT_CLONE)) {
       fn = origFn;
     } else {
@@ -756,6 +793,7 @@ public class DoFnTester<InputT, OutputT> {
               SerializableUtils.serializeToByteArray(origFn),
               origFn.toString());
     }
+    fn.setup();
     outputs = new HashMap<>();
     accumulators = new HashMap<>();
   }
