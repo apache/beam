@@ -14,6 +14,7 @@ public final class MultiWindowedElement<GROUP, LABEL, T> implements ElementProvi
     this.element = element;
   }
 
+  @Override
   public T get() {
     return element;
   }
@@ -21,4 +22,12 @@ public final class MultiWindowedElement<GROUP, LABEL, T> implements ElementProvi
   public Set<WindowID<GROUP, LABEL>> windows() {
     return windows;
   }
+
+  @Override
+  public String toString() {
+    return "MultiWindowedElement("
+        + windows + ", " + element + ")";
+  }
+
+
 }

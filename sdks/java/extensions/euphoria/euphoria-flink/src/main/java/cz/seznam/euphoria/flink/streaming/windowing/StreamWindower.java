@@ -71,14 +71,13 @@ public class StreamWindower {
       UnaryFunction tsFn = tsAssign.get();
       if (!(tsFn instanceof Time.ProcessingTime)) {
         input = input.assignTimestampsAndWatermarks(
-            new EventTimeAssigner<T>(allowedLateness, tsFn));
+            new EventTimeAssigner<>(allowedLateness, tsFn));
       }
     }
 
     DataStream<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>
         elementsWithWindow =
-        input.map(i ->
-            new MultiWindowedElement<>(
+        input.map(i -> new MultiWindowedElement<>(
                 windowing.assignWindowsToElement(i),
                 Pair.of(keyFn.apply(i.get()), valFn.apply(i.get()))))
         .setParallelism(input.getParallelism())
