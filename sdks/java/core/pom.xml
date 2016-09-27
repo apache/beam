@@ -60,7 +60,7 @@
             <subpackages>org.apache.beam.sdk</subpackages>
             <additionalparam>-exclude
               org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess
-              ${dataflow.javadoc_opts}</additionalparam>
+              ${beam.javadoc_opts}</additionalparam>
             <use>false</use>
             <quiet>true</quiet>
             <bottom><![CDATA[<br>]]></bottom>
