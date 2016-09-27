@@ -185,15 +185,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Check success status of a dataflow pipeline job with given job metrics.
+   * Check that PAssert expectations were met.
    *
-   * <p>If no PAssert is used, it'll immediately return Optional.of(true)
-   * when metrics become available. But pipeline may fail later.
+   * <p>If the pipeline is not in a failed/cancelled state and no PAsserts were used
+   * within the pipeline, then this method will state that all PAsserts succeeded.
    *
-   * @return Optional.of(false) if job failed/cancelled or PAssert failed,
-   *         Optional.of(true) if number of success PAssert meet expects,
-   *         or Optional.absent() if metrics not available or not all
-   *         PAssert passed.
+   * @return Optional.of(false) if the job failed, was cancelled or if any PAssert
+   *         expectation was not met, true if all the PAssert expectations passed,
+   *         Optional.absent() if the metrics were inconclusive.
    */
   @VisibleForTesting
   Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job, @Nullable JobMetrics metrics)
@@ -243,9 +242,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Check data watermarks of the streaming job. At least one watermark metric must exist.
+   * Check watermarks of the streaming job. At least one watermark metric must exist.
    *
-   * @return true if all watermarks are max, false otherwise.
+   * @return true if all watermarks are at max, false otherwise.
    */
   @VisibleForTesting
   boolean atMaxWatermark(DataflowPipelineJob job, JobMetrics metrics) {
