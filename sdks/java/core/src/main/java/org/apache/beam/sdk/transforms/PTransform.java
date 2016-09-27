@@ -125,7 +125,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * before the enclosing Pipeline is run.
  *
  * <p>A small number of PTransforms are implemented natively by the
- * Google Cloud Dataflow SDK; such PTransforms simply return an
+ * Apache Beam SDK; such PTransforms simply return an
  * output value as their apply implementation.
  * The majority of PTransforms are
  * implemented as composites of other PTransforms.  Such a PTransform

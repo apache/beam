@@ -32,6 +32,7 @@ import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -93,7 +94,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      *
      * <p>Once passed to {@code output} the element should be considered
      * immutable and not be modified in any way. It may be cached or retained
-     * by the Dataflow runtime or later steps in the pipeline, or used in
+     * by a Beam runner or later steps in the pipeline, or used in
      * other unspecified ways.
      *
      * <p>If invoked from {@link OldDoFn#processElement processElement}, the output
@@ -233,9 +234,9 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     /**
      * Returns the input element to be processed.
      *
-     * <p>The element should be considered immutable. The Dataflow runtime will not mutate the
+     * <p>The element should be considered immutable. A Beam runner will not mutate the
      * element, so it is safe to cache, etc. The element should not be mutated by any of the
-     * {@link OldDoFn} methods, because it may be cached elsewhere, retained by the Dataflow
+     * {@link OldDoFn} methods, because it may be cached elsewhere, retained by the runner
      * runtime, or used in other unspecified ways.
      */
     public abstract InputT element();
@@ -358,14 +359,14 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
    * Processes one input element.
    *
    * <p>The current element of the input {@code PCollection} is returned by
-   * {@link ProcessContext#element() c.element()}. It should be considered immutable. The Dataflow
-   * runtime will not mutate the element, so it is safe to cache, etc. The element should not be
+   * {@link ProcessContext#element() c.element()}. It should be considered immutable. The Beam
+   * runner will not mutate the element, so it is safe to cache, etc. The element should not be
    * mutated by any of the {@link OldDoFn} methods, because it may be cached elsewhere, retained by
-   * the Dataflow runtime, or used in other unspecified ways.
+   * the Beam runner, or used in other unspecified ways.
    *
    * <p>A value is added to the main output {@code PCollection} by {@link ProcessContext#output}.
    * Once passed to {@code output} the element should be considered immutable and not be modified in
-   * any way. It may be cached elsewhere, retained by the Dataflow runtime, or used in other
+   * any way. It may be cached elsewhere, retained by the Beam runner, or used in other
    * unspecified ways.
    *
    * @see ProcessContext
