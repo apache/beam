@@ -354,7 +354,7 @@ public class TestDataflowRunnerTest {
     doReturn(State.DONE).when(job).getState();
     JobMetrics metrics = buildJobMetrics(
         generateMockMetrics(true /* success */, true /* tentative */));
-    assertEquals(Optional.of(true), runner.checkForSuccess(job, metrics));
+    assertEquals(Optional.of(true), runner.checkForPAssertSuccess(job, metrics));
   }
 
   @Test
@@ -369,7 +369,7 @@ public class TestDataflowRunnerTest {
     doReturn(State.DONE).when(job).getState();
     JobMetrics metrics = buildJobMetrics(
         generateMockMetrics(false /* success */, true /* tentative */));
-    assertEquals(Optional.of(false), runner.checkForSuccess(job, metrics));
+    assertEquals(Optional.of(false), runner.checkForPAssertSuccess(job, metrics));
   }
 
   @Test
@@ -384,7 +384,7 @@ public class TestDataflowRunnerTest {
     doReturn(State.RUNNING).when(job).getState();
     JobMetrics metrics = buildJobMetrics(
         generateMockMetrics(true /* success */, false /* tentative */));
-    assertEquals(Optional.absent(), runner.checkForSuccess(job, metrics));
+    assertEquals(Optional.absent(), runner.checkForPAssertSuccess(job, metrics));
   }
 
   @Test
@@ -484,7 +484,7 @@ public class TestDataflowRunnerTest {
 
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     doReturn(State.FAILED).when(job).getState();
-    assertEquals(Optional.of(false), runner.checkForSuccess(job, null /* metrics */));
+    assertEquals(Optional.of(false), runner.checkForPAssertSuccess(job, null /* metrics */));
   }
 
   @Test

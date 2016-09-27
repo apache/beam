@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -111,7 +112,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         job, new MonitoringUtil.LoggingHandler());
 
     try {
-      final Optional<Boolean> result;
+      final Optional<Boolean> success;
 
       if (options.isStreaming()) {
         Future<Optional<Boolean>> resultFuture = options.getExecutorService().submit(
@@ -121,12 +122,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             try {
               for (;;) {
                 JobMetrics metrics = getJobMetrics(job);
-                Optional<Boolean> result = checkForSuccess(job, metrics);
-                if (result.isPresent() && (!result.get() || atMaxWatermark(job, metrics))) {
+                Optional<Boolean> success = checkForPAssertSuccess(job, metrics);
+                if (success.isPresent() && (!success.get() || atMaxWatermark(job, metrics))) {
                   // It's possible that the streaming pipeline doesn't use PAssert.
                   // So checkForSuccess() will return true before job is finished.
                   // atMaxWatermark() will handle this case.
-                  return result;
+                  return success;
                 }
                 Thread.sleep(10000L);
               }
@@ -144,15 +145,15 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               job.getJobId());
           job.cancel();
         }
-        result = resultFuture.get();
+        success = resultFuture.get();
       } else {
         job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
-        result = checkForSuccess(job, getJobMetrics(job));
+        success = checkForPAssertSuccess(job, getJobMetrics(job));
       }
-      if (!result.isPresent()) {
+      if (!success.isPresent()) {
         throw new IllegalStateException(
             "The dataflow did not output a success or failure metric.");
-      } else if (!result.get()) {
+      } else if (!success.get()) {
         throw new AssertionError(messageHandler.getErrorMessage() == null
             ? "The dataflow did not return a failure reason."
             : messageHandler.getErrorMessage());
@@ -184,13 +185,18 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Check success status of a dataflow job with given job metrics.
+   * Check success status of a dataflow pipeline job with given job metrics.
+   *
+   * <p>If no PAssert is used, it'll immediately return Optional.of(true)
+   * when metrics become available. But pipeline may fail later.
    *
    * @return Optional.of(false) if job failed/cancelled or PAssert failed,
    *         Optional.of(true) if number of success PAssert meet expects,
-   *         or Optional.absent() otherwise.
+   *         or Optional.absent() if metrics not available or not all
+   *         PAssert passed.
    */
-  Optional<Boolean> checkForSuccess(DataflowPipelineJob job, JobMetrics metrics)
+  @VisibleForTesting
+  Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job, @Nullable JobMetrics metrics)
       throws IOException {
     State state = job.getState();
     if (state == State.FAILED || state == State.CANCELLED) {
@@ -200,40 +206,40 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (metrics == null || metrics.getMetrics() == null) {
       LOG.warn("Metrics not present for Dataflow job {}.", job.getJobId());
-    } else {
-      int successes = 0;
-      int failures = 0;
-      for (MetricUpdate metric : metrics.getMetrics()) {
-        if (metric.getName() == null
-            || metric.getName().getContext() == null
-            || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
-          // Don't double count using the non-tentative version of the metric.
-          continue;
-        }
-        if (PAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
-          successes += ((BigDecimal) metric.getScalar()).intValue();
-        } else if (PAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
-          failures += ((BigDecimal) metric.getScalar()).intValue();
-        }
-      }
-
-      if (failures > 0) {
-        LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
-            + "{} expected assertions.", job.getJobId(), successes, failures,
-            expectedNumberOfAssertions);
-        return Optional.of(false);
-      } else if (successes >= expectedNumberOfAssertions) {
-        LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
-            + "{} expected assertions.", job.getJobId(), successes, failures,
-            expectedNumberOfAssertions);
-        return Optional.of(true);
-      }
-
-      LOG.info("Running Dataflow job {}. Found {} success, {} failures out of {} expected "
-          + "assertions.", job.getJobId(), successes, failures, expectedNumberOfAssertions);
+      return Optional.absent();
     }
 
-    return Optional.<Boolean>absent();
+    int successes = 0;
+    int failures = 0;
+    for (MetricUpdate metric : metrics.getMetrics()) {
+      if (metric.getName() == null
+          || metric.getName().getContext() == null
+          || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
+        // Don't double count using the non-tentative version of the metric.
+        continue;
+      }
+      if (PAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
+        successes += ((BigDecimal) metric.getScalar()).intValue();
+      } else if (PAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
+        failures += ((BigDecimal) metric.getScalar()).intValue();
+      }
+    }
+
+    if (failures > 0) {
+      LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
+          + "{} expected assertions.", job.getJobId(), successes, failures,
+          expectedNumberOfAssertions);
+      return Optional.of(false);
+    } else if (successes >= expectedNumberOfAssertions) {
+      LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
+          + "{} expected assertions.", job.getJobId(), successes, failures,
+          expectedNumberOfAssertions);
+      return Optional.of(true);
+    }
+
+    LOG.info("Running Dataflow job {}. Found {} success, {} failures out of {} expected "
+        + "assertions.", job.getJobId(), successes, failures, expectedNumberOfAssertions);
+    return Optional.absent();
   }
 
   /**
@@ -241,6 +247,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    *
    * @return true if all watermarks are max, false otherwise.
    */
+  @VisibleForTesting
   boolean atMaxWatermark(DataflowPipelineJob job, JobMetrics metrics) {
     boolean hasMaxWatermark = false;
     for (MetricUpdate metric : metrics.getMetrics()) {
@@ -266,6 +273,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   @Nullable
+  @VisibleForTesting
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {
