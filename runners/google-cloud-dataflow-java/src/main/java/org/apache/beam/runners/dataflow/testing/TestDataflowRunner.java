@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowJobExecutionException;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -182,6 +183,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return runner.apply(transform, input);
   }
 
+  /**
+   * Check success status of a dataflow job with given job metrics.
+   *
+   * @return Optional.of(false) if job failed/cancelled or PAssert failed,
+   *         Optional.of(true) if number of success PAssert meet expects,
+   *         or Optional.absent() otherwise.
+   */
   Optional<Boolean> checkForSuccess(DataflowPipelineJob job, JobMetrics metrics)
       throws IOException {
     State state = job.getState();
@@ -229,7 +237,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Check data watermarks of the streaming job.
+   * Check data watermarks of the streaming job. At least one watermark metric must exist.
    *
    * @return true if all watermarks are max, false otherwise.
    */
@@ -245,24 +253,26 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       BigDecimal watermark = (BigDecimal) metric.getScalar();
       hasMaxWatermark = watermark.longValue() == MAX_WATERMARK_VALUE;
       if (!hasMaxWatermark) {
-        LOG.info("Find a non-max watermark in job {}", job.getJobId());
+        LOG.info("Found a non-max watermark metric {} in job {}", metric.getName().getName(),
+            job.getJobId());
         return false;
       }
     }
 
     if (hasMaxWatermark) {
-      LOG.info("All watermarks reach to max. JobID: {}", job.getJobId());
+      LOG.info("All watermarks are at max. JobID: {}", job.getJobId());
     }
     return hasMaxWatermark;
   }
 
+  @Nullable
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {
       metrics = options.getDataflowClient().projects().jobs()
           .getMetrics(job.getProjectId(), job.getJobId()).execute();
     } catch (IOException e) {
-      LOG.warn("Exception thrown when getting job metrics: ", e);
+      LOG.warn("Failed to get job metrics: ", e);
     }
     return metrics;
   }

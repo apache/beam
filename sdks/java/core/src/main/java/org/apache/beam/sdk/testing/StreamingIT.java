@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag that is used to validate tests which are expected running
+ * Category tag used to mark tests which execute using the Dataflow runner
  * in streaming mode. Example usage:
  * <pre><code>
  *    {@literal @}Test
@@ -30,5 +30,6 @@ package org.apache.beam.sdk.testing;
  *     }
  * </code></pre>
  */
+@Deprecated
 public interface StreamingIT {
 }

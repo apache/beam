@@ -141,7 +141,7 @@ public class TestDataflowRunnerTest {
 
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     assertEquals(mockJob, runner.run(p, mockRunner));
   }
 
@@ -161,7 +161,7 @@ public class TestDataflowRunnerTest {
 
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        false /* tentative */, null /* otherMetrics */));
+        false /* tentative */, null /* additionalMetrics */));
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -200,7 +200,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
@@ -273,7 +273,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
@@ -286,13 +286,13 @@ public class TestDataflowRunnerTest {
   }
 
   private LowLevelHttpResponse generateMockMetricResponse(boolean success, boolean tentative,
-                                                          Map<String, BigDecimal> otherMetrics)
+                                                          Map<String, BigDecimal> additionalMetrics)
       throws Exception {
     MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
     response.setContentType(Json.MEDIA_TYPE);
     List<MetricUpdate> metrics = generateMockMetrics(success, tentative);
-    if (otherMetrics != null && !otherMetrics.isEmpty()) {
-      metrics.addAll(generateMockStreamingMetrics(otherMetrics));
+    if (additionalMetrics != null && !additionalMetrics.isEmpty()) {
+      metrics.addAll(generateMockStreamingMetrics(additionalMetrics));
     }
     JobMetrics jobMetrics = buildJobMetrics(metrics);
     response.setContent(jobMetrics.toPrettyString());
@@ -402,7 +402,7 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
-  public void testCheckMaxWatermarkWithSingleMaxWatermark() throws IOException {
+  public void testCheckMaxWatermarkWithSingleWatermarkAtMax() throws IOException {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
@@ -416,7 +416,7 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
-  public void testCheckMaxWatermarkWithSingleWatermarkNotMax() throws IOException {
+  public void testCheckMaxWatermarkWithSingleWatermarkNotAtMax() throws IOException {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
@@ -430,7 +430,7 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
-  public void testCheckMaxWatermarkWithMultipleMaxWatermark() throws IOException {
+  public void testCheckMaxWatermarkWithMultipleWatermarksAtMax() throws IOException {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
@@ -445,7 +445,7 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
-  public void testCheckMaxWatermarkWithMaxAndNotMaxWatermarkMixed() throws IOException {
+  public void testCheckMaxWatermarkWithMultipleMaxAndNotMaxWatermarks() throws IOException {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
@@ -460,7 +460,7 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
-  public void testCheckMaxWatermarkIgnoreUnrelatedMatrics() throws IOException {
+  public void testCheckMaxWatermarkIgnoresUnrelatedMatrics() throws IOException {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
@@ -516,7 +516,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
@@ -531,14 +531,14 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
-  public void testGetJobMetricsThatSucceed() throws Exception {
+  public void testGetJobMetricsThatSucceeds() throws Exception {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
     when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     JobMetrics metrics = runner.getJobMetrics(job);
 
@@ -578,7 +578,7 @@ public class TestDataflowRunnerTest {
         .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
     when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     runner.run(p, mockRunner);
   }
 
@@ -629,7 +629,7 @@ public class TestDataflowRunnerTest {
         .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
     when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     runner.run(p, mockRunner);
   }
 
@@ -680,7 +680,7 @@ public class TestDataflowRunnerTest {
         .setOnSuccessMatcher(new TestFailureMatcher());
 
     when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* otherMetrics */));
+        true /* tentative */, null /* additionalMetrics */));
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
