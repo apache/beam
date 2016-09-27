@@ -167,7 +167,7 @@ public class DoFnInvokers {
     Class<? extends DoFnInvoker<?, ?>> res =
         (Class<? extends DoFnInvoker<?, ?>>)
             unloaded
-                .load(DoFnInvokers.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                .load(Thread.currentThread().getContextClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
   }
