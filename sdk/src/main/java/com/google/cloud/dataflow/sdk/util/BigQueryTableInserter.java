@@ -172,13 +172,20 @@ public class BigQueryTableInserter {
   public void insertAll(TableReference ref, List<TableRow> rowList,
       @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator)
       throws IOException {
+    insertAll(
+        ref, rowList, insertIdList, byteCountAggregator, INSERT_BACKOFF_FACTORY.backoff(),
+        Sleeper.DEFAULT);
+  }
+
+  @VisibleForTesting
+  void insertAll(TableReference ref, List<TableRow> rowList,
+      @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator,
+      BackOff backoff, final Sleeper sleeper) throws IOException {
     checkNotNull(ref, "ref");
     if (insertIdList != null && rowList.size() != insertIdList.size()) {
       throw new AssertionError("If insertIdList is not null it needs to have at least "
           + "as many elements as rowList");
     }
-
-    BackOff backoff = INSERT_BACKOFF_FACTORY.backoff();
 
     List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
     // These lists contain the rows to publish. Initially the contain the entire list. If there are
@@ -229,7 +236,7 @@ public class BigQueryTableInserter {
                       if (new ApiErrorExtractor().rateLimited(e)) {
                         LOG.info("BigQuery insertAll exceeded rate limit, retrying");
                         try {
-                          Thread.sleep(backoff.nextBackOffMillis());
+                          sleeper.sleep(backoff.nextBackOffMillis());
                         } catch (InterruptedException interrupted) {
                           Thread.currentThread().interrupt();
                           throw new IOException(
@@ -284,18 +291,20 @@ public class BigQueryTableInserter {
 
       long nextBackoffMillis = backoff.nextBackOffMillis();
       if (nextBackoffMillis == BackOff.STOP) {
-        try {
-          Thread.sleep(backoff.nextBackOffMillis());
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IOException("Interrupted while waiting before retrying insert of " + retryRows);
-        }
-        LOG.info("Retrying failed inserts to BigQuery");
-        rowsToPublish = retryRows;
-        idsToPublish = retryIds;
-        allErrors.clear();
+        break;
       }
+      try {
+        sleeper.sleep(nextBackoffMillis);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Interrupted while waiting before retrying insert of " + retryRows);
+      }
+      rowsToPublish = retryRows;
+      idsToPublish = retryIds;
+      allErrors.clear();
+      LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
     }
+
     if (!allErrors.isEmpty()) {
       throw new IOException("Insert failed: " + allErrors);
     }
