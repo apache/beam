@@ -22,6 +22,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -54,7 +57,7 @@ import org.slf4j.LoggerFactory;
 public class UnboundedSourceWrapper<
     OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<OutputT>>
-    implements Triggerable, StoppableFunction, Checkpointed<byte[]> {
+    implements Triggerable, StoppableFunction, Checkpointed<byte[]>, CheckpointListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
@@ -88,6 +91,7 @@ public class UnboundedSourceWrapper<
   private transient List<UnboundedSource.UnboundedReader<OutputT>> localReaders;
 
   /**
+   * Flag to indicate whether the source is running.
    * Initialize here and not in run() to prevent races where we cancel a job before run() is
    * ever called or run() is called after cancel().
    */
@@ -104,6 +108,15 @@ public class UnboundedSourceWrapper<
    * watermarks.
    */
   private transient StreamSource.ManualWatermarkContext<WindowedValue<OutputT>> context;
+
+  /**
+   * Pending checkpoints which have not been acknowledged yet.
+   */
+  private transient LinkedHashMap<Long, List<CheckpointMarkT>> pendingCheckpoints;
+  /**
+   * Keep a maximum of 32 checkpoints for {@code CheckpointMark.finalizeCheckpoint()}.
+   */
+  private static final int MAX_NUMBER_PENDING_CHECKPOINTS = 32;
 
   /**
    * When restoring from a snapshot we put the restored sources/checkpoint marks here
@@ -142,22 +155,22 @@ public class UnboundedSourceWrapper<
     splitSources = source.generateInitialSplits(parallelism, pipelineOptions);
   }
 
-  @Override
-  public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
-    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
-      throw new RuntimeException(
-          "Cannot emit watermarks, this hints at a misconfiguration/bug.");
-    }
 
-    context = (StreamSource.ManualWatermarkContext<WindowedValue<OutputT>>) ctx;
+  /**
+   * Initialize and restore state before starting execution of the source.
+   */
+  @Override
+  public void open(Configuration parameters) throws Exception {
     runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
 
     // figure out which split sources we're responsible for
-    int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-    int numSubtasks = getRuntimeContext().getNumberOfParallelSubtasks();
+    int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
+    int numSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 
     localSplitSources = new ArrayList<>();
     localReaders = new ArrayList<>();
+
+    pendingCheckpoints = new LinkedHashMap<>();
 
     if (restoredState != null) {
 
@@ -169,12 +182,12 @@ public class UnboundedSourceWrapper<
           new Function<
               KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>,
               UnboundedSource<OutputT, CheckpointMarkT>>() {
-        @Override
-        public UnboundedSource<OutputT, CheckpointMarkT> apply(
-            KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> input) {
-          return input.getKey();
-        }
-      });
+            @Override
+            public UnboundedSource<OutputT, CheckpointMarkT> apply(
+                KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> input) {
+              return input.getKey();
+            }
+          });
 
       for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
           restoredState) {
@@ -201,6 +214,16 @@ public class UnboundedSourceWrapper<
         subtaskIndex,
         numSubtasks,
         localSplitSources);
+  }
+
+  @Override
+  public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
+    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
+      throw new RuntimeException(
+          "Cannot emit watermarks, this hints at a misconfiguration/bug.");
+    }
+
+    context = (StreamSource.ManualWatermarkContext<WindowedValue<OutputT>>) ctx;
 
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
@@ -324,7 +347,7 @@ public class UnboundedSourceWrapper<
   }
 
   @Override
-  public byte[] snapshotState(long l, long l1) throws Exception {
+  public byte[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 
     if (checkpointCoder == null) {
       // no checkpoint coder available in this source
@@ -335,7 +358,8 @@ public class UnboundedSourceWrapper<
     // than we have a correct mapping of checkpoints to sources when
     // restoring
     List<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> checkpoints =
-        new ArrayList<>();
+        new ArrayList<>(localSplitSources.size());
+    List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
 
     for (int i = 0; i < localSplitSources.size(); i++) {
       UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
@@ -343,6 +367,7 @@ public class UnboundedSourceWrapper<
 
       @SuppressWarnings("unchecked")
       CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+      checkpointMarks.add(mark);
       KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv =
           KV.of(source, mark);
       checkpoints.add(kv);
@@ -351,6 +376,18 @@ public class UnboundedSourceWrapper<
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
       checkpointCoder.encode(checkpoints, baos, Coder.Context.OUTER);
       return baos.toByteArray();
+    } finally {
+      // cleanup old pending checkpoints and add new checkpoint
+      int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
+      if (diff >= 0) {
+        for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
+             diff >= 0;
+             diff--) {
+          iterator.next();
+          iterator.remove();
+        }
+      }
+      pendingCheckpoints.put(checkpointId, checkpointMarks);
     }
   }
 
@@ -410,5 +447,28 @@ public class UnboundedSourceWrapper<
   @VisibleForTesting
   public List<? extends UnboundedSource<OutputT, CheckpointMarkT>> getLocalSplitSources() {
     return localSplitSources;
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+
+    List<CheckpointMarkT> checkpointMarks = pendingCheckpoints.get(checkpointId);
+
+    if (checkpointMarks != null) {
+
+      // remove old checkpoints including the current one
+      Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
+      long currentId;
+      do {
+        currentId = iterator.next();
+        iterator.remove();
+      } while (currentId != checkpointId);
+
+      // confirm all marks
+      for (CheckpointMarkT mark : checkpointMarks) {
+        mark.finalizeCheckpoint();
+      }
+
+    }
   }
 }

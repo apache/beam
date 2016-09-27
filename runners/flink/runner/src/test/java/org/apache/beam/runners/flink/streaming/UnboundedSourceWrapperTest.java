@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -105,6 +106,7 @@ public class UnboundedSourceWrapperTest {
     setupSourceOperator(sourceOperator, numTasks);
 
     try {
+      sourceOperator.open();
       sourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
             private int count = 0;
@@ -172,6 +174,7 @@ public class UnboundedSourceWrapperTest {
     boolean readFirstBatchOfElements = false;
 
     try {
+      sourceOperator.open();
       sourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
             private int count = 0;
@@ -206,6 +209,12 @@ public class UnboundedSourceWrapperTest {
     // draw a snapshot
     byte[] snapshot = flinkWrapper.snapshotState(0, 0);
 
+    // test that finalizeCheckpoint on CheckpointMark is called
+    final ArrayList<Integer> finalizeList = new ArrayList<>();
+    TestCountingSource.setFinalizeTracker(finalizeList);
+    flinkWrapper.notifyCheckpointComplete(0);
+    assertEquals(flinkWrapper.getLocalSplitSources().size(), finalizeList.size());
+
     // create a completely new source but restore from the snapshot
     TestCountingSource restoredSource = new TestCountingSource(numElements);
     UnboundedSourceWrapper<
@@ -230,6 +239,7 @@ public class UnboundedSourceWrapperTest {
 
     // run again and verify that we see the other elements
     try {
+      restoredSourceOperator.open();
       restoredSourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
             private int count = 0;
