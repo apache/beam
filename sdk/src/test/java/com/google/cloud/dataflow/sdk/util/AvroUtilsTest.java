@@ -107,7 +107,7 @@ public class AvroUtilsTest {
     AvroMetadata metadata = AvroUtils.readMetadataFromFile(filename);
     // By default, parse validates the schema, which is what we want.
     Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
-    assertEquals(9, schema.getFields().size());
+    assertEquals(12, schema.getFields().size());
   }
 
   @Test

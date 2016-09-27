@@ -262,8 +262,9 @@ public class BigQueryTableRowIteratorTest {
     byte[] photoBytes = "photograph".getBytes();
     String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
     // Mock table data fetch.
-    when(mockTabledataList.execute())
-        .thenReturn(rawDataList(rawRow("Arthur", 42, photoBytesEncoded)));
+    when(mockTabledataList.execute()).thenReturn(
+        rawDataList(rawRow("Arthur", 42, photoBytesEncoded,
+            "2000-01-01", "2000-01-01 00:00:00.000005", "00:00:00.000005")));
 
     // Run query and verify
     String query = String.format(
