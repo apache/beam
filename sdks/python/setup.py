@@ -18,8 +18,11 @@
 """Apache Beam SDK for Python setup file."""
 
 import os
+import pkg_resources
 import platform
 import setuptools
+
+from distutils.version import StrictVersion
 
 
 def get_version():
@@ -40,6 +43,8 @@ PACKAGE_LONG_DESCRIPTION = '''
 TBD
 '''
 
+assert StrictVersion(pkg_resources.get_distribution('pip').version) >= StrictVersion('0.7.0'), \
+    "This SDK requires 'pip' >= 7.0.0"
 
 # Currently all compiled modules are optional  (for performance only).
 if platform.system() == 'Windows':
@@ -65,6 +70,9 @@ REQUIRED_PACKAGES = [
     'pyyaml>=3.10',
     ]
 
+EXTRA_PACKAGES = {
+    'cython': ['cython>=0.23.2'],
+}
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -87,6 +95,7 @@ setuptools.setup(
     ]),
     setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
+    extras_require=EXTRA_PACKAGES,
     test_suite='nose.collector',
     zip_safe=False,
     # PyPI package information.
