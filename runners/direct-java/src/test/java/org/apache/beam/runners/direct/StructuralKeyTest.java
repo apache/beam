@@ -54,11 +54,11 @@ public class StructuralKeyTest {
   }
 
   @Test
-  public void emptyKeysEqual() {
+  public void emptyKeysNotEqual() {
     StructuralKey<?> empty = StructuralKey.empty();
 
-    assertThat(empty, Matchers.<StructuralKey<?>>equalTo(StructuralKey.empty()));
-    assertThat(empty, not(Matchers.<StructuralKey<?>>theInstance(StructuralKey.empty())));
+    assertThat(empty, not(Matchers.<StructuralKey<?>>equalTo(StructuralKey.empty())));
+    assertThat(empty, equalTo(empty));
   }
 
   @Test

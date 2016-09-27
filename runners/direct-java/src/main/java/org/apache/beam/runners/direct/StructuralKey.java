@@ -42,16 +42,6 @@ abstract class StructuralKey<K> {
       public Object getKey() {
         return this;
       }
-
-      @Override
-      public boolean equals(Object other) {
-        return other != null && getClass().isAssignableFrom(other.getClass());
-      }
-
-      @Override
-      public int hashCode() {
-        return getClass().hashCode();
-      }
     };
   }
 
