@@ -165,8 +165,9 @@ public class EvaluationContextTest {
     DirectStepContext stepContext = fooContext.getOrCreateStepContext("s1", "s1");
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
-    context.handleResult(ImmutableListBundleFactory.create()
-            .createKeyedBundle(null, StructuralKey.of("foo", StringUtf8Coder.of()), created)
+    context.handleResult(
+        ImmutableListBundleFactory.create()
+            .createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), created)
             .commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
@@ -264,7 +265,7 @@ public class EvaluationContextTest {
             .withAggregatorChanges(mutatorAgain)
             .build();
     context.handleResult(
-        context.createRootBundle(created).commit(Instant.now()),
+        context.createBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         secondResult);
     assertThat((Long) context.getAggregatorContainer().getAggregate("STEP", "foo"), equalTo(16L));
@@ -291,7 +292,7 @@ public class EvaluationContextTest {
             .build();
 
     context.handleResult(
-        context.createKeyedBundle(null, myKey, created).commit(Instant.now()),
+        context.createKeyedBundle(myKey, created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         stateResult);
 
@@ -374,7 +375,7 @@ public class EvaluationContextTest {
     // haven't added any timers, must be empty
     assertThat(context.extractFiredTimers().entrySet(), emptyIterable());
     context.handleResult(
-        context.createKeyedBundle(null, key, created).commit(Instant.now()),
+        context.createKeyedBundle(key, created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         timerResult);
 
@@ -405,24 +406,10 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void createBundleKeyedResultPropagatesKey() {
-    StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
-    CommittedBundle<KV<String, Integer>> newBundle =
-        context
-            .createBundle(
-                bundleFactory.createKeyedBundle(
-                    null, key,
-                    created).commit(Instant.now()),
-                downstream).commit(Instant.now());
-    assertThat(newBundle.getKey(), Matchers.<StructuralKey<?>>equalTo(key));
-  }
-
-  @Test
   public void createKeyedBundleKeyed() {
     StructuralKey<String> key = StructuralKey.of("foo", StringUtf8Coder.of());
     CommittedBundle<KV<String, Integer>> keyedBundle =
         context.createKeyedBundle(
-            bundleFactory.createRootBundle(created).commit(Instant.now()),
             key,
             downstream).commit(Instant.now());
     assertThat(keyedBundle.getKey(),
@@ -472,7 +459,7 @@ public class EvaluationContextTest {
     context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
     assertThat(context.isDone(), is(false));
 
-    UncommittedBundle<Integer> rootBundle = context.createRootBundle(created);
+    UncommittedBundle<Integer> rootBundle = context.createBundle(created);
     rootBundle.add(WindowedValue.valueInGlobalWindow(1));
     CommittedResult handleResult =
         context.handleResult(
@@ -514,14 +501,14 @@ public class EvaluationContextTest {
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
     context.handleResult(
-        context.createRootBundle(created).commit(Instant.now()),
+        context.createBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build());
     context.extractFiredTimers();
     assertThat(context.isDone(), is(false));
 
     context.handleResult(
-        context.createRootBundle(created).commit(Instant.now()),
+        context.createBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(view.getProducingTransformInternal()).build());
     context.extractFiredTimers();

@@ -110,7 +110,7 @@ public class EncodabilityEnforcementFactoryTest {
     WindowedValue<Record> record = WindowedValue.<Record>valueInGlobalWindow(new Record());
 
     CommittedBundle<Record> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
+        bundleFactory.createBundle(unencodable).add(record).commit(Instant.now());
     ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
 
     enforcement.beforeElement(record);
@@ -127,7 +127,7 @@ public class EncodabilityEnforcementFactoryTest {
     AppliedPTransform<?, ?, ?> consumer =
         unencodable.apply(Count.<T>globally()).getProducingTransformInternal();
     CommittedBundle<T> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
+        bundleFactory.createBundle(unencodable).add(record).commit(Instant.now());
     ModelEnforcement<T> enforcement = factory.forBundle(input, consumer);
     return enforcement;
   }
@@ -142,7 +142,7 @@ public class EncodabilityEnforcementFactoryTest {
     WindowedValue<Integer> value = WindowedValue.valueInGlobalWindow(1);
 
     CommittedBundle<Integer> input =
-        bundleFactory.createRootBundle(unencodable).add(value).commit(Instant.now());
+        bundleFactory.createBundle(unencodable).add(value).commit(Instant.now());
     ModelEnforcement<Integer> enforcement = factory.forBundle(input, consumer);
 
     enforcement.beforeElement(value);

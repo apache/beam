@@ -132,7 +132,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
-            evaluationContext.createRootBundle(transform.getOutput());
+            evaluationContext.createBundle(transform.getOutput());
         while (contentsRemaining) {
           output.add(
               WindowedValue.timestampedValueInGlobalWindow(

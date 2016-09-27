@@ -19,11 +19,11 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.MoreObjects;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
@@ -39,18 +39,18 @@ class ImmutableListBundleFactory implements BundleFactory {
   private ImmutableListBundleFactory() {}
 
   @Override
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return UncommittedImmutableListBundle.create(output, StructuralKey.of(null, VoidCoder.of()));
+  public <T> UncommittedBundle<T> createRootBundle() {
+    return UncommittedImmutableListBundle.create(null, StructuralKey.empty());
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return UncommittedImmutableListBundle.create(output, input.getKey());
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+    return UncommittedImmutableListBundle.create(output, StructuralKey.empty());
   }
 
   @Override
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
+      StructuralKey<K> key, PCollection<T> output) {
     return UncommittedImmutableListBundle.create(output, key);
   }
 
@@ -99,63 +99,29 @@ class ImmutableListBundleFactory implements BundleFactory {
       checkState(!committed, "Can't commit already committed bundle %s", this);
       committed = true;
       final Iterable<WindowedValue<T>> committedElements = elements.build();
-      return new CommittedImmutableListBundle<>(
+      return CommittedImmutableListBundle.create(
           pcollection, key, committedElements, synchronizedCompletionTime);
     }
   }
 
-  private static class CommittedImmutableListBundle<T> implements CommittedBundle<T> {
-    public CommittedImmutableListBundle(
-        PCollection<T> pcollection,
+  @AutoValue
+  abstract static class CommittedImmutableListBundle<T> implements CommittedBundle<T> {
+    public static <T> CommittedImmutableListBundle<T> create(
+        @Nullable PCollection<T> pcollection,
         StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
         Instant synchronizedCompletionTime) {
-      this.pcollection = pcollection;
-      this.key = key;
-      this.committedElements = committedElements;
-      this.synchronizedCompletionTime = synchronizedCompletionTime;
-    }
-
-    private final PCollection<T> pcollection;
-    /** The structural value key of the Bundle, as specified by the coder that created it. */
-    private final StructuralKey<?> key;
-    private final Iterable<WindowedValue<T>> committedElements;
-    private final Instant synchronizedCompletionTime;
-
-    @Override
-    public StructuralKey<?> getKey() {
-      return key;
-    }
-
-    @Override
-    public Iterable<WindowedValue<T>> getElements() {
-      return committedElements;
-    }
-
-    @Override
-    public PCollection<T> getPCollection() {
-      return pcollection;
-    }
-
-    @Override
-    public Instant getSynchronizedProcessingOutputWatermark() {
-      return synchronizedCompletionTime;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .omitNullValues()
-          .add("pcollection", pcollection)
-          .add("key", key)
-          .add("elements", committedElements)
-          .toString();
+      return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle(
+          pcollection, key, committedElements, synchronizedCompletionTime);
     }
 
     @Override
     public CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements) {
-      return new CommittedImmutableListBundle<>(
-          pcollection, key, ImmutableList.copyOf(elements), synchronizedCompletionTime);
+      return create(
+          getPCollection(),
+          getKey(),
+          ImmutableList.copyOf(elements),
+          getSynchronizedProcessingOutputWatermark());
     }
   }
 }

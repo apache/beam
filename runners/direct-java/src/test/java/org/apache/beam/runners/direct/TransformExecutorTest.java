@@ -171,7 +171,7 @@ public class TransformExecutorTest {
     WindowedValue<String> spam = WindowedValue.valueInGlobalWindow("spam");
     WindowedValue<String> third = WindowedValue.valueInGlobalWindow("third");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
+        bundleFactory.createBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
     when(registry.<String>forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
@@ -213,7 +213,7 @@ public class TransformExecutorTest {
 
     WindowedValue<String> foo = WindowedValue.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(created).add(foo).commit(Instant.now());
+        bundleFactory.createBundle(created).add(foo).commit(Instant.now());
     when(registry.<String>forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
@@ -248,7 +248,7 @@ public class TransformExecutorTest {
         };
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(created).commit(Instant.now());
+        bundleFactory.createBundle(created).commit(Instant.now());
     when(registry.<String>forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
@@ -328,7 +328,7 @@ public class TransformExecutorTest {
     WindowedValue<String> fooElem = WindowedValue.valueInGlobalWindow("foo");
     WindowedValue<String> barElem = WindowedValue.valueInGlobalWindow("bar");
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(created).add(fooElem).add(barElem).commit(Instant.now());
+        bundleFactory.createBundle(created).add(fooElem).add(barElem).commit(Instant.now());
     when(registry.forApplication(downstream.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
@@ -386,7 +386,7 @@ public class TransformExecutorTest {
 
     WindowedValue<byte[]> fooBytes = WindowedValue.valueInGlobalWindow("foo".getBytes());
     CommittedBundle<byte[]> inputBundle =
-        bundleFactory.createRootBundle(pcBytes).add(fooBytes).commit(Instant.now());
+        bundleFactory.createBundle(pcBytes).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(pcBytes.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 
@@ -442,7 +442,7 @@ public class TransformExecutorTest {
 
     WindowedValue<byte[]> fooBytes = WindowedValue.valueInGlobalWindow("foo".getBytes());
     CommittedBundle<byte[]> inputBundle =
-        bundleFactory.createRootBundle(pcBytes).add(fooBytes).commit(Instant.now());
+        bundleFactory.createBundle(pcBytes).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(pcBytes.getProducingTransformInternal(), inputBundle))
         .thenReturn(evaluator);
 

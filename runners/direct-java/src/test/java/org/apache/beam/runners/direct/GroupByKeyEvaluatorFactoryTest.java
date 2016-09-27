@@ -70,27 +70,27 @@ public class GroupByKeyEvaluatorFactoryTest {
         kvs.apply(new DirectGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
-        bundleFactory.createRootBundle(kvs).commit(Instant.now());
+        bundleFactory.createBundle(kvs).commit(Instant.now());
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
-        bundleFactory.createKeyedBundle(null, fooKey, groupedKvs);
+        bundleFactory.createKeyedBundle(fooKey, groupedKvs);
 
     StructuralKey<String> barKey = StructuralKey.of("bar", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
-        bundleFactory.createKeyedBundle(null, barKey, groupedKvs);
+        bundleFactory.createKeyedBundle(barKey, groupedKvs);
 
     StructuralKey<String> bazKey = StructuralKey.of("baz", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
-        bundleFactory.createKeyedBundle(null, bazKey, groupedKvs);
+        bundleFactory.createKeyedBundle(bazKey, groupedKvs);
 
-    when(evaluationContext.createKeyedBundle(inputBundle,
+    when(evaluationContext.createKeyedBundle(
         fooKey,
         groupedKvs)).thenReturn(fooBundle);
-    when(evaluationContext.createKeyedBundle(inputBundle,
+    when(evaluationContext.createKeyedBundle(
         barKey,
         groupedKvs)).thenReturn(barBundle);
-    when(evaluationContext.createKeyedBundle(inputBundle,
+    when(evaluationContext.createKeyedBundle(
         bazKey,
         groupedKvs)).thenReturn(bazBundle);
 
@@ -114,7 +114,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         fooBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
+            new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
                     "foo",
                     ImmutableSet.of(
@@ -125,7 +125,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         barBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
+            new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
                     "bar",
                     ImmutableSet.of(
@@ -135,7 +135,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         bazBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
+            new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
                     "baz",
                     ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
@@ -151,7 +151,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     private final KeyedWorkItem<K, V> myWorkItem;
     private final Coder<K> keyCoder;
 
-    public KeyedWorkItemMatcher(KeyedWorkItem<K, V> myWorkItem, Coder<K> keyCoder) {
+    KeyedWorkItemMatcher(KeyedWorkItem<K, V> myWorkItem, Coder<K> keyCoder) {
       this.myWorkItem = myWorkItem;
       this.keyCoder = keyCoder;
     }

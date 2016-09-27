@@ -64,7 +64,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
           null, StepTransformResult.withoutHold(application).build());
     }
     final UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(inputBundle, application.getOutput());
+        evaluationContext.createBundle(application.getOutput());
     final TransformResult result =
         StepTransformResult.withoutHold(application).addOutput(outputBundle).build();
     return new FlattenEvaluator<>(outputBundle, result);

@@ -65,9 +65,8 @@ public class TestStreamEvaluatorFactoryTest {
                 .addElements(4, 5, 6)
                 .advanceWatermarkToInfinity());
 
-    when(context.createRootBundle(streamVals))
-        .thenReturn(
-            bundleFactory.createRootBundle(streamVals), bundleFactory.createRootBundle(streamVals));
+    when(context.createBundle(streamVals))
+        .thenReturn(bundleFactory.createBundle(streamVals), bundleFactory.createBundle(streamVals));
 
     TransformEvaluator<Object> firstEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), null);
@@ -134,9 +133,8 @@ public class TestStreamEvaluatorFactoryTest {
     PCollection<Integer> firstVals = p.apply("Stream One", stream);
     PCollection<Integer> secondVals = p.apply("Stream A", stream);
 
-    when(context.createRootBundle(firstVals)).thenReturn(bundleFactory.createRootBundle(firstVals));
-    when(context.createRootBundle(secondVals))
-        .thenReturn(bundleFactory.createRootBundle(secondVals));
+    when(context.createBundle(firstVals)).thenReturn(bundleFactory.createBundle(firstVals));
+    when(context.createBundle(secondVals)).thenReturn(bundleFactory.createBundle(secondVals));
 
     TransformEvaluator<Object> firstEvaluator =
         factory.forApplication(firstVals.getProducingTransformInternal(), null);
@@ -181,9 +179,8 @@ public class TestStreamEvaluatorFactoryTest {
                 .addElements("Two")
                 .advanceWatermarkToInfinity());
 
-    when(context.createRootBundle(firstVals)).thenReturn(bundleFactory.createRootBundle(firstVals));
-    when(context.createRootBundle(secondVals))
-        .thenReturn(bundleFactory.createRootBundle(secondVals));
+    when(context.createBundle(firstVals)).thenReturn(bundleFactory.createBundle(firstVals));
+    when(context.createBundle(secondVals)).thenReturn(bundleFactory.createBundle(secondVals));
 
     TransformEvaluator<Object> firstEvaluator =
         factory.forApplication(firstVals.getProducingTransformInternal(), null);

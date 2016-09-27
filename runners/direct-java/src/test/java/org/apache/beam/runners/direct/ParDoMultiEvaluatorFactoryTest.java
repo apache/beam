@@ -92,7 +92,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollectionTuple outputTuple = input.apply(pardo);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
@@ -100,14 +100,13 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
-        bundleFactory.createRootBundle(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
-    UncommittedBundle<Integer> lengthOutputBundle = bundleFactory.createRootBundle(lengthOutput);
+        bundleFactory.createBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createBundle(elementOutput);
+    UncommittedBundle<Integer> lengthOutputBundle = bundleFactory.createBundle(lengthOutput);
 
-    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
-    when(evaluationContext.createBundle(inputBundle, elementOutput))
-        .thenReturn(elementOutputBundle);
-    when(evaluationContext.createBundle(inputBundle, lengthOutput)).thenReturn(lengthOutputBundle);
+    when(evaluationContext.createBundle(mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(elementOutput)).thenReturn(elementOutputBundle);
+    when(evaluationContext.createBundle(lengthOutput)).thenReturn(lengthOutputBundle);
 
     DirectExecutionContext executionContext =
         new DirectExecutionContext(null, null, null, null);
@@ -182,19 +181,18 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollectionTuple outputTuple = input.apply(pardo);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
-        bundleFactory.createRootBundle(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
+        bundleFactory.createBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createBundle(elementOutput);
 
-    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
-    when(evaluationContext.createBundle(inputBundle, elementOutput))
-        .thenReturn(elementOutputBundle);
+    when(evaluationContext.createBundle(mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(elementOutput)).thenReturn(elementOutputBundle);
 
     DirectExecutionContext executionContext =
         new DirectExecutionContext(null, null, null, null);
@@ -274,19 +272,18 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollectionTuple outputTuple = input.apply(pardo);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
-        bundleFactory.createRootBundle(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
+        bundleFactory.createBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createBundle(elementOutput);
 
-    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
-    when(evaluationContext.createBundle(inputBundle, elementOutput))
-        .thenReturn(elementOutputBundle);
+    when(evaluationContext.createBundle(mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(elementOutput)).thenReturn(elementOutputBundle);
 
     DirectExecutionContext executionContext = new DirectExecutionContext(null,
         StructuralKey.of("myKey", StringUtf8Coder.of()),
@@ -388,19 +385,18 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     PCollectionTuple outputTuple = input.apply(pardo);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
-        bundleFactory.createRootBundle(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
+        bundleFactory.createBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createBundle(elementOutput);
 
-    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
-    when(evaluationContext.createBundle(inputBundle, elementOutput))
-        .thenReturn(elementOutputBundle);
+    when(evaluationContext.createBundle(mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(elementOutput)).thenReturn(elementOutputBundle);
 
     DirectExecutionContext executionContext = new DirectExecutionContext(null,
         StructuralKey.of("myKey", StringUtf8Coder.of()),

@@ -50,16 +50,14 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
       @Nullable CommittedBundle<?> inputBundle
  )
       throws Exception {
-    return createTransformEvaluator(
-        (AppliedPTransform) application, inputBundle);
+    return createTransformEvaluator((AppliedPTransform) application);
   }
 
   private <InputT> TransformEvaluator<InputT> createTransformEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform,
-      CommittedBundle<?> inputBundle) {
+      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform) {
     WindowFn<? super InputT, ?> fn = transform.getTransform().getWindowFn();
     UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(inputBundle, transform.getOutput());
+        evaluationContext.createBundle(transform.getOutput());
     if (fn == null) {
       return PassthroughTransformEvaluator.create(transform, outputBundle);
     }

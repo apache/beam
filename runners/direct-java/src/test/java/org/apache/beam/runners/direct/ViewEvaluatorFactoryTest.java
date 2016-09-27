@@ -72,7 +72,7 @@ public class ViewEvaluatorFactoryTest {
     when(context.createPCollectionViewWriter(concat, view)).thenReturn(viewWriter);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
     TransformEvaluator<Iterable<String>> evaluator =
         new ViewEvaluatorFactory(context)
             .forApplication(view.getProducingTransformInternal(), inputBundle);
