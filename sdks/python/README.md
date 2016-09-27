@@ -41,6 +41,8 @@ from the Python programming language.
           * [Download and install](#download-and-install)
           * [Notes on installing with ``setup.py install``](#notes-on-installing-with-setuppy-install)
       * [Getting Apache Beam](#getting-apache-beam)
+          * [Create virtual environment](#create-virtual-environment)
+          * [Clone and install](#clone-and-install)
   * [Local execution of a pipeline](#local-execution-of-a-pipeline)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
   * [Simple Examples](#simple-examples)
@@ -229,7 +231,7 @@ and use the ``pip install`` method described above to re-install it.
 In order to run the examples, you will need Apache Beam. This can be installed
 locally by using a virtual environment.
 
-#### Create and activate virtual environment
+#### Create virtual environment
 
 A virtual environment is a directory tree containing its own Python
 distribution.  To create a virtual environment:
@@ -245,7 +247,7 @@ environment's directories.  To activate a virtual environment in Bash:
 That is, source the script `bin/activate` under the virtual environment
 directory you created.
 
-#### Download and install
+#### Clone and install
 
 The best way to run Apache Beam with the Python SDK is to clone the git 
 repository:
