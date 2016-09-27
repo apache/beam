@@ -22,8 +22,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,6 +46,9 @@ public class ValueProviderTest {
 
     ValueProvider<String> getFoo();
     void setFoo(ValueProvider<String> foo);
+
+    ValueProvider<List<Integer>> getList();
+    void setList(ValueProvider<List<Integer>> list);
   }
 
   @Test
@@ -50,6 +56,16 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.fromArgs(
       new String[]{"--foo=baz"}).as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
+    assertEquals("baz", provider.get());
+    assertTrue(provider.shouldValidate());
+  }
+
+  @Ignore
+  @Test
+  public void testListValueProvider() {
+    TestOptions options = PipelineOptionsFactory.fromArgs(
+      new String[]{"--list=1,2,3"}).as(TestOptions.class);
+    ValueProvider<List<Integer>> provider = options.getList();
     assertEquals("baz", provider.get());
     assertTrue(provider.shouldValidate());
   }
@@ -119,5 +135,69 @@ public class ValueProviderTest {
     ValueProvider<String> provider = options.getBar();
     assertTrue(provider.shouldValidate());
     assertEquals("quux", provider.get());
+  }
+
+  /** A test interface. */
+  public static interface BadOptionsRuntime extends PipelineOptions {
+    RuntimeValueProvider<String> getBar();
+    void setBar(RuntimeValueProvider<String> bar);
+  }
+
+  @Test
+  public void testOptionReturnTypeRuntime() {
+    BadOptionsRuntime options = PipelineOptionsFactory.as(BadOptionsRuntime.class);
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage(
+      "Method getBar should not have return type "
+      + "RuntimeValueProvider, use ValueProvider instead.");
+    RuntimeValueProvider<String> provider = options.getBar();
+  }
+
+  /** A test interface. */
+  public static interface BadOptionsStatic extends PipelineOptions {
+    StaticValueProvider<String> getBar();
+    void setBar(StaticValueProvider<String> bar);
+  }
+
+  @Test
+  public void testOptionReturnTypeStatic() {
+    BadOptionsStatic options = PipelineOptionsFactory.as(BadOptionsStatic.class);
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage(
+      "Method getBar should not have return type "
+      + "StaticValueProvider, use ValueProvider instead.");
+    StaticValueProvider<String> provider = options.getBar();
+  }
+
+  class TestObject implements Serializable {
+    public ValueProvider<String> vp;
+
+    public TestObject() {}
+  }
+
+  @Test
+  @Ignore
+  public void testRunnerOverrideOfValue() throws Exception {
+    TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
+    ObjectMapper mapper = new ObjectMapper();
+    String serializedOptions = mapper.writeValueAsString(submitOptions);
+
+    // Create a test object that contains the ValueProvider, and serialize.
+    TestObject testObject = new TestObject();
+    testObject.vp = submitOptions.getFoo();
+    String serializedObject = mapper.writeValueAsString(testObject);
+
+    // This is the expected behavior of the runner: deserialize and set the
+    // the runtime options.
+    String anchor = "\"appName\":\"ValueProviderTest\"";
+    String runnerString = serializedOptions.replaceAll(
+      anchor, anchor + ",\"foo\":\"quux\"");
+    TestOptions runtime = mapper.readValue(serializedOptions, PipelineOptions.class)
+      .as(TestOptions.class);
+    RuntimeValueProvider.setRuntimeOptions(runtime);
+
+    testObject = mapper.readValue(serializedObject, TestObject.class);
+    assertFalse(testObject.vp.shouldValidate());
+    assertEquals("quux", testObject.vp.get());
   }
 }

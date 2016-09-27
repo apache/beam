@@ -330,8 +330,8 @@ public interface PipelineOptions extends HasDisplayData {
 
 
   /**
-   * Provides a unique ID for this Options object, assigned at graph construction
-   * time.
+   * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph
+   * construction time.
    */
   @Hidden
   @Default.InstanceFactory(AtomicLongFactory.class)
@@ -339,8 +339,8 @@ public interface PipelineOptions extends HasDisplayData {
   void setOptionsId(Long id);
 
   /**
-   * ValueFactory which supplies an ID that is guaranteed to be unique within the given
-   * process.
+   * {@link DefaultValueFactory} which supplies an ID that is guaranteed to be unique
+   * within the given process.
    */
   class AtomicLongFactory implements DefaultValueFactory<Long> {
     private static final AtomicLong NEXT_ID = new AtomicLong(0);

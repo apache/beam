@@ -66,6 +66,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -203,7 +204,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     checkNotNull(iface);
-    checkArgument(iface.isInterface(), "Not an interface: " + iface.toString());
+    checkArgument(iface.isInterface(), "Not an interface: %s", iface.toString());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
@@ -451,25 +452,33 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
-    if (method.getReturnType().equals(ValueProvider.class)) {
-      // If has a default annotation, we need to supply that.
-      for (Annotation annotation : method.getAnnotations()) {
-        Object o = returnDefaultHelper(annotation, proxy, method);
-        if (o != null) {
-          return new RuntimeValueProvider(
-            method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-            o, proxy.getOptionsId());
-        }
-      }
-      return new RuntimeValueProvider(
-        method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
-        proxy.getOptionsId());
+    if (method.getReturnType().equals(RuntimeValueProvider.class)) {
+      throw new RuntimeException(String.format(
+        "Method %s should not have return type "
+        + "RuntimeValueProvider, use ValueProvider instead.", method.getName()));
     }
+    if (method.getReturnType().equals(StaticValueProvider.class)) {
+      throw new RuntimeException(String.format(
+        "Method %s should not have return type "
+        + "StaticValueProvider, use ValueProvider instead.", method.getName()));
+    }
+    @Nullable Object defaultObject = null;
     for (Annotation annotation : method.getAnnotations()) {
-      Object o = returnDefaultHelper(annotation, proxy, method);
-      if (o != null) {
-        return o;
+      defaultObject = returnDefaultHelper(annotation, proxy, method);
+      if (defaultObject != null) {
+        break;
       }
+    }
+    if (method.getReturnType().equals(ValueProvider.class)) {
+      return defaultObject == null
+        ? new RuntimeValueProvider(
+          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+          proxy.getOptionsId())
+        : new RuntimeValueProvider(
+          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+          defaultObject, proxy.getOptionsId());
+    } else if (defaultObject != null) {
+      return defaultObject;
     }
 
     /*
@@ -656,7 +665,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
     public PipelineOptions deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {
       ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
-      ObjectNode optionsNode = (ObjectNode) checkNotNull(objectNode.get("options"));
+      ObjectNode optionsNode = (ObjectNode) objectNode.get("options");
 
       Map<String, JsonNode> fields = Maps.newHashMap();
       for (Iterator<Map.Entry<String, JsonNode>> iterator = optionsNode.fields();

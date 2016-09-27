@@ -39,8 +39,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 
-/** {@link ValueProvider} is an interface which abstracts the notion of
+/**
+ * {@link ValueProvider} is an interface which abstracts the notion of
  * fetching a value that may or may not be currently available.  This can be
  * used to parameterize transforms that only read values in at runtime, for
  * example.
@@ -48,23 +50,34 @@ import java.util.concurrent.ConcurrentHashMap;
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
 public interface ValueProvider<T> {
+  /**
+   * Return the value wrapped by this {@link ValueProvider}.
+   */
   T get();
 
-  /** Whether the contents of this ValueProvider is available to validation
+  /**
+   * Whether the contents of this {@link ValueProvider} is available to validation
    * routines that run at graph construction time.
    */
   boolean shouldValidate();
 
-  /** {@link StaticValueProvider} is an implementation of ValueProvider that
+  /**
+   * {@link StaticValueProvider} is an implementation of {@link ValueProvider} that
    * allows for a static value to be provided.
    */
+  @JsonSerialize(using = ValueProvider.Serializer.class)
+  @JsonDeserialize(using = ValueProvider.Deserializer.class)
   public static class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
+    @Nullable
     private final T value;
 
-    StaticValueProvider(T value) {
+    StaticValueProvider(@Nullable T value) {
       this.value = value;
     }
 
+    /**
+     * Creates a {@link StaticValueProvider} that wraps the provided value.
+     */
     public static <T> StaticValueProvider<T> of(T value) {
       StaticValueProvider<T> factory = new StaticValueProvider<>(value);
       return factory;
@@ -81,13 +94,17 @@ public interface ValueProvider<T> {
     }
   }
 
-  /** {@link RuntimeValueProvider} is an implementation of ValueProvider that
+  /**
+   * {@link RuntimeValueProvider} is an implementation of {@link ValueProvider} that
    * allows for a value to be provided at execution time rather than at graph
    * construction time.
    *
    * <p>To enforce this contract, if there is no default, users must only call
-   * get() on the worker, which will provide the value of OPTIONS.
+   * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
+   * which will provide the value of OPTIONS.
    */
+  @JsonSerialize(using = ValueProvider.Serializer.class)
+  @JsonDeserialize(using = ValueProvider.Deserializer.class)
   public static class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
     private static ConcurrentHashMap<Long, PipelineOptions> optionsMap =
       new ConcurrentHashMap<>();
@@ -138,7 +155,7 @@ public interface ValueProvider<T> {
         Method method = klass.getMethod(methodName);
         PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
-        return ((StaticValueProvider<T>) handler.invoke(methodOptions, method, null)).get();
+        return ((ValueProvider<T>) handler.invoke(methodOptions, method, null)).get();
       } catch (Throwable e) {
         throw new RuntimeException("Unable to load runtime value.", e);
       }
@@ -161,6 +178,8 @@ public interface ValueProvider<T> {
         jgen.writeStartObject();
         jgen.writeObject(value.get());
         jgen.writeEndObject();
+      } else {
+        jgen.writeNull();
       }
     }
   }

@@ -873,9 +873,6 @@ public class PipelineOptionsFactory {
       if (getterMethod != null) {
         Type getterPropertyType = getterMethod.getGenericReturnType();
         Type setterPropertyType = method.getGenericParameterTypes()[0];
-        if (getterPropertyType.equals(ValueProvider.class)) {
-          continue;
-        }
         if (!getterPropertyType.equals(setterPropertyType)) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;
@@ -1465,7 +1462,7 @@ public class PipelineOptionsFactory {
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
         } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
-          || returnType.equals(ValueProvider.class)) {
+                   || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
                "Empty argument value is only allowed for String, String Array, "
