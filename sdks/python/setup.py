@@ -17,12 +17,12 @@
 
 """Apache Beam SDK for Python setup file."""
 
+from distutils.version import StrictVersion
+
 import os
-import pkg_resources
 import platform
 import setuptools
-
-from distutils.version import StrictVersion
+import pkg_resources
 
 
 def get_version():
@@ -43,7 +43,8 @@ PACKAGE_LONG_DESCRIPTION = '''
 TBD
 '''
 
-assert StrictVersion(pkg_resources.get_distribution('pip').version) >= StrictVersion('0.7.0'), \
+_PIP_VERSION = pkg_resources.get_distribution('pip').version
+assert StrictVersion(_PIP_VERSION) >= StrictVersion('0.7.0'), \
     "This SDK requires 'pip' >= 7.0.0"
 
 # Currently all compiled modules are optional  (for performance only).
