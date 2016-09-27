@@ -87,7 +87,7 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
       wContext = windowing.createWindowContext(window.getWindowID());
     }
 
-    if (time == Long.MAX_VALUE) {
+    if (time >= window.maxTimestamp()) {
       // fire all windows at the final watermark
       return TriggerResult.FIRE_AND_PURGE;
     }
