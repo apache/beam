@@ -275,7 +275,7 @@ public class AvroUtils {
             .put("DATE", Type.STRING)
             .put("DATETIME", Type.STRING)
             .put("TIME", Type.STRING)
-        .build();
+            .build();
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
     // is required, so it may not be null.
     String bqType = fieldSchema.getType();
