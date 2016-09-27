@@ -54,6 +54,9 @@ public final class TimeInterval implements Serializable, Comparable<TimeInterval
     if (cmp != 0) {
       return cmp < 0 ? -1 : 1;
     }
-    return intervalMillis - o.intervalMillis < 0 ? -1 : 1;
+    cmp = intervalMillis - o.intervalMillis;
+    if (cmp == 0)
+      return 0;
+    return cmp < 0 ? -1 : 1;
   }
 }

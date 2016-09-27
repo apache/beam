@@ -2,6 +2,7 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -55,10 +56,14 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
     if (wContext == null) {
       wContext = windowing.createWindowContext(window.getWindowID());
 
-      TriggerResult tr = TriggerResult.PURGE;
-      for (cz.seznam.euphoria.core.client.triggers.Trigger t : wContext.createTriggers()) {
-        cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult sched =
-            t.schedule(wContext, new TriggerContextWrapper(ctx));
+      List<cz.seznam.euphoria.core.client.triggers.Trigger> triggers;
+      triggers = wContext.createTriggers();
+      // if all registered triggers are "PASSED", then we have to purge the window
+      // if no triggers exist, than we have to CONTINUE
+      TriggerResult tr = triggers.isEmpty() ? TriggerResult.CONTINUE : TriggerResult.PURGE;
+      for (cz.seznam.euphoria.core.client.triggers.Trigger t : triggers) {
+        cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult sched;
+        sched = t.schedule(wContext, new TriggerContextWrapper(ctx));
         if (sched != cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult.PASSED) {
           tr = translateResult(sched);
         }
@@ -80,6 +85,11 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
     WindowContext<GROUP, LABEL> wContext = state.value();
     if (wContext == null) {
       wContext = windowing.createWindowContext(window.getWindowID());
+    }
+
+    if (time == Long.MAX_VALUE) {
+      // fire all windows at the final watermark
+      return TriggerResult.FIRE_AND_PURGE;
     }
 
     @SuppressWarnings("unchecked")

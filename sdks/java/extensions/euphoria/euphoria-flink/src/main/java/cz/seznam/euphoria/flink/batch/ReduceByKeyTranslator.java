@@ -106,10 +106,11 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       ResultTypeQueryable<KEY> {
     
     @Override
-    public ComparablePair<LABEL, KEY> getKey(WindowedElement<?, ?, ? extends Pair<KEY, ?>> value)
-        throws Exception {
+    public ComparablePair<LABEL, KEY> getKey(
+        WindowedElement<?, ?, ? extends Pair<KEY, ?>> value) {
       
-      return (ComparablePair) ComparablePair.of(value.getWindowID().getLabel(), value.get().getKey());
+      return (ComparablePair) ComparablePair.of(
+          value.getWindowID().getLabel(), value.get().getKey());
     }
 
     @Override

@@ -18,7 +18,6 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
