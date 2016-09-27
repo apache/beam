@@ -20,74 +20,89 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 
 /**
  * A (Key, Coder) pair that uses the structural value of the key (as provided by
  * {@link Coder#structuralValue(Object)}) to perform equality and hashing.
  */
-class StructuralKey<K> {
-  private static final StructuralKey<Object> EMPTY = createEmpty();
+abstract class StructuralKey<K> {
 
-  private static StructuralKey<Object> createEmpty() {
-    @SuppressWarnings("rawtypes")
-    StructuralKey empty = of(null, VoidCoder.of());
-    return empty;
+  private StructuralKey() {
+    // Do not extend outside of this class
   }
 
+  public abstract K getKey();
   /**
-   * Get the empty {@link StructuralKey}.
+   * Get the empty {@link StructuralKey}. All instances of the empty key are considered equal.
    */
-  public static StructuralKey<?> empty() {
-    return EMPTY;
+  static StructuralKey<?> empty() {
+    return new StructuralKey<Object>() {
+      @Override
+      public Object getKey() {
+        return this;
+      }
+
+      @Override
+      public boolean equals(Object other) {
+        return other != null && getClass().isAssignableFrom(other.getClass());
+      }
+
+      @Override
+      public int hashCode() {
+        return getClass().hashCode();
+      }
+    };
   }
 
   /**
    * Create a new Structural Key of the provided key that can be encoded by the provided coder.
    */
-  public static <K> StructuralKey<K> of(K key, Coder<K> coder) {
+  static <K> StructuralKey<K> of(K key, Coder<K> coder) {
     try {
-      return new StructuralKey<>(coder, key);
+      return new CoderStructuralKey<>(coder, key);
     } catch (Exception e) {
       throw new IllegalArgumentException(
           "Could not encode a key with its provided coder " + coder.getClass().getSimpleName(), e);
     }
   }
 
-  private final Coder<K> coder;
-  private final Object structuralValue;
-  private final byte[] encoded;
+  private static class CoderStructuralKey<K> extends StructuralKey<K> {
+    private final Coder<K> coder;
+    private final Object structuralValue;
+    private final byte[] encoded;
 
-  private StructuralKey(Coder<K> coder, K key) throws Exception {
-    this.coder = coder;
-    this.structuralValue = coder.structuralValue(key);
-    this.encoded = CoderUtils.encodeToByteArray(coder, key);
-  }
-
-  public K getKey() {
-    try {
-      return CoderUtils.decodeFromByteArray(coder, encoded);
-    } catch (CoderException e) {
-      throw new IllegalArgumentException(
-          "Could not decode Key with coder of type " + coder.getClass().getSimpleName());
+    private CoderStructuralKey(Coder<K> coder, K key) throws Exception {
+      this.coder = coder;
+      this.structuralValue = coder.structuralValue(key);
+      this.encoded = CoderUtils.encodeToByteArray(coder, key);
     }
-  }
 
-  @Override
-  public boolean equals(Object other) {
-    if (other == this) {
-      return true;
+    @Override
+    public K getKey() {
+      try {
+        return CoderUtils.decodeFromByteArray(coder, encoded);
+      } catch (CoderException e) {
+        throw new IllegalArgumentException(
+            "Could not decode Key with coder of type " + coder.getClass().getSimpleName());
+      }
     }
-    if (other instanceof StructuralKey) {
-      StructuralKey that = (StructuralKey) other;
-      return structuralValue.equals(that.structuralValue);
-    }
-    return false;
-  }
 
-  @Override
-  public int hashCode() {
-    return structuralValue.hashCode();
+    @Override
+    public boolean equals(Object other) {
+      if (other == this) {
+        return true;
+      }
+      if (other instanceof CoderStructuralKey) {
+        CoderStructuralKey that = (CoderStructuralKey) other;
+        return structuralValue.equals(that.structuralValue);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return structuralValue.hashCode();
+    }
   }
 }

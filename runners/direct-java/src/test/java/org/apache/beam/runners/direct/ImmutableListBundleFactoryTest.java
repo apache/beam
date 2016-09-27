@@ -76,7 +76,7 @@ public class ImmutableListBundleFactoryTest {
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
 
     assertThat(bundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(StructuralKey.of(null, VoidCoder.of())));
+        Matchers.<StructuralKey<?>>equalTo(StructuralKey.empty()));
   }
 
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
