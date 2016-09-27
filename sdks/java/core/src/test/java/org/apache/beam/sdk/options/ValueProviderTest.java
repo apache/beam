@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
@@ -60,13 +61,12 @@ public class ValueProviderTest {
     assertTrue(provider.shouldValidate());
   }
 
-  @Ignore
   @Test
   public void testListValueProvider() {
     TestOptions options = PipelineOptionsFactory.fromArgs(
       new String[]{"--list=1,2,3"}).as(TestOptions.class);
     ValueProvider<List<Integer>> provider = options.getList();
-    assertEquals("baz", provider.get());
+    assertEquals(ImmutableList.of(1, 2, 3), provider.get());
     assertTrue(provider.shouldValidate());
   }
 
