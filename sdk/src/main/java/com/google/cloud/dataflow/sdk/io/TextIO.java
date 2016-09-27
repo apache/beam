@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -46,6 +47,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
 
 /**
@@ -306,35 +308,31 @@ public class TextIO {
           }
         }
 
-        // Create a source specific to the requested compression type.
-        final Bounded<T> read;
-        switch(compressionType) {
-          case UNCOMPRESSED:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
-                new TextSource<T>(filepattern, coder));
-            break;
-          case AUTO:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder)));
-            break;
-          case BZIP2:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.BZIP2));
-            break;
-          case GZIP:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.GZIP));
-            break;
-          default:
-            throw new IllegalArgumentException("Unknown compression mode: " + compressionType);
-        }
-
+        final Bounded<T> read = com.google.cloud.dataflow.sdk.io.Read.from(getSource());
         PCollection<T> pcol = input.getPipeline().apply("Read", read);
         // Honor the default output coder that would have been used by this PTransform.
         pcol.setCoder(getDefaultOutputCoder());
         return pcol;
+      }
+
+      // Helper to create a source specific to the requested compression type.
+      protected FileBasedSource<T> getSource() {
+        switch (compressionType) {
+          case UNCOMPRESSED:
+            return new TextSource<T>(filepattern, coder);
+          case AUTO:
+            return CompressedSource.from(new TextSource<T>(filepattern, coder));
+          case BZIP2:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.BZIP2);
+          case GZIP:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.GZIP);
+          default:
+            throw new IllegalArgumentException("Unknown compression type: " + compressionType);
+        }
       }
 
       @Override

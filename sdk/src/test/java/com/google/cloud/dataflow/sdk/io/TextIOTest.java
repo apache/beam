@@ -20,12 +20,19 @@ import static com.google.cloud.dataflow.sdk.TestUtils.INTS_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_INTS_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
+import static com.google.cloud.dataflow.sdk.io.TextIO.CompressionType.AUTO;
+import static com.google.cloud.dataflow.sdk.io.TextIO.CompressionType.BZIP2;
+import static com.google.cloud.dataflow.sdk.io.TextIO.CompressionType.GZIP;
+import static com.google.cloud.dataflow.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static com.google.cloud.dataflow.sdk.util.IOChannelUtils.resolve;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -41,6 +48,7 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
 import com.google.cloud.dataflow.sdk.io.TextIO.TextSource;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
@@ -67,10 +75,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -87,13 +96,18 @@ import java.io.PrintStream;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
+
 import javax.annotation.Nullable;
 
 /**
@@ -104,8 +118,22 @@ import javax.annotation.Nullable;
 public class TextIOTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
+  private static final String[] EMPTY = new String[] {};
+  private static final String[] TINY =
+      new String[] {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+  private static final String[] LARGE = makeLines(5000);
 
-  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  private static Path tempFolder;
+  private static File emptyTxt;
+  private static File tinyTxt;
+  private static File largeTxt;
+  private static File emptyGz;
+  private static File tinyGz;
+  private static File largeGz;
+  private static File emptyBzip2;
+  private static File tinyBzip2;
+  private static File largeBzip2;
+
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   private GcsUtil buildMockGcsUtil() throws IOException {
@@ -144,8 +172,63 @@ public class TextIOTest {
     return options;
   }
 
-  <T> void runTestRead(T[] expected, Coder<T> coder) throws Exception {
-    File tmpFile = tmpFolder.newFile("file.txt");
+  private static File writeToFile(String[] lines, String filename, CompressionType compression)
+      throws IOException {
+    File file = tempFolder.resolve(filename).toFile();
+    OutputStream output = new FileOutputStream(file);
+    switch (compression) {
+      case UNCOMPRESSED:
+        break;
+      case GZIP:
+        output = new GZIPOutputStream(output);
+        break;
+      case BZIP2:
+        output = new BZip2CompressorOutputStream(output);
+        break;
+      default:
+        throw new UnsupportedOperationException(compression.toString());
+    }
+    writeToStreamAndClose(lines, output);
+    return file;
+  }
+
+  @BeforeClass
+  public static void setupClass() throws IOException {
+    IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
+    tempFolder =  Files.createTempDirectory("TextIOTest");
+    // empty files
+    emptyTxt = writeToFile(EMPTY, "empty.txt", UNCOMPRESSED);
+    emptyGz = writeToFile(EMPTY, "empty.gz", GZIP);
+    emptyBzip2 = writeToFile(EMPTY, "empty.bz2", BZIP2);
+    // tiny files
+    tinyTxt = writeToFile(TINY, "tiny.txt", UNCOMPRESSED);
+    tinyGz = writeToFile(TINY, "tiny.gz", GZIP);
+    tinyBzip2 = writeToFile(TINY, "tiny.bz2", BZIP2);
+    // large files
+    largeTxt = writeToFile(LARGE, "large.txt", UNCOMPRESSED);
+    largeGz = writeToFile(LARGE, "large.gz", GZIP);
+    largeBzip2 = writeToFile(LARGE, "large.bz2", BZIP2);
+  }
+
+  @AfterClass
+  public static void testdownClass() throws IOException {
+    Files.walkFileTree(tempFolder, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.delete(file);
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+      }
+    });
+  }
+
+  private <T> void runTestRead(T[] expected, Coder<T> coder) throws Exception {
+    File tmpFile = Files.createTempFile(tempFolder, "file", "txt").toFile();
     String filename = tmpFile.getPath();
 
     try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
@@ -200,58 +283,53 @@ public class TextIOTest {
 
   @Test
   public void testReadNamed() throws Exception {
-    String file = tmpFolder.newFile().getAbsolutePath();
     Pipeline p = TestPipeline.create();
 
-    {
-      PCollection<String> output1 =
-          p.apply(TextIO.Read.from(file));
-      assertEquals("TextIO.Read/Read.out", output1.getName());
-    }
+    assertEquals(
+        "TextIO.Read/Read.out",
+        p.apply(TextIO.Read.withoutValidation().from("somefile")).getName());
 
-    {
-      PCollection<String> output2 =
-          p.apply(TextIO.Read.named("MyRead").from(file));
-      assertEquals("MyRead/Read.out", output2.getName());
-    }
+    assertEquals(
+        "MyRead/Read.out",
+        p.apply("MyRead", TextIO.Read.withoutValidation().from("somefile")).getName());
 
-    {
-      PCollection<String> output3 =
-          p.apply(TextIO.Read.from(file).named("HerRead"));
-      assertEquals("HerRead/Read.out", output3.getName());
-    }
+    assertEquals(
+        "HerRead/Read.out",
+        p.apply(TextIO.Read.withoutValidation().named("HerRead").from("somefile")).getName());
   }
 
   @Test
   public void testReadDisplayData() {
     TextIO.Read.Bound<?> read = TextIO.Read
         .from("foo.*")
-        .withCompressionType(CompressionType.BZIP2)
+        .withCompressionType(BZIP2)
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
-    assertThat(displayData, hasDisplayItem("compressionType", CompressionType.BZIP2.toString()));
+    assertThat(displayData, hasDisplayItem("compressionType", BZIP2.toString()));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
-  <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
+  private <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
     runTestWrite(elems, null, null, coder, 1);
   }
 
-  <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
+  private <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
     runTestWrite(elems, null, null, coder, numShards);
   }
 
-  <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer) throws Exception {
+  private <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer)
+      throws Exception {
     runTestWrite(elems, header, footer, coder, 1);
   }
 
-  <T> void runTestWrite(T[] elems, String header, String footer, Coder<T> coder, int numShards)
-      throws Exception {
+  private <T> void runTestWrite(
+      T[] elems, String header, String footer, Coder<T> coder, int numShards) throws Exception {
     String outputName = "file.txt";
-    String baseFilename = tmpFolder.newFile(outputName).getPath();
+    Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
+    String baseFilename = baseDir.resolve(outputName).toString();
 
     Pipeline p = TestPipeline.create();
 
@@ -276,7 +354,7 @@ public class TextIOTest {
 
     p.run();
 
-    assertOutputFiles(elems, header, footer, coder, numShards, tmpFolder, outputName,
+    assertOutputFiles(elems, header, footer, coder, numShards, baseDir, outputName,
         write.getShardNameTemplate());
   }
 
@@ -286,14 +364,14 @@ public class TextIOTest {
       final String footer,
       Coder<T> coder,
       int numShards,
-      TemporaryFolder rootLocation,
+      Path rootLocation,
       String outputName,
       String shardNameTemplate)
       throws Exception {
     List<File> expectedFiles = new ArrayList<>();
     if (numShards == 0) {
       String pattern =
-          IOChannelUtils.resolve(rootLocation.getRoot().getAbsolutePath(), outputName + "*");
+          resolve(rootLocation.toAbsolutePath().toString(), outputName + "*");
       for (String expected : IOChannelUtils.getFactory(pattern).match(pattern)) {
         expectedFiles.add(new File(expected));
       }
@@ -301,7 +379,7 @@ public class TextIOTest {
       for (int i = 0; i < numShards; i++) {
         expectedFiles.add(
             new File(
-                rootLocation.getRoot(),
+                rootLocation.toString(),
                 IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
       }
     }
@@ -322,8 +400,7 @@ public class TextIOTest {
     }
 
     List<String> expectedElements = new ArrayList<>(elems.length);
-    for (int i = 0; i < elems.length; i++) {
-      T elem = elems[i];
+    for (T elem : elems) {
       byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
       String line = new String(encodedElem);
       expectedElements.add(line);
@@ -483,9 +560,8 @@ public class TextIOTest {
 
   @Test
   public void testUnsupportedFilePattern() throws IOException {
-    File outFolder = tmpFolder.newFolder();
     // Windows doesn't like resolving paths with * in them.
-    String filename = outFolder.toPath().resolve("output@5").toString();
+    String filename = tempFolder.resolve("output@5").toString();
 
     Pipeline p = TestPipeline.create();
 
@@ -563,9 +639,9 @@ public class TextIOTest {
   @Test
   public void testCompressionTypeIsSet() throws Exception {
     TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/test");
-    assertEquals(CompressionType.AUTO, read.getCompressionType());
-    read = TextIO.Read.from("gs://bucket/test").withCompressionType(CompressionType.GZIP);
-    assertEquals(CompressionType.GZIP, read.getCompressionType());
+    assertEquals(AUTO, read.getCompressionType());
+    read = TextIO.Read.from("gs://bucket/test").withCompressionType(GZIP);
+    assertEquals(GZIP, read.getCompressionType());
   }
 
   /**
@@ -585,10 +661,10 @@ public class TextIOTest {
    * and asserts that the results match the given expected output.
    */
   private static void assertReadingCompressedFileMatchesExpected(
-      String filename, CompressionType compressionType, String[] expected) {
+      File file, CompressionType compressionType, String[] expected) {
     Pipeline p = TestPipeline.create();
     TextIO.Read.Bound<String> read =
-        TextIO.Read.from(filename).withCompressionType(compressionType);
+        TextIO.Read.from(file.getPath()).withCompressionType(compressionType);
     PCollection<String> output = p.apply(read);
 
     DataflowAssert.that(output).containsInAnyOrder(expected);
@@ -607,28 +683,8 @@ public class TextIOTest {
   /** Tests reading from a small, gzipped file with no .gz extension but GZIP compression set. */
   @Test
   public void testSmallCompressedGzipReadNoExtension() throws Exception {
-    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-    File tmpFile = tmpFolder.newFile(); // no GZ extension
-    String filename = tmpFile.getPath();
-
-    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(tmpFile)));
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.GZIP, lines);
-  }
-
-  /**
-   * Tests reading from a small, gzipped file with .gz extension and AUTO or GZIP compression set.
-   */
-  @Test
-  public void testSmallCompressedGzipRead() throws Exception {
-    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-    File tmpFile = tmpFolder.newFile("small_gzip.gz");
-    String filename = tmpFile.getPath();
-
-    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(tmpFile)));
-    // Should work in AUTO mode.
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.AUTO, lines);
-    // Should work in GZIP mode.
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.GZIP, lines);
+    File smallGzNoExtension = writeToFile(TINY, "tiny_gz_no_extension", GZIP);
+    assertReadingCompressedFileMatchesExpected(smallGzNoExtension, GZIP, TINY);
   }
 
   /**
@@ -638,118 +694,63 @@ public class TextIOTest {
    */
   @Test
   public void testSmallCompressedGzipReadActuallyUncompressed() throws Exception {
-    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-    File tmpFile = tmpFolder.newFile("not_really_gzipped.gz"); // GZ file extension lies
-    String filename = tmpFile.getPath();
-
-    writeToStreamAndClose(lines, new FileOutputStream(tmpFile));
+    File smallGzNotCompressed =
+        writeToFile(TINY, "tiny_uncompressed.gz", UNCOMPRESSED);
     // Should work with GZIP compression set.
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.GZIP, lines);
+    assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, GZIP, TINY);
     // Should also work with AUTO mode set.
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.AUTO, lines);
+    assertReadingCompressedFileMatchesExpected(smallGzNotCompressed, AUTO, TINY);
   }
 
   /** Tests reading from a small, bzip2ed file with no .bz2 extension but BZIP2 compression set. */
   @Test
   public void testSmallCompressedBzip2ReadNoExtension() throws Exception {
-    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-    File tmpFile = tmpFolder.newFile(); // no BZ2 extension
-    String filename = tmpFile.getPath();
-
-    writeToStreamAndClose(lines, new BZip2CompressorOutputStream(new FileOutputStream(tmpFile)));
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.BZIP2, lines);
+    File smallBz2NoExtension = writeToFile(TINY, "tiny_bz2_no_extension", BZIP2);
+    assertReadingCompressedFileMatchesExpected(smallBz2NoExtension, BZIP2, TINY);
   }
 
-  /**
-   * Tests reading from a small, bzip2ed file with .bz2 extension and AUTO or BZIP2 compression set.
-   */
   @Test
-  public void testSmallCompressedBzipRead() throws Exception {
-    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-    File tmpFile = tmpFolder.newFile("small_bzip2.bz2");
-    String filename = tmpFile.getPath();
-
-    writeToStreamAndClose(lines, new BZip2CompressorOutputStream(new FileOutputStream(tmpFile)));
-    // Should work in AUTO mode.
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.AUTO, lines);
-    // Should work in BZIP2 mode.
-    assertReadingCompressedFileMatchesExpected(filename, CompressionType.BZIP2, lines);
+  public void testTxtRead() throws Exception {
+    // Files with non-compressed extensions should work in AUTO and UNCOMPRESSED modes.
+    for (CompressionType type : new CompressionType[] { AUTO, UNCOMPRESSED }) {
+      assertReadingCompressedFileMatchesExpected(emptyTxt, type, EMPTY);
+      assertReadingCompressedFileMatchesExpected(tinyTxt, type, TINY);
+      assertReadingCompressedFileMatchesExpected(largeTxt, type, LARGE);
+    }
   }
 
-  /**
-   * Tests reading from a large, bzip2ed file with .bz2 extension and AUTO or BZIP2 compression set.
-   * It is important to test a large compressible file because using only small files may mask bugs
-   * from range tracking that can only occur if the file compression ratio is high -- small
-   * compressed files are usually as big as the uncompressed ones or bigger.
-   */
   @Test
-  public void testLargeCompressedBzipRead() throws Exception {
-    String[] lines = makeLines(5000);
-    File bz2File = tmpFolder.newFile("large_bzip2.bz2");
-    String bz2Filename = bz2File.getPath();
+  public void testGzipCompressedRead() throws Exception {
+    // Files with the right extensions should work in AUTO and GZIP modes.
+    for (CompressionType type : new CompressionType[] { AUTO, GZIP }) {
+      assertReadingCompressedFileMatchesExpected(emptyGz, type, EMPTY);
+      assertReadingCompressedFileMatchesExpected(tinyGz, type, TINY);
+      assertReadingCompressedFileMatchesExpected(largeGz, type, LARGE);
+    }
 
-    writeToStreamAndClose(lines, new BZip2CompressorOutputStream(new FileOutputStream(bz2File)));
-    // Should work in AUTO mode.
-    assertReadingCompressedFileMatchesExpected(bz2Filename, CompressionType.AUTO, lines);
-    // Should work in BZIP2 mode.
-    assertReadingCompressedFileMatchesExpected(bz2Filename, CompressionType.BZIP2, lines);
+    // Sanity check that we're properly testing compression.
+    assertThat(largeTxt.length(), greaterThan(largeGz.length()));
 
-    // Confirm that the compressed file is smaller than the uncompressed file.
-    File txtFile = tmpFolder.newFile("large_bzip2.txt");
-    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
-    assertThat(Files.size(txtFile.toPath()), greaterThan(Files.size(bz2File.toPath())));
+    // GZIP files with non-gz extension should work in GZIP mode.
+    File gzFile = writeToFile(TINY, "tiny_gz_no_extension", GZIP);
+    assertReadingCompressedFileMatchesExpected(gzFile, GZIP, TINY);
   }
 
-  /**
-   * Tests reading from a large, gzipped file with .gz extension and AUTO or GZIP compression set.
-   * It is important to test a large compressible file because using only small files may mask bugs
-   * from range tracking that can only occur if the file compression ratio is high -- small
-   * compressed files are usually as big as the uncompressed ones or bigger.
-   */
   @Test
-  public void testLargeCompressedGzipRead() throws Exception {
-    String[] lines = makeLines(5000);
-    File gzFile = tmpFolder.newFile("large_gzip.gz");
-    String gzFilename = gzFile.getPath();
+  public void testBzip2CompressedRead() throws Exception {
+    // Files with the right extensions should work in AUTO and BZIP2 modes.
+    for (CompressionType type : new CompressionType[] { AUTO, BZIP2 }) {
+      assertReadingCompressedFileMatchesExpected(emptyBzip2, type, EMPTY);
+      assertReadingCompressedFileMatchesExpected(tinyBzip2, type, TINY);
+      assertReadingCompressedFileMatchesExpected(largeBzip2, type, LARGE);
+    }
 
-    writeToStreamAndClose(lines, new GZIPOutputStream(new FileOutputStream(gzFile)));
-    // Should work in AUTO mode.
-    assertReadingCompressedFileMatchesExpected(gzFilename, CompressionType.AUTO, lines);
-    // Should work in BZIP2 mode.
-    assertReadingCompressedFileMatchesExpected(gzFilename, CompressionType.GZIP, lines);
+    // Sanity check that we're properly testing compression.
+    assertThat(largeTxt.length(), greaterThan(largeBzip2.length()));
 
-    // Confirm that the compressed file is smaller than the uncompressed file.
-    File txtFile = tmpFolder.newFile("large_gzip.txt");
-    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
-    assertThat(Files.size(txtFile.toPath()), greaterThan(Files.size(gzFile.toPath())));
-  }
-
-  /**
-   * Tests reading from a large, uncompressed file.
-   */
-  @Test
-  public void testLargeUncompressedReadTxt() throws Exception {
-    String[] lines = makeLines(5000);
-    File txtFile = tmpFolder.newFile("large_file.txt");
-    String txtFilename = txtFile.getPath();
-
-    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
-    // Should work in AUTO mode.
-    assertReadingCompressedFileMatchesExpected(txtFilename, CompressionType.AUTO, lines);
-  }
-
-  /**
-   * Tests reading from a large, uncompressed file with a weird file extension.
-   */
-  @Test
-  public void testLargeUncompressedReadWeirdExtension() throws Exception {
-    String[] lines = makeLines(5000);
-    File txtFile = tmpFolder.newFile("large_file.bin.data.foo");
-    String txtFilename = txtFile.getPath();
-
-    writeToStreamAndClose(lines, new FileOutputStream(txtFile));
-    // Should work in AUTO mode.
-    assertReadingCompressedFileMatchesExpected(txtFilename, CompressionType.AUTO, lines);
+    // BZ2 files with non-bz2 extension should work in BZIP2 mode.
+    File bz2File = writeToFile(TINY, "tiny_bz2_no_extension", BZIP2);
+    assertReadingCompressedFileMatchesExpected(bz2File, BZIP2, TINY);
   }
 
   @Test
@@ -758,7 +759,6 @@ public class TextIOTest {
     assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
     assertEquals("ReadMyFile", TextIO.Read.named("ReadMyFile").from("somefile").getName());
     assertEquals("WriteMyFile", TextIO.Write.named("WriteMyFile").to("somefile").getName());
-
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
     assertEquals(
         "ReadMyFile [TextIO.Read]", TextIO.Read.named("ReadMyFile").from("somefile").toString());
@@ -996,11 +996,78 @@ public class TextIOTest {
   }
 
   private TextSource<String> prepareSource(byte[] data) throws IOException {
-    File file = tmpFolder.newFile();
-    Files.write(file.toPath(), data);
+    Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
+    Files.write(path, data);
+    return new TextSource<>(path.toString(), StringUtf8Coder.of());
+  }
 
-    TextSource<String> source = new TextSource<>(file.toPath().toString(), StringUtf8Coder.of());
+  @Test
+  public void testInitialSplitIntoBundlesAutoModeTxt() throws Exception {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
 
-    return source;
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source = TextIO.Read.from(largeTxt.getPath()).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // At least 2 splits and they are equal to reading the whole file.
+    assertThat(splits, hasSize(greaterThan(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testInitialSplitIntoBundlesAutoModeGz() throws Exception {
+    long desiredBundleSize = 1000;
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source = TextIO.Read.from(largeGz.getPath()).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // Exactly 1 split, even in AUTO mode, since it is a gzip file.
+    assertThat(splits, hasSize(equalTo(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testInitialSplitIntoBundlesGzipModeTxt() throws Exception {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
+
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source =
+        TextIO.Read.from(largeTxt.getPath()).withCompressionType(GZIP).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // Exactly 1 split, even though splittable text file, since using GZIP mode.
+    assertThat(splits, hasSize(equalTo(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
+  }
+
+  @Test
+  public void testInitialSplitIntoBundlesGzipModeGz() throws Exception {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    long desiredBundleSize = 1000;
+
+    // Sanity check: file is at least 2 bundles long.
+    assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
+
+    FileBasedSource<String> source =
+        TextIO.Read.from(largeGz.getPath()).withCompressionType(GZIP).getSource();
+    List<? extends FileBasedSource<String>> splits =
+        source.splitIntoBundles(desiredBundleSize, options);
+
+    // Exactly 1 split using .gz extension and using GZIP mode.
+    assertThat(splits, hasSize(equalTo(1)));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
 }
