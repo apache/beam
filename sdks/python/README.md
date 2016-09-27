@@ -249,7 +249,7 @@ directory you created.
 
 #### Clone and install
 
-The best way to run Apache Beam with the Python SDK is to clone the git 
+The best way to run Apache Beam with the Python SDK is by cloning the git 
 repository:
     
     git clone https://github.com/apache/incubator-beam.git
