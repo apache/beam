@@ -226,16 +226,16 @@ class EvaluationContext {
   /**
    * Create a {@link UncommittedBundle} for use by a source.
    */
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return bundleFactory.createRootBundle(output);
+  public <T> UncommittedBundle<T> createRootBundle() {
+    return bundleFactory.createRootBundle();
   }
 
   /**
    * Create a {@link UncommittedBundle} whose elements belong to the specified {@link
    * PCollection}.
    */
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return bundleFactory.createBundle(input, output);
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+    return bundleFactory.createBundle(output);
   }
 
   /**
@@ -243,8 +243,8 @@ class EvaluationContext {
    * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}.
    */
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
-    return bundleFactory.createKeyedBundle(input, key, output);
+      StructuralKey<K> key, PCollection<T> output) {
+    return bundleFactory.createKeyedBundle(key, output);
   }
 
   /**

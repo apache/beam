@@ -77,8 +77,8 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Test
   public void boundedSourceInMemoryTransformEvaluatorProducesElements() throws Exception {
-    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
-    when(context.createRootBundle(longs)).thenReturn(output);
+    UncommittedBundle<Long> output = bundleFactory.createBundle(longs);
+    when(context.createBundle(longs)).thenReturn(output);
 
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null);
@@ -97,8 +97,8 @@ public class BoundedReadEvaluatorFactoryTest {
    */
   @Test
   public void boundedSourceInMemoryTransformEvaluatorAfterFinishIsEmpty() throws Exception {
-    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
-    when(context.createRootBundle(longs)).thenReturn(output);
+    UncommittedBundle<Long> output = bundleFactory.createBundle(longs);
+    when(context.createBundle(longs)).thenReturn(output);
 
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null);
@@ -111,8 +111,8 @@ public class BoundedReadEvaluatorFactoryTest {
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
 
-    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
-    when(context.createRootBundle(longs)).thenReturn(secondOutput);
+    UncommittedBundle<Long> secondOutput = bundleFactory.createBundle(longs);
+    when(context.createBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null);
     assertThat(secondEvaluator, nullValue());
@@ -124,9 +124,9 @@ public class BoundedReadEvaluatorFactoryTest {
    */
   @Test
   public void boundedSourceEvaluatorSimultaneousEvaluations() throws Exception {
-    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
-    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
-    when(context.createRootBundle(longs)).thenReturn(output).thenReturn(secondOutput);
+    UncommittedBundle<Long> output = bundleFactory.createBundle(longs);
+    UncommittedBundle<Long> secondOutput = bundleFactory.createBundle(longs);
+    when(context.createBundle(longs)).thenReturn(output).thenReturn(secondOutput);
 
     // create both evaluators before finishing either.
     TransformEvaluator<?> evaluator =
@@ -160,8 +160,8 @@ public class BoundedReadEvaluatorFactoryTest {
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
-    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
-    when(context.createRootBundle(pcollection)).thenReturn(output);
+    UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
+    when(context.createBundle(pcollection)).thenReturn(output);
 
     TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
     evaluator.finishBundle();
@@ -178,8 +178,8 @@ public class BoundedReadEvaluatorFactoryTest {
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
-    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
-    when(context.createRootBundle(pcollection)).thenReturn(output);
+    UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
+    when(context.createBundle(pcollection)).thenReturn(output);
 
     TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null);
     evaluator.finishBundle();

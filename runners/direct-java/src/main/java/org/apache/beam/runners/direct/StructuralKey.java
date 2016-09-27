@@ -26,52 +26,78 @@ import org.apache.beam.sdk.util.CoderUtils;
  * A (Key, Coder) pair that uses the structural value of the key (as provided by
  * {@link Coder#structuralValue(Object)}) to perform equality and hashing.
  */
-class StructuralKey<K> {
+abstract class StructuralKey<K> {
+
+  private StructuralKey() {
+    // Prevents extending outside of this class
+  }
+
+  /**
+   * Returns the key that this {@link StructuralKey} was created from.
+   */
+  public abstract K getKey();
+
+  /**
+   * Get the empty {@link StructuralKey}. All instances of the empty key are considered equal.
+   */
+  static StructuralKey<?> empty() {
+    StructuralKey<Object> emptyKey = new StructuralKey<Object>() {
+      @Override
+      public Object getKey() {
+        return this;
+      }
+    };
+    return emptyKey;
+  }
+
   /**
    * Create a new Structural Key of the provided key that can be encoded by the provided coder.
    */
-  public static <K> StructuralKey<K> of(K key, Coder<K> coder) {
+  static <K> StructuralKey<K> of(K key, Coder<K> coder) {
     try {
-      return new StructuralKey<>(coder, key);
+      return new CoderStructuralKey<>(coder, key);
     } catch (Exception e) {
       throw new IllegalArgumentException(
           "Could not encode a key with its provided coder " + coder.getClass().getSimpleName(), e);
     }
   }
 
-  private final Coder<K> coder;
-  private final Object structuralValue;
-  private final byte[] encoded;
+  private static class CoderStructuralKey<K> extends StructuralKey<K> {
+    private final Coder<K> coder;
+    private final Object structuralValue;
+    private final byte[] encoded;
 
-  private StructuralKey(Coder<K> coder, K key) throws Exception {
-    this.coder = coder;
-    this.structuralValue = coder.structuralValue(key);
-    this.encoded = CoderUtils.encodeToByteArray(coder, key);
-  }
-
-  public K getKey() {
-    try {
-      return CoderUtils.decodeFromByteArray(coder, encoded);
-    } catch (CoderException e) {
-      throw new IllegalArgumentException(
-          "Could not decode Key with coder of type " + coder.getClass().getSimpleName());
+    private CoderStructuralKey(Coder<K> coder, K key) throws Exception {
+      this.coder = coder;
+      this.structuralValue = coder.structuralValue(key);
+      this.encoded = CoderUtils.encodeToByteArray(coder, key);
     }
-  }
 
-  @Override
-  public boolean equals(Object other) {
-    if (other == this) {
-      return true;
+    @Override
+    public K getKey() {
+      try {
+        return CoderUtils.decodeFromByteArray(coder, encoded);
+      } catch (CoderException e) {
+        throw new IllegalArgumentException(
+            "Could not decode Key with coder of type " + coder.getClass().getSimpleName(), e);
+      }
     }
-    if (other instanceof StructuralKey) {
-      StructuralKey that = (StructuralKey) other;
-      return structuralValue.equals(that.structuralValue);
-    }
-    return false;
-  }
 
-  @Override
-  public int hashCode() {
-    return structuralValue.hashCode();
+    @Override
+    public boolean equals(Object other) {
+      if (other == this) {
+        return true;
+      }
+      if (other instanceof CoderStructuralKey) {
+        CoderStructuralKey that = (CoderStructuralKey) other;
+        return structuralValue.equals(that.structuralValue);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return structuralValue.hashCode();
+    }
   }
 }

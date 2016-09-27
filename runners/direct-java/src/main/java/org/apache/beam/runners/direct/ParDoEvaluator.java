@@ -60,7 +60,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
       outputBundles.put(
           outputEntry.getKey(),
-          evaluationContext.createBundle(inputBundle, outputEntry.getValue()));
+          evaluationContext.createBundle(outputEntry.getValue()));
     }
 
     ReadyCheckingSideInputReader sideInputReader =

@@ -70,31 +70,22 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
         kvs.apply(new DirectGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
-        bundleFactory.createRootBundle(kvs).commit(Instant.now());
+        bundleFactory.createBundle(kvs).commit(Instant.now());
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
 
     StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
-    UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle = bundleFactory.createKeyedBundle(
-        null, fooKey,
-        groupedKvs);
+    UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
+        bundleFactory.createKeyedBundle(fooKey, groupedKvs);
     StructuralKey<String> barKey = StructuralKey.of("bar", StringUtf8Coder.of());
-    UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle = bundleFactory.createKeyedBundle(
-        null, barKey,
-        groupedKvs);
+    UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
+        bundleFactory.createKeyedBundle(barKey, groupedKvs);
     StructuralKey<String> bazKey = StructuralKey.of("baz", StringUtf8Coder.of());
-    UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle = bundleFactory.createKeyedBundle(
-        null, bazKey,
-        groupedKvs);
+    UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
+        bundleFactory.createKeyedBundle(bazKey, groupedKvs);
 
-    when(evaluationContext.createKeyedBundle(inputBundle,
-        fooKey,
-        groupedKvs)).thenReturn(fooBundle);
-    when(evaluationContext.createKeyedBundle(inputBundle,
-        barKey,
-        groupedKvs)).thenReturn(barBundle);
-    when(evaluationContext.createKeyedBundle(inputBundle,
-        bazKey,
-        groupedKvs)).thenReturn(bazBundle);
+    when(evaluationContext.createKeyedBundle(fooKey, groupedKvs)).thenReturn(fooBundle);
+    when(evaluationContext.createKeyedBundle(barKey, groupedKvs)).thenReturn(barBundle);
+    when(evaluationContext.createKeyedBundle(bazKey, groupedKvs)).thenReturn(bazBundle);
 
     // The input to a GroupByKey is assumed to be a KvCoder
     @SuppressWarnings("unchecked")

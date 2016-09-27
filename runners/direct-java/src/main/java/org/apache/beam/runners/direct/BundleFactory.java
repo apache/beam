@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -28,22 +27,24 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public interface BundleFactory {
   /**
-   * Create an {@link UncommittedBundle} from an empty input. Elements added to the bundle belong to
-   * the {@code output} {@link PCollection}.
+   * Create an {@link UncommittedBundle} from an empty input. Elements added to the bundle do not
+   * belong to a {@link PCollection}.
+   *
+   * <p>For use in creating inputs to root transforms.
    */
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output);
+  <T> UncommittedBundle<T> createRootBundle();
 
   /**
    * Create an {@link UncommittedBundle} from the specified input. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output);
+  <T> UncommittedBundle<T> createBundle(PCollection<T> output);
 
   /**
    * Create an {@link UncommittedBundle} with the specified keys at the specified step. For use by
    * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output);
+  <K, T> UncommittedBundle<T> createKeyedBundle(
+      StructuralKey<K> key, PCollection<T> output);
 }

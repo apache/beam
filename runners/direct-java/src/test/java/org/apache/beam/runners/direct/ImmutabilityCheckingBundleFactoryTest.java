@@ -60,8 +60,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
   }
 
   @Test
-  public void noMutationRootBundleSucceeds() {
-    UncommittedBundle<byte[]> root = factory.createRootBundle(created);
+  public void rootBundleSucceeds() {
+    UncommittedBundle<byte[]> root = factory.createRootBundle();
     byte[] array = new byte[] {0, 1, 2};
     root.add(WindowedValue.valueInGlobalWindow(array));
     CommittedBundle<byte[]> committed = root.commit(Instant.now());
@@ -72,10 +72,8 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
   @Test
   public void noMutationKeyedBundleSucceeds() {
-    CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
-        StructuralKey.of("mykey", StringUtf8Coder.of()),
-        transformed);
+    UncommittedBundle<byte[]> keyed =
+        factory.createKeyedBundle(StructuralKey.of("mykey", StringUtf8Coder.of()), transformed);
 
     WindowedValue<byte[]> windowedArray =
         WindowedValue.of(
@@ -91,8 +89,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
   @Test
   public void noMutationCreateBundleSucceeds() {
-    CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> intermediate = factory.createBundle(root, transformed);
+    UncommittedBundle<byte[]> intermediate = factory.createBundle(transformed);
 
     WindowedValue<byte[]> windowedArray =
         WindowedValue.of(
@@ -107,23 +104,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   }
 
   @Test
-  public void mutationBeforeAddRootBundleSucceeds() {
-    UncommittedBundle<byte[]> root = factory.createRootBundle(created);
-    byte[] array = new byte[] {0, 1, 2};
-    array[1] = 2;
-    root.add(WindowedValue.valueInGlobalWindow(array));
-    CommittedBundle<byte[]> committed = root.commit(Instant.now());
-
-    assertThat(
-        committed.getElements(), containsInAnyOrder(WindowedValue.valueInGlobalWindow(array)));
-  }
-
-  @Test
   public void mutationBeforeAddKeyedBundleSucceeds() {
-    CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
-        StructuralKey.of("mykey", StringUtf8Coder.of()),
-        transformed);
+    UncommittedBundle<byte[]> keyed =
+        factory.createKeyedBundle(StructuralKey.of("mykey", StringUtf8Coder.of()), transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     array[0] = Byte.MAX_VALUE;
@@ -141,8 +124,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
   @Test
   public void mutationBeforeAddCreateBundleSucceeds() {
-    CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> intermediate = factory.createBundle(root, transformed);
+    UncommittedBundle<byte[]> intermediate = factory.createBundle(transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
@@ -159,23 +141,9 @@ public class ImmutabilityCheckingBundleFactoryTest {
   }
 
   @Test
-  public void mutationAfterAddRootBundleThrows() {
-    UncommittedBundle<byte[]> root = factory.createRootBundle(created);
-    byte[] array = new byte[] {0, 1, 2};
-    root.add(WindowedValue.valueInGlobalWindow(array));
-
-    array[1] = 2;
-    thrown.expect(IllegalMutationException.class);
-    thrown.expectMessage("Values must not be mutated in any way after being output");
-    CommittedBundle<byte[]> committed = root.commit(Instant.now());
-  }
-
-  @Test
   public void mutationAfterAddKeyedBundleThrows() {
-    CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> keyed = factory.createKeyedBundle(root,
-        StructuralKey.of("mykey", StringUtf8Coder.of()),
-        transformed);
+    UncommittedBundle<byte[]> keyed =
+        factory.createKeyedBundle(StructuralKey.of("mykey", StringUtf8Coder.of()), transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
@@ -189,13 +157,12 @@ public class ImmutabilityCheckingBundleFactoryTest {
     array[0] = Byte.MAX_VALUE;
     thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("Values must not be mutated in any way after being output");
-    CommittedBundle<byte[]> committed = keyed.commit(Instant.now());
+    keyed.commit(Instant.now());
   }
 
   @Test
   public void mutationAfterAddCreateBundleThrows() {
-    CommittedBundle<byte[]> root = factory.createRootBundle(created).commit(Instant.now());
-    UncommittedBundle<byte[]> intermediate = factory.createBundle(root, transformed);
+    UncommittedBundle<byte[]> intermediate = factory.createBundle(transformed);
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
@@ -209,7 +176,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     array[2] = -3;
     thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("Values must not be mutated in any way after being output");
-    CommittedBundle<byte[]> committed = intermediate.commit(Instant.now());
+    intermediate.commit(Instant.now());
   }
 
   private static class IdentityDoFn<T> extends OldDoFn<T, T> {

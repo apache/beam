@@ -80,11 +80,11 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
                   }
                 }));
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
-    UncommittedBundle<Integer> outputBundle = bundleFactory.createRootBundle(collection);
-    when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
+    UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(collection);
+    when(evaluationContext.createBundle(collection)).thenReturn(outputBundle);
     DirectExecutionContext executionContext =
         new DirectExecutionContext(null, null, null, null);
     when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(),
@@ -134,11 +134,11 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
                   }
                 }));
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
-    UncommittedBundle<Integer> outputBundle = bundleFactory.createRootBundle(collection);
-    when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
+    UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(collection);
+    when(evaluationContext.createBundle(collection)).thenReturn(outputBundle);
     DirectExecutionContext executionContext =
         new DirectExecutionContext(null, null, null, null);
     when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(),
@@ -197,13 +197,13 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     PCollection<KV<String, Integer>> mainOutput = input.apply(pardo);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
-        bundleFactory.createRootBundle(mainOutput);
+        bundleFactory.createBundle(mainOutput);
 
-    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(mainOutput)).thenReturn(mainOutputBundle);
 
     DirectExecutionContext executionContext = new DirectExecutionContext(null,
         StructuralKey.of("myKey", StringUtf8Coder.of()),
@@ -299,13 +299,13 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     StructuralKey<?> key = StructuralKey.of("myKey", StringUtf8Coder.of());
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     UncommittedBundle<KV<String, Integer>> mainOutputBundle =
-        bundleFactory.createRootBundle(mainOutput);
+        bundleFactory.createBundle(mainOutput);
 
-    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(mainOutput)).thenReturn(mainOutputBundle);
 
     DirectExecutionContext executionContext = new DirectExecutionContext(null,
         key,

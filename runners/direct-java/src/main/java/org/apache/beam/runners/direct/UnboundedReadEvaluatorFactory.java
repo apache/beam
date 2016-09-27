@@ -171,7 +171,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public TransformResult finishBundle() throws IOException {
-      UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
+      UncommittedBundle<OutputT> output = evaluationContext.createBundle(transform.getOutput());
       try {
         boolean elementAvailable = startReader();
 

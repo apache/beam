@@ -63,7 +63,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            bundleFactory.createRootBundle(created).commit(Instant.now()),
+            bundleFactory.createBundle(created).commit(Instant.now()),
             Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
@@ -73,7 +73,7 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getUncommittedElementsEqualInput() {
     DirectRunner.CommittedBundle<Integer> bundle =
-        bundleFactory.createRootBundle(created)
+        bundleFactory.createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult result =
@@ -102,16 +102,16 @@ public class CommittedResultTest implements Serializable {
   @Test
   public void getOutputsEqualInput() {
     List<? extends DirectRunner.CommittedBundle<?>> outputs =
-        ImmutableList.of(bundleFactory.createRootBundle(PCollection.createPrimitiveOutputInternal(p,
+        ImmutableList.of(bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
             WindowingStrategy.globalDefault(),
             PCollection.IsBounded.BOUNDED)).commit(Instant.now()),
-            bundleFactory.createRootBundle(PCollection.createPrimitiveOutputInternal(p,
+            bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
                 WindowingStrategy.globalDefault(),
                 PCollection.IsBounded.UNBOUNDED)).commit(Instant.now()));
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            bundleFactory.createRootBundle(created).commit(Instant.now()),
+            bundleFactory.createBundle(created).commit(Instant.now()),
             outputs,
             EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 

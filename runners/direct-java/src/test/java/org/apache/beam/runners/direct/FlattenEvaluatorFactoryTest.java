@@ -55,17 +55,16 @@ public class FlattenEvaluatorFactoryTest {
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
     CommittedBundle<Integer> leftBundle =
-        bundleFactory.createRootBundle(left).commit(Instant.now());
+        bundleFactory.createBundle(left).commit(Instant.now());
     CommittedBundle<Integer> rightBundle =
-        bundleFactory.createRootBundle(right).commit(Instant.now());
+        bundleFactory.createBundle(right).commit(Instant.now());
 
     EvaluationContext context = mock(EvaluationContext.class);
 
-    UncommittedBundle<Integer> flattenedLeftBundle = bundleFactory.createRootBundle(flattened);
-    UncommittedBundle<Integer> flattenedRightBundle = bundleFactory.createRootBundle(flattened);
+    UncommittedBundle<Integer> flattenedLeftBundle = bundleFactory.createBundle(flattened);
+    UncommittedBundle<Integer> flattenedRightBundle = bundleFactory.createBundle(flattened);
 
-    when(context.createBundle(leftBundle, flattened)).thenReturn(flattenedLeftBundle);
-    when(context.createBundle(rightBundle, flattened)).thenReturn(flattenedRightBundle);
+    when(context.createBundle(flattened)).thenReturn(flattenedLeftBundle, flattenedRightBundle);
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(context);
     TransformEvaluator<Integer> leftSideEvaluator =

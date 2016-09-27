@@ -94,10 +94,9 @@ public class ParDoEvaluatorTest {
     PCollection<Integer> output = inputPc.apply(ParDo.of(fn).withSideInputs(singletonView));
 
     CommittedBundle<Integer> inputBundle =
-        bundleFactory.createRootBundle(inputPc).commit(Instant.now());
-    UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(inputBundle, output);
-    when(evaluationContext.createBundle(inputBundle, output))
-        .thenReturn(outputBundle);
+        bundleFactory.createBundle(inputPc).commit(Instant.now());
+    UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(output);
+    when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
 
     ParDoEvaluator<Integer> evaluator =
         createEvaluator(singletonView, fn, inputBundle, output);

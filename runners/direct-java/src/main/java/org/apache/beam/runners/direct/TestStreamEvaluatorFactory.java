@@ -124,7 +124,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
         StepTransformResult.Builder result =
             StepTransformResult.withHold(application, currentWatermark);
         if (event.getType().equals(EventType.ELEMENT)) {
-          UncommittedBundle<T> bundle = context.createRootBundle(application.getOutput());
+          UncommittedBundle<T> bundle = context.createBundle(application.getOutput());
           for (TimestampedValue<T> elem : ((ElementEvent<T>) event).getElements()) {
             bundle.add(
                 WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp()));
