@@ -175,9 +175,7 @@ public interface ValueProvider<T> {
     public void serialize(ValueProvider<?> value, JsonGenerator jgen,
                           SerializerProvider provider) throws IOException {
       if (value.shouldValidate()) {
-        jgen.writeStartObject();
         jgen.writeObject(value.get());
-        jgen.writeEndObject();
       } else {
         jgen.writeNull();
       }

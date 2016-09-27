@@ -676,6 +676,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
       PipelineOptions options =
           new ProxyInvocationHandler(Maps.<String, BoundValue>newHashMap(), fields)
               .as(PipelineOptions.class);
+      ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);
       return options;
     }
   }

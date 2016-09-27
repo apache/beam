@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -169,35 +169,46 @@ public class ValueProviderTest {
     StaticValueProvider<String> provider = options.getBar();
   }
 
-  class TestObject implements Serializable {
-    public ValueProvider<String> vp;
-
-    public TestObject() {}
-  }
-
   @Test
-  @Ignore
-  public void testRunnerOverrideOfValue() throws Exception {
+  public void testSerializeDeserializeNoArg() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
+    assertFalse(submitOptions.getFoo().shouldValidate());
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
-
-    // Create a test object that contains the ValueProvider, and serialize.
-    TestObject testObject = new TestObject();
-    testObject.vp = submitOptions.getFoo();
-    String serializedObject = mapper.writeValueAsString(testObject);
 
     // This is the expected behavior of the runner: deserialize and set the
     // the runtime options.
     String anchor = "\"appName\":\"ValueProviderTest\"";
+    assertThat(serializedOptions, containsString(anchor));
     String runnerString = serializedOptions.replaceAll(
       anchor, anchor + ",\"foo\":\"quux\"");
-    TestOptions runtime = mapper.readValue(serializedOptions, PipelineOptions.class)
+    TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
       .as(TestOptions.class);
-    RuntimeValueProvider.setRuntimeOptions(runtime);
 
-    testObject = mapper.readValue(serializedObject, TestObject.class);
-    assertFalse(testObject.vp.shouldValidate());
-    assertEquals("quux", testObject.vp.get());
+    ValueProvider<String> vp = runtime.getFoo();
+    assertTrue(vp.shouldValidate());
+    assertEquals("quux", vp.get());
+    assertEquals(vp.getClass(), StaticValueProvider.class);
+  }
+
+  @Test
+  public void testSerializeDeserializeWithArg() throws Exception {
+    TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
+      new String[]{"--foo=baz"}).as(TestOptions.class);
+    assertEquals("baz", submitOptions.getFoo().get());
+    assertTrue(submitOptions.getFoo().shouldValidate());
+    ObjectMapper mapper = new ObjectMapper();
+    String serializedOptions = mapper.writeValueAsString(submitOptions);
+
+    // This is the expected behavior of the runner: deserialize and set the
+    // the runtime options.
+    assertThat(serializedOptions, containsString("baz"));
+    String runnerString = serializedOptions.replaceAll("baz", "quux");
+    TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
+      .as(TestOptions.class);
+
+    ValueProvider<String> vp = runtime.getFoo();
+    assertTrue(vp.shouldValidate());
+    assertEquals("quux", vp.get());
   }
 }
