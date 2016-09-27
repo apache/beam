@@ -36,6 +36,7 @@ import com.google.api.client.json.Json;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
@@ -63,7 +64,6 @@ import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -72,8 +72,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BigQueryServicesImpl}.
@@ -352,7 +350,7 @@ public class BigQueryServicesImplTest {
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff());
+    dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -378,32 +376,19 @@ public class BigQueryServicesImplTest {
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(200).thenReturn(200);
     when(response.getContent())
-        .thenAnswer(new Answer<InputStream>() {
-          int count = 0;
-
-          @Override
-          public InputStream answer(InvocationOnMock invocation) throws Throwable {
-            ++count;
-            if (count == 1) {
-              return toStream(bFailed);
-            }
-            assertEquals(count, 2);
-            return toStream(allRowsSucceeded);
-          }
-        });
+        .thenReturn(toStream(bFailed)).thenReturn(toStream(allRowsSucceeded));
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    dataService.insertAll(ref, rows, insertIds, TEST_BACKOFF.backoff());
+    dataService.insertAll(ref, rows, insertIds, TEST_BACKOFF.backoff(), new MockSleeper());
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
-  // A very-short BackOff to use in tests.
-  private final static FluentBackoff TEST_BACKOFF =
-      FluentBackoff.DEFAULT.withMaxBackoff(Duration.millis(1)).withMaxRetries(3);
+  // A BackOff that makes a total of 4 attempts
+  private final static FluentBackoff TEST_BACKOFF = FluentBackoff.DEFAULT.withMaxRetries(3);
 
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} fails gracefully when persistent issues.
@@ -421,25 +406,22 @@ public class BigQueryServicesImplTest {
         .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(0L)));
 
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    // Always return 200.
     when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenAnswer(new Answer<InputStream>() {
-      boolean first = true;
-      @Override
-      public InputStream answer(InvocationOnMock invocation) throws Throwable {
-        if (first) {
-          first = false;
-          return toStream(row1Failed);
-        }
-        return toStream(row0Failed);
-      }
-    });;
+    // Return row 1 failing, then we retry row 1 as row 0, and row 0 persistently fails.
+    when(response.getContent())
+        .thenReturn(toStream(row1Failed))
+        .thenReturn(toStream(row0Failed))
+        .thenReturn(toStream(row0Failed))
+        .thenReturn(toStream(row0Failed));
+
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     // Expect it to fail.
     try {
-      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff());
+      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
@@ -479,7 +461,7 @@ public class BigQueryServicesImplTest {
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     try {
-      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff());
+      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
       fail();
     } catch (RuntimeException e) {
       verify(response, times(1)).getStatusCode();

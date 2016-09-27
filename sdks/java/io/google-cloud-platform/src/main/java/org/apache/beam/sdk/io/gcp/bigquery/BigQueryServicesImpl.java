@@ -545,7 +545,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @VisibleForTesting
     long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
-        BackOff backoff) throws IOException, InterruptedException {
+        BackOff backoff, final Sleeper sleeper) throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -604,7 +604,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                         if (new ApiErrorExtractor().rateLimited(e)) {
                           LOG.info("BigQuery insertAll exceeded rate limit, retrying");
                           try {
-                            Thread.sleep(backoff.nextBackOffMillis());
+                            sleeper.sleep(backoff.nextBackOffMillis());
                           } catch (InterruptedException interrupted) {
                             throw new IOException(
                                 "Interrupted while waiting before retrying insertAll");
@@ -659,7 +659,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           break;
         }
         try {
-          Thread.sleep(nextBackoffMillis);
+          sleeper.sleep(nextBackoffMillis);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IOException(
@@ -681,7 +681,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public long insertAll(
         TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException {
-          return insertAll(ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff());
+          return insertAll(
+              ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
     }
   }
 
