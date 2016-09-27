@@ -92,7 +92,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <dataflow.javadoc_opts/>
+    <beam.javadoc_opts/>
 
     <!-- Disable integration tests by default -->
     <skipITs>true</skipITs>
@@ -224,7 +224,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <properties>
-        <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
+        <beam.javadoc_opts>-Xdoclint:-missing</beam.javadoc_opts>
       </properties>
     </profile>
 

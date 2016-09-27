@@ -234,7 +234,7 @@ public interface Coder<T> extends Serializable {
    *
    * <p>If the format is changed in a backwards-compatible way (the Coder can still accept data from
    * the prior format), such as by adding optional fields to a Protocol Buffer or Avro definition,
-   * and you want Dataflow to understand that the new coder is compatible with the prior coder,
+   * and you want a Beam runner to understand that the new coder is compatible with the prior coder,
    * this value must remain unchanged. It is then the responsibility of {@link #decode} to correctly
    * read data from the prior format.
    */

@@ -153,7 +153,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
    * parallel write to a sink as well as how to create a {@link Sink.Writer} object that can write
    * a bundle to the sink.
    *
-   * <p>Since operations in Dataflow may be run multiple times for redundancy or fault-tolerance,
+   * <p>Since operations in Beam may be run multiple times for redundancy or fault-tolerance,
    * the initialization and finalization defined by a WriteOperation <b>must be idempotent</b>.
    *
    * <p>{@code WriteOperation}s may be mutable; a {@code WriteOperation} is serialized after the
