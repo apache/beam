@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -23,7 +25,6 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -279,8 +280,7 @@ public interface Coder<T> extends Serializable {
         List<String> reasons,
         @Nullable NonDeterministicException cause) {
       super(cause);
-      Preconditions.checkArgument(reasons.size() > 0,
-          "Reasons must not be empty.");
+      checkArgument(reasons.size() > 0, "Reasons must not be empty.");
       this.reasons = reasons;
       this.coder = coder;
     }

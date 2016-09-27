@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -33,7 +34,6 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
@@ -120,7 +120,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final StateNamespace namespace;
 
     public TimersImpl(StateNamespace namespace) {
-      Preconditions.checkArgument(namespace instanceof WindowNamespace);
+      checkArgument(namespace instanceof WindowNamespace);
       this.namespace = namespace;
     }
 
@@ -245,7 +245,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
             namespace = namespaceFor(activeWindows.writeStateAddress(mergingWindow));
             break;
         }
-        Preconditions.checkNotNull(namespace); // cases are exhaustive.
+        checkNotNull(namespace); // cases are exhaustive.
         builder.put(mergingWindow, stateInternals.state(namespace, address, context));
       }
       return builder.build();

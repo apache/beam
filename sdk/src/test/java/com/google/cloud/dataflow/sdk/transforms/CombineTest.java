@@ -20,7 +20,9 @@ import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -66,7 +68,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
@@ -793,8 +794,7 @@ public class CombineTest implements Serializable {
     public static SetCoder<?> of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got " + components.size());
       return of((Coder<?>) components.get(0));
     }
 
@@ -1121,8 +1121,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void addInput(Integer element) {
-        Preconditions.checkState(merges == 0);
-        Preconditions.checkState(outputs == 0);
+        checkState(merges == 0);
+        checkState(outputs == 0);
 
         inputs++;
         sum += element;
@@ -1130,8 +1130,8 @@ public class CombineTest implements Serializable {
 
       @Override
       public void mergeAccumulator(Counter accumulator) {
-        Preconditions.checkState(outputs == 0);
-        Preconditions.checkArgument(accumulator.outputs == 0);
+        checkState(outputs == 0);
+        checkArgument(accumulator.outputs == 0);
 
         merges += accumulator.merges + 1;
         inputs += accumulator.inputs;
@@ -1140,7 +1140,7 @@ public class CombineTest implements Serializable {
 
       @Override
       public Iterable<Long> extractOutput() {
-        Preconditions.checkState(outputs == 0);
+        checkState(outputs == 0);
 
         return Arrays.asList(sum, inputs, merges, outputs);
       }

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -32,7 +34,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -459,8 +460,8 @@ public class Pipeline {
   public String getFullNameForTesting(PTransform<?, ?> transform) {
     Collection<AppliedPTransform<?, ?, ?>> uses =
         transformApplicationsForTesting.get(transform);
-    Preconditions.checkState(uses.size() > 0, "Unknown transform: " + transform);
-    Preconditions.checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
+    checkState(uses.size() > 0, "Unknown transform: " + transform);
+    checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
     return Iterables.getOnlyElement(uses).getFullName();
   }
 

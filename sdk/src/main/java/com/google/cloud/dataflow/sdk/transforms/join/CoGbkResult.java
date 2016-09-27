@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.join;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -27,7 +28,6 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 
@@ -230,8 +230,7 @@ public class CoGbkResult {
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<?>> components,
         @JsonProperty(PropertyNames.CO_GBK_RESULT_SCHEMA) CoGbkResultSchema schema) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got " + components.size());
       return new CoGbkResultCoder(schema, (UnionCoder) components.get(0));
     }
 

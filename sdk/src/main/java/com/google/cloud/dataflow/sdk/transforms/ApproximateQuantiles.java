@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -29,7 +31,6 @@ import com.google.cloud.dataflow.sdk.util.WeightedValue;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
@@ -252,9 +253,9 @@ public class ApproximateQuantiles {
         int bufferSize,
         int numBuffers,
         long maxNumElements) {
-      Preconditions.checkArgument(numQuantiles >= 2);
-      Preconditions.checkArgument(bufferSize >= 2);
-      Preconditions.checkArgument(numBuffers >= 2);
+      checkArgument(numQuantiles >= 2);
+      checkArgument(bufferSize >= 2);
+      checkArgument(numBuffers >= 2);
       this.numQuantiles = numQuantiles;
       this.compareFn = compareFn;
       this.bufferSize = bufferSize;

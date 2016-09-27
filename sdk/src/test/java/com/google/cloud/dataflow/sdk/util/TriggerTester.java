@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -41,7 +42,6 @@ import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -486,7 +486,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
     @Override
     public Instant currentInputWatermarkTime() {
-      return Preconditions.checkNotNull(inputWatermarkTime);
+      return checkNotNull(inputWatermarkTime);
     }
 
     @Override

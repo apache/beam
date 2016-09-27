@@ -16,10 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
-import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 
@@ -45,7 +46,7 @@ public class DataflowPathValidator implements PathValidator {
   @Override
   public String validateInputFilePatternSupported(String filepattern) {
     GcsPath gcsPath = getGcsPath(filepattern);
-    Preconditions.checkArgument(
+    checkArgument(
         dataflowOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
     String returnValue = verifyPath(filepattern);
     verifyPathIsAccessible(filepattern, "Could not find file %s");
@@ -66,9 +67,9 @@ public class DataflowPathValidator implements PathValidator {
   @Override
   public String verifyPath(String path) {
     GcsPath gcsPath = getGcsPath(path);
-    Preconditions.checkArgument(gcsPath.isAbsolute(),
+    checkArgument(gcsPath.isAbsolute(),
         "Must provide absolute paths for Dataflow");
-    Preconditions.checkArgument(!gcsPath.getObject().contains("//"),
+    checkArgument(!gcsPath.getObject().contains("//"),
         "Dataflow Service does not allow objects with consecutive slashes");
     return gcsPath.toResourceName();
   }
@@ -76,7 +77,7 @@ public class DataflowPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      Preconditions.checkArgument(dataflowOptions.getGcsUtil().bucketExists(gcsPath),
+      checkArgument(dataflowOptions.getGcsUtil().bucketExists(gcsPath),
         errorMessage, path);
     } catch (IOException e) {
       throw new RuntimeException(

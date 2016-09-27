@@ -16,9 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -78,8 +80,7 @@ public class InstanceBuilder<T> {
    */
   public InstanceBuilder<T> fromClassName(String name)
       throws ClassNotFoundException {
-    Preconditions.checkArgument(factoryClass == null,
-        "Class name may only be specified once");
+    checkArgument(factoryClass == null, "Class name may only be specified once");
     if (name.indexOf('.') == -1) {
       name = type.getPackage().getName() + "." + name;
     }
@@ -112,7 +113,7 @@ public class InstanceBuilder<T> {
    * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    */
   public InstanceBuilder<T> fromFactoryMethod(String methodName) {
-    Preconditions.checkArgument(this.methodName == null,
+    checkArgument(this.methodName == null,
         "Factory method name may only be specified once");
     this.methodName = methodName;
     return this;
@@ -199,18 +200,18 @@ public class InstanceBuilder<T> {
   }
 
   private T buildFromMethod(Class<?>[] types) {
-    Preconditions.checkState(factoryClass != null);
-    Preconditions.checkState(methodName != null);
+    checkState(factoryClass != null);
+    checkState(methodName != null);
 
     try {
       Method method = factoryClass.getDeclaredMethod(methodName, types);
 
-      Preconditions.checkState(Modifier.isStatic(method.getModifiers()),
+      checkState(Modifier.isStatic(method.getModifiers()),
           "Factory method must be a static method for "
               + factoryClass.getName() + "#" + method.getName()
       );
 
-      Preconditions.checkState(type.isAssignableFrom(method.getReturnType()),
+      checkState(type.isAssignableFrom(method.getReturnType()),
           "Return type for " + factoryClass.getName() + "#" + method.getName()
               + " must be assignable to " + type.getSimpleName());
 
@@ -239,12 +240,12 @@ public class InstanceBuilder<T> {
   }
 
   private T buildFromConstructor(Class<?>[] types) {
-    Preconditions.checkState(factoryClass != null);
+    checkState(factoryClass != null);
 
     try {
       Constructor<?> constructor = factoryClass.getDeclaredConstructor(types);
 
-      Preconditions.checkState(type.isAssignableFrom(factoryClass),
+      checkState(type.isAssignableFrom(factoryClass),
           "Instance type " + factoryClass.getName()
               + " must be assignable to " + type.getSimpleName());
 

@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
@@ -303,8 +302,7 @@ public class AfterWatermark<W extends BoundedWindow> {
      * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     public AfterWatermarkEarly<W> withEarlyFirings(OnceTrigger<W> earlyFirings) {
-      Preconditions.checkNotNull(earlyFirings,
-          "Must specify the trigger to use for early firings");
+      checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
       return new AfterWatermarkEarlyAndLate<W>(earlyFirings, null);
     }
 
@@ -313,8 +311,7 @@ public class AfterWatermark<W extends BoundedWindow> {
      * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     public AfterWatermarkLate<W> withLateFirings(OnceTrigger<W> lateFirings) {
-      Preconditions.checkNotNull(lateFirings,
-          "Must specify the trigger to use for late firings");
+      checkNotNull(lateFirings, "Must specify the trigger to use for late firings");
       return new AfterWatermarkEarlyAndLate<W>(Never.ever(), lateFirings);
     }
 

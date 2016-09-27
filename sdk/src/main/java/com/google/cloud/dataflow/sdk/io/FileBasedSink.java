@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -27,7 +30,6 @@ import com.google.cloud.dataflow.sdk.util.GcsUtil.GcsUtilFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
-import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +111,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Perform pipeline-construction-time validation. The default implementation is a no-op.
    * Subclasses should override to ensure the sink is valid and can be written to. It is recommended
-   * to use {@link Preconditions} in the implementation of this method.
+   * to use {@link com.google.common.base.Preconditions} in the implementation of this method.
    */
   @Override
   public void validate(PipelineOptions options) {}
@@ -452,7 +454,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Construct a new FileBasedWriter with a base filename.
      */
     public FileBasedWriter(FileBasedWriteOperation<T> writeOperation) {
-      Preconditions.checkNotNull(writeOperation);
+      checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
     }
 
@@ -622,7 +624,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     @Override
     public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-      Preconditions.checkArgument(
+      checkArgument(
           srcFilenames.size() == destFilenames.size(),
           "Number of source files %s must equal number of destination files %s",
           srcFilenames.size(),

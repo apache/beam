@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.Registration;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
@@ -25,7 +28,6 @@ import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ClassToInstanceMap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
@@ -238,8 +240,8 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    * @return An object that implements the interface <T>.
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
-    Preconditions.checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface());
+    checkNotNull(iface);
+    checkArgument(iface.isInterface());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);

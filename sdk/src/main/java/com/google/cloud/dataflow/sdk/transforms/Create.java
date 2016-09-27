@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -32,7 +34,6 @@ import com.google.cloud.dataflow.sdk.values.TimestampedValue.TimestampedValueCod
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
@@ -199,7 +200,7 @@ public class Create<T> {
     while (valueIter.hasNext() && timestampIter.hasNext()) {
       elems.add(TimestampedValue.of(valueIter.next(), new Instant(timestampIter.next())));
     }
-    Preconditions.checkArgument(
+    checkArgument(
         !valueIter.hasNext() && !timestampIter.hasNext(),
         "Expect sizes of values and timestamps are same.");
     return timestamped(elems);
