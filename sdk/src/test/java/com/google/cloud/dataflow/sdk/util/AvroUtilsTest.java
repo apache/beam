@@ -35,6 +35,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.Nullable;
+import org.apache.avro.util.Utf8;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -131,6 +132,10 @@ public class AvroUtilsTest {
             new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
             new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
             new TableFieldSchema().setName("sound").setType("BYTES").setMode("NULLABLE"),
+            new TableFieldSchema().setName("anniversaryDate").setType("DATE").setMode("NULLABLE"),
+            new TableFieldSchema().setName("anniversaryDatetime")
+                .setType("DATETIME").setMode("NULLABLE"),
+            new TableFieldSchema().setName("anniversaryTime").setType("TIME").setMode("NULLABLE"),
             new TableFieldSchema().setName("scion").setType("RECORD").setMode("NULLABLE")
                 .setFields(subFields),
             new TableFieldSchema().setName("associates").setType("RECORD").setMode("REPEATED")
@@ -149,16 +154,20 @@ public class AvroUtilsTest {
       assertEquals(row, convertedRow);
     }
     {
-      // Test type conversion for TIMESTAMP, INTEGER, BOOLEAN, BYTES and FLOAT.
+      // Test type conversion for:
+      // INTEGER, FLOAT, TIMESTAMP, BOOLEAN, BYTES, DATE, DATETIME, TIME.
       GenericRecord record = new GenericData.Record(avroSchema);
       byte[] soundBytes = "chirp,chirp".getBytes();
-      ByteBuffer soundByteBuffer = ByteBuffer.allocate(soundBytes.length).put(soundBytes);
+      ByteBuffer soundByteBuffer = ByteBuffer.wrap(soundBytes);
       soundByteBuffer.rewind();
       record.put("number", 5L);
       record.put("quality", 5.0);
       record.put("birthday", 5L);
       record.put("flighted", Boolean.TRUE);
       record.put("sound", soundByteBuffer);
+      record.put("anniversaryDate", new Utf8("2000-01-01"));
+      record.put("anniversaryDatetime", new String("2000-01-01 00:00:00.000005"));
+      record.put("anniversaryTime", new Utf8("00:00:00.000005"));
       TableRow convertedRow = AvroUtils.convertGenericRecordToTableRow(record, tableSchema);
       TableRow row = new TableRow()
           .set("number", "5")
@@ -166,7 +175,10 @@ public class AvroUtilsTest {
           .set("quality", 5.0)
           .set("associates", new ArrayList<TableRow>())
           .set("flighted", Boolean.TRUE)
-          .set("sound", BaseEncoding.base64().encode(soundBytes));
+          .set("sound", BaseEncoding.base64().encode(soundBytes))
+          .set("anniversaryDate", "2000-01-01")
+          .set("anniversaryDatetime", "2000-01-01 00:00:00.000005")
+          .set("anniversaryTime", "00:00:00.000005");
       assertEquals(row, convertedRow);
     }
     {
@@ -198,6 +210,9 @@ public class AvroUtilsTest {
     @Nullable Long birthday;  // Exercises TIMESTAMP.
     @Nullable Boolean flighted;
     @Nullable ByteBuffer sound;
+    @Nullable Utf8 anniversaryDate;
+    @Nullable String anniversaryDatetime;
+    @Nullable Utf8 anniversaryTime;
     @Nullable SubBird scion;
     SubBird[] associates;
 
