@@ -46,6 +46,7 @@ import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
@@ -59,6 +60,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.joda.time.Instant;
 
@@ -300,6 +302,25 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     }
   }
 
+  private class ProcessingTimeCallback implements Triggerable {
+
+    private final TimerData timerKey;
+
+    private ProcessingTimeCallback(TimerData timerKey) {
+      this.timerKey = timerKey;
+    }
+
+    @Override
+    public void trigger(long l) throws Exception {
+      pushbackDoFnRunner.startBundle();
+      pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
+          KeyedWorkItems.<K, InputT>timersWorkItem(
+              stateInternals.getKey(),
+              Collections.singletonList(timerKey))));
+      pushbackDoFnRunner.finishBundle();
+    }
+  };
+
   /**
    * {@link StepContext} for running {@link DoFn DoFns} on Flink. This does now allow
    * accessing state or timer internals.
@@ -314,7 +335,8 @@ public class WindowDoFnOperator<K, InputT, OutputT>
           if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
             registerEventTimeTimer(timerKey);
           } else {
-            throw new UnsupportedOperationException("Processing-time timers not supported.");
+            registerTimer(
+                timerKey.getTimestamp().getMillis(), new ProcessingTimeCallback(timerKey));
           }
         }
 
@@ -325,7 +347,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
         @Override
         public Instant currentProcessingTime() {
-          return Instant.now();
+          return new Instant(getCurrentProcessingTime());
         }
 
         @Nullable
