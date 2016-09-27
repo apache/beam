@@ -263,7 +263,8 @@ public class BigQueryTableRowIterator implements AutoCloseable {
       return AvroUtils.formatTimestamp((String) v);
     }
 
-    // Returns the original value for String and base64 encoded BYTES
+    // Returns the original value for:
+    // 1. String, 2. base64 encoded BYTES, 3. DATE, DATETIME, TIME strings.
     return v;
   }
 

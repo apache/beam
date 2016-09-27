@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.base.Verify.verifyNotNull;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -271,11 +272,15 @@ public class AvroUtils {
             .put("BOOLEAN", Type.BOOLEAN)
             .put("TIMESTAMP", Type.LONG)
             .put("RECORD", Type.RECORD)
+            .put("DATE", Type.STRING)
+            .put("DATETIME", Type.STRING)
+            .put("TIME", Type.STRING)
             .build();
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
     // is required, so it may not be null.
     String bqType = fieldSchema.getType();
     Type expectedAvroType = fieldMap.get(bqType);
+    verifyNotNull(expectedAvroType, "Unsupported BigQuery type: %s", bqType);
     verify(
         avroType == expectedAvroType,
         "Expected Avro schema type %s, not %s, for BigQuery %s field %s",
@@ -285,6 +290,9 @@ public class AvroUtils {
         fieldSchema.getName());
     switch (fieldSchema.getType()) {
       case "STRING":
+      case "DATE":
+      case "DATETIME":
+      case "TIME":
         // Avro will use a CharSequence to represent String objects, but it may not always use
         // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
         verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
