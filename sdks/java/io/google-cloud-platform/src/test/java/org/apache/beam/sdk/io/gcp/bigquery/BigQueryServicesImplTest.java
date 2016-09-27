@@ -72,6 +72,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BigQueryServicesImpl}.
@@ -411,9 +413,12 @@ public class BigQueryServicesImplTest {
     // Return row 1 failing, then we retry row 1 as row 0, and row 0 persistently fails.
     when(response.getContent())
         .thenReturn(toStream(row1Failed))
-        .thenReturn(toStream(row0Failed))
-        .thenReturn(toStream(row0Failed))
-        .thenReturn(toStream(row0Failed));
+        .thenAnswer(new Answer<InputStream>() {
+          @Override
+          public InputStream answer(InvocationOnMock invocation) throws Throwable {
+            return toStream(row0Failed);
+          }
+        });
 
 
     DatasetServiceImpl dataService =
