@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 public class FlinkWindowAssigner<T, GROUP, LABEL>
-        extends WindowAssigner<MultiWindowedElement<GROUP, LABEL, T>, FlinkWindow<GROUP, LABEL>> {
+    extends WindowAssigner<MultiWindowedElement<GROUP, LABEL, T>, FlinkWindow<GROUP, LABEL>> {
 
   private final Windowing<?, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing;
   private final ExecutionConfig cfg;
