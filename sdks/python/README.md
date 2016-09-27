@@ -40,6 +40,7 @@ from the Python programming language.
           * [Create and activate virtual environment](#create-and-activate-virtual-environment)
           * [Download and install](#download-and-install)
           * [Notes on installing with ``setup.py install``](#notes-on-installing-with-setuppy-install)
+      * [Getting Apache Beam](#getting-apache-beam)
   * [Local execution of a pipeline](#local-execution-of-a-pipeline)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
   * [Simple Examples](#simple-examples)
@@ -118,7 +119,7 @@ set up your machine's Python development environment.
 #### Install ``pip``
 
 `pip` is Python's package manager.  If you already have `pip` installed
-(type `pip -V` to check), skip this step.
+(type `pip -V` to check), please make sure to have at least version 7.0.0.
 
 There are several ways to install `pip`; use whichever works for you.
 
@@ -222,6 +223,43 @@ uninstall the package:
     pip uninstall python-dataflow
 
 and use the ``pip install`` method described above to re-install it.
+
+### Getting Apache Beam
+
+In order to run the examples, you will need Apache Beam. This can be installed
+locally by using a virtual environment.
+
+#### Create and activate virtual environment
+
+A virtual environment is a directory tree containing its own Python
+distribution.  To create a virtual environment:
+
+    virtualenv /path/to/directory
+
+A virtual environment needs to be activated for each shell that is to use it;
+activating sets some environment variables that point to the virtual
+environment's directories.  To activate a virtual environment in Bash:
+
+    . /path/to/directory/bin/activate
+
+That is, source the script `bin/activate` under the virtual environment
+directory you created.
+
+#### Download and install
+
+The best way to run Apache Beam with the Python SDK is to clone the git 
+repository:
+    
+    git clone https://github.com/apache/incubator-beam.git
+    cd incubator-beam/sdks/python/
+    pip install -e .
+     
+
+In addition to the pure Python implementation, the Python SDK supports 
+Cython as well. If you want to use it, run the following command:
+
+    pip install -e .[cython]
+
 
 ## Local execution of a pipeline
 
