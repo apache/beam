@@ -60,6 +60,16 @@
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
+        <executions>
+          <execution>
+            <id>runnable-on-service-tests</id>
+            <configuration>
+              <excludes>
+                <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <!-- Run CheckStyle pass on transforms, as they are release in
