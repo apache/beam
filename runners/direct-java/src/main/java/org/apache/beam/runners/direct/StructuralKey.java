@@ -29,20 +29,25 @@ import org.apache.beam.sdk.util.CoderUtils;
 abstract class StructuralKey<K> {
 
   private StructuralKey() {
-    // Do not extend outside of this class
+    // Prevents extending outside of this class
   }
 
+  /**
+   * Returns the key that this {@link StructuralKey} was created from.
+   */
   public abstract K getKey();
+
   /**
    * Get the empty {@link StructuralKey}. All instances of the empty key are considered equal.
    */
   static StructuralKey<?> empty() {
-    return new StructuralKey<Object>() {
+    StructuralKey<Object> emptyKey = new StructuralKey<Object>() {
       @Override
       public Object getKey() {
         return this;
       }
     };
+    return emptyKey;
   }
 
   /**
@@ -74,7 +79,7 @@ abstract class StructuralKey<K> {
         return CoderUtils.decodeFromByteArray(coder, encoded);
       } catch (CoderException e) {
         throw new IllegalArgumentException(
-            "Could not decode Key with coder of type " + coder.getClass().getSimpleName());
+            "Could not decode Key with coder of type " + coder.getClass().getSimpleName(), e);
       }
     }
 

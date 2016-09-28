@@ -69,16 +69,6 @@ public class ImmutableListBundleFactoryTest {
     downstream = created.apply(WithKeys.<String, Integer>of("foo"));
   }
 
-  @Test
-  public void createRootBundleShouldCreateWithEmptyKey() {
-    UncommittedBundle<Integer> inFlightBundle = bundleFactory.createRootBundle();
-
-    CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-
-    assertThat(bundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(StructuralKey.empty()));
-  }
-
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
     PCollection<Integer> pcollection = TestPipeline.create().apply(Create.of(1));
     StructuralKey<?> skey = StructuralKey.of(key, coder);
