@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -26,12 +29,14 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -53,12 +58,15 @@ import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.joda.time.Instant;
 
@@ -69,13 +77,19 @@ import org.joda.time.Instant;
  * @param <OutputT>
  */
 public class WindowDoFnOperator<K, InputT, OutputT>
-    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {
+    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>>
+    implements Triggerable {
 
   private final Coder<K> keyCoder;
   private final TimerInternals.TimerDataCoder timerCoder;
 
   private transient Set<Tuple2<ByteBuffer, TimerInternals.TimerData>> watermarkTimers;
   private transient Queue<Tuple2<ByteBuffer, TimerInternals.TimerData>> watermarkTimersQueue;
+
+  private transient Queue<Tuple2<ByteBuffer, TimerInternals.TimerData>> processingTimeTimersQueue;
+  private transient Set<Tuple2<ByteBuffer, TimerInternals.TimerData>> processingTimeTimers;
+  private transient Multiset<Long> processingTimeTimerTimestamps;
+  private transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
 
   private FlinkStateInternals<K> stateInternals;
 
@@ -151,6 +165,24 @@ public class WindowDoFnOperator<K, InputT, OutputT>
           });
     }
 
+    if (processingTimeTimers == null) {
+      processingTimeTimers = new HashSet<>();
+      processingTimeTimerTimestamps = HashMultiset.create();
+      processingTimeTimersQueue = new PriorityQueue<>(
+          10,
+          new Comparator<Tuple2<ByteBuffer, TimerInternals.TimerData>>() {
+            @Override
+            public int compare(
+                Tuple2<ByteBuffer, TimerInternals.TimerData> o1,
+                Tuple2<ByteBuffer, TimerInternals.TimerData> o2) {
+              return o1.f1.compareTo(o2.f1);
+            }
+          });
+    }
+
+    // ScheduledFutures are not checkpointed
+    processingTimeTimerFutures = new HashMap<>();
+
     stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
 
     // call super at the end because this will call getDoFn() which requires stateInternals
@@ -177,6 +209,69 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     if (watermarkTimers.remove(keyedTimer)) {
       watermarkTimersQueue.remove(keyedTimer);
     }
+  }
+
+  private void registerProcessingTimeTimer(TimerInternals.TimerData timer) {
+    Tuple2<ByteBuffer, TimerInternals.TimerData> keyedTimer =
+        new Tuple2<>((ByteBuffer) getStateBackend().getCurrentKey(), timer);
+    if (processingTimeTimers.add(keyedTimer)) {
+      processingTimeTimersQueue.add(keyedTimer);
+
+      // If this is the first timer added for this timestamp register a timer Task
+      if (processingTimeTimerTimestamps.add(timer.getTimestamp().getMillis(), 1) == 0) {
+        ScheduledFuture<?> scheduledFuture = registerTimer(timer.getTimestamp().getMillis(), this);
+        processingTimeTimerFutures.put(timer.getTimestamp().getMillis(), scheduledFuture);
+      }
+    }
+  }
+
+  private void deleteProcessingTimeTimer(TimerInternals.TimerData timer) {
+    Tuple2<ByteBuffer, TimerInternals.TimerData> keyedTimer =
+        new Tuple2<>((ByteBuffer) getStateBackend().getCurrentKey(), timer);
+    if (processingTimeTimers.remove(keyedTimer)) {
+      processingTimeTimersQueue.remove(keyedTimer);
+
+      // If there are no timers left for this timestamp, remove it from queue and cancel the
+      // timer Task
+      if (processingTimeTimerTimestamps.remove(timer.getTimestamp().getMillis(), 1) == 1) {
+        ScheduledFuture<?> triggerTaskFuture =
+            processingTimeTimerFutures.remove(timer.getTimestamp().getMillis());
+        if (triggerTaskFuture != null && !triggerTaskFuture.isDone()) {
+          triggerTaskFuture.cancel(false);
+        }
+      }
+
+    }
+  }
+
+  @Override
+  public void trigger(long time) throws Exception {
+
+    //Remove information about the triggering task
+    processingTimeTimerFutures.remove(time);
+    processingTimeTimerTimestamps.setCount(time, 0);
+
+    boolean fire;
+
+    do {
+      Tuple2<ByteBuffer, TimerInternals.TimerData> timer = processingTimeTimersQueue.peek();
+      if (timer != null && timer.f1.getTimestamp().getMillis() <= time) {
+        fire = true;
+
+        processingTimeTimersQueue.remove();
+        processingTimeTimers.remove(timer);
+
+        setKeyContext(timer.f0);
+
+        pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
+            KeyedWorkItems.<K, InputT>timersWorkItem(
+                stateInternals.getKey(),
+                Collections.singletonList(timer.f1))));
+
+      } else {
+        fire = false;
+      }
+    } while (fire);
 
   }
 
@@ -262,20 +357,21 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   private void restoreTimers(InputStream in) throws IOException {
     DataInputStream dataIn = new DataInputStream(in);
+
     int numWatermarkTimers = dataIn.readInt();
 
     watermarkTimers = new HashSet<>(numWatermarkTimers);
 
     watermarkTimersQueue = new PriorityQueue<>(
-            Math.max(numWatermarkTimers, 1),
-            new Comparator<Tuple2<ByteBuffer, TimerInternals.TimerData>>() {
-              @Override
-              public int compare(
-                      Tuple2<ByteBuffer, TimerInternals.TimerData> o1,
-                      Tuple2<ByteBuffer, TimerInternals.TimerData> o2) {
-                return o1.f1.compareTo(o2.f1);
-              }
-            });
+        Math.max(numWatermarkTimers, 1),
+        new Comparator<Tuple2<ByteBuffer, TimerInternals.TimerData>>() {
+          @Override
+          public int compare(
+                  Tuple2<ByteBuffer, TimerInternals.TimerData> o1,
+                  Tuple2<ByteBuffer, TimerInternals.TimerData> o2) {
+            return o1.f1.compareTo(o2.f1);
+          }
+        });
 
     for (int i = 0; i < numWatermarkTimers; i++) {
       int length = dataIn.readInt();
@@ -288,12 +384,57 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         watermarkTimersQueue.add(keyedTimer);
       }
     }
+
+    int numProcessingTimeTimers = dataIn.readInt();
+
+    processingTimeTimers = new HashSet<>(numProcessingTimeTimers);
+    processingTimeTimersQueue = new PriorityQueue<>(
+        Math.max(numProcessingTimeTimers, 1),
+        new Comparator<Tuple2<ByteBuffer, TimerInternals.TimerData>>() {
+          @Override
+          public int compare(
+              Tuple2<ByteBuffer, TimerInternals.TimerData> o1,
+              Tuple2<ByteBuffer, TimerInternals.TimerData> o2) {
+            return o1.f1.compareTo(o2.f1);
+          }
+        });
+
+    processingTimeTimerTimestamps = HashMultiset.create();
+    processingTimeTimerFutures = new HashMap<>();
+
+    for (int i = 0; i < numProcessingTimeTimers; i++) {
+      int length = dataIn.readInt();
+      byte[] keyBytes = new byte[length];
+      dataIn.readFully(keyBytes);
+      TimerInternals.TimerData timerData = timerCoder.decode(dataIn, Coder.Context.NESTED);
+      Tuple2<ByteBuffer, TimerInternals.TimerData> keyedTimer =
+          new Tuple2<>(ByteBuffer.wrap(keyBytes), timerData);
+      if (processingTimeTimers.add(keyedTimer)) {
+        processingTimeTimersQueue.add(keyedTimer);
+
+        //If this is the first timer added for this timestamp register a timer Task
+        if (processingTimeTimerTimestamps.add(timerData.getTimestamp().getMillis(), 1) == 0) {
+          // this registers a timer with the Flink processing-time service
+          ScheduledFuture<?> scheduledFuture =
+              registerTimer(timerData.getTimestamp().getMillis(), this);
+          processingTimeTimerFutures.put(timerData.getTimestamp().getMillis(), scheduledFuture);
+        }
+
+      }
+    }
   }
 
   private void snapshotTimers(OutputStream out) throws IOException {
     DataOutputStream dataOut = new DataOutputStream(out);
     dataOut.writeInt(watermarkTimersQueue.size());
     for (Tuple2<ByteBuffer, TimerInternals.TimerData> timer : watermarkTimersQueue) {
+      dataOut.writeInt(timer.f0.limit());
+      dataOut.write(timer.f0.array(), 0, timer.f0.limit());
+      timerCoder.encode(timer.f1, dataOut, Coder.Context.NESTED);
+    }
+
+    dataOut.writeInt(processingTimeTimersQueue.size());
+    for (Tuple2<ByteBuffer, TimerInternals.TimerData> timer : processingTimeTimersQueue) {
       dataOut.writeInt(timer.f0.limit());
       dataOut.write(timer.f0.array(), 0, timer.f0.limit());
       timerCoder.encode(timer.f1, dataOut, Coder.Context.NESTED);
@@ -313,25 +454,35 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         public void setTimer(TimerData timerKey) {
           if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
             registerEventTimeTimer(timerKey);
+          } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
+            registerProcessingTimeTimer(timerKey);
           } else {
-            throw new UnsupportedOperationException("Processing-time timers not supported.");
+            throw new UnsupportedOperationException(
+                "Unsupported time domain: " + timerKey.getDomain());
           }
         }
 
         @Override
         public void deleteTimer(TimerData timerKey) {
-          deleteEventTimeTimer(timerKey);
+          if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
+            deleteEventTimeTimer(timerKey);
+          } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
+            deleteProcessingTimeTimer(timerKey);
+          } else {
+            throw new UnsupportedOperationException(
+                "Unsupported time domain: " + timerKey.getDomain());
+          }
         }
 
         @Override
         public Instant currentProcessingTime() {
-          return Instant.now();
+          return new Instant(getCurrentProcessingTime());
         }
 
         @Nullable
         @Override
         public Instant currentSynchronizedProcessingTime() {
-          return Instant.now();
+          return new Instant(getCurrentProcessingTime());
         }
 
         @Override
