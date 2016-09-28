@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +107,7 @@ public class JdbcIO {
    * @return a {@link Read} {@link PTransform}.
    */
   public static Read<?> read() {
-    return new Read(new Read.JdbcOptions(null, null, null, null), null);
+    return new Read(new DataSourceConfiguration(null, null, null, null, 10, null), null, null);
   }
 
   /**
@@ -116,8 +116,8 @@ public class JdbcIO {
    * @return a {@link Write} {@link PTransform}.
    */
   public static Write<?> write() {
-    return new Write(new Write.WriteFn(null, null, null, null,
-        null, 1024L));
+    return new Write(new DataSourceConfiguration(null, null, null, null, 10, null), null, null,
+        1024L);
   }
 
   private JdbcIO() {
@@ -133,131 +133,197 @@ public class JdbcIO {
   }
 
   /**
+   * A POJO describing a {@link DataSource}, either providing directly a {@link DataSource} or all
+   * properties allowing to create a {@link DataSource}.
+   * Warning: if you provide directly a {@link DataSource} (using {@code withDataSource() method)},
+   * this {@link DataSource} has to be {@link Serializable}.
+   */
+  public static class DataSourceConfiguration implements Serializable {
+
+    @Nullable
+    private final String driverClassName;
+    @Nullable
+    private final String url;
+    @Nullable
+    private final String username;
+    @Nullable
+    private final String password;
+    private int initialSize;
+    @Nullable
+    private final DataSource dataSource;
+
+    private DataSourceConfiguration(String driverClassName, String url, String username,
+                                    String password, int initialSize, DataSource dataSource) {
+      this.driverClassName = driverClassName;
+      this.url = url;
+      this.username = username;
+      this.password = password;
+      this.initialSize = initialSize;
+      this.dataSource = dataSource;
+    }
+
+    public DataSourceConfiguration withDriverClassName(String driverClassName) {
+      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
+          dataSource);
+    }
+
+    public DataSourceConfiguration withUrl(String url) {
+      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
+          dataSource);
+    }
+
+    public DataSourceConfiguration withUsername(String username) {
+      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
+          dataSource);
+    }
+
+    public DataSourceConfiguration withPassword(String password) {
+      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
+          dataSource);
+    }
+
+    public DataSourceConfiguration withDataSource(DataSource dataSource) {
+      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
+          dataSource);
+    }
+
+    public void validate() {
+      if (dataSource == null) {
+        Preconditions.checkNotNull("driverClassName", driverClassName);
+        Preconditions.checkNotNull("url", url);
+      }
+      if (driverClassName == null || url == null) {
+        Preconditions.checkNotNull("dataSource", dataSource);
+      }
+    }
+
+    public void populateDisplayData(DisplayData.Builder builder) {
+      if (dataSource != null) {
+        builder.addIfNotNull(DisplayData.item("dataSource", dataSource.getClass().getName()));
+      }
+      builder.addIfNotNull(DisplayData.item("driverClassName", driverClassName));
+      builder.addIfNotNull(DisplayData.item("url", url));
+      builder.addIfNotNull(DisplayData.item("username", username));
+      builder.add(DisplayData.item("initialSize", initialSize));
+    }
+
+    public DataSource getDataSource() {
+      if (dataSource != null) {
+        return dataSource;
+      } else {
+        BasicDataSource basicDataSource = new BasicDataSource();
+        basicDataSource.setDriverClassName(driverClassName);
+        basicDataSource.setUrl(url);
+        basicDataSource.setUsername(username);
+        basicDataSource.setPassword(password);
+        basicDataSource.setInitialSize(initialSize);
+        return basicDataSource;
+      }
+    }
+
+  }
+
+  /**
    * A {@link PTransform} to read data from a JDBC datasource.
    */
   public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
+    public Read<T> withDriverClassName(String driverClassName) {
+      return new Read<>(dataSourceConfiguration.withDriverClassName(driverClassName),
+          query, rowMapper);
+    }
+
+    public Read<T> withUrl(String url) {
+      return new Read<>(dataSourceConfiguration.withUrl(url), query, rowMapper);
+    }
+
     public Read<T> withDataSource(DataSource dataSource) {
-      return new Read<T>(options.withDataSource(dataSource), rowMapper);
+      return new Read<>(dataSourceConfiguration.withDataSource(dataSource),
+          query, rowMapper);
     }
 
     public Read<T> withQuery(String query) {
-      return new Read<T>(options.withQuery(query), rowMapper);
+      return new Read<>(dataSourceConfiguration, query, rowMapper);
     }
 
     public <X> Read<X> withRowMapper(RowMapper<X> rowMapper) {
-      return new Read<X>(options, rowMapper);
+      return new Read<>(dataSourceConfiguration, query, rowMapper);
     }
 
     public Read<T> withUsername(String username) {
-      return new Read<T>(options.withUsername(username), rowMapper);
+      return new Read<>(dataSourceConfiguration.withUsername(username), query, rowMapper);
     }
 
     public Read<T> withPassword(String password) {
-      return new Read<T>(options.withPassword(password), rowMapper);
+      return new Read<>(dataSourceConfiguration.withPassword(password), query, rowMapper);
     }
 
-    private final JdbcOptions options;
+    private final DataSourceConfiguration dataSourceConfiguration;
+    private final String query;
     private final RowMapper<T> rowMapper;
 
-    private Read(JdbcOptions options, RowMapper<T> rowMapper) {
-      this.options = options;
+    private Read(DataSourceConfiguration dataSourceConfiguration,
+                 String query, RowMapper<T> rowMapper) {
+      this.dataSourceConfiguration = dataSourceConfiguration;
+      this.query = query;
       this.rowMapper = rowMapper;
     }
 
     @Override
     public PCollection<T> apply(PBegin input) {
-      PCollection<T> output = input.apply(Create.of(options))
-          .apply(ParDo.of(new ReadFn<>(rowMapper)));
+      PCollection<T> output = input.apply(Create.of(query))
+          .apply(ParDo.of(new ReadFn<>(dataSourceConfiguration, rowMapper)));
 
       return output;
     }
 
     @Override
     public void validate(PBegin input) {
+      Preconditions.checkNotNull(query, "query");
       Preconditions.checkNotNull(rowMapper, "rowMapper");
-      options.validate();
+      dataSourceConfiguration.validate();
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
-      options.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", query));
+      builder.add(DisplayData.item("rowMapper", rowMapper.getClass().getName()));
+      dataSourceConfiguration.populateDisplayData(builder);
     }
 
-    @VisibleForTesting
-    static class JdbcOptions implements Serializable {
-
-      private final DataSource dataSource;
-      private final String query;
-      @Nullable
-      private final String username;
-      @Nullable
-      private final String password;
-
-      private JdbcOptions(DataSource dataSource, String query,
-                          @Nullable String username,
-                          @Nullable String password) {
-        this.dataSource = dataSource;
-        this.query = query;
-        this.username = username;
-        this.password = password;
-      }
-
-      public JdbcOptions withDataSource(DataSource dataSource) {
-        return new JdbcOptions(dataSource, query, username, password);
-      }
-
-      public JdbcOptions withQuery(String query) {
-        return new JdbcOptions(dataSource, query, username, password);
-      }
-
-      public JdbcOptions withRowMapper(RowMapper rowMapper) {
-        return new JdbcOptions(dataSource, query, username, password);
-      }
-
-      public JdbcOptions withUsername(String username) {
-        return new JdbcOptions(dataSource, query, username, password);
-      }
-
-      public JdbcOptions withPassword(String password) {
-        return new JdbcOptions(dataSource, query, username, password);
-      }
-
-      public void validate() {
-        Preconditions.checkNotNull(dataSource, "dataSource");
-        Preconditions.checkNotNull(query, "query");
-      }
-
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("dataSource", dataSource.getClass().getName()));
-        builder.add(DisplayData.item("query", query));
-        builder.addIfNotNull(DisplayData.item("username", username));
-      }
-
-    }
 
     /**
      * A {@link DoFn} executing the SQL query to read from the database.
      */
-    static class ReadFn<T> extends DoFn<JdbcOptions, T> {
+    static class ReadFn<T> extends DoFn<String, T> {
 
+      private final DataSourceConfiguration dataSourceConfiguration;
       private final RowMapper<T> rowMapper;
 
-      private ReadFn(RowMapper<T> rowMapper) {
+      private DataSource dataSource;
+
+      private ReadFn(DataSourceConfiguration dataSourceConfiguration,
+                     RowMapper<T> rowMapper) {
+        this.dataSourceConfiguration = dataSourceConfiguration;
         this.rowMapper = rowMapper;
+      }
+
+      @Setup
+      public void setup() throws Exception {
+        dataSource = dataSourceConfiguration.getDataSource();
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        JdbcOptions options = context.element();
+        String query = context.element();
 
-        try (Connection connection = (options.username != null)
-            ? options.dataSource.getConnection(options.username, options.password)
-            : options.dataSource.getConnection()) {
+        try (Connection connection = (dataSourceConfiguration.username != null)
+            ? dataSource.getConnection(dataSourceConfiguration.username,
+                dataSourceConfiguration.password)
+            : dataSource.getConnection()) {
 
-          try (PreparedStatement statement = connection.prepareStatement(options.query)) {
+          try (PreparedStatement statement = connection.prepareStatement(query)) {
             try (ResultSet resultSet = statement.executeQuery()) {
               while (resultSet.next()) {
                 T record = rowMapper.mapRow(resultSet);
@@ -283,112 +349,98 @@ public class JdbcIO {
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
-    public Write<T> withDataSource(DataSource dataSource) {
-      return new Write<>(writeFn.withDataSource(dataSource));
+    public Write<T> withDriverClassName(String driverClassName) {
+      return new Write<>(dataSourceConfiguration.withDriverClassName(driverClassName), statement,
+          preparedStatementSetter, batchSize);
     }
 
-    public Write<T> withStatement(String statement) {
-      return new Write<>(writeFn.withStatement(statement));
+    public Write<T> withUrl(String url) {
+      return new Write<>(dataSourceConfiguration.withUrl(url), statement,
+          preparedStatementSetter, batchSize);
     }
 
     public Write<T> withUsername(String username) {
-      return new Write<>(writeFn.withUsername(username));
+      return new Write<>(dataSourceConfiguration.withUsername(username), statement,
+          preparedStatementSetter, batchSize);
     }
 
     public Write<T> withPassword(String password) {
-      return new Write<>(writeFn.withPassword(password));
+      return new Write<>(dataSourceConfiguration.withPassword(password), statement,
+          preparedStatementSetter, batchSize);
+    }
+
+    public Write<T> withDataSource(DataSource dataSource) {
+      return new Write<>(dataSourceConfiguration.withDataSource(dataSource), statement,
+          preparedStatementSetter, batchSize);
+    }
+
+    public Write<T> withStatement(String statement) {
+      return new Write<>(dataSourceConfiguration, statement, preparedStatementSetter, batchSize);
     }
 
     public <X> Write<X> withPreparedStatementSetter(
         PreparedStatementSetter<X> preparedStatementSetter) {
-      return new Write<>(writeFn.withPreparedStatementSetter(preparedStatementSetter));
+      return new Write<>(dataSourceConfiguration, statement, preparedStatementSetter, batchSize);
     }
 
     public Write<T> withBatchSize(long batchSize) {
-      return new Write<>(writeFn.withBatchSize(batchSize));
+      return new Write<>(dataSourceConfiguration, statement, preparedStatementSetter, batchSize);
     }
 
-    private final WriteFn writeFn;
+    private final DataSourceConfiguration dataSourceConfiguration;
+    private final String statement;
+    private final PreparedStatementSetter<T> preparedStatementSetter;
+    private final long batchSize;
 
-    private Write(WriteFn writeFn) {
-      this.writeFn = writeFn;
+    private Write(DataSourceConfiguration dataSourceConfiguration, String statement,
+                  PreparedStatementSetter<T> preparedStatementSetter, long batchSize) {
+      this.dataSourceConfiguration = dataSourceConfiguration;
+      this.statement = statement;
+      this.preparedStatementSetter = preparedStatementSetter;
+      this.batchSize = batchSize;
     }
 
     @Override
     public PDone apply(PCollection<T> input) {
-      input.apply(ParDo.of(writeFn));
+      input.apply(
+          ParDo.of(new WriteFn<T>(dataSourceConfiguration, statement, preparedStatementSetter,
+              batchSize)));
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<T> input) {
-      writeFn.validate();
+      dataSourceConfiguration.validate();
+      Preconditions.checkNotNull("statement", statement);
+      Preconditions.checkNotNull("preparedStatementSetter", preparedStatementSetter);
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
 
-      private final DataSource dataSource;
+      private final DataSourceConfiguration dataSourceConfiguration;
       private final String statement;
-      private final String username;
-      private final String password;
       private final PreparedStatementSetter<T> preparedStatementSetter;
       private long batchSize;
 
+      private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
       private long batchCount;
 
-      public WriteFn(DataSource dataSource, String statement, String username, String password,
+      public WriteFn(DataSourceConfiguration dataSourceConfiguration, String statement,
                      PreparedStatementSetter<T> preparedStatementSetter, long batchSize) {
-        this.dataSource = dataSource;
+        this.dataSourceConfiguration = dataSourceConfiguration;
         this.statement = statement;
-        this.username = username;
-        this.password = password;
         this.preparedStatementSetter = preparedStatementSetter;
         this.batchSize = batchSize;
       }
 
-      public WriteFn<T> withDataSource(DataSource dataSource) {
-        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
-            batchSize);
-      }
-
-      public WriteFn<T> withStatement(String statement) {
-        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
-            batchSize);
-      }
-
-      public WriteFn<T> withUsername(String username) {
-        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
-            batchSize);
-      }
-
-      public WriteFn<T> withPassword(String password) {
-        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
-            batchSize);
-      }
-
-      public WriteFn<T> withPreparedStatementSetter(
-          PreparedStatementSetter<T> preparedStatementSetter) {
-        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
-            batchSize);
-      }
-
-      public WriteFn<T> withBatchSize(long batchSize) {
-        return new WriteFn<>(dataSource, statement, username, password, preparedStatementSetter,
-            batchSize);
-      }
-
-      public void validate() {
-        Preconditions.checkNotNull(dataSource, "dataSource");
-        Preconditions.checkNotNull(statement, "query");
-        Preconditions.checkNotNull(preparedStatementSetter, "preparedStatementSetter");
-      }
-
       @Setup
-      public void connectToDatabase() throws Exception {
-        if (username != null) {
-          connection = dataSource.getConnection(username, password);
+      public void setup() throws Exception {
+        dataSource = dataSourceConfiguration.getDataSource();
+        if (dataSourceConfiguration.username != null) {
+          connection = dataSource.getConnection(dataSourceConfiguration.username,
+              dataSourceConfiguration.password);
         } else {
           connection = dataSource.getConnection();
         }

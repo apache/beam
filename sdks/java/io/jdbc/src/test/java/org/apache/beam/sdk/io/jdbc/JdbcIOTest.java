@@ -104,7 +104,7 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testRead() throws Exception {
+  public void testReadWithDataSource() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
@@ -121,6 +121,44 @@ public class JdbcIOTest implements Serializable {
             }))
         .setCoder(KvCoder.of(
             StringUtf8Coder.of(), SerializableCoder.of(Integer.class)));
+
+    PAssert.thatSingleton(
+        output.apply("Count All", Count.<KV<String, Integer>>globally()))
+        .isEqualTo(1000L);
+
+    PAssert.that(output
+        .apply("Count Scientist", Count.<String, Integer>perKey())
+    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
+      @Override
+      public Void apply(Iterable<KV<String, Long>> input) {
+        for (KV<String, Long> element : input) {
+          assertEquals(100L, element.getValue().longValue());
+        }
+        return null;
+      }
+    });
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadWithConfiguration() throws Exception {
+    TestPipeline pipeline = TestPipeline.create();
+
+    PCollection<KV<String, Integer>> output = pipeline.apply(
+        JdbcIO.read()
+            .withDriverClassName("org.apache.derby.jdbc.ClientDriver")
+            .withUrl("jdbc:derby://localhost:1527/target/beam")
+            .withQuery("select name,id from BEAM")
+            .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
+              @Override
+              public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
+                KV<String, Integer> kv = KV.of(resultSet.getString("name"), resultSet.getInt("id"));
+                return kv;
+              }
+            }))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableCoder.of(Integer.class)));
 
     PAssert.thatSingleton(
         output.apply("Count All", Count.<KV<String, Integer>>globally()))
