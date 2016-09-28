@@ -43,6 +43,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.bson.types.ObjectId;
@@ -104,7 +105,6 @@ public class MongoDbGridFSIO {
     public Iterator<Line<T>> parse(GridFSDBFile input) throws IOException;
   }
 
-
   /**
    * Default implementation for parsing the InputStream to collection of
    * strings splitting on the cr/lf.
@@ -122,6 +122,7 @@ public class MongoDbGridFSIO {
         public boolean hasNext() {
           return val != null;
         }
+
         @Override
         public Line<String> next() {
           Line<String> l = new Line<String>(val);
@@ -182,7 +183,6 @@ public class MongoDbGridFSIO {
 
     private final BoundedGridFSSource<T> options;
 
-
     Read(BoundedGridFSSource<T> options) {
       this.options = options;
     }
@@ -199,11 +199,17 @@ public class MongoDbGridFSIO {
     }
 
     static class BoundedGridFSSource<T> extends BoundedSource<T> {
+      @Nullable
       private final String uri;
+      @Nullable
       private final String database;
+      @Nullable
       private final String bucket;
+      @Nullable
       private final String filterJson;
+      @Nullable
       private final ParseCallback<T> parser;
+      @Nullable
       private final Coder<T> coder;
       @Nullable
       private List<ObjectId> objectIds;
@@ -280,6 +286,7 @@ public class MongoDbGridFSIO {
           closeGridFS();
         }
       }
+
       @Override
       public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
         try {
@@ -306,15 +313,24 @@ public class MongoDbGridFSIO {
       public boolean producesSortedKeys(PipelineOptions options) throws Exception {
         return false;
       }
+
       @Override
       public org.apache.beam.sdk.io.BoundedSource.BoundedReader<T> createReader(
           PipelineOptions options) throws IOException {
         return new GridFSReader(this);
       }
 
-
       @Override
       public void validate() {
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder.addIfNotNull(DisplayData.item("uri", uri));
+        builder.addIfNotNull(DisplayData.item("database", database));
+        builder.addIfNotNull(DisplayData.item("bucket", bucket));
+        builder.addIfNotNull(DisplayData.item("filterJson", filterJson));
       }
 
       @SuppressWarnings("unchecked")
@@ -405,9 +421,7 @@ public class MongoDbGridFSIO {
         public void close() throws IOException {
           closeGridFS();
         }
-
       }
     }
   }
-
 }
