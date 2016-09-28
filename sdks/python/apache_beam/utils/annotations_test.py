@@ -30,11 +30,10 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_deprecated_with_since_current():
         return 'lol'
       fnc_test_deprecated_with_since_current()
-      self.assertEqual(1, len(w))
-      self.assertTrue(issubclass(w[0].category, DeprecationWarning))
-      self.assertIn('fnc_test_deprecated_with_since_current is deprecated', str(w[-1].message))
-      self.assertIn('since', str(w[-1].message))
-      self.assertIn('instead', str(w[-1].message))
+      self.check_annotation(w, 1, DeprecationWarning,
+                            'fnc_test_deprecated_with_since_current',
+                            'deprecated',
+                            [('since', True), ('instead', True)])
 
   def test_deprecated_without_current(self):
     with warnings.catch_warnings(record=True) as w:
@@ -42,11 +41,9 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_deprecated_without_current():
         return 'lol'
       fnc_test_deprecated_without_current()
-      self.assertEqual(1, len(w))
-      self.assertTrue(issubclass(w[0].category, DeprecationWarning))
-      self.assertIn('fnc_test_deprecated_without_current is deprecated', str(w[-1].message))
-      self.assertIn('since', str(w[-1].message))
-      self.assertNotIn('instead', str(w[-1].message))
+      self.check_annotation(w, 1, DeprecationWarning,
+                            'fnc_test_deprecated_without_current', 'deprecated',
+                            [('since', True), ('instead', False)])
 
   def test_deprecated_without_since_should_fail(self):
     with warnings.catch_warnings(record=True) as w:
@@ -64,10 +61,9 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_experimental_with_current():
         return 'lol'
       fnc_test_experimental_with_current()
-      self.assertEqual(1, len(w))
-      self.assertTrue(issubclass(w[0].category, FutureWarning))
-      self.assertIn('fnc_test_experimental_with_current is experimental', str(w[-1].message))
-      self.assertIn('instead', str(w[-1].message))
+      self.check_annotation(w, 1, FutureWarning,
+                            'fnc_test_experimental_with_current',
+                            'experimental', [('instead', True)])
 
   def test_experimental_without_current(self):
     with warnings.catch_warnings(record=True) as w:
@@ -75,10 +71,9 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_experimental_without_current():
         return 'lol'
       fnc_test_experimental_without_current()
-      self.assertEqual(1, len(w))
-      self.assertTrue(issubclass(w[0].category, FutureWarning))
-      self.assertIn('fnc_test_experimental_without_current is experimental', str(w[-1].message))
-      self.assertNotIn('instead', str(w[-1].message))
+      self.check_annotation(w, 1, FutureWarning,
+                            'fnc_test_experimental_without_current',
+                            'experimental', [('instead', False)])
 
   def test_frequency(self):
     """Tests that the filter 'once' is sufficient to print once per
@@ -94,7 +89,24 @@ class AnnotationTests(unittest.TestCase):
       fnc_test_annotate_frequency()
       fnc_test_annotate_frequency()
       fnc2_test_annotate_frequency()
-      self.assertEqual(2, len(w))
+      self.check_annotation([w[0]], 1, FutureWarning,
+                            'fnc_test_annotate_frequency', 'experimental',
+                            [])
+      self.check_annotation([w[1]], 1, FutureWarning,
+                            'fnc2_test_annotate_frequency', 'experimental',
+                            [])
+
+  # helper function
+  def check_annotation(self, warning, warning_size, warning_type, fnc_name,
+                       annotation_type, label_check_list):
+    self.assertEqual(1, warning_size)
+    self.assertTrue(issubclass(warning[-1].category, warning_type))
+    self.assertIn(fnc_name + ' is ' + annotation_type, str(warning[-1].message))
+    for label in label_check_list:
+      if label[1] is True:
+        self.assertIn(label[0], str(warning[-1].message))
+      else:
+        self.assertNotIn(label[0], str(warning[-1].message))
 
 
 if __name__ == '__main__': # It doesn't like these 2 lines
