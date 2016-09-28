@@ -27,7 +27,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
@@ -35,7 +34,6 @@ import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -169,7 +167,6 @@ public class DoFnWithContextTest implements Serializable {
     assertThat(displayData.items(), empty());
   }
 
-  @Category(RunnableOnService.class)
   @Test
   public void testCreateAggregatorInStartBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
@@ -189,7 +186,6 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testCreateAggregatorInProcessElementThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
       @ProcessElement
@@ -205,7 +201,6 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testCreateAggregatorInFinishBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
       @FinishBundle
