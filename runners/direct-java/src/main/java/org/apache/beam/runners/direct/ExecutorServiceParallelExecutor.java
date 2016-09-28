@@ -150,23 +150,26 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   public void start(Collection<AppliedPTransform<?, ?, ?>> roots) {
     rootNodes = ImmutableList.copyOf(roots);
     Runnable monitorRunnable = new MonitorRunnable();
+    for (AppliedPTransform<?, ?, ?> root : roots) {
+      Iterable<CommittedBundle<?>> impulses = registry.getInitialInputs(root);
+      for (CommittedBundle<?> impulse : impulses) {
+        scheduleExecutor(
+            root,
+            impulse,
+            defaultCompletionCallback,
+            parallelExecutorService,
+            Collections.<ModelEnforcementFactory>emptyList());
+      }
+    }
     executorService.submit(monitorRunnable);
   }
 
   @SuppressWarnings("unchecked")
-  public void scheduleConsumption(
-      AppliedPTransform<?, ?, ?> consumer,
+  private void scheduleConsumption(
+      AppliedPTransform<?, ?, ?> transform,
       @Nullable CommittedBundle<?> bundle,
       CompletionCallback onComplete) {
-    evaluateBundle(consumer, bundle, onComplete);
-  }
-
-  private <T> void evaluateBundle(
-      final AppliedPTransform<?, ?, ?> transform,
-      @Nullable final CommittedBundle<T> bundle,
-      final CompletionCallback onComplete) {
     TransformExecutorService transformExecutor;
-
     if (bundle != null && isKeyed(bundle.getPCollection())) {
       final StepAndKey stepAndKey =
           StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
@@ -185,7 +188,16 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
             transformEnforcements.get(transform.getTransform().getClass()),
             Collections.<ModelEnforcementFactory>emptyList());
 
-    TransformExecutor<T> callable =
+    scheduleExecutor(transform, bundle, onComplete, transformExecutor, enforcements);
+  }
+
+  private void scheduleExecutor(
+      AppliedPTransform<?, ?, ?> transform,
+      @Nullable CommittedBundle<?> bundle,
+      CompletionCallback onComplete,
+      TransformExecutorService transformExecutor,
+      Collection<ModelEnforcementFactory> enforcements) {
+    TransformExecutor<?> callable =
         TransformExecutor.create(
             registry,
             enforcements,

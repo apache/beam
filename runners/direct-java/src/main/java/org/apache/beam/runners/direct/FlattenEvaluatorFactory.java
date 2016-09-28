@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -31,11 +33,21 @@ import org.apache.beam.sdk.values.PCollectionList;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
  * {@link PTransform}.
  */
-class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
+class FlattenEvaluatorFactory implements RootTransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 
   FlattenEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
+  }
+
+  /**
+   * Produces an empty list. A root {@link Flatten} transform receives no inputs and produces no
+   * outputs.
+   */
+  @Override
+  public List<CommittedBundle<?>> getInitialInputs(
+      AppliedPTransform<?, ?, ?> transform) {
+    return Collections.emptyList();
   }
 
   @Override

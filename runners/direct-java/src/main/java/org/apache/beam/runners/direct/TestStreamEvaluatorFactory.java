@@ -21,6 +21,7 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Supplier;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -50,13 +51,25 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive. */
-class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
+class TestStreamEvaluatorFactory implements RootTransformEvaluatorFactory {
   private final KeyedResourcePool<AppliedPTransform<?, ?, ?>, Evaluator<?>> evaluators =
       LockedKeyedResourcePool.create();
   private final EvaluationContext evaluationContext;
 
   TestStreamEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * @return an empty list. {@link TestStream} depends on the quiescence properties of the pipeline
+   * to be invoked and produce output.
+   */
+  @Override
+  public List<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    // TODO: Make this consistent with other reads
+    return Collections.emptyList();
   }
 
   @Nullable

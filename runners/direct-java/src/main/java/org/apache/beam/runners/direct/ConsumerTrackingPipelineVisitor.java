@@ -34,6 +34,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.values.PValue;
  * input after the upstream transform has produced and committed output.
  */
 public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
+  private static final Logger LOG = LoggerFactory.getLogger(ConsumerTrackingPipelineVisitor.class);
   private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers = new HashMap<>();
   private Collection<AppliedPTransform<?, ?, ?>> rootTransforms = new ArrayList<>();
   private Collection<PCollectionView<?>> views = new ArrayList<>();

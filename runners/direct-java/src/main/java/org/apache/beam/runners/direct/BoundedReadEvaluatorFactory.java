@@ -18,6 +18,8 @@
 package org.apache.beam.runners.direct;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -38,7 +40,7 @@ import org.apache.beam.sdk.values.PCollection;
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Bounded Read.Bounded} primitive {@link PTransform}.
  */
-final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
+final class BoundedReadEvaluatorFactory implements RootTransformEvaluatorFactory {
   /*
    * An evaluator for a Source is stateful, to ensure data is not read multiple times.
    * Evaluators are cached here to ensure that the reader is not restarted if the evaluator is
@@ -53,48 +55,47 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     sourceEvaluators = new ConcurrentHashMap<>();
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
-  @Nullable
-  public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
-      throws IOException {
-    return getTransformEvaluator((AppliedPTransform) application);
+  public List<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    int availableEvaluators = createEvaluators((AppliedPTransform) transform).size();
+    List<CommittedBundle<?>> bundles = new ArrayList<>(availableEvaluators);
+    for (int i = 0; i < availableEvaluators; i++) {
+      bundles.add(ImpulseBundle.create());
+    }
+    return bundles;
   }
-
-  @Override
-  public void cleanup() {}
 
   /**
    * Get a {@link TransformEvaluator} that produces elements for the provided application of {@link
    * Bounded Read.Bounded}, initializing the queue of evaluators if required.
-   *
-   * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
-   * already done so.
    */
-  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
+  private <OutputT> Queue<BoundedReadEvaluator<OutputT>> createEvaluators(
       final AppliedPTransform<?, PCollection<OutputT>, ?> transform) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
-    Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue =
-        (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(transform);
-    if (evaluatorQueue == null) {
-      evaluatorQueue = new ConcurrentLinkedQueue<>();
-      if (sourceEvaluators.putIfAbsent(transform, evaluatorQueue) == null) {
-        // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
-        // factory for this transform
-        Bounded<OutputT> bound = (Bounded<OutputT>) transform.getTransform();
-        BoundedSource<OutputT> source = bound.getSource();
-        BoundedReadEvaluator<OutputT> evaluator =
-            new BoundedReadEvaluator<OutputT>(transform, evaluationContext, source);
-        evaluatorQueue.offer(evaluator);
-      } else {
-        // otherwise return the existing Queue that arrived before us
-        evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(transform);
-      }
-    }
-    return evaluatorQueue.poll();
+    Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue = new ConcurrentLinkedQueue<>();
+    // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
+    // factory for this transform
+    Bounded<OutputT> bound = (Bounded<OutputT>) transform.getTransform();
+    BoundedSource<OutputT> source = bound.getSource();
+    BoundedReadEvaluator<OutputT> evaluator =
+        new BoundedReadEvaluator<>(transform, evaluationContext, source);
+    evaluatorQueue.offer(evaluator);
+    sourceEvaluators.put(transform, evaluatorQueue);
+    return evaluatorQueue;
   }
+
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @Override
+  @Nullable
+  public <InputT> TransformEvaluator<InputT> forApplication(
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws IOException {
+    return (TransformEvaluator<InputT>) sourceEvaluators.get(application).poll();
+  }
+
+  @Override
+  public void cleanup() {}
 
   /**
    * A {@link BoundedReadEvaluator} produces elements from an underlying {@link BoundedSource},
@@ -128,7 +129,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public TransformResult finishBundle() throws IOException {
-      try (final BoundedReader<OutputT> reader =
+      try (BoundedReader<OutputT> reader =
           source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
