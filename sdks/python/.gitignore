@@ -5,6 +5,7 @@
 build/
 dist/
 distribute-*
+env/
 
 # Test files
 .tox/

@@ -20,6 +20,7 @@
 import glob
 import gzip
 import logging
+import os
 import tempfile
 import unittest
 import zlib
@@ -329,6 +330,10 @@ class TextSinkTest(unittest.TestCase):
   def setUp(self):
     self.lines = ['Line %d' % d for d in range(100)]
     self.path = tempfile.NamedTemporaryFile().name
+
+  def tearDown(self):
+    if os.path.exists(self.path):
+      os.remove(self.path)
 
   def _write_lines(self, sink, lines):
     f = sink.open(self.path)
