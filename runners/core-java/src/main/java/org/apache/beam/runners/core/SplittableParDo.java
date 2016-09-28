@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
@@ -64,13 +65,14 @@ import org.joda.time.Instant;
  * A utility transform that executes a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} by expanding it into a
  * network of simpler transforms:
+ *
  * <ol>
- *   <li>Pair each element with an initial restriction
- *   <li>Split each restriction into sub-restrictions
- *   <li>Assign a unique key to each element/restriction pair
- *   <li>Group by key (so that work is partitioned by key and we can access state/timers)
- *   <li>Process each keyed element/restriction pair with the splittable {@link DoFn}'s
- *   {@link DoFn.ProcessElement} method, using state and timers API.
+ * <li>Pair each element with an initial restriction
+ * <li>Split each restriction into sub-restrictions
+ * <li>Assign a unique key to each element/restriction pair
+ * <li>Group by key (so that work is partitioned by key and we can access state/timers)
+ * <li>Process each keyed element/restriction pair with the splittable {@link DoFn}'s {@link
+ *     DoFn.ProcessElement} method, using state and timers API.
  * </ol>
  *
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
@@ -92,9 +94,7 @@ public class SplittableParDo<
     checkNotNull(fn, "fn must not be null");
     this.fn = fn;
     this.signature = DoFnSignatures.INSTANCE.getOrParseSignature(fn.getClass());
-    checkArgument(
-        signature.processElement().isSplittable(),
-        "fn must be a splittable DoFn");
+    checkArgument(signature.processElement().isSplittable(), "fn must be a splittable DoFn");
   }
 
   @Override
@@ -105,18 +105,26 @@ public class SplittableParDo<
     Coder<ElementRestriction<InputT, RestrictionT>> splitCoder =
         ElementRestrictionCoder.of(input.getCoder(), restrictionCoder);
 
-    return input
-        .apply(
-            "Pair with initial restriction",
-            ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(fn)))
-        .setCoder(splitCoder)
-        .apply("Split restriction", ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(fn)))
-        .apply(
-            "Assign unique key",
-            WithKeys.of(new RandomUniqueKeyFn<ElementRestriction<InputT, RestrictionT>>()))
-        .apply(
-            "Group by key",
-            new GBKIntoKeyedWorkItems<String, ElementRestriction<InputT, RestrictionT>>())
+    PCollection<KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>> keyedWorkItems =
+        input
+            .apply(
+                "Pair with initial restriction",
+                ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(fn)))
+            .setCoder(splitCoder)
+            .apply("Split restriction", ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(fn)))
+            .setCoder(splitCoder)
+            .apply(
+                "Assign unique key",
+                WithKeys.of(new RandomUniqueKeyFn<ElementRestriction<InputT, RestrictionT>>()))
+            .apply(
+                "Group by key",
+                new GBKIntoKeyedWorkItems<String, ElementRestriction<InputT, RestrictionT>>());
+    checkArgument(
+        keyedWorkItems.getWindowingStrategy().getWindowFn() instanceof GlobalWindows,
+        "GBKIntoKeyedWorkItems must produce a globally windowed collection, "
+            + "but windowing strategy was: %s",
+        keyedWorkItems.getWindowingStrategy());
+    return keyedWorkItems
         .apply(
             "Process",
             ParDo.of(
@@ -124,13 +132,14 @@ public class SplittableParDo<
                     fn,
                     input.getCoder(),
                     input.getWindowingStrategy().getWindowFn().windowCoder())))
-        .setIsBoundedInternal(input.isBounded().and(isFnBounded));
+        .setIsBoundedInternal(input.isBounded().and(isFnBounded))
+        .setWindowingStrategyInternal(input.getWindowingStrategy());
   }
 
   /**
    * Assigns a random unique key to each element of the input collection, so that the output
-   * collection is effectively the same elements as input, but the per-key state and timers are
-   * now effectively per-element.
+   * collection is effectively the same elements as input, but the per-key state and timers are now
+   * effectively per-element.
    */
   private static class RandomUniqueKeyFn<T> implements SerializableFunction<T, String> {
     @Override
@@ -177,8 +186,7 @@ public class SplittableParDo<
   @VisibleForTesting
   static class ProcessFn<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-      extends OldDoFn<KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>, OutputT>
-      implements OldDoFn.RequiresWindowAccess {
+      extends OldDoFn<KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
@@ -239,10 +247,7 @@ public class SplittableParDo<
       // Subsequent calls are timer firings and the element has to be retrieved from the state.
       TimerInternals.TimerData timer = Iterables.getOnlyElement(c.element().timersIterable(), null);
       boolean isSeedCall = (timer == null);
-      StateNamespace stateNamespace =
-          isSeedCall
-              ? StateNamespaces.window((Coder) windowCoder, c.window())
-              : timer.getNamespace();
+      StateNamespace stateNamespace = isSeedCall ? StateNamespaces.global() : timer.getNamespace();
       ValueState<WindowedValue<InputT>> elementState =
           c.windowingInternals().stateInternals().state(stateNamespace, elementTag);
       ValueState<RestrictionT> restrictionState =

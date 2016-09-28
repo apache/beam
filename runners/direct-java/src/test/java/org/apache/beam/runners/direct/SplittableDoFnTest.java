@@ -18,9 +18,12 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import com.google.common.base.Preconditions;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -31,10 +34,18 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.MutableDateTime;
 import org.junit.Test;
 
 /**
@@ -119,8 +130,15 @@ public class SplittableDoFnTest {
     }
   }
 
+  private static class ReifyTimestampsFn<T> extends DoFn<T, TimestampedValue<T>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(TimestampedValue.of(c.element(), c.timestamp()));
+    }
+  }
+
   @Test
-  public void testPairWithIndex() throws ClassNotFoundException {
+  public void testPairWithIndexBasic() throws ClassNotFoundException {
     Pipeline p = TestPipeline.create();
     p.getOptions().setRunner(DirectRunner.class);
     PCollection<KV<String, Integer>> res =
@@ -140,6 +158,65 @@ public class SplittableDoFnTest {
                 KV.of("ccccc", 3),
                 KV.of("ccccc", 4)));
 
+    p.run();
+  }
+
+  @Test
+  public void testPairWithIndexWindowedTimestamped() throws ClassNotFoundException {
+    // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
+    // of elements in the input collection.
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setRunner(DirectRunner.class);
+
+    MutableDateTime mutableNow = Instant.now().toMutableDateTime();
+    mutableNow.setMillisOfSecond(0);
+    Instant now = mutableNow.toInstant();
+    Instant nowP1 = now.plus(Duration.standardSeconds(1));
+    Instant nowP2 = now.plus(Duration.standardSeconds(2));
+
+    SlidingWindows windowFn =
+        SlidingWindows.of(Duration.standardSeconds(5)).every(Duration.standardSeconds(1));
+    PCollection<KV<String, Integer>> res =
+        p.apply(
+                Create.timestamped(
+                    TimestampedValue.of("a", now),
+                    TimestampedValue.of("bb", nowP1),
+                    TimestampedValue.of("ccccc", nowP2)))
+            .apply(Window.<String>into(windowFn))
+            .apply(ParDo.of(new PairStringWithIndexToLength()))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+
+    assertEquals(windowFn, res.getWindowingStrategy().getWindowFn());
+
+    PCollection<TimestampedValue<KV<String, Integer>>> timestamped =
+        res.apply("Reify timestamps", ParDo.of(new ReifyTimestampsFn<KV<String, Integer>>()));
+
+    for (int i = 0; i < 4; ++i) {
+      Instant base = now.minus(Duration.standardSeconds(i));
+      IntervalWindow window = new IntervalWindow(base, base.plus(Duration.standardSeconds(5)));
+
+      List<TimestampedValue<KV<String, Integer>>> expectedUnfiltered =
+          Arrays.asList(
+              TimestampedValue.of(KV.of("a", 0), now),
+              TimestampedValue.of(KV.of("bb", 0), nowP1),
+              TimestampedValue.of(KV.of("bb", 1), nowP1),
+              TimestampedValue.of(KV.of("ccccc", 0), nowP2),
+              TimestampedValue.of(KV.of("ccccc", 1), nowP2),
+              TimestampedValue.of(KV.of("ccccc", 2), nowP2),
+              TimestampedValue.of(KV.of("ccccc", 3), nowP2),
+              TimestampedValue.of(KV.of("ccccc", 4), nowP2));
+
+      List<TimestampedValue<KV<String, Integer>>> expected = new ArrayList<>();
+      for (TimestampedValue<KV<String, Integer>> tv : expectedUnfiltered) {
+        if (!window.start().isAfter(tv.getTimestamp())
+            && !tv.getTimestamp().isAfter(window.maxTimestamp())) {
+          expected.add(tv);
+        }
+      }
+      assertFalse(expected.isEmpty());
+
+      PAssert.that(timestamped).inWindow(window).containsInAnyOrder(expected);
+    }
     p.run();
   }
 }

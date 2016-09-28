@@ -17,17 +17,20 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.apache.beam.sdk.util.WindowedValue.of;
 import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -35,12 +38,16 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -129,10 +136,12 @@ public class SplittableParDoTest {
             .isBounded());
   }
 
-  private static class MockFn extends DoFn<Integer, String> {
+  private static class ToStringFn extends DoFn<Integer, String> {
     @ProcessElement
     public void process(ProcessContext c, SomeRestrictionTracker tracker) {
-      c.output("someElement");
+      c.output(c.element().toString() + "a");
+      c.output(c.element().toString() + "b");
+      c.output(c.element().toString() + "c");
     }
 
     @GetInitialRestriction
@@ -147,25 +156,86 @@ public class SplittableParDoTest {
   }
 
   @Test
-  public void testProcessFn() throws Exception {
-    DoFn<Integer, String> fn = new MockFn();
+  public void testTrivialProcessFnPropagatesOutputsWindowsAndTimestamp() throws Exception {
+    // Tests that ProcessFn correctly propagates windows and timestamp of the element
+    // inside the KeyedWorkItem.
+    // The underlying DoFn is actually monolithic, so this doesn't test splitting.
+    DoFn<Integer, String> fn = new ToStringFn();
     SplittableParDo.ProcessFn<Integer, String, SomeRestriction, SomeRestrictionTracker> processFn =
         new SplittableParDo.ProcessFn<>(fn, BigEndianIntegerCoder.of(), IntervalWindow.getCoder());
 
-    Instant timestamp = Instant.now();
-
+    Instant base = Instant.now();
+    IntervalWindow w1 =
+        new IntervalWindow(
+            base.minus(Duration.standardMinutes(1)), base.plus(Duration.standardMinutes(1)));
+    IntervalWindow w2 =
+        new IntervalWindow(
+            base.minus(Duration.standardMinutes(2)), base.plus(Duration.standardMinutes(2)));
+    IntervalWindow w3 =
+        new IntervalWindow(
+            base.minus(Duration.standardMinutes(3)), base.plus(Duration.standardMinutes(3)));
+    List<IntervalWindow> windows = Arrays.asList(w1, w2, w3);
     KeyedWorkItem<String, ElementRestriction<Integer, SomeRestriction>> item =
         KeyedWorkItems.workItem(
-            "foo",
+            "key",
             Collections.<TimerInternals.TimerData>emptyList(),
             Arrays.asList(
-                timestampedValueInGlobalWindow(
-                    ElementRestriction.of(42, new SomeRestriction()), timestamp)));
+                WindowedValue.of(
+                    ElementRestriction.of(42, new SomeRestriction()),
+                    base,
+                    windows,
+                    PaneInfo.ON_TIME_AND_ONLY_FIRING)));
 
     DoFnTester<KeyedWorkItem<String, ElementRestriction<Integer, SomeRestriction>>, String> tester =
         DoFnTester.of(processFn);
-    tester.processTimestampedElement(TimestampedValue.of(item, timestamp));
-    List<TimestampedValue<String>> outputs = tester.peekOutputElementsWithTimestamp();
-    assertEquals(Arrays.asList(TimestampedValue.of("someElement", timestamp)), outputs);
+    tester.processElement(item);
+    for (IntervalWindow w : new IntervalWindow[] {w1, w2, w3}) {
+      assertEquals(
+          Arrays.asList(
+              TimestampedValue.of("42a", base),
+              TimestampedValue.of("42b", base),
+              TimestampedValue.of("42c", base)),
+          tester.peekOutputElementsInWindow(w));
+    }
+  }
+
+  private static class SelfInitiatedResumeFn extends DoFn<Integer, String> {
+    @ProcessElement
+    public ProcessContinuation process(ProcessContext c, SomeRestrictionTracker tracker) {
+      c.output(c.element().toString());
+      return ProcessContinuation.resume()
+          .withResumeDelay(Duration.standardSeconds(5))
+          .withFutureOutputWatermark(c.timestamp());
+    }
+
+    @GetInitialRestriction
+    public SomeRestriction getInitialRestriction(Integer elem) {
+      return new SomeRestriction();
+    }
+
+    @NewTracker
+    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      return new SomeRestrictionTracker();
+    }
+  }
+
+  @Test
+  public void testResumeSetsHoldAndTimer() throws Exception {
+    DoFn<Integer, String> fn = new SelfInitiatedResumeFn();
+    SplittableParDo.ProcessFn<Integer, String, SomeRestriction, SomeRestrictionTracker> processFn =
+        new SplittableParDo.ProcessFn<>(fn, BigEndianIntegerCoder.of(), IntervalWindow.getCoder());
+    Instant base = Instant.now();
+    DoFnTester<KeyedWorkItem<String, ElementRestriction<Integer, SomeRestriction>>, String> tester =
+        DoFnTester.of(processFn);
+    tester.processElement(
+        KeyedWorkItems.workItem(
+            "key",
+            Collections.<TimerInternals.TimerData>emptyList(),
+            Arrays.asList(
+                WindowedValue.of(
+                    ElementRestriction.of(42, new SomeRestriction()),
+                    base,
+                    GlobalWindow.INSTANCE,
+                    PaneInfo.ON_TIME_AND_ONLY_FIRING))));
   }
 }
