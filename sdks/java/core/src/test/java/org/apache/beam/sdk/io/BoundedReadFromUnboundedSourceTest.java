@@ -46,7 +46,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BoundedReadFromUnboundedSourceTest implements Serializable{
   private static final int NUM_RECORDS = 100;
-  private static List<Integer> finalizeTracker = null;
 
   @Test
   @Category(RunnableOnService.class)
@@ -108,9 +107,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
       Collections.sort(values);
       for (int i = 0; i < values.size(); i++) {
         assertEquals(i, (int) values.get(i));
-      }
-      if (finalizeTracker != null) {
-        assertThat(finalizeTracker, containsInAnyOrder(values.size() - 1));
       }
       return null;
     }
