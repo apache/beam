@@ -17,21 +17,18 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -43,9 +40,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-
 import org.bson.Document;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -217,9 +212,9 @@ public class MongoDbIO {
 
     @Override
     public void validate() {
-      Preconditions.checkNotNull(uri, "uri");
-      Preconditions.checkNotNull(database, "database");
-      Preconditions.checkNotNull(collection, "collection");
+      checkNotNull(uri, "uri");
+      checkNotNull(database, "database");
+      checkNotNull(collection, "collection");
     }
 
     @Override
@@ -507,10 +502,10 @@ public class MongoDbIO {
       }
 
       public void validate() {
-        Preconditions.checkNotNull(uri, "uri");
-        Preconditions.checkNotNull(database, "database");
-        Preconditions.checkNotNull(collection, "collection");
-        Preconditions.checkNotNull(batchSize, "batchSize");
+        checkNotNull(uri, "uri");
+        checkNotNull(database, "database");
+        checkNotNull(collection, "collection");
+        checkNotNull(batchSize, "batchSize");
       }
 
       @Setup

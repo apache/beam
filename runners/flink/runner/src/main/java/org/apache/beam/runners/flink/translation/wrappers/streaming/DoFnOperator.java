@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
@@ -192,9 +193,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           .createStateBackend(operatorIdentifier,
               new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
 
-      Preconditions.checkState(
-          sideInputStateBackend != null,
-          "Side input state backend cannot be bull");
+      checkState(sideInputStateBackend != null, "Side input state backend cannot be null");
 
       if (restoredSideInputState != null) {
         @SuppressWarnings("unchecked,rawtypes")
