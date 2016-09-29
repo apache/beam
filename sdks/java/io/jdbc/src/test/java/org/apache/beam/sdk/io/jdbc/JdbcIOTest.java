@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.net.InetAddress;
@@ -26,7 +27,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
-
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,9 +40,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -52,17 +53,16 @@ import org.slf4j.LoggerFactory;
  * Test on the JdbcIO.
  */
 public class JdbcIOTest implements Serializable {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(JdbcIOTest.class);
 
-  private ClientDataSource dataSource;
+  private static NetworkServerControl derbyServer;
+  private static ClientDataSource dataSource;
 
-  @Before
-  public void setup() throws Exception {
+  @BeforeClass
+  public static void startDatabase() throws Exception {
     System.setProperty("derby.stream.error.file", "target/derby.log");
 
-    NetworkServerControl derbyServer = new NetworkServerControl(InetAddress.getByName
-        ("localhost"), 1527);
+    derbyServer = new NetworkServerControl(InetAddress.getByName("localhost"), 1527);
     derbyServer.start(null);
 
     dataSource = new ClientDataSource();
@@ -72,25 +72,40 @@ public class JdbcIOTest implements Serializable {
     dataSource.setPortNumber(1527);
 
     try (Connection connection = dataSource.getConnection()) {
-
       try (Statement statement = connection.createStatement()) {
-        try {
-          statement.executeUpdate("create table BEAM(id INT, name VARCHAR(500))");
-        } catch (Exception e) {
-          LOGGER.warn("Can't create table BEAM, it probably already exists", e);
-        }
+        statement.executeUpdate("create table BEAM(id INT, name VARCHAR(500))");
       }
+    }
+  }
 
+  @AfterClass
+  public static void shutDownDatabase() throws Exception {
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("drop table BEAM");
+      }
+    } finally {
+      if (derbyServer != null) {
+        derbyServer.shutdown();
+      }
+    }
+  }
+
+  @Before
+  public void initTable() throws Exception {
+    try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         statement.executeUpdate("delete from BEAM");
       }
 
       String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
           "Newton", "Bohr", "Galilei", "Maxwell"};
-      for (int i = 0; i < 1000; i++) {
-        int index = i % scientists.length;
-        try (PreparedStatement preparedStatement = connection.prepareStatement("insert into BEAM "
-            + "values (?,?)")) {
+      connection.setAutoCommit(false);
+      try (PreparedStatement preparedStatement =
+               connection.prepareStatement("insert into BEAM " + "values (?,?)")) {
+        for (int i = 0; i < 1000; i++) {
+          int index = i % scientists.length;
+          preparedStatement.clearParameters();
           preparedStatement.setInt(1, i);
           preparedStatement.setString(2, scientists[index]);
           preparedStatement.executeUpdate();
@@ -102,13 +117,32 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testDataSourceConfigurationDataSource() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        dataSource);
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationDriverAndUrl() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam");
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
   @Category(NeedsRunner.class)
-  public void testReadWithDataSource() throws Exception {
+  public void testRead() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
-        JdbcIO.read()
-            .withDataSource(dataSource)
+        JdbcIO.<KV<String, Integer>>read()
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withQuery("select name,id from BEAM")
             .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
               @Override
@@ -131,7 +165,7 @@ public class JdbcIOTest implements Serializable {
       @Override
       public Void apply(Iterable<KV<String, Long>> input) {
         for (KV<String, Long> element : input) {
-          assertEquals(100L, element.getValue().longValue());
+          assertEquals(element.getKey(), 100L, element.getValue().longValue());
         }
         return null;
       }
@@ -142,45 +176,7 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReadWithConfiguration() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
-
-    PCollection<KV<String, Integer>> output = pipeline.apply(
-        JdbcIO.read()
-            .withJdbcDriverClassName("org.apache.derby.jdbc.ClientDriver")
-            .withJdbcUrl("jdbc:derby://localhost:1527/target/beam")
-            .withQuery("select name,id from BEAM")
-            .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
-              @Override
-              public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
-                KV<String, Integer> kv = KV.of(resultSet.getString("name"), resultSet.getInt("id"));
-                return kv;
-              }
-            }))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableCoder.of(Integer.class)));
-
-    PAssert.thatSingleton(
-        output.apply("Count All", Count.<KV<String, Integer>>globally()))
-        .isEqualTo(1000L);
-
-    PAssert.that(output
-        .apply("Count Scientist", Count.<String, Integer>perKey())
-    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-      @Override
-      public Void apply(Iterable<KV<String, Long>> input) {
-        for (KV<String, Long> element : input) {
-          assertEquals(100L, element.getValue().longValue());
-        }
-        return null;
-      }
-    });
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWriteWithConfiguration() throws Exception {
+  public void testWrite() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
@@ -189,9 +185,10 @@ public class JdbcIOTest implements Serializable {
       data.add(kv);
     }
     pipeline.apply(Create.of(data))
-        .apply(JdbcIO.write()
-            .withJdbcDriverClassName("org.apache.derby.jdbc.ClientDriver")
-            .withJdbcUrl("jdbc:derby://localhost:1527/target/beam")
+        .apply(JdbcIO.<KV<Integer, String>>write()
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+                "org.apache.derby.jdbc.ClientDriver",
+                "jdbc:derby://localhost:1527/target/beam"))
             .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
@@ -221,9 +218,10 @@ public class JdbcIOTest implements Serializable {
     TestPipeline pipeline = TestPipeline.create();
 
     pipeline.apply(Create.of(new ArrayList<KV<Integer, String>>()))
-        .apply(JdbcIO.write()
-            .withJdbcDriverClassName("org.apache.derby.jdbc.ClientDriver")
-            .withJdbcUrl("jdbc:derby://localhost:1527/target/beam")
+        .apply(JdbcIO.<KV<Integer, String>>write()
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+                "org.apache.derby.jdbc.ClientDriver",
+                "jdbc:derby://localhost:1527/target/beam"))
             .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
@@ -235,53 +233,4 @@ public class JdbcIOTest implements Serializable {
 
     pipeline.run();
   }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWriteWithDataSource() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
-
-    ArrayList<KV<Integer, String>> data = new ArrayList<>();
-    for (int i = 0; i < 1000; i++) {
-      KV<Integer, String> kv = KV.of(i, "Test");
-      data.add(kv);
-    }
-    pipeline.apply(Create.of(data))
-        .apply(JdbcIO.write().withDataSource(dataSource)
-            .withStatement("insert into BEAM values(?, ?)")
-            .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-              public void setParameters(KV<Integer, String> element, PreparedStatement statement)
-                  throws Exception {
-                statement.setInt(1, element.getKey());
-                statement.setString(2, element.getValue());
-              }
-            }));
-
-    pipeline.run();
-
-    try (Connection connection = dataSource.getConnection()) {
-      try (Statement statement = connection.createStatement()) {
-        try (ResultSet resultSet = statement.executeQuery("select count(*) from BEAM")) {
-          resultSet.next();
-          int count = resultSet.getInt(1);
-
-          Assert.assertEquals(2000, count);
-        }
-      }
-    }
-  }
-
-  @After
-  public void cleanup() throws Exception {
-    try {
-      try (Connection connection = dataSource.getConnection()) {
-        try (Statement statement = connection.createStatement()) {
-          statement.executeUpdate("drop table BEAM");
-        }
-      }
-    } catch (Exception e) {
-      // nothing to do
-    }
-  }
-
 }
