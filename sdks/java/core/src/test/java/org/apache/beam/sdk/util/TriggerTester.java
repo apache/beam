@@ -19,10 +19,8 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
@@ -32,7 +30,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -43,15 +40,14 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ActiveWindowSet.MergeCallback;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
-import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
+import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -94,8 +90,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
   private final TestInMemoryStateInternals<?> stateInternals =
-      new TestInMemoryStateInternals<Object>();
-  private final TestTimerInternals timerInternals = new TestTimerInternals();
+      new TestInMemoryStateInternals<Object>(null /* key */);
+  private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
   private final TriggerContextFactory<W> contextFactory;
   private final WindowFn<Object, W> windowFn;
   private final ActiveWindowSet<W> activeWindows;
@@ -200,22 +196,18 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   }
 
   /**
-   * Advance the input watermark to the specified time, firing any timers that should
-   * fire. Then advance the output watermark as far as possible.
+   * Advance the input watermark to the specified time, then advance the output watermark as far as
+   * possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
-    timerInternals.advanceInputWatermark(newInputWatermark);
+    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    timerInternals.advanceInputWatermark(TimerCallback.NO_OP, newInputWatermark);
   }
 
-  /** Advance the processing time to the specified time, firing any timers that should fire. */
+  /** Advance the processing time to the specified time. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
-    timerInternals.advanceProcessingTime(newProcessingTime);
-  }
-
-  /** Advance the processing time to the specified time, firing any timers that should fire. */
-  public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
-      throws Exception {
-    timerInternals.advanceSynchronizedProcessingTime(newSynchronizedProcessingTime);
+    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    timerInternals.advanceProcessingTime(TimerCallback.NO_OP, newProcessingTime);
   }
 
   /**
@@ -351,46 +343,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     return finishedSet;
   }
 
-  /**
-   * Simulate state.
-   */
-  private static class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
-
-    public TestInMemoryStateInternals() {
-      super(null);
-    }
-
-    public Set<StateTag<? super K, ?>> getTagsInUse(StateNamespace namespace) {
-      Set<StateTag<? super K, ?>> inUse = new HashSet<>();
-      for (Map.Entry<StateTag<? super K, ?>, State> entry :
-          inMemoryState.getTagsInUse(namespace).entrySet()) {
-        if (!isEmptyForTesting(entry.getValue())) {
-          inUse.add(entry.getKey());
-        }
-      }
-      return inUse;
-    }
-
-    public Set<StateNamespace> getNamespacesInUse() {
-      return inMemoryState.getNamespacesInUse();
-    }
-
-    /** Return the earliest output watermark hold in state, or null if none. */
-    public Instant earliestWatermarkHold() {
-      Instant minimum = null;
-      for (State storage : inMemoryState.values()) {
-        if (storage instanceof WatermarkHoldState) {
-          @SuppressWarnings("unchecked")
-          Instant hold = ((WatermarkHoldState<BoundedWindow>) storage).read();
-          if (minimum == null || (hold != null && hold.isBefore(minimum))) {
-            minimum = hold;
-          }
-        }
-      }
-      return minimum;
-    }
-  }
-
   private static class TestAssignContext<W extends BoundedWindow>
       extends WindowFn<Object, W>.AssignContext {
     private Object element;
@@ -418,140 +370,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     @Override
     public BoundedWindow window() {
       return window;
-    }
-  }
-
-  /**
-   * Simulate the firing of timers and progression of input and output watermarks for a
-   * single computation and key in a Windmill-like streaming environment. Similar to
-   * {@link BatchTimerInternals}, but also tracks the output watermark.
-   */
-  private class TestTimerInternals implements TimerInternals {
-    /** At most one timer per timestamp is kept. */
-    private Set<TimerData> existingTimers = new HashSet<>();
-
-    /** Pending input watermark timers, in timestamp order. */
-    private PriorityQueue<TimerData> watermarkTimers = new PriorityQueue<>(11);
-
-    /** Pending processing time timers, in timestamp order. */
-    private PriorityQueue<TimerData> processingTimers = new PriorityQueue<>(11);
-
-    /** Current input watermark. */
-    @Nullable
-    private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
-
-    /** Current output watermark. */
-    @Nullable
-    private Instant outputWatermarkTime = null;
-
-    /** Current processing time. */
-    private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
-
-    /** Current processing time. */
-    private Instant synchronizedProcessingTime = null;
-
-    private PriorityQueue<TimerData> queue(TimeDomain domain) {
-      return TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
-    }
-
-    @Override
-    public void setTimer(TimerData timer) {
-      WindowTracing.trace("TestTimerInternals.setTimer: {}", timer);
-      if (existingTimers.add(timer)) {
-        queue(timer.getDomain()).add(timer);
-      }
-    }
-
-    @Override
-    public void deleteTimer(TimerData timer) {
-      WindowTracing.trace("TestTimerInternals.deleteTimer: {}", timer);
-      existingTimers.remove(timer);
-      queue(timer.getDomain()).remove(timer);
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      return processingTime;
-    }
-
-    @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
-      return synchronizedProcessingTime;
-    }
-
-    @Override
-    public Instant currentInputWatermarkTime() {
-      return checkNotNull(inputWatermarkTime);
-    }
-
-    @Override
-    @Nullable
-    public Instant currentOutputWatermarkTime() {
-      return outputWatermarkTime;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("watermarkTimers", watermarkTimers)
-          .add("processingTimers", processingTime)
-          .add("inputWatermarkTime", inputWatermarkTime)
-          .add("outputWatermarkTime", outputWatermarkTime)
-          .add("processingTime", processingTime)
-          .toString();
-    }
-
-    public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
-      checkNotNull(newInputWatermark);
-      checkState(!newInputWatermark.isBefore(inputWatermarkTime),
-          "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
-          newInputWatermark);
-      WindowTracing.trace("TestTimerInternals.advanceInputWatermark: from {} to {}",
-          inputWatermarkTime, newInputWatermark);
-      inputWatermarkTime = newInputWatermark;
-
-      Instant hold = stateInternals.earliestWatermarkHold();
-      if (hold == null) {
-        WindowTracing.trace("TestTimerInternals.advanceInputWatermark: no holds, "
-            + "so output watermark = input watermark");
-        hold = inputWatermarkTime;
-      }
-      advanceOutputWatermark(hold);
-    }
-
-    private void advanceOutputWatermark(Instant newOutputWatermark) throws Exception {
-      checkNotNull(newOutputWatermark);
-      if (newOutputWatermark.isAfter(inputWatermarkTime)) {
-        WindowTracing.trace(
-            "TestTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
-            newOutputWatermark, inputWatermarkTime);
-        newOutputWatermark = inputWatermarkTime;
-      }
-      checkState(outputWatermarkTime == null || !newOutputWatermark.isBefore(outputWatermarkTime),
-          "Cannot move output watermark time backwards from %s to %s", outputWatermarkTime,
-          newOutputWatermark);
-      WindowTracing.trace("TestTimerInternals.advanceOutputWatermark: from {} to {}",
-          outputWatermarkTime, newOutputWatermark);
-      outputWatermarkTime = newOutputWatermark;
-    }
-
-    public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
-      checkState(!newProcessingTime.isBefore(processingTime),
-          "Cannot move processing time backwards from %s to %s", processingTime, newProcessingTime);
-      WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}", processingTime,
-          newProcessingTime);
-      processingTime = newProcessingTime;
-    }
-
-    public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
-        throws Exception {
-      checkState(!newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
-          "Cannot move processing time backwards from %s to %s", synchronizedProcessingTime,
-          newSynchronizedProcessingTime);
-      WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}",
-          synchronizedProcessingTime, newSynchronizedProcessingTime);
-      synchronizedProcessingTime = newSynchronizedProcessingTime;
     }
   }
 

@@ -59,6 +59,7 @@ import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
+import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -88,7 +89,7 @@ import org.joda.time.Instant;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W>       The type of windows this operates on.
  */
-public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
+public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> implements TimerCallback {
 
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
