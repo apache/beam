@@ -155,6 +155,7 @@ public class MongoDBGridFSIOTest implements Serializable {
       writer.flush();
       writer.close();
     }
+    client.close();
   }
 
   @AfterClass
@@ -203,7 +204,6 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withUri("mongodb://localhost:" + PORT)
             .withDatabase(DATABASE)
             .withBucket("mapBucket")
-            .maxSkew(new Duration(Long.MAX_VALUE))
             .withParser(new MongoDbGridFSIO.Parser<KV<String, Integer>>() {
               @Override
               public void parse(GridFSDBFile input,
@@ -223,7 +223,9 @@ public class MongoDBGridFSIOTest implements Serializable {
                   }
                 }
               }
-            })).setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+            })
+            .allowedTimestampSkew(new Duration(3601000L)))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
         .isEqualTo(50100L);

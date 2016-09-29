@@ -129,43 +129,43 @@ public class MongoDbGridFSIO {
     public Read<T> withUri(String uri) {
       return new Read<T>(new BoundedGridFSSource(uri, options.database,
                                            options.bucket, options.filterJson,
-                                           null), parser, maxSkew);
+                                           null), parser, allowedTimestampSkew);
     }
 
     public Read<T> withDatabase(String database) {
       return new Read<T>(new BoundedGridFSSource(options.uri, database,
                                            options.bucket, options.filterJson,
-                                           null), parser, maxSkew);
+                                           null), parser, allowedTimestampSkew);
     }
 
     public Read<T> withBucket(String bucket) {
       return new Read<T>(new BoundedGridFSSource(options.uri, options.database, bucket,
-          options.filterJson, null), parser, maxSkew);
+          options.filterJson, null), parser, allowedTimestampSkew);
     }
 
     public <X> Read<X> withParser(Parser<X> f) {
       Preconditions.checkNotNull(f, "Parser cannot be null");
       return new Read<X>(new BoundedGridFSSource(options.uri, options.database,
-          options.bucket, options.filterJson, null), f, maxSkew);
+          options.bucket, options.filterJson, null), f, allowedTimestampSkew);
     }
-    public Read<T> maxSkew(Duration skew) {
+    public Read<T> allowedTimestampSkew(Duration skew) {
       return new Read<T>(new BoundedGridFSSource(options.uri, options.database,
           options.bucket, options.filterJson, null), parser, skew == null ? Duration.ZERO : skew);
     }
 
     public Read<T> withQueryFilter(String filterJson) {
       return new Read<T>(new BoundedGridFSSource(options.uri, options.database,
-          options.bucket, filterJson, null), parser, maxSkew);
+          options.bucket, filterJson, null), parser, allowedTimestampSkew);
     }
 
     private final BoundedGridFSSource options;
     private final Parser<T> parser;
-    private final Duration maxSkew;
+    private final Duration allowedTimestampSkew;
 
-    Read(BoundedGridFSSource options, Parser<T> parser, Duration maxSkew) {
+    Read(BoundedGridFSSource options, Parser<T> parser, Duration allowedTimestampSkew) {
       this.options = options;
       this.parser = parser;
-      this.maxSkew = maxSkew;
+      this.allowedTimestampSkew = allowedTimestampSkew;
     }
 
     public BoundedGridFSSource getSource() {
@@ -199,7 +199,7 @@ public class MongoDbGridFSIO {
 
             @Override
             public Duration getAllowedTimestampSkew() {
-              return maxSkew;
+              return allowedTimestampSkew;
             }
           }));
       if (parser == StringParser.INSTANCE) {
