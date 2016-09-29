@@ -61,7 +61,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
@@ -207,7 +206,7 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withParser(new MongoDbGridFSIO.Parser<KV<String, Integer>>() {
               @Override
               public void parse(GridFSDBFile input,
-                  DoFn<?, KV<String, Integer>>.ProcessContext result) throws IOException {
+                  MongoDbGridFSIO.ParserCallback<KV<String, Integer>> callback) throws IOException {
                 try (final BufferedReader reader =
                     new BufferedReader(new InputStreamReader(input.getInputStream()))) {
                   String line = reader.readLine();
@@ -217,7 +216,7 @@ public class MongoDBGridFSIOTest implements Serializable {
                       long timestamp = scanner.nextLong();
                       String name = scanner.next();
                       int score = scanner.nextInt();
-                      result.outputWithTimestamp(KV.of(name, score), new Instant(timestamp));
+                      callback.output(KV.of(name, score), new Instant(timestamp));
                     }
                     line = reader.readLine();
                   }

@@ -88,12 +88,19 @@ import org.joda.time.Instant;
 public class MongoDbGridFSIO {
 
   /**
+   * Callback for the parser to use to submit data.
+   */
+  public interface ParserCallback<T> extends Serializable {
+    public void output(T output, @Nullable Instant timestamp);
+  }
+
+  /**
    * Interface for the parser that is used to parse the GridFSDBFile into
    * the appropriate types.
    * @param <T>
    */
   public interface Parser<T> extends Serializable {
-    public void parse(GridFSDBFile input, DoFn<?, T>.ProcessContext result) throws IOException;
+    public void parse(GridFSDBFile input, ParserCallback<T> callback) throws IOException;
   }
 
   /**
@@ -105,13 +112,13 @@ public class MongoDbGridFSIO {
     static final StringParser INSTANCE = new StringParser();
 
     @Override
-    public void parse(GridFSDBFile input, DoFn<?, String>.ProcessContext result)
+    public void parse(GridFSDBFile input, ParserCallback<String> callback)
         throws IOException {
       final Instant time = new Instant(input.getUploadDate().getTime());
       try (BufferedReader reader =
         new BufferedReader(new InputStreamReader(input.getInputStream()))) {
         for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-          result.outputWithTimestamp(line, time);
+          callback.output(line, time);
         }
       }
     }
@@ -199,10 +206,19 @@ public class MongoDbGridFSIO {
             }
 
             @ProcessElement
-            public void processElement(ProcessContext c) throws IOException {
+            public void processElement(final ProcessContext c) throws IOException {
               ObjectId oid = c.element();
               GridFSDBFile file = gridfs.find(oid);
-              parser.parse(file, c);
+              parser.parse(file, new ParserCallback<T>() {
+                @Override
+                public void output(T output, Instant timestamp) {
+                  if (timestamp == null) {
+                    c.output(output);
+                  } else {
+                    c.outputWithTimestamp(output, timestamp);
+                  }
+                }
+              });
             }
 
             @Override
