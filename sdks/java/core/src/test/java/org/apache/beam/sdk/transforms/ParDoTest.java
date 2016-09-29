@@ -1461,8 +1461,8 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.BoundMulti parDo = ParDo
-            .withOutputTags(new TupleTag(), TupleTagList.empty())
+    ParDo.BoundMulti<String, String> parDo = ParDo
+            .withOutputTags(new TupleTag<String>(), TupleTagList.empty())
             .of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);

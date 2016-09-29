@@ -117,7 +117,7 @@ public class DisplayDataEvaluator {
     return displayDataForPipeline(pipeline, root);
   }
 
-  private static Set<DisplayData> displayDataForPipeline(Pipeline pipeline, PTransform root) {
+  private static Set<DisplayData> displayDataForPipeline(Pipeline pipeline, PTransform<?, ?> root) {
     PrimitiveDisplayDataPTransformVisitor visitor = new PrimitiveDisplayDataPTransformVisitor(root);
     pipeline.traverseTopologically(visitor);
     return visitor.getPrimitivesDisplayData();
@@ -129,11 +129,11 @@ public class DisplayDataEvaluator {
    */
   private static class PrimitiveDisplayDataPTransformVisitor
   extends Pipeline.PipelineVisitor.Defaults {
-    private final PTransform root;
+    private final PTransform<?, ?> root;
     private final Set<DisplayData> displayData;
     private boolean inCompositeRoot = false;
 
-    PrimitiveDisplayDataPTransformVisitor(PTransform root) {
+    PrimitiveDisplayDataPTransformVisitor(PTransform<?, ?> root) {
       this.root = root;
       this.displayData = Sets.newHashSet();
     }
