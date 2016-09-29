@@ -45,18 +45,17 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
-import java.util.Iterator;
 import java.util.Random;
 import java.util.Scanner;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.ParseCallback;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
@@ -196,45 +195,24 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withUri("mongodb://localhost:" + PORT)
             .withDatabase(DATABASE)
             .withBucket("mapBucket")
-            .withParsingFn(new ParseCallback<KV<String, Integer>>() {
+            .withParser(new MongoDbGridFSIO.Parser<KV<String, Integer>>() {
               @Override
-              public Iterator<MongoDbGridFSIO.ParseCallback.Line<KV<String, Integer>>> parse(
-                  GridFSDBFile input) throws IOException {
-                final BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(input.getInputStream()));
-                return new Iterator<Line<KV<String, Integer>>>() {
+              public void parse(GridFSDBFile input,
+                  DoFn<?, KV<String, Integer>>.ProcessContext result) throws IOException {
+                try (final BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(input.getInputStream()))) {
                   String line = reader.readLine();
-                  @Override
-                  public boolean hasNext() {
-                    return line != null;
-                  }
-                  @Override
-                  public MongoDbGridFSIO.ParseCallback.Line<KV<String, Integer>> next() {
+                  while (line != null) {
                     try (Scanner scanner = new Scanner(line.trim())) {
                       scanner.useDelimiter("\\t");
                       long timestamp = scanner.nextLong();
                       String name = scanner.next();
                       int score = scanner.nextInt();
-
-                      try {
-                        line = reader.readLine();
-                      } catch (IOException e) {
-                        line = null;
-                      }
-                      if (line == null) {
-                        try {
-                          reader.close();
-                        } catch (IOException e) {
-                          //ignore
-                        }
-                      }
-                      return new Line<>(KV.of(name, score), new Instant(timestamp));
+                      result.outputWithTimestamp(KV.of(name, score), new Instant(timestamp));
                     }
+                    line = reader.readLine();
                   }
-                  @Override
-                  public void remove() {
-                  }
-                };
+                }
               }
             })).setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
