@@ -33,8 +33,25 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DataflowUnboundedReadFromBoundedSourceTest {
+  @Test
+  public void testKind() {
+    DataflowUnboundedReadFromBoundedSource<?> read = new
+        DataflowUnboundedReadFromBoundedSource<>(new NoopNamedSource());
+
+    Assert.assertEquals("Read(NoopNamedSource)", read.getKindString());
+  }
+
+  @Test
+  public void testKindAnonymousSource() {
+    NoopNamedSource anonSource = new NoopNamedSource() {};
+    DataflowUnboundedReadFromBoundedSource<?> read = new
+        DataflowUnboundedReadFromBoundedSource<>(anonSource);
+
+    Assert.assertEquals("Read(AnonymousSource)", read.getKindString());
+  }
+
   /** Source implementation only useful for its identity. */
-  static class NamedSource extends BoundedSource<String> {
+  static class NoopNamedSource extends BoundedSource<String> {
     @Override
     public List<? extends BoundedSource<String>> splitIntoBundles(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
@@ -61,22 +78,5 @@ public class DataflowUnboundedReadFromBoundedSourceTest {
     public Coder<String> getDefaultOutputCoder() {
       return null;
     }
-  }
-
-  @Test
-  public void testKind() {
-    DataflowUnboundedReadFromBoundedSource<?> read = new
-        DataflowUnboundedReadFromBoundedSource<>(new NamedSource());
-
-    Assert.assertEquals("Read(NamedSource)", read.getKindString());
-  }
-
-  @Test
-  public void testKindAnonymousSource() {
-    NamedSource anonSource = new NamedSource() {};
-    DataflowUnboundedReadFromBoundedSource<?> read = new
-        DataflowUnboundedReadFromBoundedSource<>(anonSource);
-
-    Assert.assertEquals("Read(AnonymousSource)", read.getKindString());
   }
 }
