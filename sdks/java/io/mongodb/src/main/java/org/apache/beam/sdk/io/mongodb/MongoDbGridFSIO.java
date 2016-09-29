@@ -166,6 +166,10 @@ public class MongoDbGridFSIO {
       this.maxSkew = maxSkew;
     }
 
+    public BoundedGridFSSource<T> getSource() {
+      return options;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public PCollection<T> apply(PBegin input) {

@@ -45,14 +45,20 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.Read.BoundedGridFSSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -60,10 +66,11 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.bson.types.ObjectId;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -80,10 +87,10 @@ public class MongoDBGridFSIOTest implements Serializable {
   private static final int PORT = 27017;
   private static final String DATABASE = "gridfs";
 
-  private transient MongodExecutable mongodExecutable;
+  private static transient MongodExecutable mongodExecutable;
 
-  @Before
-  public void setup() throws Exception {
+  @BeforeClass
+  public static void setup() throws Exception {
     LOGGER.info("Starting MongoDB embedded instance");
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
@@ -150,8 +157,8 @@ public class MongoDBGridFSIOTest implements Serializable {
     }
   }
 
-  @After
-  public void stop() throws Exception {
+  @AfterClass
+  public static void stop() throws Exception {
     LOGGER.info("Stopping MongoDB instance");
     mongodExecutable.stop();
   }
@@ -233,6 +240,37 @@ public class MongoDBGridFSIOTest implements Serializable {
     });
 
     pipeline.run();
+  }
+
+  @Test
+  public void testSplit() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.read()
+        .withUri("mongodb://localhost:" + PORT)
+        .withDatabase(DATABASE);
+
+    BoundedGridFSSource<String> src = read.getSource();
+
+    // make sure 2 files can fit in
+    long desiredBundleSizeBytes = src.getEstimatedSizeBytes(options) * 2L / 5L + 1000;
+    List<? extends BoundedSource<ObjectId>> splits = src.splitIntoBundles(
+        desiredBundleSizeBytes, options);
+
+    int expectedNbSplits = 3;
+    assertEquals(expectedNbSplits, splits.size());
+    SourceTestUtils.
+      assertSourcesEqualReferenceSource(src, splits, options);
+    int nonEmptySplits = 0;
+    int count = 0;
+    for (BoundedSource<ObjectId> subSource : splits) {
+      List<ObjectId> result = SourceTestUtils.readFromSource(subSource, options);
+      if (result.size() > 0) {
+        nonEmptySplits += 1;
+      }
+      count += result.size();
+    }
+    assertEquals(expectedNbSplits, nonEmptySplits);
+    assertEquals(5, count);
   }
 
 }
