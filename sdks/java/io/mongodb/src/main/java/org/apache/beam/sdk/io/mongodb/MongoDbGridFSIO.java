@@ -33,7 +33,6 @@ import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -61,8 +60,10 @@ import org.joda.time.Instant;
  * <p>
  * <p>MongoDbGridFSIO source returns a bounded collection of String as {@code PCollection<String>}.
  * <p>
- * <p>To configure the MongoDB source, you have to provide the connection URI, the database name
- * and the bucket name. The following example illustrates various options for configuring the
+ * <p>To configure the MongoDB source, you can provide the connection URI, the database name
+ * and the bucket name.  If unspecified, the default values from the GridFS driver are used.
+ *
+ * The following example illustrates various options for configuring the
  * source:</p>
  * <p>
  * <pre>{@code
@@ -77,14 +78,15 @@ import org.joda.time.Instant;
  * <p>The source also accepts an optional configuration: {@code withQueryFilter()} allows you to
  * define a JSON filter to get subset of files in the database.</p>
  *
- * <p>There is also an optional {@code ParseCallback} that can be specified that can be used to
+ * <p>There is also an optional {@code Parser} that can be specified that can be used to
  * parse the InputStream into objects usable with Beam.  By default, MongoDbGridFSIO will parse
  * into Strings, splitting on line breaks and using the uploadDate of the file as the timestamp.
  */
 public class MongoDbGridFSIO {
 
   /**
-   *
+   * Interface for the parser that is used to parse the GridFSDBFile into
+   * the appropriate types.
    * @param <T>
    */
   public interface Parser<T> extends Serializable {
@@ -92,9 +94,11 @@ public class MongoDbGridFSIO {
   }
 
   /**
-   *
+   * For the default Read<String> case, this is the parser that is used to
+   * split the input file into Strings. It uses the timestamp of the file
+   * for the event timestamp.
    */
-  public static class StringParser implements Parser<String> {
+  private static class StringParser implements Parser<String> {
     static final StringParser INSTANCE = new StringParser();
 
     @Override
@@ -161,12 +165,12 @@ public class MongoDbGridFSIO {
           .apply(ParDo.of(new DoFn<ObjectId, T>() {
             Mongo mongo;
             GridFS gridfs;
-            @org.apache.beam.sdk.transforms.DoFn.Setup
+            @Setup
             public void setup() {
               mongo = options.setupMongo();
               gridfs = options.setupGridFS(mongo);
             }
-            @org.apache.beam.sdk.transforms.DoFn.Teardown
+            @Teardown
             public void teardown() {
               mongo.close();
             }
@@ -194,7 +198,6 @@ public class MongoDbGridFSIO {
       private final String filterJson;
       @Nullable
       private List<ObjectId> objectIds;
-
       private Parser<T> parser;
 
       BoundedGridFSSource(String uri, String database,
@@ -230,8 +233,8 @@ public class MongoDbGridFSIO {
           GridFS gridfs = setupGridFS(mongo);
           DBCursor cursor = createCursor(gridfs);
           long size = 0;
-          List<BoundedGridFSSource<T>> list = new LinkedList<>();
-          List<ObjectId> objects = new LinkedList<>();
+          List<BoundedGridFSSource<T>> list = new ArrayList<>();
+          List<ObjectId> objects = new ArrayList<>();
           while (cursor.hasNext()) {
             GridFSDBFile file = (GridFSDBFile) cursor.next();
             long len = file.getLength();
@@ -240,7 +243,7 @@ public class MongoDbGridFSIO {
                                                  filterJson, parser,
                                                  objects));
               size = 0;
-              objects = new LinkedList<>();
+              objects = new ArrayList<>();
             }
             objects.add((ObjectId) file.getId());
             size += len;
@@ -280,24 +283,9 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public org.apache.beam.sdk.io.BoundedSource.BoundedReader<ObjectId> createReader(
+      public BoundedSource.BoundedReader<ObjectId> createReader(
           PipelineOptions options) throws IOException {
-        List<ObjectId> objs = objectIds;
-        if (objs == null) {
-          objs = new ArrayList<>();
-          Mongo mongo = setupMongo();
-          try {
-            GridFS gridfs = setupGridFS(mongo);
-            DBCursor cursor = createCursor(gridfs);
-            while (cursor.hasNext()) {
-              GridFSDBFile file = (GridFSDBFile) cursor.next();
-              objs.add((ObjectId) file.getId());
-            }
-          } finally {
-            mongo.close();
-          }
-        }
-        return new GridFSReader<T>(this, objs);
+        return new GridFSReader<T>(this, objectIds);
       }
 
       @Override
@@ -322,6 +310,8 @@ public class MongoDbGridFSIO {
         final BoundedGridFSSource<T> source;
         final List<ObjectId> objects;
 
+        Mongo mongo;
+        DBCursor cursor;
         Iterator<ObjectId> iterator;
         ObjectId current;
         GridFSReader(BoundedGridFSSource<T> s, List<ObjectId> objects) {
@@ -336,26 +326,49 @@ public class MongoDbGridFSIO {
 
         @Override
         public boolean start() throws IOException {
-          iterator = objects.iterator();
+          if (objects == null) {
+            mongo = source.setupMongo();
+            GridFS gridfs = source.setupGridFS(mongo);
+            cursor = source.createCursor(gridfs);
+          } else {
+            iterator = objects.iterator();
+          }
           return advance();
         }
 
         @Override
         public boolean advance() throws IOException {
-          if (iterator.hasNext()) {
+          if (iterator != null && iterator.hasNext()) {
             current = iterator.next();
             return true;
+          } else if (cursor != null && cursor.hasNext()) {
+            GridFSDBFile file = (GridFSDBFile) cursor.next();
+            current = (ObjectId) file.getId();
+            return true;
           }
+          current = null;
           return false;
         }
 
         @Override
         public ObjectId getCurrent() throws NoSuchElementException {
+          if (current == null) {
+            throw new NoSuchElementException();
+          }
           return current;
+        }
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          if (current == null) {
+            throw new NoSuchElementException();
+          }
+          return Instant.now();
         }
 
         @Override
         public void close() throws IOException {
+          if (mongo != null) {
+            mongo.close();
+          }
         }
       }
     }
