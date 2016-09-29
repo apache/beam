@@ -64,7 +64,7 @@ public class AvroWrapperCoder<WrapperT extends AvroWrapper<DatumT>, DatumT>
   }
 
   @JsonCreator
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public static AvroWrapperCoder<?, ?> of(
       @JsonProperty("wrapperType") String wrapperType,
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components)

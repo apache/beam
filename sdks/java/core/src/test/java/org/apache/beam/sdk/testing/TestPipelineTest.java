@@ -124,8 +124,8 @@ public class TestPipelineTest {
   @Test
   public void testMatcherSerializationDeserialization() {
     TestPipelineOptions opts = PipelineOptionsFactory.as(TestPipelineOptions.class);
-    SerializableMatcher m1 = new TestMatcher();
-    SerializableMatcher m2 = new TestMatcher();
+    SerializableMatcher<PipelineResult> m1 = new TestMatcher();
+    SerializableMatcher<PipelineResult> m2 = new TestMatcher();
 
     opts.setOnCreateMatcher(m1);
     opts.setOnSuccessMatcher(m2);

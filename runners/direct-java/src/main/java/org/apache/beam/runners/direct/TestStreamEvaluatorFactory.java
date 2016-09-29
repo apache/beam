@@ -171,13 +171,13 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     private static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final TestStream<T> original;
 
-      private DirectTestStream(TestStream transform) {
+      private DirectTestStream(TestStream<T> transform) {
         this.original = transform;
       }
 
       @Override
       public PCollection<T> apply(PBegin input) {
-        PipelineRunner runner = input.getPipeline().getRunner();
+        PipelineRunner<?> runner = input.getPipeline().getRunner();
         checkState(
             runner instanceof DirectRunner,
             "%s can only be used when running with the %s",

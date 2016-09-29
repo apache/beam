@@ -42,7 +42,7 @@ import org.mockito.MockitoAnnotations;
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock private DoFn.ProcessContext mockContext;
+  @Mock private DoFn<String, String>.ProcessContext mockContext;
   @Mock private BoundedWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;

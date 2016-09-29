@@ -111,7 +111,7 @@ class ImmutableListBundleFactory implements BundleFactory {
         StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
         Instant synchronizedCompletionTime) {
-      return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle(
+      return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle<>(
           pcollection, key, committedElements, synchronizedCompletionTime);
     }
 

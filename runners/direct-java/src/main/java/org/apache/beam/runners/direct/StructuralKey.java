@@ -89,7 +89,7 @@ abstract class StructuralKey<K> {
         return true;
       }
       if (other instanceof CoderStructuralKey) {
-        CoderStructuralKey that = (CoderStructuralKey) other;
+        CoderStructuralKey<?> that = (CoderStructuralKey<?>) other;
         return structuralValue.equals(that.structuralValue);
       }
       return false;

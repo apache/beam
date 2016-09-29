@@ -303,7 +303,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     /**
      * Return current time according to {@code reader}.
      */
-    private static long now(PubsubReader reader) {
+    private static long now(PubsubReader<?> reader) {
       if (reader.outer.outer.clock == null) {
         return System.currentTimeMillis();
       } else {

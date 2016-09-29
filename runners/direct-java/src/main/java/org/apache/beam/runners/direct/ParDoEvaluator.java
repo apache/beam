@@ -160,15 +160,14 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
       undeclaredOutputs = new HashMap<>();
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      @SuppressWarnings("rawtypes")
       UncommittedBundle bundle = bundles.get(tag);
       if (bundle == null) {
-        List undeclaredContents = undeclaredOutputs.get(tag);
+        List<WindowedValue<T>> undeclaredContents = (List) undeclaredOutputs.get(tag);
         if (undeclaredContents == null) {
-          undeclaredContents = new ArrayList<T>();
+          undeclaredContents = new ArrayList<>();
           undeclaredOutputs.put(tag, undeclaredContents);
         }
         undeclaredContents.add(output);

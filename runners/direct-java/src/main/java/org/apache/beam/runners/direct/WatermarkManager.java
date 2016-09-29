@@ -859,7 +859,7 @@ public class WatermarkManager {
 
   private void applyPendingUpdate(PendingWatermarkUpdate pending) {
     CommittedResult result = pending.getResult();
-    AppliedPTransform transform = result.getTransform();
+    AppliedPTransform<?, ?, ?> transform = result.getTransform();
     CommittedBundle<?> inputBundle = pending.getInputBundle();
 
     updatePending(inputBundle, pending.getTimerUpdate(), result);

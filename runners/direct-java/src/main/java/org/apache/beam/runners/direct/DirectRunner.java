@@ -280,6 +280,7 @@ public class DirectRunner
     return result;
   }
 
+  @SuppressWarnings("rawtypes")
   private Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
       defaultModelEnforcements(DirectOptions options) {
     ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
