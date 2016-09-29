@@ -100,7 +100,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
         values.add(kv.getValue());
       }
       if (timeBound) {
-        assertTrue(values.size() > 2);
+        assertTrue(values.size() >= 1);
       } else if (dedup) {
         // Verify that at least some data came through.  The chance of 90% of the input
         // being duplicates is essentially zero.
@@ -111,7 +111,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
       Collections.sort(values);
       for (int i = 0; i < values.size(); i++) {
         assertEquals(i, (int) values.get(i));
-              }
+      }
       if (finalizeTracker != null) {
         assertThat(finalizeTracker, containsInAnyOrder(values.size() - 1));
       }
@@ -126,7 +126,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
       finalizeTracker = new ArrayList<>();
       TestCountingSource.setFinalizeTracker(finalizeTracker);
     }
-    TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE);
+    TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE).withoutSplitting();
     if (dedup) {
       source = source.withDedup();
     }
@@ -134,11 +134,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
         timeBound
         ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
         : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
-
-    List<KV<Integer, Integer>> expectedOutput = new ArrayList<>();
-    for (int i = 0; i < NUM_RECORDS; i++) {
-      expectedOutput.add(KV.of(0, i));
-    }
 
     // Because some of the NUM_RECORDS elements read are dupes, the final output
     // will only have output from 0 to n where n < NUM_RECORDS.
