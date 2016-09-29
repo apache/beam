@@ -45,25 +45,31 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.ParseCallback;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.Read.BoundedGridFSSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.bson.types.ObjectId;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -80,10 +86,10 @@ public class MongoDBGridFSIOTest implements Serializable {
   private static final int PORT = 27017;
   private static final String DATABASE = "gridfs";
 
-  private transient MongodExecutable mongodExecutable;
+  private static transient MongodExecutable mongodExecutable;
 
-  @Before
-  public void setup() throws Exception {
+  @BeforeClass
+  public static void setup() throws Exception {
     LOGGER.info("Starting MongoDB embedded instance");
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
@@ -148,10 +154,11 @@ public class MongoDBGridFSIOTest implements Serializable {
       writer.flush();
       writer.close();
     }
+    client.close();
   }
 
-  @After
-  public void stop() throws Exception {
+  @AfterClass
+  public static void stop() throws Exception {
     LOGGER.info("Stopping MongoDB instance");
     mongodExecutable.stop();
   }
@@ -196,47 +203,28 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withUri("mongodb://localhost:" + PORT)
             .withDatabase(DATABASE)
             .withBucket("mapBucket")
-            .withParsingFn(new ParseCallback<KV<String, Integer>>() {
+            .withParser(new MongoDbGridFSIO.Parser<KV<String, Integer>>() {
               @Override
-              public Iterator<MongoDbGridFSIO.ParseCallback.Line<KV<String, Integer>>> parse(
-                  GridFSDBFile input) throws IOException {
-                final BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(input.getInputStream()));
-                return new Iterator<Line<KV<String, Integer>>>() {
+              public void parse(GridFSDBFile input,
+                  MongoDbGridFSIO.ParserCallback<KV<String, Integer>> callback) throws IOException {
+                try (final BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(input.getInputStream()))) {
                   String line = reader.readLine();
-                  @Override
-                  public boolean hasNext() {
-                    return line != null;
-                  }
-                  @Override
-                  public MongoDbGridFSIO.ParseCallback.Line<KV<String, Integer>> next() {
+                  while (line != null) {
                     try (Scanner scanner = new Scanner(line.trim())) {
                       scanner.useDelimiter("\\t");
                       long timestamp = scanner.nextLong();
                       String name = scanner.next();
                       int score = scanner.nextInt();
-
-                      try {
-                        line = reader.readLine();
-                      } catch (IOException e) {
-                        line = null;
-                      }
-                      if (line == null) {
-                        try {
-                          reader.close();
-                        } catch (IOException e) {
-                          //ignore
-                        }
-                      }
-                      return new Line<>(KV.of(name, score), new Instant(timestamp));
+                      callback.output(KV.of(name, score), new Instant(timestamp));
                     }
+                    line = reader.readLine();
                   }
-                  @Override
-                  public void remove() {
-                  }
-                };
+                }
               }
-            })).setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+            })
+            .allowedTimestampSkew(new Duration(3601000L)))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
         .isEqualTo(50100L);
@@ -251,7 +239,39 @@ public class MongoDBGridFSIOTest implements Serializable {
         return null;
       }
     });
+
     pipeline.run();
+  }
+
+  @Test
+  public void testSplit() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.read()
+        .withUri("mongodb://localhost:" + PORT)
+        .withDatabase(DATABASE);
+
+    BoundedGridFSSource src = read.getSource();
+
+    // make sure 2 files can fit in
+    long desiredBundleSizeBytes = (src.getEstimatedSizeBytes(options) * 2L) / 5L + 1000;
+    List<? extends BoundedSource<ObjectId>> splits = src.splitIntoBundles(
+        desiredBundleSizeBytes, options);
+
+    int expectedNbSplits = 3;
+    assertEquals(expectedNbSplits, splits.size());
+    SourceTestUtils.
+      assertSourcesEqualReferenceSource(src, splits, options);
+    int nonEmptySplits = 0;
+    int count = 0;
+    for (BoundedSource<ObjectId> subSource : splits) {
+      List<ObjectId> result = SourceTestUtils.readFromSource(subSource, options);
+      if (result.size() > 0) {
+        nonEmptySplits += 1;
+      }
+      count += result.size();
+    }
+    assertEquals(expectedNbSplits, nonEmptySplits);
+    assertEquals(5, count);
   }
 
 }
