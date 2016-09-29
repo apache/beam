@@ -52,6 +52,17 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
 
+  @Description("Minimum time to spend on read, for each micro-batch.")
+  @Default.Long(200)
+  Long getMinReadTimeMillis();
+  void setMinReadTimeMillis(Long minReadTimeMillis);
+
+  @Description("A value between 0-1 to describe the percentage of a micro-batch dedicated "
+      + "to reading from UnboundedSource.")
+  @Default.Double(0.1)
+  Double getReadTimePercentage();
+  void setReadTimePercentage(Double readTimePercentage);
+
   @Description("A checkpoint directory for streaming resilience, ignored in batch. "
       + "For durability, a reliable filesystem such as HDFS/S3/GS is necessary.")
   @Default.InstanceFactory(TmpCheckpointDirFactory.class)
