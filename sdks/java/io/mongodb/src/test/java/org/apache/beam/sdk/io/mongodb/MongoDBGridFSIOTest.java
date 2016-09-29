@@ -249,7 +249,7 @@ public class MongoDBGridFSIOTest implements Serializable {
         .withUri("mongodb://localhost:" + PORT)
         .withDatabase(DATABASE);
 
-    BoundedGridFSSource<String> src = read.getSource();
+    BoundedGridFSSource src = read.getSource();
 
     // make sure 2 files can fit in
     long desiredBundleSizeBytes = src.getEstimatedSizeBytes(options) * 2L / 5L + 1000;
