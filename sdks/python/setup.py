@@ -82,7 +82,7 @@ REQUIRED_PACKAGES = [
     ]
 
 EXTRA_PACKAGES = {
-    'cython': ['cython>=0.23.2'],
+    'cython': ['cython>={0}'.format(REQUIRED_CYTHON_VERSION)],
 }
 
 setuptools.setup(
