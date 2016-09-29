@@ -191,6 +191,13 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin
       return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("source", boundedSource.getClass()));
+      builder.include(boundedSource);
+    }
+
     @VisibleForTesting
     static class Checkpoint<T> implements UnboundedSource.CheckpointMark {
       private final @Nullable List<TimestampedValue<T>> residualElements;
