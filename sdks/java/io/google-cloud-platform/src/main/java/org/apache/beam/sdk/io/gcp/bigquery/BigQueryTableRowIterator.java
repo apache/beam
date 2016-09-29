@@ -28,7 +28,6 @@ import com.google.api.client.util.ClassInfo;
 import com.google.api.client.util.Data;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.ErrorProto;
@@ -36,6 +35,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
@@ -137,16 +137,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
       ref = executeQueryAndWaitForCompletion();
     }
     // Get table schema.
-    Bigquery.Tables.Get get =
-        client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
-
-    Table table =
-        executeWithBackOff(
-            get,
-            "Error opening BigQuery table  %s of dataset %s  : {}",
-            ref.getTableId(),
-            ref.getDatasetId());
-    schema = table.getSchema();
+    schema = getTable(ref).getSchema();
   }
 
   public boolean advance() throws IOException, InterruptedException {
@@ -168,12 +159,11 @@ class BigQueryTableRowIterator implements AutoCloseable {
         list.setPageToken(pageToken);
       }
 
-      TableDataList result =
-          executeWithBackOff(
-              list,
-              "Error reading from BigQuery table %s of dataset %s : {}",
-              ref.getTableId(),
-              ref.getDatasetId());
+      TableDataList result = executeWithBackOff(
+          list,
+          String.format(
+              "Error reading from BigQuery table %s of dataset %s.",
+              ref.getTableId(), ref.getDatasetId()));
 
       pageToken = result.getPageToken();
       iteratorOverCurrentBatch =
@@ -332,19 +322,36 @@ class BigQueryTableRowIterator implements AutoCloseable {
     return row;
   }
 
+  // Get the BiqQuery table.
+  private Table getTable(TableReference ref) throws IOException, InterruptedException {
+    Bigquery.Tables.Get get =
+        client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+
+    return executeWithBackOff(
+        get,
+        String.format(
+            "Error opening BigQuery table %s of dataset %s.",
+            ref.getTableId(),
+            ref.getDatasetId()));
+  }
+
   // Create a new BigQuery dataset
-  private void createDataset(String datasetId) throws IOException, InterruptedException {
+  private void createDataset(String datasetId, @Nullable String location)
+      throws IOException, InterruptedException {
     Dataset dataset = new Dataset();
     DatasetReference reference = new DatasetReference();
     reference.setProjectId(projectId);
     reference.setDatasetId(datasetId);
     dataset.setDatasetReference(reference);
+    if (location != null) {
+      dataset.setLocation(location);
+    }
 
-    String createDatasetError =
-        "Error when trying to create the temporary dataset " + datasetId + " in project "
-        + projectId;
     executeWithBackOff(
-        client.datasets().insert(projectId, dataset), createDatasetError + " :{}");
+        client.datasets().insert(projectId, dataset),
+        String.format(
+            "Error when trying to create the temporary dataset %s in project %s.",
+            datasetId, projectId));
   }
 
   // Delete the given table that is available in the given dataset.
@@ -352,16 +359,20 @@ class BigQueryTableRowIterator implements AutoCloseable {
       throws IOException, InterruptedException {
     executeWithBackOff(
         client.tables().delete(projectId, datasetId, tableId),
-        "Error when trying to delete the temporary table " + datasetId + " in dataset " + datasetId
-        + " of project " + projectId + ". Manual deletion may be required. Error message : {}");
+        String.format(
+            "Error when trying to delete the temporary table %s in dataset %s of project %s. "
+            + "Manual deletion may be required.",
+            tableId, datasetId, projectId));
   }
 
   // Delete the given dataset. This will fail if the given dataset has any tables.
   private void deleteDataset(String datasetId) throws IOException, InterruptedException {
     executeWithBackOff(
         client.datasets().delete(projectId, datasetId),
-        "Error when trying to delete the temporary dataset " + datasetId + " in project "
-        + projectId + ". Manual deletion may be required. Error message : {}");
+        String.format(
+            "Error when trying to delete the temporary dataset %s in project %s. "
+            + "Manual deletion may be required.",
+            datasetId, projectId));
   }
 
   /**
@@ -372,13 +383,31 @@ class BigQueryTableRowIterator implements AutoCloseable {
    */
   private TableReference executeQueryAndWaitForCompletion()
       throws IOException, InterruptedException {
+    // Dry run query to get source table location
+    Job dryRunJob = new Job()
+        .setConfiguration(new JobConfiguration()
+            .setQuery(new JobConfigurationQuery()
+                .setQuery(query))
+            .setDryRun(true));
+    JobStatistics jobStats = executeWithBackOff(
+        client.jobs().insert(projectId, dryRunJob),
+        String.format("Error when trying to dry run query %s.", query)).getStatistics();
+
+    // Let BigQuery to pick default location if the query does not read any tables.
+    String location = null;
+    @Nullable List<TableReference> tables = jobStats.getQuery().getReferencedTables();
+    if (tables != null && !tables.isEmpty()) {
+      Table table = getTable(tables.get(0));
+      location = table.getLocation();
+    }
+
     // Create a temporary dataset to store results.
     // Starting dataset name with an "_" so that it is hidden.
     Random rnd = new Random(System.currentTimeMillis());
     temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
     temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
 
-    createDataset(temporaryDatasetId);
+    createDataset(temporaryDatasetId, location);
     Job job = new Job();
     JobConfiguration config = new JobConfiguration();
     JobConfigurationQuery queryConfig = new JobConfigurationQuery();
@@ -394,15 +423,15 @@ class BigQueryTableRowIterator implements AutoCloseable {
     destinationTable.setTableId(temporaryTableId);
     queryConfig.setDestinationTable(destinationTable);
 
-    Insert insert = client.jobs().insert(projectId, job);
     Job queryJob = executeWithBackOff(
-        insert, "Error when trying to execute the job for query " + query + " :{}");
+        client.jobs().insert(projectId, job),
+        String.format("Error when trying to execute the job for query %s.", query));
     JobReference jobId = queryJob.getJobReference();
 
     while (true) {
       Job pollJob = executeWithBackOff(
           client.jobs().get(projectId, jobId.getJobId()),
-          "Error when trying to get status of the job for query " + query + " :{}");
+          String.format("Error when trying to get status of the job for query %s.", query));
       JobStatus status = pollJob.getStatus();
       if (status.getState().equals("DONE")) {
         // Job is DONE, but did not necessarily succeed.
@@ -420,12 +449,23 @@ class BigQueryTableRowIterator implements AutoCloseable {
     }
   }
 
+  /**
+   * Execute a BQ request with exponential backoff and return the result.
+   *
+   * @deprecated use {@link #executeWithBackOff(AbstractGoogleClientRequest, String)}.
+   */
+  @Deprecated
+  public static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error,
+      Object... errorArgs) throws IOException, InterruptedException {
+    return executeWithBackOff(client, String.format(error, errorArgs));
+  }
+
   // Execute a BQ request with exponential backoff and return the result.
   // client - BQ request to be executed
   // error - Formatted message to log if when a request fails. Takes exception message as a
   // formatter parameter.
-  public static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error,
-      Object... errorArgs) throws IOException, InterruptedException {
+  public static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error)
+      throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backOff =
         FluentBackoff.DEFAULT
@@ -437,15 +477,15 @@ class BigQueryTableRowIterator implements AutoCloseable {
         result = client.execute();
         break;
       } catch (IOException e) {
-        LOG.error(String.format(error, errorArgs), e.getMessage());
+        LOG.error("{}", error, e);
         if (!BackOffUtils.next(sleeper, backOff)) {
-          LOG.error(
-              String.format(error, errorArgs), "Failing after retrying " + MAX_RETRIES + " times.");
-          throw e;
+          String errorMessage = String.format(
+              "%s Failing to execute job after %d attempts.", error, MAX_RETRIES + 1);
+          LOG.error("{}", errorMessage, e);
+          throw new IOException(errorMessage, e);
         }
       }
     }
-
     return result;
   }
 
