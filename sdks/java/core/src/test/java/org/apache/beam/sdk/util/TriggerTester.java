@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.StateTag;
+import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -94,7 +95,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
   private final TestInMemoryStateInternals<?> stateInternals =
-      new TestInMemoryStateInternals<Object>();
+      new TestInMemoryStateInternals<Object>(null /* key */);
   private final TestTimerInternals timerInternals = new TestTimerInternals();
   private final TriggerContextFactory<W> contextFactory;
   private final WindowFn<Object, W> windowFn;
@@ -349,46 +350,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       finishedSets.put(window, finishedSet);
     }
     return finishedSet;
-  }
-
-  /**
-   * Simulate state.
-   */
-  private static class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
-
-    public TestInMemoryStateInternals() {
-      super(null);
-    }
-
-    public Set<StateTag<? super K, ?>> getTagsInUse(StateNamespace namespace) {
-      Set<StateTag<? super K, ?>> inUse = new HashSet<>();
-      for (Map.Entry<StateTag<? super K, ?>, State> entry :
-          inMemoryState.getTagsInUse(namespace).entrySet()) {
-        if (!isEmptyForTesting(entry.getValue())) {
-          inUse.add(entry.getKey());
-        }
-      }
-      return inUse;
-    }
-
-    public Set<StateNamespace> getNamespacesInUse() {
-      return inMemoryState.getNamespacesInUse();
-    }
-
-    /** Return the earliest output watermark hold in state, or null if none. */
-    public Instant earliestWatermarkHold() {
-      Instant minimum = null;
-      for (State storage : inMemoryState.values()) {
-        if (storage instanceof WatermarkHoldState) {
-          @SuppressWarnings("unchecked")
-          Instant hold = ((WatermarkHoldState<BoundedWindow>) storage).read();
-          if (minimum == null || (hold != null && hold.isBefore(minimum))) {
-            minimum = hold;
-          }
-        }
-      }
-      return minimum;
-    }
   }
 
   private static class TestAssignContext<W extends BoundedWindow>
