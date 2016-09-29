@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -46,7 +45,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BoundedReadFromUnboundedSourceTest implements Serializable{
   private static final int NUM_RECORDS = 100;
-  private static List<Integer> finalizeTracker = null;
 
   @Test
   @Category(RunnableOnService.class)
@@ -109,9 +107,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
       for (int i = 0; i < values.size(); i++) {
         assertEquals(i, (int) values.get(i));
       }
-      if (finalizeTracker != null) {
-        assertThat(finalizeTracker, containsInAnyOrder(values.size() - 1));
-      }
       return null;
     }
   }
@@ -127,11 +122,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
         timeBound
         ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
         : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
-
-    List<KV<Integer, Integer>> expectedOutput = new ArrayList<>();
-    for (int i = 0; i < NUM_RECORDS; i++) {
-      expectedOutput.add(KV.of(0, i));
-    }
 
     // Because some of the NUM_RECORDS elements read are dupes, the final output
     // will only have output from 0 to n where n < NUM_RECORDS.
