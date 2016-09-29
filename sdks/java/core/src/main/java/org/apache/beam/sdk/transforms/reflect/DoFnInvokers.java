@@ -78,9 +78,11 @@ public class DoFnInvokers {
   private DoFnInvokers() {}
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
-    return newByteBuddyInvoker(DoFnSignatures.INSTANCE.getOrParseSignature(fn.getClass()), fn);
+    return newByteBuddyInvoker(DoFnSignatures.INSTANCE.getOrParseSignature(
+        (Class)fn.getClass()), fn);
   }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
@@ -112,7 +114,7 @@ public class DoFnInvokers {
    */
   private synchronized Constructor<?> getOrGenerateByteBuddyInvokerConstructor(
       DoFnSignature signature) {
-    Class<? extends DoFn> fnClass = signature.fnClass();
+    Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
     Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
     if (constructor == null) {
       Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
@@ -128,7 +130,7 @@ public class DoFnInvokers {
 
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
   private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
-    Class<? extends DoFn> fnClass = signature.fnClass();
+    Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 

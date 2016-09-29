@@ -93,10 +93,7 @@ public class SimpleAuthHDFSFileSource<K, V> extends HDFSFileSource<K, V> {
       Class<K> keyClass,
       Class<V> valueClass,
       String username) {
-    @SuppressWarnings("unchecked")
-    HDFSFileSource<K, V> source = (HDFSFileSource<K, V>)
-        new SimpleAuthHDFSFileSource(filepattern, formatClass, keyClass, valueClass, username);
-    return source;
+    return new SimpleAuthHDFSFileSource<>(filepattern, formatClass, keyClass, valueClass, username);
   }
 
   @Override

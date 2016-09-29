@@ -125,7 +125,7 @@ public class AvroHDFSFileSource<T> extends HDFSFileSource<AvroKey<T>, NullWritab
 
       // clone the record to work around identical element issue due to object reuse
       Coder<T> avroCoder = ((AvroHDFSFileSource<T>) this.getCurrentSource()).avroCoder;
-      key = new AvroKey(CoderUtils.clone(avroCoder, key.datum()));
+      key = new AvroKey<>(CoderUtils.clone(avroCoder, key.datum()));
 
       return KV.of(key, value);
     }

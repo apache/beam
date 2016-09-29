@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 @AutoValue
 public abstract class DoFnSignature {
   /** Class of the original {@link DoFn} from which this signature was produced. */
-  public abstract Class<? extends DoFn> fnClass();
+  public abstract Class<? extends DoFn<?, ?>> fnClass();
 
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
@@ -60,7 +60,7 @@ public abstract class DoFnSignature {
 
   @AutoValue.Builder
   abstract static class Builder {
-    abstract Builder setFnClass(Class<? extends DoFn> fnClass);
+    abstract Builder setFnClass(Class<? extends DoFn<?, ?>> fnClass);
     abstract Builder setProcessElement(ProcessElementMethod processElement);
     abstract Builder setStartBundle(BundleMethod startBundle);
     abstract Builder setFinishBundle(BundleMethod finishBundle);

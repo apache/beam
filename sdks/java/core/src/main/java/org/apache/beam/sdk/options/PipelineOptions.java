@@ -279,13 +279,14 @@ public interface PipelineOptions extends HasDisplayData {
    * as the {@link Default}. However, it should still be used if available, and a user is required
    * to explicitly set the {@code --runner} property if they wish to use an alternative runner.
    */
-  class DirectRunner implements DefaultValueFactory<Class<? extends PipelineRunner>> {
+  class DirectRunner implements DefaultValueFactory<Class<? extends PipelineRunner<?>>> {
     @Override
-    public Class<? extends PipelineRunner> create(PipelineOptions options) {
+    public Class<? extends PipelineRunner<?>> create(PipelineOptions options) {
       try {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Class<? extends PipelineRunner> direct = (Class<? extends PipelineRunner>) Class.forName(
-            "org.apache.beam.runners.direct.DirectRunner");
+        Class<? extends PipelineRunner<?>> direct =
+            (Class<? extends PipelineRunner<?>>)
+                Class.forName("org.apache.beam.runners.direct.DirectRunner");
         return direct;
       } catch (ClassNotFoundException e) {
         throw new IllegalArgumentException(String.format(
