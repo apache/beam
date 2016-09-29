@@ -128,11 +128,6 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
         ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
         : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
 
-    List<KV<Integer, Integer>> expectedOutput = new ArrayList<>();
-    for (int i = 0; i < NUM_RECORDS; i++) {
-      expectedOutput.add(KV.of(0, i));
-    }
-
     // Because some of the NUM_RECORDS elements read are dupes, the final output
     // will only have output from 0 to n where n < NUM_RECORDS.
     PAssert.that(output).satisfies(new Checker(dedup, timeBound));
