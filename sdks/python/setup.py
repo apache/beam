@@ -43,15 +43,16 @@ PACKAGE_LONG_DESCRIPTION = '''
 TBD
 '''
 
+REQUIRED_PIP_VERSION = '0.7.0'
 _PIP_VERSION = get_distribution('pip').version
-assert StrictVersion(_PIP_VERSION) >= StrictVersion('0.7.0'), \
-    "This SDK requires 'pip' >= 7.0.0"
+assert StrictVersion(_PIP_VERSION) >= StrictVersion(REQUIRED_PIP_VERSION), \
+    "This SDK requires 'pip' >= {0}".format(REQUIRED_PIP_VERSION)
 
 REQUIRED_CYTHON_VERSION = '0.23.2'
 try:
     _CYTHON_VERSION = get_distribution('cython').version
     assert StrictVersion(_CYTHON_VERSION) >= StrictVersion(REQUIRED_CYTHON_VERSION), \
-    "This SDK requires 'cython' >= 0.23.2"
+    "This SDK requires 'cython' >= {0}".format(REQUIRED_CYTHON_VERSION)
 except DistributionNotFound:
     # do nothing if Cython is not installed
     pass
