@@ -97,7 +97,7 @@ public class MongoDbGridFSIO {
   }
 
   /**
-   * For the default Read<String> case, this is the parser that is used to
+   * For the default Read&lt;String&gt; case, this is the parser that is used to
    * split the input file into Strings. It uses the timestamp of the file
    * for the event timestamp.
    */
