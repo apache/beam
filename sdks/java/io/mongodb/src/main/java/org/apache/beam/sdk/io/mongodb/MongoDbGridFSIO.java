@@ -120,49 +120,58 @@ public class MongoDbGridFSIO {
   /** Read data from GridFS. */
   public static Read<String> read() {
     return new Read<String>(new Read.BoundedGridFSSource<String>(null, null, null, null,
-                            StringParser.INSTANCE, null));
+                            null), StringParser.INSTANCE, Duration.ZERO);
   }
 
   static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
       return new Read<T>(new BoundedGridFSSource<T>(uri, options.database,
                                            options.bucket, options.filterJson,
-                                           options.parser, null));
+                                           null), parser, maxSkew);
     }
 
     public Read<T> withDatabase(String database) {
       return new Read<T>(new BoundedGridFSSource<T>(options.uri, database,
                                            options.bucket, options.filterJson,
-                                           options.parser, null));
+                                           null), parser, maxSkew);
     }
 
     public Read<T> withBucket(String bucket) {
       return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database, bucket,
-          options.filterJson, options.parser, null));
+          options.filterJson, null), parser, maxSkew);
     }
 
     public <X> Read<X> withParser(Parser<X> f) {
+      Preconditions.checkNotNull(f, "Parser cannot be null");
       return new Read<X>(new BoundedGridFSSource<X>(options.uri, options.database,
-          options.bucket, options.filterJson, f, null));
+          options.bucket, options.filterJson, null), f, maxSkew);
+    }
+    public Read<T> maxSkew(Duration skew) {
+      return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database,
+          options.bucket, options.filterJson, null), parser, skew == null ? Duration.ZERO : skew);
     }
 
     public Read<T> withQueryFilter(String filterJson) {
       return new Read<T>(new BoundedGridFSSource<T>(options.uri, options.database,
-          options.bucket, filterJson, options.parser, null));
+          options.bucket, filterJson, null), parser, maxSkew);
     }
 
     private final BoundedGridFSSource<T> options;
+    private final Parser<T> parser;
+    private final Duration maxSkew;
 
-    Read(BoundedGridFSSource<T> options) {
+    Read(BoundedGridFSSource<T> options, Parser<T> parser, Duration maxSkew) {
       this.options = options;
+      this.parser = parser;
+      this.maxSkew = maxSkew;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public PCollection<T> apply(PBegin input) {
-      org.apache.beam.sdk.io.Read.Bounded<ObjectId> unbounded =
+      org.apache.beam.sdk.io.Read.Bounded<ObjectId> bounded =
           org.apache.beam.sdk.io.Read.from(options);
-      PCollection<T> output = input.getPipeline().apply(unbounded)
+      PCollection<T> output = input.getPipeline().apply(bounded)
           .apply(ParDo.of(new DoFn<ObjectId, T>() {
             Mongo mongo;
             GridFS gridfs;
@@ -179,16 +188,15 @@ public class MongoDbGridFSIO {
             public void processElement(ProcessContext c) throws IOException {
               ObjectId oid = c.element();
               GridFSDBFile file = gridfs.find(oid);
-              options.parser.parse(file, c);
+              parser.parse(file, c);
             }
-            /*
+
             @Override
             public Duration getAllowedTimestampSkew() {
-              return Duration.millis(Long.MAX_VALUE);
+              return maxSkew;
             }
-            */
           }));
-      if (options.parser == StringParser.INSTANCE) {
+      if (parser == StringParser.INSTANCE) {
         output.setCoder((Coder<T>) StringUtf8Coder.of());
       }
       return output;
@@ -205,17 +213,14 @@ public class MongoDbGridFSIO {
       private final String filterJson;
       @Nullable
       private List<ObjectId> objectIds;
-      private Parser<T> parser;
 
       BoundedGridFSSource(String uri, String database,
                           String bucket, String filterJson,
-                          Parser<T> parser,
                           List<ObjectId> objectIds) {
         this.uri = uri;
         this.database = database;
         this.bucket = bucket;
         this.objectIds = objectIds;
-        this.parser = parser;
         this.filterJson = filterJson;
       }
       private Mongo setupMongo() {
@@ -247,7 +252,7 @@ public class MongoDbGridFSIO {
             long len = file.getLength();
             if ((size + len) > desiredBundleSizeBytes && !objects.isEmpty()) {
               list.add(new BoundedGridFSSource<T>(uri, database, bucket,
-                                                 filterJson, parser,
+                                                 filterJson,
                                                  objects));
               size = 0;
               objects = new ArrayList<>();
@@ -257,7 +262,7 @@ public class MongoDbGridFSIO {
           }
           if (!objects.isEmpty() || list.isEmpty()) {
             list.add(new BoundedGridFSSource<T>(uri, database, bucket,
-                                                filterJson, parser,
+                                                filterJson,
                                                 objects));
           }
           return list;
@@ -297,7 +302,6 @@ public class MongoDbGridFSIO {
 
       @Override
       public void validate() {
-        Preconditions.checkNotNull(parser, "Parser cannot be null");
       }
 
       @Override

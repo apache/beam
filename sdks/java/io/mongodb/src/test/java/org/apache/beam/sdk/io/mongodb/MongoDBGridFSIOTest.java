@@ -60,6 +60,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -195,6 +196,7 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withUri("mongodb://localhost:" + PORT)
             .withDatabase(DATABASE)
             .withBucket("mapBucket")
+            .maxSkew(new Duration(Long.MAX_VALUE))
             .withParser(new MongoDbGridFSIO.Parser<KV<String, Integer>>() {
               @Override
               public void parse(GridFSDBFile input,
@@ -229,6 +231,7 @@ public class MongoDBGridFSIOTest implements Serializable {
         return null;
       }
     });
+
     pipeline.run();
   }
 
