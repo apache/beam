@@ -20,6 +20,7 @@
 # pylint: disable=wildcard-import
 from apache_beam.io.avroio import *
 from apache_beam.io.bigquery import *
+from apache_beam.io.datastoreio import *
 from apache_beam.io.fileio import *
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Sink

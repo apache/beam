@@ -57,6 +57,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.7.7',
     'dill>=0.2.5',
     'google-apitools>=0.5.2',
+    'google-cloud>=0.19.0',
     'httplib2>=0.8',
     'mock>=1.0.1',
     'oauth2client>=2.0.1',
