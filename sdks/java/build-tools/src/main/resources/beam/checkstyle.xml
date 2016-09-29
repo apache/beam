@@ -114,6 +114,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
     </module>
 
+    <!--
+         Require static importing from Preconditions.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="^import com.google.common.base.Preconditions;$"/>
+      <property name="message" value="Static import functions from Guava Preconditions"/>
+    </module>
+
     <module name="UnusedImports">
       <property name="severity" value="error"/>
       <property name="processJavadoc" value="true"/>
