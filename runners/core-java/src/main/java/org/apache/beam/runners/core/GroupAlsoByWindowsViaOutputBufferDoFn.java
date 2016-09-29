@@ -27,6 +27,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
+import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 
@@ -60,9 +61,9 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
     // timer manager from the context because it doesn't exist. So we create one and emulate the
     // watermark, knowing that we have all data and it is in timestamp order.
     InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
-    timerInternals.advanceProcessingTime(null /* timerCallback */, Instant.now());
+    timerInternals.advanceProcessingTime(TimerCallback.NO_OP, Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(
-        null /* timerCallback */, BoundedWindow.TIMESTAMP_MAX_VALUE);
+        TimerCallback.NO_OP, BoundedWindow.TIMESTAMP_MAX_VALUE);
     StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =

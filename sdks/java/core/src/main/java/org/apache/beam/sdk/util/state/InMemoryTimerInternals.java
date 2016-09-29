@@ -71,7 +71,7 @@ public class InMemoryTimerInternals implements TimerInternals {
    */
   @Nullable
   public Instant getNextTimer(TimeDomain domain) {
-    TimerData data = null;
+    final TimerData data;
     switch (domain) {
       case EVENT_TIME:
         data = watermarkTimers.peek();
@@ -81,7 +81,7 @@ public class InMemoryTimerInternals implements TimerInternals {
         data = processingTimers.peek();
         break;
       default:
-        checkState(false, "Unexpected time domain: %s", domain);
+        throw new IllegalArgumentException("Unexpected time domain: " + domain);
     }
     return (data == null) ? null : data.getTimestamp();
   }
@@ -93,8 +93,9 @@ public class InMemoryTimerInternals implements TimerInternals {
       case PROCESSING_TIME:
       case SYNCHRONIZED_PROCESSING_TIME:
         return processingTimers;
+      default:
+        throw new IllegalArgumentException("Unexpected time domain: " + domain);
     }
-    throw new RuntimeException(); // cases exhaustive
   }
 
   @Override
@@ -141,7 +142,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   /** Advances input watermark to the given value and fires event-time timers accordingly. */
   public void advanceInputWatermark(
-      @Nullable TimerCallback timerCallback, Instant newInputWatermark) throws Exception {
+      TimerCallback timerCallback, Instant newInputWatermark) throws Exception {
     checkNotNull(newInputWatermark);
     checkState(
         !newInputWatermark.isBefore(inputWatermarkTime),
@@ -159,28 +160,32 @@ public class InMemoryTimerInternals implements TimerInternals {
   /** Advances output watermark to the given value. */
   public void advanceOutputWatermark(Instant newOutputWatermark) {
     checkNotNull(newOutputWatermark);
+    final Instant adjustedOutputWatermark;
     if (newOutputWatermark.isAfter(inputWatermarkTime)) {
       WindowTracing.trace(
           "TestTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
           newOutputWatermark,
           inputWatermarkTime);
-      newOutputWatermark = inputWatermarkTime;
+      adjustedOutputWatermark = inputWatermarkTime;
+    } else {
+      adjustedOutputWatermark = newOutputWatermark;
     }
+
     checkState(
-        outputWatermarkTime == null || !newOutputWatermark.isBefore(outputWatermarkTime),
+        outputWatermarkTime == null || !adjustedOutputWatermark.isBefore(outputWatermarkTime),
         "Cannot move output watermark time backwards from %s to %s",
         outputWatermarkTime,
-        newOutputWatermark);
+        adjustedOutputWatermark);
     WindowTracing.trace(
         "TestTimerInternals.advanceOutputWatermark: from {} to {}",
         outputWatermarkTime,
-        newOutputWatermark);
-    outputWatermarkTime = newOutputWatermark;
+        adjustedOutputWatermark);
+    outputWatermarkTime = adjustedOutputWatermark;
   }
 
   /** Advances processing time to the given value and fires processing-time timers accordingly. */
   public void advanceProcessingTime(
-      @Nullable TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
+      TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
     checkState(
         !newProcessingTime.isBefore(processingTime),
         "Cannot move processing time backwards from %s to %s",
@@ -199,7 +204,7 @@ public class InMemoryTimerInternals implements TimerInternals {
    * accordingly.
    */
   public void advanceSynchronizedProcessingTime(
-      @Nullable TimerCallback timerCallback, Instant newSynchronizedProcessingTime)
+      TimerCallback timerCallback, Instant newSynchronizedProcessingTime)
       throws Exception {
     checkState(
         !newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
@@ -216,19 +221,17 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   private void advanceAndFire(
-      @Nullable TimerCallback timerCallback, Instant currentTime, TimeDomain domain)
+      TimerCallback timerCallback, Instant currentTime, TimeDomain domain)
       throws Exception {
+    checkNotNull(timerCallback);
     PriorityQueue<TimerData> queue = queue(domain);
     while (!queue.isEmpty() && currentTime.isAfter(queue.peek().getTimestamp())) {
-      TimerData timer = queue.peek();
-      WindowTracing.trace(
-          "InMemoryTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
       // Remove before firing, so that if the callback adds another identical
       // timer we don't remove it.
-      queue.remove();
-      if (timerCallback != null) {
-        timerCallback.onTimer(timer);
-      }
+      TimerData timer = queue.remove();
+      WindowTracing.trace(
+          "InMemoryTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
+      timerCallback.onTimer(timer);
     }
   }
 }

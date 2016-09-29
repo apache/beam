@@ -47,6 +47,7 @@ import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
+import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -199,12 +200,12 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
    * possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
-    timerInternals.advanceInputWatermark(null /* timerCallback */, newInputWatermark);
+    timerInternals.advanceInputWatermark(TimerCallback.NO_OP, newInputWatermark);
   }
 
   /** Advance the processing time to the specified time. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
-    timerInternals.advanceProcessingTime(null /* timerCallback */, newProcessingTime);
+    timerInternals.advanceProcessingTime(TimerCallback.NO_OP, newProcessingTime);
   }
 
   /**

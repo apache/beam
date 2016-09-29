@@ -25,4 +25,11 @@ import org.apache.beam.sdk.util.TimerInternals;
 public interface TimerCallback {
   /** Processes the {@link TimerInternals.TimerData TimerData}. */
   void onTimer(TimerInternals.TimerData timer) throws Exception;
+
+  TimerCallback NO_OP = new TimerCallback() {
+    @Override
+    public void onTimer(TimerInternals.TimerData timer) throws Exception {
+      // Nothing
+    }
+  };
 }
