@@ -41,22 +41,28 @@ import org.slf4j.LoggerFactory;
 
 /**
  * <p>IO to read and write data on JDBC.</p>
- * <p>
  * <h3>Reading from JDBC datasource</h3>
  * <p>
  * JdbcIO source returns a bounded collection of {@code T} as a
  * {@code PCollection<T>}. T is the type returned by the provided {@link RowMapper}.
  * </p>
  * <p>
- * To configure the JDBC source, you have to provide a {@link DataSource}. The username and
- * password to connect to the database are optionals. The following example illustrates how to
- * configure a JDBC source:
+ * To configure the JDBC source, you have to provide a {@link DataSource} using {@code
+ * withDataSource()} method (NB: the provided {@link DataSource} has to be {@link Serializable}) or
+ * the configuration required to create a {@link DataSource}: JDBC driver class name (using
+ * {@code withJdbcDriverClassName()} method) and JDBC URL (using {@code withJdbcUrl()} method).
+ * Using this configuration, the {@link JdbcIO} will create the {@link DataSource} for you.
+ * The username and password to connect to the database are optionals.
+ * The following example illustrates how to configure a JDBC source to use MySQL database:
  * </p>
  * <pre>
  *   {@code
  *
  * pipeline.apply(JdbcIO.read()
- *   .withDataSource(myDataSource)
+ *   .withJdbcDriverClassName("com.mysql.jdbc.Driver")
+ *   .withJdbcUrl("jdbc:mysql://hostname:3306/mydb")
+ *   .withUsername("username")
+ *   .withPassword("password")
  *   .withQuery("select id,name from Person")
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
@@ -67,6 +73,13 @@ import org.slf4j.LoggerFactory;
  *
  *   }
  * </pre>
+ * <p>
+ *   Optionally, you can provide the connection pool configuration using
+ *   {@code withConnectionPoolInitialSize()} for the initial size of the connection pool,
+ *   {@code withConnectionPoolMaxTotal()} for the max total connections count in the pool,
+ *   {@code withConnectionPoolMinIdle()} for the min number of idle connections in the pool,
+ *   {@code withConnectionPoolMaxIdle()} for the max number of idle connections in the pool.
+ * </p>
  * <h3>Writing to JDBC datasource</h3>
  * <p>
  * JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
@@ -74,7 +87,8 @@ import org.slf4j.LoggerFactory;
  * {@link PreparedStatementSetter}.
  * </p>
  * <p>
- * Like the source, to configure JDBC sink, you have to provide a datasource. For instance:
+ * Like the source, to configure JDBC sink, you have to provide a {@link DataSource} or the
+ * datasource configuration. For instance:
  * </p>
  * <pre>
  *   {@code
@@ -82,13 +96,13 @@ import org.slf4j.LoggerFactory;
  * pipeline
  *   .apply(...)
  *   .apply(JdbcIO.write()
- *      .withDataSource(myDataSource)
- *      .withQuery("insert into Person values(?, ?)")
+ *      .withJdbcDriverClassName("com.mysql.jdbc.Driver")
+ *      .withJdbcUrl("jdbc:mysql://hostname:3306/mydb")
+ *      .withUsername("username")
+ *      .withPassword("password")
+ *      .withStatement("insert into Person values(?, ?)")
  *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
  *        public void setParameters(KV<Integer, String> element, PreparedStatement query) {
- *          // use the PCollection element to set parameters of the SQL query used to insert
- *          // in the database
- *          // for instance:
  *          query.setInt(1, kv.getKey());
  *          query.setString(2, kv.getValue());
  *        }
@@ -96,6 +110,18 @@ import org.slf4j.LoggerFactory;
  *
  *   }
  * </pre>
+ * <p>
+ *   The {@link JdbcIO} write accepts connection pool configuration using the same methods as in
+ *   the read.
+ * </p>
+ * <p>
+ *   NB: in case of failure, {@link JdbcIO} will retry to insert data. It means that the statement
+ *   may be executed multiple times. An {@code INSERT} statement will duplicate the record in the
+ *   database. If you want to avoid duplicate records, you can use {@code MERGE} (also named
+ *   {@code upsert}). Take a look on
+ *   <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">https://en.wikipedia.org/wiki/Merge_(SQL)
+ *   </a> for details.
+ * </p>
  */
 public class JdbcIO {
 
@@ -107,7 +133,8 @@ public class JdbcIO {
    * @return a {@link Read} {@link PTransform}.
    */
   public static Read<?> read() {
-    return new Read(new DataSourceConfiguration(null, null, null, null, 10, null), null, null);
+    return new Read(new DataSourceConfiguration(null, null, null, null, 5, 8, 0, 8, null), null,
+        null);
   }
 
   /**
@@ -116,7 +143,8 @@ public class JdbcIO {
    * @return a {@link Write} {@link PTransform}.
    */
   public static Write<?> write() {
-    return new Write(new DataSourceConfiguration(null, null, null, null, 10, null), null, null,
+    return new Write(new DataSourceConfiguration(null, null, null, null, 5, 8, 0, 8, null), null,
+        null,
         1024L);
   }
 
@@ -138,62 +166,101 @@ public class JdbcIO {
    * Warning: if you provide directly a {@link DataSource} (using {@code withDataSource() method)},
    * this {@link DataSource} has to be {@link Serializable}.
    */
-  public static class DataSourceConfiguration implements Serializable {
+  static class DataSourceConfiguration implements Serializable {
 
     @Nullable
-    private final String driverClassName;
+    private final String jdbcDriverClassName;
     @Nullable
-    private final String url;
+    private final String jdbcUrl;
     @Nullable
     private final String username;
     @Nullable
     private final String password;
-    private int initialSize;
+    private int connectionPoolInitialSize;
+    private int connectionPoolMaxTotal;
+    private int connectionPoolMinIdle;
+    private int connectionPoolMaxIdle;
     @Nullable
     private final DataSource dataSource;
 
-    private DataSourceConfiguration(String driverClassName, String url, String username,
-                                    String password, int initialSize, DataSource dataSource) {
-      this.driverClassName = driverClassName;
-      this.url = url;
+    private DataSourceConfiguration(String jdbcDriverClassName, String jdbcUrl, String username,
+                                    String password, int connectionPoolInitialSize,
+                                    int connectionPoolMaxTotal, int connectionPoolMinIdle,
+                                    int connectionPoolMaxIdle, DataSource dataSource) {
+      this.jdbcDriverClassName = jdbcDriverClassName;
+      this.jdbcUrl = jdbcUrl;
       this.username = username;
       this.password = password;
-      this.initialSize = initialSize;
+      this.connectionPoolInitialSize = connectionPoolInitialSize;
+      this.connectionPoolMaxTotal = connectionPoolMaxTotal;
+      this.connectionPoolMinIdle = connectionPoolMinIdle;
+      this.connectionPoolMaxIdle = connectionPoolMaxIdle;
       this.dataSource = dataSource;
     }
 
-    public DataSourceConfiguration withDriverClassName(String driverClassName) {
-      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
-          dataSource);
+    public DataSourceConfiguration withJdbcDriverClassName(String jdbcDriverClassName) {
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
     }
 
-    public DataSourceConfiguration withUrl(String url) {
-      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
-          dataSource);
+    public DataSourceConfiguration withJdbcUrl(String jdbcUrl) {
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
     }
 
     public DataSourceConfiguration withUsername(String username) {
-      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
-          dataSource);
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
     }
 
     public DataSourceConfiguration withPassword(String password) {
-      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
-          dataSource);
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
+    }
+
+    public DataSourceConfiguration withConnectionPoolInitialSize(int connectionPoolInitialSize) {
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
+    }
+
+    public DataSourceConfiguration withConnectionPoolMaxTotal(int connectionPoolMaxTotal) {
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
+    }
+
+    public DataSourceConfiguration withConnectionPoolMinIdle(int connectionPoolMinIdle) {
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
+    }
+
+    public DataSourceConfiguration withConnectionPoolMaxIdle(int connectionPoolMaxIdle) {
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
     }
 
     public DataSourceConfiguration withDataSource(DataSource dataSource) {
-      return new DataSourceConfiguration(driverClassName, url, username, password, initialSize,
-          dataSource);
+      return new DataSourceConfiguration(jdbcDriverClassName, jdbcUrl, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, dataSource);
     }
 
     public void validate() {
       if (dataSource == null) {
-        Preconditions.checkNotNull("driverClassName", driverClassName);
-        Preconditions.checkNotNull("url", url);
+        Preconditions.checkNotNull(jdbcDriverClassName, "jdbcDriverClassName");
+        Preconditions.checkNotNull(jdbcUrl, "jdbcUrl");
       }
-      if (driverClassName == null || url == null) {
-        Preconditions.checkNotNull("dataSource", dataSource);
+      if (jdbcDriverClassName == null || jdbcUrl == null) {
+        Preconditions.checkNotNull(dataSource, "dataSource");
+        Preconditions.checkArgument(dataSource instanceof Serializable,
+            "dataSource is not serializable");
       }
     }
 
@@ -201,10 +268,13 @@ public class JdbcIO {
       if (dataSource != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", dataSource.getClass().getName()));
       }
-      builder.addIfNotNull(DisplayData.item("driverClassName", driverClassName));
-      builder.addIfNotNull(DisplayData.item("url", url));
+      builder.addIfNotNull(DisplayData.item("jdbcDriverClassName", jdbcDriverClassName));
+      builder.addIfNotNull(DisplayData.item("jdbcUrl", jdbcUrl));
       builder.addIfNotNull(DisplayData.item("username", username));
-      builder.add(DisplayData.item("initialSize", initialSize));
+      builder.add(DisplayData.item("connectionPoolInitialSize", connectionPoolInitialSize));
+      builder.add(DisplayData.item("connectionPoolMaxTotal", connectionPoolMaxTotal));
+      builder.add(DisplayData.item("connectionPoolMinIdle", connectionPoolMinIdle));
+      builder.add(DisplayData.item("connectionPoolMaxIdle", connectionPoolMaxIdle));
     }
 
     public DataSource getDataSource() {
@@ -212,13 +282,27 @@ public class JdbcIO {
         return dataSource;
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
-        basicDataSource.setDriverClassName(driverClassName);
-        basicDataSource.setUrl(url);
+        basicDataSource.setDriverClassName(jdbcDriverClassName);
+        basicDataSource.setUrl(jdbcUrl);
         basicDataSource.setUsername(username);
         basicDataSource.setPassword(password);
-        basicDataSource.setInitialSize(initialSize);
+        basicDataSource.setInitialSize(connectionPoolInitialSize);
+        basicDataSource.setMaxTotal(connectionPoolMaxTotal);
+        basicDataSource.setMinIdle(connectionPoolMinIdle);
+        basicDataSource.setMaxIdle(connectionPoolMaxIdle);
         return basicDataSource;
       }
+    }
+
+    public Connection getConnection() throws Exception {
+      DataSource ds = this.getDataSource();
+      Connection connection = null;
+      if (username != null) {
+        connection = ds.getConnection(username, password);
+      } else {
+        connection = ds.getConnection();
+      }
+      return connection;
     }
 
   }
@@ -228,13 +312,13 @@ public class JdbcIO {
    */
   public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
-    public Read<T> withDriverClassName(String driverClassName) {
-      return new Read<>(dataSourceConfiguration.withDriverClassName(driverClassName),
+    public Read<T> withJdbcDriverClassName(String jdbcDriverClassName) {
+      return new Read<>(dataSourceConfiguration.withJdbcDriverClassName(jdbcDriverClassName),
           query, rowMapper);
     }
 
-    public Read<T> withUrl(String url) {
-      return new Read<>(dataSourceConfiguration.withUrl(url), query, rowMapper);
+    public Read<T> withJdbcUrl(String jdbcUrl) {
+      return new Read<>(dataSourceConfiguration.withJdbcUrl(jdbcUrl), query, rowMapper);
     }
 
     public Read<T> withDataSource(DataSource dataSource) {
@@ -292,7 +376,6 @@ public class JdbcIO {
       dataSourceConfiguration.populateDisplayData(builder);
     }
 
-
     /**
      * A {@link DoFn} executing the SQL query to read from the database.
      */
@@ -318,11 +401,7 @@ public class JdbcIO {
       public void processElement(ProcessContext context) throws Exception {
         String query = context.element();
 
-        try (Connection connection = (dataSourceConfiguration.username != null)
-            ? dataSource.getConnection(dataSourceConfiguration.username,
-                dataSourceConfiguration.password)
-            : dataSource.getConnection()) {
-
+        try (Connection connection = dataSourceConfiguration.getConnection()) {
           try (PreparedStatement statement = connection.prepareStatement(query)) {
             try (ResultSet resultSet = statement.executeQuery()) {
               while (resultSet.next()) {
@@ -349,13 +428,13 @@ public class JdbcIO {
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
-    public Write<T> withDriverClassName(String driverClassName) {
-      return new Write<>(dataSourceConfiguration.withDriverClassName(driverClassName), statement,
-          preparedStatementSetter, batchSize);
+    public Write<T> withJdbcDriverClassName(String jdbcDriverClassName) {
+      return new Write<>(dataSourceConfiguration.withJdbcDriverClassName(jdbcDriverClassName),
+          statement, preparedStatementSetter, batchSize);
     }
 
-    public Write<T> withUrl(String url) {
-      return new Write<>(dataSourceConfiguration.withUrl(url), statement,
+    public Write<T> withJdbcUrl(String jdbcUrl) {
+      return new Write<>(dataSourceConfiguration.withJdbcUrl(jdbcUrl), statement,
           preparedStatementSetter, batchSize);
     }
 
@@ -367,6 +446,27 @@ public class JdbcIO {
     public Write<T> withPassword(String password) {
       return new Write<>(dataSourceConfiguration.withPassword(password), statement,
           preparedStatementSetter, batchSize);
+    }
+
+    public Write<T> withConnectionPoolInitialSize(int connectionPoolInitialSize) {
+      return new Write<>(
+          dataSourceConfiguration.withConnectionPoolInitialSize(connectionPoolInitialSize),
+          statement, preparedStatementSetter, batchSize);
+    }
+
+    public Write<T> withConnectionPoolMaxTotal(int connectionPoolMaxTotal) {
+      return new Write<>(dataSourceConfiguration.withConnectionPoolMaxTotal(connectionPoolMaxTotal),
+          statement, preparedStatementSetter, batchSize);
+    }
+
+    public Write<T> withConnectionPoolMinIdle(int connectionPoolMinIdle) {
+      return new Write<>(dataSourceConfiguration.withConnectionPoolMinIdle(connectionPoolMinIdle),
+          statement, preparedStatementSetter, batchSize);
+    }
+
+    public Write<T> withConnectionPoolMaxIdle(int connectionPoolMaxIdle) {
+      return new Write<>(dataSourceConfiguration.withConnectionPoolMaxIdle(connectionPoolMaxIdle),
+          statement, preparedStatementSetter, batchSize);
     }
 
     public Write<T> withDataSource(DataSource dataSource) {
@@ -411,8 +511,8 @@ public class JdbcIO {
     @Override
     public void validate(PCollection<T> input) {
       dataSourceConfiguration.validate();
-      Preconditions.checkNotNull("statement", statement);
-      Preconditions.checkNotNull("preparedStatementSetter", preparedStatementSetter);
+      Preconditions.checkNotNull(statement, "statement");
+      Preconditions.checkNotNull(preparedStatementSetter, "preparedStatementSetter");
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
@@ -420,11 +520,10 @@ public class JdbcIO {
       private final DataSourceConfiguration dataSourceConfiguration;
       private final String statement;
       private final PreparedStatementSetter<T> preparedStatementSetter;
-      private long batchSize;
+      private final long batchSize;
 
-      private DataSource dataSource;
-      private Connection connection;
-      private PreparedStatement preparedStatement;
+      private transient Connection connection;
+      private transient PreparedStatement preparedStatement;
       private long batchCount;
 
       public WriteFn(DataSourceConfiguration dataSourceConfiguration, String statement,
@@ -437,14 +536,9 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        dataSource = dataSourceConfiguration.getDataSource();
-        if (dataSourceConfiguration.username != null) {
-          connection = dataSource.getConnection(dataSourceConfiguration.username,
-              dataSourceConfiguration.password);
-        } else {
-          connection = dataSource.getConnection();
-        }
+        connection = dataSourceConfiguration.getConnection();
         connection.setAutoCommit(false);
+        System.out.println(statement);
         preparedStatement = connection.prepareStatement(statement);
       }
 
@@ -476,17 +570,18 @@ public class JdbcIO {
       }
 
       @Teardown
-      public void closeConnection() throws Exception {
-        if (preparedStatement != null) {
-          preparedStatement.close();
-        }
-        if (connection != null) {
-          connection.close();
+      public void teardown() throws Exception {
+        try {
+          if (preparedStatement != null) {
+            preparedStatement.close();
+          }
+        } finally {
+          if (connection != null) {
+            connection.close();
+          }
         }
       }
-
     }
-
   }
 
 }

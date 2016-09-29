@@ -71,35 +71,34 @@ public class JdbcIOTest implements Serializable {
     dataSource.setServerName("localhost");
     dataSource.setPortNumber(1527);
 
-    Connection connection = dataSource.getConnection();
+    try (Connection connection = dataSource.getConnection()) {
 
-    Statement statement = connection.createStatement();
-    try {
-      statement.executeUpdate("create table BEAM(id INT, name VARCHAR(500))");
-    } catch (Exception e) {
-      LOGGER.warn("Can't create table BEAM, it probably already exists", e);
-    } finally {
-      statement.close();
+      try (Statement statement = connection.createStatement()) {
+        try {
+          statement.executeUpdate("create table BEAM(id INT, name VARCHAR(500))");
+        } catch (Exception e) {
+          LOGGER.warn("Can't create table BEAM, it probably already exists", e);
+        }
+      }
+
+      try (Statement statement = connection.createStatement()) {
+        statement.executeUpdate("delete from BEAM");
+      }
+
+      String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
+          "Newton", "Bohr", "Galilei", "Maxwell"};
+      for (int i = 0; i < 1000; i++) {
+        int index = i % scientists.length;
+        try (PreparedStatement preparedStatement = connection.prepareStatement("insert into BEAM "
+            + "values (?,?)")) {
+          preparedStatement.setInt(1, i);
+          preparedStatement.setString(2, scientists[index]);
+          preparedStatement.executeUpdate();
+        }
+      }
+
+      connection.commit();
     }
-
-    statement = connection.createStatement();
-    statement.executeUpdate("delete from BEAM");
-    statement.close();
-
-    String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
-        "Newton", "Bohr", "Galilei", "Maxwell"};
-    for (int i = 0; i < 1000; i++) {
-      int index = i % scientists.length;
-      PreparedStatement preparedStatement = connection.prepareStatement("insert into BEAM "
-          + "values (?,?)");
-      preparedStatement.setInt(1, i);
-      preparedStatement.setString(2, scientists[index]);
-      preparedStatement.executeUpdate();
-      preparedStatement.close();
-    }
-
-    connection.commit();
-    connection.close();
   }
 
   @Test
@@ -148,8 +147,8 @@ public class JdbcIOTest implements Serializable {
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
         JdbcIO.read()
-            .withDriverClassName("org.apache.derby.jdbc.ClientDriver")
-            .withUrl("jdbc:derby://localhost:1527/target/beam")
+            .withJdbcDriverClassName("org.apache.derby.jdbc.ClientDriver")
+            .withJdbcUrl("jdbc:derby://localhost:1527/target/beam")
             .withQuery("select name,id from BEAM")
             .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
               @Override
@@ -181,7 +180,65 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWrite() throws Exception {
+  public void testWriteWithConfiguration() throws Exception {
+    TestPipeline pipeline = TestPipeline.create();
+
+    ArrayList<KV<Integer, String>> data = new ArrayList<>();
+    for (int i = 0; i < 1000; i++) {
+      KV<Integer, String> kv = KV.of(i, "Test");
+      data.add(kv);
+    }
+    pipeline.apply(Create.of(data))
+        .apply(JdbcIO.write()
+            .withJdbcDriverClassName("org.apache.derby.jdbc.ClientDriver")
+            .withJdbcUrl("jdbc:derby://localhost:1527/target/beam")
+            .withStatement("insert into BEAM values(?, ?)")
+            .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+              public void setParameters(KV<Integer, String> element, PreparedStatement statement)
+                  throws Exception {
+                statement.setInt(1, element.getKey());
+                statement.setString(2, element.getValue());
+              }
+            }));
+
+    pipeline.run();
+
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        try (ResultSet resultSet = statement.executeQuery("select count(*) from BEAM")) {
+          resultSet.next();
+          int count = resultSet.getInt(1);
+
+          Assert.assertEquals(2000, count);
+        }
+      }
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithEmptyPCollection() throws Exception {
+    TestPipeline pipeline = TestPipeline.create();
+
+    pipeline.apply(Create.of(new ArrayList<KV<Integer, String>>()))
+        .apply(JdbcIO.write()
+            .withJdbcDriverClassName("org.apache.derby.jdbc.ClientDriver")
+            .withJdbcUrl("jdbc:derby://localhost:1527/target/beam")
+            .withStatement("insert into BEAM values(?, ?)")
+            .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+              public void setParameters(KV<Integer, String> element, PreparedStatement statement)
+                  throws Exception {
+                statement.setInt(1, element.getKey());
+                statement.setString(2, element.getValue());
+              }
+            }));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithDataSource() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
@@ -202,26 +259,26 @@ public class JdbcIOTest implements Serializable {
 
     pipeline.run();
 
-    Connection connection = dataSource.getConnection();
+    try (Connection connection = dataSource.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        try (ResultSet resultSet = statement.executeQuery("select count(*) from BEAM")) {
+          resultSet.next();
+          int count = resultSet.getInt(1);
 
-    Statement statement = connection.createStatement();
-    ResultSet resultSet = statement.executeQuery("select count(*) from BEAM");
-    resultSet.next();
-    int count = resultSet.getInt(1);
-
-    Assert.assertEquals(2000, count);
+          Assert.assertEquals(2000, count);
+        }
+      }
+    }
   }
 
   @After
   public void cleanup() throws Exception {
     try {
-      Connection connection = dataSource.getConnection();
-
-      Statement statement = connection.createStatement();
-      statement.executeUpdate("drop table BEAM");
-      statement.close();
-
-      connection.close();
+      try (Connection connection = dataSource.getConnection()) {
+        try (Statement statement = connection.createStatement()) {
+          statement.executeUpdate("drop table BEAM");
+        }
+      }
     } catch (Exception e) {
       // nothing to do
     }
