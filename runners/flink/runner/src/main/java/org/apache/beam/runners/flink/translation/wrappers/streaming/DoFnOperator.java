@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
