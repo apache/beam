@@ -82,8 +82,8 @@ import org.joda.time.Instant;
  * <p>There is also an optional {@code Parser} that can be specified that can be used to
  * parse the InputStream into objects usable with Beam.  By default, MongoDbGridFSIO will parse
  * into Strings, splitting on line breaks and using the uploadDate of the file as the timestamp.
- * When using a parser that outputs via outputWithTimestamp, you may also need to specify
- * the maxSkew option.
+ * When using a parser that outputs with custom timestamps, you may also need to specify
+ * the allowedTimestampSkew option.
  */
 public class MongoDbGridFSIO {
 
@@ -91,6 +91,8 @@ public class MongoDbGridFSIO {
    * Callback for the parser to use to submit data.
    */
   public interface ParserCallback<T> extends Serializable {
+    public void output(T output);
+
     public void output(T output, @Nullable Instant timestamp);
   }
 
@@ -217,6 +219,11 @@ public class MongoDbGridFSIO {
                   } else {
                     c.outputWithTimestamp(output, timestamp);
                   }
+                }
+
+                @Override
+                public void output(T output) {
+                  c.output(output);
                 }
               });
             }
