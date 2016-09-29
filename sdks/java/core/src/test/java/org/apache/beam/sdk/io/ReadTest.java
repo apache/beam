@@ -20,18 +20,25 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -98,6 +105,51 @@ public class ReadTest implements Serializable{
     assertThat(unboundedDisplayData, hasDisplayItem("maxReadTime", maxReadTime));
   }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBoundedPrimitiveDisplayData() {
+    testPrimitiveDisplayData(/* isStreaming: */ false);
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testStreamingPrimitiveDisplayData() {
+    testPrimitiveDisplayData(/* isStreaming: */ true);
+  }
+
+  private void testPrimitiveDisplayData(boolean isStreaming) {
+    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
+    options.as(StreamingOptions.class).setStreaming(isStreaming);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
+
+    SerializableBoundedSource boundedSource = new SerializableBoundedSource() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    SerializableUnboundedSource unboundedSource = new SerializableUnboundedSource() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+
+    Read.Bounded<String> bounded = Read.from(boundedSource);
+    BoundedReadFromUnboundedSource<String> unbounded = Read.from(unboundedSource)
+        .withMaxNumRecords(1234);
+
+    Set<DisplayData> boundedDisplayData = evaluator
+        .displayDataForPrimitiveSourceTransforms(bounded);
+    assertThat(boundedDisplayData, hasItem(hasDisplayItem("source", boundedSource.getClass())));
+    assertThat(boundedDisplayData, hasItem(includesDisplayDataFrom(boundedSource)));
+
+    Set<DisplayData> unboundedDisplayData = evaluator
+        .displayDataForPrimitiveSourceTransforms(unbounded);
+    assertThat(unboundedDisplayData, hasItem(hasDisplayItem("source")));
+    assertThat(unboundedDisplayData, hasItem(includesDisplayDataFrom(unboundedSource)));
+  }
+
   private abstract static class CustomBoundedSource extends BoundedSource<String> {
     @Override
     public List<? extends BoundedSource<String>> splitIntoBundles(
@@ -125,7 +177,7 @@ public class ReadTest implements Serializable{
 
     @Override
     public Coder<String> getDefaultOutputCoder() {
-      return null;
+      return StringUtf8Coder.of();
     }
   }
 
@@ -161,7 +213,7 @@ public class ReadTest implements Serializable{
 
     @Override
     public Coder<String> getDefaultOutputCoder() {
-      return null;
+      return StringUtf8Coder.of();
     }
   }
 
