@@ -110,10 +110,8 @@ public class MongoDbGridFSIO {
       final Instant time = new Instant(input.getUploadDate().getTime());
       try (BufferedReader reader =
         new BufferedReader(new InputStreamReader(input.getInputStream()))) {
-        String line = reader.readLine();
-        while (line != null) {
+        for (String line = reader.readLine(); line != null; line = reader.readLine()) {
           result.outputWithTimestamp(line, time);
-          line = reader.readLine();
         }
       }
     }
@@ -122,57 +120,64 @@ public class MongoDbGridFSIO {
   /** Read data from GridFS. */
   public static Read<String> read() {
     return new Read<String>(new Read.BoundedGridFSSource(null, null, null, null,
-                            null), StringParser.INSTANCE, Duration.ZERO);
+                            null), StringParser.INSTANCE, StringUtf8Coder.of(), Duration.ZERO);
   }
 
   static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     public Read<T> withUri(String uri) {
       return new Read<T>(new BoundedGridFSSource(uri, options.database,
                                            options.bucket, options.filterJson,
-                                           null), parser, allowedTimestampSkew);
+                                           null), parser, coder, allowedTimestampSkew);
     }
 
     public Read<T> withDatabase(String database) {
       return new Read<T>(new BoundedGridFSSource(options.uri, database,
                                            options.bucket, options.filterJson,
-                                           null), parser, allowedTimestampSkew);
+                                           null), parser, coder, allowedTimestampSkew);
     }
 
     public Read<T> withBucket(String bucket) {
       return new Read<T>(new BoundedGridFSSource(options.uri, options.database, bucket,
-          options.filterJson, null), parser, allowedTimestampSkew);
+          options.filterJson, null), parser, coder, allowedTimestampSkew);
     }
 
     public <X> Read<X> withParser(Parser<X> f) {
+      return withParser(f, null);
+    }
+    public <X> Read<X> withParser(Parser<X> f, Coder<X> coder) {
       Preconditions.checkNotNull(f, "Parser cannot be null");
+      //coder can be null as it can be set on the output directly
       return new Read<X>(new BoundedGridFSSource(options.uri, options.database,
-          options.bucket, options.filterJson, null), f, allowedTimestampSkew);
+          options.bucket, options.filterJson, null), f, coder, allowedTimestampSkew);
     }
     public Read<T> allowedTimestampSkew(Duration skew) {
       return new Read<T>(new BoundedGridFSSource(options.uri, options.database,
-          options.bucket, options.filterJson, null), parser, skew == null ? Duration.ZERO : skew);
+          options.bucket, options.filterJson, null),
+          parser, coder, skew == null ? Duration.ZERO : skew);
     }
 
     public Read<T> withQueryFilter(String filterJson) {
       return new Read<T>(new BoundedGridFSSource(options.uri, options.database,
-          options.bucket, filterJson, null), parser, allowedTimestampSkew);
+          options.bucket, filterJson, null), parser, coder, allowedTimestampSkew);
     }
 
     private final BoundedGridFSSource options;
     private final Parser<T> parser;
+    private final Coder<T> coder;
     private final Duration allowedTimestampSkew;
 
-    Read(BoundedGridFSSource options, Parser<T> parser, Duration allowedTimestampSkew) {
+    Read(BoundedGridFSSource options, Parser<T> parser,
+        Coder<T> coder, Duration allowedTimestampSkew) {
       this.options = options;
       this.parser = parser;
       this.allowedTimestampSkew = allowedTimestampSkew;
+      this.coder = coder;
     }
 
-    public BoundedGridFSSource getSource() {
+    BoundedGridFSSource getSource() {
       return options;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public PCollection<T> apply(PBegin input) {
       org.apache.beam.sdk.io.Read.Bounded<ObjectId> bounded =
@@ -181,15 +186,18 @@ public class MongoDbGridFSIO {
           .apply(ParDo.of(new DoFn<ObjectId, T>() {
             Mongo mongo;
             GridFS gridfs;
+
             @Setup
             public void setup() {
               mongo = options.setupMongo();
               gridfs = options.setupGridFS(mongo);
             }
+
             @Teardown
             public void teardown() {
               mongo.close();
             }
+
             @ProcessElement
             public void processElement(ProcessContext c) throws IOException {
               ObjectId oid = c.element();
@@ -202,8 +210,8 @@ public class MongoDbGridFSIO {
               return allowedTimestampSkew;
             }
           }));
-      if (parser == StringParser.INSTANCE) {
-        output.setCoder((Coder<T>) StringUtf8Coder.of());
+      if (coder != null) {
+        output.setCoder(coder);
       }
       return output;
     }
