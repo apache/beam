@@ -200,11 +200,13 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
    * possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
+    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
     timerInternals.advanceInputWatermark(TimerCallback.NO_OP, newInputWatermark);
   }
 
   /** Advance the processing time to the specified time. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
+    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
     timerInternals.advanceProcessingTime(TimerCallback.NO_OP, newProcessingTime);
   }
 
