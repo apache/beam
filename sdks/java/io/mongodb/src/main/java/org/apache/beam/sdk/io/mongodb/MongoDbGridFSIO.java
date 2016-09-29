@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.bson.types.ObjectId;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 
@@ -180,6 +181,12 @@ public class MongoDbGridFSIO {
               GridFSDBFile file = gridfs.find(oid);
               options.parser.parse(file, c);
             }
+            /*
+            @Override
+            public Duration getAllowedTimestampSkew() {
+              return Duration.millis(Long.MAX_VALUE);
+            }
+            */
           }));
       if (options.parser == StringParser.INSTANCE) {
         output.setCoder((Coder<T>) StringUtf8Coder.of());
@@ -361,7 +368,9 @@ public class MongoDbGridFSIO {
           if (current == null) {
             throw new NoSuchElementException();
           }
-          return Instant.now();
+          long time = current.getTimestamp();
+          time *= 1000L;
+          return new Instant(time);
         }
 
         @Override
