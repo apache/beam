@@ -30,10 +30,12 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_deprecated_with_since_current():
         return 'lol'
       fnc_test_deprecated_with_since_current()
-      self.check_annotation(w, 1, DeprecationWarning,
-                            'fnc_test_deprecated_with_since_current',
-                            'deprecated',
-                            [('since', True), ('instead', True)])
+      self.check_annotation(warning=w, warning_size=1,
+                            warning_type=DeprecationWarning,
+                            fnc_name='fnc_test_deprecated_with_since_current',
+                            annotation_type='deprecated',
+                            label_check_list=[('since', True),
+                                              ('instead', True)])
 
   def test_deprecated_without_current(self):
     with warnings.catch_warnings(record=True) as w:
@@ -41,9 +43,12 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_deprecated_without_current():
         return 'lol'
       fnc_test_deprecated_without_current()
-      self.check_annotation(w, 1, DeprecationWarning,
-                            'fnc_test_deprecated_without_current', 'deprecated',
-                            [('since', True), ('instead', False)])
+      self.check_annotation(warning=w, warning_size=1,
+                            warning_type=DeprecationWarning,
+                            fnc_name='fnc_test_deprecated_without_current',
+                            annotation_type='deprecated',
+                            label_check_list=[('since', True),
+                                              ('instead', False)])
 
   def test_deprecated_without_since_should_fail(self):
     with warnings.catch_warnings(record=True) as w:
@@ -61,9 +66,11 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_experimental_with_current():
         return 'lol'
       fnc_test_experimental_with_current()
-      self.check_annotation(w, 1, FutureWarning,
-                            'fnc_test_experimental_with_current',
-                            'experimental', [('instead', True)])
+      self.check_annotation(warning=w, warning_size=1,
+                            warning_type=FutureWarning,
+                            fnc_name='fnc_test_experimental_with_current',
+                            annotation_type='experimental',
+                            label_check_list=[('instead', True)])
 
   def test_experimental_without_current(self):
     with warnings.catch_warnings(record=True) as w:
@@ -71,9 +78,11 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_experimental_without_current():
         return 'lol'
       fnc_test_experimental_without_current()
-      self.check_annotation(w, 1, FutureWarning,
-                            'fnc_test_experimental_without_current',
-                            'experimental', [('instead', False)])
+      self.check_annotation(warning=w, warning_size=1,
+                            warning_type=FutureWarning,
+                            fnc_name='fnc_test_experimental_without_current',
+                            annotation_type='experimental',
+                            label_check_list=[('instead', False)])
 
   def test_frequency(self):
     """Tests that the filter 'once' is sufficient to print once per
@@ -89,12 +98,16 @@ class AnnotationTests(unittest.TestCase):
       fnc_test_annotate_frequency()
       fnc_test_annotate_frequency()
       fnc2_test_annotate_frequency()
-      self.check_annotation([w[0]], 1, FutureWarning,
-                            'fnc_test_annotate_frequency', 'experimental',
-                            [])
-      self.check_annotation([w[1]], 1, FutureWarning,
-                            'fnc2_test_annotate_frequency', 'experimental',
-                            [])
+      self.check_annotation(warning=[w[0]], warning_size=1,
+                            warning_type=FutureWarning,
+                            fnc_name='fnc_test_annotate_frequency',
+                            annotation_type='experimental',
+                            label_check_list=[])
+      self.check_annotation(warning=[w[1]], warning_size=1,
+                            warning_type=FutureWarning,
+                            fnc_name='fnc2_test_annotate_frequency',
+                            annotation_type='experimental',
+                            label_check_list=[])
 
   # helper function
   def check_annotation(self, warning, warning_size, warning_type, fnc_name,
