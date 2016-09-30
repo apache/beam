@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -31,21 +34,32 @@ import org.apache.beam.sdk.values.PCollectionList;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
  * {@link PTransform}.
  */
-class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
+class FlattenEvaluatorFactory implements RootTransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 
   FlattenEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
   }
 
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>Returns a single empty bundle. {@link Flatten} on no inputs produces no outputs. This bundle
+   * ensures that any {@link PTransform PTransforms} that consume from the output of the provided
+   * {@link AppliedPTransform} have watermarks updated as appropriate.
+   */
+  @Override
+  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    return Collections.<CommittedBundle<?>>singleton(
+        evaluationContext.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
+  }
+
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle
-      ) {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<InputT> evaluator = (TransformEvaluator<InputT>) createInMemoryEvaluator(
-            (AppliedPTransform) application, inputBundle);
+    TransformEvaluator<InputT> evaluator =
+        (TransformEvaluator<InputT>) createInMemoryEvaluator((AppliedPTransform) application);
     return evaluator;
   }
 
@@ -55,14 +69,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT> TransformEvaluator<InputT> createInMemoryEvaluator(
       final AppliedPTransform<
               PCollectionList<InputT>, PCollection<InputT>, FlattenPCollectionList<InputT>>
-          application,
-      final CommittedBundle<InputT> inputBundle) {
-    if (inputBundle == null) {
-      // it is impossible to call processElement on a flatten with no input bundle. A Flatten with
-      // no input bundle occurs as an output of Flatten.pcollections(PCollectionList.empty())
-      return new FlattenEvaluator<>(
-          null, StepTransformResult.withoutHold(application).build());
-    }
+          application) {
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(application.getOutput());
     final TransformResult result =

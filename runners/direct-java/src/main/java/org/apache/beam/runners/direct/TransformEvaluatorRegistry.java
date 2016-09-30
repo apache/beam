@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
@@ -24,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
-class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
+class TransformEvaluatorRegistry implements RootTransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
   public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
     @SuppressWarnings("rawtypes")
@@ -77,13 +77,31 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   }
 
   @Override
+  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    checkState(
+        !finished.get(), "Tried to get initial inputs for a finished TransformEvaluatorRegistry");
+    TransformEvaluatorFactory factory = getFactory(transform);
+    checkArgument(
+        factory instanceof RootTransformEvaluatorFactory,
+        "Tried to get Initial Inputs for Transform %s. %s does not have an associated %s",
+        transform.getFullName(),
+        transform.getTransform().getClass().getSimpleName(),
+        RootTransformEvaluatorFactory.class.getSimpleName());
+    return ((RootTransformEvaluatorFactory) factory).getInitialInputs(transform);
+  }
+
+  @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
-    TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
+    TransformEvaluatorFactory factory = getFactory(application);
     return factory.forApplication(application, inputBundle);
+  }
+
+  private TransformEvaluatorFactory getFactory(AppliedPTransform<?, ?, ?> application) {
+    return factories.get(application.getTransform().getClass());
   }
 
   @Override

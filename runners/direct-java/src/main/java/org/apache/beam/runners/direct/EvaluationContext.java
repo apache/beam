@@ -135,6 +135,11 @@ class EvaluationContext {
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
 
+  public void initialize(
+      Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
+    watermarkManager.initialize(initialInputs);
+  }
+
   /**
    * Handle the provided {@link TransformResult}, produced after evaluating the provided
    * {@link CommittedBundle} (potentially null, if the result of a root {@link PTransform}).

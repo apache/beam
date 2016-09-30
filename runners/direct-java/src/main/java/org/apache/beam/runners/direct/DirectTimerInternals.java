@@ -27,7 +27,7 @@ import org.joda.time.Instant;
 /**
  * An implementation of {@link TimerInternals} where all relevant data exists in memory.
  */
-public class DirectTimerInternals implements TimerInternals {
+class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;
   private final TimerUpdateBuilder timerUpdateBuilder;
