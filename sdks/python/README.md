@@ -139,7 +139,7 @@ pydoc -p 8888
 ```
 
 Open your browser and go to
-http://localhost:8888/google.cloud.dataflow.html
+http://localhost:8888/apache_beam.html
 
 Some interesting classes to navigate to:
 
@@ -360,10 +360,10 @@ The [combiners_test.py](https://github.com/apache/incubator-beam/blob/python-sdk
 
 Many projects will grow to multiple source code files. It is recommended that you organize your project so that all code involved in running your pipeline can be built as a Python package. This way, the package can easily be installed in the VM workers executing the job.
 
-Please follow the example in `google/cloud/dataflow/examples/complete/juliaset`. If the code is organized in this fashion, you can use the `--setup_file` command line option to create a source distribution out of the project files, stage the resulting tarball, and later install it in the workers executing the job.
+Follow the [Juliaset example](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples/complete/juliaset). If the code is organized in this fashion, you can use the `--setup_file` command line option to create a source distribution out of the project files, stage the resulting tarball, and later install it in the workers executing the job.
 
-## Contact Us
+## More Information
 
-We welcome all usage-related questions on [Stack Overflow](https://stackoverflow.com/questions/tagged/google-cloud-dataflow) tagged with `google-cloud-dataflow`.
+Please report any issues on [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328910).
 
-Please report any issues on [JIRA](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:issues-panel).
+If you’re interested in contributing to the Beam SDK, start by reading the [Contribute](http://beam.incubator.apache.org/contribute/) guide.
