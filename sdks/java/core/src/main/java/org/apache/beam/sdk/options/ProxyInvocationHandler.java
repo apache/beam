@@ -202,7 +202,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     checkNotNull(iface);
-    checkArgument(iface.isInterface());
+    Preconditions.checkArgument(iface.isInterface(), "Not an interface: " + iface.toString());
     if (!interfaceToProxyCache.containsKey(iface)) {
       Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
@@ -429,7 +429,13 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   private Object getValueFromJson(String propertyName, Method method) {
     try {
-      JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
+      JavaType type;
+      if (method.getReturnType().equals(RuntimeValueProvider.class)) {
+        // TODO: Handle other types besides strings with annotations.
+        type = MAPPER.getTypeFactory().constructType(String.class);
+      } else {
+        type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
+      }
       JsonNode jsonNode = jsonOptions.get(propertyName);
       return MAPPER.readValue(jsonNode.toString(), type);
     } catch (IOException e) {
@@ -450,6 +456,10 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
+    if (method.getReturnType().equals(RuntimeValueProvider.class)) {
+      return new RuntimeValueProvider<String>(
+          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass());
+    }
     for (Annotation annotation : method.getAnnotations()) {
       if (annotation instanceof Default.Class) {
         return ((Default.Class) annotation).value();
