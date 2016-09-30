@@ -292,7 +292,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
           builder.add(DisplayData.item(option.getKey(), type, value)
               .withNamespace(pipelineInterface));
         } else {
-          builder.add(DisplayData.item(option.getKey(), value.toString())
+          builder.add(DisplayData.item(option.getKey(), displayDataString(value))
               .withNamespace(pipelineInterface));
         }
       }
@@ -321,11 +321,22 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
             builder.add(DisplayData.item(jsonOption.getKey(), type, value)
                 .withNamespace(spec.getDefiningInterface()));
           } else {
-            builder.add(DisplayData.item(jsonOption.getKey(), value.toString())
+            builder.add(DisplayData.item(jsonOption.getKey(), displayDataString(value))
                 .withNamespace(spec.getDefiningInterface()));
           }
         }
       }
+    }
+  }
+
+  /**
+   * {@link Object#toString()} wrapper to extract display data values for various types.
+   */
+  private String displayDataString(Object value) {
+    if (value instanceof Object[]) {
+      return Arrays.deepToString((Object[])value);
+    } else {
+      return value.toString();
     }
   }
 
