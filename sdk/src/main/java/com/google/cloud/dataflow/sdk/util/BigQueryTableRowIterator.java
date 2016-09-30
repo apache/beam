@@ -177,13 +177,11 @@ public class BigQueryTableRowIterator implements AutoCloseable {
         list.setPageToken(pageToken);
       }
 
-      TableDataList result =
-          executeWithBackOff(
-              list,
-              String.format(
-                  "Error reading from BigQuery table %s of dataset %s.",
-                  ref.getTableId(),
-                  ref.getDatasetId()));
+      TableDataList result = executeWithBackOff(
+          list,
+          String.format(
+              "Error reading from BigQuery table %s of dataset %s.",
+              ref.getTableId(), ref.getDatasetId()));
 
       pageToken = result.getPageToken();
       iteratorOverCurrentBatch =
@@ -370,7 +368,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
     executeWithBackOff(
         client.datasets().insert(projectId, dataset),
         String.format(
-            "Error when trying to create the temporary dataset %s in project %s",
+            "Error when trying to create the temporary dataset %s in project %s.",
             datasetId, projectId));
   }
 
@@ -407,7 +405,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
     Job dryRunJob = new Job()
         .setConfiguration(new JobConfiguration()
             .setQuery(new JobConfigurationQuery()
-                 .setQuery(query))
+                .setQuery(query))
             .setDryRun(true));
     JobStatistics jobStats = executeWithBackOff(
         client.jobs().insert(projectId, dryRunJob),
@@ -508,7 +506,6 @@ public class BigQueryTableRowIterator implements AutoCloseable {
         }
       }
     }
-
     return result;
   }
 
