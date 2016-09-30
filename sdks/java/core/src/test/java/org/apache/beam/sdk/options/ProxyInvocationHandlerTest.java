@@ -854,6 +854,29 @@ public class ProxyInvocationHandlerTest {
   }
 
   @Test
+  public void testDisplayDataArrayValue() throws Exception {
+    ArrayOptions options = PipelineOptionsFactory.as(ArrayOptions.class);
+    options.setDeepArray(new String[][] {new String[] {"a", "b"}, new String[] {"c"}});
+    options.setDeepPrimitiveArray(new int[][] {new int[] {1, 2}, new int[] {3}});
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, hasDisplayItem("deepArray", "[[a, b], [c]]"));
+    assertThat(data, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
+
+    ArrayOptions deserializedOptions = serializeDeserialize(ArrayOptions.class, options);
+    DisplayData deserializedData = DisplayData.from(deserializedOptions);
+    assertThat(deserializedData, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
+  }
+
+  private interface ArrayOptions extends PipelineOptions {
+    String[][] getDeepArray();
+    void setDeepArray(String[][] value);
+
+    int[][] getDeepPrimitiveArray();
+    void setDeepPrimitiveArray(int[][] value);
+  }
+
+  @Test
   public void testDisplayDataJsonSerialization() throws IOException {
     FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
     options.setFoo("bar");

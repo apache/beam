@@ -292,7 +292,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
           builder.add(DisplayData.item(option.getKey(), type, value)
               .withNamespace(pipelineInterface));
         } else {
-          builder.add(DisplayData.item(option.getKey(), value.toString())
+          builder.add(DisplayData.item(option.getKey(), displayDataString(value))
               .withNamespace(pipelineInterface));
         }
       }
@@ -321,12 +321,30 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
             builder.add(DisplayData.item(jsonOption.getKey(), type, value)
                 .withNamespace(spec.getDefiningInterface()));
           } else {
-            builder.add(DisplayData.item(jsonOption.getKey(), value.toString())
+            builder.add(DisplayData.item(jsonOption.getKey(), displayDataString(value))
                 .withNamespace(spec.getDefiningInterface()));
           }
         }
       }
     }
+  }
+
+  /**
+   * {@link Object#toString()} wrapper to extract display data values for various types.
+   */
+  private String displayDataString(Object value) {
+    checkNotNull(value, "value cannot be null");
+    if (!value.getClass().isArray()) {
+      return value.toString();
+    }
+    if (!value.getClass().getComponentType().isPrimitive()) {
+      return Arrays.deepToString((Object[]) value);
+    }
+
+    // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
+    // Object array, but will unwrap nested primitive arrays.
+    String wrapped = Arrays.deepToString(new Object[] {value});
+    return wrapped.substring(1, wrapped.length() - 1);
   }
 
   /**
