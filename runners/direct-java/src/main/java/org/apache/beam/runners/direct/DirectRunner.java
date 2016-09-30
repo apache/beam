@@ -39,6 +39,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -284,21 +285,32 @@ public class DirectRunner
     Collection<ModelEnforcementFactory> parDoEnforcements = createParDoEnforcements(options);
     enforcements.put(ParDo.Bound.class, parDoEnforcements);
     enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
+    if (options.isEnforceEncodability()) {
+      enforcements.put(
+          Read.Unbounded.class,
+          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
+      enforcements.put(
+          Read.Bounded.class,
+          ImmutableSet.<ModelEnforcementFactory>of(EncodabilityEnforcementFactory.create()));
+    }
     return enforcements.build();
   }
 
   private Collection<ModelEnforcementFactory> createParDoEnforcements(
       DirectOptions options) {
     ImmutableList.Builder<ModelEnforcementFactory> enforcements = ImmutableList.builder();
-    if (options.isTestImmutability()) {
+    if (options.isEnforceImmutability()) {
       enforcements.add(ImmutabilityEnforcementFactory.create());
+    }
+    if (options.isEnforceEncodability()) {
+      enforcements.add(EncodabilityEnforcementFactory.create());
     }
     return enforcements.build();
   }
 
   private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
-    if (pipelineOptions.isTestImmutability()) {
+    if (pipelineOptions.isEnforceImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
     }
     return bundleFactory;
