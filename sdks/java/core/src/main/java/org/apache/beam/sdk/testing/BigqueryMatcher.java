@@ -27,15 +27,18 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.BigqueryScopes;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.Transport;
 import org.hamcrest.Description;
@@ -49,22 +52,29 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Example:
  * <pre>{@code [
- *   assertTrue(job, new BigQueryMatcher(appName, projectId, queryString, expectedChecksum));
+ *   assertThat(job, new BigqueryMatcher(appName, projectId, queryString, expectedChecksum));
  * ]}</pre>
  */
+@NotThreadSafe
 public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     implements SerializableMatcher<PipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryMatcher.class);
+
+  private static final int MAX_QUERY_RETRY = 4;
 
   private final String applicationName;
   private final String projectId;
   private final String query;
   private final String expectedChecksum;
   private String actualChecksum;
+  private transient QueryResponse response;
 
   public BigqueryMatcher(
       String applicationName, String projectId, String query, String expectedChecksum) {
-    validateArguments(applicationName, projectId, query, expectedChecksum);
+    validateArgument("applicationName", applicationName);
+    validateArgument("projectId", projectId);
+    validateArgument("query", query);
+    validateArgument("expectedChecksum", expectedChecksum);
 
     this.applicationName = applicationName;
     this.projectId = projectId;
@@ -77,33 +87,18 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     LOG.info("Verifying Bigquery data");
     Bigquery bigqueryClient = newBigqueryClient(applicationName);
 
-    QueryResponse response;
-    try {
-      LOG.info("Executing query: {}", query);
-      QueryRequest queryContent = new QueryRequest();
-      queryContent.setQuery(query);
-      response = bigqueryClient.jobs().query(projectId, queryContent).execute();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to retrieve BigQuery data.", e);
-    }
+    LOG.info("Executing query: {}", query);
+    response = queryWithRetries(bigqueryClient);
 
-    if (response == null) {
-      LOG.warn("Invalid query response.");
+    if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
       return false;
     }
-    actualChecksum = hashing(response.getRows());
+    actualChecksum = generateHash(response.getRows());
     LOG.info("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
     return expectedChecksum.equals(actualChecksum);
   }
 
-  void validateArguments(String... args) {
-    for (String argument : args) {
-      checkArgument(
-          !Strings.isNullOrEmpty(argument),
-          "Expected valid argument, but was %s", argument);
-    }
-  }
-
+  @VisibleForTesting
   Bigquery newBigqueryClient(String applicationName) {
     HttpTransport transport = Transport.getTransport();
     JsonFactory jsonFactory = Transport.getJsonFactory();
@@ -114,7 +109,12 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         .build();
   }
 
-  Credential getDefaultCredential(HttpTransport transport, JsonFactory jsonFactory) {
+  private void validateArgument(String name, String value) {
+    checkArgument(
+        !Strings.isNullOrEmpty(value), "Expected valid %s, but was %s", name, value);
+  }
+
+  private Credential getDefaultCredential(HttpTransport transport, JsonFactory jsonFactory) {
     GoogleCredential credential;
     try {
       credential = GoogleCredential.getApplicationDefault(transport, jsonFactory);
@@ -123,22 +123,42 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     }
 
     if (credential.createScopedRequired()) {
-      Collection<String> bigqueryScope = BigqueryScopes.all();
+      Collection<String> bigqueryScope =
+          Lists.newArrayList(BigqueryScopes.CLOUD_PLATFORM_READ_ONLY);
       credential = credential.createScoped(bigqueryScope);
     }
     return credential;
   }
 
-  String hashing(List<TableRow> rows) {
-    if (rows == null || rows.isEmpty()) {
-      LOG.warn("Invalid data for hashing. Empty checksum is returned.");
-      return "";
-    }
-    List<HashCode> hashCodes = new ArrayList<>();
+  private String generateHash(List<TableRow> rows) {
+    List<HashCode> rowHashes = Lists.newArrayList();
     for (TableRow row : rows) {
-      hashCodes.add(Hashing.sha1().hashString(row.toString(), StandardCharsets.UTF_8));
+      List<HashCode> cellHashes = Lists.newArrayList();
+      for (TableCell cell : row.getF()) {
+        cellHashes.add(Hashing.sha1().hashString(cell.toString(), StandardCharsets.UTF_8));
+      }
+      rowHashes.add(Hashing.combineUnordered(cellHashes));
     }
-    return Hashing.combineUnordered(hashCodes).toString();
+    return Hashing.combineUnordered(rowHashes).toString();
+  }
+
+  private QueryResponse queryWithRetries(Bigquery bigqueryClient) {
+    QueryRequest queryContent = new QueryRequest();
+    queryContent.setQuery(query);
+    for (int i = 0; i < MAX_QUERY_RETRY; i++) {
+      try {
+        return bigqueryClient.jobs().query(projectId, queryContent).execute();
+      } catch (IOException e) {
+        LOG.warn("There were problems getting BigQuery response: {}", e.getMessage());
+        LOG.debug("Exception information: {}", e);
+        try {
+          Thread.sleep(1000L);
+        } catch (InterruptedException exp) {
+          throw new RuntimeException(exp);
+        }
+      }
+    }
+    return null;
   }
 
   @Override
@@ -151,9 +171,34 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
-    description
-        .appendText("was (")
-        .appendText(actualChecksum)
-        .appendText(")");
+    String info;
+    if (response == null) {
+      info = "BigQuery response is null";
+    } else if (response.getRows() == null) {
+      info = "rows that is from BigQuery response is null";
+    } else if (response.getRows().isEmpty()) {
+      info = "rows that is from BigQuery response is empty";
+    } else {
+      info = String.format("was (%s).%n"
+          + "\tTotal number of rows are: %d.%n"
+          + "\tQueried data details:%s",
+          actualChecksum, response.getTotalRows(), printRows(4));
+    }
+    description.appendText(info);
+  }
+
+  private String printRows(int rowNumber) {
+    StringBuilder samples = new StringBuilder();
+    List<TableRow> rows = response.getRows();
+    for (int i = 0; i < rowNumber && i < rows.size(); i++) {
+      samples.append("\n\t\t");
+      for (TableCell field : rows.get(i).getF()) {
+        samples.append(String.format("%-10s", field.getV()));
+      }
+    }
+    if (rows.size() > rowNumber) {
+      samples.append("\n\t\t....");
+    }
+    return samples.toString();
   }
 }
