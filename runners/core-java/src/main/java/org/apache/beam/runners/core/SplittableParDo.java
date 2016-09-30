@@ -187,6 +187,13 @@ public class SplittableParDo<
   static class ProcessFn<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
       extends OldDoFn<KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>, OutputT> {
+    // Commit at least once every 10k output records.  This keeps the watermark advancing
+    // smoothly, and ensures that not too much work will have to be reprocessed in the event of
+    // a crash.
+    // TODO: Also commit at least once every N seconds (runner-specific parameter).
+    @VisibleForTesting
+    static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
+
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
@@ -303,7 +310,9 @@ public class SplittableParDo<
       TimerInternals timerInternals = c.windowingInternals().timerInternals();
       timerInternals.setTimer(
           TimerInternals.TimerData.of(
-              stateNamespace, Instant.now().plus(cont.resumeDelay()), TimeDomain.PROCESSING_TIME));
+              stateNamespace,
+              timerInternals.currentProcessingTime().plus(cont.resumeDelay()),
+              TimeDomain.PROCESSING_TIME));
     }
 
     private DoFn<InputT, OutputT>.ProcessContext makeContext(
@@ -312,12 +321,6 @@ public class SplittableParDo<
         final TrackerT tracker,
         final RestrictionT[] residualRestrictionHolder) {
       return fn.new ProcessContext() {
-        // Commit at least once every 10k output records.  This keeps the watermark advancing
-        // smoothly, and ensures that not too much work will have to be reprocessed in the event of
-        // a crash.
-        // TODO: Also commit at least once every N seconds (runner-specific parameter).
-        private static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
-
         private int numOutputs = 0;
 
         public InputT element() {
@@ -348,7 +351,7 @@ public class SplittableParDo<
         }
 
         private void noteOutput() {
-          if (++numOutputs > MAX_OUTPUTS_PER_BUNDLE) {
+          if (++numOutputs >= MAX_OUTPUTS_PER_BUNDLE) {
             // Request a checkpoint. The fn *may* produce more output, but hopefully not too much.
             residualRestrictionHolder[0] = tracker.checkpoint();
           }

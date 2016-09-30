@@ -46,7 +46,9 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
+import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -222,8 +224,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     if (state == State.UNINITIALIZED) {
       initializeState();
     }
-    TestContext<InputT, OutputT> context = createContext(fn);
+    TestContext context = createContext(fn);
     context.setupDelegateAggregators();
+    // State and timer internals are per-bundle.
+    stateInternals = InMemoryStateInternals.forKey(new Object());
+    timerInternals = new InMemoryTimerInternals();
     try {
       fn.startBundle(context);
     } catch (UserCodeException e) {
@@ -460,6 +465,35 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return extractAggregatorValue(agg.getName(), agg.getCombineFn());
   }
 
+  private static TimerCallback collectInto(final List<TimerInternals.TimerData> firedTimers) {
+    return new TimerCallback() {
+      @Override
+      public void onTimer(TimerInternals.TimerData timer) throws Exception {
+        firedTimers.add(timer);
+      }
+    };
+  }
+
+  public List<TimerInternals.TimerData> advanceInputWatermark(Instant newWatermark) {
+    try {
+      final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
+      timerInternals.advanceInputWatermark(collectInto(firedTimers), newWatermark);
+      return firedTimers;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public List<TimerInternals.TimerData> advanceProcessingTime(Instant newProcessingTime) {
+    try {
+      final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
+      timerInternals.advanceProcessingTime(collectInto(firedTimers), newProcessingTime);
+      return firedTimers;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private <AccumT, AggregateT> AggregateT extractAggregatorValue(
       String name, CombineFn<?, AccumT, AggregateT> combiner) {
     @SuppressWarnings("unchecked")
@@ -476,41 +510,27 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList());
   }
 
-  private TestContext<InputT, OutputT> createContext(OldDoFn<InputT, OutputT> fn) {
-    return new TestContext<>(fn, options, mainOutputTag, outputs, accumulators);
+  private TestContext createContext(OldDoFn<InputT, OutputT> fn) {
+    return new TestContext();
   }
 
-  private static class TestContext<InT, OutT> extends OldDoFn<InT, OutT>.Context {
-    private final PipelineOptions opts;
-    private final TupleTag<OutT> mainOutputTag;
-    private final Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
-    private final Map<String, Object> accumulators;
-
-    public TestContext(
-        OldDoFn<InT, OutT> fn,
-        PipelineOptions opts,
-        TupleTag<OutT> mainOutputTag,
-        Map<TupleTag<?>, List<WindowedValue<?>>> outputs,
-        Map<String, Object> accumulators) {
+  private class TestContext extends OldDoFn<InputT, OutputT>.Context {
+    TestContext() {
       fn.super();
-      this.opts = opts;
-      this.mainOutputTag = mainOutputTag;
-      this.outputs = outputs;
-      this.accumulators = accumulators;
     }
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return opts;
+      return options;
     }
 
     @Override
-    public void output(OutT output) {
+    public void output(OutputT output) {
       sideOutput(mainOutputTag, output);
     }
 
     @Override
-    public void outputWithTimestamp(OutT output, Instant timestamp) {
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
       sideOutputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
@@ -570,40 +590,27 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  private TestProcessContext<InputT, OutputT> createProcessContext(
+  private TestProcessContext createProcessContext(
       OldDoFn<InputT, OutputT> fn,
       TimestampedValue<InputT> elem) {
     WindowedValue<InputT> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
         elem.getValue(), elem.getTimestamp());
 
-    return new TestProcessContext<>(fn,
-        createContext(fn),
-        windowedValue,
-        mainOutputTag,
-        sideInputs);
+    return new TestProcessContext(windowedValue);
   }
 
-  private static class TestProcessContext<InT, OutT> extends OldDoFn<InT, OutT>.ProcessContext {
-    private final TestContext<InT, OutT> context;
-    private final TupleTag<OutT> mainOutputTag;
-    private final WindowedValue<InT> element;
-    private final Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs;
+  private class TestProcessContext extends OldDoFn<InputT, OutputT>.ProcessContext {
+    private final TestContext context;
+    private final WindowedValue<InputT> element;
 
-    private TestProcessContext(
-        OldDoFn<InT, OutT> fn,
-        TestContext<InT, OutT> context,
-        WindowedValue<InT> element,
-        TupleTag<OutT> mainOutputTag,
-        Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
+    private TestProcessContext(WindowedValue<InputT> element) {
       fn.super();
-      this.context = context;
+      this.context = createContext(fn);
       this.element = element;
-      this.mainOutputTag = mainOutputTag;
-      this.sideInputs = sideInputs;
     }
 
     @Override
-    public InT element() {
+    public InputT element() {
       return element.getValue();
     }
 
@@ -638,10 +645,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public WindowingInternals<InT, OutT> windowingInternals() {
-      return new WindowingInternals<InT, OutT>() {
-        StateInternals<?> stateInternals = InMemoryStateInternals.forKey(new Object());
-
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
+      return new WindowingInternals<InputT, OutputT>() {
         @Override
         public StateInternals<?> stateInternals() {
           return stateInternals;
@@ -649,7 +654,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
         @Override
         public void outputWindowedValue(
-            OutT output,
+            OutputT output,
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
             PaneInfo pane) {
@@ -658,8 +663,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
         @Override
         public TimerInternals timerInternals() {
-          throw
-              new UnsupportedOperationException("Timer Internals are not supported in DoFnTester");
+          return timerInternals;
         }
 
         @Override
@@ -695,12 +699,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public void output(OutT output) {
+    public void output(OutputT output) {
       sideOutput(mainOutputTag, output);
     }
 
     @Override
-    public void outputWithTimestamp(OutT output, Instant timestamp) {
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
       sideOutputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
@@ -773,6 +777,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   /** The outputs from the {@link DoFn} under test. */
   private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
+
+  private InMemoryStateInternals<?> stateInternals;
+  private InMemoryTimerInternals timerInternals;
 
   /** The state of processing of the {@link DoFn} under test. */
   private State state = State.UNINITIALIZED;
