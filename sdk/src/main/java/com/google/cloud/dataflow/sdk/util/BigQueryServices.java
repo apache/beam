@@ -130,7 +130,8 @@ public interface BigQueryServices extends Serializable {
     /**
      * Create a {@link Dataset} with the given {@code location} and {@code description}.
      */
-    void createDataset(String projectId, String datasetId, String location, String description)
+    void createDataset(
+        String projectId, String datasetId, @Nullable String location, @Nullable String description)
         throws IOException, InterruptedException;
 
     /**
