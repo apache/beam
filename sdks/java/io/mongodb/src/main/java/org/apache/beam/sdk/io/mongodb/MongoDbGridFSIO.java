@@ -365,6 +365,12 @@ public class MongoDbGridFSIO {
 
       static class GridFSReader extends BoundedSource.BoundedReader<ObjectId> {
         final BoundedGridFSSource source;
+
+        /* When split into bundles, this records the ObjectId's of the files for
+         * this bundle.  Otherwise, this is null.  When null, a DBCursor of the
+         * files is used directly to avoid having the ObjectId's queried and
+         * loaded ahead of time saving time and memory.
+         */
         @Nullable
         final List<ObjectId> objects;
 
@@ -416,6 +422,7 @@ public class MongoDbGridFSIO {
           }
           return current;
         }
+
         public Instant getCurrentTimestamp() throws NoSuchElementException {
           if (current == null) {
             throw new NoSuchElementException();
