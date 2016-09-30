@@ -27,8 +27,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -151,9 +152,8 @@ public class JdbcIOTest implements Serializable {
                       KV.of(resultSet.getString("name"), resultSet.getInt("id"));
                   return kv;
               }
-            }))
-        .setCoder(KvCoder.of(
-            StringUtf8Coder.of(), SerializableCoder.of(Integer.class)));
+            })
+            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PAssert.thatSingleton(
         output.apply("Count All", Count.<KV<String, Integer>>globally()))

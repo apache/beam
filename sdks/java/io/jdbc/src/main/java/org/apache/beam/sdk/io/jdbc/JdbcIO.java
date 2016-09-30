@@ -21,17 +21,26 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Random;
+
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
+
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -193,6 +202,7 @@ public class JdbcIO {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getQuery();
     @Nullable abstract RowMapper<T> getRowMapper();
+    @Nullable abstract Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
 
@@ -201,6 +211,7 @@ public class JdbcIO {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
       abstract Builder<T> setQuery(String query);
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+      abstract Builder<T> setCoder(Coder<T> coder);
       abstract Read<T> build();
     }
 
@@ -219,17 +230,44 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    public Read<T> withCoder(Coder<T> coder) {
+      checkNotNull(coder, "coder");
+      return toBuilder().setCoder(coder).build();
+    }
+
     @Override
     public PCollection<T> apply(PBegin input) {
       return input
           .apply(Create.of(getQuery()))
-          .apply(ParDo.of(new ReadFn<>(this)));
+          .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
+          // generate a random key followed by a GroupByKey and then ungroup
+          // to prevent fusion
+          // see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion
+          // for details
+          .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
+            private int randInt;
+            @Setup
+            public void setup() {
+              Random random = new Random();
+              randInt = random.nextInt();
+            }
+            @ProcessElement
+            public void processElement(ProcessContext context) {
+              T record = context.element();
+              KV<Integer, T> kvRecord = KV.of(randInt, record);
+              context.output(kvRecord);
+            }
+          }))
+          .apply(GroupByKey.<Integer, T>create())
+          .apply(Values.<Iterable<T>>create())
+          .apply(Flatten.<T>iterables());
     }
 
     @Override
     public void validate(PBegin input) {
       checkNotNull(getQuery(), "query");
       checkNotNull(getRowMapper(), "rowMapper");
+      checkNotNull(getCoder(), "coder");
       checkNotNull(getDataSourceConfiguration());
     }
 
@@ -238,6 +276,7 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
+      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
       getDataSourceConfiguration().populateDisplayData(builder);
     }
 
