@@ -856,24 +856,24 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testDisplayDataArrayValue() throws Exception {
     ArrayOptions options = PipelineOptionsFactory.as(ArrayOptions.class);
-    options.setPrimitiveArrayOption(new long[] {1L, 2L});
-    options.setDeepArrayOption(new String[][] {new String[] {"a", "b"}, new String[] {"c"}});
+    options.setDeepArray(new String[][] {new String[] {"a", "b"}, new String[] {"c"}});
+    options.setDeepPrimitiveArray(new int[][] {new int[] {1, 2}, new int[] {3}});
 
     DisplayData data = DisplayData.from(options);
-    assertThat(data, hasDisplayItem("primitiveArrayOption", "[1, 2]"));
-    assertThat(data, hasDisplayItem("deepArrayOption", "[[a, b], [c]]"));
+    assertThat(data, hasDisplayItem("deepArray", "[[a, b], [c]]"));
+    assertThat(data, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
 
     ArrayOptions deserializedOptions = serializeDeserialize(ArrayOptions.class, options);
     DisplayData deserializedData = DisplayData.from(deserializedOptions);
-    assertThat(deserializedData, hasDisplayItem("primitiveArrayOption", "[1, 2]"));
+    assertThat(deserializedData, hasDisplayItem("deepPrimitiveArray", "[[1, 2], [3]]"));
   }
 
   private interface ArrayOptions extends PipelineOptions {
-    long[] getPrimitiveArrayOption();
-    void setPrimitiveArrayOption(long[] value);
+    String[][] getDeepArray();
+    void setDeepArray(String[][] value);
 
-    String[][] getDeepArrayOption();
-    void setDeepArrayOption(String[][] value);
+    int[][] getDeepPrimitiveArray();
+    void setDeepPrimitiveArray(int[][] value);
   }
 
   @Test
