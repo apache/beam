@@ -132,13 +132,18 @@ public class JdbcIO {
     @Nullable abstract String getUrl();
     @Nullable abstract String getUsername();
     @Nullable abstract String getPassword();
+    abstract int getConnectionPoolInitialSize();
+    abstract int getConnectionPoolMaxTotal();
+    abstract int getConnectionPoolMinIdle();
+    abstract int getConnectionPoolMaxIdle();
     @Nullable abstract DataSource getDataSource();
 
     /** Configuration using a {@link Serializable} {@link DataSource}. */
     public static DataSourceConfiguration create(DataSource dataSource) {
       checkNotNull(dataSource, "dataSource");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
-      return new AutoValue_JdbcIO_DataSourceConfiguration(null, null, null, null, dataSource);
+      return new AutoValue_JdbcIO_DataSourceConfiguration(null, null, null, null, 5, 8,
+          0, 8, dataSource);
     }
 
     /** Configuration using the given driver, url, username and password. */
@@ -149,23 +154,45 @@ public class JdbcIO {
       checkNotNull(username, "username");
       checkNotNull(password, "password");
       return new AutoValue_JdbcIO_DataSourceConfiguration(
-          driverClassName, url, username, password, null);
+          driverClassName, url, username, password, 5, 8, 0, 8, null);
+    }
+
+    /** Configuration using the given driver, url, username, password and connection pool. */
+    public static DataSourceConfiguration create(
+        String driverClassName, String url, String username, String password,
+        int connectionPoolInitialSize, int connectionPoolMaxTotal,
+        int connectionPoolMinIdle, int connectionPoolMaxIdle) {
+      checkNotNull(driverClassName, "driverClassName");
+      checkNotNull(url, "url");
+      checkNotNull(username, "username");
+      checkNotNull(password, "password");
+      return new AutoValue_JdbcIO_DataSourceConfiguration(driverClassName, url, username, password,
+          connectionPoolInitialSize, connectionPoolMaxTotal, connectionPoolMinIdle,
+          connectionPoolMaxIdle, null);
     }
 
     /** Configuration using the given driver and url, without a username and password. */
     public static DataSourceConfiguration create(String driverClassName, String url) {
       checkNotNull(driverClassName, "driverClassName");
       checkNotNull(url, "url");
-      return new AutoValue_JdbcIO_DataSourceConfiguration(driverClassName, url, null, null, null);
+      return new AutoValue_JdbcIO_DataSourceConfiguration(driverClassName, url, null, null,
+          5, 8, 0, 8, null);
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
+      } else {
+        builder.addIfNotNull(DisplayData.item("jdbcDriverClassName", getDriverClassName()));
+        builder.addIfNotNull(DisplayData.item("jdbcUrl", getUrl()));
+        builder.addIfNotNull(DisplayData.item("username", getUsername()));
+        builder.addIfNotNull(DisplayData.item("connectionPoolInitialSize",
+            getConnectionPoolInitialSize()));
+        builder.addIfNotNull(DisplayData.item("connectionPoolMaxTotal",
+            getConnectionPoolMaxTotal()));
+        builder.addIfNotNull(DisplayData.item("connectionPoolMinIdle", getConnectionPoolMinIdle()));
+        builder.addIfNotNull(DisplayData.item("connectionPoolMaxIdle", getConnectionPoolMaxIdle()));
       }
-      builder.addIfNotNull(DisplayData.item("jdbcDriverClassName", getDriverClassName()));
-      builder.addIfNotNull(DisplayData.item("jdbcUrl", getUrl()));
-      builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
     Connection getConnection() throws Exception {
@@ -178,6 +205,10 @@ public class JdbcIO {
         basicDataSource.setUrl(getUrl());
         basicDataSource.setUsername(getUsername());
         basicDataSource.setPassword(getPassword());
+        basicDataSource.setInitialSize(getConnectionPoolInitialSize());
+        basicDataSource.setMaxTotal(getConnectionPoolMaxTotal());
+        basicDataSource.setMinIdle(getConnectionPoolMinIdle());
+        basicDataSource.setMaxIdle(getConnectionPoolMaxIdle());
         dataSource = basicDataSource;
       }
       return (getUsername() == null)
