@@ -84,10 +84,6 @@ REQUIRED_PACKAGES = [
     'pyyaml>=3.10',
     ]
 
-EXTRA_PACKAGES = {
-    'cython': ['cython>={0}'.format(REQUIRED_CYTHON_VERSION)],
-}
-
 setuptools.setup(
     name=PACKAGE_NAME,
     version=PACKAGE_VERSION,
@@ -109,7 +105,6 @@ setuptools.setup(
     ]),
     setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
-    extras_require=EXTRA_PACKAGES,
     test_suite='nose.collector',
     zip_safe=False,
     # PyPI package information.
