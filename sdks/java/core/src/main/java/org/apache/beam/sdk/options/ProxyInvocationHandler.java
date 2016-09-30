@@ -338,7 +338,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
       return value.toString();
     }
     if (!value.getClass().getComponentType().isPrimitive()) {
-      return Arrays.deepToString((Object[])value);
+      return Arrays.deepToString((Object[]) value);
     }
 
     // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
