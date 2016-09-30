@@ -856,7 +856,7 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testDisplayDataArrayValue() throws Exception {
     ArrayOptions options = PipelineOptionsFactory.as(ArrayOptions.class);
-    options.setPrimitiveArrayOption(new long[]{1L, 2L});
+    options.setPrimitiveArrayOption(new long[] {1L, 2L});
     options.setDeepArrayOption(new String[][] {new String[] {"a", "b"}, new String[] {"c"}});
 
     DisplayData data = DisplayData.from(options);
