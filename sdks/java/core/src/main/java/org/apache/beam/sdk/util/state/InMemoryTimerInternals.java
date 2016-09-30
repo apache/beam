@@ -64,9 +64,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   /**
-   * Returns when the next timer in the given time domain will fire.
-   *
-   * @return the {@link Instant} of the next timer in the given time domain, or {@code null}
+   * Returns when the next timer in the given time domain will fire, or {@code null}
    * if there are no timers scheduled in that time domain.
    */
   @Nullable
