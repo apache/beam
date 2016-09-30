@@ -245,17 +245,14 @@ public class JdbcIO {
           // see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion
           // for details
           .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
-            private int randInt;
+            private Random random;
             @Setup
             public void setup() {
-              Random random = new Random();
-              randInt = random.nextInt();
+              random = new Random();
             }
             @ProcessElement
             public void processElement(ProcessContext context) {
-              T record = context.element();
-              KV<Integer, T> kvRecord = KV.of(randInt, record);
-              context.output(kvRecord);
+              context.output(KV.of(random.nextInt(), context.element()));
             }
           }))
           .apply(GroupByKey.<Integer, T>create())
