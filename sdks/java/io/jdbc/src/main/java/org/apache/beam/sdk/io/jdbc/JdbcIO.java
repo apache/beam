@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.Rebundle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -240,24 +241,7 @@ public class JdbcIO {
       return input
           .apply(Create.of(getQuery()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
-          // generate a random key followed by a GroupByKey and then ungroup
-          // to prevent fusion
-          // see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion
-          // for details
-          .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
-            private Random random;
-            @Setup
-            public void setup() {
-              random = new Random();
-            }
-            @ProcessElement
-            public void processElement(ProcessContext context) {
-              context.output(KV.of(random.nextInt(), context.element()));
-            }
-          }))
-          .apply(GroupByKey.<Integer, T>create())
-          .apply(Values.<Iterable<T>>create())
-          .apply(Flatten.<T>iterables());
+          .apply(Rebundle.<T>create());
     }
 
     @Override
