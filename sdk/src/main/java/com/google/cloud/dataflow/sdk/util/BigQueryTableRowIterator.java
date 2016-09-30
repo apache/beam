@@ -356,14 +356,16 @@ public class BigQueryTableRowIterator implements AutoCloseable {
   }
 
   // Create a new BigQuery dataset
-  private void createDataset(String datasetId, String location)
+  private void createDataset(String datasetId, @Nullable String location)
       throws IOException, InterruptedException {
     Dataset dataset = new Dataset();
     DatasetReference reference = new DatasetReference();
     reference.setProjectId(projectId);
     reference.setDatasetId(datasetId);
     dataset.setDatasetReference(reference);
-    dataset.setLocation(location);
+    if (location != null) {
+      dataset.setLocation(location);
+    }
 
     executeWithBackOff(
         client.datasets().insert(projectId, dataset),
@@ -411,8 +413,8 @@ public class BigQueryTableRowIterator implements AutoCloseable {
         client.jobs().insert(projectId, dryRunJob),
         String.format("Error when trying to dry run query %s.", query)).getStatistics();
 
-    // Default to US if the query does not read any tables.
-    String location = "US";
+    // Let BigQuery to pick default location if the query does not read any tables.
+    String location = null;
     @Nullable List<TableReference> tables = jobStats.getQuery().getReferencedTables();
     if (tables != null && !tables.isEmpty()) {
       Table table = getTable(tables.get(0));
