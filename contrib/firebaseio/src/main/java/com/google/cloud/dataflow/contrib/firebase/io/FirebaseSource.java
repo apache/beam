@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.contrib.firebase.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.contrib.firebase.events.ChildAdded;
 import com.google.cloud.dataflow.contrib.firebase.events.ChildChanged;
 import com.google.cloud.dataflow.contrib.firebase.events.ChildMoved;
@@ -32,8 +34,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
-
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.firebase.client.AuthData;
@@ -389,7 +389,7 @@ public class FirebaseSource<T>
       Thread.currentThread().interrupt();
       throw new RuntimeException("Thread interrupted while waiting for authentication to complete", e);
     }
-    Preconditions.checkNotNull(result, "If result is null, authenticators is ");
+    checkNotNull(result, "If result is null, authenticators is ");
   }
 
   @Override

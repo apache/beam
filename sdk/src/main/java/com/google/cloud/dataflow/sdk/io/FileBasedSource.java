@@ -14,22 +14,22 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -133,18 +133,18 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
   @Override
   public final FileBasedSource<T> createSourceForSubrange(long start, long end) {
-    Preconditions.checkArgument(mode != Mode.FILEPATTERN,
+    checkArgument(mode != Mode.FILEPATTERN,
         "Cannot split a file pattern based source based on positions");
-    Preconditions.checkArgument(start >= getStartOffset(), "Start offset value " + start
+    checkArgument(start >= getStartOffset(), "Start offset value " + start
         + " of the subrange cannot be smaller than the start offset value " + getStartOffset()
         + " of the parent source");
-    Preconditions.checkArgument(end <= getEndOffset(), "End offset value " + end
+    checkArgument(end <= getEndOffset(), "End offset value " + end
         + " of the subrange cannot be larger than the end offset value " + getEndOffset()
         + " of the parent source");
 
     FileBasedSource<T> source = createForSubrangeOfFile(fileOrPatternSpec, start, end);
     if (start > 0 || end != Long.MAX_VALUE) {
-      Preconditions.checkArgument(source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
+      checkArgument(source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
           "Source created for the range [" + start + "," + end + ")"
           + " must be a subrange source");
     }
@@ -386,10 +386,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     super.validate();
     switch (mode) {
       case FILEPATTERN:
-        Preconditions.checkArgument(getStartOffset() == 0,
+        checkArgument(getStartOffset() == 0,
             "FileBasedSource is based on a file pattern or a full single file "
             + "but the starting offset proposed " + getStartOffset() + " is not zero");
-        Preconditions.checkArgument(getEndOffset() == Long.MAX_VALUE,
+        checkArgument(getEndOffset() == Long.MAX_VALUE,
             "FileBasedSource is based on a file pattern or a full single file "
             + "but the ending offset proposed " + getEndOffset() + " is not Long.MAX_VALUE");
         break;
@@ -468,7 +468,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
      */
     public FileBasedReader(FileBasedSource<T> source) {
       super(source);
-      Preconditions.checkArgument(source.getMode() != Mode.FILEPATTERN,
+      checkArgument(source.getMode() != Mode.FILEPATTERN,
           "FileBasedReader does not support reading file patterns");
     }
 
@@ -488,10 +488,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         seekChannel.position(source.getStartOffset());
       } else {
         // Channel is not seekable. Must not be a subrange.
-        Preconditions.checkArgument(source.mode != Mode.SINGLE_FILE_OR_SUBRANGE,
+        checkArgument(source.mode != Mode.SINGLE_FILE_OR_SUBRANGE,
             "Subrange-based sources must only be defined for file types that support seekable "
             + " read channels");
-        Preconditions.checkArgument(source.getStartOffset() == 0, "Start offset "
+        checkArgument(source.getStartOffset() == 0, "Start offset "
             + source.getStartOffset()
             + " is not zero but channel for reading the file is not seekable.");
       }
@@ -574,7 +574,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     @Override
     public boolean advance() throws IOException {
-      Preconditions.checkState(currentReader != null, "Call start() before advance()");
+      checkState(currentReader != null, "Call start() before advance()");
       if (currentReader.advance()) {
         return true;
       }

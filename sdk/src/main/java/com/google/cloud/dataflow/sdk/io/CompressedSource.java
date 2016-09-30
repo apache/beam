@@ -16,17 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
-import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
-
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-
 import java.io.IOException;
 import java.io.PushbackInputStream;
 import java.io.Serializable;
@@ -35,7 +35,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
-
 import javax.annotation.concurrent.GuardedBy;
 
 /**
@@ -253,7 +252,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
     try {
-      Preconditions.checkArgument(
+      checkArgument(
           isSplittable() || startOffset == 0,
           "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
     } catch (Exception e) {
@@ -268,9 +267,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   public void validate() {
     super.validate();
-    Preconditions.checkNotNull(sourceDelegate);
+    checkNotNull(sourceDelegate);
     sourceDelegate.validate();
-    Preconditions.checkNotNull(channelFactory);
+    checkNotNull(channelFactory);
   }
 
   /**

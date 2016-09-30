@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.contrib.hadoop;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
@@ -24,7 +27,6 @@ import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
@@ -164,14 +166,10 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
 
   @Override
   public void validate() {
-    Preconditions.checkNotNull(filepattern,
-        "need to set the filepattern of a HadoopFileSource");
-    Preconditions.checkNotNull(formatClass,
-        "need to set the format class of a HadoopFileSource");
-    Preconditions.checkNotNull(keyClass,
-        "need to set the key class of a HadoopFileSource");
-    Preconditions.checkNotNull(valueClass,
-        "need to set the value class of a HadoopFileSource");
+    checkNotNull(filepattern, "need to set the filepattern of a HadoopFileSource");
+    checkNotNull(formatClass, "need to set the format class of a HadoopFileSource");
+    checkNotNull(keyClass, "need to set the key class of a HadoopFileSource");
+    checkNotNull(valueClass, "need to set the value class of a HadoopFileSource");
   }
 
   @Override
@@ -466,8 +464,7 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
     }
 
     public SerializableSplit(InputSplit split) {
-      Preconditions.checkArgument(split instanceof Writable, "Split is not writable: "
-          + split);
+      checkArgument(split instanceof Writable, "Split is not writable: %s", split);
       this.split = split;
     }
 

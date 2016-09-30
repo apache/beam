@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -34,9 +35,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -47,7 +46,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
 
 /**
@@ -598,7 +596,7 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
-        Preconditions.checkArgument(numShards >= 0);
+        checkArgument(numShards >= 0);
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate);
       }
@@ -821,7 +819,7 @@ public class TextIO {
   private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
 
   private static void validateOutputComponent(String partialFilePattern) {
-    Preconditions.checkArgument(
+    checkArgument(
         !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
         "Output name components are not allowed to contain @* or @N patterns: "
         + partialFilePattern);
