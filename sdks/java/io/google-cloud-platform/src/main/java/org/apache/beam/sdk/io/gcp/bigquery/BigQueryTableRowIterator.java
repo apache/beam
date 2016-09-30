@@ -28,7 +28,6 @@ import com.google.api.client.util.ClassInfo;
 import com.google.api.client.util.Data;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.ErrorProto;
@@ -424,9 +423,8 @@ class BigQueryTableRowIterator implements AutoCloseable {
     destinationTable.setTableId(temporaryTableId);
     queryConfig.setDestinationTable(destinationTable);
 
-    Insert insert = client.jobs().insert(projectId, job);
     Job queryJob = executeWithBackOff(
-        insert,
+        client.jobs().insert(projectId, job),
         String.format("Error when trying to execute the job for query %s.", query));
     JobReference jobId = queryJob.getJobReference();
 
@@ -458,7 +456,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
    */
   @Deprecated
   public static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error,
-       Object... errorArgs) throws IOException, InterruptedException {
+      Object... errorArgs) throws IOException, InterruptedException {
     return executeWithBackOff(client, String.format(error, errorArgs));
   }
 

@@ -132,8 +132,20 @@ public class BigQueryTableRowIteratorTest {
                         new TableFieldSchema().setName("anniversary_time").setType("TIME"))));
   }
 
+  private static Table noTableQuerySchema() {
+    return new Table()
+        .setSchema(
+            new TableSchema()
+                .setFields(
+                    Arrays.asList(
+                        new TableFieldSchema().setName("name").setType("STRING"),
+                        new TableFieldSchema().setName("count").setType("INTEGER"),
+                        new TableFieldSchema().setName("photo").setType("BYTES"))));
+  }
+
   private static Table tableWithLocation() {
-    return new Table().setLocation("EU");
+    return new Table()
+        .setLocation("EU");
   }
 
   private TableRow rawRow(Object... args) {
@@ -256,18 +268,18 @@ public class BigQueryTableRowIteratorTest {
     when(mockJobsGet.execute()).thenReturn(getJob);
 
     // Mock table schema fetch.
-    when(mockTablesGet.execute()).thenReturn(tableWithBasicSchema());
+    when(mockTablesGet.execute()).thenReturn(noTableQuerySchema());
 
     byte[] photoBytes = "photograph".getBytes();
     String photoBytesEncoded = BaseEncoding.base64().encode(photoBytes);
     // Mock table data fetch.
     when(mockTabledataList.execute()).thenReturn(
-        rawDataList(rawRow("Arthur", 42, photoBytesEncoded,
-            "2000-01-01", "2000-01-01 00:00:00.000005", "00:00:00.000005")));
+        rawDataList(rawRow("Arthur", 42, photoBytesEncoded)));
 
     // Run query and verify
-    String query = "SELECT name, count, photo, anniversary_date, "
-        + "anniversary_datetime, anniversary_time from table";
+    String query = String.format(
+        "SELECT \"Arthur\" as name, 42 as count, \"%s\" as photo",
+        photoBytesEncoded);
     try (BigQueryTableRowIterator iterator =
         BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
       iterator.open();
@@ -275,17 +287,11 @@ public class BigQueryTableRowIteratorTest {
       TableRow row = iterator.getCurrent();
 
       assertTrue(row.containsKey("name"));
-      assertTrue(row.containsKey("answer"));
+      assertTrue(row.containsKey("count"));
       assertTrue(row.containsKey("photo"));
-      assertTrue(row.containsKey("anniversary_date"));
-      assertTrue(row.containsKey("anniversary_datetime"));
-      assertTrue(row.containsKey("anniversary_time"));
       assertEquals("Arthur", row.get("name"));
-      assertEquals(42, row.get("answer"));
+      assertEquals(42, row.get("count"));
       assertEquals(photoBytesEncoded, row.get("photo"));
-      assertEquals("2000-01-01", row.get("anniversary_date"));
-      assertEquals("2000-01-01 00:00:00.000005", row.get("anniversary_datetime"));
-      assertEquals("00:00:00.000005", row.get("anniversary_time"));
 
       assertFalse(iterator.advance());
     }
