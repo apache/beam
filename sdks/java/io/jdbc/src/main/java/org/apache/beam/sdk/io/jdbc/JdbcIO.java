@@ -403,9 +403,11 @@ public class JdbcIO {
 
       @FinishBundle
       public void finishBundle(Context context) throws Exception {
-        preparedStatement.executeBatch();
-        connection.commit();
-        batchCount = 0;
+        if (batchCount > 0) {
+          preparedStatement.executeBatch();
+          connection.commit();
+          batchCount = 0;
+        }
       }
 
       @Teardown
