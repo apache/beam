@@ -59,9 +59,9 @@ import org.joda.time.Instant;
  * <p>
  * <h3>Reading from MongoDB via GridFS</h3>
  * <p>
- * <p>MongoDbGridFSIO source returns a bounded collection of String as {@code PCollection<String>}.
+ * <p>MongoDbGridFSIO source returns a bounded collection of Objects as {@code PCollection<T>}.
  * <p>
- * <p>To configure the MongoDB source, you can provide the connection URI, the database name
+ * <p>To configure the MongoDB GridFS source, you can provide the connection URI, the database name
  * and the bucket name.  If unspecified, the default values from the GridFS driver are used.
  *
  * The following example illustrates various options for configuring the
@@ -91,9 +91,19 @@ public class MongoDbGridFSIO {
    * Callback for the parser to use to submit data.
    */
   public interface ParserCallback<T> extends Serializable {
+    /**
+     * Output the object.  The default timestamp will be the GridFSDBFile
+     * creation timestamp.
+     * @param output
+     */
     public void output(T output);
 
-    public void output(T output, @Nullable Instant timestamp);
+    /**
+     * Output the object using the specified timestamp.
+     * @param output
+     * @param timestamp
+     */
+    public void output(T output, Instant timestamp);
   }
 
   /**
@@ -106,13 +116,11 @@ public class MongoDbGridFSIO {
   }
 
   /**
-   * For the default Read&lt;String&gt; case, this is the parser that is used to
+   * For the default {@code Read<String>} case, this is the parser that is used to
    * split the input file into Strings. It uses the timestamp of the file
    * for the event timestamp.
    */
-  private static class StringParser implements Parser<String> {
-    static final StringParser INSTANCE = new StringParser();
-
+  private static final Parser<String> TEXT_PARSER = new Parser<String>() {
     @Override
     public void parse(GridFSDBFile input, ParserCallback<String> callback)
         throws IOException {
@@ -124,12 +132,12 @@ public class MongoDbGridFSIO {
         }
       }
     }
-  }
+  };
 
   /** Read data from GridFS. */
   public static Read<String> read() {
     return new Read<String>(new Read.BoundedGridFSSource(null, null, null, null,
-                            null), StringParser.INSTANCE, StringUtf8Coder.of(), Duration.ZERO);
+                            null), TEXT_PARSER, StringUtf8Coder.of(), Duration.ZERO);
   }
 
   static class Read<T> extends PTransform<PBegin, PCollection<T>> {
@@ -189,9 +197,9 @@ public class MongoDbGridFSIO {
 
     @Override
     public PCollection<T> apply(PBegin input) {
-      org.apache.beam.sdk.io.Read.Bounded<ObjectId> bounded =
+      org.apache.beam.sdk.io.Read.Bounded<ObjectId> objectIds =
           org.apache.beam.sdk.io.Read.from(options);
-      PCollection<T> output = input.getPipeline().apply(bounded)
+      PCollection<T> output = input.getPipeline().apply(objectIds)
           .apply(ParDo.of(new DoFn<ObjectId, T>() {
             Mongo mongo;
             GridFS gridfs;
@@ -214,11 +222,8 @@ public class MongoDbGridFSIO {
               parser.parse(file, new ParserCallback<T>() {
                 @Override
                 public void output(T output, Instant timestamp) {
-                  if (timestamp == null) {
-                    c.output(output);
-                  } else {
-                    c.outputWithTimestamp(output, timestamp);
-                  }
+                  Preconditions.checkNotNull(timestamp);
+                  c.outputWithTimestamp(output, timestamp);
                 }
 
                 @Override
@@ -260,13 +265,16 @@ public class MongoDbGridFSIO {
         this.objectIds = objectIds;
         this.filterJson = filterJson;
       }
+
       private Mongo setupMongo() {
         return uri == null ? new Mongo() : new Mongo(new MongoURI(uri));
       }
+
       private GridFS setupGridFS(Mongo mongo) {
         DB db = database == null ? mongo.getDB("gridfs") : mongo.getDB(database);
         return bucket == null ? new GridFS(db) : new GridFS(db, bucket);
       }
+
       private DBCursor createCursor(GridFS gridfs) {
         if (filterJson != null) {
           DBObject query = (DBObject) JSON.parse(filterJson);
@@ -274,6 +282,7 @@ public class MongoDbGridFSIO {
         }
         return gridfs.getFileList().sort(null);
       }
+
       @Override
       public List<? extends BoundedSource<ObjectId>> splitIntoBundles(long desiredBundleSizeBytes,
           PipelineOptions options) throws Exception {
@@ -325,7 +334,6 @@ public class MongoDbGridFSIO {
         }
       }
 
-
       @Override
       public boolean producesSortedKeys(PipelineOptions options) throws Exception {
         return false;
@@ -354,16 +362,19 @@ public class MongoDbGridFSIO {
       public Coder<ObjectId> getDefaultOutputCoder() {
         return SerializableCoder.of(ObjectId.class);
       }
+
       static class GridFSReader extends BoundedSource.BoundedReader<ObjectId> {
         final BoundedGridFSSource source;
+        @Nullable
         final List<ObjectId> objects;
 
         Mongo mongo;
         DBCursor cursor;
         Iterator<ObjectId> iterator;
         ObjectId current;
-        GridFSReader(BoundedGridFSSource s, List<ObjectId> objects) {
-          source = s;
+
+        GridFSReader(BoundedGridFSSource source, List<ObjectId> objects) {
+          this.source = source;
           this.objects = objects;
         }
 
