@@ -48,7 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -857,24 +856,24 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testDisplayDataArrayValue() throws Exception {
     ArrayOptions options = PipelineOptionsFactory.as(ArrayOptions.class);
-    options.setArrayOption(new String[]{"foo", "bar"});
-    options.setDeepArrayOption(new Long[][] {new Long[] {1L, 2L}, new Long[] {3L}});
+    options.setPrimitiveArrayOption(new long[]{1L, 2L});
+    options.setDeepArrayOption(new String[][] {new String[] {"a", "b"}, new String[] {"c"}});
 
     DisplayData data = DisplayData.from(options);
-    assertThat(data, hasDisplayItem("arrayOption", "[foo, bar]"));
-    assertThat(data, hasDisplayItem("deepArrayOption", "[[1, 2], [3]]"));
+    assertThat(data, hasDisplayItem("primitiveArrayOption", "[1, 2]"));
+    assertThat(data, hasDisplayItem("deepArrayOption", "[[a, b], [c]]"));
 
     ArrayOptions deserializedOptions = serializeDeserialize(ArrayOptions.class, options);
     DisplayData deserializedData = DisplayData.from(deserializedOptions);
-    assertThat(deserializedData, hasDisplayItem("arrayOption", "[foo, bar]"));
+    assertThat(deserializedData, hasDisplayItem("primitiveArrayOption", "[1, 2]"));
   }
 
   private interface ArrayOptions extends PipelineOptions {
-    String[] getArrayOption();
-    void setArrayOption(String[] value);
+    long[] getPrimitiveArrayOption();
+    void setPrimitiveArrayOption(long[] value);
 
-    Long[][] getDeepArrayOption();
-    void setDeepArrayOption(Long[][] value);
+    String[][] getDeepArrayOption();
+    void setDeepArrayOption(String[][] value);
   }
 
   @Test

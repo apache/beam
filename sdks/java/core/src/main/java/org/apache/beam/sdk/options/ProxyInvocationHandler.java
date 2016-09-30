@@ -333,10 +333,16 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    * {@link Object#toString()} wrapper to extract display data values for various types.
    */
   private String displayDataString(Object value) {
-    if (value instanceof Object[]) {
+    checkNotNull(value, "value cannot be null");
+    if (!value.getClass().isArray()) {
+      return value.toString();
+    }
+    if (!value.getClass().getComponentType().isPrimitive()) {
       return Arrays.deepToString((Object[])value);
     } else {
-      return value.toString();
+      // Arrays.deepToString requires an Object array, but will unwrap internal primitive arrays.
+      String wrapped = Arrays.deepToString(new Object[] {value});
+      return wrapped.substring(1, wrapped.length() - 1);
     }
   }
 
