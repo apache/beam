@@ -23,6 +23,8 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Iterables;
+import java.util.Collection;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -120,14 +122,22 @@ public class FlattenEvaluatorFactoryTest {
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
+    when(evaluationContext.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
+    when(evaluationContext.createBundle(flattened))
+        .thenReturn(bundleFactory.createBundle(flattened));
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(evaluationContext);
+    Collection<CommittedBundle<?>> initialInputs =
+        factory.getInitialInputs(flattened.getProducingTransformInternal());
     TransformEvaluator<Integer> emptyEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), null);
+        factory.forApplication(
+            flattened.getProducingTransformInternal(), Iterables.getOnlyElement(initialInputs));
 
     TransformResult leftSideResult = emptyEvaluator.finishBundle();
 
-    assertThat(leftSideResult.getOutputBundles(), emptyIterable());
+    CommittedBundle<?> outputBundle =
+        Iterables.getOnlyElement(leftSideResult.getOutputBundles()).commit(Instant.now());
+    assertThat(outputBundle.getElements(), emptyIterable());
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));

@@ -48,7 +48,7 @@ public interface TransformEvaluatorFactory {
    */
   @Nullable
   <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception;
 
   /**
