@@ -76,6 +76,7 @@ public class ApiSurfaceTest {
           inPackage("org.apache.beam"),
           inPackage("com.google.api.client"),
           inPackage("com.google.api.services.bigquery"),
+          inPackage("com.google.api.services.cloudresourcemanager"),
           inPackage("com.google.api.services.dataflow"),
           inPackage("com.google.api.services.pubsub"),
           inPackage("com.google.api.services.storage"),
