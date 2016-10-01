@@ -44,7 +44,7 @@ PACKAGE_LONG_DESCRIPTION = '''
 TBD
 '''
 
-REQUIRED_PIP_VERSION = '0.7.0'
+REQUIRED_PIP_VERSION = '7.0.0'
 _PIP_VERSION = get_distribution('pip').version
 assert StrictVersion(_PIP_VERSION) >= StrictVersion(REQUIRED_PIP_VERSION), \
   "This SDK requires 'pip' >= {0}".format(REQUIRED_PIP_VERSION)
