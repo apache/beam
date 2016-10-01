@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkNotNull;
 import com.mongodb.DB;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
@@ -162,7 +162,7 @@ public class MongoDbGridFSIO {
       return withParser(f, null);
     }
     public <X> Read<X> withParser(Parser<X> f, Coder<X> coder) {
-      Preconditions.checkNotNull(f, "Parser cannot be null");
+      checkNotNull(f, "Parser cannot be null");
       //coder can be null as it can be set on the output directly
       return new Read<X>(new BoundedGridFSSource(options.uri, options.database,
           options.bucket, options.filterJson, null), f, coder, allowedTimestampSkew);
@@ -222,7 +222,7 @@ public class MongoDbGridFSIO {
               parser.parse(file, new ParserCallback<T>() {
                 @Override
                 public void output(T output, Instant timestamp) {
-                  Preconditions.checkNotNull(timestamp);
+                  checkNotNull(timestamp);
                   c.outputWithTimestamp(output, timestamp);
                 }
 
