@@ -57,7 +57,7 @@ public class GcsPathValidatorTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(true);
+    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
     when(mockGcsUtil.isGcsPatternSupported(anyString())).thenCallRealMethod();
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setRunner(FakeRunner.class);
@@ -81,7 +81,7 @@ public class GcsPathValidatorTest {
 
   @Test
   public void testWhenBucketDoesNotExist() throws Exception {
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(false);
+    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(false);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Could not find file gs://non-existent-bucket/location");

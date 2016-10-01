@@ -75,7 +75,7 @@ public class GcsPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      checkArgument(gcpOptions.getGcsUtil().bucketExists(gcsPath),
+      checkArgument(gcpOptions.getGcsUtil().bucketAccessible(gcsPath),
         errorMessage, path);
     } catch (IOException e) {
       throw new RuntimeException(

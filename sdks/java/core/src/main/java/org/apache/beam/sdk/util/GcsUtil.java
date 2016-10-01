@@ -28,6 +28,7 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
@@ -49,6 +50,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -338,11 +341,10 @@ public class GcsUtil {
   }
 
   /**
-   * Returns whether the GCS bucket exists. If the bucket exists, it must
-   * be accessible otherwise the permissions exception will be propagated.
+   * Returns whether the GCS bucket exists and is accessible.
    */
-  public boolean bucketExists(GcsPath path) throws IOException {
-    return bucketExists(
+  public boolean bucketAccessible(GcsPath path) throws IOException {
+    return bucketAccessible(
         path,
         BACKOFF_FACTORY.backoff(),
         Sleeper.DEFAULT);
@@ -351,24 +353,23 @@ public class GcsUtil {
   /**
    * Returns the project number of the project which owns this bucket.
    * If the bucket exists, it must be accessible otherwise the permissions
-   * exception will be propagated.
+   * exception will be propagated.  If the bucket does not exist, an exception
+   * will be thrown.
    */
   public long bucketOwner(GcsPath path) throws IOException {
     return getBucket(
         path,
         BACKOFF_FACTORY.backoff(),
-        Sleeper.DEFAULT).getProjectNumber();
+        Sleeper.DEFAULT).getProjectNumber().longValue();
   }
 
   /**
-   * Creates a bucket for the provided project or propagates an error.
+   * Creates a {@link Bucket} under the specified project in Cloud Storage or
+   * propagates an exception.
    */
-  public void createBucket(GcsPath path, long projectNumber) throws IOException {
-    return createBucket(
-        path,
-        projectNumber,
-        BACKOFF_FACTORY.backoff(),
-        Sleeper.DEFAULT);
+  public void createBucket(String projectId, Bucket bucket) throws IOException {
+    createBucket(
+        projectId, bucket, BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
   }
 
   /**
@@ -376,18 +377,22 @@ public class GcsUtil {
    * is inaccessible due to permissions.
    */
   @VisibleForTesting
-  boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
-    return getBucket(path, backoff, sleeper) != null;
+  boolean bucketAccessible(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+    try {
+      return getBucket(path, backoff, sleeper) != null;
+    } catch (AccessDeniedException | FileNotFoundException e) {
+      return false;
+    }
   }
 
   @VisibleForTesting
   @Nullable
-  Storage.Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+  Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket =
         storageClient.buckets().get(path.getBucket());
 
       try {
-        Storage.Bucket bucket = ResilientOperation.retry(
+        Bucket bucket = ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(getBucket),
             backoff,
             new RetryDeterminer<IOException>() {
@@ -401,11 +406,14 @@ public class GcsUtil {
             },
             IOException.class,
             sleeper);
-        
+
         return bucket;
       } catch (GoogleJsonResponseException e) {
-        if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-          return null;
+        if (errorExtractor.accessDenied(e)) {
+          throw new AccessDeniedException(path.toString(), null, e.getMessage());
+        }
+        if (errorExtractor.itemNotFound(e)) {
+          throw new FileNotFoundException(e.getMessage());
         }
         throw e;
       } catch (InterruptedException e) {
@@ -417,11 +425,10 @@ public class GcsUtil {
   }
 
   @VisibleForTesting
-  void createBucket(GcsPath path, long projectNumber, BackOff backoff, Sleeper sleeper)
+  void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
         throws IOException {
     Storage.Buckets.Insert insertBucket =
-        storageClient.buckets().insert(path.getBucket());
-    insertBucket.setProject(String.valueOf(projectNumber));
+      storageClient.buckets().insert(projectId, bucket);
 
     try {
       ResilientOperation.retry(
@@ -429,8 +436,8 @@ public class GcsUtil {
         backoff,
         new RetryDeterminer<IOException>() {
           @Override
-            public boolean shouldRetry(IOException e) {
-            if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+          public boolean shouldRetry(IOException e) {
+            if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
               return false;
             }
             return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
@@ -439,11 +446,19 @@ public class GcsUtil {
         IOException.class,
         sleeper);
       return;
+    } catch (GoogleJsonResponseException e) {
+      if (errorExtractor.accessDenied(e)) {
+        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+      }
+      if (errorExtractor.itemAlreadyExists(e)) {
+        throw new FileAlreadyExistsException(bucket.getName(), null, e.getMessage());
+      }
+      throw e;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException(
         String.format("Error while attempting to create bucket gs://%s for rproject %s",
-                      path.getBucket(), projectNumber), e);
+                      bucket.getName(), projectId), e);
     }
   }
 

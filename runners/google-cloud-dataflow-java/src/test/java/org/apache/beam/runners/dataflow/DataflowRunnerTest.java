@@ -187,9 +187,9 @@ public class DataflowRunnerTest {
    * Build a mock {@link GcsUtil} with return values.
    *
    * @param bucketExist first return value
-   * @param bucketExists next return values
+   * @param bucketAccessible next return values
    */
-  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
+  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketAccessible)
       throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
@@ -209,7 +209,8 @@ public class DataflowRunnerTest {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExist, bucketExists);
+    when(mockGcsUtil.bucketAccessible(any(GcsPath.class)))
+        .thenReturn(bucketExist, bucketAccessible);
     return mockGcsUtil;
   }
 
