@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import java.util.Random;
 
 import javax.annotation.Nullable;
@@ -201,6 +202,7 @@ public class JdbcIO {
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getQuery();
+    @Nullable abstract List<Object> getParameters();
     @Nullable abstract RowMapper<T> getRowMapper();
     @Nullable abstract Coder<T> getCoder();
 
@@ -210,6 +212,7 @@ public class JdbcIO {
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
       abstract Builder<T> setQuery(String query);
+      abstract Builder<T> setParameters(List<Object> parameters);
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
       abstract Builder<T> setCoder(Coder<T> coder);
       abstract Read<T> build();
@@ -223,6 +226,11 @@ public class JdbcIO {
     public Read<T> withQuery(String query) {
       checkNotNull(query, "query");
       return toBuilder().setQuery(query).build();
+    }
+
+    public Read<T> withParameters(List<Object> parameters) {
+      checkNotNull(parameters, "parameters");
+      return toBuilder().setParameters(parameters).build();
     }
 
     public Read<T> withRowMapper(RowMapper<T> rowMapper) {
@@ -295,6 +303,11 @@ public class JdbcIO {
       public void processElement(ProcessContext context) throws Exception {
         String query = context.element();
         try (PreparedStatement statement = connection.prepareStatement(query)) {
+          if (spec.getParameters() != null) {
+            for (int index = 0; index < spec.getParameters().size(); index++) {
+              statement.setObject(index + 1, spec.getParameters().get(index));
+            }
+          }
           try (ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
               context.output(spec.getRowMapper().mapRow(resultSet));
