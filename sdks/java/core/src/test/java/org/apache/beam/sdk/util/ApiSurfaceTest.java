@@ -88,6 +88,8 @@ public class ApiSurfaceTest {
           inPackage("com.google.rpc"),
           inPackage("com.google.type"),
           inPackage("com.fasterxml.jackson.annotation"),
+          inPackage("com.fasterxml.jackson.core"),
+          inPackage("com.fasterxml.jackson.databind"),
           inPackage("com.fasterxml.jackson.deser"),
           inPackage("io.grpc"),
           inPackage("org.apache.avro"),
