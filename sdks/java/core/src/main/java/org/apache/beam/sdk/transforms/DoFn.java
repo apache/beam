@@ -575,12 +575,17 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     }
 
     /**
-     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
-     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
+     * If false, the {@link DoFn} promises that there is no more work remaining for the current
+     * element, so the runner should not resume the {@link ProcessElement} call.
      */
     public abstract boolean shouldResume();
 
+    /**
+     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
+     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
+     */
     public abstract Duration resumeDelay();
+
     /**
      * A lower bound provided by the {@link DoFn} on timestamps of the output that will be emitted
      * by future {@link ProcessElement} calls continuing processing of the current element.
@@ -588,18 +593,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>A runner should treat an absent value as equivalent to the timestamp of the input element.
      */
     @Nullable
-    public abstract Instant futureOutputWatermark();
+    public abstract Instant getWatermark();
 
     /** Builder method to set the value of {@link #resumeDelay()}. */
     public ProcessContinuation withResumeDelay(Duration resumeDelay) {
       return new AutoValue_DoFn_ProcessContinuation(
-          shouldResume(), resumeDelay, futureOutputWatermark());
+          shouldResume(), resumeDelay, getWatermark());
     }
 
-    /** Builder method to set the value of {@link #futureOutputWatermark()}. */
-    public ProcessContinuation withFutureOutputWatermark(Instant futureOutputWatermark) {
+    /** Builder method to set the value of {@link #getWatermark()}. */
+    public ProcessContinuation withWatermark(Instant watermark) {
       return new AutoValue_DoFn_ProcessContinuation(
-          shouldResume(), resumeDelay(), futureOutputWatermark);
+          shouldResume(), resumeDelay(), watermark);
     }
   }
 

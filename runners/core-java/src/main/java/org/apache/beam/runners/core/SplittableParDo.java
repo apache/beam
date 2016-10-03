@@ -302,7 +302,7 @@ public class SplittableParDo<
         return;
       }
       restrictionState.write(residual[0]);
-      Instant futureOutputWatermark = cont.futureOutputWatermark();
+      Instant futureOutputWatermark = cont.getWatermark();
       if (futureOutputWatermark != null) {
         holdState.add(futureOutputWatermark);
       }

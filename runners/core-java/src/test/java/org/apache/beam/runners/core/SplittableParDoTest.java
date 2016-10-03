@@ -271,7 +271,7 @@ public class SplittableParDoTest {
       c.output(c.element().toString());
       return resume()
           .withResumeDelay(Duration.standardSeconds(5))
-          .withFutureOutputWatermark(c.timestamp());
+          .withWatermark(c.timestamp());
     }
 
     @GetInitialRestriction

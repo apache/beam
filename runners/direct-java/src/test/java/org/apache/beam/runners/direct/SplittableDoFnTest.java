@@ -18,10 +18,10 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.base.Preconditions;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,7 +91,7 @@ public class SplittableDoFnTest {
     }
 
     boolean tryClaim(int i) {
-      Preconditions.checkState(lastClaimedIndex == null || i > lastClaimedIndex);
+      checkState(lastClaimedIndex == null || i > lastClaimedIndex);
       if (i >= range.to) {
         return false;
       }
