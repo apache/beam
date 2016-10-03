@@ -268,6 +268,53 @@ public class DataflowUnboundedReadFromBoundedSourceTest {
     unboundedSource.createReader(options, checkpoint).getCurrent();
   }
 
+  @Test
+  public void testKind() {
+    DataflowUnboundedReadFromBoundedSource<?> read = new
+        DataflowUnboundedReadFromBoundedSource<>(new NoopNamedSource());
+
+    assertEquals("Read(NoopNamedSource)", read.getKindString());
+  }
+
+  @Test
+  public void testKindAnonymousSource() {
+    NoopNamedSource anonSource = new NoopNamedSource() {};
+    DataflowUnboundedReadFromBoundedSource<?> read = new
+        DataflowUnboundedReadFromBoundedSource<>(anonSource);
+
+    assertEquals("Read(AnonymousSource)", read.getKindString());
+  }
+
+  /** Source implementation only useful for its identity. */
+  static class NoopNamedSource extends BoundedSource<String> {
+    @Override
+    public List<? extends BoundedSource<String>> splitIntoBundles(long desiredBundleSizeBytes,
+        PipelineOptions options) throws Exception {
+      return null;
+    }
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return 0;
+    }
+    @Override
+    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+      return false;
+    }
+    @Override
+    public BoundedReader<String> createReader(
+        PipelineOptions options) throws IOException {
+      return null;
+    }
+    @Override
+    public void validate() {
+
+    }
+    @Override
+    public Coder<String> getDefaultOutputCoder() {
+      return null;
+    }
+  }
+
   /**
    * Generate byte array of given size.
    */

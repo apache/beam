@@ -97,8 +97,8 @@ public class DisplayDataEvaluator {
 
     Pipeline pipeline = Pipeline.create(options);
     pipeline
-      .apply(input)
-      .apply(root);
+      .apply("Input", input)
+      .apply("Transform", root);
 
     PrimitiveDisplayDataPTransformVisitor visitor = new PrimitiveDisplayDataPTransformVisitor(root);
     pipeline.traverseTopologically(visitor);
@@ -116,7 +116,7 @@ public class DisplayDataEvaluator {
       final PTransform<? super PBegin, ? extends POutput> root) {
     Pipeline pipeline = Pipeline.create(options);
     pipeline
-        .apply(root);
+        .apply("SourceTransform", root);
 
     return displayDataForPipeline(pipeline, root);
   }

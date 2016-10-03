@@ -2522,6 +2522,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
       }
 
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder.add(DisplayData.item("source", source.getClass()));
+        builder.include(source);
+      }
+
       public UnboundedSource<T, ?> getSource() {
         return source;
       }
