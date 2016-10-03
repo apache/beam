@@ -27,7 +27,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collections;
 
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -184,7 +183,13 @@ public class JdbcIOTest implements Serializable {
              JdbcIO.<KV<String, Integer>>read()
                      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                      .withQuery("select name,id from BEAM where name = ?")
-                     .withParameters(Collections.<Object>singletonList("Darwin"))
+                     .withStatementPrepator(new JdbcIO.StatementPreparator() {
+                       @Override
+                       public void setParameters(PreparedStatement preparedStatement)
+                               throws Exception {
+                         preparedStatement.setString(1, "Darwin");
+                       }
+                     })
                      .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
                        @Override
                        public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
