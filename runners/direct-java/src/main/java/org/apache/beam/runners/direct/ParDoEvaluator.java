@@ -165,7 +165,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       UncommittedBundle bundle = bundles.get(tag);
       if (bundle == null) {
-        List<WindowedValue<T>> undeclaredContents = (List)undeclaredOutputs.get(tag);
+        List<WindowedValue<T>> undeclaredContents = (List) undeclaredOutputs.get(tag);
         if (undeclaredContents == null) {
           undeclaredContents = new ArrayList<>();
           undeclaredOutputs.put(tag, undeclaredContents);

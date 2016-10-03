@@ -82,7 +82,7 @@ public class DoFnInvokers {
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
     return newByteBuddyInvoker(DoFnSignatures.INSTANCE.getOrParseSignature(
-        (Class)fn.getClass()), fn);
+        (Class) fn.getClass()), fn);
   }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */

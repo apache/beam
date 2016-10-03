@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
 abstract class CustomOptional<T> {
     @SuppressWarnings("unchecked")
     public static <T> CustomOptional<T> absent() {
-        return (Absent<T>)Absent.INSTANCE;
+        return (Absent<T>) Absent.INSTANCE;
     }
 
     public static <T> CustomOptional<T> of(T v) {

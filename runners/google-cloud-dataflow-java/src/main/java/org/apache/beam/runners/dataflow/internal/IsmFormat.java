@@ -242,7 +242,7 @@ public class IsmFormat {
     /** Returns the key coder at the specified index. */
     @SuppressWarnings("unchecked")
     public <T> Coder<T> getKeyComponentCoder(int index) {
-      return (Coder<T>)keyComponentCoders.get(index);
+      return (Coder<T>) keyComponentCoders.get(index);
     }
 
     /** Returns the value coder. */
