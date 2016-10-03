@@ -873,6 +873,9 @@ public class PipelineOptionsFactory {
       if (getterMethod != null) {
         Type getterPropertyType = getterMethod.getGenericReturnType();
         Type setterPropertyType = method.getGenericParameterTypes()[0];
+        if (getterPropertyType.equals(ValueProvider.class)) {
+          continue;
+        }
         if (!getterPropertyType.equals(setterPropertyType)) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;
@@ -1122,6 +1125,7 @@ public class PipelineOptionsFactory {
                                  return !knownMethods.contains(input.getName());
                              }
                            })));
+
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1461,7 +1465,8 @@ public class PipelineOptionsFactory {
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
+        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
+                   || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
                "Empty argument value is only allowed for String, String Array, "
@@ -1477,7 +1482,8 @@ public class PipelineOptionsFactory {
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
-            throw new IllegalArgumentException("Unable to parse JSON value " + value, e);
+            throw new IllegalArgumentException("Unable to parse JSON value " + value
+                                               + " for type " + type.toString(), e);
           }
         }
       } catch (IllegalArgumentException e) {
