@@ -30,6 +30,8 @@ from types import NoneType
 
 from apache_beam.coders import observable
 
+from apache_beam.coders import observable
+
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
