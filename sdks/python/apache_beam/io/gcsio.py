@@ -313,7 +313,10 @@ class GcsBufferedReader(object):
   def next(self):
     """Read one line delimited by '\\n' from the file.
     """
-    return self.readline()
+    line = self.readline()
+    if not line:
+      raise StopIteration()
+    return line
 
   def read(self, size=-1):
     """Read data from a GCS file.
