@@ -165,7 +165,7 @@ import javax.annotation.Nullable;
  * <p>To read from a BigQuery table, apply a {@link BigQueryIO.Read} transformation.
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
- * PCollection<TableRow> shakespeare = pipeline.apply(
+ * PCollection<TableRow> weatherData = pipeline.apply(
  *     BigQueryIO.Read.named("Read")
  *                    .from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
@@ -177,7 +177,7 @@ import javax.annotation.Nullable;
  * input transform.
  *
  * <pre>{@code
- * PCollection<TableRow> shakespeare = pipeline.apply(
+ * PCollection<TableRow> meanTemperatureData = pipeline.apply(
  *     BigQueryIO.Read.named("Read")
  *                    .fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
@@ -888,14 +888,19 @@ public class BigQueryIO {
         String extractDestinationDir,
         BigQueryServices bqServices) {
       return new BigQueryQuerySource(
-          jobIdToken, query, queryTempTableRef, flattenResults, useLegacySql, extractDestinationDir,
+          jobIdToken,
+          query,
+          queryTempTableRef,
+          flattenResults,
+          useLegacySql,
+          extractDestinationDir,
           bqServices);
     }
 
     private final String query;
     private final String jsonQueryTempTable;
     private final Boolean flattenResults;
-    private final boolean useLegacySql;
+    private final Boolean useLegacySql;
     private transient AtomicReference<JobStatistics> dryRunJobStats;
 
     private BigQueryQuerySource(
@@ -1013,7 +1018,6 @@ public class BigQueryIO {
       if (parseStatus(job) != Status.SUCCEEDED) {
         throw new IOException("Query job failed: " + jobId);
       }
-      return;
     }
 
     private JobConfigurationQuery createBasicQueryConfig() {
