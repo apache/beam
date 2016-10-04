@@ -42,8 +42,7 @@ class FileBasedSource(iobase.BoundedSource):
   def __init__(self,
                file_pattern,
                min_bundle_size=0,
-               # TODO(BEAM-614)
-               compression_type=fileio.CompressionTypes.UNCOMPRESSED,
+               compression_type=fileio.CompressionTypes.AUTO,
                splittable=True):
     """Initializes ``FileBasedSource``.
 
@@ -72,13 +71,6 @@ class FileBasedSource(iobase.BoundedSource):
           '%s: file_pattern must be a string;  got %r instead' %
           (self.__class__.__name__, file_pattern))
 
-    if compression_type == fileio.CompressionTypes.AUTO:
-      raise ValueError('FileBasedSource currently does not support '
-                       'CompressionTypes.AUTO. Please explicitly specify the '
-                       'compression type or use '
-                       'CompressionTypes.UNCOMPRESSED if file is '
-                       'uncompressed.')
-
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -86,11 +78,12 @@ class FileBasedSource(iobase.BoundedSource):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     self._compression_type = compression_type
-    if compression_type != fileio.CompressionTypes.UNCOMPRESSED:
+    if compression_type in (fileio.CompressionTypes.UNCOMPRESSED,
+                            fileio.CompressionTypes.AUTO):
+      self._splittable = splittable
+    else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    else:
-      self._splittable = splittable
 
   def _get_concat_source(self):
     if self._concat_source is None:
@@ -102,11 +95,21 @@ class FileBasedSource(iobase.BoundedSource):
         if sizes[index] == 0:
           continue  # Ignoring empty file.
 
+        # We determine splittability of this specific file.
+        splittable = self.splittable
+        if (splittable and
+            self._compression_type == fileio.CompressionTypes.AUTO):
+          compression_type = fileio.CompressionTypes.detect_compression_type(
+              file_name)
+          if compression_type != fileio.CompressionTypes.UNCOMPRESSED:
+            splittable = False
+
         single_file_source = _SingleFileSource(
             self, file_name,
             0,
             sizes[index],
-            min_bundle_size=self._min_bundle_size)
+            min_bundle_size=self._min_bundle_size,
+            splittable=splittable)
         single_file_sources.append(single_file_source)
       self._concat_source = concat_source.ConcatSource(single_file_sources)
     return self._concat_source
@@ -173,7 +176,7 @@ class _SingleFileSource(iobase.BoundedSource):
   """Denotes a source for a specific file type."""
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
-               min_bundle_size=0):
+               min_bundle_size=0, splittable=True):
     if not isinstance(start_offset, (int, long)):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
@@ -193,6 +196,7 @@ class _SingleFileSource(iobase.BoundedSource):
     self._stop_offset = stop_offset
     self._min_bundle_size = min_bundle_size
     self._file_based_source = file_based_source
+    self._splittable = splittable
 
   def split(self, desired_bundle_size, start_offset=None, stop_offset=None):
     if start_offset is None:
@@ -200,7 +204,7 @@ class _SingleFileSource(iobase.BoundedSource):
     if stop_offset is None:
       stop_offset = self._stop_offset
 
-    if self._file_based_source.splittable:
+    if self._splittable:
       bundle_size = max(desired_bundle_size, self._min_bundle_size)
 
       bundle_start = start_offset
@@ -214,7 +218,8 @@ class _SingleFileSource(iobase.BoundedSource):
                 self._file_name,
                 bundle_start,
                 bundle_stop,
-                min_bundle_size=self._min_bundle_size),
+                min_bundle_size=self._min_bundle_size,
+                splittable=self._splittable),
             bundle_start,
             bundle_stop)
         bundle_start = bundle_stop
@@ -230,7 +235,8 @@ class _SingleFileSource(iobase.BoundedSource):
               self._file_name,
               start_offset,
               range_trackers.OffsetRangeTracker.OFFSET_INFINITY,
-              min_bundle_size=self._min_bundle_size
+              min_bundle_size=self._min_bundle_size,
+              splittable=self._splittable
           ),
           start_offset,
           range_trackers.OffsetRangeTracker.OFFSET_INFINITY
@@ -248,12 +254,12 @@ class _SingleFileSource(iobase.BoundedSource):
       # file as end offset will be wrong for certain unsplittable source, for
       # e.g., compressed sources.
       stop_position = (
-          self._stop_offset if self._file_based_source.splittable
+          self._stop_offset if self._splittable
           else range_trackers.OffsetRangeTracker.OFFSET_INFINITY)
 
     range_tracker = range_trackers.OffsetRangeTracker(
         start_position, stop_position)
-    if not self._file_based_source.splittable:
+    if not self._splittable:
       range_tracker = range_trackers.UnsplittableRangeTracker(range_tracker)
 
     return range_tracker
