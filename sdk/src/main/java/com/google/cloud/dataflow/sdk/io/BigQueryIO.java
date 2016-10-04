@@ -692,13 +692,13 @@ public class BigQueryIO {
       }
 
       /**
-       * Returns the table to write, or {@code null} if reading from a query instead.
+       * Returns the table to read, or {@code null} if reading from a query instead.
        *
-       * <p>If the table's project is not specified, use the default one.
+       * <p>If the table's project is not specified, use the executing project.
        */
       @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
         TableReference table = getTable();
-        if (table != null && table.getProjectId() == null) {
+        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
           table.setProjectId(bqOptions.getProject());
@@ -709,6 +709,7 @@ public class BigQueryIO {
       /**
        * Returns the table to read, or {@code null} if reading from a query instead.
        */
+      @Nullable
       public TableReference getTable() {
         return fromJsonString(jsonTableRef, TableReference.class);
       }
@@ -1739,13 +1740,7 @@ public class BigQueryIO {
 
         // The user specified a table.
         if (jsonTableRef != null && validate) {
-          TableReference table = getTable();
-
-          // If user does not specify a project we assume the table to be located in the project
-          // configured in BigQueryOptions.
-          if (Strings.isNullOrEmpty(table.getProjectId())) {
-            table.setProjectId(options.getProject());
-          }
+          TableReference table = getTableWithDefaultProject(options);
 
           // Check for destination table presence and emptiness for early failure notification.
           // Note that a presence check can fail when the table or dataset is created by an earlier
@@ -1803,10 +1798,8 @@ public class BigQueryIO {
           return input.apply(new StreamWithDeDup(getTable(), tableRefFunction, getSchema()));
         }
 
-        TableReference table = fromJsonString(jsonTableRef, TableReference.class);
-        if (Strings.isNullOrEmpty(table.getProjectId())) {
-          table.setProjectId(options.getProject());
-        }
+        TableReference table = getTableWithDefaultProject(options);
+
         String jobIdToken = "beam_job_" + randomUUIDString();
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
@@ -1979,6 +1972,21 @@ public class BigQueryIO {
       /** Returns the table schema. */
       public TableSchema getSchema() {
         return fromJsonString(jsonSchema, TableSchema.class);
+      }
+
+      /**
+       * Returns the table to write, or {@code null} if writing with {@code tableRefFunction}.
+       *
+       * <p>If the table's project is not specified, use the executing project.
+       */
+      @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
+        TableReference table = getTable();
+        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
+          // If user does not specify a project we assume the table to be located in
+          // the default project.
+          table.setProjectId(bqOptions.getProject());
+        }
+        return table;
       }
 
       /** Returns the table reference, or {@code null}. */
