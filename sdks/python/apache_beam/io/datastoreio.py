@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Implements a source for reading Avro files."""
 
 import os
 
@@ -28,7 +27,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import Create
 from apache_beam.transforms import ParDo
 
-__all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
+__all__ = ['ReadFromDatastore', 'WriteToDatastore']
 
 class ReadFromDatastore(PTransform):
   """A ``PTransform`` for reading from Google Cloud Datastore."""
@@ -58,8 +57,13 @@ class ReadFromDatastore(PTransform):
       self._query = query
 
     def process(self, p_context, *args, **kwargs):
-      # TODO: split the query
-      return [p_context.element]
+      query = p_context.element
+
+      # TODO: Fix this when query splitter is available.
+      # for split_query in query_splitter.split(query, num_splits):
+      #   yield split_query
+
+      return [query]
 
   class ReadFn(DoFn):
     def __init__(self, project_id, namespace=None):
@@ -75,6 +79,8 @@ class ReadFromDatastore(PTransform):
 
     def process(self, p_context, *args, **kwargs):
       query = p_context.element
+      # TODO: Accessing the client variable directly is because of a limitation
+      # in the current gcloud python lib and will be fixed soon.
       query._client = self._client
       return query.fetch()
 
@@ -135,46 +141,4 @@ class WriteToDatastore(PTransform):
   def apply(self, pcoll):
     return (pcoll
             | 'Write to Datastore' >> ParDo(WriteToDatastore.WriteFn(
-                                            self._project_id, self._namespace)))
-
-class DeleteFromDatastore(PTransform):
-  DATASTORE_BATCH_SIZE = 500
-
-  def __init__(self, project_id, namespace=None):
-    self._project_id = project_id
-    self._namespace = namespace
-
-  class DeleteFn(DoFn):
-    def __init__(self, project_id, namespace=None):
-      self._project_id = project_id
-      self._namespace = namespace
-      self._client = None
-      self._current_batch = []
-
-    def start_bundle(self, context):
-      self._client = datastore.Client(self._project_id, self._namespace)
-
-    def process(self, p_context, *args, **kwargs):
-      key = p_context.element
-      if key.is_partial:
-        msg = ("Keys to be deleted from the Cloud Datastore"
-               "must be complete: \n{0}".format(entity))
-        raise ValueError(msg)
-
-      self._current_batch.append(key)
-
-      if len(self._current_batch) == DeleteFromDatastore.DATASTORE_BATCH_SIZE:
-        self.flush_batch()
-
-    def finish_bundle(self, context):
-      if len(self._current_batch) > 0:
-        self.flush_batch()
-
-    def flush_batch():
-      self._client.delete_multi(self._current_batch)
-      self._current_batch = []
-
-  def apply(self, pcoll):
-    return (pcoll
-            | 'Delete from Datastore' >> ParDo(DeleteFromDatastore.DeleteFn(
                                             self._project_id, self._namespace)))
