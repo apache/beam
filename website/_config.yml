@@ -41,6 +41,10 @@ exclude: ['README.md', 'Gemfile.lock', 'Gemfile', 'Rakefile']
 # Downloads directory
 downloads: downloads
 
+# Don't use the page title in the table of contents
+kramdown:
+  toc_levels:     2..6
+
 gems:
   - jekyll-redirect-from
   
