@@ -1,4 +1,3 @@
-
 # Apache Beam (incubating) website
 
 This is the website for [Apache Beam](http://beam.incubator.apache.org)
