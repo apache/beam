@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.Path;
 import java.util.Collection;
 
 /**
@@ -99,4 +100,7 @@ public interface IOChannelFactory {
    * dependent and therefore unspecified.
    */
   String resolve(String path, String other) throws IOException;
+
+  /** Converts the given string to a {@link Path}. */
+  Path toPath(String path);
 }

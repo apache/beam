@@ -261,7 +261,7 @@ public class GcsPath implements Path {
 
   @Override
   public GcsPath getFileName() {
-    throw new UnsupportedOperationException();
+    return getName(getNameCount() - 1);
   }
 
   /**
@@ -431,12 +431,14 @@ public class GcsPath implements Path {
 
   @Override
   public Path resolveSibling(Path other) {
-    throw new UnsupportedOperationException();
+    GcsPath parent = getParent();
+    return (parent == null) ? other : parent.resolve(other);
   }
 
   @Override
   public Path resolveSibling(String other) {
-    throw new UnsupportedOperationException();
+    GcsPath parent = getParent();
+    return (parent == null) ? fromUri(other) : parent.resolve(other);
   }
 
   @Override

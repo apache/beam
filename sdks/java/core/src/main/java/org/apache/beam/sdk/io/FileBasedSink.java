@@ -31,6 +31,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -53,6 +54,8 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -317,17 +320,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final String baseTemporaryFilename;
 
     /**
-     * Name separator for temporary files. Temporary files will be named
-     * {@code {baseTemporaryFilename}-temp-{bundleId}}.
-     */
-    protected static final String TEMPORARY_FILENAME_SEPARATOR = "-temp-";
-
-    /**
      * Build a temporary filename using the temporary filename separator with the given prefix and
      * suffix.
      */
     protected static final String buildTemporaryFilename(String prefix, String suffix) {
-      return prefix + FileBasedWriteOperation.TEMPORARY_FILENAME_SEPARATOR + suffix;
+      try {
+        IOChannelFactory factory = IOChannelUtils.getFactory(prefix);
+        return factory.resolve(prefix, suffix);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     /**
@@ -337,7 +339,23 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink) {
-      this(sink, sink.baseOutputFilename);
+      this(sink, buildTemporaryDirectoryName(sink.getBaseOutputFilename()));
+    }
+
+    private static String buildTemporaryDirectoryName(String baseOutputFilename) {
+      try {
+        IOChannelFactory factory = IOChannelUtils.getFactory(baseOutputFilename);
+        Path baseOutputPath = factory.toPath(baseOutputFilename);
+        return baseOutputPath
+            .resolveSibling(
+                "temp-beam-"
+                    + baseOutputPath.getFileName()
+                    + "-"
+                    + Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")))
+            .toString();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     /**
