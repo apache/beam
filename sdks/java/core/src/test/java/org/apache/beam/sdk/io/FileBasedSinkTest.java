@@ -89,7 +89,7 @@ public class FileBasedSinkTest {
   public void testWriter() throws Exception {
     String testUid = "testId";
     String expectedFilename =
-        getBaseTempFilename() + FileBasedWriteOperation.TEMPORARY_FILENAME_SEPARATOR + testUid;
+        getBaseTempFilename() + "/" + testUid;
     SimpleSink.SimpleWriter writer = buildWriter();
 
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
@@ -193,8 +193,7 @@ public class FileBasedSinkTest {
     runFinalize(writeOp, files, false);
 
     // create a temporary file
-    tmpFolder.newFile(
-        baseTemporaryFilename + FileBasedWriteOperation.TEMPORARY_FILENAME_SEPARATOR + "1");
+    tmpFolder.newFile(baseTemporaryFilename + "/1");
 
     runFinalize(writeOp, files, false);
   }
@@ -217,7 +216,9 @@ public class FileBasedSinkTest {
     for (int i = 0; i < numFiles; i++) {
       String temporaryFilename =
           FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i);
-      File tmpFile = tmpFolder.newFile(temporaryFilename);
+      File tmpFile = new File(tmpFolder.getRoot(), temporaryFilename);
+      tmpFile.getParentFile().mkdirs();
+      assertTrue(tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);
     }
 
@@ -263,8 +264,10 @@ public class FileBasedSinkTest {
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      File tmpFile = tmpFolder.newFile(
+      File tmpFile = new File(tmpFolder.getRoot(),
           FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i));
+      tmpFile.getParentFile().mkdirs();
+      assertTrue(tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);
       File outputFile = tmpFolder.newFile(baseOutputFilename + i);
       outputFiles.add(outputFile);
@@ -496,11 +499,13 @@ public class FileBasedSinkTest {
   @Test
   public void testFileBasedWriterWithWritableByteChannelFactory() throws Exception {
     final String testUid = "testId";
-    final String expectedFilename =
-        getBaseOutputFilename() + FileBasedWriteOperation.TEMPORARY_FILENAME_SEPARATOR + testUid;
-    final FileBasedWriter<String> writer =
+    SimpleSink.SimpleWriteOperation writeOp =
         new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
-            .createWriteOperation(null).createWriter(null);
+            .createWriteOperation(null);
+    final FileBasedWriter<String> writer =
+        writeOp.createWriter(null);
+    final String expectedFilename =
+        writeOp.baseTemporaryFilename + "/" + testUid;
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");

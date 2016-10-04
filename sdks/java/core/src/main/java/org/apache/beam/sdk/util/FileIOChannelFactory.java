@@ -148,7 +148,11 @@ public class FileIOChannelFactory implements IOChannelFactory {
 
   @Override
   public String resolve(String path, String other) throws IOException {
-    Path p = specToFile(path).toPath();
-    return p.resolve(other).toString();
+    return toPath(path).resolve(other).toString();
+  }
+
+  @Override
+  public Path toPath(String path) {
+    return specToFile(path).toPath();
   }
 }
