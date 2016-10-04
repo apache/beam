@@ -70,6 +70,14 @@ class RangeSource(iobase.BoundedSource):
           return
       yield k
 
+  # For testing
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._start == other._start and self._end == other._end)
+
+  def __ne__(self, other):
+    return not self == other
+
 
 class ConcatSourceTest(unittest.TestCase):
 
