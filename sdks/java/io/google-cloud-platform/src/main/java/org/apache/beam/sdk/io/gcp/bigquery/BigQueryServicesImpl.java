@@ -97,8 +97,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten);
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+      @Nullable Boolean useLegacySql) {
+    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten, useLegacySql);
   }
 
   @VisibleForTesting
@@ -265,12 +266,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query)
+    public JobStatistics dryRunQuery(String projectId, String query, boolean useLegacySql)
         throws InterruptedException, IOException {
       Job job = new Job()
           .setConfiguration(new JobConfiguration()
               .setQuery(new JobConfigurationQuery()
-                  .setQuery(query))
+                  .setQuery(query)
+                  .setUseLegacySql(useLegacySql))
               .setDryRun(true));
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -697,10 +699,12 @@ class BigQueryServicesImpl implements BigQueryServices {
         BigQueryOptions bqOptions,
         String query,
         String projectId,
-        @Nullable Boolean flattenResults) {
+        @Nullable Boolean flattenResults,
+        @Nullable Boolean useLegacySql) {
       return new BigQueryJsonReaderImpl(
           BigQueryTableRowIterator.fromQuery(
-              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults));
+              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults,
+              useLegacySql));
     }
 
     private static BigQueryJsonReader fromTable(

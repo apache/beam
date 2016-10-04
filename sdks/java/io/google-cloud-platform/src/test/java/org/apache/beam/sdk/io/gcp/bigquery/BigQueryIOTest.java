@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -182,7 +183,8 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public BigQueryJsonReader getReaderFromQuery(
-        BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten) {
+        BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+        @Nullable Boolean useLegacySql) {
       return new FakeBigQueryReader(jsonTableRowReturns);
     }
 
@@ -360,7 +362,7 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query)
+    public JobStatistics dryRunQuery(String projectId, String query, boolean useLegacySql)
         throws InterruptedException, IOException {
       throw new UnsupportedOperationException();
     }
@@ -537,7 +539,7 @@ public class BigQueryIOTest implements Serializable {
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation, either table reference or query has to be set");
+        "Invalid BigQueryIO.Read: one of table reference and query must be set");
     p.apply(BigQueryIO.Read.withoutValidation());
     p.run();
   }
@@ -552,8 +554,7 @@ public class BigQueryIOTest implements Serializable {
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation. Specifies both a query and a table, only one of these"
-        + " should be provided");
+        "Invalid BigQueryIO.Read: table reference and query may not both be set");
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
@@ -571,8 +572,8 @@ public class BigQueryIOTest implements Serializable {
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation. Specifies a"
-              + " table with a result flattening preference, which is not configurable");
+        "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
+            + " which only applies to queries");
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
@@ -590,13 +591,32 @@ public class BigQueryIOTest implements Serializable {
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation. Specifies a"
-              + " table with a result flattening preference, which is not configurable");
+        "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
+            + " which only applies to queries");
     p.apply(
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
             .withoutValidation()
             .withoutResultFlattening());
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBuildSourceWithTableAndSqlDialect() {
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(
+        "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect preference,"
+            + " which only applies to queries");
+    p.apply(
+        BigQueryIO.Read
+            .from("foo.com:project:somedataset.sometable")
+            .usingStandardSql());
     p.run();
   }
 
@@ -712,6 +732,7 @@ public class BigQueryIOTest implements Serializable {
         .from(tableSpec)
         .fromQuery("myQuery")
         .withoutResultFlattening()
+        .usingStandardSql()
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
@@ -719,6 +740,7 @@ public class BigQueryIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("table", tableSpec));
     assertThat(displayData, hasDisplayItem("query", "myQuery"));
     assertThat(displayData, hasDisplayItem("flattenResults", false));
+    assertThat(displayData, hasDisplayItem("useLegacySql", false));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
@@ -1189,7 +1211,7 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", destinationTable, true /* flattenResults */,
+        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(
@@ -1204,7 +1226,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("testProejct")
         .setDatasetId("testDataset")
         .setTableId("testTable");
-    when(mockJobService.dryRunQuery(anyString(), anyString()))
+    when(mockJobService.dryRunQuery(anyString(), anyString(), anyBoolean()))
         .thenReturn(new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
