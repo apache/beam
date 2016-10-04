@@ -103,7 +103,7 @@ public class LatestFnTests {
   @Test
   public void testAddInputNullAccumulator() {
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage("accumulators");
+    thrown.expectMessage("accumulator");
     fn.addInput(null, TV);
   }
 
