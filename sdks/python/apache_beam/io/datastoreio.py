@@ -28,7 +28,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import Create
 from apache_beam.transforms import ParDo
 
-__all__ = ['ReadFromDatastore']
+__all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 class ReadFromDatastore(PTransform):
   """A ``PTransform`` for reading from Google Cloud Datastore."""
@@ -41,7 +41,6 @@ class ReadFromDatastore(PTransform):
       query: The Cloud Datastore query to be read from.
       namespace: An optional namespace.
     """
-
     super(ReadFromDatastore, self).__init__()
 
     self._project_id = project_id
@@ -51,11 +50,42 @@ class ReadFromDatastore(PTransform):
     self._query = query
     self._query._namespace = namespace
 
+  class SplitQueryFn(DoFn):
+    def __init__(self, project_id, query, namespace=None):
+      super(ReadFromDatastore.SplitQueryFn, self).__init__()
+      self._project_id = project_id
+      self._namespace = namespace
+      self._query = query
+
+    def process(self, p_context, *args, **kwargs):
+      # TODO: split the query
+      return [p_context.element]
+
+  class ReadFn(DoFn):
+    def __init__(self, project_id, namespace=None):
+      super(ReadFromDatastore.ReadFn, self).__init__()
+      self._project_id = project_id
+      self._namespace = namespace
+      self._client = None
+
+    def start_bundle(self, context):
+      # Will the same DoFn be serialized / deserialized again?
+      self._client = datastore.Client(self._project_id, self._namespace)
+
+
+    def process(self, p_context, *args, **kwargs):
+      query = p_context.element
+      query._client = self._client
+      return query.fetch()
+
   def apply(self, pcoll):
     return (pcoll.pipeline
             | 'User Query' >> Create([self._query])
-            | 'Split Query' >> ParDo(ReadFromdDatastore.SplitQueryFn(self._project_id, self._query, self._namespace))
-            | 'Read' >> ParDo(ReadFromdDatastore.ReadFn(self._project_id, self._namespace)))
+            | 'Split Query' >> ParDo(ReadFromDatastore.SplitQueryFn(
+                                    self._project_id, self._query,
+                                    self._namespace))
+            | 'Read' >> ParDo(ReadFromDatastore.ReadFn(self._project_id,
+                              self._namespace)))
 
   @staticmethod
   def query(project, namespace):
@@ -63,40 +93,88 @@ class ReadFromDatastore(PTransform):
       namespace = 'dummy'
     return Query(None, project=project, namespace=namespace)
 
-class SplitQueryFn(DoFn):
-  def __init__(self, project_id, query, namespace=None):
-    super(SplitQueryFn, self).__init__()
+
+class WriteToDatastore(PTransform):
+  DATASTORE_BATCH_SIZE = 500
+
+  def __init__(self, project_id, namespace=None):
     self._project_id = project_id
     self._namespace = namespace
-    self._query = query
 
-  def process(self, p_context, *args, **kwargs):
-    # TODO: split the query
-    print 'Query is'
-    print p_context.element
-    return [p_context.element]  
-
-  class ReadFn(DoFn):
+  class WriteFn(DoFn):
     def __init__(self, project_id, namespace=None):
-      super(ReadFn, self).__init__()
       self._project_id = project_id
       self._namespace = namespace
       self._client = None
+      self._current_batch = []
 
     def start_bundle(self, context):
-      print self._project_id
-      print self._namespace
-      # Will the same DoFn be serialized / deserialized again?
       self._client = datastore.Client(self._project_id, self._namespace)
 
+    def process(self, p_context, *args, **kwargs):
+      entity = p_context.element
+      if entity.key.is_partial:
+        msg = ("Entities to be written to the Cloud Datastore"
+               "must have complete keys: \n{0}".format(entity))
+        raise ValueError(msg)
+
+      self._current_batch.append(p_context.element)
+      print p_context.element
+
+      if len(self._current_batch) == WriteToDatastore.DATASTORE_BATCH_SIZE:
+        self.flush_batch()
+
+    def finish_bundle(self, context):
+      if len(self._current_batch) > 0:
+        self.flush_batch()
+
+    def flush_batch(self):
+      self._client.put_multi(self._current_batch)
+      self._current_batch = []
+
+  def apply(self, pcoll):
+    return (pcoll
+            | 'Write to Datastore' >> ParDo(WriteToDatastore.WriteFn(
+                                            self._project_id, self._namespace)))
+
+class DeleteFromDatastore(PTransform):
+  DATASTORE_BATCH_SIZE = 500
+
+  def __init__(self, project_id, namespace=None):
+    self._project_id = project_id
+    self._namespace = namespace
+
+  class DeleteFn(DoFn):
+    def __init__(self, project_id, namespace=None):
+      self._project_id = project_id
+      self._namespace = namespace
+      self._client = None
+      self._current_batch = []
+
+    def start_bundle(self, context):
+      self._client = datastore.Client(self._project_id, self._namespace)
 
     def process(self, p_context, *args, **kwargs):
-      query = p_context.element
-      print 'Read Fn Query is'
-      print query.kind
-      query._client = self._client
-      return query.fetch()
+      key = p_context.element
+      if key.is_partial:
+        msg = ("Keys to be deleted from the Cloud Datastore"
+               "must be complete: \n{0}".format(entity))
+        raise ValueError(msg)
 
+      self._current_batch.append(key)
 
+      if len(self._current_batch) == DeleteFromDatastore.DATASTORE_BATCH_SIZE:
+        self.flush_batch()
 
+    def finish_bundle(self, context):
+      if len(self._current_batch) > 0:
+        self.flush_batch()
 
+    def flush_batch():
+      self._client.delete_multi(self._current_batch)
+      self._current_batch = []
+
+  def apply(self, pcoll):
+    return (pcoll
+            | 'Delete from Datastore' >> ParDo(DeleteFromDatastore.DeleteFn(
+                                            self._project_id, self._namespace)))

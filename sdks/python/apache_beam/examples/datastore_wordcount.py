@@ -81,11 +81,13 @@ def run(argv=None):
   gcloud_options = pipeline_options.view_as(GoogleCloudOptions)
   p = beam.Pipeline(options=pipeline_options)
 
-  query = beam.io.ReadFromDatastore.query(gcloud_options.project, known_args.namespace)
+  query = beam.io.ReadFromDatastore.query(gcloud_options.project,
+    known_args.namespace)
   query.kind = known_args.kind
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> beam.io.ReadFromDatastore(gcloud_options.project, query, known_args.namespace)
+  lines = p | 'read' >> beam.io.ReadFromDatastore(gcloud_options.project, query,
+    known_args.namespace)
 
   # Count the occurrences of each word.
   counts = (lines
@@ -108,7 +110,6 @@ def run(argv=None):
   logging.info('number of empty lines: %d', sum(empty_line_values.values()))
   word_length_values = result.aggregated_values(average_word_size_aggregator)
   logging.info('average word lengths: %s', word_length_values.values())
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
