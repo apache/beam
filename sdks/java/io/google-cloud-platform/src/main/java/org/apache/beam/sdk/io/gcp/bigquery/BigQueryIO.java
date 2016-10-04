@@ -528,6 +528,7 @@ public class BigQueryIO {
         checkState(
             table != null || query != null,
             "Invalid BigQueryIO.Read: one of table reference and query must be set");
+
         if (table != null) {
           checkState(
               flattenResults == null,
@@ -910,21 +911,26 @@ public class BigQueryIO {
     protected TableReference getTableToExtract(BigQueryOptions bqOptions)
         throws IOException, InterruptedException {
       // 1. Find the location of the query.
-      TableReference dryRunTempTable = dryRunQueryIfNeeded(bqOptions)
-          .getQuery()
-          .getReferencedTables()
-          .get(0);
+      String location = null;
+      List<TableReference> referencedTables =
+          dryRunQueryIfNeeded(bqOptions).getQuery().getReferencedTables();
       DatasetService tableService = bqServices.getDatasetService(bqOptions);
-      String location = tableService.getTable(
-          dryRunTempTable.getProjectId(),
-          dryRunTempTable.getDatasetId(),
-          dryRunTempTable.getTableId()).getLocation();
+      if (referencedTables != null && !referencedTables.isEmpty()) {
+        TableReference queryTable = referencedTables.get(0);
+        location = tableService.getTable(
+            queryTable.getProjectId(),
+            queryTable.getDatasetId(),
+            queryTable.getTableId()).getLocation();
+      }
 
       // 2. Create the temporary dataset in the query location.
       TableReference tableToExtract =
           JSON_FACTORY.fromString(jsonQueryTempTable, TableReference.class);
       tableService.createDataset(
-          tableToExtract.getProjectId(), tableToExtract.getDatasetId(), location, "");
+          tableToExtract.getProjectId(),
+          tableToExtract.getDatasetId(),
+          location,
+          "Dataset for BigQuery query job temporary table");
 
       // 3. Execute the query.
       String queryJobId = jobIdToken + "-query";

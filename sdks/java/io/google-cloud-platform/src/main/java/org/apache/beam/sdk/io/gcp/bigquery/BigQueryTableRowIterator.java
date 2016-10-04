@@ -421,7 +421,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
     queryConfig.setQuery(query);
     queryConfig.setAllowLargeResults(true);
     queryConfig.setFlattenResults(flattenResults);
-    queryConfig.setFlattenResults(useLegacySql);
+    queryConfig.setUseLegacySql(useLegacySql);
 
     TableReference destinationTable = new TableReference();
     destinationTable.setProjectId(projectId);

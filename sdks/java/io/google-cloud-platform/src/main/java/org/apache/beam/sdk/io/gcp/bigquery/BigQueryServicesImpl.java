@@ -472,7 +472,7 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void createDataset(
-        String projectId, String datasetId, String location, String description)
+        String projectId, String datasetId, @Nullable String location, @Nullable String description)
         throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -483,19 +483,22 @@ class BigQueryServicesImpl implements BigQueryServices {
     private void createDataset(
         String projectId,
         String datasetId,
-        String location,
-        String description,
+        @Nullable String location,
+        @Nullable String description,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       DatasetReference datasetRef = new DatasetReference()
           .setProjectId(projectId)
           .setDatasetId(datasetId);
 
-      Dataset dataset = new Dataset()
-          .setDatasetReference(datasetRef)
-          .setLocation(location)
-          .setFriendlyName(location)
-          .setDescription(description);
+      Dataset dataset = new Dataset().setDatasetReference(datasetRef);
+      if (location != null) {
+        dataset.setLocation(location);
+      }
+      if (description != null) {
+        dataset.setFriendlyName(description);
+        dataset.setDescription(description);
+      }
 
       Exception lastException;
       do {
