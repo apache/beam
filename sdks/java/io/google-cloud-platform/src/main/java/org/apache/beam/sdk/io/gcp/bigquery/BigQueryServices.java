@@ -57,7 +57,8 @@ interface BigQueryServices extends Serializable {
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
    */
   BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten);
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+      @Nullable Boolean useLegacySql);
 
   /**
    * An interface for the Cloud BigQuery load service.
@@ -97,7 +98,7 @@ interface BigQueryServices extends Serializable {
     /**
      * Dry runs the query in the given project.
      */
-    JobStatistics dryRunQuery(String projectId, String query)
+    JobStatistics dryRunQuery(String projectId, String query, boolean useLegacySql)
         throws InterruptedException, IOException;
 
     /**
