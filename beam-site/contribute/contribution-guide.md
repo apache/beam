@@ -18,7 +18,7 @@ We use a review-then-commit workflow in Beam for all contributions.
 
 **For larger contributions or those that affect multiple components:**
 
-1. **Engage**: We encourage you to work with the Beam community on the [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM) and [developer’s mailing list](http://beam.incubator.apache.org/mailing_lists/) to identify good areas for contribution.
+1. **Engage**: We encourage you to work with the Beam community on the [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM) and [developer’s mailing list](http://beam.incubator.apache.org/use/mailing-lists/) to identify good areas for contribution.
 1. **Design:** More complicated contributions will likely benefit from some early discussion in order to scope and design them well.
 
 **For all contributions:**
@@ -32,27 +32,28 @@ We look forward to working with you!
 ## Engage
 
 ### Mailing list(s)
-We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived [here](http://mail-archives.apache.org/mod_mbox/incubator-beam-dev/). Join by emailing [`dev-subscribe@beam.incubator.apache.org`](mailto:dev-subscribe@beam.incubator.apache.org).
+We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.incubator.apache.org`](mailto:dev-subscribe@beam.incubator.apache.org).
 
-If interested, you can also join [`user@beam.incubator.apache.org`](http://mail-archives.apache.org/mod_mbox/incubator-beam-user/) and [`commits@beam.incubator.apache.org`](http://mail-archives.apache.org/mod_mbox/incubator-beam-commits/) too.
+If interested, you can also join the other [mailing lists](http://beam.incubator.apache.org/use/mailing-lists/) too.
 
 ### Apache JIRA
 We use [Apache JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.
 
 If you do not already have an Apache JIRA account, sign up [here](https://issues.apache.org/jira/).
 
-If a quick [search](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20text%20~%20%22the%20thing%20I%20want%20to%20contribute%22) doesn’t turn up an existing JIRA issue for the work you want to contribute, create it. Please discuss your proposal with a committer or the [component lead](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel) in JIRA or, alternatively, on the developer mailing list.
+If a quick [search](https://issues.apache.org/jira/issues/?jql=project%3DBEAM%20AND%20text%20~%20%22the%20thing%20I%20want%20to%20contribute%22) doesn’t turn up an existing JIRA issue for the work you want to contribute, create it. Please discuss your idea with a committer or the [component lead](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel) in JIRA or, alternatively, on the developer mailing list.
 
 If there’s an existing JIRA issue for your intended contribution, please comment about your intended work. Once the work is understood, a committer will assign the issue to you. (If you don’t have a JIRA role yet, you’ll be added to the “contributor” role.) If an issue is currently assigned, please check with the current assignee before reassigning.
 
-For moderate or large contributions, you should not start coding or writing a design doc unless there is a corresponding JIRA issue assigned to you for that work. Simple changes, like fixing typos, do not require an associated issue.
+For moderate or large contributions, you should not start coding or writing a design document unless there is a corresponding JIRA issue assigned to you for that work. Simple changes, like fixing typos, do not require an associated issue.
 
 ## Design
+
 To avoid potential frustration during the code review cycle, we encourage you to clearly scope and design non-trivial contributions with the Beam community before you start coding.
 
 Generally, the JIRA issue is the best place to gather relevant design docs, comments, or references. It’s great to explicitly include relevant stakeholders early in the conversation. For designs that may be generally interesting, we also encourage conversations on the developer’s mailing list.
 
-We suggest using [Google Docs](https://docs.google.com/) for sharing designs that may benefit from diagrams or comments. Please remember to make the document world-commentable and add a link to it from the relevant JIRA issue. We also track Beam-related documents in [this shared folder](https://drive.google.com/folderview?id=0B-IhJZh9Ab52OFBVZHpsNjc4eXc&usp=sharing).
+We suggest using [Google Docs](https://docs.google.com/) for sharing designs that may benefit from diagrams or comments. Please remember to make the document world-commentable and add a link to it from the relevant JIRA issue. You may want to start from this [template](https://docs.google.com/document/d/1qYQPGtabN5-E4MjHsecqqC7PXvJtXvZukPfLXQ8rHJs/edit?usp=sharing).
 
 ## Code
 To contribute code to Apache Beam, you’ll have to do a few administrative steps once, and then follow a few guidelines for each contribution.
@@ -86,15 +87,15 @@ Clone Beam’s read-only GitHub mirror.
 
 Add your forked repository as an additional Git remote, where you’ll push your changes.
 
-<pre><code>$ git remote add <b>&lt;GitHub_user&gt;</b> git@github.com:<b>&lt;GitHub_user&gt;</b>/incubator-beam.git</code></pre>
+	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/incubator-beam.git
 
 You are now ready to start developing!
 
 ### Create a branch in your fork
 You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including `master`, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the `master` branch.
 
-<pre><code>$ git fetch --all
-$ git checkout -b <b>&lt;my-branch&gt;</b> origin/master</code></pre>
+	$ git fetch --all
+	$ git checkout -b <my-branch> origin/master
 
 At this point, you can start making and committing changes to this branch in a standard way.
 
@@ -107,7 +108,7 @@ Remember to always use `--rebase` parameter to avoid extraneous merge commits.
 
 To push your local, committed changes to your (forked) repository on GitHub, run:
 
-<pre><code>$ git push <b>&lt;GitHub_user&gt; &lt;my-branch&gt;</b></code></pre>
+	$ git push <GitHub_user> <my-branch>	
 
 ### Testing
 All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.
@@ -126,15 +127,15 @@ Organize your commits to make your reviewer’s job easier. Use the following co
 
 Navigate to the [Beam GitHub mirror](https://github.com/apache/incubator-beam) to create a pull request. The title of the pull request should be strictly in the following format:
 
-<pre><code>[BEAM-<b>&lt;JIRA-issue-#&gt;</b>] Title of the pull request</code></pre>
+	[BEAM-<JIRA-issue-#>] <Title of the pull request>
 
 Please include a descriptive pull request message to help make the reviewer’s job easier. It’s fine to refer to existing design docs or the contents of the associated JIRA as appropriate.
 
 If you know a good committer to review your pull request, please make a comment like the following. If not, don’t worry -- a committer will pick it up.
 
-<pre><code>Hi @<b>&lt;GitHub-reviewer-username&gt;</b>, can you please take a look?</code></pre>
+	Hi @<GitHub-reviewer-username>, can you please take a look?
 
-When choosing a reviewer, think about who is the expert on the relevant code, who the stakeholders are for this change, and who else would benefit from becoming familiar with the code. If you’d appreciate comments from additional folks but already have a main reviewer, you can explicitly cc them using <code>@<b>&lt;GitHub-reviewer-username&gt;</b></code>.
+When choosing a reviewer, think about who is the expert on the relevant code, who the stakeholders are for this change, and who else would benefit from becoming familiar with the code. If you’d appreciate comments from additional folks but already have a main reviewer, you can explicitly cc them using `@<GitHub-reviewer-username>`.
 
 ### Code Review and Revision
 During the code review process, don’t rebase your branch or otherwise modify published commits, since this can remove existing comment history and be confusing to the reviewer. When you make a revision, always push it in a new commit.
@@ -153,9 +154,9 @@ Once the pull request is merged into the Beam repository, you can safely delete 
 
 From another local branch, run:
 
-<pre><code>$ git fetch --all
-$ git branch -d <b>&lt;my-branch&gt;</b>
-$ git push <b>&lt;GitHub_user&gt;</b> --delete <b>&lt;my-branch&gt;</b></code></pre>
+	$ git fetch --all
+	$ git branch -d <my-branch>
+	$ git push <GitHub_user> --delete <my-branch>
 
 ## Commit (committers only)
 Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/incubator-beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author or reviewer to do the merge. Just be explicit about whose job it is!)
@@ -182,13 +183,13 @@ For the `github` remote, add an additional fetch reference, which will cause eve
 
 You can confirm your configuration by running the following command.
 
-<pre><code>$ git remote -v
-apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (fetch)
-apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (push)
-github	https://github.com/apache/incubator-beam.git (fetch)
-github	https://github.com/apache/incubator-beam.git (push)
-<b>&lt;username&gt;</b>	git@github.com:<b>&lt;username&gt;</b>/beam.git (fetch)
-<b>&lt;username&gt;</b>	git@github.com:<b>&lt;username&gt;</b>/beam.git (push)</code></pre>
+	$ git remote -v
+	apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (fetch)
+	apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (push)
+	github	https://github.com/apache/incubator-beam.git (fetch)
+	github	https://github.com/apache/incubator-beam.git (push)
+	<username>	git@github.com:<username>/beam.git (fetch)
+	<username>	git@github.com:<username>/beam.git (push)
 
 ### Contributor License Agreement
 If you are merging a larger contribution, please make sure that the contributor has an ICLA on file with the Apache Secretary. You can view the list of committers [here](http://home.apache.org/phonebook.html?unix=committers), as well as [ICLA-signers who aren’t yet committers](http://home.apache.org/unlistedclas.html).
@@ -203,9 +204,8 @@ At some point in the review process, you should take the pull request over and c
 
 Fetch references from all remote repositories, and checkout the specific pull request branch.
 
-<pre>
-</code>$ git fetch --all
-$ git checkout -b finish-pr-<b>&lt;pull-request-#&gt;</b> github/pr/<b>&lt;pull-request-#&gt;</b></code></pre>
+	$ git fetch --all
+	$ git checkout -b finish-pr-<pull-request-#> github/pr/<pull-request-#>
 
 At this point, you can commit any final touches to the pull request. For example, you should:
 
@@ -222,43 +222,109 @@ Please make sure to retain authorship of original commits to give proper credit 
 ### Merge process
 Once you are ready to merge, fetch all remotes, checkout the destination branch and merge the changes.
 
-<pre><code>$ git fetch --all
-$ git checkout apache/master
-$ git merge --no-ff \
-&nbsp;&nbsp;&nbsp;&nbsp;-m $'[BEAM-<b>&lt;JIRA-issue-#&gt;</b>] <b>&lt;Title&gt;</b>\n\nThis closes #<b>&lt;pull-request-#&gt;</b>' \
-&nbsp;&nbsp;&nbsp;&nbsp;finish-pr-<b>&lt;pull-request-#&gt;</b></code></pre>
+	$ git fetch --all
+	$ git checkout apache/master
+	$ git merge --no-ff \
+	    -m $'[BEAM-<JIRA-issue-#&>;</b>] <Title>\n\nThis closes #<pull-request-#>' \
+	    finish-pr-<pull-request-#>
 
-Always use `--no-ff` option and the specific commit message "This closes #<b>&lt;pull request #&gt;</b>"" -- it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.
+Always use `--no-ff` option and the specific commit message "This closes #<pull request #>"" -- it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.
 
 At this point, you want to ensure everything is right. Test it with `mvn verify`. Run `gitk` or `git log --graph,` etc. When you are happy with how it looks, push it. This is the point of no return -- proceed with caution.
 
     $ git push apache HEAD:master
 
-Done. You can delete the local <code>finish-pr-<b>&lt;pull-request-#&gt;</b></code> branch if you like.
+Done. You can delete the local <code>finish-pr-<pull-request-#></code> branch if you like.
 
-## Additional Projects
+## Special Cases
+
+The directions above assume you are submitting code to the `incubator-beam` repository's `master` branch. In addition, there are a few other locations where code is maintained. Generally these follow the same *engage*-*design*-**code**-**review**-**commit** process as above, with some minor adjustments to commands.
+
+### Feature Branches
+
+Some larger features are developed on a feature branch before being merged into `master`. In particular, this is often used for initial development of new components like SDKs or runners. 
+
+#### Developing
+
+To contribute code on a feature branch, use the same process as above, but replace `master` with the [name of the branch](/contribute/work-in-progress/#feature-branches).
+
+In additional, you'll want to frequently merge in changes from `master` in order to prevent life on the branch from deviating too far from reality. 
+
+Since feature branches are often used for new components, you may find that there is no [committer](/project/team/) familiar with all the details of the new language or runner. In that case, consider asking someone else familiar with the technology to do an initial review before looping in a committer for a final review and merge.
+
+#### Merging into Master
+
+In order for a feature branch to be merged into `master`, new components and major features should aim to meet the following guidelines.
+
+1. Have at least 2 contributors interested in maintaining it, and 1 committer interested in supporting it
+1. Provide both end-user and developer-facing documentation
+1. Have at least a basic level of unit test coverage
+1. Run all existing applicable integration tests with other Beam components and create additional tests as appropriate
+
+Additionally, ...
+
+A new runner should:
+
+1. Be able to handle a subset of the model that address a significant set of use cases (aka. ‘traditional batch’ or ‘processing time streaming’)
+1. Update the capability matrix with the current status
+1. Add a webpage under `learn/runners`
+
+A new SDK should:
+
+1. Provide the ability to construct graphs with all the basic building blocks of the model (ParDo, GroupByKey, Window, Trigger, etc)
+1. Begin fleshing out the common composite transforms (Count, Join, etc) and IO connectors (Text, Kafka, etc)
+1. Have at least one runner that can execute the complete model (may be a direct runner)
+1. Provide integration tests for executing against current and future runners
+1. Add a webpage under `learn/sdks`
+
 
 ### Website
-We use the same general review-then-commit process for changes to the Beam website, which uses [this GitHub Mirror](https://github.com/apache/incubator-beam-site). The website uses the [Jekyll](http://jekyllrb.com) framework to make website development easier. The [README file](https://github.com/apache/incubator-beam-site/blob/asf-site/README.md) in the website repository has more information on how to:
 
-* Install Jekyll
-* Make changes to the website
-* Test your changes
+The Beam website is in the [Beam Site GitHub mirror](https://github.com/apache/incubator-beam-site) repository in the `asf-site` branch (_not_ `master`). 
 
-#### Editing the website
-You can checkout the website repository with the following commands. This will allow you to edit the website in a local environment provided you have installed [Jekyll](http://jekyllrb.com) and understand how to use it.
+The repository contains:
 
-<pre><code>git clone -b asf-site https://github.com/apache/incubator-beam-site.git
-cd incubator-beam-site
-git remote add <b>&lt;GitHub_user&gt;</b> git@github.com:<b>&lt;GitHub_user&gt;</b>/incubator-beam-site.git
-git fetch --all
-git checkout -b <b>&lt;my-branch&gt;</b> origin/asf-site</code></pre>
+1. `_<directory>`: the infrastructure for building, testing, and styling the website
+1. `_posts`: blog post entries
+2. `use/`, `learn/`, and `contribute/`: markdown files containing the bulk of the content
+3. `content/`: html generated from the markdown by jekyll (which is what is actually hosted on the website)
+
+Issues are tracked in the [website](https://issues.apache.org/jira/browse/BEAM/component/12328906) component in JIRA.
+
+#### One-time Setup
+
+The website uses [Jekyll](http://jekyllrb.com), a ruby-based development framework. The [README file](https://github.com/apache/incubator-beam-site/blob/asf-site/README.md) in the website repository has more information on how to set up the required dependencies for your development environment.
+
+The general guidelines for cloning a repository can be adjusted to use the `asf-site` branch of `incubator-beam-site`:
+
+	$ git clone -b asf-site https://github.com/apache/incubator-beam-site.git
+	$ cd incubator-beam-site
+	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/incubator-beam-site.git
+	$ git fetch --all
+	$ git checkout -b <my-branch> origin/asf-site
+	
+#### Working on your change
+
+While you are working on your pull request, you can test and develop live by running the following command in the root folder of the website:
+
+	$ jekyll serve
+
+Jekyll will start a webserver on port 4000. As you make changes to the content, Jekyll will rebuild it automatically. 
+
+In addition, you can run the tests to valid your links using:
+
+	$ rake test
+	
+Both of these commands will cause the `content/` directory to be generated. Merging autogenerated content can get tricky, so please leave this directory out of your commits and pull request by doing:
+
+	$ git checkout -- content
+
+When you are ready, submit a pull request using the [Beam Site GitHub mirror](https://github.com/apache/incubator-beam-site), including the JIRA issue as usual.
+
+During review, committers will patch in your PR, generate the static `content/`, and review the changes.
 
 #### Committing website changes
 
-Committers can commit website changes with the following commands. **Changes to the website must follow the same process outlined above** for changes to the Apache Beam code base.
+Follow the same committer process as above, but using `incubator-beam-site` and `asf-site`. 
 
-<pre><code>git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-beam-site.git
-git remote rename origin github
-git config --local --add remote.github.fetch \
-&nbsp;&nbsp;&nbsp;&nbsp;'+refs/pull/*/head:refs/remotes/github/pr/*'</code></pre>
+In addition, the committer is responsible for doing the final `jekyll build` to generate the static content, so follow the instructions above to install jekyll.
