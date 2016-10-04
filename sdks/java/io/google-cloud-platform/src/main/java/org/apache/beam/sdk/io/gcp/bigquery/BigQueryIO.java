@@ -553,7 +553,12 @@ public class BigQueryIO {
         } else if (validate && query != null) {
           JobService jobService = bigQueryServices.getJobService(bqOptions);
           try {
-            jobService.dryRunQuery(bqOptions.getProject(), query, useLegacySql);
+            jobService.dryRunQuery(
+                bqOptions.getProject(),
+                new JobConfigurationQuery()
+                    .setQuery(query)
+                    .setFlattenResults(flattenResults)
+                    .setUseLegacySql(useLegacySql));
           } catch (Exception e) {
             throw new IllegalArgumentException(
                 String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
@@ -926,10 +931,7 @@ public class BigQueryIO {
       executeQuery(
           executingProject,
           queryJobId,
-          query,
           tableToExtract,
-          flattenResults,
-          useLegacySql,
           bqServices.getJobService(bqOptions));
       return tableToExtract;
     }
@@ -955,39 +957,41 @@ public class BigQueryIO {
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
-        JobStatistics jobStats =
-            bqServices.getJobService(bqOptions).dryRunQuery(executingProject, query, useLegacySql);
+        JobStatistics jobStats = bqServices.getJobService(bqOptions).dryRunQuery(
+            executingProject, createBasicQueryConfig());
         dryRunJobStats.compareAndSet(null, jobStats);
       }
       return dryRunJobStats.get();
     }
 
-    private static void executeQuery(
+    private void executeQuery(
         String executingProject,
         String jobId,
-        String query,
         TableReference destinationTable,
-        boolean flattenResults,
-        boolean useLegacySql,
         JobService jobService) throws IOException, InterruptedException {
       JobReference jobRef = new JobReference()
           .setProjectId(executingProject)
           .setJobId(jobId);
-      JobConfigurationQuery queryConfig = new JobConfigurationQuery();
-      queryConfig
-          .setQuery(query)
+
+      JobConfigurationQuery queryConfig = createBasicQueryConfig()
           .setAllowLargeResults(true)
           .setCreateDisposition("CREATE_IF_NEEDED")
           .setDestinationTable(destinationTable)
-          .setFlattenResults(flattenResults)
-          .setUseLegacySql(useLegacySql)
           .setPriority("BATCH")
           .setWriteDisposition("WRITE_EMPTY");
+
       jobService.startQueryJob(jobRef, queryConfig);
       Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(job) != Status.SUCCEEDED) {
         throw new IOException("Query job failed: " + jobId);
       }
+    }
+
+    private JobConfigurationQuery createBasicQueryConfig() {
+      return new JobConfigurationQuery()
+          .setQuery(query)
+          .setFlattenResults(flattenResults)
+          .setUseLegacySql(useLegacySql);
     }
 
     private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {

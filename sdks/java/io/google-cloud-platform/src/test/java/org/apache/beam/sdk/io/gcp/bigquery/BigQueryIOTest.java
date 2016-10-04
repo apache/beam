@@ -26,7 +26,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -129,6 +128,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -362,7 +362,7 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query, boolean useLegacySql)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query)
         throws InterruptedException, IOException {
       throw new UnsupportedOperationException();
     }
@@ -1226,7 +1226,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("testProejct")
         .setDatasetId("testDataset")
         .setTableId("testTable");
-    when(mockJobService.dryRunQuery(anyString(), anyString(), anyBoolean()))
+    when(mockJobService.dryRunQuery(anyString(), Mockito.<JobConfigurationQuery>any()))
         .thenReturn(new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
@@ -1263,6 +1263,11 @@ public class BigQueryIOTest implements Serializable {
         .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
     Mockito.verify(mockDatasetService)
         .createDataset(anyString(), anyString(), anyString(), anyString());
+    ArgumentCaptor<JobConfigurationQuery> queryConfigArg =
+        ArgumentCaptor.forClass(JobConfigurationQuery.class);
+    Mockito.verify(mockJobService).dryRunQuery(anyString(), queryConfigArg.capture());
+    assertEquals(true, queryConfigArg.getValue().getFlattenResults());
+    assertEquals(true, queryConfigArg.getValue().getUseLegacySql());
   }
 
   @Test
