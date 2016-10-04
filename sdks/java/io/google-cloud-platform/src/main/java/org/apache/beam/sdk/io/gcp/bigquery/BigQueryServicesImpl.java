@@ -266,13 +266,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query, boolean useLegacySql)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
         throws InterruptedException, IOException {
       Job job = new Job()
           .setConfiguration(new JobConfiguration()
-              .setQuery(new JobConfigurationQuery()
-                  .setQuery(query)
-                  .setUseLegacySql(useLegacySql))
+              .setQuery(queryConfig)
               .setDryRun(true));
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -281,7 +279,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           client.jobs().insert(projectId, job),
           String.format(
               "Unable to dry run query: %s, aborting after %d retries.",
-              query, MAX_RPC_RETRIES),
+              queryConfig, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff).getStatistics();
     }
