@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -33,13 +32,11 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -132,7 +129,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     }
     PCollection<KV<Integer, Integer>> output =
         timeBound
-        ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(200)))
+        ? p.apply(Read.from(source).withMaxReadTime(Duration.millis(20)))
         : p.apply(Read.from(source).withMaxNumRecords(NUM_RECORDS));
 
     // Because some of the NUM_RECORDS elements read are dupes, the final output
