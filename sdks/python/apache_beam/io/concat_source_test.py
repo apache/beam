@@ -76,7 +76,7 @@ class RangeSource(iobase.BoundedSource):
             and self._start == other._start and self._end == other._end)
 
   def __ne__(self, other):
-    return not (self == other)
+    return not self == other
 
 
 class ConcatSourceTest(unittest.TestCase):
