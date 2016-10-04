@@ -43,7 +43,7 @@ import org.junit.runners.JUnit4;
  * Unit tests for {@link Latest.LatestFn}.
  * */
 @RunWith(JUnit4.class)
-public class LatestFnTests {
+public class LatestFnTest {
   private static final Instant INSTANT = new Instant(100);
   private static final long VALUE = 100 * INSTANT.getMillis();
 
