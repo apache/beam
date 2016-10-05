@@ -179,7 +179,7 @@ public class DirectRunner
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final DirectOptions options;
-  private Supplier<ExecutorService> executorServiceSupplier = new FixedThreadPoolSupplier();
+  private Supplier<ExecutorService> executorServiceSupplier;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
   public static DirectRunner fromOptions(PipelineOptions options) {
@@ -188,6 +188,7 @@ public class DirectRunner
 
   private DirectRunner(DirectOptions options) {
     this.options = options;
+    this.executorServiceSupplier = new FixedThreadPoolSupplier(options);
   }
 
   /**
@@ -428,9 +429,15 @@ public class DirectRunner
    * {@link Executors#newFixedThreadPool(int)}.
    */
   private static class FixedThreadPoolSupplier implements Supplier<ExecutorService> {
+    private final DirectOptions options;
+
+    private FixedThreadPoolSupplier(DirectOptions options) {
+      this.options = options;
+    }
+
     @Override
     public ExecutorService get() {
-      return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+      return Executors.newFixedThreadPool(options.getTargetParallelism());
     }
   }
 

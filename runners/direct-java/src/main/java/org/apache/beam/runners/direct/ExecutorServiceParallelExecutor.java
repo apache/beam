@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -166,12 +167,16 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   public void start(Collection<AppliedPTransform<?, ?, ?>> roots) {
     for (AppliedPTransform<?, ?, ?> root : roots) {
       ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
-      Collection<CommittedBundle<?>> initialInputs = rootInputProvider.getInitialInputs(root);
-      checkState(
-          !initialInputs.isEmpty(),
-          "All root transforms must have initial inputs. Got 0 for %s",
-          root.getFullName());
-      pending.addAll(initialInputs);
+      try {
+        Collection<CommittedBundle<?>> initialInputs = rootInputProvider.getInitialInputs(root, 1);
+        checkState(
+            !initialInputs.isEmpty(),
+            "All root transforms must have initial inputs. Got 0 for %s",
+            root.getFullName());
+        pending.addAll(initialInputs);
+      } catch (Exception e) {
+        throw UserCodeException.wrap(e);
+      }
       pendingRootBundles.put(root, pending);
     }
     evaluationContext.initialize(pendingRootBundles);
@@ -453,7 +458,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
               }
               KeyedWorkItem<?, Object> work =
                   KeyedWorkItems.timersWorkItem(keyTimers.getKey().getKey(), delivery);
-              LOG.warn("Delivering {} timers for {}", delivery.size(), keyTimers.getKey().getKey());
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
                   evaluationContext

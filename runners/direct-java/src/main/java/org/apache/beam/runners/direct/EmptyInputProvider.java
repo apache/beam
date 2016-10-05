@@ -42,7 +42,8 @@ class EmptyInputProvider implements RootInputProvider {
    * as appropriate.
    */
   @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+  public Collection<CommittedBundle<?>> getInitialInputs(
+      AppliedPTransform<?, ?, ?> transform, int ignored) {
     return Collections.<CommittedBundle<?>>singleton(
         evaluationContext.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
   }

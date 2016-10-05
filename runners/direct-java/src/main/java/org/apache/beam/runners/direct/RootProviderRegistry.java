@@ -52,7 +52,8 @@ class RootProviderRegistry implements RootInputProvider {
   }
 
   @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+  public Collection<CommittedBundle<?>> getInitialInputs(
+      AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception {
     Class<? extends PTransform> transformClass = transform.getTransform().getClass();
     RootInputProvider provider =
         checkNotNull(
@@ -60,6 +61,6 @@ class RootProviderRegistry implements RootInputProvider {
             "Tried to get a %s for a Transform of type %s, but there is no such provider",
             RootInputProvider.class.getSimpleName(),
             transformClass.getSimpleName());
-    return provider.getInitialInputs(transform);
+    return provider.getInitialInputs(transform, targetParallelism);
   }
 }
