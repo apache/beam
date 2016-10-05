@@ -11,7 +11,7 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -424,12 +424,12 @@ public class ReduceByKey<
 
     final ListStorage<VALUE> reducableValues;
 
-    ReduceState(Collector<OUT> collector,
+    ReduceState(Context<OUT> context,
                 StorageProvider storageProvider,
                 ReduceFunction<VALUE, OUT> reducer,
                 boolean combinable)
     {
-      super(collector, storageProvider);
+      super(context, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
       this.combinable = combinable;
       reducableValues = storageProvider.getListStorage(
@@ -447,7 +447,7 @@ public class ReduceByKey<
     @SuppressWarnings("unchecked")
     public void flush() {
       OUT result = reducer.apply(reducableValues.get());
-      getCollector().collect(result);
+      getContext().collect(result);
     }
 
     void add(ReduceState other) {
@@ -480,7 +480,7 @@ public class ReduceByKey<
     reduceState = new ReduceStateByKey<>(getName(),
         flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
-        (Collector<OUT> c, StorageProvider provider) -> new ReduceState<>(
+        (Context<OUT> c, StorageProvider provider) -> new ReduceState<>(
             c, provider, reducer, isCombinable()),
         (Iterable<ReduceState> states) -> {
           final ReduceState first;

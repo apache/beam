@@ -1,16 +1,16 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
 import java.util.Objects;
 
-class WindowedElementCollector<T> implements Collector<T> {
-  private final Collector<Datum> wrap;
+class WindowedElementCollector<T> implements Context<T> {
+  private final Context<Datum> wrap;
 
   protected WindowID<Object> windowID;
 
-  WindowedElementCollector(Collector<Datum> wrap) {
+  WindowedElementCollector(Context<Datum> wrap) {
     this.wrap = Objects.requireNonNull(wrap);
   }
 

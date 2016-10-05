@@ -2,7 +2,7 @@ package cz.seznam.euphoria.hadoop;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -36,7 +36,7 @@ public class ExerciseHadoopIO {
             URI.create("webhdfs://gin.dev/user/fulltext/shakespeare.txt"));
 
     Dataset<Pair<String, Long>> tuples = FlatMap.of(lines)
-            .using((Pair<LongWritable, Text> line, Collector<Pair<String, Long>> out) -> {
+            .using((Pair<LongWritable, Text> line, Context<Pair<String, Long>> out) -> {
               for (String w : line.getSecond().toString().split(" ")) {
                 out.collect(Pair.of(w, 1L));
               }

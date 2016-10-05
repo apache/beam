@@ -4,11 +4,10 @@ package cz.seznam.euphoria.operator.test;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.util.Either;
@@ -60,7 +59,7 @@ public class JoinTest extends OperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Collector<String> c) -> {
+            .using((Integer l, Long r, Context<String> c) -> {
               c.collect(l + "+" + r);
             })
             .setPartitioner(e -> e % 2)
@@ -113,7 +112,7 @@ public class JoinTest extends OperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Collector<String> c) -> {
+            .using((Integer l, Long r, Context<String> c) -> {
               c.collect(l + "+" + r);
             })
             .setPartitioner(e -> e % 2)
@@ -198,7 +197,7 @@ public class JoinTest extends OperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Collector<String> c) -> {
+            .using((Integer l, Long r, Context<String> c) -> {
               c.collect(l + "+" + r);
             })
             .setNumPartitions(2)

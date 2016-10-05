@@ -11,7 +11,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -246,9 +246,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
 
     @SuppressWarnings("unchecked")
     public JoinState(
-        Collector<OUT> collector,
+        Context<OUT> context,
         StorageProvider storageProvider) {
-      super(collector, storageProvider);
+      super(context, storageProvider);
       leftElements = storageProvider.getListStorage(
           ListStorageDescriptor.of("left", (Class) Object.class));
       rightElements = storageProvider.getListStorage(
@@ -289,11 +289,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
         // if just a one collection is empty
         if (leftEmpty) {
           for (RIGHT elem : rightElements.get()) {
-            functor.apply(null, elem, getCollector());
+            functor.apply(null, elem, getContext());
           }
         } else {
           for (LEFT elem : leftElements.get()) {
-            functor.apply(elem, null, getCollector());
+            functor.apply(elem, null, getContext());
           }
         }
       }
@@ -304,11 +304,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
         Either<LEFT, RIGHT> element, ListStorage otherElements) {
       if (element.isLeft()) {
         for (Object right : otherElements.get()) {
-          functor.apply(element.left(), (RIGHT) right, getCollector());
+          functor.apply(element.left(), (RIGHT) right, getContext());
         }
       } else {
         for (Object left : otherElements.get()) {
-          functor.apply((LEFT) left, element.right(), getCollector());
+          functor.apply((LEFT) left, element.right(), getContext());
         }
       }
     }
@@ -318,12 +318,12 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
         JoinState state = i.next();
         for (LEFT l : state.leftElements.get()) {
           for (RIGHT r : this.rightElements.get()) {
-            functor.apply(l, r, getCollector());
+            functor.apply(l, r, getContext());
           }
         }
         for (RIGHT r : state.rightElements.get()) {
           for (LEFT l : this.leftElements.get()) {
-            functor.apply(l, r, getCollector());
+            functor.apply(l, r, getContext());
           }
         }
         this.leftElements.addAll(state.leftElements.get());

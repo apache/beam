@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.ValueNode;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -45,7 +45,7 @@ public class ExerciseKafkaSource {
 
     // extract interesting words from the source
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .using((Pair<byte[], byte[]> p, Collector<Pair<String, Long>> c) -> {
+        .using((Pair<byte[], byte[]> p, Context<Pair<String, Long>> c) -> {
           Reader data = new InputStreamReader(
               new ByteArrayInputStream(p.getValue()),
               StandardCharsets.UTF_8);

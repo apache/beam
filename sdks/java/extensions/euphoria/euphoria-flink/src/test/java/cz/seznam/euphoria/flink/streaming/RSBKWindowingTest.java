@@ -6,7 +6,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
@@ -32,10 +32,10 @@ public class RSBKWindowingTest {
 
   private static class AccState<VALUE> extends State<VALUE, VALUE> {
     final ListStorage<VALUE> reducableValues;
-    AccState(Collector<VALUE> collector,
+    AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
-      super(collector, storageProvider);
+      super(context, storageProvider);
       reducableValues = storageProvider.getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }
@@ -49,7 +49,7 @@ public class RSBKWindowingTest {
     @Override
     public void flush() {
       for (VALUE value : reducableValues.get()) {
-        getCollector().collect(value);
+        getContext().collect(value);
       }
     }
 

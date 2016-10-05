@@ -13,7 +13,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
@@ -136,7 +136,7 @@ public class InMemExecutor implements Executor {
   }
 
 
-  static class QueueCollector implements Collector<Datum> {
+  static class QueueCollector implements Context<Datum> {
     static QueueCollector wrap(BlockingQueue<Datum> queue) {
       return new QueueCollector(queue);
     }

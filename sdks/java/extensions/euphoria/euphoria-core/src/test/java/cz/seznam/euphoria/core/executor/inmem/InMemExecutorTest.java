@@ -11,7 +11,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
@@ -222,7 +222,7 @@ public class InMemExecutorTest {
 
     // repeat each element N N count
     Dataset<Integer> output = FlatMap.of(ints)
-        .using((Integer e, Collector<Integer> c) -> {
+        .using((Integer e, Context<Integer> c) -> {
           for (int i = 0; i < e; i++) {
             c.collect(e);
           }
@@ -255,7 +255,7 @@ public class InMemExecutorTest {
     final ListStorage<Integer> data;
 
     SortState(
-        Collector<Integer> c,
+        Context<Integer> c,
         StorageProvider storageProvider) {
       
       super(c, storageProvider);
@@ -274,7 +274,7 @@ public class InMemExecutorTest {
       List<Integer> toSort = Lists.newArrayList(data.get());
       Collections.sort(toSort);
       for (Integer i : toSort) {
-        getCollector().collect(i);
+        getContext().collect(i);
       }
     }
 
@@ -283,7 +283,7 @@ public class InMemExecutorTest {
       for (SortState s : others) {
         if (ret == null) {
           ret = new SortState(
-              s.getCollector(),
+              s.getContext(),
               s.getStorageProvider());
         }
         ret.data.addAll(s.data.get());
@@ -685,7 +685,7 @@ public class InMemExecutorTest {
     // and store it as the original input, process it further in
     // the same way as in `testWithWatermarkAndEventTime'
     input = FlatMap.of(reduced)
-        .using((Pair<String, Set<Integer>> grp, Collector<Integer> c) -> {
+        .using((Pair<String, Set<Integer>> grp, Context<Integer> c) -> {
           for (Integer i : grp.getSecond()) {
             c.collect(i);
           }

@@ -2,7 +2,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -17,7 +17,7 @@ public class FlatMapTest {
 
     Dataset<String> mapped = FlatMap.named("FlatMap1")
        .of(dataset)
-       .using((String s, Collector<String> c) -> c.collect(s))
+       .using((String s, Context<String> c) -> c.collect(s))
        .output();
 
     assertEquals(flow, mapped.getFlow());
@@ -36,7 +36,7 @@ public class FlatMapTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
     Dataset<String> mapped = FlatMap.of(dataset)
-            .using((String s, Collector<String> c) -> c.collect(s))
+            .using((String s, Context<String> c) -> c.collect(s))
             .output();
 
     FlatMap map = (FlatMap) flow.operators().iterator().next();

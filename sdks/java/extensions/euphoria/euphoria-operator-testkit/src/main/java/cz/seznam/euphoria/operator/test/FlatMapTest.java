@@ -2,7 +2,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
@@ -30,7 +30,7 @@ public class FlatMapTest extends OperatorTest {
       @Override
       protected Dataset<Integer> getOutput(Dataset<Integer> input) {
         return FlatMap.of(input)
-            .using((Integer e, Collector<Integer> c) -> {
+            .using((Integer e, Context<Integer> c) -> {
               for (int i = 1; i <= e; i++) {
                 c.collect(i);
               }
