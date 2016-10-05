@@ -2,7 +2,7 @@
 
 package cz.seznam.euphoria.core.client.functional;
 
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import java.io.Serializable;
 
 /**
@@ -11,6 +11,6 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
 
-  void apply(LEFT left, RIGHT right, Collector<OUT> collector);
+  void apply(LEFT left, RIGHT right, Context<OUT> context);
 
 }

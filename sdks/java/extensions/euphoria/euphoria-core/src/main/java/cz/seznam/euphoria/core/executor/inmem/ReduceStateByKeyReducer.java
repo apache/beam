@@ -8,7 +8,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -41,7 +41,7 @@ class ReduceStateByKeyReducer implements Runnable {
   private static final class KeyedElementCollector extends WindowedElementCollector {
     private final Object key;
 
-    KeyedElementCollector(Collector<Datum> wrap, WindowID window, Object key) {
+    KeyedElementCollector(Context<Datum> wrap, WindowID window, Object key) {
       super(wrap);
       this.key = key;
       this.windowID = window;
@@ -53,10 +53,10 @@ class ReduceStateByKeyReducer implements Runnable {
     }
   } // ~ end of KeyedElementCollector
 
-  private class ElementContext implements TriggerContext {
+  private class ElementTriggerContext implements TriggerContext {
     private final Object itemKey;
 
-    ElementContext(Object itemKey) {
+    ElementTriggerContext(Object itemKey) {
       this.itemKey = itemKey;
     }
 
@@ -149,7 +149,7 @@ class ReduceStateByKeyReducer implements Runnable {
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
 
-    final Collector<Datum> stateOutput;
+    final Context<Datum> stateOutput;
     final BlockingQueue<Datum> rawOutput;
     final TriggerScheduler triggering;
     final StateFactory stateFactory;
@@ -260,7 +260,7 @@ class ReduceStateByKeyReducer implements Runnable {
             // ~ default policy for time-triggered window
             triggerState = Trigger.TriggerResult.PASSED;
           }
-          ElementContext ectx = new ElementContext(itemKey);
+          ElementTriggerContext ectx = new ElementTriggerContext(itemKey);
           for (Trigger t : triggers) {
             Trigger.TriggerResult result = t.schedule(wctx, ectx);
             if (result == Trigger.TriggerResult.NOOP) {
@@ -331,7 +331,7 @@ class ReduceStateByKeyReducer implements Runnable {
         // ~ if any of the states emits any data during the merge, we'll make
         // sure it happens in the scope of the merge target window
         for (WindowStorage ws : toCombine) {
-          ((KeyedElementCollector) ws.state.getCollector())
+          ((KeyedElementCollector) ws.state.getContext())
               .assignWindowing(mergeWindow.getWindowID());
         }
         // ~ now merge the state and re-assign it to the merge-window
@@ -442,7 +442,7 @@ class ReduceStateByKeyReducer implements Runnable {
     return ((timestamp, kw) -> {
       // ~ let trigger know about the time event and process window state
       // according to trigger result
-      ElementContext ectx = new ElementContext(kw.key());
+      ElementTriggerContext ectx = new ElementTriggerContext(kw.key());
       WindowStorage w = processing.lookupWindowState(kw.window(), kw.key());
       if (w == null) {
         throw new IllegalStateException("Window already gone?! (" + kw + ")");
