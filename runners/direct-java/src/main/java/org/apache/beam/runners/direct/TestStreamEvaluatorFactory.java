@@ -199,7 +199,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    public Collection<CommittedBundle<?>> getInitialInputs(
+        AppliedPTransform<?, ?, ?> transform, int targetParallelism) {
       return createInputBundle((AppliedPTransform) transform);
     }
 
@@ -213,6 +214,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return Collections.<CommittedBundle<?>>singleton(initialBundle);
     }
   }
+
   @AutoValue
   abstract static class TestStreamIndex<T> {
     static <T> TestStreamIndex<T> of(TestStream<T> stream) {

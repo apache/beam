@@ -82,7 +82,7 @@ public class TestStreamEvaluatorFactoryTest {
 
     Collection<CommittedBundle<?>> initialInputs =
         new TestStreamEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(streamVals.getProducingTransformInternal());
+            .getInitialInputs(streamVals.getProducingTransformInternal(), 1);
     @SuppressWarnings("unchecked")
     CommittedBundle<TestStreamIndex<Integer>> initialBundle =
         (CommittedBundle<TestStreamIndex<Integer>>) Iterables.getOnlyElement(initialInputs);

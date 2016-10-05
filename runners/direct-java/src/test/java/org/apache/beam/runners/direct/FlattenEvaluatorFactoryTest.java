@@ -24,13 +24,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Iterables;
-import java.util.Collection;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -122,17 +122,14 @@ public class FlattenEvaluatorFactoryTest {
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
-    when(evaluationContext.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     when(evaluationContext.createBundle(flattened))
         .thenReturn(bundleFactory.createBundle(flattened));
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(evaluationContext);
-    Collection<CommittedBundle<?>> initialInputs =
-        new EmptyInputProvider(evaluationContext)
-            .getInitialInputs(flattened.getProducingTransformInternal());
     TransformEvaluator<Integer> emptyEvaluator =
         factory.forApplication(
-            flattened.getProducingTransformInternal(), Iterables.getOnlyElement(initialInputs));
+            flattened.getProducingTransformInternal(),
+            bundleFactory.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
 
     TransformResult leftSideResult = emptyEvaluator.finishBundle();
 
