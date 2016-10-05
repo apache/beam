@@ -2,9 +2,9 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 
-public interface WindowProperties<GROUP, LABEL> {
+public interface WindowProperties<LABEL> {
 
-  WindowID<GROUP, LABEL> getWindowID();
+  WindowID<LABEL> getWindowID();
 
   long getEmissionWatermark();
 

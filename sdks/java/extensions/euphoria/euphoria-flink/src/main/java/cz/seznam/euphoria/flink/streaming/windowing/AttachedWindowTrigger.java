@@ -3,13 +3,13 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 
-public class AttachedWindowTrigger<GROUP, LABEL, T>
-    extends Trigger<T, AttachedWindow<GROUP, LABEL>>
+public class AttachedWindowTrigger<LABEL, T>
+    extends Trigger<T, AttachedWindow<LABEL>>
 {
   @Override
   public TriggerResult onElement(T element,
                                  long timestamp,
-                                 AttachedWindow<GROUP, LABEL> window,
+                                 AttachedWindow<LABEL> window,
                                  TriggerContext ctx)
       throws Exception
   {
@@ -18,14 +18,14 @@ public class AttachedWindowTrigger<GROUP, LABEL, T>
   }
 
   @Override
-  public TriggerResult onProcessingTime(long time, AttachedWindow<GROUP, LABEL> window, TriggerContext ctx)
+  public TriggerResult onProcessingTime(long time, AttachedWindow<LABEL> window, TriggerContext ctx)
       throws Exception
   {
     throw new UnsupportedOperationException("processing time not supported!");
   }
 
   @Override
-  public TriggerResult onEventTime(long time, AttachedWindow<GROUP, LABEL> window, TriggerContext ctx)
+  public TriggerResult onEventTime(long time, AttachedWindow<LABEL> window, TriggerContext ctx)
       throws Exception
   {
     if (window.getEmissionWatermark() == time) {
@@ -37,7 +37,7 @@ public class AttachedWindowTrigger<GROUP, LABEL, T>
   }
 
   @Override
-  public void clear(AttachedWindow<GROUP, LABEL> window, TriggerContext ctx)
+  public void clear(AttachedWindow<LABEL> window, TriggerContext ctx)
       throws Exception
   {
     // ~ attached-windows are purged only when their trigger fires in which case

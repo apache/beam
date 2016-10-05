@@ -8,10 +8,10 @@ import org.apache.flink.util.Collector;
 
 import java.util.Objects;
 
-public class StreamingUnaryFunctorWrapper<GROUP, LABEL, IN, OUT>
-    implements FlatMapFunction<StreamingWindowedElement<GROUP, LABEL, IN>,
-    StreamingWindowedElement<GROUP, LABEL, OUT>>,
-               ResultTypeQueryable<StreamingWindowedElement<GROUP, LABEL, OUT>>
+public class StreamingUnaryFunctorWrapper<LABEL, IN, OUT>
+    implements FlatMapFunction<StreamingWindowedElement<LABEL, IN>,
+    StreamingWindowedElement<LABEL, OUT>>,
+               ResultTypeQueryable<StreamingWindowedElement<LABEL, OUT>>
 {
   private final UnaryFunctor<IN, OUT> f;
 
@@ -20,8 +20,8 @@ public class StreamingUnaryFunctorWrapper<GROUP, LABEL, IN, OUT>
   }
 
   @Override
-  public void flatMap(StreamingWindowedElement<GROUP, LABEL, IN> value,
-                      Collector<StreamingWindowedElement<GROUP, LABEL, OUT>> out)
+  public void flatMap(StreamingWindowedElement<LABEL, IN> value,
+                      Collector<StreamingWindowedElement<LABEL, OUT>> out)
       throws Exception
   {
     f.apply(value.get(), elem -> {
@@ -31,7 +31,7 @@ public class StreamingUnaryFunctorWrapper<GROUP, LABEL, IN, OUT>
   }
 
   @Override
-  public TypeInformation<StreamingWindowedElement<GROUP, LABEL, OUT>> getProducedType() {
+  public TypeInformation<StreamingWindowedElement<LABEL, OUT>> getProducedType() {
     return TypeInformation.of((Class) StreamingWindowedElement.class);
   }
 }
