@@ -466,11 +466,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-proto-client</artifactId>
     </dependency>
