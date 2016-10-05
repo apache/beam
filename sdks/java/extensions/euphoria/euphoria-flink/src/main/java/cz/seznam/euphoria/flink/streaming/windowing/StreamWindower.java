@@ -34,37 +34,37 @@ public class StreamWindower {
 
   @SuppressWarnings("unchecked")
   public <GROUP, LABEL, T, KEY, VALUE>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>,
+  WindowedStream<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>,
                  KEY,
-                 AttachedWindow<GROUP, LABEL>>
-  attachedWindow(DataStream<StreamingWindowedElement<GROUP, LABEL, T>> input,
+                 AttachedWindow<LABEL>>
+  attachedWindow(DataStream<StreamingWindowedElement<LABEL, T>> input,
                       UnaryFunction<T, KEY> keyFn,
                       UnaryFunction<T, VALUE> valFn)
   {
-    DataStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped
+    DataStream<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>> mapped
         = input.map(i -> {
           T elem = i.get();
           KEY key = keyFn.apply(elem);
           VALUE val = valFn.apply(elem);
-          WindowID<GROUP, LABEL> wid = i.getWindowID();
+          WindowID<LABEL> wid = i.getWindowID();
           return new StreamingWindowedElement<>(wid, WindowedPair.of(wid.getLabel(), key, val))
               // ~ forward the emission watermark
               .withEmissionWatermark(i.getEmissionWatermark());
         })
         .setParallelism(input.getParallelism())
         .returns((Class) StreamingWindowedElement.class);
-    final KeyedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
+    final KeyedStream<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY> keyed;
     keyed = mapped.keyBy(Utils.wrapQueryable(new WeKeySelector<>()));
     return keyed.window(new AttachedWindowAssigner<>());
   }
 
   @SuppressWarnings("unchecked")
   public <T, LABEL, GROUP, KEY, VALUE>
-  WindowedStream<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>, KEY, FlinkWindow<GROUP, LABEL>>
-  window(DataStream<StreamingWindowedElement<?, ?, T>> input,
+  WindowedStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>, KEY, FlinkWindow<LABEL>>
+  window(DataStream<StreamingWindowedElement<?, T>> input,
       UnaryFunction<T, KEY> keyFn,
       UnaryFunction<T, VALUE> valFn,
-      Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
+      Windowing<T, LABEL, ? extends WindowContext<LABEL>> windowing) {
 
     Optional<UnaryFunction<T, Long>> tsAssign = windowing.getTimestampAssigner();
     if (tsAssign.isPresent()) {
@@ -75,7 +75,7 @@ public class StreamWindower {
       }
     }
 
-    DataStream<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>
+    DataStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>>
         elementsWithWindow =
         input.map(i -> new MultiWindowedElement<>(
                 windowing.assignWindowsToElement(i),
@@ -84,9 +84,9 @@ public class StreamWindower {
         .returns((Class) MultiWindowedElement.class);
 
     // XXX try to get rid of the Pair<KEY,VALUE>; prefer merely VALUE
-    KeyedStream<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>, KEY> keyed
+    KeyedStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>, KEY> keyed
         = elementsWithWindow.keyBy(
-            Utils.wrapQueryable((MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> in)
+            Utils.wrapQueryable((MultiWindowedElement<LABEL, Pair<KEY, VALUE>> in)
                 -> in.get().getFirst()));
 
     return keyed.window((WindowAssigner)
@@ -98,11 +98,11 @@ public class StreamWindower {
     return org.apache.flink.streaming.api.windowing.time.Time.milliseconds(millis);
   }
 
-  static final class WeKeySelector<GROUP, LABEL, KEY, VALUE> implements
-      KeySelector<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY>
+  static final class WeKeySelector<LABEL, KEY, VALUE> implements
+      KeySelector<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>, KEY>
   {
     @Override
-    public KEY getKey(StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>> value)
+    public KEY getKey(StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>> value)
           throws Exception
     {
       return value.get().getKey();
@@ -110,7 +110,7 @@ public class StreamWindower {
   }
 
   static class EventTimeAssigner<T>
-      extends BoundedOutOfOrdernessTimestampExtractor<StreamingWindowedElement<?, ?, T>>
+      extends BoundedOutOfOrdernessTimestampExtractor<StreamingWindowedElement<?, T>>
   {
     private final UnaryFunction<T, Long> eventTimeFn;
 
@@ -120,7 +120,7 @@ public class StreamWindower {
     }
 
     @Override
-    public long extractTimestamp(StreamingWindowedElement<?, ?, T> element) {
+    public long extractTimestamp(StreamingWindowedElement<?, T> element) {
       return eventTimeFn.apply(element.get());
     }
   }

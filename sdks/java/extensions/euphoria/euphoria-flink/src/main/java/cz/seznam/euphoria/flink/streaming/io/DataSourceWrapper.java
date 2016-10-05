@@ -23,8 +23,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<StreamingWindowedElement<Void, Batch.Label, T>>
-        implements ResultTypeQueryable<StreamingWindowedElement<Void, Batch.Label, T>>
+        extends RichParallelSourceFunction<StreamingWindowedElement<Batch.Label, T>>
+        implements ResultTypeQueryable<StreamingWindowedElement<Batch.Label, T>>
 {
   private final DataSource<T> dataSource;
   private volatile boolean isRunning = true;
@@ -36,7 +36,7 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public void run(SourceContext<StreamingWindowedElement<Void, Batch.Label, T>> ctx)
+  public void run(SourceContext<StreamingWindowedElement<Batch.Label, T>> ctx)
       throws Exception
   {
     StreamingRuntimeContext runtimeContext =
@@ -90,8 +90,8 @@ public class DataSourceWrapper<T>
     }
   }
 
-  private StreamingWindowedElement<Void, Batch.Label, T> toWindowedElement(T elem) {
-    return new StreamingWindowedElement<>(WindowID.aligned(Batch.Label.get()), elem);
+  private StreamingWindowedElement<Batch.Label, T> toWindowedElement(T elem) {
+    return new StreamingWindowedElement<>(new WindowID<>(Batch.Label.get()), elem);
   }
 
   @Override
@@ -104,7 +104,7 @@ public class DataSourceWrapper<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeInformation<StreamingWindowedElement<Void, Batch.Label, T>> getProducedType() {
+  public TypeInformation<StreamingWindowedElement<Batch.Label, T>> getProducedType() {
     return TypeInformation.of((Class) StreamingWindowedElement.class);
   }
 

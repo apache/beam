@@ -8,14 +8,14 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  * along the elements. All elements flowing through the streaming flink executor are
  * of this type.
  */
-public class StreamingWindowedElement<GROUP, LABEL, T>
-    extends WindowedElement<GROUP, LABEL, T>
+public class StreamingWindowedElement<LABEL, T>
+    extends WindowedElement<LABEL, T>
     implements ElementProvider<T>
 {
   /** The watermark when the window this element is part of was emitted. */
   private long emissionWatermark = Long.MIN_VALUE;
 
-  public StreamingWindowedElement(WindowID<GROUP, LABEL> windowID, T element) {
+  public StreamingWindowedElement(WindowID<LABEL> windowID, T element) {
     super(windowID, element);
   }
 
@@ -23,7 +23,7 @@ public class StreamingWindowedElement<GROUP, LABEL, T>
     return emissionWatermark;
   }
 
-  public StreamingWindowedElement<GROUP, LABEL, T> withEmissionWatermark(long watermark) {
+  public StreamingWindowedElement<LABEL, T> withEmissionWatermark(long watermark) {
     this.emissionWatermark = watermark;
     return this;
   }

@@ -132,7 +132,7 @@ public final class Session<T> implements
       return new EarlyTriggeringChain(this, requireNonNull(timeout));
     }
 
-    public <T, G> Session<T> using(UnaryFunction<T, Long> eventFn) {
+    public <T> Session<T> using(UnaryFunction<T, Long> eventFn) {
       return new EarlyTriggeringChain(this, null).using(eventFn);
     }
   } // ~ end of OfChain
@@ -149,8 +149,7 @@ public final class Session<T> implements
       this.earlyTriggering = earlyTriggering;
     }
 
-    public <T, G> Session<T> using(UnaryFunction<T, Long> eventFn) {
-      
+    public <T> Session<T> using(UnaryFunction<T, Long> eventFn) {
       return new Session<>(eventFn, this.ofChain.gapMillis, this.earlyTriggering);
     }
     
