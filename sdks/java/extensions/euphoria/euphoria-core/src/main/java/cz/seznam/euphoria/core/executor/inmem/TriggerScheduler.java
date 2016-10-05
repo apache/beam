@@ -1,31 +1,27 @@
 
-package cz.seznam.euphoria.core.executor;
-
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.triggers.Triggerable;
-
-import java.io.Serializable;
+package cz.seznam.euphoria.core.executor.inmem;
 
 /**
  * Schedules and fires registered triggers according to internal time.
  */
-public interface TriggerScheduler extends Serializable {
+public interface TriggerScheduler<W, K> {
 
   /**
    * Fire specific trigger on given time.
    * Schedule the given trigger at the given stamp.
    * The trigger will be fired as close to the time as possible.
-   * @return true if the triggerable has been scheduled
-   * @return false if the time already passed
+   *
+   * @return true if the triggerable has been scheduled,
+   *          false if the time already passed
    */
-  boolean scheduleAt(long stamp, WindowContext<?> w, Triggerable<?> trigger);
+  boolean scheduleAt(long stamp, KeyedWindow<W, K> window, Triggerable<W, K> trigger);
 
   /**
    * Retrieve current timestamp this triggering is on.
    * This can be either a real system timestamp or the last
    * timestamp updated by call to `updateStamp'.
    */
-  public long getCurrentTimestamp();
+  long getCurrentTimestamp();
 
   /**
    * Cancel all scheduled tasks
@@ -35,7 +31,7 @@ public interface TriggerScheduler extends Serializable {
   /**
    * Cancel all tasks scheduled for specified window
    */
-  void cancel(WindowContext<?> w);
+  void cancel(KeyedWindow<W, K> window);
 
   /**
    * Update the internal timestamp (optional operation).

@@ -1,9 +1,7 @@
-package cz.seznam.euphoria.core.client.triggers;
-
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+package cz.seznam.euphoria.core.executor.inmem;
 
 @FunctionalInterface
-public interface Triggerable<LABEL> {
+public interface Triggerable<W, K> {
 
   /**
    * This method is invoked with the timestamp for which the trigger was scheduled.
@@ -14,5 +12,5 @@ public interface Triggerable<LABEL> {
    *
    * @param timestamp The timestamp for which the trigger event was scheduled.
    */
-  void fire(long timestamp, WindowContext<LABEL> w);
+  void fire(long timestamp, KeyedWindow<W, K> window);
 }

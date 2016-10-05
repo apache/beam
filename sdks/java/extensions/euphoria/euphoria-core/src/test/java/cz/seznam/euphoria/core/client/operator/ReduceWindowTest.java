@@ -41,7 +41,7 @@ public class ReduceWindowTest {
   public void testSimpleBuildWithoutValue() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
-    Windowing<String, ?, ?, ?> windowing = Time.of(Duration.ofHours(1));
+    Windowing<String, ?, ?> windowing = Time.of(Duration.ofHours(1));
 
     Dataset<Long> output = ReduceWindow.of(dataset)
         .reduceBy(e -> 1L)
