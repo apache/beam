@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
@@ -67,6 +69,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
   private final Set<PValue> keyedPValues;
+  private final RootInputProvider rootInputProvider;
   private final TransformEvaluatorRegistry registry;
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
@@ -101,18 +104,27 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       ExecutorService executorService,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
+      RootInputProvider rootInputProvider,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
-      Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
+          Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+              transformEnforcements,
       EvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
-        executorService, valueToConsumers, keyedPValues, registry, transformEnforcements, context);
+        executorService,
+        valueToConsumers,
+        keyedPValues,
+        rootInputProvider,
+        registry,
+        transformEnforcements,
+        context);
   }
 
   private ExecutorServiceParallelExecutor(
       ExecutorService executorService,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
+      RootInputProvider rootInputProvider,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
@@ -120,6 +132,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     this.executorService = executorService;
     this.valueToConsumers = valueToConsumers;
     this.keyedPValues = keyedPValues;
+    this.rootInputProvider = rootInputProvider;
     this.registry = registry;
     this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
@@ -153,7 +166,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   public void start(Collection<AppliedPTransform<?, ?, ?>> roots) {
     for (AppliedPTransform<?, ?, ?> root : roots) {
       ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
-      pending.addAll(registry.getInitialInputs(root));
+      Collection<CommittedBundle<?>> initialInputs = rootInputProvider.getInitialInputs(root);
+      checkState(
+          !initialInputs.isEmpty(),
+          "All root transforms must have initial inputs. Got 0 for %s",
+          root.getFullName());
+      pending.addAll(initialInputs);
       pendingRootBundles.put(root, pending);
     }
     evaluationContext.initialize(pendingRootBundles);
@@ -385,7 +403,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
             if (ExecutorState.ACTIVE == startingState
-                || (ExecutorState.PROCESSING == startingState && noWorkOutstanding)) {
+                || (ExecutorState.PROCESSING == startingState
+                    && noWorkOutstanding)) {
               scheduleConsumers(update);
             } else {
               allUpdates.offer(update);

@@ -52,26 +52,11 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive. */
-class TestStreamEvaluatorFactory implements RootTransformEvaluatorFactory {
+class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 
   TestStreamEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
-  }
-
-  @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-    return createInputBundle((AppliedPTransform) transform);
-  }
-
-  private <T> Collection<CommittedBundle<?>> createInputBundle(
-      AppliedPTransform<?, ?, TestStream<T>> transform) {
-    CommittedBundle<TestStreamIndex<T>> initialBundle =
-        evaluationContext
-            .<TestStreamIndex<T>>createRootBundle()
-            .add(WindowedValue.valueInGlobalWindow(TestStreamIndex.of(transform.getTransform())))
-            .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    return Collections.<CommittedBundle<?>>singleton(initialBundle);
   }
 
   @Nullable
@@ -206,6 +191,28 @@ class TestStreamEvaluatorFactory implements RootTransformEvaluatorFactory {
     }
   }
 
+  static class InputProvider implements RootInputProvider {
+    private final EvaluationContext evaluationContext;
+
+    InputProvider(EvaluationContext evaluationContext) {
+      this.evaluationContext = evaluationContext;
+    }
+
+    @Override
+    public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+      return createInputBundle((AppliedPTransform) transform);
+    }
+
+    private <T> Collection<CommittedBundle<?>> createInputBundle(
+        AppliedPTransform<?, ?, TestStream<T>> transform) {
+      CommittedBundle<TestStreamIndex<T>> initialBundle =
+          evaluationContext
+              .<TestStreamIndex<T>>createRootBundle()
+              .add(WindowedValue.valueInGlobalWindow(TestStreamIndex.of(transform.getTransform())))
+              .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
+      return Collections.<CommittedBundle<?>>singleton(initialBundle);
+    }
+  }
   @AutoValue
   abstract static class TestStreamIndex<T> {
     static <T> TestStreamIndex<T> of(TestStream<T> stream) {

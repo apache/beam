@@ -39,26 +39,11 @@ import org.apache.beam.sdk.values.PCollection;
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Bounded Read.Bounded} primitive {@link PTransform}.
  */
-final class BoundedReadEvaluatorFactory implements RootTransformEvaluatorFactory {
+final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 
   BoundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
-  }
-
-  @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-    return createInitialSplits((AppliedPTransform) transform);
-  }
-
-  private <OutputT> Collection<CommittedBundle<?>> createInitialSplits(
-      AppliedPTransform<?, ?, Read.Bounded<OutputT>> transform) {
-    BoundedSource<OutputT> source = transform.getTransform().getSource();
-    return Collections.<CommittedBundle<?>>singleton(
-        evaluationContext
-            .<BoundedSourceShard<OutputT>>createRootBundle()
-            .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)))
-            .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -131,5 +116,28 @@ final class BoundedReadEvaluatorFactory implements RootTransformEvaluatorFactory
     }
 
     abstract BoundedSource<T> getSource();
+  }
+
+  static class InputProvider implements RootInputProvider {
+    private final EvaluationContext evaluationContext;
+
+    InputProvider(EvaluationContext evaluationContext) {
+      this.evaluationContext = evaluationContext;
+    }
+
+    @Override
+    public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+      return createInitialSplits((AppliedPTransform) transform);
+    }
+
+    private <OutputT> Collection<CommittedBundle<?>> createInitialSplits(
+        AppliedPTransform<?, ?, Read.Bounded<OutputT>> transform) {
+      BoundedSource<OutputT> source = transform.getTransform().getSource();
+      return Collections.<CommittedBundle<?>>singleton(
+          evaluationContext
+              .<BoundedSourceShard<OutputT>>createRootBundle()
+              .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)))
+              .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    }
   }
 }

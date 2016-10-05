@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
@@ -42,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * A {@link TransformEvaluatorFactory} that delegates to primitive {@link TransformEvaluatorFactory}
  * implementations based on the type of {@link PTransform} of the application.
  */
-class TransformEvaluatorRegistry implements RootTransformEvaluatorFactory {
+class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
   public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
     @SuppressWarnings("rawtypes")
@@ -74,20 +73,6 @@ class TransformEvaluatorRegistry implements RootTransformEvaluatorFactory {
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, TransformEvaluatorFactory> factories) {
     this.factories = factories;
-  }
-
-  @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-    checkState(
-        !finished.get(), "Tried to get initial inputs for a finished TransformEvaluatorRegistry");
-    TransformEvaluatorFactory factory = getFactory(transform);
-    checkArgument(
-        factory instanceof RootTransformEvaluatorFactory,
-        "Tried to get Initial Inputs for Transform %s. %s does not have an associated %s",
-        transform.getFullName(),
-        transform.getTransform().getClass().getSimpleName(),
-        RootTransformEvaluatorFactory.class.getSimpleName());
-    return ((RootTransformEvaluatorFactory) factory).getInitialInputs(transform);
   }
 
   @Override

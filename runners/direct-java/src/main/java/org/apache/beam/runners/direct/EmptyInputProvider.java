@@ -15,28 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
- * A {@link TransformEvaluatorFactory} for {@link PTransform PTransforms} that are at the root of a
- * {@link Pipeline}. Provides a way to get initial inputs, which will cause the {@link PTransform}
- * to produce all of the appropriate output.
+ * A {@link RootInputProvider} that provides a singleton empty bundle.
  */
-interface RootTransformEvaluatorFactory extends TransformEvaluatorFactory {
+class EmptyInputProvider implements RootInputProvider {
+  private final EvaluationContext evaluationContext;
+
+  EmptyInputProvider(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
+
   /**
-   * Get the initial inputs for the {@link AppliedPTransform}. The {@link AppliedPTransform} will be
-   * provided with these {@link CommittedBundle bundles} as input when the {@link Pipeline} runs.
+   * {@inheritDoc}.
    *
-   * <p>For source transforms, these should be sufficient that, when provided to the evaluators
-   * produced by {@link #forApplication(AppliedPTransform, CommittedBundle)}, all of the elements
-   * contained in the source are eventually produced.
+   * <p>Returns a single empty bundle. This bundle ensures that any {@link PTransform PTransforms}
+   * that consume from the output of the provided {@link AppliedPTransform} have watermarks updated
+   * as appropriate.
    */
-  Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform);
+  @Override
+  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+    return Collections.<CommittedBundle<?>>singleton(
+        evaluationContext.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
+  }
 }
