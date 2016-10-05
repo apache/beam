@@ -1,8 +1,6 @@
-
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -19,7 +17,6 @@ import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -237,46 +234,6 @@ public class BasicOperatorTest {
       s = s.sorted();
     }
     return s.collect(toList());
-  }
-
-  @Ignore // FIXME enable once global count windowing is provided
-  @Test
-  public void testWordCountByGlobalCount() throws Exception {
-    Flow flow = Flow.create("Test");
-    Dataset<String> words = flow.createInput(ListDataSource.unbounded(
-        asList("one",   "two",  "three", "four", "four", "two",
-               "two",   "one",  "one",   "one",  "two",  "two",
-               "three", "three", "four", "four",  "four", "four")));
-
-    // reduce it to counts, use windowing, so the output is batch or stream
-    // depending on the type of input
-    final ListDataSink<Pair<String, Long>> output = ListDataSink.get(1);
-    ReduceByKey
-        .of(words)
-        .keyBy(w -> w)
-        .valueBy(w -> 1L)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Count.of(6))
-        .output()
-        .persist(output);
-
-    executor.waitForCompletion(flow);
-
-    assertNotNull(output.getOutput(0));
-
-    assertEquals(8, output.getOutput(0).size());
-    // ~ first 6 input elements processed
-    assertEquals(
-        asList("four-2", "one-1", "three-1", "two-2"),
-        sublist(output.getOutput(0), 0, 4));
-    // ~ seconds 6 input elems
-    assertEquals(
-        asList("one-3", "two-3"),
-        sublist(output.getOutput(0), 4, 2));
-    // ~ third 6 input elems
-    assertEquals(
-        asList("four-4", "three-2"),
-        sublist(output.getOutput(0), 6, -1));
   }
 
   @Test
