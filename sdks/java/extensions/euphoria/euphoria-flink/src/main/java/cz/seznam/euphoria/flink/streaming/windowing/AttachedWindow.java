@@ -6,24 +6,24 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.util.Objects;
 
-public class AttachedWindow<GROUP, LABEL>
+public class AttachedWindow<LABEL>
     extends Window
-    implements WindowProperties<GROUP, LABEL> {
+    implements WindowProperties<LABEL> {
 
-  private final WindowID<GROUP, LABEL> id;
+  private final WindowID<LABEL> id;
   private final long emissionWatermark;
 
-  public AttachedWindow(StreamingWindowedElement<GROUP, LABEL, ?> element) {
+  public AttachedWindow(StreamingWindowedElement<LABEL, ?> element) {
     this(element.getWindowID(), element.getEmissionWatermark());
   }
 
-  public AttachedWindow(WindowID<GROUP, LABEL> id, long emissionWatermark) {
+  public AttachedWindow(WindowID<LABEL> id, long emissionWatermark) {
     this.id = Objects.requireNonNull(id);
     this.emissionWatermark = emissionWatermark;
   }
 
   @Override
-  public WindowID<GROUP, LABEL> getWindowID() {
+  public WindowID<LABEL> getWindowID() {
     return id;
   }
 
@@ -40,7 +40,7 @@ public class AttachedWindow<GROUP, LABEL>
   @Override
   public boolean equals(Object o) {
     if (o instanceof AttachedWindow) {
-      AttachedWindow<?, ?> that = (AttachedWindow<?, ?>) o;
+      AttachedWindow<?> that = (AttachedWindow<?>) o;
       return this.id.equals(that.id);
     }
     return false;

@@ -19,7 +19,7 @@ public class Utils {
       this(inner, Object.class);
     }
 
-    QueryableKeySelector(KeySelector<K, V> inner, Class clz) {
+    QueryableKeySelector(KeySelector<K, V> inner, Class<? super V> clz) {
       this.inner = inner;
       this.clz = clz;
     }
@@ -64,8 +64,8 @@ public class Utils {
   }
 
   public static <K, V> KeySelector<K, V> wrapQueryable(
-      KeySelector<K, V> inner, Class<?> clz) {
-    return new QueryableKeySelector(inner, clz);
+      KeySelector<K, V> inner, Class<? super V> clz) {
+    return new QueryableKeySelector<>(inner, clz);
   }
 
 }

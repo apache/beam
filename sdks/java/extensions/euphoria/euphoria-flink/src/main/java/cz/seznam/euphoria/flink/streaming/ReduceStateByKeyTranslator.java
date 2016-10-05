@@ -61,7 +61,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       valueExtractor = origOperator.getValueExtractor();
     }
 
-    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> folded;
+    DataStream<StreamingWindowedElement<?, WindowedPair>> folded;
     // apply windowing first
     if (windowing == null) {
       WindowedStream windowedPairs =
@@ -72,7 +72,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           .setParallelism(operator.getParallelism());
     } else {
       // FIXME merging windows not covered yet
-      WindowedStream<MultiWindowedElement<?, ?, Pair>, Object, FlinkWindow>
+      WindowedStream<MultiWindowedElement<?, Pair>, Object, FlinkWindow>
           windowedPairs = context.flinkWindow((DataStream) input, keyExtractor, valueExtractor, windowing);
       // equivalent operation to "left fold"
       folded = windowedPairs.apply(new RSBKWindowFunction(storageProvider, stateFactory))
@@ -95,10 +95,10 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   }
 
   private static class RSBKWindowFunction<
-      GROUP, LABEL, KEY, VALUEIN, VALUEOUT,
-      W extends Window & WindowProperties<GROUP, LABEL>>
+      LABEL, KEY, VALUEIN, VALUEOUT,
+      W extends Window & WindowProperties<LABEL>>
       extends RichWindowFunction<ElementProvider<? extends Pair<KEY, VALUEIN>>,
-      StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>,
+      StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>,
       KEY,
       W> {
 
@@ -123,17 +123,17 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
         KEY key,
         W window,
         Iterable<ElementProvider<? extends Pair<KEY, VALUEIN>>> input,
-        Collector<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> out)
+        Collector<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> out)
         throws Exception {
 
       Iterator<ElementProvider<? extends Pair<KEY, VALUEIN>>> it = input.iterator();
       // read the first element to obtain window metadata and key
       ElementProvider<? extends Pair<KEY, VALUEIN>> element = it.next();
-      WindowID wid = window.getWindowID();
+      WindowID<LABEL> wid = window.getWindowID();
       long emissionWatermark = window.getEmissionWatermark();
 
       State state = stateFactory.apply(
-          e -> out.collect(new StreamingWindowedElement<>(
+          e -> out.collect(new StreamingWindowedElement(
               wid,
               WindowedPair.of(
                   wid.getLabel(),

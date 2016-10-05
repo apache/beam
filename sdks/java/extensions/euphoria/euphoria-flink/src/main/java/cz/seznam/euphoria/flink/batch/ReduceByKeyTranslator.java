@@ -75,7 +75,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     // FIXME: missing window merging here
 
     // XXX require keyExtractor to deliver `Comparable`s
-    Operator<WindowedElement<?, ?, Pair>, ?> reduced = tuples
+    Operator<WindowedElement<?, Pair>, ?> reduced = tuples
         .groupBy((KeySelector) new TypedKeySelector<>())
         .reduce(new TypedReducer(reducer))
         .setParallelism(operator.getParallelism())
@@ -91,7 +91,10 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           .partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (WindowedElement<?, ?, Pair> we) -> (Comparable) we.get().getKey(),
+                  (WindowedElement<?, Pair> we) -> {
+                    Comparable key = (Comparable) we.get().getKey();
+                    return key;
+                  },
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -101,13 +104,13 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
 
   @SuppressWarnings("unchecked")
   private static class TypedKeySelector<LABEL, KEY>
-      implements KeySelector<WindowedElement<?, ?, ? extends Pair<KEY, ?>>,
+      implements KeySelector<WindowedElement<?, ? extends Pair<KEY, ?>>,
           ComparablePair<LABEL, KEY>>,
       ResultTypeQueryable<KEY> {
     
     @Override
     public ComparablePair<LABEL, KEY> getKey(
-        WindowedElement<?, ?, ? extends Pair<KEY, ?>> value) {
+        WindowedElement<?, ? extends Pair<KEY, ?>> value) {
       
       return (ComparablePair) ComparablePair.of(
           value.getWindowID().getLabel(), value.get().getKey());
@@ -122,8 +125,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
   }
 
   private static class TypedReducer
-          implements ReduceFunction<WindowedElement<?, ?, Pair>>,
-          ResultTypeQueryable<WindowedElement<?, ?, Pair>>
+          implements ReduceFunction<WindowedElement<?, Pair>>,
+          ResultTypeQueryable<WindowedElement<?, Pair>>
   {
     final UnaryFunction<Iterable, Object> reducer;
 
@@ -132,9 +135,9 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     }
 
     @Override
-    public WindowedElement<?, ?, Pair>
-    reduce(WindowedElement<?, ?, Pair> p1, WindowedElement<?, ?, Pair> p2) {
-      WindowID<?, ?> wid = p1.getWindowID();
+    public WindowedElement<?, Pair>
+    reduce(WindowedElement<?, Pair> p1, WindowedElement<?, Pair> p2) {
+      WindowID<?> wid = p1.getWindowID();
       return new WindowedElement<>(wid,
         WindowedPair.of(wid.getLabel(), p1.get().getKey(),
           reducer.apply(Arrays.asList(p1.get().getSecond(), p2.get().getSecond()))));
@@ -142,7 +145,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<WindowedElement<?, ?, Pair>> getProducedType() {
+    public TypeInformation<WindowedElement<?, Pair>> getProducedType() {
       return TypeInformation.of((Class) WindowedElement.class);
     }
   }

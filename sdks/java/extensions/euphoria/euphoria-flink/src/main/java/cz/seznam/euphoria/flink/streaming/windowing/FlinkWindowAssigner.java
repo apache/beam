@@ -14,14 +14,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class FlinkWindowAssigner<T, GROUP, LABEL>
-    extends WindowAssigner<MultiWindowedElement<GROUP, LABEL, T>, FlinkWindow<GROUP, LABEL>> {
+public class FlinkWindowAssigner<T, LABEL>
+    extends WindowAssigner<MultiWindowedElement<LABEL, T>, FlinkWindow<LABEL>> {
 
-  private final Windowing<?, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing;
+  private final Windowing<?, LABEL, ? extends WindowContext<LABEL>> windowing;
   private final ExecutionConfig cfg;
 
   public FlinkWindowAssigner(
-      Windowing<?, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing,
+      Windowing<?, LABEL, ? extends WindowContext<LABEL>> windowing,
       ExecutionConfig cfg) {
     
     this.windowing = windowing;
@@ -29,25 +29,25 @@ public class FlinkWindowAssigner<T, GROUP, LABEL>
   }
 
   @Override
-  public Collection<FlinkWindow<GROUP, LABEL>> assignWindows(
-      MultiWindowedElement<GROUP, LABEL, T> element,
+  public Collection<FlinkWindow<LABEL>> assignWindows(
+      MultiWindowedElement<LABEL, T> element,
       long timestamp, WindowAssignerContext context) {
 
-    List<FlinkWindow<GROUP, LABEL>> ws = new ArrayList<>(element.windows().size());
-    for (WindowID<GROUP, LABEL> window : element.windows()) {
+    List<FlinkWindow<LABEL>> ws = new ArrayList<>(element.windows().size());
+    for (WindowID<LABEL> window : element.windows()) {
       ws.add(new FlinkWindow<>(windowing.createWindowContext(window)));
     }
     return ws;
   }
 
   @Override
-  public Trigger<MultiWindowedElement<GROUP, LABEL, T>, FlinkWindow<GROUP, LABEL>> getDefaultTrigger(
+  public Trigger<MultiWindowedElement<LABEL, T>, FlinkWindow<LABEL>> getDefaultTrigger(
       StreamExecutionEnvironment env) {
     return new FlinkWindowTrigger<>(windowing, cfg);
   }
 
   @Override
-  public TypeSerializer<FlinkWindow<GROUP, LABEL>> getWindowSerializer(ExecutionConfig executionConfig) {
+  public TypeSerializer<FlinkWindow<LABEL>> getWindowSerializer(ExecutionConfig executionConfig) {
     return new KryoSerializer<>((Class) FlinkWindow.class, executionConfig);
   }
 

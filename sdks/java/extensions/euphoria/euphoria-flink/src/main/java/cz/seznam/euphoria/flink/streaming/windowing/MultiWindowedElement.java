@@ -5,11 +5,11 @@ import cz.seznam.euphoria.flink.streaming.ElementProvider;
 
 import java.util.Set;
 
-public final class MultiWindowedElement<GROUP, LABEL, T> implements ElementProvider<T> {
-  private final Set<WindowID<GROUP, LABEL>> windows;
+public final class MultiWindowedElement<LABEL, T> implements ElementProvider<T> {
+  private final Set<WindowID<LABEL>> windows;
   private final T element;
 
-  public MultiWindowedElement(Set<WindowID<GROUP, LABEL>> windows, T element) {
+  public MultiWindowedElement(Set<WindowID<LABEL>> windows, T element) {
     this.windows = windows;
     this.element = element;
   }
@@ -19,7 +19,7 @@ public final class MultiWindowedElement<GROUP, LABEL, T> implements ElementProvi
     return element;
   }
 
-  public Set<WindowID<GROUP, LABEL>> windows() {
+  public Set<WindowID<LABEL>> windows() {
     return windows;
   }
 

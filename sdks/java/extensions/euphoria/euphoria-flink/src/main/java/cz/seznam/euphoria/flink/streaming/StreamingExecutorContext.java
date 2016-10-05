@@ -40,13 +40,13 @@ public class StreamingExecutorContext
    * {@link MultiWindowedElementWindowFunction}.
    * Attached windowing is relying on its effects.
    */
-  public <T, LABEL, GROUP, KEY, VALUE>
-  WindowedStream<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>,
-      KEY, FlinkWindow<GROUP, LABEL>>
-  flinkWindow(DataStream<StreamingWindowedElement<?, ?, T>> input,
+  public <T, LABEL, KEY, VALUE>
+  WindowedStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>,
+      KEY, FlinkWindow<LABEL>>
+  flinkWindow(DataStream<StreamingWindowedElement<?, T>> input,
               UnaryFunction<T, KEY> keyFn,
               UnaryFunction<T, VALUE> valFn,
-              Windowing<T, GROUP, LABEL, ? extends WindowContext<GROUP, LABEL>> windowing) {
+              Windowing<T, LABEL, ? extends WindowContext<LABEL>> windowing) {
     return windower.window(input, keyFn, valFn, windowing);
   }
 
@@ -55,10 +55,10 @@ public class StreamingExecutorContext
    * windowing on the input data stream forwarding
    * {@link StreamingWindowedElement#emissionWatermark} of the windows to attach to.
    */
-  <GROUP, LABEL, T, KEY, VALUE>
-  WindowedStream<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>,
-      KEY, AttachedWindow<GROUP, LABEL>>
-  attachedWindowStream(DataStream<StreamingWindowedElement<GROUP, LABEL, T>> input,
+  <T, LABEL, KEY, VALUE>
+  WindowedStream<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>,
+      KEY, AttachedWindow<LABEL>>
+  attachedWindowStream(DataStream<StreamingWindowedElement<LABEL, T>> input,
                        UnaryFunction<T, KEY> keyFn,
                        UnaryFunction<T, VALUE> valFn)
   {
