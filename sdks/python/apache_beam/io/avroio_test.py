@@ -246,6 +246,26 @@ class TestAvro(unittest.TestCase):
         readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_sink_transform_snappy(self):
+    try:
+      import snappy  # pylint: disable=unused-variable
+      with tempfile.NamedTemporaryFile() as dst:
+        path = dst.name
+        with beam.Pipeline('DirectPipelineRunner') as p:
+          # pylint: disable=expression-not-assigned
+          p | beam.Create(self.RECORDS) | avroio.WriteToAvro(
+              path,
+              self.SCHEMA,
+              codec='snappy')
+        with beam.Pipeline('DirectPipelineRunner') as p:
+          # json used for stable sortability
+          readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+          assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+    except ImportError:
+      logging.warning(
+          'Skipped test_sink_transform_snappy since snappy appears to not be '
+          'installed.')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
