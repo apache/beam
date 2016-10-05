@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -381,8 +382,14 @@ public class MqttIO {
 
     @Override
     public Instant getWatermark() {
-      // TODO use custom or better watermark
-      return Instant.now();
+      MqttMessageWithTimestamp message = queue.peek();
+      if (message == null) {
+        // no message yet in the queue, returning the min possible timestamp value
+        return BoundedWindow.TIMESTAMP_MIN_VALUE;
+      } else {
+        // watermark is the timestamp of the oldest message in the queue
+        return message.getTimestamp();
+      }
     }
 
     @Override
