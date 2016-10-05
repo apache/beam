@@ -18,6 +18,7 @@
 
 """Unit tests for local and GCS sources and sinks."""
 
+import bz2
 import glob
 import gzip
 import logging
@@ -25,7 +26,6 @@ import os
 import tempfile
 import unittest
 import zlib
-import bz2
 
 import apache_beam as beam
 from apache_beam import coders
@@ -150,10 +150,10 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, lines)
 
-  def test_read_entire_file_bzip(self):
+  def test_read_entire_file_bzip2(self):
     lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor(8)
-    data = compressor.compress('\n'.join(lines)) +compressor.flush()
+    compressor = bz2.BZ2Compressor()
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
         compression_type=fileio.CompressionTypes.BZIP2)
@@ -163,9 +163,9 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, lines)
 
-  def test_read_entire_file_bzip_auto(self):
+  def test_read_entire_file_bzip2_auto(self):
     lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor(8)
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(file_path=self.create_temp_file(
         data, suffix='.bz2'))
@@ -175,8 +175,8 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, lines)
 
-  def test_read_entire_file_bzip_empty(self):
-    compressor = bz2.BZ2Compressor(8)
+  def test_read_entire_file_bzip2_empty(self):
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('') + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
@@ -187,9 +187,9 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, [])
 
-  def test_read_entire_file_bzip_large(self):
+  def test_read_entire_file_bzip2_large(self):
     lines = ['Line %d' % d for d in range(10 * 1000)]
-    compressor = bz2.BZ2Compressor(8)
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
@@ -264,9 +264,9 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, [])
 
-  def test_skip_entire_file_bzip(self):
+  def test_skip_entire_file_bzip2(self):
     lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor(8)
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
@@ -306,9 +306,9 @@ class TestTextFileSource(unittest.TestCase):
         read_lines.append(line)
     self.assertEqual(read_lines, lines)
 
-  def test_consume_entire_file_bzip(self):
+  def test_consume_entire_file_bzip2(self):
     lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor(8)
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
@@ -368,9 +368,9 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(len(progress_record), 3)
     self.assertEqual(progress_record, [0, 6, 13])
 
-  def test_progress_entire_file_bzip(self):
+  def test_progress_entire_file_bzip2(self):
     lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor(8)
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
@@ -451,9 +451,9 @@ class TestTextFileSource(unittest.TestCase):
                 iobase.ReaderProgress(percent_complete=percent_complete)),
             None)
 
-  def test_bzip_file_unsplittable(self):
+  def test_bzip2_file_unsplittable(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
-    compressor = bz2.BZ2Compressor(8)
+    compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
@@ -785,7 +785,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
-  def test_write_text_bzip_file(self):
+  def test_write_text_bzip2_file(self):
     sink = fileio.NativeTextFileSink(
         self.path, compression_type=fileio.CompressionTypes.BZIP2)
     self._write_lines(sink, self.lines)
@@ -793,7 +793,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  def test_write_text_bzip_file_auto(self):
+  def test_write_text_bzip2_file_auto(self):
     self.path = tempfile.NamedTemporaryFile(suffix='.bz2').name
     sink = fileio.NativeTextFileSink(self.path)
     self._write_lines(sink, self.lines)
@@ -801,7 +801,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
-  def test_write_text_bzip_file_empty(self):
+  def test_write_text_bzip2_file_empty(self):
     sink = fileio.NativeTextFileSink(
         self.path, compression_type=fileio.CompressionTypes.BZIP2)
     self._write_lines(sink, [])

@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import bz2
 import glob
 import logging
 from multiprocessing.pool import ThreadPool
@@ -27,7 +28,6 @@ import shutil
 import threading
 import time
 import zlib
-import bz2
 import weakref
 
 from apache_beam import coders
@@ -96,7 +96,7 @@ class CompressionTypes(object):
     mime_types_by_compression_type = {
         cls.GZIP: 'application/x-gzip',
         cls.ZLIB: 'application/octet-stream',
-        cls.BZIP2: 'application/octet-stream'
+        cls.BZIP2: 'application/x-bz2',
     }
     return mime_types_by_compression_type.get(compression_type, default)
 
@@ -605,14 +605,14 @@ class _CompressedFile(object):
       if self._compression_type == CompressionTypes.BZIP2:
         self._decompressor = bz2.BZ2Decompressor()
       else:
-        self._decompressor = zlib.decompressobj(\
-                            self._type_mask[compression_type])
+        self._decompressor = zlib.decompressobj(
+            self._type_mask[compression_type])
     else:
       self._decompressor = None
 
     if self._writeable():
       if self._compression_type == CompressionTypes.BZIP2:
-        self._compressor = bz2.BZ2Compressor(9)
+        self._compressor = bz2.BZ2Compressor()
       else:
         self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
                                             zlib.DEFLATED,
