@@ -15,11 +15,11 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
-import cz.seznam.euphoria.core.executor.inmem.WatermarkEmitStrategy;
 import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ImmutableMap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Maps;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -239,8 +239,9 @@ public class BasicOperatorTest {
     return s.collect(toList());
   }
 
+  @Ignore // FIXME enable once global count windowing is provided
   @Test
-  public void testWordCountByCount() throws Exception {
+  public void testWordCountByGlobalCount() throws Exception {
     Flow flow = Flow.create("Test");
     Dataset<String> words = flow.createInput(ListDataSource.unbounded(
         asList("one",   "two",  "three", "four", "four", "two",
@@ -435,7 +436,7 @@ public class BasicOperatorTest {
         .allowWindowBasedShuffling()
         .waitForCompletion(flow);
 
-    List<HashSet<String>> output = f.getOutput(1);
+    List<HashSet<String>> output = f.getOutput(2);
     assertEquals(1, output.size());
     assertEquals(Sets.newHashSet(
         Arrays.asList("1-one", "1-two", "1-three", "1-four")), output.get(0));
