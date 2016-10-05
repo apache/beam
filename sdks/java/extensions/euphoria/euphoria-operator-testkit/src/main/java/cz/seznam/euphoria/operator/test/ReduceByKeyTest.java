@@ -101,27 +101,26 @@ public class ReduceByKeyTest extends OperatorTest {
     };
   }
   
-  static class TestWindowContext extends WindowContext<Void, Integer> {
+  static class TestWindowContext extends WindowContext<Integer> {
 
     public TestWindowContext(int label) {
-      super(WindowID.aligned(label));
-    }    
+      super(new WindowID<>(label));
+    }
   }
 
   static class TestWindowing
-      implements Windowing<Integer, Void, Integer, TestWindowContext> {
+      implements Windowing<Integer, Integer, TestWindowContext> {
 
     @Override
-    public Set<WindowID<Void, Integer>> assignWindowsToElement(
-        WindowedElement<?, ?, Integer> input) {
-      return Collections.singleton(WindowID.aligned(input.get() / 4));
+    public Set<WindowID<Integer>> assignWindowsToElement(
+        WindowedElement<?, Integer> input) {
+      return Collections.singleton(new WindowID<>(input.get() / 4));
     }
 
     @Override
-    public TestWindowContext createWindowContext(WindowID<Void, Integer> wid) {
+    public TestWindowContext createWindowContext(WindowID<Integer> wid) {
       return new TestWindowContext(wid.getLabel());
     }
-
   }
 
   TestCase testStreamReduceWithWindowing() {

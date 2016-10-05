@@ -158,23 +158,21 @@ public class JoinTest extends OperatorTest {
   }
 
   
-  static class JoinWindowContext extends WindowContext<Integer, Integer> {
-    
-    JoinWindowContext(WindowID<Integer, Integer> wid) {
+  static class JoinWindowContext extends WindowContext<Integer> {
+    JoinWindowContext(WindowID<Integer> wid) {
       super(wid);
     }
-
   }
 
   /**
    * Stable windowing for test purposes.
    */
   static class EvenOddWindowing implements
-      Windowing<Either<Integer, Long>, Integer, Integer, JoinWindowContext> {
+      Windowing<Either<Integer, Long>, Integer, JoinWindowContext> {
 
     @Override
-    public Set<WindowID<Integer, Integer>> assignWindowsToElement(
-        WindowedElement<?, ?, Either<Integer, Long>> input) {
+    public Set<WindowID<Integer>> assignWindowsToElement(
+        WindowedElement<?, Either<Integer, Long>> input) {
       int element;
       Either<Integer, Long> unwrapped = input.get();
       if (unwrapped.isLeft()) {
@@ -183,14 +181,13 @@ public class JoinTest extends OperatorTest {
         element = (int) (long) unwrapped.right();
       }
       final int label = element % 2 == 0 ? 0 : element;
-      return Collections.singleton(WindowID.unaligned(0, label));
+      return Collections.singleton(new WindowID<>(label));
     }
 
     @Override
-    public JoinWindowContext createWindowContext(WindowID<Integer, Integer> wid) {
+    public JoinWindowContext createWindowContext(WindowID<Integer> wid) {
       return new JoinWindowContext(wid);
     }
-
   }
 
   TestCase windowJoin() {
