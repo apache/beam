@@ -31,7 +31,6 @@ import cz.seznam.euphoria.core.executor.ExecUnit;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

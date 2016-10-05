@@ -2,7 +2,6 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.executor.TriggerScheduler;
 import java.io.Serializable;
 import java.util.Collection;
 import static java.util.Collections.singleton;
@@ -32,9 +31,9 @@ public final class Count<T> implements
 
     int currentCount;
 
-    CountWindowContext(int currentCount) {
-      super(new WindowID<>(new Counted()));
-      this.currentCount = currentCount;
+    CountWindowContext(WindowID<Counted> id) {
+      super(id);
+      this.currentCount = 1;
     }
 
     @Override
@@ -89,7 +88,7 @@ public final class Count<T> implements
 
   @Override
   public CountWindowContext createWindowContext(WindowID<Counted> id) {
-    return new CountWindowContext(1);
+    return new CountWindowContext(id);
   }
 
 
