@@ -310,6 +310,11 @@ class GcsBufferedReader(object):
   def __iter__(self):
     return self
 
+  def __next__(self):
+    """Read one line delimited by '\\n' from the file.
+    """
+    return self.next()
+
   def next(self):
     """Read one line delimited by '\\n' from the file.
     """

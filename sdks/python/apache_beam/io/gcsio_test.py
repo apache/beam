@@ -341,6 +341,36 @@ class TestGCSIO(unittest.TestCase):
           f.read(end - start + 1), random_file.contents[start:end + 1])
       self.assertEqual(f.tell(), end + 1)
 
+  def test_file_iterator(self):
+    file_name = 'gs://gcsio-test/iterating_file'
+    lines = []
+    line_count = 10
+    for _ in range(line_count):
+      line_length = random.randint(100,500)
+      line = os.urandom(line_length).replace('\n', ' ') + '\n'
+      lines.append(line)
+
+    contents = ''.join(lines)
+    file_size = len(contents)
+    bucket, name = gcsio.parse_gcs_path(file_name)
+    self.client.objects.add_file(FakeFile(bucket, name, contents, 1))
+
+    f = self.gcs.open(file_name)
+
+    stop_it_thrown = False
+    read_lines = 0
+    while True:
+      try:
+        next_line = next(f)
+        read_lines += 1
+        if read_lines > 10:
+          break
+      except StopIteration:
+        stop_it_thrown = True
+        break
+    self.assertEqual(read_lines, line_count)
+    self.assertTrue(stop_it_thrown)
+
   def test_file_read_line(self):
     file_name = 'gs://gcsio-test/read_line_file'
     lines = []
