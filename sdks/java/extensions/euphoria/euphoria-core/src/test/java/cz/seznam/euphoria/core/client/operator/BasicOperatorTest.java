@@ -6,7 +6,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -43,7 +43,7 @@ public class BasicOperatorTest {
   }
 
   private static <O> UnaryFunctor<String, O> toWords(UnaryFunction<String, O> f) {
-    return (String s, Collector<O> c) -> {
+    return (String s, Context<O> c) -> {
       for (String part : s.split(" ")) {
         c.collect(f.apply(part));
       }
@@ -177,7 +177,7 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Triple<String, Long, Integer>> words = FlatMap.of(lines)
-        .using((Pair<String, Integer> p, Collector<Triple<String, Long, Integer>> out) -> {
+        .using((Pair<String, Integer> p, Context<Triple<String, Long, Integer>> out) -> {
           for (String word : p.getFirst().split(" ")) {
             out.collect(Triple.of(word, 1L, p.getSecond()));
           }

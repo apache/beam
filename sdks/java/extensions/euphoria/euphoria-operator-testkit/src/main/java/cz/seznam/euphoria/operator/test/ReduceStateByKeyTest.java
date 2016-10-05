@@ -1,10 +1,9 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
@@ -39,7 +38,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
     final ListStorage<Integer> data;
 
     SortState(        
-        Collector<Integer> c,
+        Context<Integer> c,
         StorageProvider storageProvider) {
 
       super(c, storageProvider);
@@ -57,7 +56,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
       List<Integer> list = Lists.newArrayList(data.get());
       Collections.sort(list);
       for (Integer i : list) {
-        this.getCollector().collect(i);
+        this.getContext().collect(i);
       }
     }
 
@@ -71,7 +70,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
       for (SortState state : states) {
         if (ret == null) {
           ret = new SortState(
-              state.getCollector(),
+              state.getContext(),
               state.getStorageProvider());
         }
         ret.data.addAll(state.data.get());

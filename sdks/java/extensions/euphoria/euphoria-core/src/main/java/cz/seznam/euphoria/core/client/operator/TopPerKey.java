@@ -10,7 +10,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -33,10 +33,10 @@ public class TopPerKey<
 
     @SuppressWarnings("unchecked")
     MaxScored(
-        Collector<Pair<V, C>> collector,
+        Context<Pair<V, C>> context,
         StorageProvider storageProvider) {
 
-      super(collector, storageProvider);
+      super(context, storageProvider);
       curr = (ValueStorage) storageProvider.getValueStorage(
           ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null)));
     }
@@ -58,7 +58,7 @@ public class TopPerKey<
     @Override
     public void flush() {
       if (curr.get().getFirst() != null) {
-        getCollector().collect(curr.get());
+        getContext().collect(curr.get());
       }
     }
 

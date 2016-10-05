@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator.state;
 
-import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.Context;
 
 import java.io.Closeable;
 
@@ -11,7 +11,7 @@ import java.io.Closeable;
 public abstract class State<IN, OUT> implements Closeable {
 
   /** Collector of output of this state. */
-  private final Collector<OUT> collector;
+  private final Context<OUT> context;
   /** Provider of state storage. */
   private final StorageProvider storageProvider;
 
@@ -25,15 +25,15 @@ public abstract class State<IN, OUT> implements Closeable {
   public abstract void flush();
 
   protected State(
-      Collector<OUT> collector,
+      Context<OUT> context,
       StorageProvider storageProvider) {
     
-    this.collector = collector;
+    this.context = context;
     this.storageProvider = storageProvider;
   }
 
-  public Collector<OUT> getCollector() {
-    return collector;
+  public Context<OUT> getContext() {
+    return context;
   }
 
   public StorageProvider getStorageProvider() {
