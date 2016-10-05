@@ -91,10 +91,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           .partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (WindowedElement<?, Pair> we) -> {
-                    Comparable key = (Comparable) we.get().getKey();
-                    return key;
-                  },
+                  (WindowedElement<?, Pair> we) -> (Comparable) we.get().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
