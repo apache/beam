@@ -18,7 +18,6 @@ import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.GroupByKey;
 import cz.seznam.euphoria.core.client.operator.MapElements;
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
@@ -48,7 +47,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
@@ -311,23 +309,23 @@ public class InMemExecutorTest {
 
 
 
-  private static class CountWindowContext<GROUP>
-      extends WindowContext<GROUP, CountLabel> {
+  private static class CountWindowContext
+      extends WindowContext<CountLabel> {
 
     final int maxSize;
     int size = 1;
 
-    public CountWindowContext(WindowID<GROUP, CountLabel> wid, int maxSize) {
+    public CountWindowContext(WindowID<CountLabel> wid, int maxSize) {
       super(wid);
       this.maxSize = maxSize;
     }
 
-    public CountWindowContext(GROUP group, int maxSize) {
-      this(WindowID.unaligned(group, new CountLabel(maxSize)), maxSize);
+    public CountWindowContext(int maxSize) {
+      this(new WindowID(new CountLabel(maxSize)), maxSize);
     }
 
-    public CountWindowContext(GROUP group, CountLabel label) {
-      this(WindowID.unaligned(group, label), label.get());
+    public CountWindowContext(CountLabel label) {
+      this(new WindowID(label), label.get());
     }
 
 
@@ -340,32 +338,28 @@ public class InMemExecutorTest {
   }
 
 
-  static class UnalignedCountWindowing<T, GROUP> implements
-      MergingWindowing<T, GROUP, CountLabel, CountWindowContext<GROUP>> {
+  static class SizedCountWindowing<T> implements
+      MergingWindowing<T, CountLabel, CountWindowContext> {
 
-    final UnaryFunction<T, GROUP> groupExtractor;
-    final UnaryFunction<GROUP, Integer> size;
+    final UnaryFunction<T, Integer> size;
 
-    UnalignedCountWindowing(
-        UnaryFunction<T, GROUP> groupExtractor,
-        UnaryFunction<GROUP, Integer> size) {
-      this.groupExtractor = groupExtractor;
+    SizedCountWindowing(UnaryFunction<T, Integer> size) {
       this.size = size;
     }
 
     @Override
-    public Collection<Pair<Collection<CountWindowContext<GROUP>>, CountWindowContext<GROUP>>> mergeWindows(
-        Collection<CountWindowContext<GROUP>> actives) {
+    public Collection<Pair<Collection<CountWindowContext>, CountWindowContext>> mergeWindows(
+        Collection<CountWindowContext> actives) {
 
       // we will merge together only windows with the same window size
 
-      List<Pair<Collection<CountWindowContext<GROUP>>, CountWindowContext<GROUP>>> ret
+      List<Pair<Collection<CountWindowContext>, CountWindowContext>> ret
           = new ArrayList<>();
 
-      Map<Integer, List<CountWindowContext<GROUP>>> toMergeMap = new HashMap<>();
+      Map<Integer, List<CountWindowContext>> toMergeMap = new HashMap<>();
       Map<Integer, AtomicInteger> currentSizeMap = new HashMap<>();
 
-      for (CountWindowContext<GROUP> w : actives) {
+      for (CountWindowContext w : actives) {
         final int wSize = w.maxSize;
         AtomicInteger currentSize = currentSizeMap.get(wSize);
         if (currentSize == null) {
@@ -377,10 +371,9 @@ public class InMemExecutorTest {
           currentSize.addAndGet(w.size);
           toMergeMap.get(wSize).add(w);
         } else {
-          List<CountWindowContext<GROUP>> toMerge = toMergeMap.get(wSize);
+          List<CountWindowContext> toMerge = toMergeMap.get(wSize);
           if (!toMerge.isEmpty()) {
-            CountWindowContext<GROUP> res = new CountWindowContext<>(
-                w.getWindowID().getGroup(), currentSize.get());
+            CountWindowContext res = new CountWindowContext(currentSize.get());
             res.size = currentSize.get();
             ret.add(Pair.of(new ArrayList<>(toMerge), res));
             toMerge.clear();
@@ -390,11 +383,10 @@ public class InMemExecutorTest {
         }
       }
 
-      for (List<CountWindowContext<GROUP>> toMerge : toMergeMap.values()) {
+      for (List<CountWindowContext> toMerge : toMergeMap.values()) {
         if (!toMerge.isEmpty()) {
-          CountWindowContext<GROUP> first = toMerge.get(0);
-          CountWindowContext<GROUP> res = new CountWindowContext<>(
-              first.getWindowID().getGroup(), first.maxSize);
+          CountWindowContext first = toMerge.get(0);
+          CountWindowContext res = new CountWindowContext(first.maxSize);
           res.size = currentSizeMap.get(first.maxSize).get();
           ret.add(Pair.of(toMerge, res));
         }
@@ -403,39 +395,36 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public Set<WindowID<GROUP, CountLabel>> assignWindowsToElement(
-        WindowedElement<?, ?, T> input) {
-      GROUP g = groupExtractor.apply(input.get());
-      int sizeForGroup = size.apply(g);
+    public Set<WindowID<CountLabel>> assignWindowsToElement(WindowedElement<?, T> input) {
+      int sz = size.apply(input.get());
       return new HashSet<>(Arrays.asList(
-          WindowID.unaligned(g, new CountLabel(sizeForGroup)),
-          WindowID.unaligned(g, new CountLabel(2 * sizeForGroup))));
+          new WindowID<>(new CountLabel(sz)),
+          new WindowID<>(new CountLabel(2 * sz))));
     }
 
-    
+
     @Override
-    public boolean isComplete(CountWindowContext<GROUP> window) {
+    public boolean isComplete(CountWindowContext window) {
       return window.size == window.maxSize;
     }
 
     @Override
-    public CountWindowContext<GROUP> createWindowContext(
-        WindowID<GROUP, CountLabel> wid) {
-      return new CountWindowContext<>(wid, wid.getLabel().get());
+    public CountWindowContext createWindowContext(WindowID<CountLabel> wid) {
+      return new CountWindowContext(wid, wid.getLabel().get());
     }
 
   }
 
 
   @Test
-  public void testReduceByKeyWithSortStateAndUnalignedWindow() {
+  public void testReduceByKeyWithSortStateAndCustomWindowing() {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             reversed(sequenceInts(0, 100)),
             reversed(sequenceInts(100, 1100))));
 
-    UnalignedCountWindowing<Integer, Integer> windowing =
-        new UnalignedCountWindowing<>(i -> i % 10, i -> i + 1);
+    SizedCountWindowing<Integer> windowing =
+        new SizedCountWindowing<>(i -> (i % 10) + 1);
 
     // the key for sort will be the last digit
     Dataset<WindowedPair<CountLabel, Integer, Integer>> output = ReduceStateByKey.of(ints)
