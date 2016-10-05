@@ -7,7 +7,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
-public class DataSinkWrapper<T> extends RichSinkFunction<StreamingWindowedElement<?, ?, T>> {
+public class DataSinkWrapper<T> extends RichSinkFunction<StreamingWindowedElement<?, T>> {
 
   private final DataSink<T> dataSink;
   private Writer<T> writer;
@@ -35,7 +35,7 @@ public class DataSinkWrapper<T> extends RichSinkFunction<StreamingWindowedElemen
   }
 
   @Override
-  public void invoke(StreamingWindowedElement<?, ?, T> elem) throws Exception {
+  public void invoke(StreamingWindowedElement<?, T> elem) throws Exception {
     writer.write(elem.get());
   }
 }

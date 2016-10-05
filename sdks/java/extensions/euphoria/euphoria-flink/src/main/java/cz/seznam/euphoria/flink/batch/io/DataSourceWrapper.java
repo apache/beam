@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class DataSourceWrapper<T>
-        implements InputFormat<WindowedElement<Void, Batch.Label, T>,
+        implements InputFormat<WindowedElement<Batch.Label, T>,
         PartitionWrapper<T>>,
         ResultTypeQueryable<T>
 
@@ -74,11 +74,11 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public WindowedElement<Void, Batch.Label, T> nextRecord(
-      WindowedElement<Void, Batch.Label, T> reuse)
+  public WindowedElement<Batch.Label, T> nextRecord(
+      WindowedElement<Batch.Label, T> reuse)
       throws IOException
   {
-    return new WindowedElement<>(WindowID.aligned(Batch.Label.get()), reader.next());
+    return new WindowedElement<>(new WindowID<>(Batch.Label.get()), reader.next());
   }
 
   @Override

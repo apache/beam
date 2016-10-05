@@ -62,7 +62,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     // apply windowing first
-    SingleOutputStreamOperator<StreamingWindowedElement<?, ?, WindowedPair>> reduced;
+    SingleOutputStreamOperator<StreamingWindowedElement<?, WindowedPair>> reduced;
     if (windowing == null) {
       WindowedStream windowedPairs =
           context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
@@ -90,7 +90,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       }
     }
 
-    DataStream<StreamingWindowedElement<?, ?, WindowedPair>> out =
+    DataStream<StreamingWindowedElement<?, WindowedPair>> out =
             reduced.name(operator.getName())
                    .setParallelism(operator.getParallelism());
 
@@ -112,8 +112,8 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
    * Performs incremental reduction (in case of combining reduce).
    */
   private static class StreamingWindowedElementIncrementalReducer
-          implements ReduceFunction<StreamingWindowedElement<?, ?, WindowedPair>>,
-          ResultTypeQueryable<StreamingWindowedElement<?, ?, WindowedPair>> {
+          implements ReduceFunction<StreamingWindowedElement<?, WindowedPair>>,
+          ResultTypeQueryable<StreamingWindowedElement<?, WindowedPair>> {
 
     final UnaryFunction<Iterable, Object> reducer;
 
@@ -122,14 +122,14 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     @Override
-    public StreamingWindowedElement<?, ?, WindowedPair> reduce(
-        StreamingWindowedElement<?, ?, WindowedPair> p1,
-        StreamingWindowedElement<?, ?, WindowedPair> p2) {
+    public StreamingWindowedElement<?, WindowedPair> reduce(
+        StreamingWindowedElement<?, WindowedPair> p1,
+        StreamingWindowedElement<?, WindowedPair> p2) {
 
       Object v1 = p1.get().getSecond();
       Object v2 = p2.get().getSecond();
-      WindowID<?, ?> wid = p1.getWindowID();
-      StreamingWindowedElement<?, ?, WindowedPair>
+      WindowID<?> wid = p1.getWindowID();
+      StreamingWindowedElement<?, WindowedPair>
           out = new StreamingWindowedElement<>(
           wid,
           WindowedPair.of(
@@ -143,7 +143,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<StreamingWindowedElement<?, ?, WindowedPair>> getProducedType() {
+    public TypeInformation<StreamingWindowedElement<?, WindowedPair>> getProducedType() {
       return TypeInformation.of((Class) StreamingWindowedElement.class);
     }
   } // ~ end of StreamingWindowedElementIncrementalReducer
@@ -153,14 +153,14 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
    */
   private static class StreamingWindowedElementWindowedReducer
           implements WindowFunction<
-          StreamingWindowedElement<?, ?, WindowedPair>,
-          StreamingWindowedElement<?, ?, WindowedPair>,
+          StreamingWindowedElement<?, WindowedPair>,
+          StreamingWindowedElement<?, WindowedPair>,
           Object,
           Window> {
 
     private final UnaryFunction<Iterable, Object> reducer;
-    private final WindowFunction<StreamingWindowedElement<?, ?, WindowedPair>,
-            StreamingWindowedElement<?, ?, WindowedPair>, Object, Window> emissionFunction;
+    private final WindowFunction<StreamingWindowedElement<?, WindowedPair>,
+            StreamingWindowedElement<?, WindowedPair>, Object, Window> emissionFunction;
 
     @SuppressWarnings("unchecked")
     public StreamingWindowedElementWindowedReducer(UnaryFunction<Iterable, Object> reducer,
@@ -172,19 +172,19 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     @Override
     public void apply(Object key,
                       Window window,
-                      Iterable<StreamingWindowedElement<?, ?, WindowedPair>> input,
-                      Collector<StreamingWindowedElement<?, ?, WindowedPair>> collector)
+                      Iterable<StreamingWindowedElement<?, WindowedPair>> input,
+                      Collector<StreamingWindowedElement<?, WindowedPair>> collector)
             throws Exception {
 
-      Iterator<StreamingWindowedElement<?, ?, WindowedPair>> it = input.iterator();
+      Iterator<StreamingWindowedElement<?, WindowedPair>> it = input.iterator();
 
       // read the first element to obtain window metadata
-      StreamingWindowedElement<?, ?, WindowedPair> element = it.next();
-      WindowID<?, ?> wid = element.getWindowID();
+      StreamingWindowedElement<?, WindowedPair> element = it.next();
+      WindowID<?> wid = element.getWindowID();
       long emissionWatermark = element.getEmissionWatermark();
 
       // concat the already read element with rest of the opened iterator
-      Iterator<StreamingWindowedElement<?, ?, WindowedPair>> concatIt =
+      Iterator<StreamingWindowedElement<?, WindowedPair>> concatIt =
               Iterators.concat(Iterators.singletonIterator(element), it);
 
       // unwrap all elements to be used in user defined reducer
@@ -193,7 +193,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
       Object reduced = reducer.apply(new IteratorIterable<>(unwrapped));
 
-      StreamingWindowedElement<?, ?, WindowedPair>
+      StreamingWindowedElement<?, WindowedPair>
               out = new StreamingWindowedElement<>(
               wid,
               WindowedPair.of(
@@ -213,9 +213,9 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
    * {@link MultiWindowedElement}s. Assumes the result is emitted using
    * {@link MultiWindowedElementWindowFunction}.
    */
-  private static class MultiWindowedElementIncrementalReducer<GROUP, LABEL, KEY, VALUE>
-      implements ReduceFunction<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>,
-      ResultTypeQueryable<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>> {
+  private static class MultiWindowedElementIncrementalReducer<LABEL, KEY, VALUE>
+      implements ReduceFunction<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>>,
+      ResultTypeQueryable<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>> {
 
     final UnaryFunction<Iterable<VALUE>, VALUE> reducer;
 
@@ -224,20 +224,20 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     @Override
-    public MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> reduce(
-        MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> p1,
-        MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>> p2) {
+    public MultiWindowedElement<LABEL, Pair<KEY, VALUE>> reduce(
+        MultiWindowedElement<LABEL, Pair<KEY, VALUE>> p1,
+        MultiWindowedElement<LABEL, Pair<KEY, VALUE>> p2) {
 
       VALUE v1 = p1.get().getSecond();
       VALUE v2 = p2.get().getSecond();
-      Set<WindowID<GROUP, LABEL>> s = Collections.emptySet();
+      Set<WindowID<LABEL>> s = Collections.emptySet();
       return new MultiWindowedElement<>(s,
           Pair.of(p1.get().getFirst(), reducer.apply(Arrays.asList(v1, v2))));
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<MultiWindowedElement<GROUP, LABEL, Pair<KEY, VALUE>>>
+    public TypeInformation<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>>
     getProducedType() {
       return TypeInformation.of((Class) MultiWindowedElement.class);
     }
@@ -246,33 +246,33 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
   /**
    * Performs non-incremental reduction (in case of non-combining reduce).
    */
-  private static class MultiWindowedElementWindowedReducer<GROUP, LABEL, KEY, VALUEIN, VALUEOUT>
+  private static class MultiWindowedElementWindowedReducer<LABEL, KEY, VALUEIN, VALUEOUT>
       implements WindowFunction<
-      MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>,
-      StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>,
+      MultiWindowedElement<?, Pair<KEY, VALUEIN>>,
+      StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>,
       KEY,
-      FlinkWindow<GROUP, LABEL>> {
+      FlinkWindow<LABEL>> {
 
     private final UnaryFunction<Iterable<VALUEIN>, VALUEOUT> reducer;
-    private final MultiWindowedElementWindowFunction<GROUP, LABEL, KEY, VALUEOUT> emissionFunction;
+    private final MultiWindowedElementWindowFunction<LABEL, KEY, VALUEOUT> emissionFunction;
 
     public MultiWindowedElementWindowedReducer(
         UnaryFunction<Iterable<VALUEIN>, VALUEOUT> reducer,
-        MultiWindowedElementWindowFunction<GROUP, LABEL, KEY, VALUEOUT> emissionFunction) {
+        MultiWindowedElementWindowFunction<LABEL, KEY, VALUEOUT> emissionFunction) {
       this.reducer = reducer;
       this.emissionFunction = emissionFunction;
     }
 
     @Override
     public void apply(KEY key,
-                      FlinkWindow<GROUP, LABEL> window,
-                      Iterable<MultiWindowedElement<?, ?, Pair<KEY, VALUEIN>>> input,
-                      Collector<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> collector)
+                      FlinkWindow<LABEL> window,
+                      Iterable<MultiWindowedElement<?, Pair<KEY, VALUEIN>>> input,
+                      Collector<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> collector)
         throws Exception {
 
       VALUEOUT reducedValue = reducer.apply(new IteratorIterable<>(
           Iterators.transform(input.iterator(), e -> e.get().getValue())));
-      MultiWindowedElement<Object, Object, Pair<KEY, VALUEOUT>> reduced =
+      MultiWindowedElement<Object, Pair<KEY, VALUEOUT>> reduced =
           new MultiWindowedElement<>(Collections.emptySet(), Pair.of(key, reducedValue));
       this.emissionFunction.apply(key, window,
           Collections.singletonList(reduced), collector);

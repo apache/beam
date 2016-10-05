@@ -9,7 +9,7 @@ import org.apache.flink.configuration.Configuration;
 import java.io.IOException;
 
 public class DataSinkWrapper<T>
-    implements OutputFormat<WindowedElement<?, ?, T>>
+    implements OutputFormat<WindowedElement<?, T>>
 {
   private final DataSink<T> dataSink;
 
@@ -30,7 +30,7 @@ public class DataSinkWrapper<T>
   }
 
   @Override
-  public void writeRecord(WindowedElement<?, ?, T> record) throws IOException {
+  public void writeRecord(WindowedElement<?, T> record) throws IOException {
     writer.write(record.get());
   }
 

@@ -9,10 +9,10 @@ import org.apache.flink.util.Collector;
 
 import java.util.Objects;
 
-public class UnaryFunctorWrapper<GROUP, LABEL, IN, OUT>
-    implements FlatMapFunction<WindowedElement<GROUP, LABEL, IN>,
-                               WindowedElement<GROUP, LABEL, OUT>>,
-               ResultTypeQueryable<WindowedElement<GROUP, LABEL, OUT>>
+public class UnaryFunctorWrapper<LABEL, IN, OUT>
+    implements FlatMapFunction<WindowedElement<LABEL, IN>,
+                               WindowedElement<LABEL, OUT>>,
+               ResultTypeQueryable<WindowedElement<LABEL, OUT>>
 {
   private final UnaryFunctor<IN, OUT> f;
 
@@ -21,17 +21,17 @@ public class UnaryFunctorWrapper<GROUP, LABEL, IN, OUT>
   }
 
   @Override
-  public void flatMap(WindowedElement<GROUP, LABEL, IN> value,
-                      Collector<WindowedElement<GROUP, LABEL, OUT>> out)
+  public void flatMap(WindowedElement<LABEL, IN> value,
+                      Collector<WindowedElement<LABEL, OUT>> out)
       throws Exception
   {
     f.apply(value.get(), elem -> {
-      out.collect(new WindowedElement(value.getWindowID(), elem));
+      out.collect(new WindowedElement<>(value.getWindowID(), elem));
     });
   }
 
   @Override
-  public TypeInformation<WindowedElement<GROUP, LABEL, OUT>> getProducedType() {
+  public TypeInformation<WindowedElement<LABEL, OUT>> getProducedType() {
     return TypeInformation.of((Class) WindowedElement.class);
   }
 }

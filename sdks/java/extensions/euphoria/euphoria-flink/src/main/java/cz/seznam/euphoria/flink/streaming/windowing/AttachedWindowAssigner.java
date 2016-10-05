@@ -11,26 +11,26 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import java.util.Collection;
 import java.util.Collections;
 
-public class AttachedWindowAssigner<GROUP, LABEL, T>
-    extends WindowAssigner<StreamingWindowedElement<GROUP, LABEL, T>,
-                           AttachedWindow<GROUP, LABEL>>
+public class AttachedWindowAssigner<LABEL, T>
+    extends WindowAssigner<StreamingWindowedElement<LABEL, T>,
+                           AttachedWindow<LABEL>>
 {
   @Override
-  public Collection<AttachedWindow<GROUP, LABEL>>
-  assignWindows(StreamingWindowedElement<GROUP, LABEL, T> element,
+  public Collection<AttachedWindow<LABEL>>
+  assignWindows(StreamingWindowedElement<LABEL, T> element,
                 long timestamp,
                 WindowAssignerContext context) {
     return Collections.singleton(new AttachedWindow<>(element));
   }
 
   @Override
-  public Trigger<StreamingWindowedElement<GROUP, LABEL, T>, AttachedWindow<GROUP, LABEL>>
+  public Trigger<StreamingWindowedElement<LABEL, T>, AttachedWindow<LABEL>>
   getDefaultTrigger(StreamExecutionEnvironment env) {
     return new AttachedWindowTrigger<>();
   }
 
   @Override
-  public TypeSerializer<AttachedWindow<GROUP, LABEL>> getWindowSerializer(ExecutionConfig executionConfig) {
+  public TypeSerializer<AttachedWindow<LABEL>> getWindowSerializer(ExecutionConfig executionConfig) {
     return new KryoSerializer<>((Class) AttachedWindow.class, executionConfig);
   }
 

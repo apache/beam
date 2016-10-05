@@ -13,10 +13,10 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import java.util.Objects;
 
 
-public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<GROUP, LABEL>> {
+public class FlinkWindowTrigger<LABEL, T> extends Trigger<T, FlinkWindow<LABEL>> {
 
-  private final Windowing<T, GROUP, LABEL, ?> windowing;
-  private final ValueStateDescriptor<WindowContext<GROUP, LABEL>> windowState;
+  private final Windowing<T, LABEL, ?> windowing;
+  private final ValueStateDescriptor<WindowContext<LABEL>> windowState;
 
   public FlinkWindowTrigger(Windowing windowing, ExecutionConfig cfg) {
     this.windowing = Objects.requireNonNull(windowing);
@@ -26,7 +26,7 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
 
   @Override
   public TriggerResult onElement(
-      T element, long timestamp, FlinkWindow<GROUP, LABEL> window, TriggerContext ctx)
+      T element, long timestamp, FlinkWindow<LABEL> window, TriggerContext ctx)
       throws Exception {
     return trackEmissionWatermark(
         window, ctx, onElementImpl(element, timestamp, window, ctx));
@@ -34,25 +34,25 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
 
   @Override
   public TriggerResult onProcessingTime(long time,
-                                        FlinkWindow<GROUP, LABEL> window,
+                                        FlinkWindow<LABEL> window,
                                         TriggerContext ctx) throws Exception {
     return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
   }
 
   @Override
   public TriggerResult onEventTime(long time,
-                                   FlinkWindow<GROUP, LABEL> window,
+                                   FlinkWindow<LABEL> window,
                                    TriggerContext ctx) throws Exception {
 
     return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
   }
 
   private TriggerResult onElementImpl(
-      T element, long timestamp, FlinkWindow<GROUP, LABEL> window, TriggerContext ctx)
+      T element, long timestamp, FlinkWindow<LABEL> window, TriggerContext ctx)
       throws Exception {
 
-    ValueState<WindowContext<GROUP, LABEL>> state = ctx.getPartitionedState(windowState);
-    WindowContext<GROUP, LABEL> wContext = state.value();
+    ValueState<WindowContext<LABEL>> state = ctx.getPartitionedState(windowState);
+    WindowContext<LABEL> wContext = state.value();
     if (wContext == null) {
       wContext = windowing.createWindowContext(window.getWindowID());
 
@@ -78,11 +78,11 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
   }
 
   private TriggerResult onTimeEvent(long time,
-                                    FlinkWindow<GROUP, LABEL> window,
+                                    FlinkWindow<LABEL> window,
                                     TriggerContext ctx) throws Exception {
 
-    ValueState<WindowContext<GROUP, LABEL>> state = ctx.getPartitionedState(windowState);
-    WindowContext<GROUP, LABEL> wContext = state.value();
+    ValueState<WindowContext<LABEL>> state = ctx.getPartitionedState(windowState);
+    WindowContext<LABEL> wContext = state.value();
     if (wContext == null) {
       wContext = windowing.createWindowContext(window.getWindowID());
     }
@@ -123,7 +123,7 @@ public class FlinkWindowTrigger<GROUP, LABEL, T> extends Trigger<T, FlinkWindow<
     }
   }
 
-  private TriggerResult trackEmissionWatermark(FlinkWindow<GROUP, LABEL> window,
+  private TriggerResult trackEmissionWatermark(FlinkWindow<LABEL> window,
                                                TriggerContext ctx,
                                                TriggerResult r)
   {

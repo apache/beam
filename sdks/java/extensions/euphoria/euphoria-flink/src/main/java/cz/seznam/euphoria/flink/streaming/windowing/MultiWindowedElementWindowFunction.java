@@ -13,21 +13,21 @@ import org.apache.flink.util.Collector;
  * the emitted window-id stored on the elements corresponds correctly to the
  * emitted window.
  */
-public class MultiWindowedElementWindowFunction<GROUP, LABEL, KEY, VALUE>
+public class MultiWindowedElementWindowFunction<LABEL, KEY, VALUE>
     implements WindowFunction<
-    MultiWindowedElement<?, ?, Pair<KEY, VALUE>>,
-    StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>,
+    MultiWindowedElement<?, Pair<KEY, VALUE>>,
+    StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>,
     KEY,
-    FlinkWindow<GROUP, LABEL>> {
+    FlinkWindow<LABEL>> {
 
   @Override
   public void apply(
       KEY key,
-      FlinkWindow<GROUP, LABEL> window,
-      Iterable<MultiWindowedElement<?, ?, Pair<KEY, VALUE>>> input,
-      Collector<StreamingWindowedElement<GROUP, LABEL, WindowedPair<LABEL, KEY, VALUE>>> out) {
-    for (MultiWindowedElement<?, ?, Pair<KEY, VALUE>> i : input) {
-      WindowID<GROUP, LABEL> wid = window.getWindowID();
+      FlinkWindow<LABEL> window,
+      Iterable<MultiWindowedElement<?, Pair<KEY, VALUE>>> input,
+      Collector<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>> out) {
+    for (MultiWindowedElement<?, Pair<KEY, VALUE>> i : input) {
+      WindowID<LABEL> wid = window.getWindowID();
       out.collect(
           new StreamingWindowedElement<>(
               wid,

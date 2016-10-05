@@ -84,7 +84,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     // TODO in case of merging widows elements should be sorted by window label first
     // and windows having the same label should be given chance to merge
     // FIXME require keyExtractor to deliver `Comparable`s
-    DataSet<WindowedElement<?, ?, Pair>> reduced;
+    DataSet<WindowedElement<?, Pair>> reduced;
     reduced = tuples.groupBy(new TypedKeySelector<>())
         .reduceGroup(
             new TypedReducer(origOperator, stateFactory, stateStorageProvider))
@@ -97,7 +97,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           .partitionCustom(new PartitionerWrapper<>(
               origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (WindowedElement<?, ?, Pair> we) -> (Comparable) we.get().getKey(),
+                  (WindowedElement<?, Pair> we) -> (Comparable) we.get().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -106,11 +106,11 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   }
 
   private static class TypedKeySelector<LABEL, KEY>
-      implements KeySelector<WindowedElement<?, LABEL, ? extends Pair<KEY, ?>>, ComparablePair<LABEL, KEY>>,
+      implements KeySelector<WindowedElement<LABEL, ? extends Pair<KEY, ?>>, ComparablePair<LABEL, KEY>>,
       ResultTypeQueryable<ComparablePair<LABEL, KEY>>
   {
     @Override
-    public ComparablePair<LABEL, KEY> getKey(WindowedElement<?, LABEL, ? extends Pair<KEY, ?>> value) {
+    public ComparablePair<LABEL, KEY> getKey(WindowedElement<LABEL, ? extends Pair<KEY, ?>> value) {
       return ComparablePair.of(value.getWindowID().getLabel(), value.get().getKey());
     }
 
@@ -122,8 +122,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   }
 
   private static class TypedReducer
-          implements GroupReduceFunction<WindowedElement<?, ?, WindowedPair>, WindowedElement<?, ?, WindowedPair>>,
-          ResultTypeQueryable<WindowedElement<?, ?, Pair>>
+          implements GroupReduceFunction<WindowedElement<?, WindowedPair>, WindowedElement<?, WindowedPair>>,
+          ResultTypeQueryable<WindowedElement<?, Pair>>
   {
     private final Operator<?, ?> operator;
     private final StateFactory<?, State> stateFactory;
@@ -141,13 +141,13 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public void reduce(Iterable<WindowedElement<?, ?, WindowedPair>> values,
-                       org.apache.flink.util.Collector<WindowedElement<?, ?, WindowedPair>> out)
+    public void reduce(Iterable<WindowedElement<?, WindowedPair>> values,
+                       org.apache.flink.util.Collector<WindowedElement<?, WindowedPair>> out)
     {
-      Iterator<WindowedElement<?, ?, WindowedPair>> it = values.iterator();
+      Iterator<WindowedElement<?, WindowedPair>> it = values.iterator();
 
       // read the first element to obtain window metadata and key
-      WindowedElement<?, ?, WindowedPair> element = it.next();
+      WindowedElement<?, WindowedPair> element = it.next();
       final WindowID wid = element.getWindowID();
       final Object key = element.get().getKey();
 
@@ -172,7 +172,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<WindowedElement<?, ?, Pair>> getProducedType() {
+    public TypeInformation<WindowedElement<?, Pair>> getProducedType() {
       return TypeInformation.of((Class) WindowedElement.class);
     }
   }
