@@ -32,13 +32,11 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -81,17 +79,22 @@ public class MqttIOTest implements Serializable {
     PAssert.thatSingleton(output.apply("Count", Count.<byte[]>globally()))
         .isEqualTo(10L);
     PAssert.that(output).satisfies(new SerializableFunction<Iterable<byte[]>, Void>() {
+
+      int count = 0;
+
       @Override
       public Void apply(Iterable<byte[]> input) {
         for (byte[] element : input) {
           String inputString = new String(element);
-          Assert.assertEquals("This is a test", inputString);
+          Assert.assertEquals("This is test " + count, inputString);
+          count++;
         }
         return null;
       }
     });
 
     // produce messages on the broker in another thread
+    // This thread prevents to block the pipeline waiting for new messages
     Thread thread = new Thread() {
       public void run() {
         try {
@@ -107,7 +110,7 @@ public class MqttIOTest implements Serializable {
             MqttMessage message = new MqttMessage();
             message.setQos(0);
             message.setRetained(false);
-            message.setPayload("This is a test".getBytes());
+            message.setPayload(("This is test " + i).getBytes());
             client.publish("READ_TOPIC", message);
           }
           client.disconnect();
@@ -134,6 +137,10 @@ public class MqttIOTest implements Serializable {
     for (int i = 0; i < 100; i++) {
       data.add("Test".getBytes());
     }
+    // we use QoS 2 here to be sure the subscriber completely receive all messages before
+    // shutting down the MQTT broker.
+    // Quality of Service 2 indicates that a message should be delivered once. The message will
+    // be persisted to disk, and will be subject to a two-phase ack.
     pipeline.apply(Create.of(data))
         .apply(MqttIO.write()
             .withMqttConnectionConfiguration(
@@ -141,7 +148,7 @@ public class MqttIOTest implements Serializable {
                     "tcp://localhost:11883",
                     "BEAM_PIPELINE",
                     "WRITE_TOPIC"))
-            .withRetained(true).withQoS(2));
+            .withQoS(2));
     pipeline.run();
 
     Assert.assertEquals(100, messages.size());
@@ -160,12 +167,14 @@ public class MqttIOTest implements Serializable {
 
       @Override
       public void messageArrived(String topic, MqttMessage message) throws Exception {
-        messages.add(message);
+        synchronized (messages) {
+          messages.add(message);
+        }
       }
 
       @Override
       public void deliveryComplete(IMqttDeliveryToken token) {
-        System.out.println("Delivery complete");
+        // nothing to do
       }
     };
     client.connect();

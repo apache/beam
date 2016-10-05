@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import org.joda.time.Duration;
@@ -134,16 +135,11 @@ public class MqttIO {
     @Nullable abstract String clientId();
     @Nullable abstract String topic();
 
-    public static MqttConnectionConfiguration create(String serverUri, String clientId) {
-      checkNotNull(serverUri, "serverUri");
-      checkNotNull(clientId, "clientId");
-      return new AutoValue_MqttIO_MqttConnectionConfiguration(serverUri, clientId, null);
-    }
-
     public static MqttConnectionConfiguration create(String serverUri, String clientId,
                                                      String topic) {
       checkNotNull(serverUri, "serverUri");
       checkNotNull(clientId, "clientId");
+      checkNotNull(topic, "topic");
       return new AutoValue_MqttIO_MqttConnectionConfiguration(serverUri, clientId, topic);
     }
 
@@ -161,9 +157,6 @@ public class MqttIO {
     MqttClient getClient() throws Exception {
       MqttClient client = new MqttClient(serverUri(), clientId());
       client.connect();
-      if (topic() != null) {
-        client.subscribe(topic());
-      }
       return client;
     }
 
@@ -279,18 +272,16 @@ public class MqttIO {
     public Coder getDefaultOutputCoder() {
       return SerializableCoder.of(byte[].class);
     }
-
   }
 
   private static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<byte[]> {
 
     private final UnboundedMqttSource source;
 
-    private transient MqttClient client;
-    private transient byte[] current;
-    private transient Instant currentTimestamp;
-    private transient Instant watermark;
-    private transient BlockingQueue<KV<MqttMessage, Instant>> queue;
+    private MqttClient client;
+    private byte[] current;
+    private Instant currentTimestamp;
+    private BlockingQueue<KV<MqttMessage, Instant>> queue;
 
     private UnboundedMqttReader(UnboundedMqttSource source) {
       this.source = source;
@@ -300,21 +291,26 @@ public class MqttIO {
 
     @Override
     public boolean start() throws IOException {
-      LOGGER.info("Starting MQTT reader");
+      LOGGER.debug("Starting MQTT reader");
       Read spec = source.spec;
       try {
         client = spec.mqttConnectionConfiguration().getClient();
+        client.subscribe(spec.mqttConnectionConfiguration().topic());
         client.setCallback(new MqttCallback() {
           @Override
           public void connectionLost(Throwable cause) {
             LOGGER.warn("MQTT connection lost", cause);
+            try {
+              close();
+            } catch (Exception e) {
+              // nothing to do
+            }
           }
 
           @Override
           public void messageArrived(String topic, MqttMessage message) throws Exception {
-            LOGGER.info("Message arrived");
-            currentTimestamp = Instant.now();
-            queue.put(KV.of(message, currentTimestamp));
+            LOGGER.trace("Message arrived");
+            queue.put(KV.of(message, Instant.now()));
           }
 
           @Override
@@ -330,16 +326,12 @@ public class MqttIO {
 
     @Override
     public boolean advance() throws IOException {
-      LOGGER.info("Taking from the pending queue ({})", queue.size());
+      LOGGER.debug("Taking from the pending queue ({})", queue.size());
       try {
         KV<MqttMessage, Instant> message = queue.take();
         current = message.getKey().getPayload();
-        watermark = message.getValue();
-        if (current == null) {
-          return false;
-        } else {
-          return true;
-        }
+        currentTimestamp = message.getValue();
+        return true;
       } catch (InterruptedException e) {
         throw new IOException(e);
       }
@@ -347,7 +339,7 @@ public class MqttIO {
 
     @Override
     public void close() throws IOException {
-      LOGGER.info("Closing MQTT reader");
+      LOGGER.debug("Closing MQTT reader");
       try {
         if (client != null) {
           try {
@@ -356,14 +348,15 @@ public class MqttIO {
             client.close();
           }
         }
-      } catch (Exception e) {
-        throw new IOException(e);
+      } catch (MqttException mqttException) {
+        throw new IOException(mqttException);
       }
     }
 
     @Override
     public Instant getWatermark() {
-      return watermark;
+      // TODO use custom or better watermark
+      return Instant.now();
     }
 
     @Override
@@ -385,16 +378,16 @@ public class MqttIO {
     }
 
     @Override
-    public UnboundedMqttSource getCurrentSource() {
-      return source;
-    }
-
-    @Override
     public Instant getCurrentTimestamp() {
       if (current == null) {
         throw new NoSuchElementException();
       }
       return currentTimestamp;
+    }
+
+    @Override
+    public UnboundedMqttSource getCurrentSource() {
+      return source;
     }
 
   }
@@ -433,7 +426,7 @@ public class MqttIO {
 
     @Override
     public PDone apply(PCollection<byte[]> input) {
-      input.apply(ParDo.of(new MqttWriter(this)));
+      input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -449,16 +442,13 @@ public class MqttIO {
       builder.add(DisplayData.item("retained", retained()));
     }
 
-    /**
-     * MQTT writer.
-     */
-    private static class MqttWriter extends DoFn<byte[], Void> {
+    private static class WriteFn extends DoFn<byte[], Void> {
 
-      Write spec;
+      private final Write spec;
 
       private transient MqttClient client;
 
-      public MqttWriter(Write spec) {
+      public WriteFn(Write spec) {
         this.spec = spec;
       }
 
@@ -480,8 +470,11 @@ public class MqttIO {
       @Teardown
       public void closeMqttClient() throws Exception {
         if (client != null) {
-          client.disconnect();
-          client.close();
+          try {
+            client.disconnect();
+          } finally {
+            client.close();
+          }
         }
       }
 
