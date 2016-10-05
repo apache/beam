@@ -18,12 +18,13 @@
 
 package org.apache.beam.runners.dataflow.internal;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,7 +39,7 @@ public class DataflowUnboundedReadFromBoundedSourceTest {
     DataflowUnboundedReadFromBoundedSource<?> read = new
         DataflowUnboundedReadFromBoundedSource<>(new NoopNamedSource());
 
-    Assert.assertEquals("Read(NoopNamedSource)", read.getKindString());
+    assertEquals("Read(NoopNamedSource)", read.getKindString());
   }
 
   @Test
@@ -47,7 +48,7 @@ public class DataflowUnboundedReadFromBoundedSourceTest {
     DataflowUnboundedReadFromBoundedSource<?> read = new
         DataflowUnboundedReadFromBoundedSource<>(anonSource);
 
-    Assert.assertEquals("Read(AnonymousSource)", read.getKindString());
+    assertEquals("Read(AnonymousSource)", read.getKindString());
   }
 
   /** Source implementation only useful for its identity. */
