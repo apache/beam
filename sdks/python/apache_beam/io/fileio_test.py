@@ -138,7 +138,7 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, [])
 
   def test_read_entire_file_gzip_large(self):
-    lines = ['Line %d' % d for d in range(10 * 1000)]
+    lines = ['Line %d' % d for d in range(100 * 1000)]
     compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
@@ -188,146 +188,12 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, [])
 
   def test_read_entire_file_bzip2_large(self):
-    lines = ['Line %d' % d for d in range(10 * 1000)]
+    lines = ['Line %d' % d for d in range(100 * 1000)]
     compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
         compression_type=fileio.CompressionTypes.BZIP2)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, lines)
-
-  def test_read_entire_file_zlib(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        compression_type=fileio.CompressionTypes.ZLIB)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, lines)
-
-  def test_read_entire_file_zlib_auto(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(file_path=self.create_temp_file(
-        data, suffix='.Z'))
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, lines)
-
-  def test_read_entire_file_zlib_empty(self):
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('') + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        compression_type=fileio.CompressionTypes.ZLIB)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, [])
-
-  def test_read_entire_file_zlib_large(self):
-    lines = ['Line %d' % d for d in range(10 * 1000)]
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        compression_type=fileio.CompressionTypes.ZLIB)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, lines)
-
-  def test_skip_entire_file_zlib(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        start_offset=1,  # Anything other than 0 should lead to a null-read.
-        compression_type=fileio.CompressionTypes.ZLIB)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, [])
-
-  def test_skip_entire_file_bzip2(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor()
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        start_offset=1,  # Anything other than 0 should lead to a null-read.
-        compression_type=fileio.CompressionTypes.BZIP2)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, [])
-
-  def test_skip_entire_file_gzip(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        start_offset=1,  # Anything other than 0 should lead to a null-read.
-        compression_type=fileio.CompressionTypes.GZIP)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, [])
-
-  def test_consume_entire_file_gzip(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        end_offset=1,  # Any end_offset should effectively be ignored.
-        compression_type=fileio.CompressionTypes.GZIP)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, lines)
-
-  def test_consume_entire_file_bzip2(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = bz2.BZ2Compressor()
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        end_offset=1,  # Any end_offset should effectively be ignored.
-        compression_type=fileio.CompressionTypes.BZIP2)
-    read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
-    self.assertEqual(read_lines, lines)
-
-  def test_consume_entire_file_zlib(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        end_offset=1,  # Any end_offset should effectively be ignored.
-        compression_type=fileio.CompressionTypes.ZLIB)
     read_lines = []
     with source.reader() as reader:
       for line in reader:
@@ -387,25 +253,6 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(len(progress_record), 3)
     self.assertEqual(progress_record, [0, 6, 13])
 
-  def test_progress_entire_file_zlib(self):
-    lines = ['First', 'Second', 'Third']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        compression_type=fileio.CompressionTypes.ZLIB)
-    progress_record = []
-    with source.reader() as reader:
-      self.assertEqual(-1, reader.get_progress().position.byte_offset)
-      for line in reader:
-        self.assertIsNotNone(line)
-        progress_record.append(reader.get_progress().position.byte_offset)
-      self.assertEqual(18,  # Reading the entire contents before we decide EOF.
-                       reader.get_progress().position.byte_offset)
-
-    self.assertEqual(len(progress_record), 3)
-    self.assertEqual(progress_record, [0, 6, 13])
-
   def try_splitting_reader_at(self, reader, split_request, expected_response):
     actual_response = reader.request_dynamic_split(split_request)
 
@@ -421,10 +268,20 @@ class TestTextFileSource(unittest.TestCase):
 
       return actual_response
 
-  def test_gzip_file_unsplittable(self):
+  def test_file_unsplittable_gzip(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
     compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS | 16)
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
+
+    with self.assertRaises(ValueError):  # Unsplittable initially.
+      source = fileio.TextFileSource(
+          file_path=self.create_temp_file(data),
+          compression_type=fileio.CompressionTypes.GZIP,
+          start_offset=1)  # Anything other than 0 will do.
+      with source.reader():
+        pass
+
+    # Unsplittable dynamically.
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
         compression_type=fileio.CompressionTypes.GZIP)
@@ -451,44 +308,23 @@ class TestTextFileSource(unittest.TestCase):
                 dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
-  def test_bzip2_file_unsplittable(self):
+  def test_file_unsplittable_bzip2(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
     compressor = bz2.BZ2Compressor()
     data = compressor.compress('\n'.join(lines)) + compressor.flush()
+
+    with self.assertRaises(ValueError):  # Unsplittable initially.
+      source = fileio.TextFileSource(
+          file_path=self.create_temp_file(data),
+          compression_type=fileio.CompressionTypes.BZIP2,
+          start_offset=1)  # Anything other than 0 will do.
+      with source.reader():
+        pass
+
+    # Unsplittable dynamically.
     source = fileio.TextFileSource(
         file_path=self.create_temp_file(data),
         compression_type=fileio.CompressionTypes.BZIP2)
-
-    with source.reader() as reader:
-      percents_complete = [x / 100.0 for x in range(101)]
-
-      # Cursor at beginning of file.
-      for percent_complete in percents_complete:
-        self.try_splitting_reader_at(
-            reader,
-            dataflow_io.DynamicSplitRequest(
-                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
-            None)
-
-      # Cursor passed beginning of file.
-      reader_iter = iter(reader)
-      next(reader_iter)
-      next(reader_iter)
-      for percent_complete in percents_complete:
-        self.try_splitting_reader_at(
-            reader,
-            dataflow_io.DynamicSplitRequest(
-                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
-            None)
-
-  def test_zlib_file_unsplittable(self):
-    lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
-    compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
-    data = compressor.compress('\n'.join(lines)) + compressor.flush()
-    source = fileio.TextFileSource(
-        file_path=self.create_temp_file(data),
-        compression_type=fileio.CompressionTypes.ZLIB)
-
     with source.reader() as reader:
       percents_complete = [x / 100.0 for x in range(101)]
 
@@ -811,33 +647,6 @@ class TestNativeTextFileSink(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
-  def test_write_text_zlib_file(self):
-    sink = fileio.NativeTextFileSink(
-        self.path, compression_type=fileio.CompressionTypes.ZLIB)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      self.assertEqual(
-          zlib.decompress(f.read(), zlib.MAX_WBITS).splitlines(), self.lines)
-
-  def test_write_text_zlib_file_auto(self):
-    self.path = tempfile.NamedTemporaryFile(suffix='.Z').name
-    sink = fileio.NativeTextFileSink(self.path)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      self.assertEqual(
-          zlib.decompress(f.read(), zlib.MAX_WBITS).splitlines(), self.lines)
-
-  def test_write_text_zlib_file_empty(self):
-    sink = fileio.NativeTextFileSink(
-        self.path, compression_type=fileio.CompressionTypes.ZLIB)
-    self._write_lines(sink, [])
-
-    with open(self.path, 'r') as f:
-      self.assertEqual(
-          zlib.decompress(f.read(), zlib.MAX_WBITS).splitlines(), [])
-
 
 class MyFileSink(fileio.FileSink):
 
@@ -981,6 +790,7 @@ class TestFileSink(unittest.TestCase):
     os.remove(res2)
     with self.assertRaises(IOError):
       list(sink.finalize_write(init_token, [res1, res2]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

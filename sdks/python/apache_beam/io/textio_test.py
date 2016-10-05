@@ -17,13 +17,13 @@
 
 """Tests for textio module."""
 
+import bz2
 import glob
 import gzip
 import logging
 import os
 import tempfile
 import unittest
-import zlib
 
 import apache_beam as beam
 import apache_beam.io.source_test_utils as source_test_utils
@@ -261,6 +261,44 @@ class TextSourceTest(unittest.TestCase):
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 
+  def test_read_auto_bzip2(self):
+    _, lines = write_data(15)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template, suffix='.bz2').name
+    with bz2.BZFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(file_name)
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_auto_gzip(self):
+    _, lines = write_data(15)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template, suffix='.gz').name
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(file_name)
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_bzip2(self):
+    _, lines = write_data(15)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with bz2.BZFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name,
+        compression_type=CompressionTypes.BZIP2)
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
   def test_read_gzip(self):
     _, lines = write_data(15)
     file_name = tempfile.NamedTemporaryFile(
@@ -355,6 +393,22 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
+  def test_write_bzip2_file(self):
+    sink = TextSink(
+        self.path, compression_type=CompressionTypes.BZIP2)
+    self._write_lines(sink, self.lines)
+
+    with bz2.BZ2File(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), self.lines)
+
+  def test_write_bzip2_file_auto(self):
+    self.path = tempfile.NamedTemporaryFile(suffix='.bz2').name
+    sink = TextSink(self.path)
+    self._write_lines(sink, self.lines)
+
+    with bz2.BZ2File(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), self.lines)
+
   def test_write_gzip_file(self):
     sink = TextSink(
         self.path, compression_type=CompressionTypes.GZIP)
@@ -378,36 +432,6 @@ class TextSinkTest(unittest.TestCase):
 
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
-
-  def test_write_zlib_file(self):
-    sink = TextSink(
-        self.path, compression_type=CompressionTypes.ZLIB)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      content = f.read()
-      self.assertEqual(
-          zlib.decompress(content, zlib.MAX_WBITS).splitlines(), self.lines)
-
-  def test_write_zlib_file_auto(self):
-    self.path = tempfile.NamedTemporaryFile(suffix='.Z').name
-    sink = TextSink(self.path)
-    self._write_lines(sink, self.lines)
-
-    with open(self.path, 'r') as f:
-      content = f.read()
-      self.assertEqual(
-          zlib.decompress(content, zlib.MAX_WBITS).splitlines(), self.lines)
-
-  def test_write_zlib_file_empty(self):
-    sink = TextSink(
-        self.path, compression_type=CompressionTypes.ZLIB)
-    self._write_lines(sink, [])
-
-    with open(self.path, 'r') as f:
-      content = f.read()
-      self.assertEqual(
-          zlib.decompress(content, zlib.MAX_WBITS).splitlines(), [])
 
   def test_write_dataflow(self):
     pipeline = beam.Pipeline('DirectPipelineRunner')

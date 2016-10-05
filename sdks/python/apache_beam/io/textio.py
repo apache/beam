@@ -174,10 +174,14 @@ class ReadFromText(PTransform):
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0,
-               compression_type=fileio.CompressionTypes.UNCOMPRESSED,
-               strip_trailing_newlines=True,
-               coder=coders.StrUtf8Coder(), **kwargs):
+  def __init__(
+      self,
+      file_pattern=None,
+      min_bundle_size=0,
+      compression_type=fileio.CompressionTypes.AUTO,
+      strip_trailing_newlines=True,
+      coder=coders.StrUtf8Coder(),
+      **kwargs):
     """Initialize the ReadFromText transform.
 
     Args:
@@ -187,8 +191,9 @@ class ReadFromText(PTransform):
       min_bundle_size: Minimum size of bundles that should be generated when
                        splitting this source into bundles. See
                        ``FileBasedSource`` for more details.
-      compression_type: Used to handle compressed input files. Should be an
-                        object of type fileio.CompressionTypes.
+      compression_type: Used to handle compressed input files. Typical value
+          is CompressionTypes.AUTO, in which case the underlying file_path's
+          extension will be used to detect the compression.
       strip_trailing_newlines: Indicates whether this source should remove
                                the newline char in each line it reads before
                                decoding that line.
@@ -196,33 +201,25 @@ class ReadFromText(PTransform):
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._file_pattern = file_pattern
-    self._min_bundle_size = min_bundle_size
-    self._compression_type = compression_type
-    self._strip_trailing_newlines = strip_trailing_newlines
-    self._coder = coder
+    self._args = (file_pattern, min_bundle_size, compression_type,
+                  strip_trailing_newlines, coder)
 
-  def apply(self, pcoll):
-    return pcoll | Read(_TextSource(
-        self._file_pattern,
-        self._min_bundle_size,
-        self._compression_type,
-        self._strip_trailing_newlines,
-        self._coder))
+  def apply(self, pvalue):
+    return pvalue.pipeline | Read(_TextSource(*self._args))
 
 
 class WriteToText(PTransform):
   """A PTransform for writing to text files."""
 
-  def __init__(self,
-               file_path_prefix,
-               file_name_suffix='',
-               append_trailing_newlines=True,
-               num_shards=0,
-               shard_name_template=None,
-               coder=coders.ToStringCoder(),
-               compression_type=fileio.CompressionTypes.NO_COMPRESSION,
-              ):
+  def __init__(
+      self,
+      file_path_prefix,
+      file_name_suffix='',
+      append_trailing_newlines=True,
+      num_shards=0,
+      shard_name_template=None,
+      coder=coders.ToStringCoder(),
+      compression_type=fileio.CompressionTypes.AUTO):
     """Initialize a WriteToText PTransform.
 
     Args:
@@ -248,19 +245,15 @@ class WriteToText(PTransform):
         case it behaves as if num_shards was set to 1 and only one file will be
         generated. The default pattern used is '-SSSSS-of-NNNNN'.
       coder: Coder used to encode each line.
-      compression_type: Type of compression to use for this sink.
+      compression_type: Used to handle compressed output files. Typical value
+          is CompressionTypes.AUTO, in which case the final file path's
+          extension (as determined by file_path_prefix, file_name_suffix,
+          num_shards and shard_name_template) will be used to detect the
+          compression.
     """
 
-    self._file_path_prefix = file_path_prefix
-    self._file_name_suffix = file_name_suffix
-    self._append_trailing_newlines = append_trailing_newlines
-    self._num_shards = num_shards
-    self._shard_name_template = shard_name_template
-    self._coder = coder
-    self._compression_type = compression_type
+    self._args = (file_path_prefix, file_name_suffix, append_trailing_newlines,
+                  num_shards, shard_name_template, coder, compression_type)
 
   def apply(self, pcoll):
-    return pcoll | Write(_TextSink(
-        self._file_path_prefix, self._file_name_suffix,
-        self._append_trailing_newlines, self._num_shards,
-        self._shard_name_template, self._coder, self._compression_type))
+    return pcoll | Write(_TextSink(*self._args))
