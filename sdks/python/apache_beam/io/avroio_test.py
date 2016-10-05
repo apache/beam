@@ -213,7 +213,7 @@ class TestAvro(unittest.TestCase):
 
   def test_corrupted_file(self):
     file_name = self._write_data()
-    with open(file_name, 'r') as f:
+    with open(file_name, 'rb') as f:
       data = bytearray(f.read())
 
     # Corrupt the last character of the file which is also the last character of
