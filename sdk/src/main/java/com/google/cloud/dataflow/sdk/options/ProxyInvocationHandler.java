@@ -386,7 +386,6 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
     return wrapped.substring(1, wrapped.length() - 1);
   }
 
-
   /**
    * Marker interface used when the original {@link PipelineOptions} interface is not known at
    * runtime. This can occur if {@link PipelineOptions} are deserialized from JSON.
