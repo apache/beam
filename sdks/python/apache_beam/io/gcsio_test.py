@@ -346,12 +346,11 @@ class TestGCSIO(unittest.TestCase):
     lines = []
     line_count = 10
     for _ in range(line_count):
-      line_length = random.randint(100,500)
+      line_length = random.randint(100, 500)
       line = os.urandom(line_length).replace('\n', ' ') + '\n'
       lines.append(line)
 
     contents = ''.join(lines)
-    file_size = len(contents)
     bucket, name = gcsio.parse_gcs_path(file_name)
     self.client.objects.add_file(FakeFile(bucket, name, contents, 1))
 
@@ -361,13 +360,14 @@ class TestGCSIO(unittest.TestCase):
     read_lines = 0
     while True:
       try:
-        next_line = next(f)
+        next(f)
         read_lines += 1
         if read_lines > 10:
           break
       except StopIteration:
         stop_it_thrown = True
         break
+
     self.assertEqual(read_lines, line_count)
     self.assertTrue(stop_it_thrown)
 
