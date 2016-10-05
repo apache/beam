@@ -40,20 +40,16 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -274,6 +270,36 @@ public class MqttIO {
     }
   }
 
+  /**
+   * POJO used to store MQTT message and its timestamp.
+   */
+  private static class MqttMessageWithTimestamp {
+
+    private MqttMessage message;
+    private Instant timestamp;
+
+    public MqttMessageWithTimestamp(MqttMessage message, Instant timestamp) {
+      this.message = message;
+      this.timestamp = timestamp;
+    }
+
+    public MqttMessage getMessage() {
+      return message;
+    }
+
+    public void setMessage(MqttMessage message) {
+      this.message = message;
+    }
+
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+
+    public void setTimestamp(Instant timestamp) {
+      this.timestamp = timestamp;
+    }
+  }
+
   private static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<byte[]> {
 
     private final UnboundedMqttSource source;
@@ -281,7 +307,7 @@ public class MqttIO {
     private MqttClient client;
     private byte[] current;
     private Instant currentTimestamp;
-    private BlockingQueue<KV<MqttMessage, Instant>> queue;
+    private BlockingQueue<MqttMessageWithTimestamp> queue;
 
     private UnboundedMqttReader(UnboundedMqttSource source) {
       this.source = source;
@@ -310,7 +336,7 @@ public class MqttIO {
           @Override
           public void messageArrived(String topic, MqttMessage message) throws Exception {
             LOGGER.trace("Message arrived");
-            queue.put(KV.of(message, Instant.now()));
+            queue.put(new MqttMessageWithTimestamp(message, Instant.now()));
           }
 
           @Override
@@ -328,9 +354,9 @@ public class MqttIO {
     public boolean advance() throws IOException {
       LOGGER.debug("Taking from the pending queue ({})", queue.size());
       try {
-        KV<MqttMessage, Instant> message = queue.take();
-        current = message.getKey().getPayload();
-        currentTimestamp = message.getValue();
+        MqttMessageWithTimestamp message = queue.take();
+        current = message.getMessage().getPayload();
+        currentTimestamp = message.getTimestamp();
         return true;
       } catch (InterruptedException e) {
         throw new IOException(e);
